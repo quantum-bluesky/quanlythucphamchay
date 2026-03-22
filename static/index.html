@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quản lý thực phẩm chay</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero-panel">
+      <div>
+        <p class="eyebrow">MVP tồn kho cá nhân</p>
+        <h1>Quản lý nhanh đồ thực phẩm chay</h1>
+        <p class="hero-copy">
+          Một màn hình để xem tồn kho, nhập hàng và xuất hàng trong vài giây.
+          Tối ưu cho thao tác nhanh trên điện thoại và máy tính.
+        </p>
+      </div>
+      <div class="hero-stats" id="summaryCards"></div>
+    </section>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <section class="panel quick-panel" id="quickPanel">
+      <div class="panel-heading">
+        <div>
+          <p class="panel-kicker">Thao tác chính</p>
+          <h2>Nhập / xuất thật nhanh</h2>
+        </div>
+        <div class="quick-panel-tools">
+          <p class="panel-note">Chọn sản phẩm, nhập số lượng, bấm một nút.</p>
+          <button type="button" id="quickPanelToggle" class="ghost-button quick-toggle" aria-expanded="true" aria-controls="quickPanelBody">Thu gọn</button>
+        </div>
+      </div>
+
+      <div id="quickPanelBody" class="quick-panel-body">
+        <form id="quickTransactionForm" class="quick-form">
+          <label>
+            <span>Sản phẩm</span>
+            <select id="productSelect" name="product_id" required></select>
+          </label>
+          <label>
+            <span>Số lượng</span>
+            <input id="quantityInput" name="quantity" type="number" step="0.01" min="0.01" placeholder="Ví dụ: 10" required>
+          </label>
+          <label>
+            <span>Ghi chú</span>
+            <input id="noteInput" name="note" type="text" maxlength="120" placeholder="Tùy chọn">
+          </label>
+          <div class="action-row">
+            <button type="button" class="primary-button" data-transaction="in">Nhập kho</button>
+            <button type="button" class="secondary-button" data-transaction="out">Xuất kho</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="panel-kicker">Dashboard</p>
+          <h2>Tồn kho hiện tại</h2>
+        </div>
+        <label class="search-box">
+          <span class="sr-only">Tìm sản phẩm</span>
+          <input id="searchInput" type="search" placeholder="Tìm sản phẩm...">
+        </label>
+      </div>
+      <div id="productGrid" class="product-grid"></div>
+    </section>
+
+    <section class="split-layout">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Product Master</p>
+            <h2>Thêm sản phẩm</h2>
+          </div>
+          <p class="panel-note">Chỉ cần tên, loại và đơn vị tính.</p>
+        </div>
+        <form id="productForm" class="product-form">
+          <label>
+            <span>Tên sản phẩm</span>
+            <input name="name" type="text" maxlength="80" placeholder="Ví dụ: Chả lụa chay" required>
+          </label>
+          <label>
+            <span>Loại thực phẩm</span>
+            <input name="category" type="text" maxlength="50" value="Đồ chay đông lạnh" required>
+          </label>
+          <label>
+            <span>Đơn vị tính</span>
+            <input name="unit" type="text" maxlength="20" value="gói" required>
+          </label>
+          <label>
+            <span>Cảnh báo sắp hết</span>
+            <input name="low_stock_threshold" type="number" step="0.01" min="0.01" value="5" required>
+          </label>
+          <button type="submit" class="primary-button wide-button">Lưu sản phẩm</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Lịch sử gần đây</p>
+            <h2>Nhập / xuất mới nhất</h2>
+          </div>
+          <p class="panel-note">Giúp kiểm tra lại nếu vừa cập nhật hôm qua.</p>
+        </div>
+        <div id="transactionList" class="transaction-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
