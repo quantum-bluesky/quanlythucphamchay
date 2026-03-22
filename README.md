@@ -7,6 +7,11 @@
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
 - Quản lý giá nhập nhanh ngay trên từng sản phẩm và tính giá trị tồn
 - Nhập kho / xuất kho nhanh từ một form chính hoặc nút tắt trên từng thẻ sản phẩm
+- Quản lý khách hàng, giỏ hàng nháp và checkout nhiều mặt hàng trong một lần
+- Lưu giỏ hàng đang chờ trên trình duyệt, đóng app mở lại vẫn còn
+- In nhanh danh sách hàng và tổng tiền cho khách ngay từ giỏ hàng hoặc từ lịch sử đơn
+- Giao diện theo menu nghiệp vụ riêng cho tồn kho, tạo đơn, đơn hàng, khách hàng và sản phẩm
+- Các màn chọn đối tượng đều có ô tìm kiếm/gõ tên để thao tác nhanh trên điện thoại
 - Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, ngưỡng cảnh báo
 - Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất
 

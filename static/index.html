@@ -8,75 +8,200 @@
 </head>
 <body>
   <main class="app-shell">
-    <section class="hero-panel">
+    <section class="hero-panel hero-compact">
       <div>
-        <p class="eyebrow">MVP tồn kho cá nhân</p>
-        <h1>Quản lý nhanh đồ thực phẩm chay</h1>
-        <p class="hero-copy">
-          Một màn hình để xem tồn kho, nhập hàng, xuất hàng và cập nhật giá nhanh trên điện thoại hoặc máy tính.
-        </p>
+        <p class="eyebrow">Quản lý nhanh trên điện thoại</p>
+        <h1>Kho, đơn hàng và khách hàng</h1>
+        <p class="hero-copy">Chọn đúng menu nghiệp vụ để chỉ hiện phần liên quan, giảm nhầm lẫn khi thao tác trên màn hình nhỏ.</p>
       </div>
-      <div class="hero-stats" id="summaryCards"></div>
     </section>
 
     <div id="toast" class="toast" hidden></div>
 
-    <section class="panel quick-panel" id="quickPanel">
-      <div class="panel-heading">
-        <div>
-          <p class="panel-kicker">Thao tác chính</p>
-          <h2>Nhập / xuất thật nhanh</h2>
-        </div>
-        <div class="quick-panel-tools">
-          <p class="panel-note">Chọn sản phẩm, nhập số lượng, bấm một nút.</p>
-          <button type="button" id="quickPanelToggle" class="ghost-button quick-toggle" aria-expanded="true" aria-controls="quickPanelBody">Thu gọn</button>
-        </div>
+    <nav class="panel menu-panel" id="menuPanel">
+      <div class="menu-grid">
+        <button type="button" class="menu-button is-active" data-menu="inventory">1. Kiểm tra tồn kho</button>
+        <button type="button" class="menu-button" data-menu="create-order">2. Tạo đơn xuất hàng</button>
+        <button type="button" class="menu-button" data-menu="orders">3. Quản lý đơn hàng</button>
+        <button type="button" class="menu-button" data-menu="customers">4. Quản lý khách hàng</button>
+        <button type="button" class="menu-button" data-menu="products">5. Quản lý sản phẩm</button>
       </div>
+    </nav>
 
-      <div id="quickPanelBody" class="quick-panel-body">
-        <form id="quickTransactionForm" class="quick-form">
-          <label>
-            <span>Sản phẩm</span>
-            <select id="productSelect" name="product_id" required></select>
-          </label>
-          <label>
-            <span>Số lượng</span>
-            <input id="quantityInput" name="quantity" type="number" step="0.01" min="0.01" placeholder="Ví dụ: 10" required>
-          </label>
-          <label>
-            <span>Ghi chú</span>
-            <input id="noteInput" name="note" type="text" maxlength="120" placeholder="Tùy chọn">
-          </label>
-          <div class="action-row">
-            <button type="button" class="primary-button" data-transaction="in">Nhập kho</button>
-            <button type="button" class="secondary-button" data-transaction="out">Xuất kho</button>
+    <section class="view-section is-active" data-menu-section="inventory">
+      <section class="panel quick-panel" id="quickPanel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Nhập / xuất nhanh</p>
+            <h2>Cập nhật tồn kho ngay</h2>
           </div>
-        </form>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-heading">
-        <div>
-          <p class="panel-kicker">Dashboard</p>
-          <h2>Tồn kho hiện tại</h2>
+          <div class="quick-panel-tools">
+            <p class="panel-note">Gõ tên sản phẩm, nhập số lượng và chọn nhập hoặc xuất.</p>
+            <button type="button" id="quickPanelToggle" class="ghost-button quick-toggle" aria-expanded="true" aria-controls="quickPanelBody">Thu gọn</button>
+          </div>
         </div>
-        <label class="search-box">
-          <span class="sr-only">Tìm sản phẩm</span>
-          <input id="searchInput" type="search" placeholder="Tìm sản phẩm...">
-        </label>
-      </div>
-      <div id="productGrid" class="product-grid"></div>
-    </section>
 
-    <section class="split-layout">
+        <div id="quickPanelBody" class="quick-panel-body">
+          <form id="quickTransactionForm" class="quick-form">
+            <label>
+              <span>Sản phẩm</span>
+              <input id="productLookupInput" name="product_lookup" list="productOptions" type="text" placeholder="Gõ tên sản phẩm..." required>
+            </label>
+            <label>
+              <span>Số lượng</span>
+              <input id="quantityInput" name="quantity" type="number" step="0.01" min="0.01" placeholder="Ví dụ: 10" required>
+            </label>
+            <label>
+              <span>Ghi chú</span>
+              <input id="noteInput" name="note" type="text" maxlength="120" placeholder="Tùy chọn">
+            </label>
+            <div class="action-row">
+              <button type="button" class="primary-button" data-transaction="in">Nhập kho</button>
+              <button type="button" class="secondary-button" data-transaction="out">Xuất kho</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel inventory-panel">
+        <div class="panel-heading inventory-heading">
+          <div>
+            <p class="panel-kicker">Tồn kho</p>
+            <h2>Danh sách mặt hàng</h2>
+          </div>
+          <div class="hero-stats" id="summaryCards"></div>
+        </div>
+
+        <div class="sticky-toolbar">
+          <label class="search-box">
+            <span class="sr-only">Tìm sản phẩm</span>
+            <input id="searchInput" type="search" placeholder="Tìm sản phẩm...">
+          </label>
+        </div>
+
+        <div id="productGrid" class="product-list"></div>
+      </section>
+
       <section class="panel">
         <div class="panel-heading">
           <div>
-            <p class="panel-kicker">Product Master</p>
-            <h2>Thêm sản phẩm</h2>
+            <p class="panel-kicker">Lịch sử gần đây</p>
+            <h2>Nhập / xuất mới nhất</h2>
           </div>
-          <p class="panel-note">Chỉ cần tên, loại, đơn vị, giá và ngưỡng cảnh báo.</p>
+          <p class="panel-note">Chỉ hiện lịch sử kho để đối chiếu nhanh.</p>
+        </div>
+        <div id="transactionList" class="transaction-list"></div>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="create-order">
+      <section class="panel sales-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Tạo đơn</p>
+            <h2>Giỏ hàng xuất cho khách</h2>
+          </div>
+          <p class="panel-note">Giỏ hàng nháp được lưu trên máy. Có thể rời app rồi quay lại tiếp tục.</p>
+        </div>
+
+        <article class="sales-customer-card">
+          <div class="sales-customer-form sales-customer-single">
+            <label>
+              <span>Khách hàng</span>
+              <input id="customerLookupInput" type="text" list="customerOptions" maxlength="80" placeholder="Gõ tên khách hàng để tìm hoặc tạo mới">
+            </label>
+            <button type="button" id="openCartButton" class="primary-button">Mở giỏ hàng</button>
+          </div>
+          <div class="sales-badge-row">
+            <div class="cart-badge">
+              <span>Giỏ đang chờ</span>
+              <strong id="draftCartBadge">0</strong>
+            </div>
+            <button type="button" class="ghost-button compact-button" data-go-menu="orders">Xem danh sách đơn</button>
+          </div>
+        </article>
+
+        <section id="activeCartPanel" class="active-cart-panel"></section>
+
+        <div class="sales-columns">
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Chọn hàng</p>
+                <h3>Danh sách để thêm vào giỏ</h3>
+              </div>
+            </div>
+            <div class="sticky-toolbar">
+              <label class="search-box">
+                <span class="sr-only">Tìm hàng để thêm vào giỏ</span>
+                <input id="salesSearchInput" type="search" placeholder="Tìm hàng để thêm vào giỏ...">
+              </label>
+            </div>
+            <div id="salesProductList" class="sales-product-list"></div>
+          </section>
+
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Giỏ hiện hành</p>
+                <h3>Các dòng hàng đã chọn</h3>
+              </div>
+            </div>
+            <div id="cartItemsList" class="cart-items-list"></div>
+          </section>
+        </div>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="orders">
+      <section class="panel orders-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Quản lý đơn hàng</p>
+            <h2>Giỏ hàng đang chờ và lịch sử đơn</h2>
+          </div>
+          <label class="toggle-inline">
+            <input id="showArchivedCarts" type="checkbox">
+            <span>Hiện đơn đã xong</span>
+          </label>
+        </div>
+        <div class="sticky-toolbar order-toolbar">
+          <label class="search-box">
+            <span class="sr-only">Tìm đơn hàng</span>
+            <input id="orderSearchInput" type="search" placeholder="Tìm theo khách hàng, mã đơn, mặt hàng...">
+          </label>
+        </div>
+        <div id="cartQueueList" class="cart-queue-list"></div>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="customers">
+      <section class="panel customers-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Khách hàng</p>
+            <h2>Danh bạ và thao tác nhanh</h2>
+          </div>
+          <p class="panel-note">Tìm khách, sửa tên, mở giỏ hàng hoặc xóa khỏi danh bạ.</p>
+        </div>
+        <div class="sticky-toolbar customer-toolbar">
+          <label class="search-box">
+            <span class="sr-only">Tìm khách hàng</span>
+            <input id="customerSearchInput" type="search" placeholder="Tìm khách hàng...">
+          </label>
+        </div>
+        <div id="customerList" class="customer-list"></div>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="products">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Sản phẩm</p>
+            <h2>Thêm mặt hàng mới</h2>
+          </div>
+          <p class="panel-note">Tách riêng phần tạo sản phẩm để màn hình mobile gọn và ít nhầm.</p>
         </div>
         <form id="productForm" class="product-form">
           <label>
@@ -102,18 +227,10 @@
           <button type="submit" class="primary-button wide-button">Lưu sản phẩm</button>
         </form>
       </section>
-
-      <section class="panel">
-        <div class="panel-heading">
-          <div>
-            <p class="panel-kicker">Lịch sử gần đây</p>
-            <h2>Nhập / xuất mới nhất</h2>
-          </div>
-          <p class="panel-note">Giúp kiểm tra lại nếu vừa cập nhật hôm qua.</p>
-        </div>
-        <div id="transactionList" class="transaction-list"></div>
-      </section>
     </section>
+
+    <datalist id="productOptions"></datalist>
+    <datalist id="customerOptions"></datalist>
   </main>
 
   <script src="/static/app.js" defer></script>

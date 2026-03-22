@@ -277,6 +277,60 @@ class InventoryStore:
 
         return self.get_product_by_id(int(product_id))
 
+    def update_product(
+        self,
+        product_id: int,
+        name: str,
+        category: str,
+        unit: str,
+        low_stock_threshold: str | int | float,
+        price: str | int | float = 0,
+    ) -> dict:
+        clean_name, clean_category, clean_unit, threshold, parsed_price = self._prepare_product_inputs(
+            name,
+            category,
+            unit,
+            low_stock_threshold,
+            price,
+        )
+        now = utc_now_iso()
+
+        with self._connect() as connection:
+            self._get_product_or_raise(connection, int(product_id))
+            try:
+                connection.execute(
+                    """
+                    UPDATE products
+                    SET name = ?, category = ?, unit = ?, price = ?, low_stock_threshold = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        clean_name,
+                        clean_category,
+                        clean_unit,
+                        parsed_price,
+                        threshold,
+                        now,
+                        int(product_id),
+                    ),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("Tên sản phẩm đã tồn tại.") from exc
+
+        return self.get_product_by_id(int(product_id))
+
+    def delete_product(self, product_id: int) -> None:
+        with self._connect() as connection:
+            self._get_product_or_raise(connection, int(product_id))
+            transaction_exists = connection.execute(
+                "SELECT 1 FROM transactions WHERE product_id = ? LIMIT 1",
+                (int(product_id),),
+            ).fetchone()
+            if transaction_exists:
+                raise ValueError("Sản phẩm đã có giao dịch, không thể xóa.")
+
+            connection.execute("DELETE FROM products WHERE id = ?", (int(product_id),))
+
     def reset_all_data(self) -> None:
         with self._connect() as connection:
             connection.execute("DELETE FROM transactions")
@@ -393,6 +447,193 @@ class InventoryStore:
             for row in rows
         ]
 
+    def create_checkout_order(
+        self,
+        customer_name: str,
+        items: list[dict],
+        note: str = "",
+    ) -> dict:
+        clean_customer_name = (customer_name or "").strip()
+        clean_note = (note or "").strip()
+        if not clean_customer_name:
+            raise ValueError("Khách hàng là bắt buộc.")
+        if not items:
+            raise ValueError("Giỏ hàng đang trống.")
+
+        grouped_items: dict[int, dict] = {}
+        for raw_item in items:
+            product_id = int(raw_item.get("product_id", 0))
+            quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
+            unit_price = parse_non_negative_decimal(raw_item.get("unit_price", 0), "Giá bán")
+            item_note = (raw_item.get("note", "") or "").strip()
+
+            existing = grouped_items.get(product_id)
+            if existing:
+                existing["quantity"] += quantity
+                existing["unit_price"] = unit_price
+                if item_note:
+                    existing["note"] = item_note
+            else:
+                grouped_items[product_id] = {
+                    "product_id": product_id,
+                    "quantity": quantity,
+                    "unit_price": unit_price,
+                    "note": item_note,
+                }
+
+        now = utc_now_iso()
+        order_suffix = hashlib.sha1(f"{clean_customer_name}-{now}".encode("utf-8")).hexdigest()[:6]
+        order_code = f"DH-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{order_suffix}"
+
+        with self._connect() as connection:
+            products_by_id: dict[int, sqlite3.Row] = {}
+            current_stock_by_id: dict[int, Decimal] = {}
+
+            for product_id, item in grouped_items.items():
+                product = self._get_product_or_raise(connection, product_id)
+                current_stock = self._get_stock_for_product(connection, product_id)
+                if item["quantity"] > current_stock:
+                    raise ValueError(
+                        f"Số lượng xuất của {product['name']} lớn hơn tồn kho hiện tại."
+                    )
+                products_by_id[product_id] = product
+                current_stock_by_id[product_id] = current_stock
+
+            transactions = []
+            total_amount = Decimal("0")
+            total_quantity = Decimal("0")
+
+            for product_id, item in grouped_items.items():
+                product = products_by_id[product_id]
+                line_total = item["quantity"] * item["unit_price"]
+                total_amount += line_total
+                total_quantity += item["quantity"]
+                transaction_note = (
+                    f"Đơn {order_code} | Khách: {clean_customer_name} | Giá bán: {float(item['unit_price']):.0f}"
+                )
+                if clean_note:
+                    transaction_note += f" | {clean_note}"
+                if item["note"]:
+                    transaction_note += f" | {item['note']}"
+
+                cursor = connection.execute(
+                    """
+                    INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                    VALUES(?, 'out', ?, ?, ?)
+                    """,
+                    (product_id, float(item["quantity"]), transaction_note, now),
+                )
+
+                remaining_stock = current_stock_by_id[product_id] - item["quantity"]
+                transactions.append(
+                    {
+                        "id": cursor.lastrowid,
+                        "product_id": product_id,
+                        "product_name": product["name"],
+                        "unit": product["unit"],
+                        "quantity": float(item["quantity"]),
+                        "unit_price": float(item["unit_price"]),
+                        "line_total": round(float(line_total), 2),
+                        "note": item["note"],
+                        "remaining_stock": round(float(remaining_stock), 2),
+                    }
+                )
+
+        return {
+            "order_code": order_code,
+            "customer_name": clean_customer_name,
+            "created_at": now,
+            "transactions": transactions,
+            "total_quantity": round(float(total_quantity), 2),
+            "total_amount": round(float(total_amount), 2),
+        }
+
+    def create_purchase_receipt(
+        self,
+        items: list[dict],
+        note: str = "",
+        supplier_name: str = "",
+    ) -> dict:
+        clean_note = (note or "").strip()
+        clean_supplier_name = (supplier_name or "").strip()
+        if not items:
+            raise ValueError("Phiếu nhập đang trống.")
+
+        grouped_items: dict[int, dict] = {}
+        for raw_item in items:
+            product_id = int(raw_item.get("product_id", 0))
+            quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
+            unit_cost = parse_non_negative_decimal(raw_item.get("unit_cost", 0), "Giá nhập")
+
+            existing = grouped_items.get(product_id)
+            if existing:
+                existing["quantity"] += quantity
+                existing["unit_cost"] = unit_cost
+            else:
+                grouped_items[product_id] = {
+                    "product_id": product_id,
+                    "quantity": quantity,
+                    "unit_cost": unit_cost,
+                }
+
+        now = utc_now_iso()
+        receipt_suffix = hashlib.sha1(f"{clean_supplier_name}-{clean_note}-{now}".encode("utf-8")).hexdigest()[:6]
+        receipt_code = f"PN-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{receipt_suffix}"
+
+        with self._connect() as connection:
+            transactions = []
+            total_amount = Decimal("0")
+            total_quantity = Decimal("0")
+
+            for product_id, item in grouped_items.items():
+                product = self._get_product_or_raise(connection, product_id)
+                line_total = item["quantity"] * item["unit_cost"]
+                total_amount += line_total
+                total_quantity += item["quantity"]
+
+                transaction_note = f"Phiếu nhập {receipt_code}"
+                if clean_supplier_name:
+                    transaction_note += f" | NCC: {clean_supplier_name}"
+                if clean_note:
+                    transaction_note += f" | {clean_note}"
+                transaction_note += f" | Giá nhập: {float(item['unit_cost']):.0f}"
+
+                cursor = connection.execute(
+                    """
+                    INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                    VALUES(?, 'in', ?, ?, ?)
+                    """,
+                    (product_id, float(item["quantity"]), transaction_note, now),
+                )
+
+                connection.execute(
+                    "UPDATE products SET price = ?, updated_at = ? WHERE id = ?",
+                    (float(item["unit_cost"]), now, product_id),
+                )
+
+                current_stock = self._get_stock_for_product(connection, product_id)
+                transactions.append(
+                    {
+                        "id": cursor.lastrowid,
+                        "product_id": product_id,
+                        "product_name": product["name"],
+                        "unit": product["unit"],
+                        "quantity": float(item["quantity"]),
+                        "unit_cost": float(item["unit_cost"]),
+                        "line_total": round(float(line_total), 2),
+                        "current_stock": round(float(current_stock), 2),
+                    }
+                )
+
+        return {
+            "receipt_code": receipt_code,
+            "supplier_name": clean_supplier_name,
+            "created_at": now,
+            "transactions": transactions,
+            "total_quantity": round(float(total_quantity), 2),
+            "total_amount": round(float(total_amount), 2),
+        }
+
     def _serialize_product_row(self, row: sqlite3.Row) -> dict:
         current_stock = round(float(row["current_stock"]), 2)
         threshold = round(float(row["low_stock_threshold"]), 2)
@@ -486,11 +727,67 @@ def create_handler(store: InventoryStore):
                     )
                     return
 
+                if self.path == "/api/orders/checkout":
+                    order = store.create_checkout_order(
+                        customer_name=payload.get("customer_name"),
+                        items=payload.get("items", []),
+                        note=payload.get("note", ""),
+                    )
+                    self._send_json(
+                        HTTPStatus.CREATED,
+                        {
+                            "message": "Đã chốt giỏ hàng và xuất kho.",
+                            "order": order,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
+                if self.path == "/api/purchases/receive":
+                    receipt = store.create_purchase_receipt(
+                        items=payload.get("items", []),
+                        note=payload.get("note", ""),
+                        supplier_name=payload.get("supplier_name", ""),
+                    )
+                    self._send_json(
+                        HTTPStatus.CREATED,
+                        {
+                            "message": "Đã nhập hàng vào kho.",
+                            "receipt": receipt,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
             except ValueError as exc:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
 
         def do_PUT(self) -> None:
+            product_match = re.fullmatch(r"/api/products/(\d+)$", urlparse(self.path).path)
+            if product_match:
+                try:
+                    payload = self._read_json_body()
+                    product = store.update_product(
+                        product_id=product_match.group(1),
+                        name=payload.get("name"),
+                        category=payload.get("category"),
+                        unit=payload.get("unit"),
+                        price=payload.get("price", 0),
+                        low_stock_threshold=payload.get("low_stock_threshold", 5),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã cập nhật sản phẩm.",
+                            "product": product,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
             match = re.fullmatch(r"/api/products/(\d+)/price", urlparse(self.path).path)
             if not match:
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
@@ -504,6 +801,24 @@ def create_handler(store: InventoryStore):
                     {
                         "message": "Đã cập nhật giá.",
                         "product": product,
+                        "summary": store.get_summary(),
+                    },
+                )
+            except ValueError as exc:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+
+        def do_DELETE(self) -> None:
+            match = re.fullmatch(r"/api/products/(\d+)$", urlparse(self.path).path)
+            if not match:
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
+                return
+
+            try:
+                store.delete_product(match.group(1))
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "message": "Đã xóa sản phẩm.",
                         "summary": store.get_summary(),
                     },
                 )
