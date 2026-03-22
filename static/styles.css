@@ -111,7 +111,7 @@ h2 {
 .summary-card strong {
   display: block;
   margin-top: 6px;
-  font-size: 1.8rem;
+  font-size: 1.5rem;
 }
 
 .panel {
@@ -282,7 +282,8 @@ button:active {
   color: var(--warning);
 }
 
-.stock-row {
+.stock-row,
+.price-row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -294,9 +295,30 @@ button:active {
   font-weight: 800;
 }
 
+.price-number {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
 .stock-caption {
   color: var(--muted);
   font-size: 0.95rem;
+}
+
+.price-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.price-tools input {
+  min-height: 46px;
+}
+
+.price-save {
+  min-height: 46px;
+  white-space: nowrap;
 }
 
 .quick-buttons {
@@ -429,6 +451,15 @@ button:active {
     max-height: 480px;
     opacity: 1;
     transition: max-height 180ms ease, opacity 160ms ease;
+  }
+
+  .price-row,
+  .stock-row,
+  .price-tools,
+  .transaction-item .top-line,
+  .transaction-item .bottom-line {
+    grid-template-columns: 1fr;
+    display: grid;
   }
 }
 

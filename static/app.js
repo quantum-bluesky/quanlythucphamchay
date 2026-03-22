@@ -22,8 +22,18 @@ const quantityFormatter = new Intl.NumberFormat("vi-VN", {
   maximumFractionDigits: 2,
 });
 
+const currencyFormatter = new Intl.NumberFormat("vi-VN", {
+  style: "currency",
+  currency: "VND",
+  maximumFractionDigits: 0,
+});
+
 function formatQuantity(value) {
   return quantityFormatter.format(Number(value || 0));
+}
+
+function formatCurrency(value) {
+  return currencyFormatter.format(Number(value || 0));
 }
 
 function formatDate(value) {
@@ -106,6 +116,11 @@ function renderSummary(summary) {
       hint: "Tổng số lượng đang có",
     },
     {
+      label: "Giá trị tồn",
+      value: formatCurrency(summary.total_inventory_value),
+      hint: "Theo giá nhập hiện tại",
+    },
+    {
       label: "Sắp hết",
       value: summary.low_stock_count,
       hint: "Cần ưu tiên kiểm tra",
@@ -184,6 +199,19 @@ function renderProducts() {
             </div>
           </div>
 
+          <div class="price-row">
+            <div>
+              <div class="stock-caption">Giá nhập</div>
+              <div class="price-number">${formatCurrency(product.price)}</div>
+            </div>
+            <div class="stock-caption">Giá trị tồn ${formatCurrency(product.inventory_value)}</div>
+          </div>
+
+          <div class="price-tools">
+            <input type="number" min="0" step="1000" value="${product.price}" data-price-input="${product.id}" placeholder="Giá nhập">
+            <button class="ghost-button price-save" data-save-price="${product.id}">Lưu giá</button>
+          </div>
+
           <div class="quick-buttons">
             <button class="negative" data-delta="-1" data-product="${product.id}">-1</button>
             <button class="negative" data-delta="-5" data-product="${product.id}">-5</button>
@@ -251,6 +279,15 @@ async function submitTransaction(transactionType, productId, quantity, note = ""
   showToast(data.message);
 }
 
+async function updateProductPrice(productId, price) {
+  const data = await apiRequest(`/api/products/${productId}/price`, {
+    method: "PUT",
+    body: JSON.stringify({ price: Number(price) }),
+  });
+  await refreshData();
+  showToast(data.message);
+}
+
 quickPanelToggle.addEventListener("click", () => {
   const collapsed = quickPanel.classList.contains("is-collapsed");
   setQuickPanelCollapsed(!collapsed);
@@ -284,6 +321,23 @@ quickTransactionForm.addEventListener("click", async (event) => {
 });
 
 productGrid.addEventListener("click", async (event) => {
+  const savePriceButton = event.target.closest("[data-save-price]");
+  if (savePriceButton) {
+    const productId = savePriceButton.dataset.savePrice;
+    const input = productGrid.querySelector(`[data-price-input="${productId}"]`);
+    if (!input || input.value === "") {
+      showToast("Hãy nhập giá hợp lệ.", true);
+      return;
+    }
+
+    try {
+      await updateProductPrice(productId, input.value);
+    } catch (error) {
+      showToast(error.message, true);
+    }
+    return;
+  }
+
   const prefillButton = event.target.closest("[data-prefill]");
   if (prefillButton) {
     prefillProduct(prefillButton.dataset.prefill);
@@ -306,6 +360,20 @@ productGrid.addEventListener("click", async (event) => {
   }
 });
 
+productGrid.addEventListener("keydown", async (event) => {
+  if (event.key !== "Enter" || !event.target.matches("[data-price-input]")) {
+    return;
+  }
+
+  event.preventDefault();
+  const input = event.target;
+  try {
+    await updateProductPrice(input.dataset.priceInput, input.value);
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
 productForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(productForm);
@@ -319,6 +387,7 @@ productForm.addEventListener("submit", async (event) => {
     productForm.reset();
     productForm.category.value = "Đồ chay đông lạnh";
     productForm.unit.value = "gói";
+    productForm.price.value = "0";
     productForm.low_stock_threshold.value = "5";
     await refreshData();
     productSelect.value = String(data.product.id);

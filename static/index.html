@@ -13,8 +13,7 @@
         <p class="eyebrow">MVP tồn kho cá nhân</p>
         <h1>Quản lý nhanh đồ thực phẩm chay</h1>
         <p class="hero-copy">
-          Một màn hình để xem tồn kho, nhập hàng và xuất hàng trong vài giây.
-          Tối ưu cho thao tác nhanh trên điện thoại và máy tính.
+          Một màn hình để xem tồn kho, nhập hàng, xuất hàng và cập nhật giá nhanh trên điện thoại hoặc máy tính.
         </p>
       </div>
       <div class="hero-stats" id="summaryCards"></div>
@@ -77,7 +76,7 @@
             <p class="panel-kicker">Product Master</p>
             <h2>Thêm sản phẩm</h2>
           </div>
-          <p class="panel-note">Chỉ cần tên, loại và đơn vị tính.</p>
+          <p class="panel-note">Chỉ cần tên, loại, đơn vị, giá và ngưỡng cảnh báo.</p>
         </div>
         <form id="productForm" class="product-form">
           <label>
@@ -91,6 +90,10 @@
           <label>
             <span>Đơn vị tính</span>
             <input name="unit" type="text" maxlength="20" value="gói" required>
+          </label>
+          <label>
+            <span>Giá nhập</span>
+            <input name="price" type="number" step="1000" min="0" value="0" required>
           </label>
           <label>
             <span>Cảnh báo sắp hết</span>
