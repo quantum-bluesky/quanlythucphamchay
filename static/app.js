@@ -3,6 +3,9 @@ const STORAGE_KEYS = {
   carts: "qltpchay.carts.v1",
   activeCartId: "qltpchay.active-cart.v1",
   activeMenu: "qltpchay.active-menu.v1",
+  purchases: "qltpchay.purchases.v1",
+  activePurchaseId: "qltpchay.active-purchase.v1",
+  menuCollapsed: "qltpchay.menu-collapsed.v1",
 };
 
 const state = {
@@ -13,14 +16,23 @@ const state = {
   salesSearchTerm: "",
   orderSearchTerm: "",
   customerSearchTerm: "",
+  productManageSearchTerm: "",
+  purchaseSearchTerm: "",
   customers: [],
   carts: [],
+  purchases: [],
   activeCartId: null,
+  activePurchaseId: null,
   activeMenu: "inventory",
   showArchivedCarts: false,
+  showPaidOrders: false,
   expandedProductId: null,
   editingPriceId: null,
   editingCustomerId: null,
+  editingProductId: null,
+  editingCustomerFormId: null,
+  menuCollapsed: false,
+  purchasePanelCollapsed: false,
 };
 
 const summaryCards = document.getElementById("summaryCards");
@@ -37,6 +49,7 @@ const noteInput = document.getElementById("noteInput");
 const quickPanel = document.getElementById("quickPanel");
 const quickPanelToggle = document.getElementById("quickPanelToggle");
 const menuPanel = document.getElementById("menuPanel");
+const menuToggleButton = document.getElementById("menuToggleButton");
 const viewSections = Array.from(document.querySelectorAll("[data-menu-section]"));
 const customerLookupInput = document.getElementById("customerLookupInput");
 const customerOptions = document.getElementById("customerOptions");
@@ -47,10 +60,28 @@ const salesProductList = document.getElementById("salesProductList");
 const activeCartPanel = document.getElementById("activeCartPanel");
 const cartItemsList = document.getElementById("cartItemsList");
 const showArchivedCarts = document.getElementById("showArchivedCarts");
+const showPaidOrders = document.getElementById("showPaidOrders");
 const orderSearchInput = document.getElementById("orderSearchInput");
 const cartQueueList = document.getElementById("cartQueueList");
+const customerForm = document.getElementById("customerForm");
+const customerNameInput = document.getElementById("customerNameInput");
+const customerPhoneInput = document.getElementById("customerPhoneInput");
+const customerAddressInput = document.getElementById("customerAddressInput");
+const customerZaloInput = document.getElementById("customerZaloInput");
+const customerFormCancelButton = document.getElementById("customerFormCancelButton");
 const customerSearchInput = document.getElementById("customerSearchInput");
 const customerList = document.getElementById("customerList");
+const productManageSearchInput = document.getElementById("productManageSearchInput");
+const productManageList = document.getElementById("productManageList");
+const productFormCancelButton = document.getElementById("productFormCancelButton");
+const purchaseSupplierInput = document.getElementById("purchaseSupplierInput");
+const purchaseNoteInput = document.getElementById("purchaseNoteInput");
+const createPurchaseDraftButton = document.getElementById("createPurchaseDraftButton");
+const togglePurchasePanelButton = document.getElementById("togglePurchasePanelButton");
+const purchasePanel = document.getElementById("purchasePanel");
+const purchaseSearchInput = document.getElementById("purchaseSearchInput");
+const purchaseSuggestionList = document.getElementById("purchaseSuggestionList");
+const purchaseOrderList = document.getElementById("purchaseOrderList");
 const mobileQuery = window.matchMedia("(max-width: 759px)");
 
 const quantityFormatter = new Intl.NumberFormat("vi-VN", {
@@ -139,6 +170,10 @@ function getDraftCarts() {
   return state.carts.filter((cart) => cart.status === "draft");
 }
 
+function getActivePurchase() {
+  return state.purchases.find((purchase) => purchase.id === state.activePurchaseId && purchase.status === "draft") || null;
+}
+
 function decorateCart(cart) {
   const items = Array.isArray(cart.items)
     ? cart.items
@@ -175,6 +210,7 @@ function decorateCart(cart) {
     customerId: cart.customerId || "",
     customerName: cart.customerName || "Khách lẻ",
     status: cart.status || "draft",
+    paymentStatus: cart.paymentStatus || "unpaid",
     items,
     itemCount: items.length,
     totalQuantity: Number(totalQuantity.toFixed(2)),
@@ -183,6 +219,7 @@ function decorateCart(cart) {
     updatedAt: cart.updatedAt || cart.createdAt || nowIso(),
     completedAt: cart.completedAt || null,
     cancelledAt: cart.cancelledAt || null,
+    paidAt: cart.paidAt || null,
     orderCode: cart.orderCode || "",
   };
 }
@@ -192,6 +229,9 @@ function syncSalesState() {
     .map((customer) => ({
       id: customer.id || createId("customer"),
       name: String(customer.name || "").trim(),
+      phone: String(customer.phone || "").trim(),
+      address: String(customer.address || "").trim(),
+      zaloUrl: String(customer.zaloUrl || customer.zalo_url || "").trim(),
       createdAt: customer.createdAt || nowIso(),
       updatedAt: customer.updatedAt || customer.createdAt || nowIso(),
     }))
@@ -202,6 +242,43 @@ function syncSalesState() {
     .map(decorateCart)
     .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
 
+  state.purchases = (Array.isArray(state.purchases) ? state.purchases : [])
+    .map((purchase) => ({
+      id: purchase.id || createId("purchase"),
+      supplierName: String(purchase.supplierName || "").trim(),
+      note: String(purchase.note || "").trim(),
+      status: purchase.status || "draft",
+      createdAt: purchase.createdAt || nowIso(),
+      updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
+      receivedAt: purchase.receivedAt || null,
+      receiptCode: purchase.receiptCode || "",
+      items: Array.isArray(purchase.items)
+        ? purchase.items
+            .map((item) => {
+              const product = getProductById(item.productId);
+              const quantity = Number(item.quantity);
+              const unitCost = Number(item.unitCost);
+              if (!Number.isFinite(quantity) || quantity <= 0) {
+                return null;
+              }
+              if (!Number.isFinite(unitCost) || unitCost < 0) {
+                return null;
+              }
+              return {
+                id: item.id || createId("purchase_item"),
+                productId: Number(item.productId),
+                productName: product?.name || item.productName || "Sản phẩm",
+                unit: product?.unit || item.unit || "",
+                quantity,
+                unitCost,
+                lineTotal: Number((quantity * unitCost).toFixed(2)),
+              };
+            })
+            .filter(Boolean)
+        : [],
+    }))
+    .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
+
   const activeDraftExists = state.carts.some(
     (cart) => cart.id === state.activeCartId && cart.status === "draft"
   );
@@ -209,17 +286,30 @@ function syncSalesState() {
     state.activeCartId = state.carts.find((cart) => cart.status === "draft")?.id || null;
   }
 
+  const activePurchaseExists = state.purchases.some(
+    (purchase) => purchase.id === state.activePurchaseId && purchase.status === "draft"
+  );
+  if (!activePurchaseExists) {
+    state.activePurchaseId = state.purchases.find((purchase) => purchase.status === "draft")?.id || null;
+  }
+
   writeStorage(STORAGE_KEYS.customers, state.customers);
   writeStorage(STORAGE_KEYS.carts, state.carts);
+  writeStorage(STORAGE_KEYS.purchases, state.purchases);
   writeStorage(STORAGE_KEYS.activeCartId, state.activeCartId);
+  writeStorage(STORAGE_KEYS.activePurchaseId, state.activePurchaseId);
   writeStorage(STORAGE_KEYS.activeMenu, state.activeMenu);
+  writeStorage(STORAGE_KEYS.menuCollapsed, state.menuCollapsed);
 }
 
 function loadSalesState() {
   state.customers = readStorage(STORAGE_KEYS.customers, []);
   state.carts = readStorage(STORAGE_KEYS.carts, []);
+  state.purchases = readStorage(STORAGE_KEYS.purchases, []);
   state.activeCartId = readStorage(STORAGE_KEYS.activeCartId, null);
+  state.activePurchaseId = readStorage(STORAGE_KEYS.activePurchaseId, null);
   state.activeMenu = readStorage(STORAGE_KEYS.activeMenu, "inventory");
+  state.menuCollapsed = readStorage(STORAGE_KEYS.menuCollapsed, false);
   syncSalesState();
 }
 
@@ -230,12 +320,19 @@ function saveAndRenderAll() {
 
 function switchMenu(menu) {
   state.activeMenu = menu;
+  if (mobileQuery.matches) {
+    state.menuCollapsed = true;
+  }
   writeStorage(STORAGE_KEYS.activeMenu, state.activeMenu);
+  writeStorage(STORAGE_KEYS.menuCollapsed, state.menuCollapsed);
   renderMenu();
   renderViewSections();
 }
 
 function renderMenu() {
+  menuPanel.classList.toggle("is-collapsed", state.menuCollapsed);
+  menuToggleButton.setAttribute("aria-expanded", state.menuCollapsed ? "false" : "true");
+  menuToggleButton.textContent = state.menuCollapsed ? "Mở menu" : "Thu gọn menu";
   menuPanel.querySelectorAll("[data-menu]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.menu === state.activeMenu);
   });
@@ -266,6 +363,65 @@ function ensureCustomer(name) {
   };
   state.customers.push(customer);
   return customer;
+}
+
+function upsertCustomer(payload, customerId = null) {
+  const cleanName = String(payload.name || "").trim();
+  const cleanPhone = String(payload.phone || "").trim();
+  const cleanAddress = String(payload.address || "").trim();
+  const cleanZaloUrl = String(payload.zaloUrl || payload.zalo_url || "").trim();
+
+  if (!cleanName) {
+    throw new Error("Tên khách hàng là bắt buộc.");
+  }
+
+  const duplicateByName = state.customers.find(
+    (customer) => customer.id !== customerId && normalizeText(customer.name) === normalizeText(cleanName)
+  );
+  if (duplicateByName) {
+    throw new Error("Tên khách hàng đã tồn tại.");
+  }
+
+  if (cleanPhone) {
+    const duplicateByPhone = state.customers.find(
+      (customer) => customer.id !== customerId && normalizeText(customer.phone) === normalizeText(cleanPhone)
+    );
+    if (duplicateByPhone) {
+      throw new Error("Số điện thoại khách hàng đã tồn tại.");
+    }
+  }
+
+  if (customerId) {
+    state.customers = state.customers.map((customer) =>
+      customer.id === customerId
+        ? {
+            ...customer,
+            name: cleanName,
+            phone: cleanPhone,
+            address: cleanAddress,
+            zaloUrl: cleanZaloUrl,
+            updatedAt: nowIso(),
+          }
+        : customer
+    );
+    state.carts = state.carts.map((cart) =>
+      cart.customerId === customerId
+        ? decorateCart({ ...cart, customerName: cleanName, updatedAt: nowIso() })
+        : cart
+    );
+  } else {
+    state.customers.push({
+      id: createId("customer"),
+      name: cleanName,
+      phone: cleanPhone,
+      address: cleanAddress,
+      zaloUrl: cleanZaloUrl,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    });
+  }
+
+  saveAndRenderAll();
 }
 
 function resolveProductFromText(text) {
@@ -535,6 +691,163 @@ function deleteCustomer(customerId) {
     customerLookupInput.value = "";
   }
   saveAndRenderAll();
+}
+
+function createPurchaseDraftIfMissing() {
+  let purchase = getActivePurchase();
+  if (!purchase) {
+    purchase = {
+      id: createId("purchase"),
+      supplierName: purchaseSupplierInput?.value?.trim() || "",
+      note: purchaseNoteInput?.value?.trim() || "",
+      status: "draft",
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      items: [],
+    };
+    state.purchases.unshift(purchase);
+    state.activePurchaseId = purchase.id;
+  }
+  return purchase;
+}
+
+function updatePurchase(purchaseId, updater) {
+  const index = state.purchases.findIndex((purchase) => purchase.id === purchaseId);
+  if (index === -1) {
+    throw new Error("Không tìm thấy phiếu nhập.");
+  }
+
+  const current = state.purchases[index];
+  const updated = {
+    ...current,
+    ...updater(current),
+    updatedAt: nowIso(),
+  };
+  updated.items = (updated.items || []).map((item) => ({
+    ...item,
+    lineTotal: Number((Number(item.quantity) * Number(item.unitCost)).toFixed(2)),
+  }));
+  state.purchases[index] = updated;
+  return updated;
+}
+
+function getDraftDemandByProductId() {
+  const demand = new Map();
+  state.carts
+    .filter((cart) => cart.status === "draft")
+    .forEach((cart) => {
+      cart.items.forEach((item) => {
+        demand.set(item.productId, (demand.get(item.productId) || 0) + Number(item.quantity));
+      });
+    });
+  return demand;
+}
+
+function getPurchaseSuggestions() {
+  const draftDemand = getDraftDemandByProductId();
+  return state.products
+    .map((product) => {
+      const demand = draftDemand.get(product.id) || 0;
+      const shortageFromOrders = Math.max(0, demand - Number(product.current_stock));
+      const lowStockGap = Math.max(0, Number(product.low_stock_threshold) - Number(product.current_stock));
+      const suggestedQuantity = Math.max(shortageFromOrders, lowStockGap);
+      return {
+        product,
+        demand,
+        shortageFromOrders,
+        suggestedQuantity,
+      };
+    })
+    .filter((entry) => entry.suggestedQuantity > 0 || entry.product.is_low_stock || entry.demand > 0);
+}
+
+function addSuggestionToPurchase(productId, quantity, unitCost) {
+  const product = getProductById(productId);
+  if (!product) {
+    throw new Error("Không tìm thấy sản phẩm.");
+  }
+
+  const purchase = createPurchaseDraftIfMissing();
+  updatePurchase(purchase.id, (currentPurchase) => {
+    const existing = currentPurchase.items.find((item) => item.productId === product.id);
+    let nextItems = currentPurchase.items;
+    if (existing) {
+      nextItems = currentPurchase.items.map((item) =>
+        item.productId === product.id
+          ? {
+              ...item,
+              quantity: Number((Number(item.quantity) + Number(quantity)).toFixed(2)),
+              unitCost: Number(unitCost),
+            }
+          : item
+      );
+    } else {
+      nextItems = [
+        ...currentPurchase.items,
+        {
+          id: createId("purchase_item"),
+          productId: product.id,
+          productName: product.name,
+          unit: product.unit,
+          quantity: Number(quantity),
+          unitCost: Number(unitCost),
+        },
+      ];
+    }
+    return {
+      supplierName: purchaseSupplierInput?.value?.trim() || currentPurchase.supplierName,
+      note: purchaseNoteInput?.value?.trim() || currentPurchase.note,
+      items: nextItems,
+    };
+  });
+  saveAndRenderAll();
+}
+
+function createPurchaseSuggestionFromCart(cart) {
+  const shortages = cart.items
+    .map((item) => {
+      const product = getProductById(item.productId);
+      const shortage = Math.max(0, Number(item.quantity) - Number(product?.current_stock || 0));
+      return {
+        item,
+        product,
+        shortage,
+      };
+    })
+    .filter((entry) => entry.shortage > 0 && entry.product);
+
+  if (!shortages.length) {
+    return false;
+  }
+
+  const purchase = createPurchaseDraftIfMissing();
+  updatePurchase(purchase.id, (currentPurchase) => {
+    const nextItems = [...currentPurchase.items];
+    shortages.forEach(({ item, product, shortage }) => {
+      const existing = nextItems.find((entry) => entry.productId === product.id);
+      if (existing) {
+        existing.quantity = Number((Number(existing.quantity) + shortage).toFixed(2));
+      } else {
+        nextItems.push({
+          id: createId("purchase_item"),
+          productId: product.id,
+          productName: product.name,
+          unit: product.unit,
+          quantity: shortage,
+          unitCost: product.price,
+        });
+      }
+    });
+    return {
+      supplierName: purchaseSupplierInput?.value?.trim() || currentPurchase.supplierName,
+      note: `Thiếu hàng cho đơn ${cart.customerName}`,
+      items: nextItems,
+    };
+  });
+
+  state.activePurchaseId = purchase.id;
+  saveAndRenderAll();
+  return true;
 }
 
 function setQuickPanelCollapsed(collapsed) {
@@ -875,7 +1188,15 @@ function renderCartItems() {
 
 function renderCartQueue() {
   const drafts = state.carts.filter((cart) => cart.status === "draft");
-  const archived = state.carts.filter((cart) => cart.status !== "draft");
+  const archived = state.carts.filter((cart) => {
+    if (cart.status === "draft") {
+      return false;
+    }
+    if (!state.showPaidOrders && cart.paymentStatus === "paid") {
+      return false;
+    }
+    return true;
+  });
   const visible = (state.showArchivedCarts ? [...drafts, ...archived] : drafts).filter((cart) => {
     if (!state.orderSearchTerm) {
       return true;
@@ -908,13 +1229,14 @@ function renderCartQueue() {
             <span>${escapeHtml(formatCurrency(cart.totalAmount))}</span>
           </div>
           <div class="queue-meta">
-            <span>${escapeHtml(cart.itemCount)} dòng | ${escapeHtml(formatQuantity(cart.totalQuantity))} số lượng</span>
+            <span>${escapeHtml(cart.itemCount)} dòng | ${escapeHtml(formatQuantity(cart.totalQuantity))} số lượng | ${cart.paymentStatus === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}</span>
             <span>${escapeHtml(formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt))}</span>
           </div>
           <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
           <div class="queue-actions">
             ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="open" data-cart-id="${cart.id}">Tiếp tục bán</button>` : ""}
             <button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>
+            ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
             ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
             <button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>
           </div>
@@ -926,7 +1248,9 @@ function renderCartQueue() {
 
 function renderCustomers() {
   const filtered = state.customers.filter((customer) =>
-    normalizeText(customer.name).includes(normalizeText(state.customerSearchTerm))
+    `${customer.name} ${customer.phone} ${customer.address} ${customer.zaloUrl}`
+      .toLowerCase()
+      .includes(normalizeText(state.customerSearchTerm))
   );
 
   if (!filtered.length) {
@@ -939,8 +1263,6 @@ function renderCustomers() {
       const relatedCarts = state.carts.filter((cart) => cart.customerId === customer.id);
       const draftCount = relatedCarts.filter((cart) => cart.status === "draft").length;
       const completedCount = relatedCarts.filter((cart) => cart.status === "completed").length;
-      const isEditing = state.editingCustomerId === customer.id;
-
       return `
         <article class="customer-item">
           <div class="customer-header">
@@ -951,31 +1273,195 @@ function renderCustomers() {
             <span>${escapeHtml(completedCount)} đơn đã xong</span>
             <span>Cập nhật ${escapeHtml(formatDate(customer.updatedAt))}</span>
           </div>
-
-          ${isEditing ? `
-            <div class="customer-edit-row">
-              <input class="customer-name-input" type="text" value="${escapeHtml(customer.name)}" data-customer-name-input="${customer.id}">
-              <button type="button" class="ghost-button compact-button" data-customer-action="save" data-customer-id="${customer.id}">Lưu</button>
-              <button type="button" class="ghost-button compact-button" data-customer-action="cancel-edit" data-customer-id="${customer.id}">Hủy</button>
-            </div>
-          ` : `
-            <div class="customer-actions">
-              <button type="button" class="ghost-button compact-button" data-customer-action="open-cart" data-customer-id="${customer.id}">Mở giỏ</button>
-              <button type="button" class="ghost-button compact-button" data-customer-action="edit" data-customer-id="${customer.id}">Sửa tên</button>
-              <button type="button" class="danger-button compact-button" data-customer-action="delete" data-customer-id="${customer.id}">Xóa</button>
-            </div>
-          `}
+          <div class="customer-meta">
+            <span>${escapeHtml(customer.phone || "Chưa có số liên lạc")}</span>
+            <span>${escapeHtml(customer.address || "Chưa có địa chỉ")}</span>
+          </div>
+          <div class="customer-meta">
+            <span>${escapeHtml(customer.zaloUrl || "Chưa có link Zalo")}</span>
+          </div>
+          <div class="customer-actions">
+            <button type="button" class="ghost-button compact-button" data-customer-action="open-cart" data-customer-id="${customer.id}">Mở giỏ</button>
+            <button type="button" class="ghost-button compact-button" data-customer-action="edit" data-customer-id="${customer.id}">Sửa</button>
+            <button type="button" class="danger-button compact-button" data-customer-action="delete" data-customer-id="${customer.id}">Xóa</button>
+          </div>
         </article>
       `;
     })
     .join("");
 }
 
+function renderProductManageList() {
+  const filtered = state.products.filter((product) => {
+    const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
+    return text.includes(state.productManageSearchTerm.toLowerCase());
+  });
+
+  if (!filtered.length) {
+    productManageList.innerHTML = '<div class="empty-state">Không có sản phẩm phù hợp.</div>';
+    return;
+  }
+
+  productManageList.innerHTML = filtered
+    .map((product) => `
+      <article class="product-row ${product.is_low_stock ? "low-stock" : ""}">
+        <div class="product-row-head">
+          <div>
+            <div class="product-row-name">${escapeHtml(product.name)}</div>
+            <div class="product-row-meta">
+              <span>${escapeHtml(product.category)}</span>
+              <span>${escapeHtml(product.unit)}</span>
+            </div>
+          </div>
+          <div class="product-row-stock">${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}</div>
+        </div>
+        <div class="product-row-meta">
+          <span>Giá ${formatCurrency(product.price)}</span>
+          <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
+        </div>
+        <div class="row-actions">
+          <button type="button" class="ghost-button compact-button" data-product-manage-action="edit" data-product-id="${product.id}">Sửa</button>
+          <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}">Xóa</button>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+function renderPurchasePanel() {
+  const purchase = getActivePurchase();
+  if (state.purchasePanelCollapsed) {
+    purchasePanel.innerHTML = `
+      <article class="empty-state">
+        Phiếu nhập đang được thu gọn.
+        <div class="row-actions">
+          <button type="button" class="ghost-button compact-button" data-purchase-panel-action="open">Mở lại phiếu nhập</button>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  if (!purchase) {
+    purchasePanel.innerHTML = `
+      <div class="empty-state">
+        Chưa có phiếu nhập nào đang mở.
+        <div class="row-actions">
+          <button type="button" class="ghost-button compact-button" data-purchase-panel-action="create">Tạo phiếu nhập nháp</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const totalAmount = purchase.items.reduce((sum, item) => sum + item.lineTotal, 0);
+  purchasePanel.innerHTML = `
+    <article class="active-cart-card">
+      <div class="active-cart-header">
+        <div>
+          <p class="panel-kicker">Phiếu nhập hiện hành</p>
+          <h3>${escapeHtml(purchase.supplierName || "Chưa có nhà cung cấp")}</h3>
+          <p class="panel-note">${escapeHtml(purchase.note || "Chưa có ghi chú")}</p>
+        </div>
+        <span class="status-pill ${escapeHtml(purchase.status === "received" ? "completed" : purchase.status === "cancelled" ? "cancelled" : "draft")}">${purchase.status === "received" ? "Đã nhập kho" : purchase.status === "ordered" ? "Đã đặt" : purchase.status === "cancelled" ? "Đã hủy" : "Nháp"}</span>
+      </div>
+      <div class="active-cart-stats">
+        <div class="stat-chip"><span>Số dòng</span><strong>${purchase.items.length}</strong></div>
+        <div class="stat-chip"><span>Tổng SL</span><strong>${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))}</strong></div>
+        <div class="stat-chip"><span>Tổng tiền</span><strong>${formatCurrency(totalAmount)}</strong></div>
+      </div>
+      <div class="cart-items-list">
+        ${purchase.items.length ? purchase.items.map((item) => `
+          <article class="cart-item">
+            <div class="cart-item-header">
+              <div>
+                <strong>${escapeHtml(item.productName)}</strong>
+                <div class="cart-line-note">${formatQuantity(item.quantity)} ${escapeHtml(item.unit)} | Giá nhập ${formatCurrency(item.unitCost)}</div>
+              </div>
+              <strong>${formatCurrency(item.lineTotal)}</strong>
+            </div>
+            <div class="line-actions">
+              <button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button>
+              <button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>
+            </div>
+          </article>
+        `).join("") : '<div class="empty-state">Phiếu nhập đang trống.</div>'}
+      </div>
+      <div class="cart-toolbar">
+        <button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>
+        <button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>
+        <button type="button" class="secondary-button" data-purchase-action="collapse">Thu gọn</button>
+        <button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderPurchaseSuggestions() {
+  const filtered = getPurchaseSuggestions().filter((entry) => {
+    const text = `${entry.product.name} ${entry.product.category}`.toLowerCase();
+    return text.includes(state.purchaseSearchTerm.toLowerCase());
+  });
+
+  if (!filtered.length) {
+    purchaseSuggestionList.innerHTML = '<div class="empty-state">Không có gợi ý nhập hàng.</div>';
+    return;
+  }
+
+  purchaseSuggestionList.innerHTML = filtered
+    .map((entry) => `
+      <article class="sales-product-row">
+        <div class="sales-product-head">
+          <div>
+            <strong>${escapeHtml(entry.product.name)}</strong>
+            <div class="sales-product-meta">Tồn ${formatQuantity(entry.product.current_stock)} ${escapeHtml(entry.product.unit)} | Cần cho đơn ${formatQuantity(entry.demand)}</div>
+          </div>
+          <span class="status-pill cancelled">Đề xuất ${formatQuantity(entry.suggestedQuantity || entry.shortageFromOrders || 1)}</span>
+        </div>
+        <div class="queue-actions">
+          <button type="button" class="ghost-button compact-button" data-purchase-suggestion-action="add" data-product-id="${entry.product.id}" data-quantity="${entry.suggestedQuantity || entry.shortageFromOrders || 1}">Thêm vào phiếu nhập</button>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+function renderPurchaseOrders() {
+  if (!state.purchases.length) {
+    purchaseOrderList.innerHTML = '<div class="empty-state">Chưa có phiếu nhập nào.</div>';
+    return;
+  }
+
+  purchaseOrderList.innerHTML = state.purchases
+    .map((purchase) => `
+      <article class="cart-queue-item">
+        <div class="queue-header">
+          <strong>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
+          <span class="status-pill ${purchase.status === "received" ? "completed" : purchase.status === "cancelled" ? "cancelled" : "draft"}">${purchase.status === "received" ? "Đã nhập kho" : purchase.status === "ordered" ? "Đã đặt" : purchase.status === "cancelled" ? "Đã hủy" : "Nháp"}</span>
+        </div>
+        <div class="queue-meta">
+          <span>${escapeHtml(purchase.receiptCode || formatDate(purchase.updatedAt))}</span>
+          <span>${formatCurrency(purchase.items.reduce((sum, item) => sum + item.lineTotal, 0))}</span>
+        </div>
+        <div class="queue-actions">
+          ${purchase.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="open" data-purchase-id="${purchase.id}">Mở</button>` : ""}
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
 function renderAll() {
   showArchivedCarts.checked = state.showArchivedCarts;
+  showPaidOrders.checked = state.showPaidOrders;
   const activeCart = getActiveCart();
   if (activeCart) {
     customerLookupInput.value = activeCart.customerName;
+  }
+  const activePurchase = getActivePurchase();
+  if (activePurchase) {
+    purchaseSupplierInput.value = activePurchase.supplierName || "";
+    purchaseNoteInput.value = activePurchase.note || "";
   }
   renderMenu();
   renderViewSections();
@@ -983,12 +1469,16 @@ function renderAll() {
   renderProductOptions();
   renderCustomerOptions();
   renderProducts();
+  renderProductManageList();
   renderTransactions();
   renderActiveCartPanel();
   renderSalesProductList();
   renderCartItems();
   renderCartQueue();
   renderCustomers();
+  renderPurchasePanel();
+  renderPurchaseSuggestions();
+  renderPurchaseOrders();
 }
 
 function buildPrintMarkup(cart) {
@@ -1114,6 +1604,12 @@ async function checkoutActiveCart() {
     throw new Error("Giỏ hàng đang trống.");
   }
 
+  const hasShortage = createPurchaseSuggestionFromCart(cart);
+  if (hasShortage) {
+    switchMenu("purchases");
+    throw new Error("Đang thiếu tồn kho. Tôi đã tạo sẵn đề xuất nhập hàng, kiểm tra rồi nhập hàng trước khi chốt đơn.");
+  }
+
   const data = await apiRequest("/api/orders/checkout", {
     method: "POST",
     body: JSON.stringify({
@@ -1132,6 +1628,7 @@ async function checkoutActiveCart() {
   updateCart(cart.id, (currentCart) => ({
     ...currentCart,
     status: "completed",
+    paymentStatus: "unpaid",
     completedAt,
     updatedAt: completedAt,
     orderCode,
@@ -1150,6 +1647,12 @@ quickPanelToggle.addEventListener("click", () => {
 });
 
 menuPanel.addEventListener("click", (event) => {
+  if (event.target.closest("#menuToggleButton")) {
+    state.menuCollapsed = !state.menuCollapsed;
+    renderMenu();
+    return;
+  }
+
   const menuButton = event.target.closest("[data-menu]");
   if (menuButton) {
     switchMenu(menuButton.dataset.menu);
@@ -1268,15 +1771,21 @@ productForm.addEventListener("submit", async (event) => {
   const payload = Object.fromEntries(formData.entries());
 
   try {
-    const data = await apiRequest("/api/products", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    const data = state.editingProductId
+      ? await apiRequest(`/api/products/${state.editingProductId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        })
+      : await apiRequest("/api/products", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
     productForm.reset();
     productForm.category.value = "Đồ chay đông lạnh";
     productForm.unit.value = "gói";
     productForm.price.value = "0";
     productForm.low_stock_threshold.value = "5";
+    state.editingProductId = null;
     await refreshData();
     switchMenu("inventory");
     prefillProduct(data.product.id);
@@ -1284,6 +1793,20 @@ productForm.addEventListener("submit", async (event) => {
   } catch (error) {
     showToast(error.message, true);
   }
+});
+
+productFormCancelButton.addEventListener("click", () => {
+  state.editingProductId = null;
+  productForm.reset();
+  productForm.category.value = "Đồ chay đông lạnh";
+  productForm.unit.value = "gói";
+  productForm.price.value = "0";
+  productForm.low_stock_threshold.value = "5";
+});
+
+productManageSearchInput.addEventListener("input", (event) => {
+  state.productManageSearchTerm = event.target.value;
+  renderProductManageList();
 });
 
 searchInput.addEventListener("input", (event) => {
@@ -1306,6 +1829,31 @@ customerSearchInput.addEventListener("input", (event) => {
   renderCustomers();
 });
 
+customerForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  try {
+    upsertCustomer(
+      {
+        name: customerNameInput.value,
+        phone: customerPhoneInput.value,
+        address: customerAddressInput.value,
+        zaloUrl: customerZaloInput.value,
+      },
+      state.editingCustomerFormId
+    );
+    customerForm.reset();
+    state.editingCustomerFormId = null;
+    showToast("Đã lưu khách hàng.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+customerFormCancelButton.addEventListener("click", () => {
+  state.editingCustomerFormId = null;
+  customerForm.reset();
+});
+
 openCartButton.addEventListener("click", () => {
   try {
     openCartForCustomer(customerLookupInput.value);
@@ -1321,6 +1869,48 @@ customerLookupInput.addEventListener("keydown", (event) => {
 
   event.preventDefault();
   openCartButton.click();
+});
+
+productManageList.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-product-manage-action]");
+  if (!button) {
+    return;
+  }
+
+  const productId = Number(button.dataset.productId);
+  const product = getProductById(productId);
+  if (!product) {
+    showToast("Không tìm thấy sản phẩm.", true);
+    return;
+  }
+
+  if (button.dataset.productManageAction === "edit") {
+    state.editingProductId = productId;
+    productForm.name.value = product.name;
+    productForm.category.value = product.category;
+    productForm.unit.value = product.unit;
+    productForm.price.value = product.price;
+    productForm.low_stock_threshold.value = product.low_stock_threshold;
+    switchMenu("products");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+
+  if (button.dataset.productManageAction === "delete") {
+    if (!window.confirm(`Xóa sản phẩm ${product.name}?`)) {
+      return;
+    }
+
+    try {
+      const data = await apiRequest(`/api/products/${productId}`, {
+        method: "DELETE",
+      });
+      await refreshData();
+      showToast(data.message);
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  }
 });
 
 salesProductList.addEventListener("change", (event) => {
@@ -1468,6 +2058,17 @@ cartQueueList.addEventListener("click", (event) => {
     return;
   }
 
+  if (button.dataset.queueAction === "mark-paid") {
+    state.carts = state.carts.map((entry) =>
+      entry.id === cartId
+        ? decorateCart({ ...entry, paymentStatus: "paid", paidAt: nowIso(), updatedAt: nowIso() })
+        : entry
+    );
+    saveAndRenderAll();
+    showToast("Đã cập nhật trạng thái thanh toán.");
+    return;
+  }
+
   if (button.dataset.queueAction === "cancel") {
     if (window.confirm(`Hủy giỏ hàng của ${cart.customerName}?`)) {
       cancelCart(cartId);
@@ -1503,25 +2104,12 @@ customerList.addEventListener("click", (event) => {
   }
 
   if (button.dataset.customerAction === "edit") {
-    state.editingCustomerId = customerId;
-    renderCustomers();
-    return;
-  }
-
-  if (button.dataset.customerAction === "cancel-edit") {
-    state.editingCustomerId = null;
-    renderCustomers();
-    return;
-  }
-
-  if (button.dataset.customerAction === "save") {
-    const input = customerList.querySelector(`[data-customer-name-input="${customerId}"]`);
-    try {
-      renameCustomer(customerId, input?.value || "");
-      showToast("Đã cập nhật khách hàng.");
-    } catch (error) {
-      showToast(error.message, true);
-    }
+    state.editingCustomerFormId = customerId;
+    customerNameInput.value = customer.name;
+    customerPhoneInput.value = customer.phone || "";
+    customerAddressInput.value = customer.address || "";
+    customerZaloInput.value = customer.zaloUrl || "";
+    window.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
 
@@ -1533,20 +2121,168 @@ customerList.addEventListener("click", (event) => {
   }
 });
 
-customerList.addEventListener("keydown", (event) => {
-  const input = event.target.closest("[data-customer-name-input]");
-  if (event.key !== "Enter" || !input) {
-    return;
-  }
-
-  event.preventDefault();
-  const saveButton = customerList.querySelector(`[data-customer-action="save"][data-customer-id="${input.dataset.customerNameInput}"]`);
-  saveButton?.click();
-});
-
 showArchivedCarts.addEventListener("change", (event) => {
   state.showArchivedCarts = event.target.checked;
   renderCartQueue();
+});
+
+showPaidOrders.addEventListener("change", (event) => {
+  state.showPaidOrders = event.target.checked;
+  renderCartQueue();
+});
+
+createPurchaseDraftButton.addEventListener("click", () => {
+  createPurchaseDraftIfMissing();
+  saveAndRenderAll();
+  showToast("Đã tạo phiếu nhập nháp.");
+});
+
+togglePurchasePanelButton.addEventListener("click", () => {
+  state.purchasePanelCollapsed = !state.purchasePanelCollapsed;
+  renderPurchasePanel();
+});
+
+purchaseSearchInput.addEventListener("input", (event) => {
+  state.purchaseSearchTerm = event.target.value;
+  renderPurchaseSuggestions();
+});
+
+purchaseSuggestionList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-purchase-suggestion-action]");
+  if (!button) {
+    return;
+  }
+
+  try {
+    addSuggestionToPurchase(button.dataset.productId, button.dataset.quantity, getProductById(button.dataset.productId)?.price || 0);
+    showToast("Đã thêm vào phiếu nhập.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+purchasePanel.addEventListener("click", async (event) => {
+  const panelButton = event.target.closest("[data-purchase-panel-action]");
+  if (panelButton) {
+    if (panelButton.dataset.purchasePanelAction === "open") {
+      state.purchasePanelCollapsed = false;
+      renderPurchasePanel();
+      return;
+    }
+    if (panelButton.dataset.purchasePanelAction === "create") {
+      createPurchaseDraftIfMissing();
+      saveAndRenderAll();
+      return;
+    }
+  }
+
+  const itemButton = event.target.closest("[data-purchase-item-action]");
+  if (itemButton) {
+    const purchase = getActivePurchase();
+    if (!purchase) {
+      return;
+    }
+    updatePurchase(purchase.id, (currentPurchase) => ({
+      items: currentPurchase.items
+        .map((item) =>
+          item.id === itemButton.dataset.purchaseItemId
+            ? {
+                ...item,
+                quantity: itemButton.dataset.purchaseItemAction === "add-one"
+                  ? Number((Number(item.quantity) + 1).toFixed(2))
+                  : item.quantity,
+              }
+            : item
+        )
+        .filter((item) => itemButton.dataset.purchaseItemAction === "remove" ? item.id !== itemButton.dataset.purchaseItemId : true),
+      supplierName: purchaseSupplierInput.value.trim(),
+      note: purchaseNoteInput.value.trim(),
+    }));
+    saveAndRenderAll();
+    return;
+  }
+
+  const actionButton = event.target.closest("[data-purchase-action]");
+  if (!actionButton) {
+    return;
+  }
+
+  const purchase = getActivePurchase();
+  if (!purchase) {
+    showToast("Không có phiếu nhập đang mở.", true);
+    return;
+  }
+
+  if (actionButton.dataset.purchaseAction === "collapse") {
+    state.purchasePanelCollapsed = true;
+    renderPurchasePanel();
+    return;
+  }
+
+  if (actionButton.dataset.purchaseAction === "delete") {
+    state.purchases = state.purchases.filter((entry) => entry.id !== purchase.id);
+    state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
+    saveAndRenderAll();
+    showToast("Đã xóa phiếu nhập.");
+    return;
+  }
+
+  if (actionButton.dataset.purchaseAction === "mark-ordered") {
+    updatePurchase(purchase.id, () => ({
+      status: "ordered",
+      supplierName: purchaseSupplierInput.value.trim(),
+      note: purchaseNoteInput.value.trim(),
+    }));
+    saveAndRenderAll();
+    showToast("Đã cập nhật trạng thái đặt hàng.");
+    return;
+  }
+
+  if (actionButton.dataset.purchaseAction === "receive") {
+    try {
+      const data = await apiRequest("/api/purchases/receive", {
+        method: "POST",
+        body: JSON.stringify({
+          supplier_name: purchaseSupplierInput.value.trim(),
+          note: purchaseNoteInput.value.trim(),
+          items: purchase.items.map((item) => ({
+            product_id: item.productId,
+            quantity: item.quantity,
+            unit_cost: item.unitCost,
+          })),
+        }),
+      });
+      state.purchases = state.purchases.map((entry) =>
+        entry.id === purchase.id
+          ? {
+              ...entry,
+              status: "received",
+              receiptCode: data.receipt?.receipt_code || "",
+              receivedAt: data.receipt?.created_at || nowIso(),
+              updatedAt: data.receipt?.created_at || nowIso(),
+            }
+          : entry
+      );
+      state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
+      await refreshData();
+      showToast(data.message);
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  }
+});
+
+purchaseOrderList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-purchase-list-action]");
+  if (!button) {
+    return;
+  }
+
+  if (button.dataset.purchaseListAction === "open") {
+    state.activePurchaseId = button.dataset.purchaseId;
+    state.purchasePanelCollapsed = false;
+    saveAndRenderAll();
+  }
 });
 
 mobileQuery.addEventListener("change", () => {

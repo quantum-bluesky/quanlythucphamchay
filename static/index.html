@@ -19,12 +19,17 @@
     <div id="toast" class="toast" hidden></div>
 
     <nav class="panel menu-panel" id="menuPanel">
-      <div class="menu-grid">
+      <div class="menu-panel-head">
+        <strong>Menu nghiệp vụ</strong>
+        <button type="button" id="menuToggleButton" class="ghost-button compact-button menu-toggle-button" aria-expanded="true" aria-controls="menuGrid">Thu gọn menu</button>
+      </div>
+      <div class="menu-grid" id="menuGrid">
         <button type="button" class="menu-button is-active" data-menu="inventory">1. Kiểm tra tồn kho</button>
         <button type="button" class="menu-button" data-menu="create-order">2. Tạo đơn xuất hàng</button>
         <button type="button" class="menu-button" data-menu="orders">3. Quản lý đơn hàng</button>
         <button type="button" class="menu-button" data-menu="customers">4. Quản lý khách hàng</button>
         <button type="button" class="menu-button" data-menu="products">5. Quản lý sản phẩm</button>
+        <button type="button" class="menu-button" data-menu="purchases">6. Quản lý nhập hàng</button>
       </div>
     </nav>
 
@@ -117,7 +122,10 @@
               <span>Giỏ đang chờ</span>
               <strong id="draftCartBadge">0</strong>
             </div>
-            <button type="button" class="ghost-button compact-button" data-go-menu="orders">Xem danh sách đơn</button>
+            <div class="inline-menu-actions">
+              <button type="button" class="ghost-button compact-button" data-go-menu="orders">Xem danh sách đơn</button>
+              <button type="button" class="ghost-button compact-button" data-go-menu="purchases">Xem nhập hàng</button>
+            </div>
           </div>
         </article>
 
@@ -160,10 +168,16 @@
             <p class="panel-kicker">Quản lý đơn hàng</p>
             <h2>Giỏ hàng đang chờ và lịch sử đơn</h2>
           </div>
-          <label class="toggle-inline">
-            <input id="showArchivedCarts" type="checkbox">
-            <span>Hiện đơn đã xong</span>
-          </label>
+          <div class="inline-menu-actions">
+            <label class="toggle-inline">
+              <input id="showArchivedCarts" type="checkbox">
+              <span>Hiện đơn đã xong</span>
+            </label>
+            <label class="toggle-inline">
+              <input id="showPaidOrders" type="checkbox">
+              <span>Hiện đơn đã thanh toán</span>
+            </label>
+          </div>
         </div>
         <div class="sticky-toolbar order-toolbar">
           <label class="search-box">
@@ -180,10 +194,32 @@
         <div class="panel-heading">
           <div>
             <p class="panel-kicker">Khách hàng</p>
-            <h2>Danh bạ và thao tác nhanh</h2>
+            <h2>Danh bạ và thông tin giao hàng</h2>
           </div>
-          <p class="panel-note">Tìm khách, sửa tên, mở giỏ hàng hoặc xóa khỏi danh bạ.</p>
+          <p class="panel-note">Thêm mới, sửa, xóa khách hàng và lưu thông tin liên hệ/ship.</p>
         </div>
+        <form id="customerForm" class="customer-form">
+          <label>
+            <span>Tên khách hàng</span>
+            <input id="customerNameInput" name="name" type="text" maxlength="80" placeholder="Ví dụ: Cô Lan" required>
+          </label>
+          <label>
+            <span>Số liên lạc</span>
+            <input id="customerPhoneInput" name="phone" type="text" maxlength="30" placeholder="Ví dụ: 0909...">
+          </label>
+          <label>
+            <span>Địa chỉ ship</span>
+            <input id="customerAddressInput" name="address" type="text" maxlength="180" placeholder="Ví dụ: 12 Nguyễn Trãi, Q1">
+          </label>
+          <label>
+            <span>Link Zalo</span>
+            <input id="customerZaloInput" name="zalo_url" type="url" maxlength="180" placeholder="https://zalo.me/...">
+          </label>
+          <div class="customer-form-actions">
+            <button type="submit" class="primary-button">Lưu khách hàng</button>
+            <button type="button" id="customerFormCancelButton" class="ghost-button">Hủy sửa</button>
+          </div>
+        </form>
         <div class="sticky-toolbar customer-toolbar">
           <label class="search-box">
             <span class="sr-only">Tìm khách hàng</span>
@@ -199,10 +235,17 @@
         <div class="panel-heading">
           <div>
             <p class="panel-kicker">Sản phẩm</p>
-            <h2>Thêm mặt hàng mới</h2>
+            <h2>Danh mục và chỉnh sửa nhanh</h2>
           </div>
-          <p class="panel-note">Tách riêng phần tạo sản phẩm để màn hình mobile gọn và ít nhầm.</p>
+          <p class="panel-note">Tìm, sửa, xóa hoặc thêm mới sản phẩm mà không lẫn với màn tồn kho.</p>
         </div>
+        <div class="sticky-toolbar">
+          <label class="search-box">
+            <span class="sr-only">Tìm sản phẩm ở màn quản lý</span>
+            <input id="productManageSearchInput" type="search" placeholder="Tìm sản phẩm để sửa...">
+          </label>
+        </div>
+        <div id="productManageList" class="product-list"></div>
         <form id="productForm" class="product-form">
           <label>
             <span>Tên sản phẩm</span>
@@ -224,8 +267,70 @@
             <span>Cảnh báo sắp hết</span>
             <input name="low_stock_threshold" type="number" step="0.01" min="0.01" value="5" required>
           </label>
-          <button type="submit" class="primary-button wide-button">Lưu sản phẩm</button>
+          <div class="product-form-actions">
+            <button type="submit" class="primary-button wide-button">Lưu sản phẩm</button>
+            <button type="button" id="productFormCancelButton" class="ghost-button wide-button">Hủy sửa</button>
+          </div>
         </form>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="purchases">
+      <section class="panel purchases-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Nhập hàng</p>
+            <h2>Sản phẩm cần nhập và phiếu nhập</h2>
+          </div>
+          <p class="panel-note">Tạo nhanh phiếu nhập dự kiến, theo dõi trạng thái và nhận hàng vào kho.</p>
+        </div>
+
+        <article class="sales-customer-card">
+          <div class="sales-customer-form">
+            <label>
+              <span>Nhà cung cấp / ghi chú nguồn hàng</span>
+              <input id="purchaseSupplierInput" type="text" maxlength="120" placeholder="Ví dụ: Chợ đầu mối, NCC Minh Tâm">
+            </label>
+            <label>
+              <span>Ghi chú phiếu nhập</span>
+              <input id="purchaseNoteInput" type="text" maxlength="160" placeholder="Ví dụ: Ưu tiên giao sáng mai">
+            </label>
+          </div>
+          <div class="inline-menu-actions">
+            <button type="button" id="createPurchaseDraftButton" class="ghost-button compact-button">Tạo phiếu nháp</button>
+            <button type="button" id="togglePurchasePanelButton" class="ghost-button compact-button">Thu gọn phiếu nhập</button>
+          </div>
+        </article>
+
+        <section id="purchasePanel" class="active-cart-panel"></section>
+
+        <div class="sales-columns">
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Gợi ý nhập</p>
+                <h3>Sản phẩm đang thiếu hoặc sắp thiếu</h3>
+              </div>
+            </div>
+            <div class="sticky-toolbar">
+              <label class="search-box">
+                <span class="sr-only">Tìm sản phẩm cần nhập</span>
+                <input id="purchaseSearchInput" type="search" placeholder="Tìm sản phẩm cần nhập...">
+              </label>
+            </div>
+            <div id="purchaseSuggestionList" class="sales-product-list"></div>
+          </section>
+
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Phiếu nhập</p>
+                <h3>Danh sách phiếu nhập và trạng thái</h3>
+              </div>
+            </div>
+            <div id="purchaseOrderList" class="cart-queue-list"></div>
+          </section>
+        </div>
       </section>
     </section>
 

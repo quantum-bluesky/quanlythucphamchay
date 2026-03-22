@@ -123,6 +123,20 @@ h3 {
   gap: 10px;
 }
 
+.menu-panel-head,
+.inline-menu-actions,
+.customer-form-actions,
+.product-form-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.menu-toggle-button {
+  white-space: nowrap;
+}
+
 .menu-button {
   width: 100%;
   min-height: 48px;
@@ -149,6 +163,10 @@ h3 {
 .view-section.is-active {
   display: grid;
   gap: 20px;
+}
+
+.menu-panel.is-collapsed .menu-grid {
+  display: none;
 }
 
 .quick-panel {
@@ -224,7 +242,8 @@ h3 {
 
 .quick-form,
 .product-form,
-.sales-customer-form {
+.sales-customer-form,
+.customer-form {
   display: grid;
   gap: 14px;
 }
@@ -445,7 +464,8 @@ button:disabled {
 .sales-panel,
 .orders-panel,
 .customers-panel,
-.inventory-panel {
+.inventory-panel,
+.purchases-panel {
   overflow: hidden;
 }
 
@@ -609,6 +629,11 @@ button:disabled {
   align-items: center;
 }
 
+.customer-form,
+.product-form {
+  margin-bottom: 18px;
+}
+
 .empty-state {
   border: 1px dashed var(--line);
   border-radius: var(--radius-md);
@@ -734,6 +759,14 @@ button:disabled {
   .menu-grid {
     grid-template-columns: 1fr;
   }
+
+  .menu-panel-head,
+  .inline-menu-actions,
+  .customer-form-actions,
+  .product-form-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (min-width: 760px) {
@@ -742,7 +775,7 @@ button:disabled {
   }
 
   .menu-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .quick-form {
@@ -752,6 +785,13 @@ button:disabled {
 
   .sales-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .product-list,
+  .sales-product-list,
+  .cart-queue-list,
+  .customer-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .cart-toolbar {
@@ -776,5 +816,15 @@ button:disabled {
 
   .product-form .wide-button {
     grid-column: 1 / -1;
+  }
+
+  .customer-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .customer-form-actions,
+  .product-form-actions {
+    grid-column: 1 / -1;
+    justify-content: start;
   }
 }
