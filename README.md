@@ -13,10 +13,12 @@
 - Giao diện theo menu nghiệp vụ riêng cho tồn kho, tạo đơn, đơn hàng, khách hàng và sản phẩm
 - Các màn chọn đối tượng đều có ô tìm kiếm/gõ tên để thao tác nhanh trên điện thoại
 - Quản lý nhập hàng với phiếu nhập nháp, trạng thái đặt hàng/nhập kho và gợi ý sản phẩm cần nhập
+- Báo cáo nhập xuất theo tháng, xem xu hướng gần đây và dự báo mặt hàng nên nhập thêm
 - Quản lý khách hàng có thêm số liên lạc, địa chỉ ship và link Zalo
 - Quản lý đơn hàng có trạng thái thanh toán
 - Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, ngưỡng cảnh báo
 - Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất
+- Các list dài có phân trang `Trước / Sau` để thao tác gọn hơn trên mobile
 
 ## Chạy ứng dụng
 

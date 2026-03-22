@@ -50,6 +50,39 @@ def parse_non_negative_decimal(value, field_name: str) -> Decimal:
     return number
 
 
+def parse_month_key(value: str | None) -> tuple[int, int] | None:
+    if not value:
+        return None
+    match = re.fullmatch(r"(\d{4})-(\d{2})", str(value).strip())
+    if not match:
+        return None
+    year = int(match.group(1))
+    month = int(match.group(2))
+    if month < 1 or month > 12:
+        return None
+    return year, month
+
+
+def shift_month(year: int, month: int, offset: int) -> tuple[int, int]:
+    total = year * 12 + (month - 1) + offset
+    return total // 12, total % 12 + 1
+
+
+def month_key(year: int, month: int) -> str:
+    return f"{year:04d}-{month:02d}"
+
+
+def extract_price_from_note(note: str, transaction_type: str) -> float | None:
+    label = "Giá bán" if transaction_type == "out" else "Giá nhập"
+    match = re.search(rf"{label}:\s*([0-9]+(?:\.[0-9]+)?)", note or "")
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
+
 class InventoryStore:
     SYNC_COLLECTION_KEYS = ("customers", "suppliers", "carts", "purchases")
 
@@ -720,6 +753,247 @@ class InventoryStore:
 
         return self.get_sync_state()
 
+    def _get_sync_collection(self, state_key: str) -> list[dict]:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT state_value FROM app_state WHERE state_key = ?",
+                (state_key,),
+            ).fetchone()
+
+        if not row:
+            return []
+        try:
+            decoded = json.loads(row["state_value"] or "[]")
+        except json.JSONDecodeError:
+            return []
+        return decoded if isinstance(decoded, list) else []
+
+    def get_monthly_report(self, months: int = 6, focus_month: str | None = None) -> dict:
+        safe_months = max(3, min(int(months), 24))
+        now = datetime.now()
+        parsed_focus = parse_month_key(focus_month)
+        if parsed_focus:
+            focus_year, focus_month_number = parsed_focus
+        else:
+            focus_year, focus_month_number = now.year, now.month
+
+        month_keys: list[str] = []
+        for offset in range(-(safe_months - 1), 1):
+            year, month = shift_month(focus_year, focus_month_number, offset)
+            month_keys.append(month_key(year, month))
+
+        start_month = month_keys[0]
+        focus_key = month_key(focus_year, focus_month_number)
+        avg_month_keys = month_keys[-3:]
+
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    t.id,
+                    t.product_id,
+                    p.name AS product_name,
+                    p.category,
+                    p.unit,
+                    p.price,
+                    p.low_stock_threshold,
+                    t.transaction_type,
+                    t.quantity,
+                    t.note,
+                    t.created_at,
+                    substr(t.created_at, 1, 7) AS month_key
+                FROM transactions t
+                INNER JOIN products p ON p.id = t.product_id
+                WHERE substr(t.created_at, 1, 7) >= ?
+                ORDER BY t.created_at DESC, t.id DESC
+                """,
+                (start_month,),
+            ).fetchall()
+
+        monthly_totals = {
+            key: {
+                "month": key,
+                "in_quantity": 0.0,
+                "out_quantity": 0.0,
+                "in_value": 0.0,
+                "out_value": 0.0,
+            }
+            for key in month_keys
+        }
+        focus_products: dict[int, dict] = {}
+        monthly_out_by_product: dict[str, dict[int, float]] = {
+            key: {} for key in avg_month_keys
+        }
+
+        for row in rows:
+            row_month = row["month_key"]
+            if row_month not in monthly_totals:
+                continue
+
+            quantity = float(row["quantity"])
+            fallback_price = float(row["price"])
+            derived_price = extract_price_from_note(row["note"] or "", row["transaction_type"])
+            used_price = fallback_price if derived_price is None else derived_price
+            amount = round(quantity * used_price, 2)
+
+            bucket = monthly_totals[row_month]
+            if row["transaction_type"] == "in":
+                bucket["in_quantity"] += quantity
+                bucket["in_value"] += amount
+            else:
+                bucket["out_quantity"] += quantity
+                bucket["out_value"] += amount
+                if row_month in monthly_out_by_product:
+                    current = monthly_out_by_product[row_month].get(row["product_id"], 0.0)
+                    monthly_out_by_product[row_month][row["product_id"]] = current + quantity
+
+            if row_month == focus_key:
+                product_entry = focus_products.setdefault(
+                    row["product_id"],
+                    {
+                        "product_id": row["product_id"],
+                        "name": row["product_name"],
+                        "category": row["category"],
+                        "unit": row["unit"],
+                        "current_stock": 0.0,
+                        "in_quantity": 0.0,
+                        "out_quantity": 0.0,
+                        "in_value": 0.0,
+                        "out_value": 0.0,
+                    },
+                )
+                if row["transaction_type"] == "in":
+                    product_entry["in_quantity"] += quantity
+                    product_entry["in_value"] += amount
+                else:
+                    product_entry["out_quantity"] += quantity
+                    product_entry["out_value"] += amount
+
+        products = self.get_products()
+        products_by_id = {product["id"]: product for product in products}
+        for product_entry in focus_products.values():
+            product_entry["current_stock"] = products_by_id.get(product_entry["product_id"], {}).get("current_stock", 0)
+
+        draft_carts = [
+            cart for cart in self._get_sync_collection("carts")
+            if str(cart.get("status", "draft")) == "draft"
+        ]
+        pending_demand_by_product: dict[int, float] = {}
+        for cart in draft_carts:
+            for item in cart.get("items", []):
+                product_id = int(item.get("productId") or item.get("product_id") or 0)
+                if not product_id:
+                    continue
+                pending_demand_by_product[product_id] = pending_demand_by_product.get(product_id, 0.0) + float(item.get("quantity", 0) or 0)
+
+        open_purchases = [
+            purchase for purchase in self._get_sync_collection("purchases")
+            if str(purchase.get("status", "draft")) in {"draft", "ordered"}
+        ]
+        incoming_by_product: dict[int, float] = {}
+        for purchase in open_purchases:
+            for item in purchase.get("items", []):
+                product_id = int(item.get("productId") or item.get("product_id") or 0)
+                if not product_id:
+                    continue
+                incoming_by_product[product_id] = incoming_by_product.get(product_id, 0.0) + float(item.get("quantity", 0) or 0)
+
+        forecast_items = []
+        for product in products:
+            product_id = int(product["id"])
+            monthly_out_values = [
+                monthly_out_by_product.get(key, {}).get(product_id, 0.0)
+                for key in avg_month_keys
+            ]
+            avg_monthly_out = round(sum(monthly_out_values) / len(avg_month_keys), 2)
+            max_recent_out = round(max(monthly_out_values), 2)
+            pending_demand = round(pending_demand_by_product.get(product_id, 0.0), 2)
+            incoming_qty = round(incoming_by_product.get(product_id, 0.0), 2)
+            target_stock = max(
+                float(product["low_stock_threshold"]),
+                avg_monthly_out + pending_demand,
+                max_recent_out,
+            )
+            recommended_purchase = round(
+                max(0.0, target_stock - float(product["current_stock"]) - incoming_qty),
+                2,
+            )
+            if recommended_purchase <= 0 and pending_demand <= 0 and not product["is_low_stock"]:
+                continue
+
+            reasons = []
+            if pending_demand > 0:
+                reasons.append(f"đơn chờ {pending_demand:g} {product['unit']}")
+            if avg_monthly_out > 0:
+                reasons.append(f"xuất TB 3 tháng {avg_monthly_out:g} {product['unit']}")
+            if float(product["current_stock"]) <= float(product["low_stock_threshold"]):
+                reasons.append("tồn đang thấp")
+            if incoming_qty > 0:
+                reasons.append(f"đang chờ nhập {incoming_qty:g} {product['unit']}")
+
+            forecast_items.append(
+                {
+                    "product_id": product_id,
+                    "name": product["name"],
+                    "category": product["category"],
+                    "unit": product["unit"],
+                    "current_stock": product["current_stock"],
+                    "low_stock_threshold": product["low_stock_threshold"],
+                    "avg_monthly_out": avg_monthly_out,
+                    "max_recent_out": max_recent_out,
+                    "pending_demand": pending_demand,
+                    "incoming_quantity": incoming_qty,
+                    "recommended_purchase": recommended_purchase,
+                    "reason": ", ".join(reasons) if reasons else "theo ngưỡng tồn kho",
+                }
+            )
+
+        forecast_items.sort(
+            key=lambda item: (
+                -float(item["recommended_purchase"]),
+                -float(item["pending_demand"]),
+                item["name"].lower(),
+            )
+        )
+
+        months_payload = []
+        for key in month_keys:
+            bucket = monthly_totals[key]
+            bucket["in_quantity"] = round(bucket["in_quantity"], 2)
+            bucket["out_quantity"] = round(bucket["out_quantity"], 2)
+            bucket["in_value"] = round(bucket["in_value"], 2)
+            bucket["out_value"] = round(bucket["out_value"], 2)
+            bucket["net_quantity"] = round(bucket["in_quantity"] - bucket["out_quantity"], 2)
+            months_payload.append(bucket)
+
+        focus_summary = next(
+            (bucket for bucket in months_payload if bucket["month"] == focus_key),
+            {
+                "month": focus_key,
+                "in_quantity": 0.0,
+                "out_quantity": 0.0,
+                "in_value": 0.0,
+                "out_value": 0.0,
+                "net_quantity": 0.0,
+            },
+        )
+
+        product_activity = sorted(
+            focus_products.values(),
+            key=lambda item: (
+                -(float(item["out_quantity"]) + float(item["in_quantity"])),
+                item["name"].lower(),
+            ),
+        )
+
+        return {
+            "focus_month": focus_key,
+            "months": months_payload,
+            "focus_summary": focus_summary,
+            "product_activity": product_activity,
+            "forecast": forecast_items[:18],
+        }
+
 
 def create_handler(store: InventoryStore):
     class InventoryRequestHandler(BaseHTTPRequestHandler):
@@ -762,6 +1036,20 @@ def create_handler(store: InventoryStore):
                         "transactions": store.get_transactions(limit=int(limit)),
                         **store.get_sync_state(),
                     },
+                )
+                return
+
+            if route == "/api/reports/monthly":
+                query = parse_qs(parsed.query)
+                try:
+                    months = int(query.get("months", ["6"])[0])
+                except ValueError:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Tham số months không hợp lệ."})
+                    return
+                focus_month = query.get("focus_month", [None])[0]
+                self._send_json(
+                    HTTPStatus.OK,
+                    store.get_monthly_report(months=months, focus_month=focus_month),
                 )
                 return
 

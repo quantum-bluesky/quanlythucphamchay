@@ -31,6 +31,7 @@
         <button type="button" class="menu-button" data-menu="products">5. Quản lý sản phẩm</button>
         <button type="button" class="menu-button" data-menu="purchases">6. Quản lý nhập hàng</button>
         <button type="button" class="menu-button" data-menu="suppliers">7. Quản lý nhà cung cấp</button>
+        <button type="button" class="menu-button" data-menu="reports">8. Báo cáo tháng</button>
       </div>
     </nav>
 
@@ -378,6 +379,72 @@
           </label>
         </div>
         <div id="supplierList" class="customer-list"></div>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="reports">
+      <section class="panel reports-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Báo cáo tháng</p>
+            <h2>Nhập xuất hàng và dự báo cần nhập</h2>
+          </div>
+          <p class="panel-note">Xem xu hướng theo tháng, kiểm tra sản phẩm biến động mạnh và danh sách cần nhập thêm.</p>
+        </div>
+
+        <div class="sticky-toolbar reports-toolbar">
+          <div class="reports-filter-grid">
+            <label>
+              <span>Tháng xem chính</span>
+              <input id="reportMonthInput" type="month">
+            </label>
+            <label>
+              <span>Số tháng gần nhất</span>
+              <select id="reportRangeSelect">
+                <option value="3">3 tháng</option>
+                <option value="6" selected>6 tháng</option>
+                <option value="12">12 tháng</option>
+              </select>
+            </label>
+            <div class="reports-filter-actions">
+              <button type="button" id="refreshReportsButton" class="ghost-button compact-button">Làm mới báo cáo</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="reportSummaryCards" class="hero-stats report-summary-grid"></div>
+
+        <div class="sales-columns report-columns">
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Xu hướng tháng</p>
+                <h3>Nhập xuất trong các tháng gần đây</h3>
+              </div>
+            </div>
+            <div id="reportMonthTrend" class="report-list"></div>
+          </section>
+
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Dự báo nhập</p>
+                <h3>Sản phẩm nên ưu tiên đặt thêm</h3>
+              </div>
+            </div>
+            <div id="forecastList" class="report-list"></div>
+          </section>
+        </div>
+
+        <section class="sales-card">
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Chi tiết tháng</p>
+              <h3>Biến động theo từng sản phẩm</h3>
+            </div>
+          </div>
+          <div id="reportProductActivity" class="product-list"></div>
+        </section>
       </section>
     </section>
 

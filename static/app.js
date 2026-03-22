@@ -23,6 +23,7 @@ const state = {
   products: [],
   transactions: [],
   summary: null,
+  reports: null,
   searchTerm: "",
   salesSearchTerm: "",
   orderSearchTerm: "",
@@ -30,6 +31,8 @@ const state = {
   productManageSearchTerm: "",
   purchaseSearchTerm: "",
   supplierSearchTerm: "",
+  reportFocusMonth: new Date().toISOString().slice(0, 7),
+  reportRangeMonths: 6,
   customers: [],
   suppliers: [],
   carts: [],
@@ -48,6 +51,18 @@ const state = {
   menuCollapsed: false,
   purchasePanelCollapsed: false,
   editingSupplierFormId: null,
+  pagination: {
+    inventory: 1,
+    productManage: 1,
+    salesProducts: 1,
+    orders: 1,
+    customers: 1,
+    purchaseSuggestions: 1,
+    purchaseOrders: 1,
+    suppliers: 1,
+    reportProducts: 1,
+    reportForecast: 1,
+  },
 };
 
 function getSyncPayload(keys = SYNC_COLLECTION_KEYS) {
@@ -115,6 +130,13 @@ const supplierNoteInput = document.getElementById("supplierNoteInput");
 const supplierFormCancelButton = document.getElementById("supplierFormCancelButton");
 const supplierSearchInput = document.getElementById("supplierSearchInput");
 const supplierList = document.getElementById("supplierList");
+const reportMonthInput = document.getElementById("reportMonthInput");
+const reportRangeSelect = document.getElementById("reportRangeSelect");
+const refreshReportsButton = document.getElementById("refreshReportsButton");
+const reportSummaryCards = document.getElementById("reportSummaryCards");
+const reportMonthTrend = document.getElementById("reportMonthTrend");
+const forecastList = document.getElementById("forecastList");
+const reportProductActivity = document.getElementById("reportProductActivity");
 const mobileQuery = window.matchMedia("(max-width: 759px)");
 
 const quantityFormatter = new Intl.NumberFormat("vi-VN", {
@@ -149,6 +171,14 @@ function formatDate(value) {
   });
 }
 
+function formatMonthLabel(value) {
+  if (!value) {
+    return "";
+  }
+  const [year, month] = String(value).split("-");
+  return `Tháng ${month}/${year}`;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -160,6 +190,72 @@ function escapeHtml(value) {
 
 function normalizeText(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function getPageSize(key) {
+  const mobileSizes = {
+    inventory: 6,
+    productManage: 6,
+    salesProducts: 6,
+    orders: 4,
+    customers: 4,
+    purchaseSuggestions: 4,
+    purchaseOrders: 4,
+    suppliers: 4,
+    reportProducts: 4,
+    reportForecast: 4,
+  };
+  const desktopSizes = {
+    inventory: 9,
+    productManage: 9,
+    salesProducts: 9,
+    orders: 6,
+    customers: 6,
+    purchaseSuggestions: 6,
+    purchaseOrders: 6,
+    suppliers: 6,
+    reportProducts: 9,
+    reportForecast: 6,
+  };
+  return mobileQuery.matches ? (mobileSizes[key] || 6) : (desktopSizes[key] || 9);
+}
+
+function paginateItems(items, key) {
+  const pageSize = getPageSize(key);
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const currentPage = Math.min(Math.max(1, Number(state.pagination[key] || 1)), totalPages);
+  state.pagination[key] = currentPage;
+  const start = (currentPage - 1) * pageSize;
+  return {
+    items: items.slice(start, start + pageSize),
+    page: currentPage,
+    totalPages,
+    totalItems: items.length,
+  };
+}
+
+function renderPagination(key, pageData) {
+  if (pageData.totalItems <= getPageSize(key)) {
+    return "";
+  }
+
+  return `
+    <div class="pagination-bar">
+      <button type="button" class="ghost-button compact-button" data-page-key="${key}" data-page-action="prev" ${pageData.page <= 1 ? "disabled" : ""}>← Trước</button>
+      <span class="pagination-status">Trang ${pageData.page}/${pageData.totalPages} • ${pageData.totalItems} mục</span>
+      <button type="button" class="ghost-button compact-button" data-page-key="${key}" data-page-action="next" ${pageData.page >= pageData.totalPages ? "disabled" : ""}>Sau →</button>
+    </div>
+  `;
+}
+
+function updatePagination(key, action) {
+  const current = Number(state.pagination[key] || 1);
+  if (action === "prev") {
+    state.pagination[key] = Math.max(1, current - 1);
+  } else if (action === "next") {
+    state.pagination[key] = current + 1;
+  }
+  renderAll();
 }
 
 function nowIso() {
@@ -1109,10 +1205,20 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
+async function refreshReportData() {
+  const focusMonth = state.reportFocusMonth || new Date().toISOString().slice(0, 7);
+  const rangeMonths = Number(state.reportRangeMonths || 6);
+  state.reports = await apiRequest(`/api/reports/monthly?months=${rangeMonths}&focus_month=${encodeURIComponent(focusMonth)}`);
+  state.reportFocusMonth = state.reports?.focus_month || focusMonth;
+}
+
 async function refreshData() {
   isRefreshingState = true;
   try {
-    const payload = await apiRequest("/api/state?transaction_limit=16");
+    const [payload] = await Promise.all([
+      apiRequest("/api/state?transaction_limit=16"),
+      refreshReportData(),
+    ]);
     latestSyncUpdatedAt = payload.updated_at || {};
     state.products = payload.products || [];
     state.summary = payload.summary || null;
@@ -1200,7 +1306,8 @@ function renderProducts() {
     return;
   }
 
-  productGrid.innerHTML = filtered
+  const pageData = paginateItems(filtered, "inventory");
+  productGrid.innerHTML = pageData.items
     .map((product) => {
       const isExpanded = state.expandedProductId === product.id;
       const isEditingPrice = state.editingPriceId === product.id;
@@ -1261,7 +1368,7 @@ function renderProducts() {
         </article>
       `;
     })
-    .join("");
+    .join("") + renderPagination("inventory", pageData);
 }
 
 function renderTransactions() {
@@ -1343,7 +1450,8 @@ function renderSalesProductList() {
     return;
   }
 
-  salesProductList.innerHTML = filtered
+  const pageData = paginateItems(filtered, "salesProducts");
+  salesProductList.innerHTML = pageData.items
     .map((product) => {
       const inCart = activeCart?.items.some((item) => item.productId === product.id) || false;
       return `
@@ -1363,7 +1471,7 @@ function renderSalesProductList() {
         </article>
       `;
     })
-    .join("");
+    .join("") + renderPagination("salesProducts", pageData);
 }
 
 function renderCartItems() {
@@ -1443,7 +1551,8 @@ function renderCartQueue() {
     return;
   }
 
-  cartQueueList.innerHTML = visible
+  const pageData = paginateItems(visible, "orders");
+  cartQueueList.innerHTML = pageData.items
     .map((cart) => {
       const itemPreview = cart.items.slice(0, 3).map((item) => item.productName).join(", ");
       return `
@@ -1473,7 +1582,7 @@ function renderCartQueue() {
         </article>
       `;
     })
-    .join("");
+    .join("") + renderPagination("orders", pageData);
 }
 
 function renderCustomers() {
@@ -1488,7 +1597,8 @@ function renderCustomers() {
     return;
   }
 
-  customerList.innerHTML = filtered
+  const pageData = paginateItems(filtered, "customers");
+  customerList.innerHTML = pageData.items
     .map((customer) => {
       const relatedCarts = state.carts.filter((cart) => cart.customerId === customer.id);
       const draftCount = relatedCarts.filter((cart) => cart.status === "draft").length;
@@ -1518,7 +1628,7 @@ function renderCustomers() {
         </article>
       `;
     })
-    .join("");
+    .join("") + renderPagination("customers", pageData);
 }
 
 function renderProductManageList() {
@@ -1532,7 +1642,8 @@ function renderProductManageList() {
     return;
   }
 
-  productManageList.innerHTML = filtered
+  const pageData = paginateItems(filtered, "productManage");
+  productManageList.innerHTML = pageData.items
     .map((product) => {
       const isEditing = state.editingProductId === product.id;
       return `
@@ -1570,7 +1681,7 @@ function renderProductManageList() {
         </article>
       `;
     })
-    .join("");
+    .join("") + renderPagination("productManage", pageData);
 }
 
 function renderPurchasePanel() {
@@ -1625,7 +1736,18 @@ function renderPurchasePanel() {
               </div>
               <strong>${formatCurrency(item.lineTotal)}</strong>
             </div>
+            <div class="purchase-inline-grid">
+              <label class="price-field">
+                <span>Số lượng nhập</span>
+                <input type="number" min="0.01" step="0.01" value="${item.quantity}" data-purchase-qty-input="${item.id}">
+              </label>
+              <label class="price-field">
+                <span>Giá nhập</span>
+                <input type="number" min="0" step="1000" value="${item.unitCost}" data-purchase-cost-input="${item.id}">
+              </label>
+            </div>
             <div class="line-actions">
+              <button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">Lưu dòng</button>
               <button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button>
               <button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>
             </div>
@@ -1655,7 +1777,8 @@ function renderPurchaseSuggestions() {
     return;
   }
 
-  purchaseSuggestionList.innerHTML = filtered
+  const pageData = paginateItems(filtered, "purchaseSuggestions");
+  purchaseSuggestionList.innerHTML = pageData.items
     .map((entry) => `
       <article class="sales-product-row">
         <div class="sales-product-head">
@@ -1670,7 +1793,7 @@ function renderPurchaseSuggestions() {
         </div>
       </article>
     `)
-    .join("");
+    .join("") + renderPagination("purchaseSuggestions", pageData);
 }
 
 function renderPurchaseOrders() {
@@ -1680,7 +1803,8 @@ function renderPurchaseOrders() {
     return;
   }
 
-  purchaseOrderList.innerHTML = visiblePurchases
+  const pageData = paginateItems(visiblePurchases, "purchaseOrders");
+  purchaseOrderList.innerHTML = pageData.items
     .map((purchase) => `
       <article class="cart-queue-item">
         <div class="queue-header">
@@ -1696,7 +1820,7 @@ function renderPurchaseOrders() {
         </div>
       </article>
     `)
-    .join("");
+    .join("") + renderPagination("purchaseOrders", pageData);
 }
 
 function renderSuppliers() {
@@ -1711,7 +1835,8 @@ function renderSuppliers() {
     return;
   }
 
-  supplierList.innerHTML = filtered
+  const pageData = paginateItems(filtered, "suppliers");
+  supplierList.innerHTML = pageData.items
     .map((supplier) => `
       <article class="customer-item">
         <div class="customer-header">
@@ -1732,7 +1857,157 @@ function renderSuppliers() {
         </div>
       </article>
     `)
+    .join("") + renderPagination("suppliers", pageData);
+}
+
+function renderReports() {
+  if (reportMonthInput) {
+    reportMonthInput.value = state.reportFocusMonth;
+  }
+  if (reportRangeSelect) {
+    reportRangeSelect.value = String(state.reportRangeMonths);
+  }
+
+  if (!state.reports) {
+    reportSummaryCards.innerHTML = "";
+    reportMonthTrend.innerHTML = '<div class="empty-state">Chưa có dữ liệu báo cáo.</div>';
+    forecastList.innerHTML = '<div class="empty-state">Chưa có dữ liệu dự báo.</div>';
+    reportProductActivity.innerHTML = '<div class="empty-state">Chưa có dữ liệu sản phẩm theo tháng.</div>';
+    return;
+  }
+
+  const focus = state.reports.focus_summary || {};
+  const reportCards = [
+    {
+      label: "Tháng đang xem",
+      value: formatMonthLabel(state.reports.focus_month),
+      hint: "Mốc tổng hợp chính",
+    },
+    {
+      label: "Tổng nhập",
+      value: formatQuantity(focus.in_quantity),
+      hint: `Ước tính ${formatCurrency(focus.in_value)}`,
+    },
+    {
+      label: "Tổng xuất",
+      value: formatQuantity(focus.out_quantity),
+      hint: `Ước tính ${formatCurrency(focus.out_value)}`,
+    },
+    {
+      label: "Chênh lệch",
+      value: formatQuantity(focus.net_quantity),
+      hint: Number(focus.net_quantity || 0) >= 0 ? "Nhập nhiều hơn xuất" : "Xuất nhiều hơn nhập",
+    },
+  ];
+
+  reportSummaryCards.innerHTML = reportCards
+    .map(
+      (card) => `
+        <article class="summary-card">
+          <span>${escapeHtml(card.label)}</span>
+          <strong>${escapeHtml(card.value)}</strong>
+          <p class="panel-note">${escapeHtml(card.hint)}</p>
+        </article>
+      `
+    )
     .join("");
+
+  const months = Array.isArray(state.reports.months) ? state.reports.months : [];
+  reportMonthTrend.innerHTML = months.length
+    ? months
+        .map(
+          (entry) => `
+            <article class="report-card">
+              <div class="report-card-head">
+                <strong>${escapeHtml(formatMonthLabel(entry.month))}</strong>
+                <span class="status-pill ${Number(entry.net_quantity) >= 0 ? "draft" : "cancelled"}">${Number(entry.net_quantity) >= 0 ? "Tăng tồn" : "Giảm tồn"}</span>
+              </div>
+              <div class="report-metric-row">
+                <span>Nhập</span>
+                <strong class="report-highlight">${escapeHtml(formatQuantity(entry.in_quantity))}</strong>
+              </div>
+              <div class="report-metric-row">
+                <span>Xuất</span>
+                <strong class="report-warning">${escapeHtml(formatQuantity(entry.out_quantity))}</strong>
+              </div>
+              <div class="report-card-row">
+                <span>Giá trị nhập</span>
+                <span>${escapeHtml(formatCurrency(entry.in_value))}</span>
+              </div>
+              <div class="report-card-row">
+                <span>Giá trị xuất</span>
+                <span>${escapeHtml(formatCurrency(entry.out_value))}</span>
+              </div>
+            </article>
+          `
+        )
+        .join("")
+    : '<div class="empty-state">Chưa có dữ liệu tháng nào.</div>';
+
+  const forecastItems = Array.isArray(state.reports.forecast) ? state.reports.forecast : [];
+  if (!forecastItems.length) {
+    forecastList.innerHTML = '<div class="empty-state">Chưa có mặt hàng nào cần ưu tiên nhập thêm.</div>';
+  } else {
+    const pageData = paginateItems(forecastItems, "reportForecast");
+    forecastList.innerHTML = pageData.items
+      .map(
+        (item) => `
+          <article class="report-card">
+            <div class="report-card-head">
+              <strong>${escapeHtml(item.name)}</strong>
+              <span class="status-pill cancelled">Đề xuất ${escapeHtml(formatQuantity(item.recommended_purchase))} ${escapeHtml(item.unit)}</span>
+            </div>
+            <div class="report-card-meta">
+              <span>Tồn ${escapeHtml(formatQuantity(item.current_stock))} ${escapeHtml(item.unit)}</span>
+              <span>Ngưỡng ${escapeHtml(formatQuantity(item.low_stock_threshold))}</span>
+            </div>
+            <div class="report-card-row">
+              <span>Xuất TB 3 tháng</span>
+              <span>${escapeHtml(formatQuantity(item.avg_monthly_out))} ${escapeHtml(item.unit)}</span>
+            </div>
+            <div class="report-card-row">
+              <span>Đơn chờ / đang nhập</span>
+              <span>${escapeHtml(formatQuantity(item.pending_demand))} / ${escapeHtml(formatQuantity(item.incoming_quantity))}</span>
+            </div>
+            <div class="cart-line-note">${escapeHtml(item.reason || "")}</div>
+          </article>
+        `
+      )
+      .join("") + renderPagination("reportForecast", pageData);
+  }
+
+  const productActivity = Array.isArray(state.reports.product_activity) ? state.reports.product_activity : [];
+  if (!productActivity.length) {
+    reportProductActivity.innerHTML = '<div class="empty-state">Tháng này chưa có biến động nhập xuất theo sản phẩm.</div>';
+  } else {
+    const pageData = paginateItems(productActivity, "reportProducts");
+    reportProductActivity.innerHTML = pageData.items
+      .map(
+        (item) => `
+          <article class="product-row ${Number(item.out_quantity) > Number(item.in_quantity) ? "low-stock" : ""}">
+            <div class="product-row-head">
+              <div>
+                <div class="product-row-name">${escapeHtml(item.name)}</div>
+                <div class="product-row-meta">
+                  <span>${escapeHtml(item.category)}</span>
+                  <span>${escapeHtml(item.unit)}</span>
+                </div>
+              </div>
+              <div class="product-row-stock">${escapeHtml(formatQuantity(item.current_stock))} ${escapeHtml(item.unit)}</div>
+            </div>
+            <div class="product-row-meta">
+              <span>Nhập ${escapeHtml(formatQuantity(item.in_quantity))}</span>
+              <span>Xuất ${escapeHtml(formatQuantity(item.out_quantity))}</span>
+            </div>
+            <div class="product-row-meta">
+              <span>Giá trị nhập ${escapeHtml(formatCurrency(item.in_value))}</span>
+              <span>Giá trị xuất ${escapeHtml(formatCurrency(item.out_value))}</span>
+            </div>
+          </article>
+        `
+      )
+      .join("") + renderPagination("reportProducts", pageData);
+  }
 }
 
 function renderAll() {
@@ -1766,6 +2041,7 @@ function renderAll() {
   renderPurchaseSuggestions();
   renderPurchaseOrders();
   renderSuppliers();
+  renderReports();
 }
 
 function buildPrintMarkup(cart) {
@@ -1946,6 +2222,7 @@ quickPanelToggle.addEventListener("click", () => {
 menuPanel.addEventListener("click", (event) => {
   if (event.target.closest("#menuToggleButton")) {
     state.menuCollapsed = !state.menuCollapsed;
+    writeStorage(STORAGE_KEYS.menuCollapsed, state.menuCollapsed);
     renderMenu();
     return;
   }
@@ -2103,26 +2380,31 @@ productFormCancelButton.addEventListener("click", () => {
 
 productManageSearchInput.addEventListener("input", (event) => {
   state.productManageSearchTerm = event.target.value;
+  state.pagination.productManage = 1;
   renderProductManageList();
 });
 
 searchInput.addEventListener("input", (event) => {
   state.searchTerm = event.target.value;
+  state.pagination.inventory = 1;
   renderProducts();
 });
 
 salesSearchInput.addEventListener("input", (event) => {
   state.salesSearchTerm = event.target.value;
+  state.pagination.salesProducts = 1;
   renderSalesProductList();
 });
 
 orderSearchInput.addEventListener("input", (event) => {
   state.orderSearchTerm = event.target.value;
+  state.pagination.orders = 1;
   renderCartQueue();
 });
 
 customerSearchInput.addEventListener("input", (event) => {
   state.customerSearchTerm = event.target.value;
+  state.pagination.customers = 1;
   renderCustomers();
 });
 
@@ -2454,11 +2736,13 @@ showPaidOrders.addEventListener("change", (event) => {
 
 showPaidPurchases.addEventListener("change", (event) => {
   state.showPaidPurchases = event.target.checked;
+  state.pagination.purchaseOrders = 1;
   renderPurchaseOrders();
 });
 
 supplierSearchInput.addEventListener("input", (event) => {
   state.supplierSearchTerm = event.target.value;
+  state.pagination.suppliers = 1;
   renderSuppliers();
 });
 
@@ -2524,7 +2808,42 @@ purchaseNoteInput.addEventListener("change", () => {
 
 purchaseSearchInput.addEventListener("input", (event) => {
   state.purchaseSearchTerm = event.target.value;
+  state.pagination.purchaseSuggestions = 1;
   renderPurchaseSuggestions();
+});
+
+reportMonthInput.addEventListener("change", async (event) => {
+  state.reportFocusMonth = event.target.value || new Date().toISOString().slice(0, 7);
+  state.pagination.reportProducts = 1;
+  state.pagination.reportForecast = 1;
+  try {
+    await refreshReportData();
+    renderReports();
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+reportRangeSelect.addEventListener("change", async (event) => {
+  state.reportRangeMonths = Number(event.target.value || 6);
+  state.pagination.reportProducts = 1;
+  state.pagination.reportForecast = 1;
+  try {
+    await refreshReportData();
+    renderReports();
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+refreshReportsButton.addEventListener("click", async () => {
+  try {
+    await refreshReportData();
+    renderReports();
+    showToast("Đã làm mới báo cáo tháng.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
 });
 
 purchaseSuggestionList.addEventListener("click", (event) => {
@@ -2560,6 +2879,36 @@ purchasePanel.addEventListener("click", async (event) => {
   if (itemButton) {
     const purchase = getActivePurchase();
     if (!purchase) {
+      return;
+    }
+    if (itemButton.dataset.purchaseItemAction === "save") {
+      const qtyInput = purchasePanel.querySelector(`[data-purchase-qty-input="${itemButton.dataset.purchaseItemId}"]`);
+      const costInput = purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
+      const quantity = Number(qtyInput?.value);
+      const unitCost = Number(costInput?.value);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        showToast("Số lượng nhập phải lớn hơn 0.", true);
+        return;
+      }
+      if (!Number.isFinite(unitCost) || unitCost < 0) {
+        showToast("Giá nhập không hợp lệ.", true);
+        return;
+      }
+      updatePurchase(purchase.id, (currentPurchase) => ({
+        items: currentPurchase.items.map((item) =>
+          item.id === itemButton.dataset.purchaseItemId
+            ? {
+                ...item,
+                quantity: Number(quantity.toFixed(2)),
+                unitCost,
+              }
+            : item
+        ),
+        supplierName: purchaseSupplierInput.value.trim(),
+        note: purchaseNoteInput.value.trim(),
+      }));
+      saveAndRenderAll(["purchases"]);
+      showToast("Đã lưu dòng nhập hàng.");
       return;
     }
     updatePurchase(purchase.id, (currentPurchase) => ({
@@ -2676,6 +3025,21 @@ purchasePanel.addEventListener("click", async (event) => {
   }
 });
 
+purchasePanel.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") {
+    return;
+  }
+  const qtyInput = event.target.closest("[data-purchase-qty-input]");
+  const costInput = event.target.closest("[data-purchase-cost-input]");
+  if (!qtyInput && !costInput) {
+    return;
+  }
+  event.preventDefault();
+  const itemId = qtyInput?.dataset.purchaseQtyInput || costInput?.dataset.purchaseCostInput;
+  const saveButton = purchasePanel.querySelector(`[data-purchase-item-action="save"][data-purchase-item-id="${itemId}"]`);
+  saveButton?.click();
+});
+
 purchaseOrderList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-purchase-list-action]");
   if (!button) {
@@ -2736,8 +3100,17 @@ supplierList.addEventListener("click", (event) => {
   }
 });
 
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-page-action]");
+  if (!button) {
+    return;
+  }
+  updatePagination(button.dataset.pageKey, button.dataset.pageAction);
+});
+
 mobileQuery.addEventListener("change", () => {
   setQuickPanelCollapsed(false);
+  renderAll();
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
