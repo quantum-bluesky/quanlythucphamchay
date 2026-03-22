@@ -1,12 +1,23 @@
 const STORAGE_KEYS = {
-  customers: "qltpchay.customers.v1",
-  carts: "qltpchay.carts.v1",
   activeCartId: "qltpchay.active-cart.v1",
   activeMenu: "qltpchay.active-menu.v1",
-  purchases: "qltpchay.purchases.v1",
   activePurchaseId: "qltpchay.active-purchase.v1",
   menuCollapsed: "qltpchay.menu-collapsed.v1",
+  migratedSyncState: "qltpchay.server-sync-migrated.v1",
 };
+
+const LEGACY_STORAGE_KEYS = {
+  customers: "qltpchay.customers.v1",
+  carts: "qltpchay.carts.v1",
+  purchases: "qltpchay.purchases.v1",
+  suppliers: "qltpchay.suppliers.v1",
+};
+
+const SYNC_COLLECTION_KEYS = ["customers", "suppliers", "carts", "purchases"];
+const pendingPersistCollections = new Set();
+let persistScheduled = false;
+let isRefreshingState = false;
+let latestSyncUpdatedAt = {};
 
 const state = {
   products: [],
@@ -18,7 +29,9 @@ const state = {
   customerSearchTerm: "",
   productManageSearchTerm: "",
   purchaseSearchTerm: "",
+  supplierSearchTerm: "",
   customers: [],
+  suppliers: [],
   carts: [],
   purchases: [],
   activeCartId: null,
@@ -26,6 +39,7 @@ const state = {
   activeMenu: "inventory",
   showArchivedCarts: false,
   showPaidOrders: false,
+  showPaidPurchases: false,
   expandedProductId: null,
   editingPriceId: null,
   editingCustomerId: null,
@@ -33,7 +47,16 @@ const state = {
   editingCustomerFormId: null,
   menuCollapsed: false,
   purchasePanelCollapsed: false,
+  editingSupplierFormId: null,
 };
+
+function getSyncPayload(keys = SYNC_COLLECTION_KEYS) {
+  const payload = {};
+  keys.forEach((key) => {
+    payload[key] = state[key];
+  });
+  return payload;
+}
 
 const summaryCards = document.getElementById("summaryCards");
 const productGrid = document.getElementById("productGrid");
@@ -82,6 +105,16 @@ const purchasePanel = document.getElementById("purchasePanel");
 const purchaseSearchInput = document.getElementById("purchaseSearchInput");
 const purchaseSuggestionList = document.getElementById("purchaseSuggestionList");
 const purchaseOrderList = document.getElementById("purchaseOrderList");
+const showPaidPurchases = document.getElementById("showPaidPurchases");
+const supplierOptions = document.getElementById("supplierOptions");
+const supplierForm = document.getElementById("supplierForm");
+const supplierNameInput = document.getElementById("supplierNameInput");
+const supplierPhoneInput = document.getElementById("supplierPhoneInput");
+const supplierAddressInput = document.getElementById("supplierAddressInput");
+const supplierNoteInput = document.getElementById("supplierNoteInput");
+const supplierFormCancelButton = document.getElementById("supplierFormCancelButton");
+const supplierSearchInput = document.getElementById("supplierSearchInput");
+const supplierList = document.getElementById("supplierList");
 const mobileQuery = window.matchMedia("(max-width: 759px)");
 
 const quantityFormatter = new Intl.NumberFormat("vi-VN", {
@@ -171,7 +204,7 @@ function getDraftCarts() {
 }
 
 function getActivePurchase() {
-  return state.purchases.find((purchase) => purchase.id === state.activePurchaseId && purchase.status === "draft") || null;
+  return state.purchases.find((purchase) => purchase.id === state.activePurchaseId) || null;
 }
 
 function decorateCart(cart) {
@@ -238,6 +271,19 @@ function syncSalesState() {
     .filter((customer) => customer.name)
     .sort((left, right) => left.name.localeCompare(right.name, "vi"));
 
+  state.suppliers = (Array.isArray(state.suppliers) ? state.suppliers : [])
+    .map((supplier) => ({
+      id: supplier.id || createId("supplier"),
+      name: String(supplier.name || "").trim(),
+      phone: String(supplier.phone || "").trim(),
+      address: String(supplier.address || "").trim(),
+      note: String(supplier.note || "").trim(),
+      createdAt: supplier.createdAt || nowIso(),
+      updatedAt: supplier.updatedAt || supplier.createdAt || nowIso(),
+    }))
+    .filter((supplier) => supplier.name)
+    .sort((left, right) => left.name.localeCompare(right.name, "vi"));
+
   state.carts = (Array.isArray(state.carts) ? state.carts : [])
     .map(decorateCart)
     .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
@@ -287,25 +333,113 @@ function syncSalesState() {
   }
 
   const activePurchaseExists = state.purchases.some(
-    (purchase) => purchase.id === state.activePurchaseId && purchase.status === "draft"
+    (purchase) => purchase.id === state.activePurchaseId
   );
   if (!activePurchaseExists) {
-    state.activePurchaseId = state.purchases.find((purchase) => purchase.status === "draft")?.id || null;
+    state.activePurchaseId = state.purchases[0]?.id || null;
   }
 
-  writeStorage(STORAGE_KEYS.customers, state.customers);
-  writeStorage(STORAGE_KEYS.carts, state.carts);
-  writeStorage(STORAGE_KEYS.purchases, state.purchases);
   writeStorage(STORAGE_KEYS.activeCartId, state.activeCartId);
   writeStorage(STORAGE_KEYS.activePurchaseId, state.activePurchaseId);
   writeStorage(STORAGE_KEYS.activeMenu, state.activeMenu);
   writeStorage(STORAGE_KEYS.menuCollapsed, state.menuCollapsed);
 }
 
+function readLegacyCollections() {
+  return {
+    customers: readStorage(LEGACY_STORAGE_KEYS.customers, []),
+    suppliers: readStorage(LEGACY_STORAGE_KEYS.suppliers, []),
+    carts: readStorage(LEGACY_STORAGE_KEYS.carts, []),
+    purchases: readStorage(LEGACY_STORAGE_KEYS.purchases, []),
+  };
+}
+
+function hasAnySyncedData(payload) {
+  return SYNC_COLLECTION_KEYS.some((key) => Array.isArray(payload?.[key]) && payload[key].length);
+}
+
+async function migrateLegacyCollectionsIfNeeded(serverPayload) {
+  if (readStorage(STORAGE_KEYS.migratedSyncState, false)) {
+    return false;
+  }
+
+  const legacyCollections = readLegacyCollections();
+  if (hasAnySyncedData(serverPayload) || !hasAnySyncedData(legacyCollections)) {
+    return false;
+  }
+
+  const previousCollections = {
+    customers: state.customers,
+    suppliers: state.suppliers,
+    carts: state.carts,
+    purchases: state.purchases,
+  };
+
+  state.customers = legacyCollections.customers;
+  state.suppliers = legacyCollections.suppliers;
+  state.carts = legacyCollections.carts;
+  state.purchases = legacyCollections.purchases;
+  syncSalesState();
+
+  try {
+    await apiRequest("/api/state", {
+      method: "PUT",
+      body: JSON.stringify(getSyncPayload()),
+    });
+    writeStorage(STORAGE_KEYS.migratedSyncState, true);
+    showToast("Đã chuyển dữ liệu cũ từ trình duyệt lên server để đồng bộ nhiều máy.");
+    return true;
+  } catch (error) {
+    state.customers = previousCollections.customers;
+    state.suppliers = previousCollections.suppliers;
+    state.carts = previousCollections.carts;
+    state.purchases = previousCollections.purchases;
+    syncSalesState();
+    throw error;
+  }
+}
+
+async function persistCollections(keys = SYNC_COLLECTION_KEYS) {
+  const uniqueKeys = [...new Set(keys)].filter((key) => SYNC_COLLECTION_KEYS.includes(key));
+  if (!uniqueKeys.length) {
+    return;
+  }
+
+  await apiRequest("/api/state", {
+    method: "PUT",
+    body: JSON.stringify(getSyncPayload(uniqueKeys)),
+  });
+}
+
+function queuePersistCollections(keys = []) {
+  keys
+    .filter((key) => SYNC_COLLECTION_KEYS.includes(key))
+    .forEach((key) => pendingPersistCollections.add(key));
+
+  if (persistScheduled || !pendingPersistCollections.size) {
+    return;
+  }
+
+  persistScheduled = true;
+  window.setTimeout(async () => {
+    const keysToPersist = [...pendingPersistCollections];
+    pendingPersistCollections.clear();
+    persistScheduled = false;
+
+    try {
+      await persistCollections(keysToPersist);
+    } catch (error) {
+      showToast(`Lưu đồng bộ thất bại: ${error.message}`, true);
+      try {
+        await refreshData();
+      } catch {
+        // Ignore secondary refresh failures here.
+      }
+    }
+  }, 0);
+}
+
 function loadSalesState() {
-  state.customers = readStorage(STORAGE_KEYS.customers, []);
-  state.carts = readStorage(STORAGE_KEYS.carts, []);
-  state.purchases = readStorage(STORAGE_KEYS.purchases, []);
   state.activeCartId = readStorage(STORAGE_KEYS.activeCartId, null);
   state.activePurchaseId = readStorage(STORAGE_KEYS.activePurchaseId, null);
   state.activeMenu = readStorage(STORAGE_KEYS.activeMenu, "inventory");
@@ -313,9 +447,12 @@ function loadSalesState() {
   syncSalesState();
 }
 
-function saveAndRenderAll() {
+function saveAndRenderAll(changedCollections = []) {
   syncSalesState();
   renderAll();
+  if (!isRefreshingState) {
+    queuePersistCollections(changedCollections);
+  }
 }
 
 function switchMenu(menu) {
@@ -421,7 +558,82 @@ function upsertCustomer(payload, customerId = null) {
     });
   }
 
-  saveAndRenderAll();
+  saveAndRenderAll(["customers", "carts"]);
+}
+
+function upsertSupplier(payload, supplierId = null) {
+  const cleanName = String(payload.name || "").trim();
+  const cleanPhone = String(payload.phone || "").trim();
+  const cleanAddress = String(payload.address || "").trim();
+  const cleanNote = String(payload.note || "").trim();
+
+  if (!cleanName) {
+    throw new Error("Tên nhà cung cấp là bắt buộc.");
+  }
+
+  const duplicateByName = state.suppliers.find(
+    (supplier) => supplier.id !== supplierId && normalizeText(supplier.name) === normalizeText(cleanName)
+  );
+  if (duplicateByName) {
+    throw new Error("Tên nhà cung cấp đã tồn tại.");
+  }
+
+  if (cleanPhone) {
+    const duplicateByPhone = state.suppliers.find(
+      (supplier) => supplier.id !== supplierId && normalizeText(supplier.phone) === normalizeText(cleanPhone)
+    );
+    if (duplicateByPhone) {
+      throw new Error("Số điện thoại nhà cung cấp đã tồn tại.");
+    }
+  }
+
+  if (supplierId) {
+    const currentSupplier = state.suppliers.find((supplier) => supplier.id === supplierId);
+    const previousName = currentSupplier?.name || "";
+    state.suppliers = state.suppliers.map((supplier) =>
+      supplier.id === supplierId
+        ? {
+            ...supplier,
+            name: cleanName,
+            phone: cleanPhone,
+            address: cleanAddress,
+            note: cleanNote,
+            updatedAt: nowIso(),
+          }
+        : supplier
+    );
+    state.purchases = state.purchases.map((purchase) =>
+      normalizeText(purchase.supplierName) === normalizeText(previousName)
+        ? { ...purchase, supplierName: cleanName, updatedAt: nowIso() }
+        : purchase
+    );
+  } else {
+    state.suppliers.push({
+      id: createId("supplier"),
+      name: cleanName,
+      phone: cleanPhone,
+      address: cleanAddress,
+      note: cleanNote,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    });
+  }
+
+  saveAndRenderAll(["suppliers", "purchases"]);
+}
+
+function deleteSupplier(supplierId) {
+  const supplier = state.suppliers.find((entry) => entry.id === supplierId);
+  state.suppliers = state.suppliers.filter((entry) => entry.id !== supplierId);
+  state.purchases = state.purchases.map((purchase) =>
+    normalizeText(purchase.supplierName) === normalizeText(supplier?.name || "")
+      ? { ...purchase, supplierName: "", updatedAt: nowIso() }
+      : purchase
+  );
+  if (purchaseSupplierInput.value && normalizeText(purchaseSupplierInput.value) === normalizeText(supplier?.name || "")) {
+    purchaseSupplierInput.value = "";
+  }
+  saveAndRenderAll(["suppliers", "purchases"]);
 }
 
 function resolveProductFromText(text) {
@@ -499,7 +711,7 @@ function openCartForCustomer(customerName) {
 
   state.activeCartId = cart.id;
   customerLookupInput.value = customer.name;
-  saveAndRenderAll();
+  saveAndRenderAll(["customers", "carts"]);
   switchMenu("create-order");
   showToast(cart.itemCount ? "Đã mở lại giỏ hàng đang chờ." : "Đã tạo giỏ hàng mới.");
 }
@@ -556,7 +768,7 @@ function toggleProductInActiveCart(productId, checked) {
     };
   });
 
-  saveAndRenderAll();
+  saveAndRenderAll(["carts"]);
 }
 
 function updateCartItem(itemId, changes) {
@@ -580,7 +792,7 @@ function updateCartItem(itemId, changes) {
     updatedAt: nowIso(),
   }));
 
-  saveAndRenderAll();
+  saveAndRenderAll(["carts"]);
 }
 
 function changeItemQuantity(itemId, delta) {
@@ -615,7 +827,7 @@ function removeCartItem(itemId) {
     updatedAt: nowIso(),
   }));
 
-  saveAndRenderAll();
+  saveAndRenderAll(["carts"]);
 }
 
 function cancelCart(cartId) {
@@ -635,7 +847,7 @@ function cancelCart(cartId) {
     state.activeCartId = getDraftCarts().find((entry) => entry.id !== cartId)?.id || null;
   }
 
-  saveAndRenderAll();
+  saveAndRenderAll(["carts"]);
 }
 
 function deleteCart(cartId) {
@@ -643,7 +855,7 @@ function deleteCart(cartId) {
   if (state.activeCartId === cartId) {
     state.activeCartId = getDraftCarts()[0]?.id || null;
   }
-  saveAndRenderAll();
+  saveAndRenderAll(["customers", "carts"]);
 }
 
 function renameCustomer(customerId, newName) {
@@ -676,7 +888,7 @@ function renameCustomer(customerId, newName) {
   }
 
   state.editingCustomerId = null;
-  saveAndRenderAll();
+  saveAndRenderAll(["customers", "carts"]);
 }
 
 function deleteCustomer(customerId) {
@@ -690,11 +902,11 @@ function deleteCustomer(customerId) {
   if (customerLookupInput.value && normalizeText(customerLookupInput.value) === normalizeText(customer?.name)) {
     customerLookupInput.value = "";
   }
-  saveAndRenderAll();
+  saveAndRenderAll(["customers", "carts"]);
 }
 
 function createPurchaseDraftIfMissing() {
-  let purchase = getActivePurchase();
+  let purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId && entry.status === "draft") || null;
   if (!purchase) {
     purchase = {
       id: createId("purchase"),
@@ -800,20 +1012,11 @@ function addSuggestionToPurchase(productId, quantity, unitCost) {
       items: nextItems,
     };
   });
-  saveAndRenderAll();
+  saveAndRenderAll(["purchases"]);
 }
 
 function createPurchaseSuggestionFromCart(cart) {
-  const shortages = cart.items
-    .map((item) => {
-      const product = getProductById(item.productId);
-      const shortage = Math.max(0, Number(item.quantity) - Number(product?.current_stock || 0));
-      return {
-        item,
-        product,
-        shortage,
-      };
-    })
+  const shortages = getCartShortages(cart)
     .filter((entry) => entry.shortage > 0 && entry.product);
 
   if (!shortages.length) {
@@ -846,8 +1049,21 @@ function createPurchaseSuggestionFromCart(cart) {
   });
 
   state.activePurchaseId = purchase.id;
-  saveAndRenderAll();
+  saveAndRenderAll(["purchases"]);
   return true;
+}
+
+function getCartShortages(cart) {
+  return cart.items
+    .map((item) => {
+      const product = getProductById(item.productId);
+      const shortage = Math.max(0, Number(item.quantity) - Number(product?.current_stock || 0));
+      return {
+        item,
+        product,
+        shortage,
+      };
+    });
 }
 
 function setQuickPanelCollapsed(collapsed) {
@@ -894,15 +1110,23 @@ async function apiRequest(path, options = {}) {
 }
 
 async function refreshData() {
-  const [productsPayload, transactionsPayload] = await Promise.all([
-    apiRequest("/api/products"),
-    apiRequest("/api/transactions?limit=16"),
-  ]);
-
-  state.products = productsPayload.products;
-  state.summary = productsPayload.summary;
-  state.transactions = transactionsPayload.transactions;
-  renderAll();
+  isRefreshingState = true;
+  try {
+    const payload = await apiRequest("/api/state?transaction_limit=16");
+    latestSyncUpdatedAt = payload.updated_at || {};
+    state.products = payload.products || [];
+    state.summary = payload.summary || null;
+    state.transactions = payload.transactions || [];
+    state.customers = payload.customers || [];
+    state.suppliers = payload.suppliers || [];
+    state.carts = payload.carts || [];
+    state.purchases = payload.purchases || [];
+    syncSalesState();
+    renderAll();
+    return payload;
+  } finally {
+    isRefreshingState = false;
+  }
 }
 
 function renderSummary(summary) {
@@ -956,6 +1180,12 @@ function renderProductOptions() {
 function renderCustomerOptions() {
   customerOptions.innerHTML = state.customers
     .map((customer) => `<option value="${escapeHtml(customer.name)}"></option>`)
+    .join("");
+}
+
+function renderSupplierOptions() {
+  supplierOptions.innerHTML = state.suppliers
+    .map((supplier) => `<option value="${escapeHtml(supplier.name)}"></option>`)
     .join("");
 }
 
@@ -1303,28 +1533,43 @@ function renderProductManageList() {
   }
 
   productManageList.innerHTML = filtered
-    .map((product) => `
-      <article class="product-row ${product.is_low_stock ? "low-stock" : ""}">
-        <div class="product-row-head">
-          <div>
-            <div class="product-row-name">${escapeHtml(product.name)}</div>
-            <div class="product-row-meta">
-              <span>${escapeHtml(product.category)}</span>
-              <span>${escapeHtml(product.unit)}</span>
+    .map((product) => {
+      const isEditing = state.editingProductId === product.id;
+      return `
+        <article class="product-row ${product.is_low_stock ? "low-stock" : ""}">
+          <div class="product-row-head">
+            <div>
+              <div class="product-row-name">${escapeHtml(product.name)}</div>
+              <div class="product-row-meta">
+                <span>${escapeHtml(product.category)}</span>
+                <span>${escapeHtml(product.unit)}</span>
+              </div>
             </div>
+            <div class="product-row-stock">${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}</div>
           </div>
-          <div class="product-row-stock">${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}</div>
-        </div>
-        <div class="product-row-meta">
-          <span>Giá ${formatCurrency(product.price)}</span>
-          <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
-        </div>
-        <div class="row-actions">
-          <button type="button" class="ghost-button compact-button" data-product-manage-action="edit" data-product-id="${product.id}">Sửa</button>
-          <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}">Xóa</button>
-        </div>
-      </article>
-    `)
+          <div class="product-row-meta">
+            <span>Giá ${formatCurrency(product.price)}</span>
+            <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
+          </div>
+          <div class="row-actions">
+            <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy sửa" : "Sửa"}</button>
+            <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}">Xóa</button>
+          </div>
+          ${isEditing ? `
+            <div class="product-row-body">
+              <input type="text" value="${escapeHtml(product.name)}" data-manage-input="name" data-product-id="${product.id}" placeholder="Tên sản phẩm">
+              <input type="text" value="${escapeHtml(product.category)}" data-manage-input="category" data-product-id="${product.id}" placeholder="Loại">
+              <input type="text" value="${escapeHtml(product.unit)}" data-manage-input="unit" data-product-id="${product.id}" placeholder="Đơn vị">
+              <input type="number" min="0" step="1000" value="${product.price}" data-manage-input="price" data-product-id="${product.id}" placeholder="Giá">
+              <input type="number" min="0.01" step="0.01" value="${product.low_stock_threshold}" data-manage-input="low_stock_threshold" data-product-id="${product.id}" placeholder="Ngưỡng">
+              <div class="row-actions">
+                <button type="button" class="primary-button compact-button" data-product-manage-action="save-inline" data-product-id="${product.id}">Lưu nhanh</button>
+              </div>
+            </div>
+          ` : ""}
+        </article>
+      `;
+    })
     .join("");
 }
 
@@ -1363,7 +1608,7 @@ function renderPurchasePanel() {
           <h3>${escapeHtml(purchase.supplierName || "Chưa có nhà cung cấp")}</h3>
           <p class="panel-note">${escapeHtml(purchase.note || "Chưa có ghi chú")}</p>
         </div>
-        <span class="status-pill ${escapeHtml(purchase.status === "received" ? "completed" : purchase.status === "cancelled" ? "cancelled" : "draft")}">${purchase.status === "received" ? "Đã nhập kho" : purchase.status === "ordered" ? "Đã đặt" : purchase.status === "cancelled" ? "Đã hủy" : "Nháp"}</span>
+        <span class="status-pill ${escapeHtml(purchase.status === "received" || purchase.status === "paid" ? "completed" : purchase.status === "cancelled" ? "cancelled" : "draft")}">${purchase.status === "paid" ? "Đã thanh toán" : purchase.status === "received" ? "Đã nhập kho" : purchase.status === "ordered" ? "Đã đặt" : purchase.status === "cancelled" ? "Đã hủy" : "Nháp"}</span>
       </div>
       <div class="active-cart-stats">
         <div class="stat-chip"><span>Số dòng</span><strong>${purchase.items.length}</strong></div>
@@ -1390,6 +1635,8 @@ function renderPurchasePanel() {
       <div class="cart-toolbar">
         <button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>
         <button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>
+        <button type="button" class="ghost-button" data-purchase-action="mark-paid">Đã thanh toán</button>
+        <button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>
         <button type="button" class="secondary-button" data-purchase-action="collapse">Thu gọn</button>
         <button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>
       </div>
@@ -1427,24 +1674,61 @@ function renderPurchaseSuggestions() {
 }
 
 function renderPurchaseOrders() {
-  if (!state.purchases.length) {
+  const visiblePurchases = state.purchases.filter((purchase) => state.showPaidPurchases || purchase.status !== "paid");
+  if (!visiblePurchases.length) {
     purchaseOrderList.innerHTML = '<div class="empty-state">Chưa có phiếu nhập nào.</div>';
     return;
   }
 
-  purchaseOrderList.innerHTML = state.purchases
+  purchaseOrderList.innerHTML = visiblePurchases
     .map((purchase) => `
       <article class="cart-queue-item">
         <div class="queue-header">
           <strong>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
-          <span class="status-pill ${purchase.status === "received" ? "completed" : purchase.status === "cancelled" ? "cancelled" : "draft"}">${purchase.status === "received" ? "Đã nhập kho" : purchase.status === "ordered" ? "Đã đặt" : purchase.status === "cancelled" ? "Đã hủy" : "Nháp"}</span>
+          <span class="status-pill ${purchase.status === "received" || purchase.status === "paid" ? "completed" : purchase.status === "cancelled" ? "cancelled" : "draft"}">${purchase.status === "paid" ? "Đã thanh toán" : purchase.status === "received" ? "Đã nhập kho" : purchase.status === "ordered" ? "Đã đặt" : purchase.status === "cancelled" ? "Đã hủy" : "Nháp"}</span>
         </div>
         <div class="queue-meta">
           <span>${escapeHtml(purchase.receiptCode || formatDate(purchase.updatedAt))}</span>
           <span>${formatCurrency(purchase.items.reduce((sum, item) => sum + item.lineTotal, 0))}</span>
         </div>
         <div class="queue-actions">
-          ${purchase.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="open" data-purchase-id="${purchase.id}">Mở</button>` : ""}
+          <button type="button" class="ghost-button compact-button" data-purchase-list-action="open" data-purchase-id="${purchase.id}">Mở</button>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+function renderSuppliers() {
+  const filtered = state.suppliers.filter((supplier) =>
+    `${supplier.name} ${supplier.phone} ${supplier.address} ${supplier.note}`
+      .toLowerCase()
+      .includes(normalizeText(state.supplierSearchTerm))
+  );
+
+  if (!filtered.length) {
+    supplierList.innerHTML = '<div class="empty-state">Không có nhà cung cấp phù hợp.</div>';
+    return;
+  }
+
+  supplierList.innerHTML = filtered
+    .map((supplier) => `
+      <article class="customer-item">
+        <div class="customer-header">
+          <strong>${escapeHtml(supplier.name)}</strong>
+          <span class="status-pill draft">${state.purchases.filter((purchase) => normalizeText(purchase.supplierName) === normalizeText(supplier.name)).length} phiếu</span>
+        </div>
+        <div class="customer-meta">
+          <span>${escapeHtml(supplier.phone || "Chưa có số liên lạc")}</span>
+          <span>${escapeHtml(supplier.address || "Chưa có địa chỉ")}</span>
+        </div>
+        <div class="customer-meta">
+          <span>${escapeHtml(supplier.note || "Chưa có ghi chú")}</span>
+        </div>
+        <div class="customer-actions">
+          <button type="button" class="ghost-button compact-button" data-supplier-action="use" data-supplier-id="${supplier.id}">Dùng cho phiếu nhập</button>
+          <button type="button" class="ghost-button compact-button" data-supplier-action="edit" data-supplier-id="${supplier.id}">Sửa</button>
+          <button type="button" class="danger-button compact-button" data-supplier-action="delete" data-supplier-id="${supplier.id}">Xóa</button>
         </div>
       </article>
     `)
@@ -1454,6 +1738,7 @@ function renderPurchaseOrders() {
 function renderAll() {
   showArchivedCarts.checked = state.showArchivedCarts;
   showPaidOrders.checked = state.showPaidOrders;
+  showPaidPurchases.checked = state.showPaidPurchases || false;
   const activeCart = getActiveCart();
   if (activeCart) {
     customerLookupInput.value = activeCart.customerName;
@@ -1468,6 +1753,7 @@ function renderAll() {
   renderSummary(state.summary);
   renderProductOptions();
   renderCustomerOptions();
+  renderSupplierOptions();
   renderProducts();
   renderProductManageList();
   renderTransactions();
@@ -1479,6 +1765,7 @@ function renderAll() {
   renderPurchasePanel();
   renderPurchaseSuggestions();
   renderPurchaseOrders();
+  renderSuppliers();
 }
 
 function buildPrintMarkup(cart) {
@@ -1604,10 +1891,19 @@ async function checkoutActiveCart() {
     throw new Error("Giỏ hàng đang trống.");
   }
 
-  const hasShortage = createPurchaseSuggestionFromCart(cart);
-  if (hasShortage) {
+  const shortages = getCartShortages(cart).filter((entry) => entry.shortage > 0);
+  if (shortages.length) {
+    const shortageNames = shortages.map((entry) => `${entry.product?.name || entry.item.productName} thiếu ${formatQuantity(entry.shortage)}`).join(", ");
+    const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng: ${shortageNames}.\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn.\nChọn Cancel để tạo phiếu nhập hàng dự kiến.`);
+    if (shouldAdjustStock) {
+      switchMenu("inventory");
+      prefillProduct(shortages[0].product?.id || shortages[0].item.productId);
+      throw new Error("Hãy điều chỉnh lại tồn kho rồi chốt đơn lại.");
+    }
+
+    createPurchaseSuggestionFromCart(cart);
     switchMenu("purchases");
-    throw new Error("Đang thiếu tồn kho. Tôi đã tạo sẵn đề xuất nhập hàng, kiểm tra rồi nhập hàng trước khi chốt đơn.");
+    throw new Error("Đã tạo sẵn phiếu nhập dự kiến để bù thiếu cho đơn này.");
   }
 
   const data = await apiRequest("/api/orders/checkout", {
@@ -1635,7 +1931,8 @@ async function checkoutActiveCart() {
   }));
 
   state.activeCartId = getDraftCarts().find((entry) => entry.id !== cart.id)?.id || null;
-  saveAndRenderAll();
+  saveAndRenderAll(["carts"]);
+  await persistCollections(["carts"]);
   await refreshData();
   printCart(cart.id);
   showToast(data.message);
@@ -1886,13 +2183,37 @@ productManageList.addEventListener("click", async (event) => {
 
   if (button.dataset.productManageAction === "edit") {
     state.editingProductId = productId;
-    productForm.name.value = product.name;
-    productForm.category.value = product.category;
-    productForm.unit.value = product.unit;
-    productForm.price.value = product.price;
-    productForm.low_stock_threshold.value = product.low_stock_threshold;
-    switchMenu("products");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    renderProductManageList();
+    return;
+  }
+
+  if (button.dataset.productManageAction === "cancel") {
+    state.editingProductId = null;
+    renderProductManageList();
+    return;
+  }
+
+  if (button.dataset.productManageAction === "save-inline") {
+    const getValue = (field) =>
+      productManageList.querySelector(`[data-manage-input="${field}"][data-product-id="${productId}"]`)?.value || "";
+
+    try {
+      const data = await apiRequest(`/api/products/${productId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          name: getValue("name"),
+          category: getValue("category"),
+          unit: getValue("unit"),
+          price: getValue("price"),
+          low_stock_threshold: getValue("low_stock_threshold"),
+        }),
+      });
+      state.editingProductId = null;
+      await refreshData();
+      showToast(data.message);
+    } catch (error) {
+      showToast(error.message, true);
+    }
     return;
   }
 
@@ -2064,7 +2385,7 @@ cartQueueList.addEventListener("click", (event) => {
         ? decorateCart({ ...entry, paymentStatus: "paid", paidAt: nowIso(), updatedAt: nowIso() })
         : entry
     );
-    saveAndRenderAll();
+    saveAndRenderAll(["carts"]);
     showToast("Đã cập nhật trạng thái thanh toán.");
     return;
   }
@@ -2131,15 +2452,74 @@ showPaidOrders.addEventListener("change", (event) => {
   renderCartQueue();
 });
 
+showPaidPurchases.addEventListener("change", (event) => {
+  state.showPaidPurchases = event.target.checked;
+  renderPurchaseOrders();
+});
+
+supplierSearchInput.addEventListener("input", (event) => {
+  state.supplierSearchTerm = event.target.value;
+  renderSuppliers();
+});
+
+supplierForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  try {
+    upsertSupplier(
+      {
+        name: supplierNameInput.value,
+        phone: supplierPhoneInput.value,
+        address: supplierAddressInput.value,
+        note: supplierNoteInput.value,
+      },
+      state.editingSupplierFormId
+    );
+    supplierForm.reset();
+    state.editingSupplierFormId = null;
+    showToast("Đã lưu nhà cung cấp.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+supplierFormCancelButton.addEventListener("click", () => {
+  state.editingSupplierFormId = null;
+  supplierForm.reset();
+});
+
 createPurchaseDraftButton.addEventListener("click", () => {
   createPurchaseDraftIfMissing();
-  saveAndRenderAll();
+  saveAndRenderAll(["purchases"]);
   showToast("Đã tạo phiếu nhập nháp.");
 });
 
 togglePurchasePanelButton.addEventListener("click", () => {
   state.purchasePanelCollapsed = !state.purchasePanelCollapsed;
   renderPurchasePanel();
+});
+
+purchaseSupplierInput.addEventListener("change", () => {
+  const purchase = getActivePurchase();
+  if (!purchase) {
+    return;
+  }
+  updatePurchase(purchase.id, () => ({
+    supplierName: purchaseSupplierInput.value.trim(),
+    note: purchaseNoteInput.value.trim(),
+  }));
+  saveAndRenderAll(["purchases"]);
+});
+
+purchaseNoteInput.addEventListener("change", () => {
+  const purchase = getActivePurchase();
+  if (!purchase) {
+    return;
+  }
+  updatePurchase(purchase.id, () => ({
+    supplierName: purchaseSupplierInput.value.trim(),
+    note: purchaseNoteInput.value.trim(),
+  }));
+  saveAndRenderAll(["purchases"]);
 });
 
 purchaseSearchInput.addEventListener("input", (event) => {
@@ -2171,7 +2551,7 @@ purchasePanel.addEventListener("click", async (event) => {
     }
     if (panelButton.dataset.purchasePanelAction === "create") {
       createPurchaseDraftIfMissing();
-      saveAndRenderAll();
+      saveAndRenderAll(["purchases"]);
       return;
     }
   }
@@ -2198,7 +2578,7 @@ purchasePanel.addEventListener("click", async (event) => {
       supplierName: purchaseSupplierInput.value.trim(),
       note: purchaseNoteInput.value.trim(),
     }));
-    saveAndRenderAll();
+    saveAndRenderAll(["purchases"]);
     return;
   }
 
@@ -2222,7 +2602,7 @@ purchasePanel.addEventListener("click", async (event) => {
   if (actionButton.dataset.purchaseAction === "delete") {
     state.purchases = state.purchases.filter((entry) => entry.id !== purchase.id);
     state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
-    saveAndRenderAll();
+    saveAndRenderAll(["purchases"]);
     showToast("Đã xóa phiếu nhập.");
     return;
   }
@@ -2233,8 +2613,30 @@ purchasePanel.addEventListener("click", async (event) => {
       supplierName: purchaseSupplierInput.value.trim(),
       note: purchaseNoteInput.value.trim(),
     }));
-    saveAndRenderAll();
+    saveAndRenderAll(["purchases"]);
     showToast("Đã cập nhật trạng thái đặt hàng.");
+    return;
+  }
+
+  if (actionButton.dataset.purchaseAction === "cancel") {
+    updatePurchase(purchase.id, () => ({
+      status: "cancelled",
+      supplierName: purchaseSupplierInput.value.trim(),
+      note: purchaseNoteInput.value.trim(),
+    }));
+    saveAndRenderAll(["purchases"]);
+    showToast("Đã hủy phiếu nhập.");
+    return;
+  }
+
+  if (actionButton.dataset.purchaseAction === "mark-paid") {
+    updatePurchase(purchase.id, () => ({
+      status: "paid",
+      supplierName: purchaseSupplierInput.value.trim(),
+      note: purchaseNoteInput.value.trim(),
+    }));
+    saveAndRenderAll(["purchases"]);
+    showToast("Đã cập nhật phiếu nhập là đã thanh toán.");
     return;
   }
 
@@ -2264,6 +2666,8 @@ purchasePanel.addEventListener("click", async (event) => {
           : entry
       );
       state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
+      saveAndRenderAll(["purchases"]);
+      await persistCollections(["purchases"]);
       await refreshData();
       showToast(data.message);
     } catch (error) {
@@ -2285,6 +2689,53 @@ purchaseOrderList.addEventListener("click", (event) => {
   }
 });
 
+supplierList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-supplier-action]");
+  if (!button) {
+    return;
+  }
+
+  const supplierId = button.dataset.supplierId;
+  const supplier = state.suppliers.find((entry) => entry.id === supplierId);
+  if (!supplier) {
+    showToast("Không tìm thấy nhà cung cấp.", true);
+    return;
+  }
+
+  if (button.dataset.supplierAction === "use") {
+    purchaseSupplierInput.value = supplier.name;
+    switchMenu("purchases");
+    createPurchaseDraftIfMissing();
+    const purchase = getActivePurchase();
+    if (purchase) {
+      updatePurchase(purchase.id, () => ({
+        supplierName: supplier.name,
+        note: purchaseNoteInput.value.trim(),
+      }));
+      saveAndRenderAll(["purchases"]);
+    }
+    showToast("Đã chọn nhà cung cấp cho phiếu nhập.");
+    return;
+  }
+
+  if (button.dataset.supplierAction === "edit") {
+    state.editingSupplierFormId = supplierId;
+    supplierNameInput.value = supplier.name;
+    supplierPhoneInput.value = supplier.phone || "";
+    supplierAddressInput.value = supplier.address || "";
+    supplierNoteInput.value = supplier.note || "";
+    return;
+  }
+
+  if (button.dataset.supplierAction === "delete") {
+    if (!window.confirm(`Xóa nhà cung cấp ${supplier.name}?`)) {
+      return;
+    }
+    deleteSupplier(supplierId);
+    showToast("Đã xóa nhà cung cấp.");
+  }
+});
+
 mobileQuery.addEventListener("change", () => {
   setQuickPanelCollapsed(false);
 });
@@ -2295,7 +2746,14 @@ window.addEventListener("DOMContentLoaded", async () => {
   renderAll();
 
   try {
-    await refreshData();
+    const payload = await refreshData();
+    const migrated = await migrateLegacyCollectionsIfNeeded(payload);
+    if (!readStorage(STORAGE_KEYS.migratedSyncState, false) && hasAnySyncedData(payload)) {
+      writeStorage(STORAGE_KEYS.migratedSyncState, true);
+    }
+    if (migrated) {
+      await refreshData();
+    }
   } catch (error) {
     showToast(error.message, true);
   }

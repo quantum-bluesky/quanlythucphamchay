@@ -8,7 +8,7 @@
 - Quản lý giá nhập nhanh ngay trên từng sản phẩm và tính giá trị tồn
 - Nhập kho / xuất kho nhanh từ một form chính hoặc nút tắt trên từng thẻ sản phẩm
 - Quản lý khách hàng, giỏ hàng nháp và checkout nhiều mặt hàng trong một lần
-- Lưu giỏ hàng đang chờ trên trình duyệt, đóng app mở lại vẫn còn
+- Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server
 - In nhanh danh sách hàng và tổng tiền cho khách ngay từ giỏ hàng hoặc từ lịch sử đơn
 - Giao diện theo menu nghiệp vụ riêng cho tồn kho, tạo đơn, đơn hàng, khách hàng và sản phẩm
 - Các màn chọn đối tượng đều có ô tìm kiếm/gõ tên để thao tác nhanh trên điện thoại
@@ -25,6 +25,8 @@ python app.py
 ```
 
 Sau đó mở trình duyệt tại `http://127.0.0.1:8000`.
+
+Dữ liệu nghiệp vụ được lưu trong `data\inventory.db`. Nếu nhiều máy cùng mở vào cùng một địa chỉ app/server thì sẽ dùng chung một nguồn dữ liệu.
 
 Có thể bind theo IP / domain / port tùy ý:
 

@@ -30,6 +30,7 @@
         <button type="button" class="menu-button" data-menu="customers">4. Quản lý khách hàng</button>
         <button type="button" class="menu-button" data-menu="products">5. Quản lý sản phẩm</button>
         <button type="button" class="menu-button" data-menu="purchases">6. Quản lý nhập hàng</button>
+        <button type="button" class="menu-button" data-menu="suppliers">7. Quản lý nhà cung cấp</button>
       </div>
     </nav>
 
@@ -106,7 +107,7 @@
             <p class="panel-kicker">Tạo đơn</p>
             <h2>Giỏ hàng xuất cho khách</h2>
           </div>
-          <p class="panel-note">Giỏ hàng nháp được lưu trên máy. Có thể rời app rồi quay lại tiếp tục.</p>
+          <p class="panel-note">Giỏ hàng nháp và danh mục liên quan được lưu trên server để mở tiếp ở máy khác.</p>
         </div>
 
         <article class="sales-customer-card">
@@ -289,7 +290,7 @@
           <div class="sales-customer-form">
             <label>
               <span>Nhà cung cấp / ghi chú nguồn hàng</span>
-              <input id="purchaseSupplierInput" type="text" maxlength="120" placeholder="Ví dụ: Chợ đầu mối, NCC Minh Tâm">
+              <input id="purchaseSupplierInput" type="text" list="supplierOptions" maxlength="120" placeholder="Ví dụ: Chợ đầu mối, NCC Minh Tâm">
             </label>
             <label>
               <span>Ghi chú phiếu nhập</span>
@@ -299,6 +300,7 @@
           <div class="inline-menu-actions">
             <button type="button" id="createPurchaseDraftButton" class="ghost-button compact-button">Tạo phiếu nháp</button>
             <button type="button" id="togglePurchasePanelButton" class="ghost-button compact-button">Thu gọn phiếu nhập</button>
+            <button type="button" class="ghost-button compact-button" data-go-menu="suppliers">Nhà cung cấp</button>
           </div>
         </article>
 
@@ -327,6 +329,10 @@
                 <p class="panel-kicker">Phiếu nhập</p>
                 <h3>Danh sách phiếu nhập và trạng thái</h3>
               </div>
+              <label class="toggle-inline">
+                <input id="showPaidPurchases" type="checkbox">
+                <span>Hiện phiếu đã thanh toán</span>
+              </label>
             </div>
             <div id="purchaseOrderList" class="cart-queue-list"></div>
           </section>
@@ -334,8 +340,50 @@
       </section>
     </section>
 
+    <section class="view-section" data-menu-section="suppliers">
+      <section class="panel suppliers-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Nhà cung cấp</p>
+            <h2>Danh bạ nguồn hàng</h2>
+          </div>
+          <p class="panel-note">Thêm mới, sửa, xóa và tái sử dụng trong các phiếu nhập hàng.</p>
+        </div>
+        <form id="supplierForm" class="customer-form">
+          <label>
+            <span>Tên nhà cung cấp</span>
+            <input id="supplierNameInput" name="name" type="text" maxlength="120" placeholder="Ví dụ: NCC Minh Tâm" required>
+          </label>
+          <label>
+            <span>Số liên lạc</span>
+            <input id="supplierPhoneInput" name="phone" type="text" maxlength="30" placeholder="Ví dụ: 0909...">
+          </label>
+          <label>
+            <span>Địa chỉ</span>
+            <input id="supplierAddressInput" name="address" type="text" maxlength="180" placeholder="Ví dụ: Chợ đầu mối Bình Điền">
+          </label>
+          <label>
+            <span>Ghi chú</span>
+            <input id="supplierNoteInput" name="note" type="text" maxlength="180" placeholder="Ví dụ: giao hàng sáng, chuyên đồ đông lạnh">
+          </label>
+          <div class="customer-form-actions">
+            <button type="submit" class="primary-button">Lưu nhà cung cấp</button>
+            <button type="button" id="supplierFormCancelButton" class="ghost-button">Hủy sửa</button>
+          </div>
+        </form>
+        <div class="sticky-toolbar customer-toolbar">
+          <label class="search-box">
+            <span class="sr-only">Tìm nhà cung cấp</span>
+            <input id="supplierSearchInput" type="search" placeholder="Tìm nhà cung cấp...">
+          </label>
+        </div>
+        <div id="supplierList" class="customer-list"></div>
+      </section>
+    </section>
+
     <datalist id="productOptions"></datalist>
     <datalist id="customerOptions"></datalist>
+    <datalist id="supplierOptions"></datalist>
   </main>
 
   <script src="/static/app.js" defer></script>

@@ -51,6 +51,8 @@ def parse_non_negative_decimal(value, field_name: str) -> Decimal:
 
 
 class InventoryStore:
+    SYNC_COLLECTION_KEYS = ("customers", "suppliers", "carts", "purchases")
+
     def __init__(self, db_path: Path):
         requested_path = Path(db_path)
         self.db_path = requested_path
@@ -69,6 +71,7 @@ class InventoryStore:
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(str(self.db_path))
         connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
     def _initialize_schema(self) -> None:
@@ -101,6 +104,12 @@ class InventoryStore:
 
                 CREATE INDEX IF NOT EXISTS idx_transactions_created_at
                 ON transactions(created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS app_state (
+                    state_key TEXT PRIMARY KEY,
+                    state_value TEXT NOT NULL DEFAULT '[]',
+                    updated_at TEXT NOT NULL
+                );
                 """
             )
             columns = {
@@ -109,6 +118,15 @@ class InventoryStore:
             if "price" not in columns:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN price REAL NOT NULL DEFAULT 0"
+                )
+            now = utc_now_iso()
+            for key in self.SYNC_COLLECTION_KEYS:
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO app_state(state_key, state_value, updated_at)
+                    VALUES(?, '[]', ?)
+                    """,
+                    (key, now),
                 )
 
     def _get_product_or_raise(self, connection: sqlite3.Connection, product_id: int) -> sqlite3.Row:
@@ -651,6 +669,57 @@ class InventoryStore:
             "updated_at": row["updated_at"],
         }
 
+    def get_sync_state(self) -> dict:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT state_key, state_value, updated_at
+                FROM app_state
+                WHERE state_key IN (?, ?, ?, ?)
+                """,
+                self.SYNC_COLLECTION_KEYS,
+            ).fetchall()
+
+        collections: dict[str, list] = {key: [] for key in self.SYNC_COLLECTION_KEYS}
+        updated_at: dict[str, str] = {}
+
+        for row in rows:
+            try:
+                decoded = json.loads(row["state_value"] or "[]")
+            except json.JSONDecodeError:
+                decoded = []
+            collections[row["state_key"]] = decoded if isinstance(decoded, list) else []
+            updated_at[row["state_key"]] = row["updated_at"]
+
+        collections["updated_at"] = updated_at
+        return collections
+
+    def save_sync_state(self, payload: dict) -> dict:
+        allowed_keys = set(self.SYNC_COLLECTION_KEYS)
+        to_update = {
+            key: payload[key]
+            for key in payload
+            if key in allowed_keys
+        }
+        if not to_update:
+            raise ValueError("Không có dữ liệu đồng bộ hợp lệ.")
+
+        now = utc_now_iso()
+        with self._connect() as connection:
+            for key, value in to_update.items():
+                if not isinstance(value, list):
+                    raise ValueError(f"Dữ liệu {key} phải là một danh sách.")
+                connection.execute(
+                    """
+                    UPDATE app_state
+                    SET state_value = ?, updated_at = ?
+                    WHERE state_key = ?
+                    """,
+                    (json.dumps(value, ensure_ascii=False), now, key),
+                )
+
+        return self.get_sync_state()
+
 
 def create_handler(store: InventoryStore):
     class InventoryRequestHandler(BaseHTTPRequestHandler):
@@ -679,6 +748,20 @@ def create_handler(store: InventoryStore):
                 self._send_json(
                     HTTPStatus.OK,
                     {"transactions": store.get_transactions(limit=int(limit))},
+                )
+                return
+
+            if route == "/api/state":
+                query = parse_qs(parsed.query)
+                limit = query.get("transaction_limit", ["16"])[0]
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "products": store.get_products(),
+                        "summary": store.get_summary(),
+                        "transactions": store.get_transactions(limit=int(limit)),
+                        **store.get_sync_state(),
+                    },
                 )
                 return
 
@@ -764,6 +847,21 @@ def create_handler(store: InventoryStore):
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
 
         def do_PUT(self) -> None:
+            if urlparse(self.path).path == "/api/state":
+                try:
+                    payload = self._read_json_body()
+                    sync_state = store.save_sync_state(payload)
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã lưu dữ liệu đồng bộ.",
+                            **sync_state,
+                        },
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
             product_match = re.fullmatch(r"/api/products/(\d+)$", urlparse(self.path).path)
             if product_match:
                 try:
