@@ -165,6 +165,107 @@ h3 {
   gap: 20px;
 }
 
+.screen-toolbox {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 80;
+  display: grid;
+  gap: 10px;
+}
+
+.toolbox-button {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: rgba(255, 253, 248, 0.96);
+  color: var(--accent-strong);
+  box-shadow: var(--shadow);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.toolbox-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.toolbox-button-help {
+  background: linear-gradient(135deg, var(--accent) 0%, #2f7a54 100%);
+  color: white;
+}
+
+.help-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.help-modal[hidden] {
+  display: none !important;
+}
+
+.help-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(23, 34, 27, 0.46);
+  backdrop-filter: blur(4px);
+}
+
+.help-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(760px, calc(100vw - 24px));
+  max-height: min(88vh, 920px);
+  overflow: auto;
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: var(--shadow);
+}
+
+.help-dialog-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.help-dialog-body {
+  display: grid;
+  gap: 16px;
+}
+
+.help-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+}
+
+.help-card ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.help-related-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .menu-panel.is-collapsed .menu-grid {
   display: none;
 }
@@ -853,13 +954,20 @@ button:disabled {
   .inline-menu-actions,
   .customer-form-actions,
   .product-form-actions,
-  .reports-filter-grid {
+  .reports-filter-grid,
+  .help-dialog-head {
     display: grid;
     grid-template-columns: 1fr;
   }
 
   .purchase-inline-grid {
     grid-template-columns: 1fr;
+  }
+
+  .screen-toolbox {
+    right: 12px;
+    bottom: 12px;
+    grid-auto-flow: column;
   }
 }
 

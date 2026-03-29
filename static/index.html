@@ -627,6 +627,26 @@
     <datalist id="supplierOptions"></datalist>
   </main>
 
+  <div class="screen-toolbox" aria-label="Công cụ điều hướng nhanh">
+    <button type="button" id="navBackButton" class="toolbox-button" title="Quay lại màn trước" aria-label="Quay lại màn trước">←</button>
+    <button type="button" id="openHelpButton" class="toolbox-button toolbox-button-help" title="Xem hướng dẫn màn hình hiện tại" aria-label="Xem hướng dẫn màn hình hiện tại">?</button>
+    <button type="button" id="navForwardButton" class="toolbox-button" title="Tiến tới màn kế tiếp trong lịch sử" aria-label="Tiến tới màn kế tiếp trong lịch sử">→</button>
+  </div>
+
+  <div id="helpModal" class="help-modal" hidden>
+    <div class="help-backdrop" data-help-close="backdrop"></div>
+    <section class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <div class="help-dialog-head">
+        <div>
+          <p class="panel-kicker">Hướng dẫn nhanh</p>
+          <h2 id="helpModalTitle">Trợ giúp màn hình</h2>
+        </div>
+        <button type="button" id="closeHelpButton" class="ghost-button compact-button" aria-label="Đóng hướng dẫn">Đóng</button>
+      </div>
+      <div id="helpModalBody" class="help-dialog-body"></div>
+    </section>
+  </div>
+
   <script src="/static/app.js" defer></script>
 </body>
 </html>
