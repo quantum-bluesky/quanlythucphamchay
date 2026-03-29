@@ -32,6 +32,7 @@
         <button type="button" class="menu-button" data-menu="purchases">6. Quản lý nhập hàng</button>
         <button type="button" class="menu-button" data-menu="suppliers">7. Quản lý nhà cung cấp</button>
         <button type="button" class="menu-button" data-menu="reports">8. Báo cáo tháng</button>
+        <button type="button" class="menu-button" data-menu="history">9. Lịch sử & khôi phục</button>
       </div>
     </nav>
 
@@ -274,6 +275,15 @@
             <button type="button" id="productFormCancelButton" class="ghost-button wide-button">Hủy sửa</button>
           </div>
         </form>
+        <section class="sales-card">
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Lịch sử sản phẩm</p>
+              <h3>Các thay đổi gần đây trong quản lý sản phẩm</h3>
+            </div>
+          </div>
+          <div id="productHistoryList" class="report-list"></div>
+        </section>
       </section>
     </section>
 
@@ -444,6 +454,50 @@
             </div>
           </div>
           <div id="reportProductActivity" class="product-list"></div>
+        </section>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="history">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Đối tượng đã xóa</p>
+            <h2>Quản lý khôi phục an toàn</h2>
+          </div>
+          <p class="panel-note">Mỗi mục đã xóa sẽ hiện ràng buộc và cảnh báo trước khi khôi phục lại.</p>
+        </div>
+
+        <div class="sales-columns">
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Sản phẩm đã xóa</p>
+                <h3>Khôi phục mặt hàng ngừng bán</h3>
+              </div>
+            </div>
+            <div id="deletedProductList" class="product-list"></div>
+          </section>
+
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Khách hàng đã xóa</p>
+                <h3>Khôi phục danh bạ khách hàng</h3>
+              </div>
+            </div>
+            <div id="deletedCustomerList" class="customer-list"></div>
+          </section>
+        </div>
+
+        <section class="sales-card">
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Nhà cung cấp đã xóa</p>
+              <h3>Khôi phục nguồn hàng</h3>
+            </div>
+          </div>
+          <div id="deletedSupplierList" class="customer-list"></div>
         </section>
       </section>
     </section>

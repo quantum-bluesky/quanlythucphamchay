@@ -118,6 +118,8 @@ class InventoryStore:
                     unit TEXT NOT NULL,
                     price REAL NOT NULL DEFAULT 0,
                     low_stock_threshold REAL NOT NULL DEFAULT 5,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    deleted_at TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -143,6 +145,19 @@ class InventoryStore:
                     state_value TEXT NOT NULL DEFAULT '[]',
                     updated_at TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    entity_name TEXT NOT NULL DEFAULT '',
+                    action TEXT NOT NULL,
+                    message TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_audit_logs_entity
+                ON audit_logs(entity_type, created_at DESC);
                 """
             )
             columns = {
@@ -151,6 +166,14 @@ class InventoryStore:
             if "price" not in columns:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN price REAL NOT NULL DEFAULT 0"
+                )
+            if "is_deleted" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"
+                )
+            if "deleted_at" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN deleted_at TEXT"
                 )
             now = utc_now_iso()
             for key in self.SYNC_COLLECTION_KEYS:
@@ -162,14 +185,81 @@ class InventoryStore:
                     (key, now),
                 )
 
-    def _get_product_or_raise(self, connection: sqlite3.Connection, product_id: int) -> sqlite3.Row:
+    def _get_product_or_raise(
+        self,
+        connection: sqlite3.Connection,
+        product_id: int,
+        *,
+        allow_deleted: bool = False,
+    ) -> sqlite3.Row:
         product = connection.execute(
-            "SELECT id, name, category, unit, price, low_stock_threshold FROM products WHERE id = ?",
+            """
+            SELECT id, name, category, unit, price, low_stock_threshold, is_deleted, deleted_at
+            FROM products
+            WHERE id = ?
+            """,
             (product_id,),
         ).fetchone()
         if not product:
             raise ValueError("Sản phẩm không tồn tại.")
+        if not allow_deleted and int(product["is_deleted"] or 0) == 1:
+            raise ValueError("Sản phẩm đã bị xóa khỏi danh mục đang dùng.")
         return product
+
+    def _record_audit(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        entity_type: str,
+        entity_id: str | int,
+        entity_name: str,
+        action: str,
+        message: str = "",
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO audit_logs(entity_type, entity_id, entity_name, action, message, created_at)
+            VALUES(?, ?, ?, ?, ?, ?)
+            """,
+            (entity_type, str(entity_id), entity_name, action, message, utc_now_iso()),
+        )
+
+    def _count_product_sync_usage(self, product_id: int) -> dict:
+        carts = self._get_sync_collection("carts")
+        purchases = self._get_sync_collection("purchases")
+
+        draft_cart_count = 0
+        draft_cart_item_count = 0
+        for cart in carts:
+            if str(cart.get("status", "draft")) != "draft":
+                continue
+            matching_items = [
+                item for item in cart.get("items", [])
+                if int(item.get("productId") or item.get("product_id") or 0) == int(product_id)
+            ]
+            if matching_items:
+                draft_cart_count += 1
+                draft_cart_item_count += len(matching_items)
+
+        open_purchase_count = 0
+        open_purchase_item_count = 0
+        for purchase in purchases:
+            if str(purchase.get("status", "draft")) not in {"draft", "ordered"}:
+                continue
+            matching_items = [
+                item for item in purchase.get("items", [])
+                if int(item.get("productId") or item.get("product_id") or 0) == int(product_id)
+            ]
+            if matching_items:
+                open_purchase_count += 1
+                open_purchase_item_count += len(matching_items)
+
+        return {
+            "draft_cart_count": draft_cart_count,
+            "draft_cart_item_count": draft_cart_item_count,
+            "open_purchase_count": open_purchase_count,
+            "open_purchase_item_count": open_purchase_item_count,
+        }
 
     def _get_stock_for_product(self, connection: sqlite3.Connection, product_id: int) -> Decimal:
         row = connection.execute(
@@ -190,10 +280,9 @@ class InventoryStore:
         ).fetchone()
         return Decimal(str(row["current_stock"]))
 
-    def get_products(self) -> list[dict]:
+    def get_products(self, *, include_deleted: bool = False) -> list[dict]:
         with self._connect() as connection:
-            rows = connection.execute(
-                """
+            sql = """
                 SELECT
                     p.id,
                     p.name,
@@ -201,6 +290,8 @@ class InventoryStore:
                     p.unit,
                     p.price,
                     p.low_stock_threshold,
+                    p.is_deleted,
+                    p.deleted_at,
                     p.created_at,
                     p.updated_at,
                     COALESCE(
@@ -214,10 +305,15 @@ class InventoryStore:
                     ) AS current_stock
                 FROM products p
                 LEFT JOIN transactions t ON t.product_id = p.id
+            """
+            params: tuple = ()
+            if not include_deleted:
+                sql += " WHERE p.is_deleted = 0"
+            sql += """
                 GROUP BY p.id
-                ORDER BY p.name COLLATE NOCASE ASC
-                """
-            ).fetchall()
+                ORDER BY p.is_deleted ASC, p.name COLLATE NOCASE ASC
+            """
+            rows = connection.execute(sql, params).fetchall()
             return [self._serialize_product_row(row) for row in rows]
 
     def get_summary(self) -> dict:
@@ -282,9 +378,23 @@ class InventoryStore:
                     (clean_name, clean_category, clean_unit, parsed_price, float(threshold), now, now),
                 )
             except sqlite3.IntegrityError as exc:
+                deleted_match = connection.execute(
+                    "SELECT 1 FROM products WHERE name = ? AND is_deleted = 1",
+                    (clean_name,),
+                ).fetchone()
+                if deleted_match:
+                    raise ValueError("Tên sản phẩm đang nằm trong danh mục đã xóa. Hãy khôi phục thay vì tạo mới.") from exc
                 raise ValueError("Tên sản phẩm đã tồn tại.") from exc
 
             product_id = cursor.lastrowid
+            self._record_audit(
+                connection,
+                entity_type="product",
+                entity_id=product_id,
+                entity_name=clean_name,
+                action="create",
+                message="Tạo mới sản phẩm trong danh mục đang dùng.",
+            )
 
         return self.get_product_by_id(product_id)
 
@@ -325,6 +435,18 @@ class InventoryStore:
                 "UPDATE products SET price = ?, updated_at = ? WHERE id = ?",
                 (parsed_price, now, int(product_id)),
             )
+            product = connection.execute(
+                "SELECT name FROM products WHERE id = ?",
+                (int(product_id),),
+            ).fetchone()
+            self._record_audit(
+                connection,
+                entity_type="product",
+                entity_id=product_id,
+                entity_name=product["name"],
+                action="update-price",
+                message=f"Cập nhật giá nhập thành {parsed_price:.0f}.",
+            )
 
         return self.get_product_by_id(int(product_id))
 
@@ -347,7 +469,7 @@ class InventoryStore:
         now = utc_now_iso()
 
         with self._connect() as connection:
-            self._get_product_or_raise(connection, int(product_id))
+            current_product = self._get_product_or_raise(connection, int(product_id))
             try:
                 connection.execute(
                     """
@@ -366,27 +488,129 @@ class InventoryStore:
                     ),
                 )
             except sqlite3.IntegrityError as exc:
+                deleted_match = connection.execute(
+                    "SELECT 1 FROM products WHERE name = ? AND is_deleted = 1 AND id != ?",
+                    (clean_name, int(product_id)),
+                ).fetchone()
+                if deleted_match:
+                    raise ValueError("Tên sản phẩm trùng với một sản phẩm đang nằm trong danh mục đã xóa.") from exc
                 raise ValueError("Tên sản phẩm đã tồn tại.") from exc
+            self._record_audit(
+                connection,
+                entity_type="product",
+                entity_id=product_id,
+                entity_name=clean_name,
+                action="update",
+                message=f"Cập nhật từ {current_product['name']} sang {clean_name}.",
+            )
 
         return self.get_product_by_id(int(product_id))
 
-    def delete_product(self, product_id: int) -> None:
+    def delete_product(self, product_id: int) -> dict:
         with self._connect() as connection:
-            self._get_product_or_raise(connection, int(product_id))
-            transaction_exists = connection.execute(
-                "SELECT 1 FROM transactions WHERE product_id = ? LIMIT 1",
-                (int(product_id),),
-            ).fetchone()
-            if transaction_exists:
-                raise ValueError("Sản phẩm đã có giao dịch, không thể xóa.")
+            product = self._get_product_or_raise(connection, int(product_id))
+            current_stock = float(self._get_stock_for_product(connection, int(product_id)))
+            sync_usage = self._count_product_sync_usage(int(product_id))
+            impacts = [
+                "Sản phẩm sẽ bị ẩn khỏi tồn kho, tạo đơn, nhập hàng và danh mục đang dùng.",
+                "Lịch sử giao dịch cũ vẫn được giữ lại.",
+            ]
+            if current_stock > 0:
+                raise ValueError("Chỉ được xóa sản phẩm khi tồn kho hiện tại bằng 0.")
+            if sync_usage["draft_cart_count"] > 0:
+                raise ValueError("Sản phẩm đang nằm trong giỏ hàng nháp, không thể xóa.")
+            if sync_usage["open_purchase_count"] > 0:
+                raise ValueError("Sản phẩm đang nằm trong phiếu nhập draft/ordered, không thể xóa.")
 
-            connection.execute("DELETE FROM products WHERE id = ?", (int(product_id),))
+            now = utc_now_iso()
+            connection.execute(
+                """
+                UPDATE products
+                SET is_deleted = 1, deleted_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (now, now, int(product_id)),
+            )
+            self._record_audit(
+                connection,
+                entity_type="product",
+                entity_id=product_id,
+                entity_name=product["name"],
+                action="delete",
+                message="Đưa sản phẩm vào danh mục đã xóa.",
+            )
+            return {
+                "product_id": int(product_id),
+                "product_name": product["name"],
+                "impacts": impacts,
+            }
+
+    def restore_product(self, product_id: int) -> dict:
+        with self._connect() as connection:
+            product = self._get_product_or_raise(connection, int(product_id), allow_deleted=True)
+            if int(product["is_deleted"] or 0) == 0:
+                raise ValueError("Sản phẩm đang ở trạng thái hoạt động.")
+
+            active_name_conflict = connection.execute(
+                "SELECT 1 FROM products WHERE name = ? AND is_deleted = 0 AND id != ? LIMIT 1",
+                (product["name"], int(product_id)),
+            ).fetchone()
+            if active_name_conflict:
+                raise ValueError("Đang có sản phẩm hoạt động khác trùng tên, không thể khôi phục.")
+
+            now = utc_now_iso()
+            connection.execute(
+                """
+                UPDATE products
+                SET is_deleted = 0, deleted_at = NULL, updated_at = ?
+                WHERE id = ?
+                """,
+                (now, int(product_id)),
+            )
+            self._record_audit(
+                connection,
+                entity_type="product",
+                entity_id=product_id,
+                entity_name=product["name"],
+                action="restore",
+                message="Khôi phục sản phẩm về danh mục đang dùng.",
+            )
+        return self.get_product_by_id(int(product_id))
+
+    def get_deleted_products(self) -> list[dict]:
+        return [product for product in self.get_products(include_deleted=True) if product["is_deleted"]]
+
+    def get_product_history(self, limit: int = 40) -> list[dict]:
+        safe_limit = max(1, min(int(limit), 200))
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, entity_id, entity_name, action, message, created_at
+                FROM audit_logs
+                WHERE entity_type = 'product'
+                ORDER BY created_at DESC, id DESC
+                LIMIT ?
+                """,
+                (safe_limit,),
+            ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "product_id": int(row["entity_id"]),
+                "product_name": row["entity_name"],
+                "action": row["action"],
+                "message": row["message"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
 
     def reset_all_data(self) -> None:
         with self._connect() as connection:
             connection.execute("DELETE FROM transactions")
+            connection.execute("DELETE FROM audit_logs")
             connection.execute("DELETE FROM products")
-            connection.execute("DELETE FROM sqlite_sequence WHERE name IN ('products', 'transactions')")
+            connection.execute("DELETE FROM sqlite_sequence WHERE name IN ('products', 'transactions', 'audit_logs')")
 
     def get_product_by_id(self, product_id: int) -> dict:
         with self._connect() as connection:
@@ -399,6 +623,8 @@ class InventoryStore:
                     p.unit,
                     p.price,
                     p.low_stock_threshold,
+                    p.is_deleted,
+                    p.deleted_at,
                     p.created_at,
                     p.updated_at,
                     COALESCE(
@@ -412,7 +638,7 @@ class InventoryStore:
                     ) AS current_stock
                 FROM products p
                 LEFT JOIN transactions t ON t.product_id = p.id
-                WHERE p.id = ?
+                WHERE p.id = ? AND p.is_deleted = 0
                 GROUP BY p.id
                 """,
                 (product_id,),
@@ -698,6 +924,8 @@ class InventoryStore:
             "current_stock": current_stock,
             "inventory_value": round(current_stock * float(row["price"]), 2),
             "is_low_stock": current_stock <= threshold,
+            "is_deleted": bool(row["is_deleted"]),
+            "deleted_at": row["deleted_at"],
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
         }
@@ -1016,6 +1244,22 @@ def create_handler(store: InventoryStore):
                 )
                 return
 
+            if route == "/api/products/deleted":
+                self._send_json(
+                    HTTPStatus.OK,
+                    {"products": store.get_deleted_products()},
+                )
+                return
+
+            if route == "/api/products/history":
+                query = parse_qs(parsed.query)
+                limit = query.get("limit", ["40"])[0]
+                self._send_json(
+                    HTTPStatus.OK,
+                    {"history": store.get_product_history(limit=int(limit))},
+                )
+                return
+
             if route == "/api/transactions":
                 query = parse_qs(parsed.query)
                 limit = query.get("limit", ["20"])[0]
@@ -1056,6 +1300,22 @@ def create_handler(store: InventoryStore):
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy tài nguyên."})
 
         def do_POST(self) -> None:
+            restore_match = re.fullmatch(r"/api/products/(\d+)/restore", urlparse(self.path).path)
+            if restore_match:
+                try:
+                    product = store.restore_product(restore_match.group(1))
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã khôi phục sản phẩm.",
+                            "product": product,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
             try:
                 payload = self._read_json_body()
             except ValueError as exc:
@@ -1200,11 +1460,12 @@ def create_handler(store: InventoryStore):
                 return
 
             try:
-                store.delete_product(match.group(1))
+                deleted = store.delete_product(match.group(1))
                 self._send_json(
                     HTTPStatus.OK,
                     {
-                        "message": "Đã xóa sản phẩm.",
+                        "message": "Đã chuyển sản phẩm sang danh mục đã xóa.",
+                        "deleted": deleted,
                         "summary": store.get_summary(),
                     },
                 )

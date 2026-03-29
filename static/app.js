@@ -21,6 +21,8 @@ let latestSyncUpdatedAt = {};
 
 const state = {
   products: [],
+  deletedProducts: [],
+  productHistory: [],
   transactions: [],
   summary: null,
   reports: null,
@@ -62,6 +64,9 @@ const state = {
     suppliers: 1,
     reportProducts: 1,
     reportForecast: 1,
+    deletedProducts: 1,
+    deletedCustomers: 1,
+    deletedSuppliers: 1,
   },
 };
 
@@ -111,6 +116,7 @@ const customerSearchInput = document.getElementById("customerSearchInput");
 const customerList = document.getElementById("customerList");
 const productManageSearchInput = document.getElementById("productManageSearchInput");
 const productManageList = document.getElementById("productManageList");
+const productHistoryList = document.getElementById("productHistoryList");
 const productFormCancelButton = document.getElementById("productFormCancelButton");
 const purchaseSupplierInput = document.getElementById("purchaseSupplierInput");
 const purchaseNoteInput = document.getElementById("purchaseNoteInput");
@@ -137,6 +143,9 @@ const reportSummaryCards = document.getElementById("reportSummaryCards");
 const reportMonthTrend = document.getElementById("reportMonthTrend");
 const forecastList = document.getElementById("forecastList");
 const reportProductActivity = document.getElementById("reportProductActivity");
+const deletedProductList = document.getElementById("deletedProductList");
+const deletedCustomerList = document.getElementById("deletedCustomerList");
+const deletedSupplierList = document.getElementById("deletedSupplierList");
 const mobileQuery = window.matchMedia("(max-width: 759px)");
 
 const quantityFormatter = new Intl.NumberFormat("vi-VN", {
@@ -266,6 +275,26 @@ function createId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function isDeletedEntity(entity) {
+  return Boolean(entity?.deletedAt || entity?.deleted_at);
+}
+
+function getActiveCustomers() {
+  return state.customers.filter((customer) => !isDeletedEntity(customer));
+}
+
+function getDeletedCustomers() {
+  return state.customers.filter((customer) => isDeletedEntity(customer));
+}
+
+function getActiveSuppliers() {
+  return state.suppliers.filter((supplier) => !isDeletedEntity(supplier));
+}
+
+function getDeletedSuppliers() {
+  return state.suppliers.filter((supplier) => isDeletedEntity(supplier));
+}
+
 function readStorage(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -361,6 +390,7 @@ function syncSalesState() {
       phone: String(customer.phone || "").trim(),
       address: String(customer.address || "").trim(),
       zaloUrl: String(customer.zaloUrl || customer.zalo_url || "").trim(),
+      deletedAt: customer.deletedAt || customer.deleted_at || null,
       createdAt: customer.createdAt || nowIso(),
       updatedAt: customer.updatedAt || customer.createdAt || nowIso(),
     }))
@@ -374,6 +404,7 @@ function syncSalesState() {
       phone: String(supplier.phone || "").trim(),
       address: String(supplier.address || "").trim(),
       note: String(supplier.note || "").trim(),
+      deletedAt: supplier.deletedAt || supplier.deleted_at || null,
       createdAt: supplier.createdAt || nowIso(),
       updatedAt: supplier.updatedAt || supplier.createdAt || nowIso(),
     }))
@@ -583,7 +614,7 @@ function ensureCustomer(name) {
     throw new Error("Hãy nhập tên khách hàng.");
   }
 
-  const existing = state.customers.find((customer) => normalizeText(customer.name) === normalizeText(cleanName));
+  const existing = getActiveCustomers().find((customer) => normalizeText(customer.name) === normalizeText(cleanName));
   if (existing) {
     return existing;
   }
@@ -608,7 +639,7 @@ function upsertCustomer(payload, customerId = null) {
     throw new Error("Tên khách hàng là bắt buộc.");
   }
 
-  const duplicateByName = state.customers.find(
+  const duplicateByName = getActiveCustomers().find(
     (customer) => customer.id !== customerId && normalizeText(customer.name) === normalizeText(cleanName)
   );
   if (duplicateByName) {
@@ -616,7 +647,7 @@ function upsertCustomer(payload, customerId = null) {
   }
 
   if (cleanPhone) {
-    const duplicateByPhone = state.customers.find(
+    const duplicateByPhone = getActiveCustomers().find(
       (customer) => customer.id !== customerId && normalizeText(customer.phone) === normalizeText(cleanPhone)
     );
     if (duplicateByPhone) {
@@ -667,7 +698,7 @@ function upsertSupplier(payload, supplierId = null) {
     throw new Error("Tên nhà cung cấp là bắt buộc.");
   }
 
-  const duplicateByName = state.suppliers.find(
+  const duplicateByName = getActiveSuppliers().find(
     (supplier) => supplier.id !== supplierId && normalizeText(supplier.name) === normalizeText(cleanName)
   );
   if (duplicateByName) {
@@ -675,7 +706,7 @@ function upsertSupplier(payload, supplierId = null) {
   }
 
   if (cleanPhone) {
-    const duplicateByPhone = state.suppliers.find(
+    const duplicateByPhone = getActiveSuppliers().find(
       (supplier) => supplier.id !== supplierId && normalizeText(supplier.phone) === normalizeText(cleanPhone)
     );
     if (duplicateByPhone) {
@@ -718,15 +749,56 @@ function upsertSupplier(payload, supplierId = null) {
   saveAndRenderAll(["suppliers", "purchases"]);
 }
 
+function getCustomerDeleteImpact(customerId) {
+  const relatedCarts = state.carts.filter((cart) => cart.customerId === customerId);
+  const draftCount = relatedCarts.filter((cart) => cart.status === "draft").length;
+  const historyCount = relatedCarts.filter((cart) => cart.status !== "draft").length;
+  return { draftCount, historyCount };
+}
+
+function getSupplierDeleteImpact(supplierName) {
+  const relatedPurchases = state.purchases.filter(
+    (purchase) => normalizeText(purchase.supplierName) === normalizeText(supplierName)
+  );
+  const activeCount = relatedPurchases.filter((purchase) =>
+    ["draft", "ordered", "received"].includes(purchase.status)
+  ).length;
+  const historyCount = relatedPurchases.filter((purchase) =>
+    !["draft", "ordered", "received"].includes(purchase.status)
+  ).length;
+  return { activeCount, historyCount };
+}
+
+function getProductDeleteImpact(productId) {
+  const draftCartCount = state.carts.filter(
+    (cart) =>
+      cart.status === "draft" &&
+      cart.items.some((item) => Number(item.productId) === Number(productId))
+  ).length;
+  const openPurchaseCount = state.purchases.filter(
+    (purchase) =>
+      ["draft", "ordered"].includes(purchase.status) &&
+      purchase.items.some((item) => Number(item.productId) === Number(productId))
+  ).length;
+  return { draftCartCount, openPurchaseCount };
+}
+
 function deleteSupplier(supplierId) {
   const supplier = state.suppliers.find((entry) => entry.id === supplierId);
-  state.suppliers = state.suppliers.filter((entry) => entry.id !== supplierId);
-  state.purchases = state.purchases.map((purchase) =>
-    normalizeText(purchase.supplierName) === normalizeText(supplier?.name || "")
-      ? { ...purchase, supplierName: "", updatedAt: nowIso() }
-      : purchase
+  if (!supplier) {
+    throw new Error("Không tìm thấy nhà cung cấp.");
+  }
+  const impact = getSupplierDeleteImpact(supplier.name);
+  if (impact.activeCount > 0) {
+    throw new Error("Nhà cung cấp đang gắn với phiếu nhập draft/ordered/received, không thể xóa.");
+  }
+
+  state.suppliers = state.suppliers.map((entry) =>
+    entry.id === supplierId
+      ? { ...entry, deletedAt: nowIso(), updatedAt: nowIso() }
+      : entry
   );
-  if (purchaseSupplierInput.value && normalizeText(purchaseSupplierInput.value) === normalizeText(supplier?.name || "")) {
+  if (purchaseSupplierInput.value && normalizeText(purchaseSupplierInput.value) === normalizeText(supplier.name)) {
     purchaseSupplierInput.value = "";
   }
   saveAndRenderAll(["suppliers", "purchases"]);
@@ -759,12 +831,12 @@ function resolveCustomerFromText(text) {
     throw new Error("Hãy nhập tên khách hàng.");
   }
 
-  const exact = state.customers.find((customer) => normalizeText(customer.name) === keyword);
+  const exact = getActiveCustomers().find((customer) => normalizeText(customer.name) === keyword);
   if (exact) {
     return exact;
   }
 
-  const matches = state.customers.filter((customer) => normalizeText(customer.name).includes(keyword));
+  const matches = getActiveCustomers().filter((customer) => normalizeText(customer.name).includes(keyword));
   if (matches.length === 1) {
     return matches[0];
   }
@@ -960,7 +1032,7 @@ function renameCustomer(customerId, newName) {
     throw new Error("Tên khách hàng không được để trống.");
   }
 
-  const duplicate = state.customers.find(
+  const duplicate = getActiveCustomers().find(
     (customer) => customer.id !== customerId && normalizeText(customer.name) === normalizeText(cleanName)
   );
   if (duplicate) {
@@ -989,16 +1061,77 @@ function renameCustomer(customerId, newName) {
 
 function deleteCustomer(customerId) {
   const customer = state.customers.find((entry) => entry.id === customerId);
-  state.customers = state.customers.filter((entry) => entry.id !== customerId);
-  state.carts = state.carts.map((cart) =>
-    cart.customerId === customerId
-      ? decorateCart({ ...cart, customerId: "", customerName: customer?.name || cart.customerName })
-      : cart
+  if (!customer) {
+    throw new Error("Không tìm thấy khách hàng.");
+  }
+  const impact = getCustomerDeleteImpact(customerId);
+  if (impact.draftCount > 0) {
+    throw new Error("Khách hàng đang có giỏ hàng nháp, không thể xóa.");
+  }
+
+  state.customers = state.customers.map((entry) =>
+    entry.id === customerId
+      ? { ...entry, deletedAt: nowIso(), updatedAt: nowIso() }
+      : entry
   );
-  if (customerLookupInput.value && normalizeText(customerLookupInput.value) === normalizeText(customer?.name)) {
+  if (customerLookupInput.value && normalizeText(customerLookupInput.value) === normalizeText(customer.name)) {
     customerLookupInput.value = "";
   }
   saveAndRenderAll(["customers", "carts"]);
+}
+
+function restoreCustomer(customerId) {
+  const customer = state.customers.find((entry) => entry.id === customerId);
+  if (!customer) {
+    throw new Error("Không tìm thấy khách hàng.");
+  }
+  const duplicateByName = getActiveCustomers().find(
+    (entry) => entry.id !== customerId && normalizeText(entry.name) === normalizeText(customer.name)
+  );
+  if (duplicateByName) {
+    throw new Error("Đang có khách hàng hoạt động khác trùng tên, không thể khôi phục.");
+  }
+  if (customer.phone) {
+    const duplicateByPhone = getActiveCustomers().find(
+      (entry) => entry.id !== customerId && normalizeText(entry.phone) === normalizeText(customer.phone)
+    );
+    if (duplicateByPhone) {
+      throw new Error("Đang có khách hàng hoạt động khác trùng số điện thoại, không thể khôi phục.");
+    }
+  }
+  state.customers = state.customers.map((entry) =>
+    entry.id === customerId
+      ? { ...entry, deletedAt: null, updatedAt: nowIso() }
+      : entry
+  );
+  saveAndRenderAll(["customers"]);
+}
+
+function restoreSupplier(supplierId) {
+  const supplier = state.suppliers.find((entry) => entry.id === supplierId);
+  if (!supplier) {
+    throw new Error("Không tìm thấy nhà cung cấp.");
+  }
+  const duplicateByName = getActiveSuppliers().find(
+    (entry) => entry.id !== supplierId && normalizeText(entry.name) === normalizeText(supplier.name)
+  );
+  if (duplicateByName) {
+    throw new Error("Đang có nhà cung cấp hoạt động khác trùng tên, không thể khôi phục.");
+  }
+  if (supplier.phone) {
+    const duplicateByPhone = getActiveSuppliers().find(
+      (entry) => entry.id !== supplierId && normalizeText(entry.phone) === normalizeText(supplier.phone)
+    );
+    if (duplicateByPhone) {
+      throw new Error("Đang có nhà cung cấp hoạt động khác trùng số điện thoại, không thể khôi phục.");
+    }
+  }
+  state.suppliers = state.suppliers.map((entry) =>
+    entry.id === supplierId
+      ? { ...entry, deletedAt: null, updatedAt: nowIso() }
+      : entry
+  );
+  saveAndRenderAll(["suppliers"]);
 }
 
 function createPurchaseDraftIfMissing() {
@@ -1215,12 +1348,16 @@ async function refreshReportData() {
 async function refreshData() {
   isRefreshingState = true;
   try {
-    const [payload] = await Promise.all([
+    const [payload, deletedProductsPayload, productHistoryPayload] = await Promise.all([
       apiRequest("/api/state?transaction_limit=16"),
+      apiRequest("/api/products/deleted"),
+      apiRequest("/api/products/history?limit=30"),
       refreshReportData(),
     ]);
     latestSyncUpdatedAt = payload.updated_at || {};
     state.products = payload.products || [];
+    state.deletedProducts = deletedProductsPayload.products || [];
+    state.productHistory = productHistoryPayload.history || [];
     state.summary = payload.summary || null;
     state.transactions = payload.transactions || [];
     state.customers = payload.customers || [];
@@ -1284,13 +1421,13 @@ function renderProductOptions() {
 }
 
 function renderCustomerOptions() {
-  customerOptions.innerHTML = state.customers
+  customerOptions.innerHTML = getActiveCustomers()
     .map((customer) => `<option value="${escapeHtml(customer.name)}"></option>`)
     .join("");
 }
 
 function renderSupplierOptions() {
-  supplierOptions.innerHTML = state.suppliers
+  supplierOptions.innerHTML = getActiveSuppliers()
     .map((supplier) => `<option value="${escapeHtml(supplier.name)}"></option>`)
     .join("");
 }
@@ -1586,7 +1723,7 @@ function renderCartQueue() {
 }
 
 function renderCustomers() {
-  const filtered = state.customers.filter((customer) =>
+  const filtered = getActiveCustomers().filter((customer) =>
     `${customer.name} ${customer.phone} ${customer.address} ${customer.zaloUrl}`
       .toLowerCase()
       .includes(normalizeText(state.customerSearchTerm))
@@ -1662,9 +1799,10 @@ function renderProductManageList() {
             <span>Giá ${formatCurrency(product.price)}</span>
             <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
           </div>
+          <div class="cart-line-note">${product.current_stock > 0 ? `Chỉ xóa được khi tồn kho = 0. Hiện còn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}.` : "Có thể đưa vào danh mục đã xóa vì tồn kho đang bằng 0."}</div>
           <div class="row-actions">
             <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy sửa" : "Sửa"}</button>
-            <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}">Xóa</button>
+            <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>Ngừng bán / Xóa</button>
           </div>
           ${isEditing ? `
             <div class="product-row-body">
@@ -1824,7 +1962,7 @@ function renderPurchaseOrders() {
 }
 
 function renderSuppliers() {
-  const filtered = state.suppliers.filter((supplier) =>
+  const filtered = getActiveSuppliers().filter((supplier) =>
     `${supplier.name} ${supplier.phone} ${supplier.address} ${supplier.note}`
       .toLowerCase()
       .includes(normalizeText(state.supplierSearchTerm))
@@ -1858,6 +1996,129 @@ function renderSuppliers() {
       </article>
     `)
     .join("") + renderPagination("suppliers", pageData);
+}
+
+function renderProductHistory() {
+  if (!state.productHistory.length) {
+    productHistoryList.innerHTML = '<div class="empty-state">Chưa có thay đổi sản phẩm nào gần đây.</div>';
+    return;
+  }
+
+  productHistoryList.innerHTML = state.productHistory
+    .map(
+      (entry) => `
+        <article class="report-card">
+          <div class="report-card-head">
+            <strong>${escapeHtml(entry.product_name)}</strong>
+            <span class="status-pill ${entry.action === "delete" ? "cancelled" : "draft"}">${escapeHtml(entry.action)}</span>
+          </div>
+          <div class="cart-line-note">${escapeHtml(entry.message || "")}</div>
+          <div class="report-card-row">
+            <span>${escapeHtml(formatDate(entry.created_at))}</span>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderDeletedProducts() {
+  if (!state.deletedProducts.length) {
+    deletedProductList.innerHTML = '<div class="empty-state">Không có sản phẩm nào đã xóa.</div>';
+    return;
+  }
+
+  const pageData = paginateItems(state.deletedProducts, "deletedProducts");
+  deletedProductList.innerHTML = pageData.items
+    .map(
+      (product) => `
+        <article class="product-row low-stock">
+          <div class="product-row-head">
+            <div>
+              <div class="product-row-name">${escapeHtml(product.name)}</div>
+              <div class="product-row-meta">
+                <span>${escapeHtml(product.category)}</span>
+                <span>${escapeHtml(product.unit)}</span>
+              </div>
+            </div>
+            <div class="product-row-stock">${escapeHtml(formatQuantity(product.current_stock))} ${escapeHtml(product.unit)}</div>
+          </div>
+          <div class="product-row-meta">
+            <span>Đã xóa ${escapeHtml(formatDate(product.deleted_at))}</span>
+            <span>Giá nhập ${escapeHtml(formatCurrency(product.price))}</span>
+          </div>
+          <div class="cart-line-note">Khi khôi phục, sản phẩm sẽ quay lại tồn kho, tạo đơn, nhập hàng và danh mục đang dùng.</div>
+          <div class="row-actions">
+            <button type="button" class="ghost-button compact-button" data-deleted-product-action="restore" data-product-id="${product.id}">Khôi phục</button>
+          </div>
+        </article>
+      `
+    )
+    .join("") + renderPagination("deletedProducts", pageData);
+}
+
+function renderDeletedCustomers() {
+  const deletedCustomers = getDeletedCustomers();
+  if (!deletedCustomers.length) {
+    deletedCustomerList.innerHTML = '<div class="empty-state">Không có khách hàng nào đã xóa.</div>';
+    return;
+  }
+
+  const pageData = paginateItems(deletedCustomers, "deletedCustomers");
+  deletedCustomerList.innerHTML = pageData.items
+    .map((customer) => {
+      const impact = getCustomerDeleteImpact(customer.id);
+      return `
+        <article class="customer-item">
+          <div class="customer-header">
+            <strong>${escapeHtml(customer.name)}</strong>
+            <span class="status-pill cancelled">Đã xóa</span>
+          </div>
+          <div class="customer-meta">
+            <span>${escapeHtml(customer.phone || "Chưa có số liên lạc")}</span>
+            <span>${escapeHtml(formatDate(customer.deletedAt))}</span>
+          </div>
+          <div class="cart-line-note">Lịch sử đơn đã giữ nguyên. Khôi phục sẽ đưa khách hàng quay lại danh bạ đang dùng.</div>
+          <div class="cart-line-note">Đơn lịch sử liên quan: ${escapeHtml(String(impact.historyCount))}</div>
+          <div class="row-actions">
+            <button type="button" class="ghost-button compact-button" data-deleted-customer-action="restore" data-customer-id="${customer.id}">Khôi phục</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("") + renderPagination("deletedCustomers", pageData);
+}
+
+function renderDeletedSuppliers() {
+  const deletedSuppliers = getDeletedSuppliers();
+  if (!deletedSuppliers.length) {
+    deletedSupplierList.innerHTML = '<div class="empty-state">Không có nhà cung cấp nào đã xóa.</div>';
+    return;
+  }
+
+  const pageData = paginateItems(deletedSuppliers, "deletedSuppliers");
+  deletedSupplierList.innerHTML = pageData.items
+    .map((supplier) => {
+      const impact = getSupplierDeleteImpact(supplier.name);
+      return `
+        <article class="customer-item">
+          <div class="customer-header">
+            <strong>${escapeHtml(supplier.name)}</strong>
+            <span class="status-pill cancelled">Đã xóa</span>
+          </div>
+          <div class="customer-meta">
+            <span>${escapeHtml(supplier.phone || "Chưa có số liên lạc")}</span>
+            <span>${escapeHtml(formatDate(supplier.deletedAt))}</span>
+          </div>
+          <div class="cart-line-note">Phiếu nhập lịch sử vẫn giữ nguyên. Khôi phục sẽ đưa nhà cung cấp quay lại danh bạ hoạt động.</div>
+          <div class="cart-line-note">Phiếu nhập lịch sử liên quan: ${escapeHtml(String(impact.historyCount))}</div>
+          <div class="row-actions">
+            <button type="button" class="ghost-button compact-button" data-deleted-supplier-action="restore" data-supplier-id="${supplier.id}">Khôi phục</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("") + renderPagination("deletedSuppliers", pageData);
 }
 
 function renderReports() {
@@ -2031,6 +2292,7 @@ function renderAll() {
   renderSupplierOptions();
   renderProducts();
   renderProductManageList();
+  renderProductHistory();
   renderTransactions();
   renderActiveCartPanel();
   renderSalesProductList();
@@ -2041,6 +2303,9 @@ function renderAll() {
   renderPurchaseSuggestions();
   renderPurchaseOrders();
   renderSuppliers();
+  renderDeletedProducts();
+  renderDeletedCustomers();
+  renderDeletedSuppliers();
   renderReports();
 }
 
@@ -2500,7 +2765,22 @@ productManageList.addEventListener("click", async (event) => {
   }
 
   if (button.dataset.productManageAction === "delete") {
-    if (!window.confirm(`Xóa sản phẩm ${product.name}?`)) {
+    const impact = getProductDeleteImpact(productId);
+    const warnings = [
+      `Sản phẩm: ${product.name}`,
+      `Tồn hiện tại: ${formatQuantity(product.current_stock)} ${product.unit}`,
+      "Nếu xóa, sản phẩm sẽ bị ẩn khỏi tồn kho, tạo đơn, nhập hàng và danh mục đang dùng.",
+      "Lịch sử giao dịch sản phẩm vẫn được giữ lại.",
+    ];
+    if (impact.draftCartCount > 0) {
+      warnings.push(`Đang có ${impact.draftCartCount} giỏ hàng nháp dùng sản phẩm này.`);
+    }
+    if (impact.openPurchaseCount > 0) {
+      warnings.push(`Đang có ${impact.openPurchaseCount} phiếu nhập draft/ordered dùng sản phẩm này.`);
+    }
+    warnings.push("Chỉ nên xóa khi mặt hàng đã ngừng bán và tồn kho bằng 0.");
+
+    if (!window.confirm(warnings.join("\n"))) {
       return;
     }
 
@@ -2717,9 +2997,26 @@ customerList.addEventListener("click", (event) => {
   }
 
   if (button.dataset.customerAction === "delete") {
-    if (window.confirm(`Xóa khách hàng ${customer.name} khỏi danh bạ?`)) {
+    const impact = getCustomerDeleteImpact(customerId);
+    const warnings = [
+      `Khách hàng: ${customer.name}`,
+      "Nếu xóa, khách hàng sẽ bị ẩn khỏi danh bạ đang dùng.",
+      "Lịch sử đơn cũ vẫn được giữ lại.",
+    ];
+    if (impact.draftCount > 0) {
+      warnings.push(`Đang có ${impact.draftCount} giỏ hàng nháp của khách này.`);
+    }
+    if (impact.historyCount > 0) {
+      warnings.push(`Có ${impact.historyCount} đơn lịch sử liên quan.`);
+    }
+    if (!window.confirm(warnings.join("\n"))) {
+      return;
+    }
+    try {
       deleteCustomer(customerId);
-      showToast("Đã xóa khách hàng khỏi danh bạ.");
+      showToast("Đã chuyển khách hàng sang danh mục đã xóa.");
+    } catch (error) {
+      showToast(error.message, true);
     }
   }
 });
@@ -3092,11 +3389,111 @@ supplierList.addEventListener("click", (event) => {
   }
 
   if (button.dataset.supplierAction === "delete") {
-    if (!window.confirm(`Xóa nhà cung cấp ${supplier.name}?`)) {
+    const impact = getSupplierDeleteImpact(supplier.name);
+    const warnings = [
+      `Nhà cung cấp: ${supplier.name}`,
+      "Nếu xóa, nhà cung cấp sẽ bị ẩn khỏi danh bạ đang dùng.",
+      "Lịch sử phiếu nhập cũ vẫn được giữ lại.",
+    ];
+    if (impact.activeCount > 0) {
+      warnings.push(`Đang có ${impact.activeCount} phiếu nhập draft/ordered/received dùng nhà cung cấp này.`);
+    }
+    if (impact.historyCount > 0) {
+      warnings.push(`Có ${impact.historyCount} phiếu nhập lịch sử liên quan.`);
+    }
+    if (!window.confirm(warnings.join("\n"))) {
       return;
     }
-    deleteSupplier(supplierId);
-    showToast("Đã xóa nhà cung cấp.");
+    try {
+      deleteSupplier(supplierId);
+      showToast("Đã chuyển nhà cung cấp sang danh mục đã xóa.");
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  }
+});
+
+deletedProductList.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-deleted-product-action]");
+  if (!button) {
+    return;
+  }
+  if (button.dataset.deletedProductAction !== "restore") {
+    return;
+  }
+  const productId = Number(button.dataset.productId);
+  const product = state.deletedProducts.find((entry) => Number(entry.id) === productId);
+  if (!product) {
+    showToast("Không tìm thấy sản phẩm đã xóa.", true);
+    return;
+  }
+  const warning = [
+    `Khôi phục sản phẩm ${product.name}?`,
+    "Sản phẩm sẽ xuất hiện lại ở tồn kho, tạo đơn, nhập hàng và quản lý sản phẩm.",
+    `Tồn hiện tại sau khi khôi phục: ${formatQuantity(product.current_stock)} ${product.unit}`,
+  ].join("\n");
+  if (!window.confirm(warning)) {
+    return;
+  }
+  try {
+    const data = await apiRequest(`/api/products/${productId}/restore`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    await refreshData();
+    showToast(data.message);
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+deletedCustomerList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-deleted-customer-action]");
+  if (!button) {
+    return;
+  }
+  const customer = state.customers.find((entry) => entry.id === button.dataset.customerId);
+  if (!customer) {
+    showToast("Không tìm thấy khách hàng đã xóa.", true);
+    return;
+  }
+  const warning = [
+    `Khôi phục khách hàng ${customer.name}?`,
+    "Khách hàng sẽ xuất hiện lại trong danh bạ đang dùng.",
+  ].join("\n");
+  if (!window.confirm(warning)) {
+    return;
+  }
+  try {
+    restoreCustomer(button.dataset.customerId);
+    showToast("Đã khôi phục khách hàng.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+deletedSupplierList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-deleted-supplier-action]");
+  if (!button) {
+    return;
+  }
+  const supplier = state.suppliers.find((entry) => entry.id === button.dataset.supplierId);
+  if (!supplier) {
+    showToast("Không tìm thấy nhà cung cấp đã xóa.", true);
+    return;
+  }
+  const warning = [
+    `Khôi phục nhà cung cấp ${supplier.name}?`,
+    "Nhà cung cấp sẽ xuất hiện lại trong danh bạ đang dùng.",
+  ].join("\n");
+  if (!window.confirm(warning)) {
+    return;
+  }
+  try {
+    restoreSupplier(button.dataset.supplierId);
+    showToast("Đã khôi phục nhà cung cấp.");
+  } catch (error) {
+    showToast(error.message, true);
   }
 });
 
