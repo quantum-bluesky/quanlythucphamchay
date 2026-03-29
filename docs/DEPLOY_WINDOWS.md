@@ -76,6 +76,25 @@ Ví dụ:
 http://192.168.1.18:8000
 ```
 
+## 6.1. Tài khoản Master Admin
+
+Mặc định hệ thống có sẵn:
+
+```text
+username: masteradmin
+password: admin12345
+```
+
+Nếu muốn đổi trước khi chạy app:
+
+```powershell
+$env:MASTER_ADMIN_USERNAME="ten_admin_moi"
+$env:MASTER_ADMIN_PASSWORD="mat_khau_moi"
+python app.py --host 0.0.0.0 --port 8000
+```
+
+Nên đổi mật khẩu này khi đưa vào sử dụng thật.
+
 ## 7. Cho phép qua Windows Firewall
 
 Nếu máy khác không vào được, mở port trên Windows Firewall.

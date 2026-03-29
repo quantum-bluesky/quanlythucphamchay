@@ -1,25 +1,33 @@
 import argparse
+import base64
 import json
 import hashlib
 import mimetypes
 import os
 import re
+import secrets
+import shutil
 import sqlite3
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from urllib.parse import parse_qs, urlparse
 
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 DATA_DIR = BASE_DIR / "data"
+BACKUP_DIR = DATA_DIR / "backups"
 DB_PATH = DATA_DIR / "inventory.db"
 DEFAULT_INIT_FILE = DATA_DIR / "List_price.txt"
 DEFAULT_HOST = os.environ.get("APP_HOST", "127.0.0.1")
 DEFAULT_PORT = int(os.environ.get("APP_PORT", "8000"))
+ADMIN_USERNAME = os.environ.get("MASTER_ADMIN_USERNAME", "masteradmin")
+ADMIN_PASSWORD = os.environ.get("MASTER_ADMIN_PASSWORD", "admin12345")
+ADMIN_SESSION_COOKIE = "qltpchay_admin_session"
 
 
 def utc_now_iso() -> str:
@@ -81,6 +89,45 @@ def extract_price_from_note(note: str, transaction_type: str) -> float | None:
         return float(match.group(1))
     except ValueError:
         return None
+
+
+def normalize_key(value: str | None) -> str:
+    return str(value or "").strip().lower()
+
+
+def parse_cookie_header(cookie_header: str | None) -> dict[str, str]:
+    cookies: dict[str, str] = {}
+    if not cookie_header:
+        return cookies
+    for part in cookie_header.split(";"):
+        if "=" not in part:
+            continue
+        key, value = part.split("=", 1)
+        cookies[key.strip()] = value.strip()
+    return cookies
+
+
+class AdminSessionManager:
+    def __init__(self, username: str, password: str):
+        self.username = username
+        self.password = password
+        self._sessions: dict[str, str] = {}
+
+    def login(self, username: str, password: str) -> str:
+        if username != self.username or password != self.password:
+            raise ValueError("Sai tài khoản hoặc mật khẩu admin.")
+        token = secrets.token_urlsafe(32)
+        self._sessions[token] = self.username
+        return token
+
+    def logout(self, token: str | None) -> None:
+        if token:
+            self._sessions.pop(token, None)
+
+    def get_username(self, token: str | None) -> str | None:
+        if not token:
+            return None
+        return self._sessions.get(token)
 
 
 class InventoryStore:
@@ -996,6 +1043,144 @@ class InventoryStore:
             return []
         return decoded if isinstance(decoded, list) else []
 
+    def export_master_data(self, entity_type: str) -> dict:
+        if entity_type == "products":
+            records = self.get_products(include_deleted=True)
+        elif entity_type in {"customers", "suppliers"}:
+            records = self._get_sync_collection(entity_type)
+        else:
+            raise ValueError("Loại dữ liệu master không hợp lệ.")
+
+        return {
+            "entity_type": entity_type,
+            "exported_at": utc_now_iso(),
+            "record_count": len(records),
+            "records": records,
+        }
+
+    def import_master_data(self, entity_type: str, records: list[dict]) -> dict:
+        if not isinstance(records, list):
+            raise ValueError("File import phải chứa danh sách records.")
+
+        if entity_type == "products":
+            return self._import_products_master(records)
+        if entity_type in {"customers", "suppliers"}:
+            return self._import_sync_master(entity_type, records)
+        raise ValueError("Loại dữ liệu master không hợp lệ.")
+
+    def _import_products_master(self, records: list[dict]) -> dict:
+        summary = {"created": 0, "updated": 0, "restored": 0, "skipped": 0}
+        products = self.get_products(include_deleted=True)
+        by_name = {normalize_key(product["name"]): product for product in products}
+
+        for record in records:
+            name = str(record.get("name") or "").strip()
+            category = str(record.get("category") or "Đồ chay").strip()
+            unit = str(record.get("unit") or "gói").strip()
+            price = record.get("price", 0)
+            threshold = record.get("low_stock_threshold", 5)
+            if not name:
+                summary["skipped"] += 1
+                continue
+
+            existing = by_name.get(normalize_key(name))
+            if existing:
+                if existing.get("is_deleted"):
+                    self.restore_product(existing["id"])
+                    summary["restored"] += 1
+                self.update_product(
+                    existing["id"],
+                    name=name,
+                    category=category,
+                    unit=unit,
+                    price=price,
+                    low_stock_threshold=threshold,
+                )
+                summary["updated"] += 1
+                by_name[normalize_key(name)] = self.get_product_by_id(existing["id"])
+            else:
+                created = self.create_product(
+                    name=name,
+                    category=category,
+                    unit=unit,
+                    price=price,
+                    low_stock_threshold=threshold,
+                )
+                summary["created"] += 1
+                by_name[normalize_key(name)] = created
+
+        return summary
+
+    def _import_sync_master(self, state_key: str, records: list[dict]) -> dict:
+        existing = self._get_sync_collection(state_key)
+        active_items = {normalize_key(item.get("name")): item for item in existing if item.get("name")}
+        summary = {"created": 0, "updated": 0, "restored": 0, "skipped": 0}
+
+        for record in records:
+            name = str(record.get("name") or "").strip()
+            if not name:
+                summary["skipped"] += 1
+                continue
+            normalized = normalize_key(name)
+            previous = active_items.get(normalized)
+            payload = {
+                **(previous or {}),
+                **record,
+                "id": (previous or {}).get("id") or record.get("id") or f"{state_key}_{secrets.token_hex(6)}",
+                "name": name,
+                "deletedAt": None,
+                "deleted_at": None,
+                "updatedAt": utc_now_iso(),
+            }
+            if not previous:
+                payload["createdAt"] = record.get("createdAt") or utc_now_iso()
+                summary["created"] += 1
+            else:
+                if previous.get("deletedAt") or previous.get("deleted_at"):
+                    summary["restored"] += 1
+                summary["updated"] += 1
+            active_items[normalized] = payload
+
+        merged = list(active_items.values())
+        self.save_sync_state({state_key: merged})
+        return summary
+
+    def create_database_backup(self) -> Path:
+        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup_path = BACKUP_DIR / f"inventory-backup-{timestamp}.db"
+        shutil.copy2(self.db_path, backup_path)
+        return backup_path
+
+    def restore_database_from_bytes(self, payload: bytes) -> Path:
+        if not payload.startswith(b"SQLite format 3"):
+            raise ValueError("File restore không phải SQLite database hợp lệ.")
+
+        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        with NamedTemporaryFile(delete=False, suffix=".db", dir=str(BACKUP_DIR)) as handle:
+            handle.write(payload)
+            temp_path = Path(handle.name)
+
+        try:
+            with sqlite3.connect(str(temp_path)) as connection:
+                required_tables = {"products", "transactions", "app_state"}
+                rows = connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                ).fetchall()
+                table_names = {row[0] for row in rows}
+                if not required_tables.issubset(table_names):
+                    raise ValueError("File restore không chứa đủ cấu trúc hệ thống.")
+
+            backup_path = self.create_database_backup()
+            shutil.copy2(temp_path, self.db_path)
+            self._initialize_schema()
+            return backup_path
+        finally:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except PermissionError:
+                pass
+
     def get_monthly_report(self, months: int = 6, focus_month: str | None = None) -> dict:
         safe_months = max(3, min(int(months), 24))
         now = datetime.now()
@@ -1223,7 +1408,7 @@ class InventoryStore:
         }
 
 
-def create_handler(store: InventoryStore):
+def create_handler(store: InventoryStore, admin_sessions: AdminSessionManager):
     class InventoryRequestHandler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
@@ -1297,9 +1482,114 @@ def create_handler(store: InventoryStore):
                 )
                 return
 
+            if route == "/api/admin/status":
+                username = self._get_admin_username()
+                self._send_json(
+                    HTTPStatus.OK,
+                    {"authenticated": bool(username), "username": username or ""},
+                )
+                return
+
+            if route.startswith("/api/admin/"):
+                if not self._require_admin():
+                    return
+
+                if route == "/api/admin/backup":
+                    backup_path = store.create_database_backup()
+                    self._send_binary_file(
+                        backup_path,
+                        content_type="application/octet-stream",
+                        download_name=backup_path.name,
+                    )
+                    return
+
+                export_match = re.fullmatch(r"/api/admin/export/(products|customers|suppliers)", route)
+                if export_match:
+                    entity_type = export_match.group(1)
+                    payload = store.export_master_data(entity_type)
+                    filename = f"{entity_type}-master-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+                    self._send_binary(
+                        HTTPStatus.OK,
+                        json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+                        content_type="application/json; charset=utf-8",
+                        download_name=filename,
+                    )
+                    return
+
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy tài nguyên."})
 
         def do_POST(self) -> None:
+            route = urlparse(self.path).path
+            if route == "/api/admin/login":
+                try:
+                    payload = self._read_json_body()
+                    token = admin_sessions.login(
+                        str(payload.get("username", "")).strip(),
+                        str(payload.get("password", "")),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã đăng nhập Master Admin.",
+                            "authenticated": True,
+                            "username": admin_sessions.username,
+                        },
+                        extra_headers=[("Set-Cookie", self._build_session_cookie(token))],
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+                return
+
+            if route == "/api/admin/logout":
+                admin_sessions.logout(self._get_admin_session_token())
+                self._send_json(
+                    HTTPStatus.OK,
+                    {"message": "Đã đăng xuất Master Admin.", "authenticated": False},
+                    extra_headers=[("Set-Cookie", self._build_logout_cookie())],
+                )
+                return
+
+            if route.startswith("/api/admin/"):
+                if not self._require_admin():
+                    return
+
+                import_match = re.fullmatch(r"/api/admin/import/(products|customers|suppliers)", route)
+                if import_match:
+                    try:
+                        payload = self._read_json_body()
+                        records = payload.get("records", [])
+                        result = store.import_master_data(import_match.group(1), records)
+                        self._send_json(
+                            HTTPStatus.OK,
+                            {
+                                "message": "Đã import dữ liệu master.",
+                                "result": result,
+                                "summary": store.get_summary(),
+                            },
+                        )
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+                if route == "/api/admin/restore":
+                    try:
+                        payload = self._read_json_body()
+                        encoded = payload.get("content_base64", "")
+                        if not encoded:
+                            raise ValueError("Thiếu file restore.")
+                        raw_bytes = base64.b64decode(encoded)
+                        previous_backup = store.restore_database_from_bytes(raw_bytes)
+                        self._send_json(
+                            HTTPStatus.OK,
+                            {
+                                "message": "Đã restore database toàn hệ thống.",
+                                "previous_backup": previous_backup.name,
+                            },
+                        )
+                    except (ValueError, base64.binascii.Error) as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
             restore_match = re.fullmatch(r"/api/products/(\d+)/restore", urlparse(self.path).path)
             if restore_match:
                 try:
@@ -1501,11 +1791,56 @@ def create_handler(store: InventoryStore):
             self.end_headers()
             self.wfile.write(payload)
 
-        def _send_json(self, status: HTTPStatus, payload: dict) -> None:
+        def _get_admin_session_token(self) -> str | None:
+            cookies = parse_cookie_header(self.headers.get("Cookie"))
+            return cookies.get(ADMIN_SESSION_COOKIE)
+
+        def _get_admin_username(self) -> str | None:
+            return admin_sessions.get_username(self._get_admin_session_token())
+
+        def _require_admin(self) -> bool:
+            if self._get_admin_username():
+                return True
+            self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "Cần đăng nhập Master Admin."})
+            return False
+
+        def _build_session_cookie(self, token: str) -> str:
+            return f"{ADMIN_SESSION_COOKIE}={token}; Path=/; HttpOnly; SameSite=Lax"
+
+        def _build_logout_cookie(self) -> str:
+            return f"{ADMIN_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+
+        def _send_binary(
+            self,
+            status: HTTPStatus,
+            payload: bytes,
+            *,
+            content_type: str,
+            download_name: str | None = None,
+        ) -> None:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(payload)))
+            if download_name:
+                self.send_header("Content-Disposition", f'attachment; filename="{download_name}"')
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def _send_binary_file(self, file_path: Path, *, content_type: str, download_name: str | None = None) -> None:
+            self._send_binary(
+                HTTPStatus.OK,
+                file_path.read_bytes(),
+                content_type=content_type,
+                download_name=download_name,
+            )
+
+        def _send_json(self, status: HTTPStatus, payload: dict, extra_headers: list[tuple[str, str]] | None = None) -> None:
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
+            for key, value in extra_headers or []:
+                self.send_header(key, value)
             self.end_headers()
             self.wfile.write(data)
 
@@ -1652,8 +1987,10 @@ def build_cli_parser() -> argparse.ArgumentParser:
 
 def run_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
     store = InventoryStore(DB_PATH)
-    server = ThreadingHTTPServer((host, port), create_handler(store))
+    admin_sessions = AdminSessionManager(ADMIN_USERNAME, ADMIN_PASSWORD)
+    server = ThreadingHTTPServer((host, port), create_handler(store, admin_sessions))
     print(f"Inventory app running at http://{host}:{port}")
+    print(f"Master Admin username: {ADMIN_USERNAME}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

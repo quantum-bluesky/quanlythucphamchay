@@ -315,3 +315,39 @@ Hiện phiếu đã thanh toán
 1. Kiểm tra lại `Lịch sử gần đây`
 2. Xem `Báo cáo tháng`
 3. Ghi nhận mặt hàng bán mạnh để chuẩn bị nhập tiếp
+
+## 14. Module Master Admin
+
+Vào menu:
+
+```text
+10. Master Admin
+```
+
+Chỉ người quản trị hệ thống mới nên dùng màn này.
+
+Màn này có 2 nhóm chức năng:
+
+- export / import file master:
+  - mặt hàng
+  - khách hàng
+  - nhà cung cấp
+- backup / restore database toàn hệ thống
+
+### Khi nào dùng export / import master
+
+- chuyển danh mục sang máy khác
+- chuẩn hóa lại danh sách mặt hàng / khách hàng / nhà cung cấp
+- nhập dữ liệu chuẩn bị sẵn từ file JSON
+
+### Khi nào dùng backup / restore
+
+- backup trước khi chỉnh sửa lớn
+- backup định kỳ để lưu trữ
+- restore khi cần quay lại một trạng thái hệ thống cũ
+
+### Cảnh báo
+
+- `Restore DB` sẽ ghi đè toàn bộ dữ liệu hiện tại
+- luôn backup trước khi restore
+- chỉ dùng file backup đúng của hệ thống này

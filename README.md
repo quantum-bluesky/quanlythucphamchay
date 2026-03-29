@@ -24,6 +24,7 @@
 - Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, ngưỡng cảnh báo
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần
 - Có lịch sử quản lý sản phẩm và màn quản lý các đối tượng đã xóa để khôi phục an toàn
+- Có module `Master Admin` để export/import file master và backup/restore toàn bộ database
 - Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất
 - Các list dài có phân trang `Trước / Sau` để thao tác gọn hơn trên mobile
 
@@ -36,6 +37,21 @@ python app.py
 Sau đó mở trình duyệt tại `http://127.0.0.1:8000`.
 
 Dữ liệu nghiệp vụ được lưu trong `data\inventory.db`. Nếu nhiều máy cùng mở vào cùng một địa chỉ app/server thì sẽ dùng chung một nguồn dữ liệu.
+
+Tài khoản `Master Admin` mặc định:
+
+```text
+username: masteradmin
+password: admin12345
+```
+
+Có thể đổi bằng biến môi trường:
+
+```powershell
+$env:MASTER_ADMIN_USERNAME="ten_admin_moi"
+$env:MASTER_ADMIN_PASSWORD="mat_khau_moi"
+python app.py --host 0.0.0.0 --port 8000
+```
 
 Có thể bind theo IP / domain / port tùy ý:
 

@@ -26,6 +26,10 @@ const state = {
   transactions: [],
   summary: null,
   reports: null,
+  admin: {
+    authenticated: false,
+    username: "",
+  },
   searchTerm: "",
   salesSearchTerm: "",
   orderSearchTerm: "",
@@ -146,6 +150,15 @@ const reportProductActivity = document.getElementById("reportProductActivity");
 const deletedProductList = document.getElementById("deletedProductList");
 const deletedCustomerList = document.getElementById("deletedCustomerList");
 const deletedSupplierList = document.getElementById("deletedSupplierList");
+const adminLoginPanel = document.getElementById("adminLoginPanel");
+const adminModulePanel = document.getElementById("adminModulePanel");
+const adminLoginForm = document.getElementById("adminLoginForm");
+const adminUsernameInput = document.getElementById("adminUsernameInput");
+const adminPasswordInput = document.getElementById("adminPasswordInput");
+const adminLogoutButton = document.getElementById("adminLogoutButton");
+const adminBackupButton = document.getElementById("adminBackupButton");
+const adminRestoreDbFile = document.getElementById("adminRestoreDbFile");
+const adminRestoreButton = document.getElementById("adminRestoreButton");
 const mobileQuery = window.matchMedia("(max-width: 759px)");
 
 const quantityFormatter = new Intl.NumberFormat("vi-VN", {
@@ -1338,6 +1351,53 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
+async function refreshAdminStatus() {
+  state.admin = await apiRequest("/api/admin/status");
+}
+
+async function downloadAdminFile(path, fallbackName) {
+  const response = await fetch(path);
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.error || "Không tải được file.");
+  }
+
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("Content-Disposition") || "";
+  const matchedName = /filename="([^"]+)"/.exec(contentDisposition);
+  const downloadName = matchedName?.[1] || fallbackName;
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = downloadName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Không đọc được file."));
+    reader.readAsText(file, "utf-8");
+  });
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      const base64 = result.includes(",") ? result.split(",", 2)[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error("Không đọc được file."));
+    reader.readAsDataURL(file);
+  });
+}
+
 async function refreshReportData() {
   const focusMonth = state.reportFocusMonth || new Date().toISOString().slice(0, 7);
   const rangeMonths = Number(state.reportRangeMonths || 6);
@@ -1353,6 +1413,7 @@ async function refreshData() {
       apiRequest("/api/products/deleted"),
       apiRequest("/api/products/history?limit=30"),
       refreshReportData(),
+      refreshAdminStatus(),
     ]);
     latestSyncUpdatedAt = payload.updated_at || {};
     state.products = payload.products || [];
@@ -2271,6 +2332,15 @@ function renderReports() {
   }
 }
 
+function renderAdminSection() {
+  const isAuthenticated = Boolean(state.admin?.authenticated);
+  adminLoginPanel.hidden = isAuthenticated;
+  adminModulePanel.hidden = !isAuthenticated;
+  if (!isAuthenticated) {
+    adminPasswordInput.value = "";
+  }
+}
+
 function renderAll() {
   showArchivedCarts.checked = state.showArchivedCarts;
   showPaidOrders.checked = state.showPaidOrders;
@@ -2307,6 +2377,7 @@ function renderAll() {
   renderDeletedCustomers();
   renderDeletedSuppliers();
   renderReports();
+  renderAdminSection();
 }
 
 function buildPrintMarkup(cart) {
@@ -3492,6 +3563,138 @@ deletedSupplierList.addEventListener("click", (event) => {
   try {
     restoreSupplier(button.dataset.supplierId);
     showToast("Đã khôi phục nhà cung cấp.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+adminLoginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const data = await apiRequest("/api/admin/login", {
+      method: "POST",
+      body: JSON.stringify({
+        username: adminUsernameInput.value.trim(),
+        password: adminPasswordInput.value,
+      }),
+    });
+    state.admin = {
+      authenticated: Boolean(data.authenticated),
+      username: data.username || "",
+    };
+    renderAdminSection();
+    showToast(data.message);
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+adminLogoutButton.addEventListener("click", async () => {
+  try {
+    const data = await apiRequest("/api/admin/logout", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    state.admin = {
+      authenticated: false,
+      username: "",
+    };
+    renderAdminSection();
+    showToast(data.message);
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+adminModulePanel.addEventListener("click", async (event) => {
+  const exportButton = event.target.closest("[data-admin-export]");
+  if (exportButton) {
+    const entity = exportButton.dataset.adminExport;
+    try {
+      await downloadAdminFile(`/api/admin/export/${entity}`, `${entity}-master.json`);
+      showToast("Đã tải file master.");
+    } catch (error) {
+      showToast(error.message, true);
+    }
+    return;
+  }
+
+  const importButton = event.target.closest("[data-admin-import]");
+  if (importButton) {
+    const entity = importButton.dataset.adminImport;
+    const inputMap = {
+      products: document.getElementById("adminImportProductsFile"),
+      customers: document.getElementById("adminImportCustomersFile"),
+      suppliers: document.getElementById("adminImportSuppliersFile"),
+    };
+    const fileInput = inputMap[entity];
+    const file = fileInput?.files?.[0];
+    if (!file) {
+      showToast("Hãy chọn file import trước.", true);
+      return;
+    }
+    try {
+      const rawText = await readFileAsText(file);
+      const payload = JSON.parse(rawText);
+      const warning = [
+        `Import master data cho ${entity}?`,
+        "Dữ liệu trùng tên sẽ được cập nhật.",
+        "Sản phẩm/khách hàng/nhà cung cấp đã xóa có thể được khôi phục nếu trùng với file nhập.",
+      ].join("\n");
+      if (!window.confirm(warning)) {
+        return;
+      }
+      const data = await apiRequest(`/api/admin/import/${entity}`, {
+        method: "POST",
+        body: JSON.stringify({
+          records: payload.records || [],
+        }),
+      });
+      fileInput.value = "";
+      await refreshData();
+      showToast(`${data.message} Created ${data.result.created}, updated ${data.result.updated}, restored ${data.result.restored}.`);
+    } catch (error) {
+      showToast(error.message, true);
+    }
+    return;
+  }
+});
+
+adminBackupButton.addEventListener("click", async () => {
+  try {
+    await downloadAdminFile("/api/admin/backup", "inventory-backup.db");
+    showToast("Đã tải file backup database.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+adminRestoreButton.addEventListener("click", async () => {
+  const file = adminRestoreDbFile.files?.[0];
+  if (!file) {
+    showToast("Hãy chọn file database để restore.", true);
+    return;
+  }
+  const warning = [
+    "Restore database toàn hệ thống?",
+    "Toàn bộ dữ liệu hiện tại sẽ bị ghi đè.",
+    "Chỉ tiếp tục nếu bạn chắc chắn file restore là bản sao đúng.",
+  ].join("\n");
+  if (!window.confirm(warning)) {
+    return;
+  }
+  try {
+    const contentBase64 = await readFileAsBase64(file);
+    const data = await apiRequest("/api/admin/restore", {
+      method: "POST",
+      body: JSON.stringify({
+        filename: file.name,
+        content_base64: contentBase64,
+      }),
+    });
+    adminRestoreDbFile.value = "";
+    await refreshData();
+    showToast(`${data.message} Backup trước restore: ${data.previous_backup}`);
   } catch (error) {
     showToast(error.message, true);
   }

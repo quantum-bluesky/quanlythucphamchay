@@ -33,6 +33,7 @@
         <button type="button" class="menu-button" data-menu="suppliers">7. Quản lý nhà cung cấp</button>
         <button type="button" class="menu-button" data-menu="reports">8. Báo cáo tháng</button>
         <button type="button" class="menu-button" data-menu="history">9. Lịch sử & khôi phục</button>
+        <button type="button" class="menu-button" data-menu="admin">10. Master Admin</button>
       </div>
     </nav>
 
@@ -498,6 +499,116 @@
             </div>
           </div>
           <div id="deletedSupplierList" class="customer-list"></div>
+        </section>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="admin">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Master Admin</p>
+            <h2>Import / export master data và backup hệ thống</h2>
+          </div>
+          <p class="panel-note">Chỉ dùng cho quản trị hệ thống. Các thao tác restore có thể ghi đè toàn bộ dữ liệu hiện tại.</p>
+        </div>
+
+        <section id="adminLoginPanel" class="sales-card">
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Đăng nhập admin</p>
+              <h3>Truy cập module quản trị</h3>
+            </div>
+          </div>
+          <form id="adminLoginForm" class="customer-form">
+            <label>
+              <span>Tài khoản admin</span>
+              <input id="adminUsernameInput" type="text" autocomplete="username" required>
+            </label>
+            <label>
+              <span>Mật khẩu admin</span>
+              <input id="adminPasswordInput" type="password" autocomplete="current-password" required>
+            </label>
+            <div class="customer-form-actions">
+              <button type="submit" class="primary-button">Đăng nhập Master Admin</button>
+            </div>
+          </form>
+        </section>
+
+        <section id="adminModulePanel" class="sales-columns" hidden>
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Master Data</p>
+                <h3>Xuất và nhập các file master</h3>
+              </div>
+              <button type="button" id="adminLogoutButton" class="ghost-button compact-button">Đăng xuất</button>
+            </div>
+
+            <div class="report-list">
+              <article class="report-card">
+                <div class="report-card-head">
+                  <strong>Mặt hàng</strong>
+                  <button type="button" class="ghost-button compact-button" data-admin-export="products">Xuất file</button>
+                </div>
+                <div class="purchase-inline-grid">
+                  <input id="adminImportProductsFile" type="file" accept=".json,application/json">
+                  <button type="button" class="primary-button compact-button" data-admin-import="products">Nhập file</button>
+                </div>
+              </article>
+
+              <article class="report-card">
+                <div class="report-card-head">
+                  <strong>Khách hàng</strong>
+                  <button type="button" class="ghost-button compact-button" data-admin-export="customers">Xuất file</button>
+                </div>
+                <div class="purchase-inline-grid">
+                  <input id="adminImportCustomersFile" type="file" accept=".json,application/json">
+                  <button type="button" class="primary-button compact-button" data-admin-import="customers">Nhập file</button>
+                </div>
+              </article>
+
+              <article class="report-card">
+                <div class="report-card-head">
+                  <strong>Nhà cung cấp</strong>
+                  <button type="button" class="ghost-button compact-button" data-admin-export="suppliers">Xuất file</button>
+                </div>
+                <div class="purchase-inline-grid">
+                  <input id="adminImportSuppliersFile" type="file" accept=".json,application/json">
+                  <button type="button" class="primary-button compact-button" data-admin-import="suppliers">Nhập file</button>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Database</p>
+                <h3>Backup và restore toàn hệ thống</h3>
+              </div>
+            </div>
+            <div class="report-list">
+              <article class="report-card">
+                <div class="report-card-head">
+                  <strong>Backup database</strong>
+                  <button type="button" id="adminBackupButton" class="ghost-button compact-button">Tải file backup</button>
+                </div>
+                <div class="cart-line-note">Tạo một bản sao toàn bộ hệ thống tại thời điểm hiện tại.</div>
+              </article>
+
+              <article class="report-card">
+                <div class="report-card-head">
+                  <strong>Restore database</strong>
+                </div>
+                <div class="cart-line-note">Cảnh báo: restore sẽ ghi đè toàn bộ dữ liệu hiện tại. Hãy backup trước khi thực hiện.</div>
+                <div class="purchase-inline-grid">
+                  <input id="adminRestoreDbFile" type="file" accept=".db,application/octet-stream">
+                  <button type="button" id="adminRestoreButton" class="danger-button compact-button">Restore DB</button>
+                </div>
+              </article>
+            </div>
+          </section>
         </section>
       </section>
     </section>
