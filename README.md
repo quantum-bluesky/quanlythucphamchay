@@ -2,6 +2,11 @@
 
 Ứng dụng web nhẹ để theo dõi tồn kho cá nhân cho thực phẩm chay đông lạnh. Hệ thống dùng Python chuẩn và SQLite, không cần cài thêm package ngoài.
 
+## Tài liệu
+
+- Deploy Windows: [docs/DEPLOY_WINDOWS.md](docs/DEPLOY_WINDOWS.md)
+- Hướng dẫn sử dụng: [docs/HUONG_DAN_SU_DUNG.md](docs/HUONG_DAN_SU_DUNG.md)
+
 ## Tính năng chính
 
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
