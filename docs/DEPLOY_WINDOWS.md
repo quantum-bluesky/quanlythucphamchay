@@ -78,22 +78,38 @@ http://192.168.1.18:8000
 
 ## 6.1. Tài khoản Master Admin
 
-Mặc định hệ thống có sẵn:
+Hệ thống dùng file cấu hình:
 
 ```text
-username: masteradmin
-password: admin12345
+data\system_config.json
 ```
 
-Nếu muốn đổi trước khi chạy app:
+App sẽ tự tạo file này nếu chưa có.
+
+Ví dụ:
+
+```json
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8000
+  },
+  "admin": {
+    "username": "masteradmin",
+    "password": "admin12345"
+  }
+}
+```
+
+Nếu muốn đổi tài khoản admin hoặc host/port mặc định, sửa trực tiếp file này rồi chạy lại app.
+
+Có thể xem config hiện tại bằng:
 
 ```powershell
-$env:MASTER_ADMIN_USERNAME="ten_admin_moi"
-$env:MASTER_ADMIN_PASSWORD="mat_khau_moi"
-python app.py --host 0.0.0.0 --port 8000
+python app.py config
 ```
 
-Nên đổi mật khẩu này khi đưa vào sử dụng thật.
+Nên đổi mật khẩu admin trước khi đưa vào sử dụng thật.
 
 ## 7. Cho phép qua Windows Firewall
 

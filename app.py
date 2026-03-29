@@ -22,11 +22,12 @@ STATIC_DIR = BASE_DIR / "static"
 DATA_DIR = BASE_DIR / "data"
 BACKUP_DIR = DATA_DIR / "backups"
 DB_PATH = DATA_DIR / "inventory.db"
+CONFIG_PATH = DATA_DIR / "system_config.json"
 DEFAULT_INIT_FILE = DATA_DIR / "List_price.txt"
-DEFAULT_HOST = os.environ.get("APP_HOST", "127.0.0.1")
-DEFAULT_PORT = int(os.environ.get("APP_PORT", "8000"))
-ADMIN_USERNAME = os.environ.get("MASTER_ADMIN_USERNAME", "masteradmin")
-ADMIN_PASSWORD = os.environ.get("MASTER_ADMIN_PASSWORD", "admin12345")
+DEFAULT_HOST = "127.0.0.1"
+DEFAULT_PORT = 8000
+DEFAULT_ADMIN_USERNAME = "masteradmin"
+DEFAULT_ADMIN_PASSWORD = "admin12345"
 ADMIN_SESSION_COOKIE = "qltpchay_admin_session"
 
 
@@ -93,6 +94,77 @@ def extract_price_from_note(note: str, transaction_type: str) -> float | None:
 
 def normalize_key(value: str | None) -> str:
     return str(value or "").strip().lower()
+
+
+def build_default_system_config(*, use_env_seed: bool) -> dict:
+    config = {
+        "server": {
+            "host": DEFAULT_HOST,
+            "port": DEFAULT_PORT,
+        },
+        "admin": {
+            "username": DEFAULT_ADMIN_USERNAME,
+            "password": DEFAULT_ADMIN_PASSWORD,
+        },
+    }
+    if use_env_seed:
+        config["server"]["host"] = os.environ.get("APP_HOST", DEFAULT_HOST)
+        try:
+            config["server"]["port"] = int(os.environ.get("APP_PORT", str(DEFAULT_PORT)))
+        except ValueError:
+            config["server"]["port"] = DEFAULT_PORT
+        config["admin"]["username"] = os.environ.get("MASTER_ADMIN_USERNAME", DEFAULT_ADMIN_USERNAME)
+        config["admin"]["password"] = os.environ.get("MASTER_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
+    return config
+
+
+def save_system_config(config: dict, config_path: Path = CONFIG_PATH) -> None:
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        json.dumps(config, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
+    if not config_path.exists():
+        config = build_default_system_config(use_env_seed=True)
+        save_system_config(config, config_path)
+        return config
+
+    try:
+        raw_config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise ValueError(f"File config hệ thống không hợp lệ: {config_path}") from exc
+
+    defaults = build_default_system_config(use_env_seed=False)
+    config = {
+        "server": {
+            "host": str(raw_config.get("server", {}).get("host") or defaults["server"]["host"]).strip(),
+            "port": defaults["server"]["port"],
+        },
+        "admin": {
+            "username": str(raw_config.get("admin", {}).get("username") or defaults["admin"]["username"]).strip(),
+            "password": str(raw_config.get("admin", {}).get("password") or defaults["admin"]["password"]),
+        },
+    }
+
+    try:
+        config["server"]["port"] = int(raw_config.get("server", {}).get("port", defaults["server"]["port"]))
+    except (TypeError, ValueError):
+        config["server"]["port"] = defaults["server"]["port"]
+
+    if not config["server"]["host"]:
+        config["server"]["host"] = defaults["server"]["host"]
+    if not config["admin"]["username"]:
+        config["admin"]["username"] = defaults["admin"]["username"]
+    if not config["admin"]["password"]:
+        config["admin"]["password"] = defaults["admin"]["password"]
+
+    if config != raw_config:
+        save_system_config(config, config_path)
+
+    return config
 
 
 def parse_cookie_header(cookie_header: str | None) -> dict[str, str]:
@@ -1377,6 +1449,7 @@ class InventoryStore:
             bucket["in_value"] = round(bucket["in_value"], 2)
             bucket["out_value"] = round(bucket["out_value"], 2)
             bucket["net_quantity"] = round(bucket["in_quantity"] - bucket["out_quantity"], 2)
+            bucket["net_value"] = round(bucket["out_value"] - bucket["in_value"], 2)
             months_payload.append(bucket)
 
         focus_summary = next(
@@ -1388,7 +1461,24 @@ class InventoryStore:
                 "in_value": 0.0,
                 "out_value": 0.0,
                 "net_quantity": 0.0,
+                "net_value": 0.0,
             },
+        )
+
+        range_summary = {
+            "months": len(months_payload),
+            "in_quantity": round(sum(bucket["in_quantity"] for bucket in months_payload), 2),
+            "out_quantity": round(sum(bucket["out_quantity"] for bucket in months_payload), 2),
+            "in_value": round(sum(bucket["in_value"] for bucket in months_payload), 2),
+            "out_value": round(sum(bucket["out_value"] for bucket in months_payload), 2),
+        }
+        range_summary["net_quantity"] = round(
+            range_summary["in_quantity"] - range_summary["out_quantity"],
+            2,
+        )
+        range_summary["net_value"] = round(
+            range_summary["out_value"] - range_summary["in_value"],
+            2,
         )
 
         product_activity = sorted(
@@ -1398,11 +1488,14 @@ class InventoryStore:
                 item["name"].lower(),
             ),
         )
+        for item in product_activity:
+            item["net_value"] = round(float(item["out_value"]) - float(item["in_value"]), 2)
 
         return {
             "focus_month": focus_key,
             "months": months_payload,
             "focus_summary": focus_summary,
+            "range_summary": range_summary,
             "product_activity": product_activity,
             "forecast": forecast_items[:18],
         }
@@ -1966,10 +2059,10 @@ def run_init_command(
     return 0
 
 
-def build_cli_parser() -> argparse.ArgumentParser:
+def build_cli_parser(system_config: dict) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Quản lý tồn kho thực phẩm chay")
-    parser.add_argument("--host", default=DEFAULT_HOST, help="Host/IP/domain để bind server")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Port chạy ứng dụng")
+    parser.add_argument("--host", default=None, help="Host/IP/domain để bind server")
+    parser.add_argument("--port", type=int, default=None, help="Port chạy ứng dụng")
     subparsers = parser.add_subparsers(dest="command")
 
     init_parser = subparsers.add_parser("init", help="Khởi tạo sản phẩm từ file danh sách")
@@ -1981,16 +2074,23 @@ def build_cli_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--reset", action="store_true", help="Xóa dữ liệu hiện có trước khi import")
 
     subparsers.add_parser("serve", help="Chạy web server")
+    subparsers.add_parser("config", help="Hiện file cấu hình hệ thống đang dùng")
 
     return parser
 
 
-def run_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
+def run_server(system_config: dict, host: str | None = None, port: int | None = None) -> None:
+    resolved_host = host or str(system_config["server"]["host"])
+    resolved_port = int(port or system_config["server"]["port"])
     store = InventoryStore(DB_PATH)
-    admin_sessions = AdminSessionManager(ADMIN_USERNAME, ADMIN_PASSWORD)
-    server = ThreadingHTTPServer((host, port), create_handler(store, admin_sessions))
-    print(f"Inventory app running at http://{host}:{port}")
-    print(f"Master Admin username: {ADMIN_USERNAME}")
+    admin_sessions = AdminSessionManager(
+        str(system_config["admin"]["username"]),
+        str(system_config["admin"]["password"]),
+    )
+    server = ThreadingHTTPServer((resolved_host, resolved_port), create_handler(store, admin_sessions))
+    print(f"Inventory app running at http://{resolved_host}:{resolved_port}")
+    print(f"System config file: {CONFIG_PATH}")
+    print(f"Master Admin username: {system_config['admin']['username']}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -2000,17 +2100,23 @@ def run_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
 
 
 def main() -> int:
-    parser = build_cli_parser()
+    system_config = load_system_config()
+    parser = build_cli_parser(system_config)
     args = parser.parse_args()
 
     if args.command == "init":
         return run_init_command(args.file, args.category, args.unit, args.threshold, args.price, args.reset)
 
-    if args.command == "serve":
-        run_server(args.host, args.port)
+    if args.command == "config":
+        print(json.dumps(system_config, ensure_ascii=False, indent=2))
+        print(f"Config file: {CONFIG_PATH}")
         return 0
 
-    run_server(args.host, args.port)
+    if args.command == "serve":
+        run_server(system_config, args.host, args.port)
+        return 0
+
+    run_server(system_config, args.host, args.port)
     return 0
 
 

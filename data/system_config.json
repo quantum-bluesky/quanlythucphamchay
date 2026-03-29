@@ -1,0 +1,10 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8000
+  },
+  "admin": {
+    "username": "masteradmin",
+    "password": "admin12345"
+  }
+}

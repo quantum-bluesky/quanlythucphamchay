@@ -2199,6 +2199,7 @@ function renderReports() {
   }
 
   const focus = state.reports.focus_summary || {};
+  const range = state.reports.range_summary || {};
   const reportCards = [
     {
       label: "Tháng đang xem",
@@ -2216,9 +2217,19 @@ function renderReports() {
       hint: `Ước tính ${formatCurrency(focus.out_value)}`,
     },
     {
-      label: "Chênh lệch",
+      label: "Chênh lệch SL",
       value: formatQuantity(focus.net_quantity),
       hint: Number(focus.net_quantity || 0) >= 0 ? "Nhập nhiều hơn xuất" : "Xuất nhiều hơn nhập",
+    },
+    {
+      label: "Lãi gộp tháng",
+      value: formatCurrency(focus.net_value),
+      hint: Number(focus.net_value || 0) >= 0 ? "Xuất lớn hơn nhập" : "Nhập lớn hơn xuất",
+    },
+    {
+      label: `Lãi gộp ${range.months || state.reportRangeMonths} tháng`,
+      value: formatCurrency(range.net_value),
+      hint: `Xuất ${formatCurrency(range.out_value)} | Nhập ${formatCurrency(range.in_value)}`,
     },
   ];
 
@@ -2259,6 +2270,10 @@ function renderReports() {
               <div class="report-card-row">
                 <span>Giá trị xuất</span>
                 <span>${escapeHtml(formatCurrency(entry.out_value))}</span>
+              </div>
+              <div class="report-card-row">
+                <span>Chênh lệch giá trị</span>
+                <span class="${Number(entry.net_value) >= 0 ? "report-highlight" : "report-warning"}">${escapeHtml(formatCurrency(entry.net_value))}</span>
               </div>
             </article>
           `
@@ -2324,6 +2339,10 @@ function renderReports() {
             <div class="product-row-meta">
               <span>Giá trị nhập ${escapeHtml(formatCurrency(item.in_value))}</span>
               <span>Giá trị xuất ${escapeHtml(formatCurrency(item.out_value))}</span>
+            </div>
+            <div class="product-row-meta">
+              <span>Chênh lệch giá trị</span>
+              <span class="${Number(item.net_value) >= 0 ? "report-highlight" : "report-warning"}">${escapeHtml(formatCurrency(item.net_value))}</span>
             </div>
           </article>
         `

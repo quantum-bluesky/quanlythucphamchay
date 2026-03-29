@@ -38,19 +38,35 @@ Sau đó mở trình duyệt tại `http://127.0.0.1:8000`.
 
 Dữ liệu nghiệp vụ được lưu trong `data\inventory.db`. Nếu nhiều máy cùng mở vào cùng một địa chỉ app/server thì sẽ dùng chung một nguồn dữ liệu.
 
-Tài khoản `Master Admin` mặc định:
+File cấu hình hệ thống:
 
 ```text
-username: masteradmin
-password: admin12345
+data\system_config.json
 ```
 
-Có thể đổi bằng biến môi trường:
+App sẽ tự tạo file này nếu chưa có.
+
+Ví dụ:
+
+```text
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8000
+  },
+  "admin": {
+    "username": "masteradmin",
+    "password": "admin12345"
+  }
+}
+```
+
+Muốn đổi tài khoản admin hoặc host/port mặc định, hãy sửa file này rồi chạy lại app.
+
+Có thể xem nhanh config hiện tại bằng:
 
 ```powershell
-$env:MASTER_ADMIN_USERNAME="ten_admin_moi"
-$env:MASTER_ADMIN_PASSWORD="mat_khau_moi"
-python app.py --host 0.0.0.0 --port 8000
+python app.py config
 ```
 
 Có thể bind theo IP / domain / port tùy ý:
