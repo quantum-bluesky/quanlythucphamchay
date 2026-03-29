@@ -39,6 +39,8 @@ const state = {
   supplierSearchTerm: "",
   reportFocusMonth: new Date().toISOString().slice(0, 7),
   reportRangeMonths: 6,
+  reportStartDate: "",
+  reportEndDate: "",
   customers: [],
   suppliers: [],
   carts: [],
@@ -141,8 +143,11 @@ const supplierFormCancelButton = document.getElementById("supplierFormCancelButt
 const supplierSearchInput = document.getElementById("supplierSearchInput");
 const supplierList = document.getElementById("supplierList");
 const reportMonthInput = document.getElementById("reportMonthInput");
+const reportStartDateInput = document.getElementById("reportStartDateInput");
+const reportEndDateInput = document.getElementById("reportEndDateInput");
 const reportRangeSelect = document.getElementById("reportRangeSelect");
 const refreshReportsButton = document.getElementById("refreshReportsButton");
+const clearReportDateFilterButton = document.getElementById("clearReportDateFilterButton");
 const reportSummaryCards = document.getElementById("reportSummaryCards");
 const reportMonthTrend = document.getElementById("reportMonthTrend");
 const forecastList = document.getElementById("forecastList");
@@ -199,6 +204,17 @@ function formatMonthLabel(value) {
   }
   const [year, month] = String(value).split("-");
   return `Tháng ${month}/${year}`;
+}
+
+function formatDateOnly(value) {
+  if (!value) {
+    return "";
+  }
+  return new Date(`${value}T00:00:00`).toLocaleDateString("vi-VN");
+}
+
+function hasCompleteReportDateFilter() {
+  return Boolean(state.reportStartDate && state.reportEndDate);
 }
 
 function escapeHtml(value) {
@@ -1401,7 +1417,15 @@ function readFileAsBase64(file) {
 async function refreshReportData() {
   const focusMonth = state.reportFocusMonth || new Date().toISOString().slice(0, 7);
   const rangeMonths = Number(state.reportRangeMonths || 6);
-  state.reports = await apiRequest(`/api/reports/monthly?months=${rangeMonths}&focus_month=${encodeURIComponent(focusMonth)}`);
+  const params = new URLSearchParams({
+    months: String(rangeMonths),
+    focus_month: focusMonth,
+  });
+  if (hasCompleteReportDateFilter()) {
+    params.set("start_date", state.reportStartDate);
+    params.set("end_date", state.reportEndDate);
+  }
+  state.reports = await apiRequest(`/api/reports/monthly?${params.toString()}`);
   state.reportFocusMonth = state.reports?.focus_month || focusMonth;
 }
 
@@ -2186,6 +2210,12 @@ function renderReports() {
   if (reportMonthInput) {
     reportMonthInput.value = state.reportFocusMonth;
   }
+  if (reportStartDateInput) {
+    reportStartDateInput.value = state.reportStartDate || "";
+  }
+  if (reportEndDateInput) {
+    reportEndDateInput.value = state.reportEndDate || "";
+  }
   if (reportRangeSelect) {
     reportRangeSelect.value = String(state.reportRangeMonths);
   }
@@ -2200,36 +2230,44 @@ function renderReports() {
 
   const focus = state.reports.focus_summary || {};
   const range = state.reports.range_summary || {};
+  const dateFilter = state.reports.date_filter || {};
+  const isDateFiltered = Boolean(dateFilter.active);
+  const currentPeriodLabel = isDateFiltered
+    ? `${formatDateOnly(dateFilter.start_date)} - ${formatDateOnly(dateFilter.end_date)}`
+    : formatMonthLabel(state.reports.focus_month);
+
   const reportCards = [
     {
-      label: "Tháng đang xem",
-      value: formatMonthLabel(state.reports.focus_month),
-      hint: "Mốc tổng hợp chính",
+      label: isDateFiltered ? "Khoảng đang xem" : "Tháng đang xem",
+      value: currentPeriodLabel,
+      hint: isDateFiltered ? "Tổng hợp theo khoảng ngày đã chọn" : "Mốc tổng hợp chính",
     },
     {
-      label: "Tổng nhập",
-      value: formatQuantity(focus.in_quantity),
-      hint: `Ước tính ${formatCurrency(focus.in_value)}`,
+      label: "Chi nhập hàng",
+      value: formatCurrency(focus.purchase_value),
+      hint: `Nhập ${formatQuantity(focus.in_quantity)} mặt hàng trong kỳ`,
     },
     {
-      label: "Tổng xuất",
-      value: formatQuantity(focus.out_quantity),
-      hint: `Ước tính ${formatCurrency(focus.out_value)}`,
+      label: "Doanh thu",
+      value: formatCurrency(focus.revenue_value),
+      hint: `Xuất ${formatQuantity(focus.out_quantity)} mặt hàng trong kỳ`,
     },
     {
-      label: "Chênh lệch SL",
-      value: formatQuantity(focus.net_quantity),
-      hint: Number(focus.net_quantity || 0) >= 0 ? "Nhập nhiều hơn xuất" : "Xuất nhiều hơn nhập",
+      label: "Giá vốn",
+      value: formatCurrency(focus.cogs_value),
+      hint: "Giá vốn của lượng hàng đã xuất",
     },
     {
-      label: "Lãi gộp tháng",
-      value: formatCurrency(focus.net_value),
-      hint: Number(focus.net_value || 0) >= 0 ? "Xuất lớn hơn nhập" : "Nhập lớn hơn xuất",
+      label: "Lãi gộp kỳ",
+      value: formatCurrency(focus.gross_profit_value),
+      hint: Number(focus.gross_profit_value || 0) >= 0 ? "Doanh thu lớn hơn giá vốn" : "Giá vốn đang cao hơn doanh thu",
     },
     {
-      label: `Lãi gộp ${range.months || state.reportRangeMonths} tháng`,
-      value: formatCurrency(range.net_value),
-      hint: `Xuất ${formatCurrency(range.out_value)} | Nhập ${formatCurrency(range.in_value)}`,
+      label: isDateFiltered ? "Số tháng hiển thị" : `Lãi gộp ${range.months || state.reportRangeMonths} tháng`,
+      value: isDateFiltered ? `${range.months || 0} tháng` : formatCurrency(range.gross_profit_value),
+      hint: isDateFiltered
+        ? `Doanh thu ${formatCurrency(range.revenue_value)} | Giá vốn ${formatCurrency(range.cogs_value)}`
+        : `Doanh thu ${formatCurrency(range.revenue_value)} | Giá vốn ${formatCurrency(range.cogs_value)}`,
     },
   ];
 
@@ -2264,16 +2302,20 @@ function renderReports() {
                 <strong class="report-warning">${escapeHtml(formatQuantity(entry.out_quantity))}</strong>
               </div>
               <div class="report-card-row">
-                <span>Giá trị nhập</span>
-                <span>${escapeHtml(formatCurrency(entry.in_value))}</span>
+                <span>Chi nhập hàng</span>
+                <span>${escapeHtml(formatCurrency(entry.purchase_value))}</span>
               </div>
               <div class="report-card-row">
-                <span>Giá trị xuất</span>
-                <span>${escapeHtml(formatCurrency(entry.out_value))}</span>
+                <span>Doanh thu</span>
+                <span>${escapeHtml(formatCurrency(entry.revenue_value))}</span>
               </div>
               <div class="report-card-row">
-                <span>Chênh lệch giá trị</span>
-                <span class="${Number(entry.net_value) >= 0 ? "report-highlight" : "report-warning"}">${escapeHtml(formatCurrency(entry.net_value))}</span>
+                <span>Giá vốn</span>
+                <span>${escapeHtml(formatCurrency(entry.cogs_value))}</span>
+              </div>
+              <div class="report-card-row">
+                <span>Lãi gộp</span>
+                <span class="${Number(entry.gross_profit_value) >= 0 ? "report-highlight" : "report-warning"}">${escapeHtml(formatCurrency(entry.gross_profit_value))}</span>
               </div>
             </article>
           `
@@ -2315,7 +2357,7 @@ function renderReports() {
 
   const productActivity = Array.isArray(state.reports.product_activity) ? state.reports.product_activity : [];
   if (!productActivity.length) {
-    reportProductActivity.innerHTML = '<div class="empty-state">Tháng này chưa có biến động nhập xuất theo sản phẩm.</div>';
+    reportProductActivity.innerHTML = `<div class="empty-state">${isDateFiltered ? "Khoảng ngày này chưa có biến động nhập xuất theo sản phẩm." : "Tháng này chưa có biến động nhập xuất theo sản phẩm."}</div>`;
   } else {
     const pageData = paginateItems(productActivity, "reportProducts");
     reportProductActivity.innerHTML = pageData.items
@@ -2337,12 +2379,12 @@ function renderReports() {
               <span>Xuất ${escapeHtml(formatQuantity(item.out_quantity))}</span>
             </div>
             <div class="product-row-meta">
-              <span>Giá trị nhập ${escapeHtml(formatCurrency(item.in_value))}</span>
-              <span>Giá trị xuất ${escapeHtml(formatCurrency(item.out_value))}</span>
+              <span>Chi nhập ${escapeHtml(formatCurrency(item.purchase_value))}</span>
+              <span>Doanh thu ${escapeHtml(formatCurrency(item.revenue_value))}</span>
             </div>
             <div class="product-row-meta">
-              <span>Chênh lệch giá trị</span>
-              <span class="${Number(item.net_value) >= 0 ? "report-highlight" : "report-warning"}">${escapeHtml(formatCurrency(item.net_value))}</span>
+              <span>Giá vốn ${escapeHtml(formatCurrency(item.cogs_value))}</span>
+              <span class="${Number(item.gross_profit_value) >= 0 ? "report-highlight" : "report-warning"}">Lãi gộp ${escapeHtml(formatCurrency(item.gross_profit_value))}</span>
             </div>
           </article>
         `
@@ -3199,13 +3241,20 @@ purchaseSearchInput.addEventListener("input", (event) => {
   renderPurchaseSuggestions();
 });
 
-reportMonthInput.addEventListener("change", async (event) => {
-  state.reportFocusMonth = event.target.value || new Date().toISOString().slice(0, 7);
+async function applyReportFilters({ showSuccess = false } = {}) {
   state.pagination.reportProducts = 1;
   state.pagination.reportForecast = 1;
+  await refreshReportData();
+  renderReports();
+  if (showSuccess) {
+    showToast("Đã làm mới báo cáo.");
+  }
+}
+
+reportMonthInput.addEventListener("change", async (event) => {
+  state.reportFocusMonth = event.target.value || new Date().toISOString().slice(0, 7);
   try {
-    await refreshReportData();
-    renderReports();
+    await applyReportFilters();
   } catch (error) {
     showToast(error.message, true);
   }
@@ -3213,21 +3262,52 @@ reportMonthInput.addEventListener("change", async (event) => {
 
 reportRangeSelect.addEventListener("change", async (event) => {
   state.reportRangeMonths = Number(event.target.value || 6);
-  state.pagination.reportProducts = 1;
-  state.pagination.reportForecast = 1;
   try {
-    await refreshReportData();
-    renderReports();
+    await applyReportFilters();
   } catch (error) {
     showToast(error.message, true);
   }
 });
 
-refreshReportsButton.addEventListener("click", async () => {
-  try {
-    await refreshReportData();
+async function onReportDateFilterChange() {
+  if ((state.reportStartDate && !state.reportEndDate) || (!state.reportStartDate && state.reportEndDate)) {
     renderReports();
-    showToast("Đã làm mới báo cáo tháng.");
+    return;
+  }
+  try {
+    await applyReportFilters();
+  } catch (error) {
+    showToast(error.message, true);
+  }
+}
+
+reportStartDateInput.addEventListener("change", async (event) => {
+  state.reportStartDate = event.target.value || "";
+  await onReportDateFilterChange();
+});
+
+reportEndDateInput.addEventListener("change", async (event) => {
+  state.reportEndDate = event.target.value || "";
+  await onReportDateFilterChange();
+});
+
+refreshReportsButton.addEventListener("click", async () => {
+  if ((state.reportStartDate && !state.reportEndDate) || (!state.reportStartDate && state.reportEndDate)) {
+    showToast("Cần chọn đủ Từ ngày và Đến ngày để lọc theo khoảng ngày.", true);
+    return;
+  }
+  try {
+    await applyReportFilters({ showSuccess: true });
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+clearReportDateFilterButton.addEventListener("click", async () => {
+  state.reportStartDate = "";
+  state.reportEndDate = "";
+  try {
+    await applyReportFilters({ showSuccess: true });
   } catch (error) {
     showToast(error.message, true);
   }

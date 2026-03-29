@@ -410,6 +410,14 @@
               <input id="reportMonthInput" type="month">
             </label>
             <label>
+              <span>Từ ngày</span>
+              <input id="reportStartDateInput" type="date">
+            </label>
+            <label>
+              <span>Đến ngày</span>
+              <input id="reportEndDateInput" type="date">
+            </label>
+            <label>
               <span>Số tháng gần nhất</span>
               <select id="reportRangeSelect">
                 <option value="3">3 tháng</option>
@@ -419,6 +427,7 @@
             </label>
             <div class="reports-filter-actions">
               <button type="button" id="refreshReportsButton" class="ghost-button compact-button">Làm mới báo cáo</button>
+              <button type="button" id="clearReportDateFilterButton" class="ghost-button compact-button">Bỏ lọc ngày</button>
             </div>
           </div>
         </div>

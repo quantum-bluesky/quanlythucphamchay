@@ -8,7 +8,7 @@ import re
 import secrets
 import shutil
 import sqlite3
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -72,6 +72,15 @@ def parse_month_key(value: str | None) -> tuple[int, int] | None:
     return year, month
 
 
+def parse_date_key(value: str | None) -> date | None:
+    if value in (None, ""):
+        return None
+    try:
+        return datetime.strptime(str(value).strip(), "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise ValueError("Ngày lọc báo cáo không hợp lệ. Định dạng đúng là YYYY-MM-DD.") from exc
+
+
 def shift_month(year: int, month: int, offset: int) -> tuple[int, int]:
     total = year * 12 + (month - 1) + offset
     return total // 12, total % 12 + 1
@@ -81,8 +90,7 @@ def month_key(year: int, month: int) -> str:
     return f"{year:04d}-{month:02d}"
 
 
-def extract_price_from_note(note: str, transaction_type: str) -> float | None:
-    label = "Giá bán" if transaction_type == "out" else "Giá nhập"
+def extract_labeled_price(note: str, label: str) -> float | None:
     match = re.search(rf"{label}:\s*([0-9]+(?:\.[0-9]+)?)", note or "")
     if not match:
         return None
@@ -90,6 +98,15 @@ def extract_price_from_note(note: str, transaction_type: str) -> float | None:
         return float(match.group(1))
     except ValueError:
         return None
+
+
+def extract_price_from_note(note: str, transaction_type: str) -> float | None:
+    label = "Giá bán" if transaction_type == "out" else "Giá nhập"
+    return extract_labeled_price(note, label)
+
+
+def extract_cost_from_note(note: str) -> float | None:
+    return extract_labeled_price(note, "Giá vốn")
 
 
 def normalize_key(value: str | None) -> str:
@@ -904,8 +921,9 @@ class InventoryStore:
                 line_total = item["quantity"] * item["unit_price"]
                 total_amount += line_total
                 total_quantity += item["quantity"]
+                unit_cost_snapshot = float(product["price"])
                 transaction_note = (
-                    f"Đơn {order_code} | Khách: {clean_customer_name} | Giá bán: {float(item['unit_price']):.0f}"
+                    f"Đơn {order_code} | Khách: {clean_customer_name} | Giá bán: {float(item['unit_price']):.0f} | Giá vốn: {unit_cost_snapshot:.0f}"
                 )
                 if clean_note:
                     transaction_note += f" | {clean_note}"
@@ -1253,7 +1271,13 @@ class InventoryStore:
             except PermissionError:
                 pass
 
-    def get_monthly_report(self, months: int = 6, focus_month: str | None = None) -> dict:
+    def get_monthly_report(
+        self,
+        months: int = 6,
+        focus_month: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> dict:
         safe_months = max(3, min(int(months), 24))
         now = datetime.now()
         parsed_focus = parse_month_key(focus_month)
@@ -1262,18 +1286,48 @@ class InventoryStore:
         else:
             focus_year, focus_month_number = now.year, now.month
 
-        month_keys: list[str] = []
-        for offset in range(-(safe_months - 1), 1):
-            year, month = shift_month(focus_year, focus_month_number, offset)
-            month_keys.append(month_key(year, month))
+        parsed_start = parse_date_key(start_date)
+        parsed_end = parse_date_key(end_date)
+        if bool(parsed_start) != bool(parsed_end):
+            raise ValueError("Cần chọn đủ Từ ngày và Đến ngày để lọc báo cáo.")
+        if parsed_start and parsed_end and parsed_start > parsed_end:
+            raise ValueError("Từ ngày không được lớn hơn Đến ngày.")
 
-        start_month = month_keys[0]
+        is_date_filtered = bool(parsed_start and parsed_end)
         focus_key = month_key(focus_year, focus_month_number)
-        avg_month_keys = month_keys[-3:]
+
+        if is_date_filtered:
+            month_keys: list[str] = []
+            cursor_year = parsed_start.year
+            cursor_month = parsed_start.month
+            end_month_key = month_key(parsed_end.year, parsed_end.month)
+            while True:
+                current_key = month_key(cursor_year, cursor_month)
+                month_keys.append(current_key)
+                if current_key == end_month_key:
+                    break
+                cursor_year, cursor_month = shift_month(cursor_year, cursor_month, 1)
+
+            if focus_key not in month_keys:
+                focus_key = month_keys[-1]
+
+            where_clause = "substr(t.created_at, 1, 10) >= ? AND substr(t.created_at, 1, 10) <= ?"
+            query_params = (parsed_start.isoformat(), parsed_end.isoformat())
+        else:
+            month_keys = []
+            for offset in range(-(safe_months - 1), 1):
+                year, month = shift_month(focus_year, focus_month_number, offset)
+                month_keys.append(month_key(year, month))
+
+            start_month = month_keys[0]
+            where_clause = "substr(t.created_at, 1, 7) >= ?"
+            query_params = (start_month,)
+
+        avg_month_keys = month_keys[-min(3, len(month_keys)):]
 
         with self._connect() as connection:
             rows = connection.execute(
-                """
+                f"""
                 SELECT
                     t.id,
                     t.product_id,
@@ -1289,26 +1343,29 @@ class InventoryStore:
                     substr(t.created_at, 1, 7) AS month_key
                 FROM transactions t
                 INNER JOIN products p ON p.id = t.product_id
-                WHERE substr(t.created_at, 1, 7) >= ?
+                WHERE {where_clause}
                 ORDER BY t.created_at DESC, t.id DESC
                 """,
-                (start_month,),
+                query_params,
             ).fetchall()
 
-        monthly_totals = {
-            key: {
-                "month": key,
+        def blank_bucket(month_value: str) -> dict:
+            return {
+                "month": month_value,
                 "in_quantity": 0.0,
                 "out_quantity": 0.0,
+                "purchase_value": 0.0,
+                "revenue_value": 0.0,
+                "cogs_value": 0.0,
+                "gross_profit_value": 0.0,
                 "in_value": 0.0,
                 "out_value": 0.0,
+                "net_value": 0.0,
             }
-            for key in month_keys
-        }
+
+        monthly_totals = {key: blank_bucket(key) for key in month_keys}
         focus_products: dict[int, dict] = {}
-        monthly_out_by_product: dict[str, dict[int, float]] = {
-            key: {} for key in avg_month_keys
-        }
+        monthly_out_by_product: dict[str, dict[int, float]] = {key: {} for key in avg_month_keys}
 
         for row in rows:
             row_month = row["month_key"]
@@ -1317,22 +1374,41 @@ class InventoryStore:
 
             quantity = float(row["quantity"])
             fallback_price = float(row["price"])
-            derived_price = extract_price_from_note(row["note"] or "", row["transaction_type"])
-            used_price = fallback_price if derived_price is None else derived_price
-            amount = round(quantity * used_price, 2)
+            note = row["note"] or ""
+
+            purchase_unit_cost = extract_price_from_note(note, "in")
+            sale_unit_price = extract_price_from_note(note, "out")
+            sale_unit_cost = extract_cost_from_note(note)
+            if purchase_unit_cost is None:
+                purchase_unit_cost = fallback_price
+            if sale_unit_price is None:
+                sale_unit_price = fallback_price
+            if sale_unit_cost is None:
+                sale_unit_cost = fallback_price
+
+            purchase_amount = round(quantity * purchase_unit_cost, 2)
+            revenue_amount = round(quantity * sale_unit_price, 2)
+            cogs_amount = round(quantity * sale_unit_cost, 2)
+            gross_profit_amount = round(revenue_amount - cogs_amount, 2)
 
             bucket = monthly_totals[row_month]
             if row["transaction_type"] == "in":
                 bucket["in_quantity"] += quantity
-                bucket["in_value"] += amount
+                bucket["purchase_value"] += purchase_amount
+                bucket["in_value"] += purchase_amount
             else:
                 bucket["out_quantity"] += quantity
-                bucket["out_value"] += amount
+                bucket["revenue_value"] += revenue_amount
+                bucket["cogs_value"] += cogs_amount
+                bucket["gross_profit_value"] += gross_profit_amount
+                bucket["out_value"] += revenue_amount
+                bucket["net_value"] += gross_profit_amount
                 if row_month in monthly_out_by_product:
                     current = monthly_out_by_product[row_month].get(row["product_id"], 0.0)
                     monthly_out_by_product[row_month][row["product_id"]] = current + quantity
 
-            if row_month == focus_key:
+            include_in_focus = is_date_filtered or row_month == focus_key
+            if include_in_focus:
                 product_entry = focus_products.setdefault(
                     row["product_id"],
                     {
@@ -1343,16 +1419,26 @@ class InventoryStore:
                         "current_stock": 0.0,
                         "in_quantity": 0.0,
                         "out_quantity": 0.0,
+                        "purchase_value": 0.0,
+                        "revenue_value": 0.0,
+                        "cogs_value": 0.0,
+                        "gross_profit_value": 0.0,
                         "in_value": 0.0,
                         "out_value": 0.0,
+                        "net_value": 0.0,
                     },
                 )
                 if row["transaction_type"] == "in":
                     product_entry["in_quantity"] += quantity
-                    product_entry["in_value"] += amount
+                    product_entry["purchase_value"] += purchase_amount
+                    product_entry["in_value"] += purchase_amount
                 else:
                     product_entry["out_quantity"] += quantity
-                    product_entry["out_value"] += amount
+                    product_entry["revenue_value"] += revenue_amount
+                    product_entry["cogs_value"] += cogs_amount
+                    product_entry["gross_profit_value"] += gross_profit_amount
+                    product_entry["out_value"] += revenue_amount
+                    product_entry["net_value"] += gross_profit_amount
 
         products = self.get_products()
         products_by_id = {product["id"]: product for product in products}
@@ -1390,8 +1476,8 @@ class InventoryStore:
                 monthly_out_by_product.get(key, {}).get(product_id, 0.0)
                 for key in avg_month_keys
             ]
-            avg_monthly_out = round(sum(monthly_out_values) / len(avg_month_keys), 2)
-            max_recent_out = round(max(monthly_out_values), 2)
+            avg_monthly_out = round(sum(monthly_out_values) / len(avg_month_keys), 2) if avg_month_keys else 0.0
+            max_recent_out = round(max(monthly_out_values), 2) if monthly_out_values else 0.0
             pending_demand = round(pending_demand_by_product.get(product_id, 0.0), 2)
             incoming_qty = round(incoming_by_product.get(product_id, 0.0), 2)
             target_stock = max(
@@ -1410,7 +1496,7 @@ class InventoryStore:
             if pending_demand > 0:
                 reasons.append(f"đơn chờ {pending_demand:g} {product['unit']}")
             if avg_monthly_out > 0:
-                reasons.append(f"xuất TB 3 tháng {avg_monthly_out:g} {product['unit']}")
+                reasons.append(f"xuất TB {len(avg_month_keys)} tháng {avg_monthly_out:g} {product['unit']}")
             if float(product["current_stock"]) <= float(product["low_stock_threshold"]):
                 reasons.append("tồn đang thấp")
             if incoming_qty > 0:
@@ -1446,40 +1532,42 @@ class InventoryStore:
             bucket = monthly_totals[key]
             bucket["in_quantity"] = round(bucket["in_quantity"], 2)
             bucket["out_quantity"] = round(bucket["out_quantity"], 2)
+            bucket["purchase_value"] = round(bucket["purchase_value"], 2)
+            bucket["revenue_value"] = round(bucket["revenue_value"], 2)
+            bucket["cogs_value"] = round(bucket["cogs_value"], 2)
+            bucket["gross_profit_value"] = round(bucket["gross_profit_value"], 2)
             bucket["in_value"] = round(bucket["in_value"], 2)
             bucket["out_value"] = round(bucket["out_value"], 2)
             bucket["net_quantity"] = round(bucket["in_quantity"] - bucket["out_quantity"], 2)
-            bucket["net_value"] = round(bucket["out_value"] - bucket["in_value"], 2)
+            bucket["net_value"] = round(bucket["net_value"], 2)
             months_payload.append(bucket)
 
-        focus_summary = next(
-            (bucket for bucket in months_payload if bucket["month"] == focus_key),
-            {
-                "month": focus_key,
-                "in_quantity": 0.0,
-                "out_quantity": 0.0,
-                "in_value": 0.0,
-                "out_value": 0.0,
-                "net_quantity": 0.0,
-                "net_value": 0.0,
-            },
-        )
+        def build_summary_from_buckets(buckets: list[dict], month_value: str | None = None) -> dict:
+            summary = blank_bucket(month_value or "")
+            summary["months"] = len(buckets)
+            summary["in_quantity"] = round(sum(bucket["in_quantity"] for bucket in buckets), 2)
+            summary["out_quantity"] = round(sum(bucket["out_quantity"] for bucket in buckets), 2)
+            summary["purchase_value"] = round(sum(bucket["purchase_value"] for bucket in buckets), 2)
+            summary["revenue_value"] = round(sum(bucket["revenue_value"] for bucket in buckets), 2)
+            summary["cogs_value"] = round(sum(bucket["cogs_value"] for bucket in buckets), 2)
+            summary["gross_profit_value"] = round(sum(bucket["gross_profit_value"] for bucket in buckets), 2)
+            summary["in_value"] = summary["purchase_value"]
+            summary["out_value"] = summary["revenue_value"]
+            summary["net_quantity"] = round(summary["in_quantity"] - summary["out_quantity"], 2)
+            summary["net_value"] = summary["gross_profit_value"]
+            if month_value:
+                summary["month"] = month_value
+            return summary
 
-        range_summary = {
-            "months": len(months_payload),
-            "in_quantity": round(sum(bucket["in_quantity"] for bucket in months_payload), 2),
-            "out_quantity": round(sum(bucket["out_quantity"] for bucket in months_payload), 2),
-            "in_value": round(sum(bucket["in_value"] for bucket in months_payload), 2),
-            "out_value": round(sum(bucket["out_value"] for bucket in months_payload), 2),
-        }
-        range_summary["net_quantity"] = round(
-            range_summary["in_quantity"] - range_summary["out_quantity"],
-            2,
-        )
-        range_summary["net_value"] = round(
-            range_summary["out_value"] - range_summary["in_value"],
-            2,
-        )
+        if is_date_filtered:
+            focus_summary = build_summary_from_buckets(months_payload)
+        else:
+            focus_summary = next(
+                (bucket for bucket in months_payload if bucket["month"] == focus_key),
+                build_summary_from_buckets([], focus_key),
+            )
+
+        range_summary = build_summary_from_buckets(months_payload)
 
         product_activity = sorted(
             focus_products.values(),
@@ -1489,7 +1577,13 @@ class InventoryStore:
             ),
         )
         for item in product_activity:
-            item["net_value"] = round(float(item["out_value"]) - float(item["in_value"]), 2)
+            item["purchase_value"] = round(float(item["purchase_value"]), 2)
+            item["revenue_value"] = round(float(item["revenue_value"]), 2)
+            item["cogs_value"] = round(float(item["cogs_value"]), 2)
+            item["gross_profit_value"] = round(float(item["gross_profit_value"]), 2)
+            item["in_value"] = round(float(item["in_value"]), 2)
+            item["out_value"] = round(float(item["out_value"]), 2)
+            item["net_value"] = round(float(item["net_value"]), 2)
 
         return {
             "focus_month": focus_key,
@@ -1498,6 +1592,11 @@ class InventoryStore:
             "range_summary": range_summary,
             "product_activity": product_activity,
             "forecast": forecast_items[:18],
+            "date_filter": {
+                "active": is_date_filtered,
+                "start_date": parsed_start.isoformat() if parsed_start else "",
+                "end_date": parsed_end.isoformat() if parsed_end else "",
+            },
         }
 
 
@@ -1565,13 +1664,21 @@ def create_handler(store: InventoryStore, admin_sessions: AdminSessionManager):
                 query = parse_qs(parsed.query)
                 try:
                     months = int(query.get("months", ["6"])[0])
+                    start_date = query.get("start_date", [None])[0]
+                    end_date = query.get("end_date", [None])[0]
+                    focus_month = query.get("focus_month", [None])[0]
+                    payload = store.get_monthly_report(
+                        months=months,
+                        focus_month=focus_month,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
                 except ValueError:
-                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Tham số months không hợp lệ."})
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Bộ lọc báo cáo không hợp lệ."})
                     return
-                focus_month = query.get("focus_month", [None])[0]
                 self._send_json(
                     HTTPStatus.OK,
-                    store.get_monthly_report(months=months, focus_month=focus_month),
+                    payload,
                 )
                 return
 
