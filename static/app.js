@@ -177,6 +177,8 @@ const floatingSearchInput = document.getElementById("floatingSearchInput");
 const helpModal = document.getElementById("helpModal");
 const helpModalBody = document.getElementById("helpModalBody");
 const closeHelpButton = document.getElementById("closeHelpButton");
+const activeScreenTitle = document.getElementById("activeScreenTitle");
+const activeScreenSubtitle = document.getElementById("activeScreenSubtitle");
 const mobileQuery = window.matchMedia("(max-width: 759px)");
 
 const quantityFormatter = new Intl.NumberFormat("vi-VN", {
@@ -330,6 +332,49 @@ const SCREEN_HELP = {
   },
 };
 
+const SCREEN_META = {
+  inventory: {
+    title: "Kiểm tra tồn kho",
+    subtitle: "Xem tồn hiện tại, nhập xuất nhanh và đối chiếu lịch sử kho.",
+  },
+  "create-order": {
+    title: "Tạo đơn xuất hàng",
+    subtitle: "Chọn khách, thêm hàng vào giỏ và chốt đơn nhanh.",
+  },
+  orders: {
+    title: "Đơn hàng",
+    subtitle: "Theo dõi giỏ nháp, đơn đã chốt và trạng thái thanh toán.",
+  },
+  customers: {
+    title: "Khách hàng",
+    subtitle: "Lưu danh bạ giao hàng, số liên lạc và Zalo.",
+  },
+  products: {
+    title: "Sản phẩm",
+    subtitle: "Tìm, sửa nhanh, ngừng bán và xem lịch sử sản phẩm.",
+  },
+  purchases: {
+    title: "Nhập hàng",
+    subtitle: "Lập phiếu nhập, theo dõi tiến trình đặt và nhận hàng.",
+  },
+  suppliers: {
+    title: "Nhà cung cấp",
+    subtitle: "Quản lý nguồn hàng và thông tin liên hệ.",
+  },
+  reports: {
+    title: "Báo cáo",
+    subtitle: "Xem doanh thu, giá vốn, lãi gộp và xu hướng nhập xuất.",
+  },
+  history: {
+    title: "Lịch sử & khôi phục",
+    subtitle: "Theo dõi đối tượng đã xóa mềm và khôi phục khi đủ điều kiện.",
+  },
+  admin: {
+    title: "Master Admin",
+    subtitle: "Quản trị dữ liệu master, backup và restore hệ thống.",
+  },
+};
+
 const FLOATING_SEARCH_CONFIG = {
   inventory: {
     sourceId: "productLookupInput",
@@ -436,6 +481,34 @@ function getFloatingSearchSourceInput(menu = state.activeMenu) {
   return document.getElementById(config.sourceId);
 }
 
+function getFloatingSearchSourceShell(menu = state.activeMenu) {
+  const sourceInput = getFloatingSearchSourceInput(menu);
+  if (!sourceInput) {
+    return null;
+  }
+  return sourceInput.closest(".sticky-toolbar") || sourceInput.closest("label") || null;
+}
+
+function getSearchTermForKey(key) {
+  const value = {
+    inventory: state.searchTerm,
+    productManage: state.productManageSearchTerm,
+    salesProducts: state.salesSearchTerm,
+    orders: state.orderSearchTerm,
+    customers: state.customerSearchTerm,
+    purchaseSuggestions: state.purchaseSearchTerm,
+    purchaseOrders: state.purchaseSearchTerm,
+    suppliers: state.supplierSearchTerm,
+    reportProducts: "",
+    reportForecast: "",
+  }[key];
+  return String(value || "").trim();
+}
+
+function isSearchResultMode(key) {
+  return mobileQuery.matches && Boolean(getSearchTermForKey(key));
+}
+
 function getPageSize(key) {
   const mobileSizes = {
     inventory: 6,
@@ -484,7 +557,7 @@ function renderPagination(key, pageData) {
   }
 
   return `
-    <div class="pagination-bar">
+    <div class="pagination-bar ${isSearchResultMode(key) ? "is-search-pagination" : ""}">
       <button type="button" class="ghost-button compact-button" data-page-key="${key}" data-page-action="prev" ${pageData.page <= 1 ? "disabled" : ""}>← Trước</button>
       <span class="pagination-status">Trang ${pageData.page}/${pageData.totalPages} • ${pageData.totalItems} mục</span>
       <button type="button" class="ghost-button compact-button" data-page-key="${key}" data-page-action="next" ${pageData.page >= pageData.totalPages ? "disabled" : ""}>Sau →</button>
@@ -805,7 +878,7 @@ function loadSalesState() {
   state.activeCartId = readStorage(STORAGE_KEYS.activeCartId, null);
   state.activePurchaseId = readStorage(STORAGE_KEYS.activePurchaseId, null);
   state.activeMenu = readStorage(STORAGE_KEYS.activeMenu, "inventory");
-  state.menuCollapsed = readStorage(STORAGE_KEYS.menuCollapsed, false);
+  state.menuCollapsed = mobileQuery.matches ? true : readStorage(STORAGE_KEYS.menuCollapsed, false);
   state.menuHistory = [state.activeMenu];
   state.menuHistoryIndex = 0;
   syncSalesState();
@@ -840,6 +913,7 @@ function switchMenu(menu, { recordHistory = true } = {}) {
   writeStorage(STORAGE_KEYS.menuCollapsed, state.menuCollapsed);
   renderMenu();
   renderViewSections();
+  renderScreenHeader();
   renderScreenToolbox();
   renderFloatingSearchDock();
 }
@@ -858,7 +932,9 @@ function navigateMenuHistory(direction) {
 function renderMenu() {
   menuPanel.classList.toggle("is-collapsed", state.menuCollapsed);
   menuToggleButton.setAttribute("aria-expanded", state.menuCollapsed ? "false" : "true");
-  menuToggleButton.textContent = state.menuCollapsed ? "Mở menu" : "Thu gọn menu";
+  menuToggleButton.textContent = mobileQuery.matches
+    ? (state.menuCollapsed ? "☰" : "Đóng")
+    : (state.menuCollapsed ? "Mở menu" : "Thu gọn menu");
   menuPanel.querySelectorAll("[data-menu]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.menu === state.activeMenu);
   });
@@ -868,6 +944,12 @@ function renderViewSections() {
   viewSections.forEach((section) => {
     section.classList.toggle("is-active", section.dataset.menuSection === state.activeMenu);
   });
+}
+
+function renderScreenHeader() {
+  const meta = SCREEN_META[state.activeMenu] || SCREEN_META.inventory;
+  activeScreenTitle.textContent = meta.title;
+  activeScreenSubtitle.textContent = meta.subtitle;
 }
 
 function renderHelpModal() {
@@ -958,8 +1040,16 @@ function renderFloatingSearchDock() {
   const config = getFloatingSearchConfig();
   const shouldShow = mobileQuery.matches && Boolean(config);
   floatingSearchDock.hidden = !shouldShow;
+  document.querySelectorAll(".mobile-floating-search-hidden").forEach((node) => {
+    node.classList.remove("mobile-floating-search-hidden");
+  });
   if (!shouldShow) {
     return;
+  }
+
+  const sourceShell = getFloatingSearchSourceShell();
+  if (sourceShell) {
+    sourceShell.classList.add("mobile-floating-search-hidden");
   }
 
   floatingSearchDock.classList.toggle("is-expanded", state.floatingSearchExpanded);
@@ -1860,6 +1950,7 @@ function renderProducts() {
     const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
     return text.includes(state.searchTerm.toLowerCase());
   });
+  productGrid.classList.toggle("is-compact-search", isSearchResultMode("inventory"));
 
   if (!filtered.length) {
     productGrid.innerHTML = '<div class="empty-state">Không có mặt hàng phù hợp.</div>';
@@ -2004,6 +2095,7 @@ function renderSalesProductList() {
     const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
     return text.includes(state.salesSearchTerm.toLowerCase());
   });
+  salesProductList.classList.toggle("is-compact-search", isSearchResultMode("salesProducts"));
 
   if (!filtered.length) {
     salesProductList.innerHTML = '<div class="empty-state">Không có mặt hàng phù hợp.</div>';
@@ -2103,6 +2195,7 @@ function renderCartQueue() {
     const haystack = `${cart.customerName} ${cart.orderCode} ${cart.items.map((item) => item.productName).join(" ")}`.toLowerCase();
     return haystack.includes(state.orderSearchTerm.toLowerCase());
   });
+  cartQueueList.classList.toggle("is-compact-search", isSearchResultMode("orders"));
 
   draftCartBadge.textContent = String(drafts.length);
 
@@ -2151,6 +2244,7 @@ function renderCustomers() {
       .toLowerCase()
       .includes(normalizeText(state.customerSearchTerm))
   );
+  customerList.classList.toggle("is-compact-search", isSearchResultMode("customers"));
 
   if (!filtered.length) {
     customerList.innerHTML = '<div class="empty-state">Không có khách hàng phù hợp.</div>';
@@ -2196,6 +2290,7 @@ function renderProductManageList() {
     const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
     return text.includes(state.productManageSearchTerm.toLowerCase());
   });
+  productManageList.classList.toggle("is-compact-search", isSearchResultMode("productManage"));
 
   if (!filtered.length) {
     productManageList.innerHTML = '<div class="empty-state">Không có sản phẩm phù hợp.</div>';
@@ -2332,6 +2427,7 @@ function renderPurchaseSuggestions() {
     const text = `${entry.product.name} ${entry.product.category}`.toLowerCase();
     return text.includes(state.purchaseSearchTerm.toLowerCase());
   });
+  purchaseSuggestionList.classList.toggle("is-compact-search", isSearchResultMode("purchaseSuggestions"));
 
   if (!filtered.length) {
     purchaseSuggestionList.innerHTML = '<div class="empty-state">Không có gợi ý nhập hàng.</div>';
@@ -2359,6 +2455,7 @@ function renderPurchaseSuggestions() {
 
 function renderPurchaseOrders() {
   const visiblePurchases = state.purchases.filter((purchase) => state.showPaidPurchases || purchase.status !== "paid");
+  purchaseOrderList.classList.toggle("is-compact-search", isSearchResultMode("purchaseOrders"));
   if (!visiblePurchases.length) {
     purchaseOrderList.innerHTML = '<div class="empty-state">Chưa có phiếu nhập nào.</div>';
     return;
@@ -2390,6 +2487,7 @@ function renderSuppliers() {
       .toLowerCase()
       .includes(normalizeText(state.supplierSearchTerm))
   );
+  supplierList.classList.toggle("is-compact-search", isSearchResultMode("suppliers"));
 
   if (!filtered.length) {
     supplierList.innerHTML = '<div class="empty-state">Không có nhà cung cấp phù hợp.</div>';
@@ -2755,6 +2853,7 @@ function renderAll() {
   }
   renderMenu();
   renderViewSections();
+  renderScreenHeader();
   renderSummary(state.summary);
   renderProductOptions();
   renderCustomerOptions();
