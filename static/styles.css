@@ -1124,6 +1124,30 @@ button:disabled {
     width: calc(100vw - 110px);
   }
 
+  .panel,
+  .sales-card,
+  .sales-customer-card {
+    padding: 16px;
+  }
+
+  .active-cart-card {
+    padding: 12px;
+  }
+
+  .stat-chip {
+    padding: 10px 12px;
+  }
+
+  .compact-button,
+  .ghost-button.compact-button,
+  .danger-button.compact-button,
+  .primary-button.compact-button,
+  .secondary-button.compact-button {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 0.82rem;
+  }
+
   .product-list.is-compact-search,
   .sales-product-list.is-compact-search,
   .cart-queue-list.is-compact-search,
@@ -1135,7 +1159,7 @@ button:disabled {
   .sales-product-list.is-compact-search .sales-product-row,
   .cart-queue-list.is-compact-search .cart-queue-item,
   .customer-list.is-compact-search .customer-item {
-    padding: 10px;
+    padding: 8px 10px;
     border-radius: 12px;
   }
 

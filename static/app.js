@@ -61,6 +61,7 @@ const state = {
   editingProductId: null,
   editingCustomerFormId: null,
   menuCollapsed: false,
+  activeCartPanelCollapsed: false,
   purchasePanelCollapsed: false,
   editingSupplierFormId: null,
   pagination: {
@@ -881,6 +882,8 @@ function loadSalesState() {
   state.menuCollapsed = mobileQuery.matches ? true : readStorage(STORAGE_KEYS.menuCollapsed, false);
   state.menuHistory = [state.activeMenu];
   state.menuHistoryIndex = 0;
+  state.activeCartPanelCollapsed = mobileQuery.matches;
+  state.purchasePanelCollapsed = mobileQuery.matches;
   syncSalesState();
 }
 
@@ -1311,6 +1314,7 @@ function setActiveCart(cartId) {
   }
 
   state.activeCartId = cart.id;
+  state.activeCartPanelCollapsed = mobileQuery.matches;
   customerLookupInput.value = cart.customerName;
   saveAndRenderAll();
 }
@@ -1335,6 +1339,7 @@ function openCartForCustomer(customerName) {
   }
 
   state.activeCartId = cart.id;
+  state.activeCartPanelCollapsed = mobileQuery.matches;
   customerLookupInput.value = customer.name;
   saveAndRenderAll(["customers", "carts"]);
   switchMenu("create-order");
@@ -1605,6 +1610,7 @@ function createPurchaseDraftIfMissing() {
     };
     state.purchases.unshift(purchase);
     state.activePurchaseId = purchase.id;
+    state.purchasePanelCollapsed = mobileQuery.matches;
   }
   return purchase;
 }
@@ -1767,6 +1773,16 @@ function setQuickPanelCollapsed(collapsed) {
 
 function openQuickPanel() {
   setQuickPanelCollapsed(false);
+}
+
+function applyMobileCollapsedDefaults() {
+  if (!mobileQuery.matches) {
+    state.activeCartPanelCollapsed = false;
+    state.purchasePanelCollapsed = false;
+    return;
+  }
+  state.activeCartPanelCollapsed = true;
+  state.purchasePanelCollapsed = true;
 }
 
 function showToast(message, isError = false) {
@@ -2055,6 +2071,22 @@ function renderActiveCartPanel() {
     return;
   }
 
+  if (state.activeCartPanelCollapsed) {
+    activeCartPanel.innerHTML = `
+      <article class="active-cart-card is-collapsed">
+        <div class="active-cart-header">
+          <div>
+            <p class="panel-kicker">Giỏ hiện hành</p>
+            <h3>${escapeHtml(cart.customerName)}</h3>
+            <p class="panel-note">${escapeHtml(cart.itemCount)} dòng • ${escapeHtml(formatCurrency(cart.totalAmount))}</p>
+          </div>
+          <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Mở giỏ</button>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
   activeCartPanel.innerHTML = `
     <article class="active-cart-card">
       <div class="active-cart-header">
@@ -2063,7 +2095,10 @@ function renderActiveCartPanel() {
           <h3>${escapeHtml(cart.customerName)}</h3>
           <p class="panel-note">Tạo lúc ${escapeHtml(formatDate(cart.createdAt))}. Cập nhật ${escapeHtml(formatDate(cart.updatedAt))}.</p>
         </div>
-        <span class="status-pill draft">Đang chờ</span>
+        <div class="inline-menu-actions">
+          <span class="status-pill draft">Đang chờ</span>
+          <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Thu gọn</button>
+        </div>
       </div>
       <div class="active-cart-stats">
         <div class="stat-chip">
@@ -2341,6 +2376,7 @@ function renderProductManageList() {
 }
 
 function renderPurchasePanel() {
+  togglePurchasePanelButton.textContent = state.purchasePanelCollapsed ? "Mở phiếu nhập" : "Thu gọn phiếu nhập";
   const purchase = getActivePurchase();
   if (state.purchasePanelCollapsed) {
     purchasePanel.innerHTML = `
@@ -3497,6 +3533,12 @@ activeCartPanel.addEventListener("click", async (event) => {
     return;
   }
 
+  if (button.dataset.cartAction === "toggle-panel") {
+    state.activeCartPanelCollapsed = !state.activeCartPanelCollapsed;
+    renderActiveCartPanel();
+    return;
+  }
+
   if (button.dataset.cartAction === "print") {
     printCart(cart.id);
     return;
@@ -4307,7 +4349,8 @@ document.addEventListener("keydown", (event) => {
 });
 
 mobileQuery.addEventListener("change", () => {
-  setQuickPanelCollapsed(false);
+  applyMobileCollapsedDefaults();
+  setQuickPanelCollapsed(mobileQuery.matches);
   state.floatingSearchExpanded = false;
   renderAll();
 });
@@ -4315,7 +4358,8 @@ mobileQuery.addEventListener("change", () => {
 window.addEventListener("DOMContentLoaded", async () => {
   loadSalesState();
   setHelpOpen(false);
-  setQuickPanelCollapsed(false);
+  applyMobileCollapsedDefaults();
+  setQuickPanelCollapsed(mobileQuery.matches);
   renderAll();
 
   try {
