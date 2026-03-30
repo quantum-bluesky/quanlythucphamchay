@@ -51,6 +51,7 @@ const state = {
   menuHistory: ["inventory"],
   menuHistoryIndex: 0,
   helpOpen: false,
+  floatingSearchExpanded: false,
   showArchivedCarts: false,
   showPaidOrders: false,
   showPaidPurchases: false,
@@ -170,6 +171,9 @@ const adminRestoreButton = document.getElementById("adminRestoreButton");
 const navBackButton = document.getElementById("navBackButton");
 const navForwardButton = document.getElementById("navForwardButton");
 const openHelpButton = document.getElementById("openHelpButton");
+const floatingSearchDock = document.getElementById("floatingSearchDock");
+const floatingSearchToggle = document.getElementById("floatingSearchToggle");
+const floatingSearchInput = document.getElementById("floatingSearchInput");
 const helpModal = document.getElementById("helpModal");
 const helpModalBody = document.getElementById("helpModalBody");
 const closeHelpButton = document.getElementById("closeHelpButton");
@@ -326,6 +330,37 @@ const SCREEN_HELP = {
   },
 };
 
+const FLOATING_SEARCH_CONFIG = {
+  inventory: {
+    sourceId: "productLookupInput",
+    placeholder: "Tìm sản phẩm để nhập / xuất nhanh",
+  },
+  "create-order": {
+    sourceId: "salesSearchInput",
+    placeholder: "Tìm sản phẩm để thêm vào giỏ",
+  },
+  orders: {
+    sourceId: "orderSearchInput",
+    placeholder: "Tìm đơn hàng theo khách, mã đơn, mặt hàng",
+  },
+  customers: {
+    sourceId: "customerSearchInput",
+    placeholder: "Tìm khách hàng",
+  },
+  products: {
+    sourceId: "productManageSearchInput",
+    placeholder: "Tìm sản phẩm để sửa nhanh",
+  },
+  purchases: {
+    sourceId: "purchaseSearchInput",
+    placeholder: "Tìm phiếu nhập hoặc mặt hàng cần nhập",
+  },
+  suppliers: {
+    sourceId: "supplierSearchInput",
+    placeholder: "Tìm nhà cung cấp",
+  },
+};
+
 function formatQuantity(value) {
   return quantityFormatter.format(Number(value || 0));
 }
@@ -387,6 +422,18 @@ function getCurrentScreenHelp() {
     steps: ["Thao tác theo các nút chính đang hiển thị trên màn hình."],
     related: [],
   };
+}
+
+function getFloatingSearchConfig(menu = state.activeMenu) {
+  return FLOATING_SEARCH_CONFIG[menu] || null;
+}
+
+function getFloatingSearchSourceInput(menu = state.activeMenu) {
+  const config = getFloatingSearchConfig(menu);
+  if (!config) {
+    return null;
+  }
+  return document.getElementById(config.sourceId);
 }
 
 function getPageSize(key) {
@@ -785,6 +832,7 @@ function switchMenu(menu, { recordHistory = true } = {}) {
     state.menuHistoryIndex = state.menuHistory.length - 1;
   }
   state.activeMenu = menu;
+  state.floatingSearchExpanded = false;
   if (mobileQuery.matches) {
     state.menuCollapsed = true;
   }
@@ -793,6 +841,7 @@ function switchMenu(menu, { recordHistory = true } = {}) {
   renderMenu();
   renderViewSections();
   renderScreenToolbox();
+  renderFloatingSearchDock();
 }
 
 function navigateMenuHistory(direction) {
@@ -872,6 +921,58 @@ function renderScreenToolbox() {
   navForwardButton.disabled = state.menuHistoryIndex >= state.menuHistory.length - 1;
   openHelpButton.setAttribute("aria-pressed", state.helpOpen ? "true" : "false");
   renderHelpModal();
+}
+
+function syncFloatingSearchFromSource() {
+  const sourceInput = getFloatingSearchSourceInput();
+  if (!sourceInput) {
+    floatingSearchInput.value = "";
+    return;
+  }
+  if (document.activeElement !== floatingSearchInput) {
+    floatingSearchInput.value = sourceInput.value || "";
+  }
+}
+
+function syncFloatingSearchToSource(value) {
+  const sourceInput = getFloatingSearchSourceInput();
+  if (!sourceInput) {
+    return;
+  }
+  sourceInput.value = value;
+  sourceInput.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function setFloatingSearchExpanded(nextValue, { focus = false } = {}) {
+  state.floatingSearchExpanded = Boolean(nextValue);
+  renderFloatingSearchDock();
+  if (focus && state.floatingSearchExpanded && !floatingSearchDock.hidden) {
+    window.setTimeout(() => {
+      floatingSearchInput.focus();
+      floatingSearchInput.select();
+    }, 0);
+  }
+}
+
+function renderFloatingSearchDock() {
+  const config = getFloatingSearchConfig();
+  const shouldShow = mobileQuery.matches && Boolean(config);
+  floatingSearchDock.hidden = !shouldShow;
+  if (!shouldShow) {
+    return;
+  }
+
+  floatingSearchDock.classList.toggle("is-expanded", state.floatingSearchExpanded);
+  floatingSearchInput.placeholder = config.placeholder;
+  floatingSearchToggle.title = config.placeholder;
+  const sourceInput = getFloatingSearchSourceInput();
+  const sourceListId = sourceInput?.getAttribute("list") || "";
+  if (sourceListId) {
+    floatingSearchInput.setAttribute("list", sourceListId);
+  } else {
+    floatingSearchInput.removeAttribute("list");
+  }
+  syncFloatingSearchFromSource();
 }
 
 function ensureCustomer(name) {
@@ -2677,6 +2778,7 @@ function renderAll() {
   renderReports();
   renderAdminSection();
   renderScreenToolbox();
+  renderFloatingSearchDock();
 }
 
 function buildPrintMarkup(cart) {
@@ -2864,6 +2966,18 @@ navForwardButton.addEventListener("click", () => {
 
 openHelpButton.addEventListener("click", () => {
   setHelpOpen(!state.helpOpen);
+});
+
+floatingSearchToggle.addEventListener("click", () => {
+  setFloatingSearchExpanded(true, { focus: true });
+});
+
+floatingSearchInput.addEventListener("focus", () => {
+  setFloatingSearchExpanded(true);
+});
+
+floatingSearchInput.addEventListener("input", (event) => {
+  syncFloatingSearchToSource(event.target.value);
 });
 
 closeHelpButton.addEventListener("click", () => {
@@ -4073,14 +4187,29 @@ document.addEventListener("click", (event) => {
   updatePagination(button.dataset.pageKey, button.dataset.pageAction);
 });
 
+document.addEventListener("focusin", (event) => {
+  const sourceInput = getFloatingSearchSourceInput();
+  if (event.target === floatingSearchInput || event.target === sourceInput) {
+    setFloatingSearchExpanded(true);
+    return;
+  }
+  if (!floatingSearchDock.contains(event.target)) {
+    setFloatingSearchExpanded(false);
+  }
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && state.helpOpen) {
     setHelpOpen(false);
+  }
+  if (event.key === "Escape" && state.floatingSearchExpanded) {
+    setFloatingSearchExpanded(false);
   }
 });
 
 mobileQuery.addEventListener("change", () => {
   setQuickPanelCollapsed(false);
+  state.floatingSearchExpanded = false;
   renderAll();
 });
 
