@@ -458,6 +458,21 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function renderOverflowMenu(items = []) {
+  if (!items.length) {
+    return "";
+  }
+
+  return `
+    <details class="inline-more-menu">
+      <summary class="ghost-button compact-button more-menu-trigger">...</summary>
+      <div class="inline-more-menu-popover">
+        ${items.join("")}
+      </div>
+    </details>
+  `;
+}
+
 function normalizeText(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -2003,12 +2018,17 @@ function renderProducts() {
 
           <div class="row-actions">
             <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
-              ${isExpanded ? "Thu gọn" : "Mở"}
+              ${isExpanded ? "Thu" : "Mở"}
             </button>
-            <button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">
-              ${isEditingPrice ? "Hủy giá" : "Giá"}
-            </button>
-            <button type="button" class="ghost-button compact-button" data-prefill="${product.id}">${compact ? "Kho" : "Nhập / xuất"}</button>
+            ${compact ? renderOverflowMenu([
+              `<button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">${isEditingPrice ? "Hủy giá" : "Giá"}</button>`,
+              `<button type="button" class="ghost-button compact-button" data-prefill="${product.id}">Kho</button>`,
+            ]) : `
+              <button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">
+                ${isEditingPrice ? "Hủy giá" : "Giá"}
+              </button>
+              <button type="button" class="ghost-button compact-button" data-prefill="${product.id}">Nhập / xuất</button>
+            `}
           </div>
 
           ${isExpanded || isEditingPrice ? `
