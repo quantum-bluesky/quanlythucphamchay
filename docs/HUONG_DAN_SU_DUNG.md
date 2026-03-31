@@ -17,6 +17,7 @@ Tài liệu này dành cho người trực tiếp dùng ứng dụng hằng ngà
 
 - Mỗi lần làm việc chỉ chọn đúng `Menu nghiệp vụ`
 - Mỗi màn hình đều có ô tìm kiếm, nên gõ tên để thao tác nhanh
+- Có thể bấm nút `?` ở góc màn hình để xem hướng dẫn nhanh đúng theo màn hiện tại
 - Trên điện thoại, nếu cần xem danh sách dài thì dùng `Thu gọn` hoặc nút chuyển trang `Trước / Sau`
 
 ## 3. Luồng làm việc hằng ngày
@@ -32,14 +33,16 @@ Vào menu:
 Thực hiện:
 
 1. Gõ tên sản phẩm để tìm nhanh
-2. Xem các mặt hàng có nhãn `Sắp hết`
-3. Nếu cần điều chỉnh nhanh, dùng nút `+1`, `-1`, `+5`, `-5`
-4. Nếu cần nhập/xuất chính xác hơn, dùng khung `Nhập / xuất nhanh`
+2. Xem các mặt hàng có nhãn `Sắp hết`, `Sắp xuất hết`, `Sắp nhập về` hoặc `Không còn`
+3. Nếu card có badge `Chờ xuất` hoặc `Chờ nhập`, bấm trực tiếp vào badge để sang đúng màn liên quan
+4. Nếu cần xử lý một mặt hàng:
+   - bấm `Xuất` để sang đơn chờ xuất hoặc tạo luồng xuất mới
+   - bấm `Nhập` để sang phiếu nhập chờ hoặc tạo phiếu nhập mới
 
-Khi dùng:
+Lưu ý:
 
-- `Nhập kho`: tăng tồn
-- `Xuất kho`: giảm tồn
+- user thường không chỉnh tăng/giảm tồn trực tiếp ở màn này nữa
+- chỉ `Master Admin` mới có chế độ chỉnh tồn trực tiếp và sẽ thấy cảnh báo rõ khi dùng
 
 ## 4. Luồng bán hàng cho khách
 
@@ -73,6 +76,7 @@ Trong `Giỏ hiện hành`:
 2. Hoặc gõ trực tiếp số lượng
 3. Gõ giá bán cho khách
 4. Bấm `Lưu dòng`
+5. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung` và xác nhận
 
 ### Bước 4: Chốt đơn
 
@@ -90,8 +94,8 @@ Nếu đủ hàng:
 
 Nếu thiếu hàng:
 
-- hệ thống sẽ hỏi có muốn sang sửa tồn kho hay không
-- nếu không sửa tồn kho, hệ thống tạo sẵn đề xuất nhập hàng
+- với user thường, hệ thống sẽ chuyển sang `Quản lý nhập hàng` để tạo phiếu nhập dự kiến
+- với `Master Admin`, hệ thống mới cho phép chọn sang màn tồn kho để chỉnh trực tiếp nếu thực sự cần
 
 ## 5. Luồng xem lại và hoàn tất đơn hàng
 
@@ -154,7 +158,7 @@ Vào menu:
 Màn này dùng để:
 
 - thêm mặt hàng mới
-- sửa tên / loại / đơn vị / giá / ngưỡng cảnh báo
+- sửa tên / loại / đơn vị / giá nhập / giá bán mặc định / ngưỡng cảnh báo
 - xóa mặt hàng chưa có giao dịch
 
 ### Cách sửa nhanh
@@ -162,7 +166,8 @@ Màn này dùng để:
 1. Tìm sản phẩm
 2. Bấm `Sửa`
 3. Đổi thông tin ngay trên dòng sản phẩm
-4. Bấm `Lưu nhanh`
+4. Đọc kỹ nhãn bên trái từng dòng để tránh nhập nhầm giữa `Giá nhập` và `Giá bán`
+5. Bấm `Lưu nhanh`
 
 ## 8. Luồng nhập hàng
 
@@ -185,9 +190,10 @@ Màn này có 2 phần:
 4. Ghi chú phiếu nếu cần
 5. Sửa trực tiếp số lượng và giá nhập từng dòng
 6. Bấm `Lưu dòng` nếu có chỉnh
-7. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
-8. Khi hàng về thực tế, bấm `Nhập kho`
-9. Khi đã thanh toán cho nhà cung cấp, bấm `Đã thanh toán`
+7. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
+8. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
+9. Khi hàng về thực tế, bấm `Nhập kho`
+10. Khi đã thanh toán cho nhà cung cấp, bấm `Đã thanh toán`
 
 ### Ý nghĩa trạng thái phiếu nhập
 

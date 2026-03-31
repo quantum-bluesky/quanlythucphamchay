@@ -198,6 +198,8 @@ python app.py --host 0.0.0.0 --port 8000
 
 SQLite sẽ tự giữ lại dữ liệu cũ trong `data\inventory.db`.
 
+Nếu bản cập nhật có thêm trường dữ liệu mới, ví dụ `giá bán mặc định` của sản phẩm, app sẽ tự nâng cấp cấu trúc DB khi chạy lại. Nên backup `data\inventory.db` trước mỗi lần cập nhật phiên bản lớn.
+
 ## 12. Kiểm tra nhanh sau deploy
 
 Sau khi deploy, cần thử 5 việc sau:
@@ -206,7 +208,9 @@ Sau khi deploy, cần thử 5 việc sau:
 2. Mở được từ điện thoại trong cùng mạng
 3. Tạo thử 1 khách hàng
 4. Tạo thử 1 giỏ hàng / đơn hàng
-5. Tắt mở lại app và xác nhận dữ liệu vẫn còn
+5. Tạo thử 1 phiếu nhập
+6. Kiểm tra 1 sản phẩm có đủ `giá nhập` và `giá bán mặc định`
+7. Tắt mở lại app và xác nhận dữ liệu vẫn còn
 
 ## 13. Lỗi thường gặp
 

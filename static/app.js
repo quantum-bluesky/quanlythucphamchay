@@ -408,10 +408,12 @@ function focusReportSection(kind) {
 const SCREEN_HELP = {
   inventory: {
     title: "Kiểm tra nhập xuất hàng tồn",
-    overview: "Dùng màn này để xem tồn hiện tại, tìm nhanh mặt hàng, đối chiếu lịch sử kho và cập nhật nhập/xuất tức thời.",
+    overview: "Dùng màn này để xem tồn hiện tại, biết mặt hàng đang chờ nhập hoặc chờ xuất, rồi chuyển đúng sang đơn/phiếu liên quan.",
     steps: [
       "Gõ tên mặt hàng ở ô tìm kiếm để thu gọn danh sách cần xem.",
-      "Nếu cần chỉnh tồn nhanh, dùng khối Nhập / xuất nhanh ở đầu màn hình.",
+      "Bấm Xuất hoặc Nhập ngay trên từng mặt hàng để mở đơn chờ / phiếu chờ liên quan, hoặc tạo luồng mới nếu chưa có.",
+      "Nếu card có badge Chờ xuất hoặc Chờ nhập, bấm trực tiếp vào badge để sang đúng màn đang xử lý mặt hàng đó.",
+      "Chỉ Master Admin mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho.",
       "Kéo xuống phần Lịch sử gần đây để kiểm tra các giao dịch mới nhất trước khi tiếp tục thao tác khác.",
     ],
     related: [
@@ -425,8 +427,9 @@ const SCREEN_HELP = {
     overview: "Màn này dành cho luồng bán hàng: chọn khách, thêm nhiều mặt hàng vào giỏ, chỉnh số lượng và giá bán rồi chốt đơn.",
     steps: [
       "Chọn khách hàng có sẵn hoặc gõ tên để mở giỏ hàng cho khách hiện hành.",
-      "Tìm mặt hàng ở cột trái, bấm thêm vào giỏ rồi chỉnh số lượng và giá ngay trong giỏ.",
-      "Nếu thiếu hàng, hệ thống sẽ cho bạn chuyển sang sửa tồn kho hoặc sang màn nhập hàng để chuẩn bị đủ số lượng.",
+      "Tìm mặt hàng ở danh sách chọn hàng, tick để thêm vào giỏ. Giá bán mặc định sẽ lấy theo giá bán chung của sản phẩm.",
+      "Khi mở detail của dòng hàng, bạn có thể đổi giá bán cho riêng đơn này hoặc bấm Giá chung để cập nhật giá bán mặc định của sản phẩm sau khi xác nhận.",
+      "Nếu thiếu hàng, hệ thống sẽ chuyển sang luồng nhập hàng; chỉ Master Admin mới có quyền chỉnh tồn trực tiếp.",
     ],
     related: [
       { menu: "orders", label: "Xem đơn hàng" },
@@ -464,9 +467,10 @@ const SCREEN_HELP = {
   },
   products: {
     title: "Quản lý sản phẩm",
-    overview: "Dùng để thêm mới, sửa nhanh giá nhập và thông tin mặt hàng, ngừng bán hoặc kiểm tra lịch sử thay đổi sản phẩm.",
+    overview: "Dùng để thêm mới, sửa nhanh giá nhập, giá bán mặc định và thông tin mặt hàng, ngừng bán hoặc kiểm tra lịch sử thay đổi sản phẩm.",
     steps: [
       "Tìm đúng mặt hàng trong danh sách để sửa nhanh ngay trên từng ô.",
+      "Khi sửa, đọc nhãn bên trái của từng dòng để tránh nhầm giữa Giá nhập và Giá bán.",
       "Nếu cần thêm mới, dùng form phía dưới danh sách.",
       "Xem phần Lịch sử sản phẩm bên dưới để biết thay đổi gần đây trước khi chỉnh tiếp.",
     ],
@@ -482,6 +486,7 @@ const SCREEN_HELP = {
     steps: [
       "Xem ngay danh sách phiếu nhập hiện hành khi mở màn.",
       "Tạo hoặc mở phiếu nhập, thêm sản phẩm cần mua rồi cập nhật trạng thái theo tiến trình.",
+      "Trong detail từng dòng nhập, bạn có thể sửa số lượng, giá nhập và bấm Giá chung để cập nhật giá nhập mặc định của sản phẩm sau khi xác nhận.",
       "Ẩn các phiếu đã thanh toán để giữ màn hình gọn; bật lại khi cần đối chiếu lịch sử.",
     ],
     related: [
@@ -549,7 +554,7 @@ const SCREEN_HELP = {
 const SCREEN_META = {
   inventory: {
     title: "Kiểm tra tồn kho",
-    subtitle: "Xem tồn hiện tại, nhập xuất nhanh và đối chiếu lịch sử kho.",
+    subtitle: "Xem tồn hiện tại, đơn chờ nhập/xuất và đối chiếu lịch sử kho.",
   },
   "create-order": {
     title: "Tạo đơn xuất hàng",
@@ -565,7 +570,7 @@ const SCREEN_META = {
   },
   products: {
     title: "Sản phẩm",
-    subtitle: "Tìm, sửa nhanh, ngừng bán và xem lịch sử sản phẩm.",
+    subtitle: "Tìm, sửa nhanh giá nhập/giá bán, ngừng bán và xem lịch sử sản phẩm.",
   },
   purchases: {
     title: "Nhập hàng",

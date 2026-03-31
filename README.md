@@ -10,8 +10,9 @@
 ## Tính năng chính
 
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
-- Quản lý giá nhập nhanh ngay trên từng sản phẩm và tính giá trị tồn
-- Nhập kho / xuất kho nhanh từ một form chính hoặc nút tắt trên từng thẻ sản phẩm
+- Tồn kho liên kết trực tiếp với đơn chờ xuất và phiếu chờ nhập, thay cho nhập/xuất nhanh thủ công
+- Quản lý riêng `giá nhập` và `giá bán mặc định` của sản phẩm
+- Có badge `Chờ xuất` / `Chờ nhập` ngay trên card tồn kho để nhảy nhanh sang màn liên quan
 - Quản lý khách hàng, giỏ hàng nháp và checkout nhiều mặt hàng trong một lần
 - Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server
 - In nhanh danh sách hàng và tổng tiền cho khách ngay từ giỏ hàng hoặc từ lịch sử đơn
@@ -21,10 +22,11 @@
 - Báo cáo nhập xuất theo tháng, xem xu hướng gần đây và dự báo mặt hàng nên nhập thêm
 - Quản lý khách hàng có thêm số liên lạc, địa chỉ ship và link Zalo
 - Quản lý đơn hàng có trạng thái thanh toán
-- Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, ngưỡng cảnh báo
+- Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, giá nhập, giá bán mặc định và ngưỡng cảnh báo
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần
 - Có lịch sử quản lý sản phẩm và màn quản lý các đối tượng đã xóa để khôi phục an toàn
 - Có module `Master Admin` để export/import file master và backup/restore toàn bộ database
+- Chỉ `Master Admin` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất
 - Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất
 - Các list dài có phân trang `Trước / Sau` để thao tác gọn hơn trên mobile
 
