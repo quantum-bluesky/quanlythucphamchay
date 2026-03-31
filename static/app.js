@@ -58,6 +58,8 @@ const state = {
   expandedProductId: null,
   expandedSalesProductId: null,
   expandedOrderId: null,
+  productFormCollapsed: false,
+  productHistoryCollapsed: false,
   editingPriceId: null,
   editingCustomerId: null,
   editingProductId: null,
@@ -131,6 +133,13 @@ const productManageSearchInput = document.getElementById("productManageSearchInp
 const productManageList = document.getElementById("productManageList");
 const productHistoryList = document.getElementById("productHistoryList");
 const productFormCancelButton = document.getElementById("productFormCancelButton");
+const productsSection = document.querySelector('[data-menu-section="products"]');
+const productFormSection = document.getElementById("productFormSection");
+const productFormWrap = document.getElementById("productFormWrap");
+const productFormToggleButton = document.getElementById("productFormToggleButton");
+const productHistorySection = document.getElementById("productHistorySection");
+const productHistoryWrap = document.getElementById("productHistoryWrap");
+const productHistoryToggleButton = document.getElementById("productHistoryToggleButton");
 const purchaseSupplierInput = document.getElementById("purchaseSupplierInput");
 const purchaseNoteInput = document.getElementById("purchaseNoteInput");
 const createPurchaseDraftButton = document.getElementById("createPurchaseDraftButton");
@@ -316,6 +325,42 @@ function focusPurchaseOrders() {
   window.setTimeout(() => {
     purchaseOrdersCard?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, 40);
+}
+
+function renderProductSections() {
+  const compact = mobileQuery.matches;
+  productsSection?.classList.toggle("has-mobile-products", compact);
+
+  if (productFormSection && productFormWrap && productFormToggleButton) {
+    productFormSection.classList.toggle("is-collapsed", compact && state.productFormCollapsed);
+    productFormWrap.hidden = compact && state.productFormCollapsed;
+    productFormToggleButton.textContent = compact && state.productFormCollapsed ? "Mở form" : "Thu gọn";
+  }
+
+  if (productHistorySection && productHistoryWrap && productHistoryToggleButton) {
+    productHistorySection.classList.toggle("is-collapsed", compact && state.productHistoryCollapsed);
+    productHistoryWrap.hidden = compact && state.productHistoryCollapsed;
+    productHistoryToggleButton.textContent = compact && state.productHistoryCollapsed ? "Mở lịch sử" : "Thu gọn";
+  }
+}
+
+function openProductFormSection({ focus = false } = {}) {
+  state.productFormCollapsed = false;
+  renderProductSections();
+  window.setTimeout(() => {
+    productFormSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (focus) {
+      productForm?.elements?.namedItem("name")?.focus();
+    }
+  }, 30);
+}
+
+function openProductHistorySection() {
+  state.productHistoryCollapsed = false;
+  renderProductSections();
+  window.setTimeout(() => {
+    productHistorySection?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 30);
 }
 
 const SCREEN_HELP = {
@@ -1949,10 +1994,14 @@ function applyMobileCollapsedDefaults() {
   if (!mobileQuery.matches) {
     state.activeCartPanelCollapsed = false;
     state.purchasePanelCollapsed = false;
+    state.productFormCollapsed = false;
+    state.productHistoryCollapsed = false;
     return;
   }
   state.activeCartPanelCollapsed = true;
   state.purchasePanelCollapsed = true;
+  state.productFormCollapsed = true;
+  state.productHistoryCollapsed = true;
 }
 
 function showToast(message, isError = false) {
@@ -2608,30 +2657,62 @@ function renderProductManageList() {
   }
 
   const pageData = paginateItems(filtered, "productManage");
-  productManageList.innerHTML = pageData.items
+  const paginationMarkup = renderPagination("productManage", pageData);
+  const topPagination = paginationMarkup
+    ? `<div class="products-top-pagination">${paginationMarkup}</div>`
+    : "";
+  const bottomPagination = paginationMarkup
+    ? `<div class="products-bottom-pagination">${paginationMarkup}</div>`
+    : "";
+
+  productManageList.innerHTML = topPagination + pageData.items
     .map((product) => {
       const isEditing = state.editingProductId === product.id;
-      return `
-        <article class="product-row ${product.is_low_stock ? "low-stock" : ""}">
-          <div class="product-row-head">
-            <div>
+      const compactLayout = compact
+        ? `
+          <div class="product-manage-compact">
+            <div class="product-manage-left">
               <div class="product-row-name">${escapeHtml(product.name)}</div>
               <div class="product-row-meta">
                 <span>${escapeHtml(product.category)}</span>
-                <span>${escapeHtml(product.unit)}</span>
+              </div>
+              <div class="row-actions product-manage-actions">
+                <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy sửa" : "Sửa"}</button>
+                <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>Xóa</button>
               </div>
             </div>
-            <div class="product-row-stock">${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}</div>
+            <div class="product-manage-side">
+              <div class="product-row-stock">${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}</div>
+              <div class="product-manage-side-meta">
+                <span>Giá ${formatCurrency(product.price)}</span>
+                <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
+                ${product.current_stock > 0 ? "" : `<span>Có thể ngừng bán.</span>`}
+              </div>
+            </div>
           </div>
-          <div class="product-row-meta">
-            <span>Giá ${formatCurrency(product.price)}</span>
-            <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
-          </div>
-          <div class="cart-line-note">${product.current_stock > 0 ? `Còn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}.` : "Có thể ngừng bán."}</div>
-          <div class="row-actions">
-            <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy sửa" : "Sửa"}</button>
-            <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>${compact ? "Xóa" : "Ngừng bán / Xóa"}</button>
-          </div>
+        `
+        : "";
+      return `
+        <article class="product-row ${product.is_low_stock ? "low-stock" : ""}">
+          ${compact
+            ? compactLayout
+            : `
+              <div class="product-row-head">
+                <div>
+                  <div class="product-row-name">${escapeHtml(product.name)}</div>
+                  <div class="product-row-meta">
+                    <span>${escapeHtml(product.category)}</span>
+                  </div>
+                </div>
+                <div class="product-row-stock">${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}</div>
+              </div>
+              <div class="product-row-meta"><span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span></div>
+              <div class="cart-line-note">${product.current_stock > 0 ? `Còn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}.` : "Có thể ngừng bán."}</div>
+              <div class="row-actions">
+                <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy sửa" : "Sửa"}</button>
+                <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>Ngừng bán / Xóa</button>
+              </div>
+            `}
           ${isEditing ? `
             <div class="product-row-body">
               <input type="text" value="${escapeHtml(product.name)}" data-manage-input="name" data-product-id="${product.id}" placeholder="Tên sản phẩm">
@@ -2647,7 +2728,7 @@ function renderProductManageList() {
         </article>
       `;
     })
-    .join("") + renderPagination("productManage", pageData);
+    .join("") + bottomPagination;
 }
 
 function renderPurchasePanel() {
@@ -3173,6 +3254,7 @@ function renderAll() {
   renderProducts();
   renderProductManageList();
   renderProductHistory();
+  renderProductSections();
   renderTransactions();
   renderActiveCartPanel();
   renderSalesProductList();
@@ -3563,6 +3645,9 @@ productForm.addEventListener("submit", async (event) => {
     productForm.price.value = "0";
     productForm.low_stock_threshold.value = "5";
     state.editingProductId = null;
+    if (mobileQuery.matches) {
+      state.productFormCollapsed = true;
+    }
     await refreshData();
     switchMenu("inventory");
     prefillProduct(data.product.id);
@@ -3579,6 +3664,10 @@ productFormCancelButton.addEventListener("click", () => {
   productForm.unit.value = "gói";
   productForm.price.value = "0";
   productForm.low_stock_threshold.value = "5";
+  if (mobileQuery.matches) {
+    state.productFormCollapsed = true;
+  }
+  renderProductSections();
 });
 
 productManageSearchInput.addEventListener("input", (event) => {
@@ -3731,6 +3820,32 @@ productManageList.addEventListener("click", async (event) => {
     } catch (error) {
       showToast(error.message, true);
     }
+  }
+});
+
+productFormToggleButton.addEventListener("click", () => {
+  state.productFormCollapsed = !state.productFormCollapsed;
+  renderProductSections();
+});
+
+productHistoryToggleButton.addEventListener("click", () => {
+  state.productHistoryCollapsed = !state.productHistoryCollapsed;
+  renderProductSections();
+});
+
+document.addEventListener("click", (event) => {
+  const shortcutButton = event.target.closest("[data-product-shortcut]");
+  if (!shortcutButton) {
+    return;
+  }
+
+  if (shortcutButton.dataset.productShortcut === "form") {
+    openProductFormSection({ focus: true });
+    return;
+  }
+
+  if (shortcutButton.dataset.productShortcut === "history") {
+    openProductHistorySection();
   }
 });
 

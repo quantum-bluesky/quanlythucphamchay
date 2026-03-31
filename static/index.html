@@ -249,41 +249,59 @@
             <input id="productManageSearchInput" type="search" placeholder="Tìm sản phẩm để sửa...">
           </label>
         </div>
+        <div class="inline-menu-actions product-shortcut-actions">
+          <button type="button" class="ghost-button compact-button" data-product-shortcut="form">Thêm mới</button>
+          <button type="button" class="ghost-button compact-button" data-product-shortcut="history">Lịch sử</button>
+        </div>
         <div id="productManageList" class="product-list"></div>
-        <form id="productForm" class="product-form">
-          <label>
-            <span>Tên sản phẩm</span>
-            <input name="name" type="text" maxlength="80" placeholder="Ví dụ: Chả lụa chay" required>
-          </label>
-          <label>
-            <span>Loại thực phẩm</span>
-            <input name="category" type="text" maxlength="50" value="Đồ chay đông lạnh" required>
-          </label>
-          <label>
-            <span>Đơn vị tính</span>
-            <input name="unit" type="text" maxlength="20" value="gói" required>
-          </label>
-          <label>
-            <span>Giá nhập</span>
-            <input name="price" type="number" step="1000" min="0" value="0" required>
-          </label>
-          <label>
-            <span>Cảnh báo sắp hết</span>
-            <input name="low_stock_threshold" type="number" step="0.01" min="0.01" value="5" required>
-          </label>
-          <div class="product-form-actions">
-            <button type="submit" class="primary-button wide-button">Lưu sản phẩm</button>
-            <button type="button" id="productFormCancelButton" class="ghost-button wide-button">Hủy sửa</button>
+        <section id="productFormSection" class="sales-card product-collapse-card">
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Thêm sản phẩm</p>
+              <h3>Tạo mới mặt hàng</h3>
+            </div>
+            <button type="button" id="productFormToggleButton" class="ghost-button compact-button">Mở form</button>
           </div>
-        </form>
-        <section class="sales-card">
+          <div id="productFormWrap" class="product-collapse-body">
+            <form id="productForm" class="product-form">
+              <label>
+                <span>Tên sản phẩm</span>
+                <input name="name" type="text" maxlength="80" placeholder="Ví dụ: Chả lụa chay" required>
+              </label>
+              <label>
+                <span>Loại thực phẩm</span>
+                <input name="category" type="text" maxlength="50" value="Đồ chay đông lạnh" required>
+              </label>
+              <label>
+                <span>Đơn vị tính</span>
+                <input name="unit" type="text" maxlength="20" value="gói" required>
+              </label>
+              <label>
+                <span>Giá nhập</span>
+                <input name="price" type="number" step="1000" min="0" value="0" required>
+              </label>
+              <label>
+                <span>Cảnh báo sắp hết</span>
+                <input name="low_stock_threshold" type="number" step="0.01" min="0.01" value="5" required>
+              </label>
+              <div class="product-form-actions">
+                <button type="submit" class="primary-button wide-button">Lưu sản phẩm</button>
+                <button type="button" id="productFormCancelButton" class="ghost-button wide-button">Hủy sửa</button>
+              </div>
+            </form>
+          </div>
+        </section>
+        <section id="productHistorySection" class="sales-card product-collapse-card">
           <div class="subheading">
             <div>
               <p class="panel-kicker">Lịch sử sản phẩm</p>
               <h3>Các thay đổi gần đây trong quản lý sản phẩm</h3>
             </div>
+            <button type="button" id="productHistoryToggleButton" class="ghost-button compact-button">Mở lịch sử</button>
           </div>
-          <div id="productHistoryList" class="report-list"></div>
+          <div id="productHistoryWrap" class="product-collapse-body">
+            <div id="productHistoryList" class="report-list"></div>
+          </div>
         </section>
       </section>
     </section>
