@@ -177,6 +177,8 @@ const adminLogoutButton = document.getElementById("adminLogoutButton");
 const adminBackupButton = document.getElementById("adminBackupButton");
 const adminRestoreDbFile = document.getElementById("adminRestoreDbFile");
 const adminRestoreButton = document.getElementById("adminRestoreButton");
+const scrollTopButton = document.getElementById("scrollTopButton");
+const scrollBottomButton = document.getElementById("scrollBottomButton");
 const navBackButton = document.getElementById("navBackButton");
 const navForwardButton = document.getElementById("navForwardButton");
 const openHelpButton = document.getElementById("openHelpButton");
@@ -1141,10 +1143,29 @@ function setHelpOpen(nextValue) {
 }
 
 function renderScreenToolbox() {
+  const scrollTop = window.scrollY || window.pageYOffset || 0;
+  const viewportBottom = scrollTop + window.innerHeight;
+  const documentBottom = Math.max(
+    document.documentElement.scrollHeight,
+    document.body.scrollHeight
+  );
+  scrollTopButton.disabled = scrollTop <= 8;
+  scrollBottomButton.disabled = viewportBottom >= documentBottom - 8;
   navBackButton.disabled = state.menuHistoryIndex <= 0;
   navForwardButton.disabled = state.menuHistoryIndex >= state.menuHistory.length - 1;
   openHelpButton.setAttribute("aria-pressed", state.helpOpen ? "true" : "false");
-  renderHelpModal();
+}
+
+function scrollPageTo(position) {
+  const documentBottom = Math.max(
+    document.documentElement.scrollHeight,
+    document.body.scrollHeight
+  );
+  if (position === "top") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  window.scrollTo({ top: documentBottom, behavior: "smooth" });
 }
 
 function syncFloatingSearchFromSource() {
@@ -3349,6 +3370,14 @@ quickPanelToggle.addEventListener("click", () => {
   setQuickPanelCollapsed(!collapsed);
 });
 
+scrollTopButton.addEventListener("click", () => {
+  scrollPageTo("top");
+});
+
+scrollBottomButton.addEventListener("click", () => {
+  scrollPageTo("bottom");
+});
+
 navBackButton.addEventListener("click", () => {
   navigateMenuHistory("back");
 });
@@ -4761,6 +4790,8 @@ mobileQuery.addEventListener("change", () => {
   state.floatingSearchExpanded = false;
   renderAll();
 });
+
+window.addEventListener("scroll", renderScreenToolbox, { passive: true });
 
 window.addEventListener("DOMContentLoaded", async () => {
   setupSearchClearButtons();

@@ -1266,7 +1266,8 @@ button:disabled {
   .screen-toolbox {
     right: 12px;
     bottom: 12px;
-    grid-auto-flow: column;
+    grid-template-columns: repeat(3, 52px);
+    justify-content: end;
   }
 
   .floating-search-dock {
