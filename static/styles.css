@@ -646,6 +646,18 @@ button:disabled {
   border-top: 1px dashed rgba(34, 49, 39, 0.16);
 }
 
+.inline-labeled-field {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.inline-labeled-field span {
+  font-weight: 700;
+  color: var(--muted);
+}
+
 .meta-row {
   display: flex;
   gap: 8px;
@@ -1729,6 +1741,21 @@ button:disabled {
     padding-top: 6px;
   }
 
+  [data-menu-section="inventory"] .inventory-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  [data-menu-section="inventory"] .inventory-card-badge {
+    min-height: 24px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    line-height: 1.1;
+  }
+
   [data-menu-section="inventory"] .inventory-inline-links {
     display: flex;
     flex-wrap: wrap;
@@ -1893,6 +1920,15 @@ button:disabled {
   [data-menu-section="products"] .product-row-body input {
     min-height: 34px;
     padding: 6px 10px;
+  }
+
+  [data-menu-section="products"] .inline-labeled-field {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  [data-menu-section="products"] .inline-labeled-field span {
+    font-size: 0.82rem;
   }
 
   [data-menu-section="products"] .product-form {

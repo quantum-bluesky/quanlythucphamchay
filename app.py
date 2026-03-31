@@ -253,6 +253,7 @@ class InventoryStore:
                     category TEXT NOT NULL,
                     unit TEXT NOT NULL,
                     price REAL NOT NULL DEFAULT 0,
+                    sale_price REAL NOT NULL DEFAULT 0,
                     low_stock_threshold REAL NOT NULL DEFAULT 5,
                     is_deleted INTEGER NOT NULL DEFAULT 0,
                     deleted_at TEXT,
@@ -303,6 +304,13 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN price REAL NOT NULL DEFAULT 0"
                 )
+            if "sale_price" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN sale_price REAL NOT NULL DEFAULT 0"
+                )
+                connection.execute(
+                    "UPDATE products SET sale_price = price WHERE sale_price = 0"
+                )
             if "is_deleted" not in columns:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"
@@ -330,7 +338,7 @@ class InventoryStore:
     ) -> sqlite3.Row:
         product = connection.execute(
             """
-            SELECT id, name, category, unit, price, low_stock_threshold, is_deleted, deleted_at
+            SELECT id, name, category, unit, price, sale_price, low_stock_threshold, is_deleted, deleted_at
             FROM products
             WHERE id = ?
             """,
@@ -425,6 +433,7 @@ class InventoryStore:
                     p.category,
                     p.unit,
                     p.price,
+                    p.sale_price,
                     p.low_stock_threshold,
                     p.is_deleted,
                     p.deleted_at,
@@ -471,7 +480,8 @@ class InventoryStore:
         unit: str,
         low_stock_threshold: str | int | float,
         price: str | int | float = 0,
-    ) -> tuple[str, str, str, float, float]:
+        sale_price: str | int | float | None = None,
+    ) -> tuple[str, str, str, float, float, float]:
         clean_name = (name or "").strip()
         clean_category = (category or "").strip()
         clean_unit = (unit or "").strip()
@@ -484,8 +494,12 @@ class InventoryStore:
             raise ValueError("Đơn vị tính là bắt buộc.")
 
         threshold = parse_positive_decimal(low_stock_threshold or 5, "Ngưỡng cảnh báo")
-        parsed_price = parse_non_negative_decimal(price or 0, "Giá")
-        return clean_name, clean_category, clean_unit, float(threshold), float(parsed_price)
+        parsed_price = parse_non_negative_decimal(price or 0, "Giá nhập")
+        parsed_sale_price = parse_non_negative_decimal(
+            parsed_price if sale_price in (None, "") else sale_price,
+            "Giá bán",
+        )
+        return clean_name, clean_category, clean_unit, float(threshold), float(parsed_price), float(parsed_sale_price)
 
     def create_product(
         self,
@@ -494,13 +508,15 @@ class InventoryStore:
         unit: str,
         low_stock_threshold: str | int | float = 5,
         price: str | int | float = 0,
+        sale_price: str | int | float | None = None,
     ) -> dict:
-        clean_name, clean_category, clean_unit, threshold, parsed_price = self._prepare_product_inputs(
+        clean_name, clean_category, clean_unit, threshold, parsed_price, parsed_sale_price = self._prepare_product_inputs(
             name,
             category,
             unit,
             low_stock_threshold,
             price,
+            sale_price,
         )
         now = utc_now_iso()
 
@@ -508,10 +524,10 @@ class InventoryStore:
             try:
                 cursor = connection.execute(
                     """
-                    INSERT INTO products(name, category, unit, price, low_stock_threshold, created_at, updated_at)
-                    VALUES(?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO products(name, category, unit, price, sale_price, low_stock_threshold, created_at, updated_at)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (clean_name, clean_category, clean_unit, parsed_price, float(threshold), now, now),
+                    (clean_name, clean_category, clean_unit, parsed_price, parsed_sale_price, float(threshold), now, now),
                 )
             except sqlite3.IntegrityError as exc:
                 deleted_match = connection.execute(
@@ -541,28 +557,30 @@ class InventoryStore:
         unit: str,
         low_stock_threshold: str | int | float = 5,
         price: str | int | float = 0,
+        sale_price: str | int | float | None = None,
     ) -> bool:
-        clean_name, clean_category, clean_unit, threshold, parsed_price = self._prepare_product_inputs(
+        clean_name, clean_category, clean_unit, threshold, parsed_price, parsed_sale_price = self._prepare_product_inputs(
             name,
             category,
             unit,
             low_stock_threshold,
             price,
+            sale_price,
         )
         now = utc_now_iso()
 
         with self._connect() as connection:
             cursor = connection.execute(
                 """
-                INSERT OR IGNORE INTO products(name, category, unit, price, low_stock_threshold, created_at, updated_at)
-                VALUES(?, ?, ?, ?, ?, ?, ?)
+                INSERT OR IGNORE INTO products(name, category, unit, price, sale_price, low_stock_threshold, created_at, updated_at)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (clean_name, clean_category, clean_unit, parsed_price, threshold, now, now),
+                (clean_name, clean_category, clean_unit, parsed_price, parsed_sale_price, threshold, now, now),
             )
             return cursor.rowcount > 0
 
     def update_product_price(self, product_id: int, price: str | int | float) -> dict:
-        parsed_price = float(parse_non_negative_decimal(price, "Giá"))
+        parsed_price = float(parse_non_negative_decimal(price, "Giá nhập"))
         now = utc_now_iso()
 
         with self._connect() as connection:
@@ -586,6 +604,31 @@ class InventoryStore:
 
         return self.get_product_by_id(int(product_id))
 
+    def update_product_sale_price(self, product_id: int, sale_price: str | int | float) -> dict:
+        parsed_sale_price = float(parse_non_negative_decimal(sale_price, "Giá bán"))
+        now = utc_now_iso()
+
+        with self._connect() as connection:
+            self._get_product_or_raise(connection, int(product_id))
+            connection.execute(
+                "UPDATE products SET sale_price = ?, updated_at = ? WHERE id = ?",
+                (parsed_sale_price, now, int(product_id)),
+            )
+            product = connection.execute(
+                "SELECT name FROM products WHERE id = ?",
+                (int(product_id),),
+            ).fetchone()
+            self._record_audit(
+                connection,
+                entity_type="product",
+                entity_id=product_id,
+                entity_name=product["name"],
+                action="update-sale-price",
+                message=f"Cập nhật giá bán thành {parsed_sale_price:.0f}.",
+            )
+
+        return self.get_product_by_id(int(product_id))
+
     def update_product(
         self,
         product_id: int,
@@ -594,13 +637,15 @@ class InventoryStore:
         unit: str,
         low_stock_threshold: str | int | float,
         price: str | int | float = 0,
+        sale_price: str | int | float | None = None,
     ) -> dict:
-        clean_name, clean_category, clean_unit, threshold, parsed_price = self._prepare_product_inputs(
+        clean_name, clean_category, clean_unit, threshold, parsed_price, parsed_sale_price = self._prepare_product_inputs(
             name,
             category,
             unit,
             low_stock_threshold,
             price,
+            sale_price,
         )
         now = utc_now_iso()
 
@@ -610,7 +655,7 @@ class InventoryStore:
                 connection.execute(
                     """
                     UPDATE products
-                    SET name = ?, category = ?, unit = ?, price = ?, low_stock_threshold = ?, updated_at = ?
+                    SET name = ?, category = ?, unit = ?, price = ?, sale_price = ?, low_stock_threshold = ?, updated_at = ?
                     WHERE id = ?
                     """,
                     (
@@ -618,6 +663,7 @@ class InventoryStore:
                         clean_category,
                         clean_unit,
                         parsed_price,
+                        parsed_sale_price,
                         threshold,
                         now,
                         int(product_id),
@@ -758,6 +804,7 @@ class InventoryStore:
                     p.category,
                     p.unit,
                     p.price,
+                    p.sale_price,
                     p.low_stock_threshold,
                     p.is_deleted,
                     p.deleted_at,
@@ -1057,6 +1104,7 @@ class InventoryStore:
             "category": row["category"],
             "unit": row["unit"],
             "price": round(float(row["price"]), 2),
+            "sale_price": round(float(row["sale_price"]), 2),
             "low_stock_threshold": threshold,
             "current_stock": current_stock,
             "inventory_value": round(current_stock * float(row["price"]), 2),
@@ -1184,6 +1232,7 @@ class InventoryStore:
                     category=category,
                     unit=unit,
                     price=price,
+                    sale_price=record.get("sale_price"),
                     low_stock_threshold=threshold,
                 )
                 summary["updated"] += 1
@@ -1194,6 +1243,7 @@ class InventoryStore:
                     category=category,
                     unit=unit,
                     price=price,
+                    sale_price=record.get("sale_price"),
                     low_stock_threshold=threshold,
                 )
                 summary["created"] += 1
@@ -1335,6 +1385,7 @@ class InventoryStore:
                     p.category,
                     p.unit,
                     p.price,
+                    p.sale_price,
                     p.low_stock_threshold,
                     t.transaction_type,
                     t.quantity,
@@ -1374,6 +1425,7 @@ class InventoryStore:
 
             quantity = float(row["quantity"])
             fallback_price = float(row["price"])
+            fallback_sale_price = float(row["sale_price"])
             note = row["note"] or ""
 
             purchase_unit_cost = extract_price_from_note(note, "in")
@@ -1382,7 +1434,7 @@ class InventoryStore:
             if purchase_unit_cost is None:
                 purchase_unit_cost = fallback_price
             if sale_unit_price is None:
-                sale_unit_price = fallback_price
+                sale_unit_price = fallback_sale_price
             if sale_unit_cost is None:
                 sale_unit_cost = fallback_price
 
@@ -1819,6 +1871,7 @@ def create_handler(store: InventoryStore, admin_sessions: AdminSessionManager):
                         category=payload.get("category"),
                         unit=payload.get("unit"),
                         price=payload.get("price", 0),
+                        sale_price=payload.get("sale_price"),
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
                     )
                     self._send_json(
@@ -1910,6 +1963,7 @@ def create_handler(store: InventoryStore, admin_sessions: AdminSessionManager):
                         category=payload.get("category"),
                         unit=payload.get("unit"),
                         price=payload.get("price", 0),
+                        sale_price=payload.get("sale_price"),
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
                     )
                     self._send_json(
@@ -1925,23 +1979,40 @@ def create_handler(store: InventoryStore, admin_sessions: AdminSessionManager):
                 return
 
             match = re.fullmatch(r"/api/products/(\d+)/price", urlparse(self.path).path)
-            if not match:
-                self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
+            if match:
+                try:
+                    payload = self._read_json_body()
+                    product = store.update_product_price(match.group(1), payload.get("price", 0))
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã cập nhật giá nhập.",
+                            "product": product,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 
-            try:
-                payload = self._read_json_body()
-                product = store.update_product_price(match.group(1), payload.get("price", 0))
-                self._send_json(
-                    HTTPStatus.OK,
-                    {
-                        "message": "Đã cập nhật giá.",
-                        "product": product,
-                        "summary": store.get_summary(),
-                    },
-                )
-            except ValueError as exc:
-                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            match = re.fullmatch(r"/api/products/(\d+)/sale-price", urlparse(self.path).path)
+            if match:
+                try:
+                    payload = self._read_json_body()
+                    product = store.update_product_sale_price(match.group(1), payload.get("sale_price", 0))
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã cập nhật giá bán.",
+                            "product": product,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
 
         def do_DELETE(self) -> None:
             match = re.fullmatch(r"/api/products/(\d+)$", urlparse(self.path).path)

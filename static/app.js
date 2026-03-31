@@ -1719,7 +1719,7 @@ function toggleProductInActiveCart(productId, checked) {
           productName: product.name,
           unit: product.unit,
           quantity: 1,
-          unitPrice: product.price,
+          unitPrice: Number(product.sale_price ?? product.price ?? 0),
           note: "",
         },
       ];
@@ -2486,6 +2486,14 @@ function renderProducts() {
       const incomingCount = Number(incomingCountMap.get(product.id) || 0);
       const relatedDraftCarts = getDraftCartsForProduct(product.id);
       const relatedPurchases = getOpenPurchasesForProduct(product.id);
+      const inventoryBadgeMarkup = draftCount || incomingCount
+        ? `
+          <div class="inventory-card-badges">
+            ${draftCount ? `<button type="button" class="ghost-button compact-button inventory-card-badge" data-inventory-link="orders" data-product-id="${product.id}">Chờ xuất ${draftCount}</button>` : ""}
+            ${incomingCount ? `<button type="button" class="ghost-button compact-button inventory-card-badge" data-inventory-link="purchases" data-product-id="${product.id}">Chờ nhập ${incomingCount}</button>` : ""}
+          </div>
+        `
+        : "";
       const compactLayout = compact
         ? `
           <div class="inventory-product-compact">
@@ -2494,6 +2502,7 @@ function renderProducts() {
               <div class="product-row-meta">
                 <span>${escapeHtml(product.category)}</span>
               </div>
+              ${inventoryBadgeMarkup}
               <div class="row-actions inventory-product-actions">
                 <button type="button" class="ghost-button compact-button" data-inventory-flow="out" data-product-id="${product.id}">Xuất</button>
                 <button type="button" class="ghost-button compact-button" data-inventory-flow="in" data-product-id="${product.id}">Nhập</button>
@@ -2531,6 +2540,8 @@ function renderProducts() {
                 <span>Giá trị tồn ${formatCurrency(product.inventory_value)}</span>
                 <span class="status-pill ${signals.statusClass}">${escapeHtml(signals.statusLabel)}</span>
               </div>
+
+              ${inventoryBadgeMarkup}
 
               <div class="row-actions">
                 <button type="button" class="ghost-button compact-button" data-inventory-flow="out" data-product-id="${product.id}">Xuất hàng</button>
@@ -2774,6 +2785,7 @@ function renderSalesProductList() {
                 </label>
                 <div class="line-actions">
                   <button type="button" class="ghost-button compact-button" data-sales-inline-action="save" data-item-id="${cartItem.id}">Lưu</button>
+                  <button type="button" class="ghost-button compact-button" data-sales-inline-action="update-default-price" data-product-id="${product.id}" data-item-id="${cartItem.id}">Giá chung</button>
                   <button type="button" class="danger-button compact-button" data-sales-inline-action="remove" data-item-id="${cartItem.id}" data-product-id="${product.id}">Bỏ</button>
                   ${compact ? "" : `<button type="button" class="ghost-button compact-button" data-sales-inline-action="collapse" data-product-id="${product.id}">Thu gọn</button>`}
                 </div>
@@ -2843,6 +2855,7 @@ function renderCartItems() {
               </label>
               <div class="line-actions">
                 <button type="button" class="ghost-button compact-button" data-line-action="save" data-item-id="${item.id}">Lưu dòng</button>
+                <button type="button" class="ghost-button compact-button" data-line-action="update-default-price" data-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button>
                 <button type="button" class="danger-button compact-button" data-line-action="remove" data-item-id="${item.id}">Loại bỏ</button>
               </div>
             </div>
@@ -3033,10 +3046,11 @@ function renderProductManageList() {
                 <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>Xóa</button>
               </div>
             </div>
-            <div class="product-manage-side">
+              <div class="product-manage-side">
               <div class="product-row-stock">${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}</div>
               <div class="product-manage-side-meta">
-                <span>Giá ${formatCurrency(product.price)}</span>
+                <span>Giá nhập ${formatCurrency(product.price)}</span>
+                <span>Giá bán ${formatCurrency(product.sale_price ?? 0)}</span>
                 <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
                 ${product.current_stock > 0 ? "" : `<span>Có thể ngừng bán.</span>`}
               </div>
@@ -3067,11 +3081,12 @@ function renderProductManageList() {
             `}
           ${isEditing ? `
             <div class="product-row-body">
-              <input type="text" value="${escapeHtml(product.name)}" data-manage-input="name" data-product-id="${product.id}" placeholder="Tên sản phẩm">
-              <input type="text" value="${escapeHtml(product.category)}" data-manage-input="category" data-product-id="${product.id}" placeholder="Loại">
-              <input type="text" value="${escapeHtml(product.unit)}" data-manage-input="unit" data-product-id="${product.id}" placeholder="Đơn vị">
-              <input type="number" min="0" step="1000" value="${product.price}" data-manage-input="price" data-product-id="${product.id}" placeholder="Giá">
-              <input type="number" min="0.01" step="0.01" value="${product.low_stock_threshold}" data-manage-input="low_stock_threshold" data-product-id="${product.id}" placeholder="Ngưỡng">
+              <label class="inline-labeled-field"><span>Tên</span><input type="text" value="${escapeHtml(product.name)}" data-manage-input="name" data-product-id="${product.id}" placeholder="Tên sản phẩm"></label>
+              <label class="inline-labeled-field"><span>Loại</span><input type="text" value="${escapeHtml(product.category)}" data-manage-input="category" data-product-id="${product.id}" placeholder="Loại"></label>
+              <label class="inline-labeled-field"><span>ĐVT</span><input type="text" value="${escapeHtml(product.unit)}" data-manage-input="unit" data-product-id="${product.id}" placeholder="Đơn vị"></label>
+              <label class="inline-labeled-field"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${product.price}" data-manage-input="price" data-product-id="${product.id}" placeholder="Giá nhập"></label>
+              <label class="inline-labeled-field"><span>Giá bán</span><input type="number" min="0" step="1000" value="${product.sale_price ?? 0}" data-manage-input="sale_price" data-product-id="${product.id}" placeholder="Giá bán"></label>
+              <label class="inline-labeled-field"><span>Ngưỡng</span><input type="number" min="0.01" step="0.01" value="${product.low_stock_threshold}" data-manage-input="low_stock_threshold" data-product-id="${product.id}" placeholder="Ngưỡng"></label>
               <div class="row-actions">
                 <button type="button" class="primary-button compact-button" data-product-manage-action="save-inline" data-product-id="${product.id}">Lưu nhanh</button>
               </div>
@@ -3151,6 +3166,7 @@ function renderPurchasePanel() {
             </div>
             <div class="line-actions">
               <button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">Lưu dòng</button>
+              <button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button>
               <button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button>
               <button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>
             </div>
@@ -3753,6 +3769,15 @@ async function updateProductPrice(productId, price) {
   showToast(data.message);
 }
 
+async function updateProductSalePrice(productId, salePrice) {
+  const data = await apiRequest(`/api/products/${productId}/sale-price`, {
+    method: "PUT",
+    body: JSON.stringify({ sale_price: Number(salePrice) }),
+  });
+  await refreshData();
+  showToast(data.message);
+}
+
 async function checkoutActiveCart() {
   const cart = getActiveCart();
   if (!cart) {
@@ -4130,6 +4155,7 @@ productForm.addEventListener("submit", async (event) => {
     productForm.category.value = "Đồ chay đông lạnh";
     productForm.unit.value = "gói";
     productForm.price.value = "0";
+    productForm.sale_price.value = "0";
     productForm.low_stock_threshold.value = "5";
     state.editingProductId = null;
     if (mobileQuery.matches) {
@@ -4150,6 +4176,7 @@ productFormCancelButton.addEventListener("click", () => {
   productForm.category.value = "Đồ chay đông lạnh";
   productForm.unit.value = "gói";
   productForm.price.value = "0";
+  productForm.sale_price.value = "0";
   productForm.low_stock_threshold.value = "5";
   if (mobileQuery.matches) {
     state.productFormCollapsed = true;
@@ -4266,6 +4293,7 @@ productManageList.addEventListener("click", async (event) => {
           category: getValue("category"),
           unit: getValue("unit"),
           price: getValue("price"),
+          sale_price: getValue("sale_price"),
           low_stock_threshold: getValue("low_stock_threshold"),
         }),
       });
@@ -4367,7 +4395,7 @@ salesProductList.addEventListener("change", (event) => {
   }
 });
 
-salesProductList.addEventListener("click", (event) => {
+salesProductList.addEventListener("click", async (event) => {
   const actionButton = event.target.closest("[data-sales-inline-action]");
   if (!actionButton) {
     return;
@@ -4422,6 +4450,31 @@ salesProductList.addEventListener("click", (event) => {
       showToast(error.message, true);
     }
   }
+
+  if (actionButton.dataset.salesInlineAction === "update-default-price") {
+    const itemId = actionButton.dataset.itemId;
+    const productId = actionButton.dataset.productId;
+    const priceInput = salesProductList.querySelector(`[data-sales-inline-price="${itemId}"]`);
+
+    try {
+      const unitPrice = Number(priceInput?.value);
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+        throw new Error("Giá bán không hợp lệ.");
+      }
+      const product = getProductById(productId);
+      if (!product) {
+        throw new Error("Không tìm thấy sản phẩm.");
+      }
+      if (!window.confirm(`Cập nhật giá bán chung của "${product.name}" thành ${formatCurrency(unitPrice)}?\nGiá mặc định này sẽ được dùng cho các đơn xuất mới sau đó.`)) {
+        return;
+      }
+      updateCartItem(itemId, { unitPrice });
+      await persistCollections(["carts"]);
+      await updateProductSalePrice(productId, unitPrice);
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  }
 });
 
 salesProductList.addEventListener("keydown", (event) => {
@@ -4436,7 +4489,7 @@ salesProductList.addEventListener("keydown", (event) => {
   saveButton?.click();
 });
 
-cartItemsList.addEventListener("click", (event) => {
+cartItemsList.addEventListener("click", async (event) => {
   const deltaButton = event.target.closest("[data-qty-delta]");
   if (deltaButton) {
     try {
@@ -4481,6 +4534,31 @@ cartItemsList.addEventListener("click", (event) => {
         unitPrice,
       });
       showToast("Đã lưu dòng hàng.");
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  }
+
+  if (actionButton.dataset.lineAction === "update-default-price") {
+    const itemId = actionButton.dataset.itemId;
+    const productId = actionButton.dataset.productId;
+    const priceInput = cartItemsList.querySelector(`[data-price-input-cart="${itemId}"]`);
+
+    try {
+      const unitPrice = Number(priceInput?.value);
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+        throw new Error("Giá bán không hợp lệ.");
+      }
+      const product = getProductById(productId);
+      if (!product) {
+        throw new Error("Không tìm thấy sản phẩm.");
+      }
+      if (!window.confirm(`Cập nhật giá bán chung của "${product.name}" thành ${formatCurrency(unitPrice)}?\nGiá mặc định này sẽ được dùng cho các đơn xuất mới sau đó.`)) {
+        return;
+      }
+      updateCartItem(itemId, { unitPrice });
+      await persistCollections(["carts"]);
+      await updateProductSalePrice(productId, unitPrice);
     } catch (error) {
       showToast(error.message, true);
     }
@@ -4927,6 +5005,37 @@ purchasePanel.addEventListener("click", async (event) => {
       }));
       saveAndRenderAll(["purchases"]);
       showToast("Đã lưu dòng nhập hàng.");
+      return;
+    }
+    if (itemButton.dataset.purchaseItemAction === "update-default-cost") {
+      const costInput = purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
+      const unitCost = Number(costInput?.value);
+      if (!Number.isFinite(unitCost) || unitCost < 0) {
+        showToast("Giá nhập không hợp lệ.", true);
+        return;
+      }
+      const product = getProductById(itemButton.dataset.productId);
+      if (!product) {
+        showToast("Không tìm thấy sản phẩm.", true);
+        return;
+      }
+      if (!window.confirm(`Cập nhật giá nhập chung của "${product.name}" thành ${formatCurrency(unitCost)}?\nGiá mặc định này sẽ được dùng cho các phiếu nhập mới sau đó.`)) {
+        return;
+      }
+      updatePurchase(purchase.id, (currentPurchase) => ({
+        items: currentPurchase.items.map((item) =>
+          item.id === itemButton.dataset.purchaseItemId
+            ? {
+                ...item,
+                unitCost,
+              }
+            : item
+        ),
+        supplierName: purchaseSupplierInput.value.trim(),
+        note: purchaseNoteInput.value.trim(),
+      }));
+      await persistCollections(["purchases"]);
+      await updateProductPrice(itemButton.dataset.productId, unitCost);
       return;
     }
     updatePurchase(purchase.id, (currentPurchase) => ({
