@@ -1574,6 +1574,19 @@ function setActiveCart(cartId) {
   saveAndRenderAll();
 }
 
+function setActivePurchase(purchaseId) {
+  const purchase = state.purchases.find((entry) => entry.id === purchaseId);
+  if (!purchase || !["draft", "ordered"].includes(purchase.status)) {
+    return;
+  }
+
+  state.activePurchaseId = purchase.id;
+  state.purchasePanelCollapsed = false;
+  purchaseSupplierInput.value = purchase.supplierName || "";
+  purchaseNoteInput.value = purchase.note || "";
+  saveAndRenderAll();
+}
+
 function openCartForCustomer(customerName) {
   const customer = resolveCustomerFromText(customerName);
   let cart = state.carts.find(
@@ -1600,6 +1613,75 @@ function openCartForCustomer(customerName) {
   switchMenu("create-order");
   focusCreateOrderSelection();
   showToast(cart.itemCount ? "Đã mở lại giỏ hàng đang chờ." : "Đã tạo giỏ hàng mới.");
+}
+
+function startInventoryOutFlow(productId) {
+  const product = getProductById(productId);
+  if (!product) {
+    throw new Error("Không tìm thấy sản phẩm.");
+  }
+
+  const relatedDraftCarts = getDraftCartsForProduct(product.id);
+  if (relatedDraftCarts.length === 1) {
+    setActiveCart(relatedDraftCarts[0].id);
+    state.salesSearchTerm = product.name;
+    salesSearchInput.value = product.name;
+    state.pagination.salesProducts = 1;
+    switchMenu("create-order");
+    focusCreateOrderSelection();
+    showToast("Đã mở đơn chờ xuất liên quan.");
+    return;
+  }
+
+  if (relatedDraftCarts.length > 1) {
+    state.expandedProductId = product.id;
+    renderProducts();
+    showToast("Mặt hàng này đang có nhiều đơn chờ xuất. Hãy chọn đúng đơn bên dưới.");
+    return;
+  }
+
+  state.salesSearchTerm = product.name;
+  salesSearchInput.value = product.name;
+  state.pagination.salesProducts = 1;
+  switchMenu("create-order");
+  renderSalesProductList();
+  showToast("Chưa có đơn chờ xuất cho mặt hàng này. Hãy chọn khách để tạo đơn mới.");
+}
+
+function startInventoryInFlow(productId) {
+  const product = getProductById(productId);
+  if (!product) {
+    throw new Error("Không tìm thấy sản phẩm.");
+  }
+
+  const relatedPurchases = getOpenPurchasesForProduct(product.id);
+  if (relatedPurchases.length === 1) {
+    setActivePurchase(relatedPurchases[0].id);
+    state.purchaseSearchTerm = product.name;
+    purchaseSearchInput.value = product.name;
+    state.pagination.purchaseSuggestions = 1;
+    state.pagination.purchaseOrders = 1;
+    switchMenu("purchases");
+    focusPurchaseOrders();
+    showToast("Đã mở phiếu nhập chờ liên quan.");
+    return;
+  }
+
+  if (relatedPurchases.length > 1) {
+    state.expandedProductId = product.id;
+    renderProducts();
+    showToast("Mặt hàng này đang có nhiều phiếu nhập chờ. Hãy chọn đúng phiếu bên dưới.");
+    return;
+  }
+
+  addSuggestionToPurchase(product.id, Math.max(1, product.low_stock_threshold || 1), product.price || 0);
+  state.purchaseSearchTerm = product.name;
+  purchaseSearchInput.value = product.name;
+  state.pagination.purchaseSuggestions = 1;
+  state.pagination.purchaseOrders = 1;
+  switchMenu("purchases");
+  focusPurchaseOrders();
+  showToast("Đã tạo phiếu nhập nháp mới cho mặt hàng này.");
 }
 
 function updateCart(cartId, updater) {
@@ -1940,6 +2022,22 @@ function getOpenPurchaseCountByProductId() {
   return counts;
 }
 
+function getDraftCartsForProduct(productId) {
+  return state.carts.filter(
+    (cart) =>
+      cart.status === "draft" &&
+      cart.items.some((item) => Number(item.productId) === Number(productId))
+  );
+}
+
+function getOpenPurchasesForProduct(productId) {
+  return state.purchases.filter(
+    (purchase) =>
+      ["draft", "ordered"].includes(purchase.status) &&
+      purchase.items.some((item) => Number(item.productId) === Number(productId))
+  );
+}
+
 function getInventoryProductSignals(product, draftDemandMap, incomingMap) {
   const currentStock = Number(product.current_stock || 0);
   const pendingDemand = Number(draftDemandMap.get(product.id) || 0);
@@ -2106,6 +2204,9 @@ function getCartShortages(cart) {
 }
 
 function setQuickPanelCollapsed(collapsed) {
+  if (quickPanel.hidden) {
+    return;
+  }
   if (!mobileQuery.matches) {
     quickPanel.classList.remove("is-collapsed");
     quickPanelToggle.setAttribute("aria-expanded", "true");
@@ -2119,7 +2220,41 @@ function setQuickPanelCollapsed(collapsed) {
 }
 
 function openQuickPanel() {
+  if (quickPanel.hidden) {
+    return;
+  }
   setQuickPanelCollapsed(false);
+}
+
+function renderInventoryDirectEditAccess() {
+  const isAdmin = Boolean(state.admin?.authenticated);
+  const kicker = quickPanel.querySelector(".panel-kicker");
+  const heading = quickPanel.querySelector("h2");
+  const note = quickPanel.querySelector(".quick-panel-tools .panel-note");
+
+  quickPanel.hidden = !isAdmin;
+  if (!isAdmin) {
+    if (kicker) {
+      kicker.textContent = "Nhập / xuất nhanh";
+    }
+    if (heading) {
+      heading.textContent = "Cập nhật tồn kho ngay";
+    }
+    if (note) {
+      note.textContent = "Gõ tên sản phẩm, nhập số lượng và chọn nhập hoặc xuất.";
+    }
+    return;
+  }
+
+  if (kicker) {
+    kicker.textContent = "Master Admin";
+  }
+  if (heading) {
+    heading.textContent = "Chỉnh tồn trực tiếp";
+  }
+  if (note) {
+    note.textContent = "Cảnh báo: chế độ này bỏ qua quy trình đơn nhập / đơn xuất chuẩn. Chỉ dùng khi cần chỉnh kho đặc biệt.";
+  }
 }
 
 function applyMobileCollapsedDefaults() {
@@ -2317,6 +2452,7 @@ function renderSupplierOptions() {
 
 function renderProducts() {
   const compact = mobileQuery.matches;
+  const isAdmin = Boolean(state.admin?.authenticated);
   const draftDemandMap = getDraftDemandByProductId();
   const draftCountMap = getDraftCartCountByProductId();
   const incomingMap = getIncomingPurchaseByProductId();
@@ -2344,10 +2480,12 @@ function renderProducts() {
   productGrid.innerHTML = topPagination + pageData.items
     .map((product) => {
       const isExpanded = state.expandedProductId === product.id;
-      const isEditingPrice = state.editingPriceId === product.id;
+      const isEditingPrice = isAdmin && state.editingPriceId === product.id;
       const signals = getInventoryProductSignals(product, draftDemandMap, incomingMap);
       const draftCount = Number(draftCountMap.get(product.id) || 0);
       const incomingCount = Number(incomingCountMap.get(product.id) || 0);
+      const relatedDraftCarts = getDraftCartsForProduct(product.id);
+      const relatedPurchases = getOpenPurchasesForProduct(product.id);
       const compactLayout = compact
         ? `
           <div class="inventory-product-compact">
@@ -2357,13 +2495,9 @@ function renderProducts() {
                 <span>${escapeHtml(product.category)}</span>
               </div>
               <div class="row-actions inventory-product-actions">
-                <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
-                  ${isExpanded ? "Thu" : "Mở"}
-                </button>
-                ${renderOverflowMenu([
-                  `<button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">${isEditingPrice ? "Hủy giá" : "Giá"}</button>`,
-                  `<button type="button" class="ghost-button compact-button" data-prefill="${product.id}">Kho</button>`,
-                ])}
+                <button type="button" class="ghost-button compact-button" data-inventory-flow="out" data-product-id="${product.id}">Xuất</button>
+                <button type="button" class="ghost-button compact-button" data-inventory-flow="in" data-product-id="${product.id}">Nhập</button>
+                ${isAdmin ? `<button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">${isExpanded ? "Thu" : "..."}</button>` : ""}
               </div>
             </div>
             <div class="inventory-product-side">
@@ -2399,17 +2533,20 @@ function renderProducts() {
               </div>
 
               <div class="row-actions">
-                <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
-                  ${isExpanded ? "Thu" : "Mở"}
-                </button>
-                <button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">
-                  ${isEditingPrice ? "Hủy giá" : "Giá"}
-                </button>
-                <button type="button" class="ghost-button compact-button" data-prefill="${product.id}">Nhập / xuất</button>
+                <button type="button" class="ghost-button compact-button" data-inventory-flow="out" data-product-id="${product.id}">Xuất hàng</button>
+                <button type="button" class="ghost-button compact-button" data-inventory-flow="in" data-product-id="${product.id}">Nhập hàng</button>
+                ${isAdmin ? `
+                  <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
+                    ${isExpanded ? "Thu" : "Admin"}
+                  </button>
+                  <button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">
+                    ${isEditingPrice ? "Hủy giá" : "Giá"}
+                  </button>
+                ` : ""}
               </div>
             `}
 
-          ${isExpanded || isEditingPrice ? `
+          ${isExpanded || isEditingPrice || relatedDraftCarts.length > 1 || relatedPurchases.length > 1 ? `
             <div class="product-row-body">
               <div class="meta-row">
                 <span class="pill">Cảnh báo dưới ${formatQuantity(product.low_stock_threshold)} ${escapeHtml(product.unit)}</span>
@@ -2421,6 +2558,34 @@ function renderProducts() {
                 ${incomingCount ? `<button type="button" class="ghost-button compact-button" data-inventory-link="purchases" data-product-id="${product.id}">Đơn chờ nhập ${incomingCount}</button>` : ""}
               </div>
 
+              ${relatedDraftCarts.length > 1 ? `
+                <div class="inventory-related-list">
+                  <strong>Đơn chờ xuất</strong>
+                  <div class="inventory-related-actions">
+                    ${relatedDraftCarts.map((cart) => {
+                      const item = cart.items.find((entry) => Number(entry.productId) === Number(product.id));
+                      return `<button type="button" class="ghost-button compact-button" data-open-related-cart="${cart.id}">${escapeHtml(cart.customerName)} • ${formatQuantity(item?.quantity || 0)} ${escapeHtml(product.unit)}</button>`;
+                    }).join("")}
+                  </div>
+                </div>
+              ` : ""}
+
+              ${relatedPurchases.length > 1 ? `
+                <div class="inventory-related-list">
+                  <strong>Đơn chờ nhập</strong>
+                  <div class="inventory-related-actions">
+                    ${relatedPurchases.map((purchase) => {
+                      const item = purchase.items.find((entry) => Number(entry.productId) === Number(product.id));
+                      return `<button type="button" class="ghost-button compact-button" data-open-related-purchase="${purchase.id}">${escapeHtml(purchase.supplierName || "Chưa có NCC")} • ${formatQuantity(item?.quantity || 0)} ${escapeHtml(product.unit)}</button>`;
+                    }).join("")}
+                  </div>
+                </div>
+              ` : ""}
+
+              ${isAdmin ? `
+                <article class="inline-alert warning">Master Admin đang chỉnh tồn trực tiếp. Thao tác này bỏ qua quy trình đơn nhập / đơn xuất chuẩn.</article>
+              ` : ""}
+
               ${isEditingPrice ? `
                 <div class="inline-price-edit">
                   <input type="number" min="0" step="1000" value="${product.price}" data-price-input="${product.id}">
@@ -2429,18 +2594,20 @@ function renderProducts() {
                 </div>
               ` : ""}
 
-              <div class="inventory-inline-quantity">
-                <input type="number" min="0.01" step="0.01" placeholder="Nhập số lượng..." data-quantity-input="${product.id}">
-                <button type="button" class="ghost-button compact-button" data-quantity-apply="out" data-product="${product.id}">Xuất</button>
-                <button type="button" class="ghost-button compact-button" data-quantity-apply="in" data-product="${product.id}">Nhập</button>
-              </div>
+              ${isAdmin ? `
+                <div class="inventory-inline-quantity">
+                  <input type="number" min="0.01" step="0.01" placeholder="Nhập số lượng..." data-quantity-input="${product.id}">
+                  <button type="button" class="ghost-button compact-button" data-quantity-apply="out" data-product="${product.id}">Xuất</button>
+                  <button type="button" class="ghost-button compact-button" data-quantity-apply="in" data-product="${product.id}">Nhập</button>
+                </div>
 
-              <div class="inventory-inline-deltas">
-                <button class="ghost-button compact-button" data-delta="-1" data-product="${product.id}">-1</button>
-                <button class="ghost-button compact-button" data-delta="-5" data-product="${product.id}">-5</button>
-                <button class="ghost-button compact-button" data-delta="1" data-product="${product.id}">+1</button>
-                <button class="ghost-button compact-button" data-delta="5" data-product="${product.id}">+5</button>
-              </div>
+                <div class="inventory-inline-deltas">
+                  <button class="ghost-button compact-button" data-delta="-1" data-product="${product.id}">-1</button>
+                  <button class="ghost-button compact-button" data-delta="-5" data-product="${product.id}">-5</button>
+                  <button class="ghost-button compact-button" data-delta="1" data-product="${product.id}">+1</button>
+                  <button class="ghost-button compact-button" data-delta="5" data-product="${product.id}">+5</button>
+                </div>
+              ` : ""}
             </div>
           ` : ""}
         </article>
@@ -3440,6 +3607,7 @@ function renderAll() {
   renderMenu();
   renderViewSections();
   renderScreenHeader();
+  renderInventoryDirectEditAccess();
   renderSummary(state.summary);
   renderProductOptions();
   renderCustomerOptions();
@@ -3597,11 +3765,13 @@ async function checkoutActiveCart() {
   const shortages = getCartShortages(cart).filter((entry) => entry.shortage > 0);
   if (shortages.length) {
     const shortageNames = shortages.map((entry) => `${entry.product?.name || entry.item.productName} thiếu ${formatQuantity(entry.shortage)}`).join(", ");
-    const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng: ${shortageNames}.\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn.\nChọn Cancel để tạo phiếu nhập hàng dự kiến.`);
-    if (shouldAdjustStock) {
-      switchMenu("inventory");
-      prefillProduct(shortages[0].product?.id || shortages[0].item.productId);
-      throw new Error("Hãy điều chỉnh lại tồn kho rồi chốt đơn lại.");
+    if (state.admin?.authenticated) {
+      const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng: ${shortageNames}.\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel để tạo phiếu nhập hàng dự kiến.`);
+      if (shouldAdjustStock) {
+        switchMenu("inventory");
+        prefillProduct(shortages[0].product?.id || shortages[0].item.productId);
+        throw new Error("Hãy điều chỉnh lại tồn kho rồi chốt đơn lại.");
+      }
     }
 
     createPurchaseSuggestionFromCart(cart);
@@ -3741,6 +3911,7 @@ quickTransactionForm.addEventListener("click", async (event) => {
 });
 
 productGrid.addEventListener("click", async (event) => {
+  const isAdmin = Boolean(state.admin?.authenticated);
   const actionButton = event.target.closest("[data-product-action]");
   if (actionButton) {
     const productId = Number(actionButton.dataset.productId);
@@ -3751,6 +3922,10 @@ productGrid.addEventListener("click", async (event) => {
     }
 
     if (actionButton.dataset.productAction === "start-price-edit") {
+      if (!isAdmin) {
+        showToast("Chỉ Master Admin mới được chỉnh trực tiếp ở màn tồn kho.", true);
+        return;
+      }
       state.expandedProductId = productId;
       state.editingPriceId = productId;
       renderProducts();
@@ -3764,8 +3939,47 @@ productGrid.addEventListener("click", async (event) => {
     }
   }
 
+  const inventoryFlowButton = event.target.closest("[data-inventory-flow]");
+  if (inventoryFlowButton) {
+    try {
+      if (inventoryFlowButton.dataset.inventoryFlow === "out") {
+        startInventoryOutFlow(inventoryFlowButton.dataset.productId);
+        return;
+      }
+      if (inventoryFlowButton.dataset.inventoryFlow === "in") {
+        startInventoryInFlow(inventoryFlowButton.dataset.productId);
+        return;
+      }
+    } catch (error) {
+      showToast(error.message, true);
+      return;
+    }
+  }
+
+  const relatedCartButton = event.target.closest("[data-open-related-cart]");
+  if (relatedCartButton) {
+    setActiveCart(relatedCartButton.dataset.openRelatedCart);
+    switchMenu("create-order");
+    focusCreateOrderSelection();
+    showToast("Đã mở đơn chờ xuất.");
+    return;
+  }
+
+  const relatedPurchaseButton = event.target.closest("[data-open-related-purchase]");
+  if (relatedPurchaseButton) {
+    setActivePurchase(relatedPurchaseButton.dataset.openRelatedPurchase);
+    switchMenu("purchases");
+    focusPurchaseOrders();
+    showToast("Đã mở phiếu nhập chờ.");
+    return;
+  }
+
   const savePriceButton = event.target.closest("[data-save-price]");
   if (savePriceButton) {
+    if (!isAdmin) {
+      showToast("Chỉ Master Admin mới được chỉnh trực tiếp ở màn tồn kho.", true);
+      return;
+    }
     const productId = savePriceButton.dataset.savePrice;
     const input = productGrid.querySelector(`[data-price-input="${productId}"]`);
     if (!input || input.value === "") {
@@ -3783,6 +3997,10 @@ productGrid.addEventListener("click", async (event) => {
 
   const prefillButton = event.target.closest("[data-prefill]");
   if (prefillButton) {
+    if (!isAdmin) {
+      showToast("Chỉ Master Admin mới được chỉnh trực tiếp ở màn tồn kho.", true);
+      return;
+    }
     prefillProduct(prefillButton.dataset.prefill);
     return;
   }
@@ -3818,6 +4036,10 @@ productGrid.addEventListener("click", async (event) => {
 
   const quantityApplyButton = event.target.closest("[data-quantity-apply]");
   if (quantityApplyButton) {
+    if (!isAdmin) {
+      showToast("Chỉ Master Admin mới được chỉnh trực tiếp ở màn tồn kho.", true);
+      return;
+    }
     const productId = Number(quantityApplyButton.dataset.product);
     const input = productGrid.querySelector(`[data-quantity-input="${productId}"]`);
     const quantity = Number(input?.value);
@@ -3840,6 +4062,11 @@ productGrid.addEventListener("click", async (event) => {
     return;
   }
 
+  if (!isAdmin) {
+    showToast("Chỉ Master Admin mới được chỉnh trực tiếp ở màn tồn kho.", true);
+    return;
+  }
+
   const delta = Number(deltaButton.dataset.delta);
   const productId = Number(deltaButton.dataset.product);
   const transactionType = delta > 0 ? "in" : "out";
@@ -3853,7 +4080,12 @@ productGrid.addEventListener("click", async (event) => {
 });
 
 productGrid.addEventListener("keydown", async (event) => {
+  const isAdmin = Boolean(state.admin?.authenticated);
   if (event.key === "Enter" && event.target.matches("[data-quantity-input]")) {
+    if (!isAdmin) {
+      showToast("Chỉ Master Admin mới được chỉnh trực tiếp ở màn tồn kho.", true);
+      return;
+    }
     event.preventDefault();
     const productId = event.target.dataset.quantityInput;
     const applyButton = productGrid.querySelector(`[data-quantity-apply="in"][data-product="${productId}"]`);
@@ -3862,6 +4094,11 @@ productGrid.addEventListener("keydown", async (event) => {
   }
 
   if (event.key !== "Enter" || !event.target.matches("[data-price-input]")) {
+    return;
+  }
+
+  if (!isAdmin) {
+    showToast("Chỉ Master Admin mới được chỉnh trực tiếp ở màn tồn kho.", true);
     return;
   }
 

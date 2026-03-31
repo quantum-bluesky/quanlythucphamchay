@@ -1735,6 +1735,21 @@ button:disabled {
     gap: 6px;
   }
 
+  [data-menu-section="inventory"] .inventory-related-list {
+    display: grid;
+    gap: 6px;
+  }
+
+  [data-menu-section="inventory"] .inventory-related-list strong {
+    font-size: 0.88rem;
+  }
+
+  [data-menu-section="inventory"] .inventory-related-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
   [data-menu-section="inventory"] .inventory-inline-quantity {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
