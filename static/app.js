@@ -134,6 +134,7 @@ const purchaseNoteInput = document.getElementById("purchaseNoteInput");
 const createPurchaseDraftButton = document.getElementById("createPurchaseDraftButton");
 const togglePurchasePanelButton = document.getElementById("togglePurchasePanelButton");
 const purchasePanel = document.getElementById("purchasePanel");
+const purchaseSupplierMenuButton = document.querySelector('.purchases-panel [data-go-menu="suppliers"]');
 const purchaseSearchInput = document.getElementById("purchaseSearchInput");
 const purchaseSuggestionList = document.getElementById("purchaseSuggestionList");
 const purchaseOrderList = document.getElementById("purchaseOrderList");
@@ -1962,6 +1963,7 @@ function renderSupplierOptions() {
 }
 
 function renderProducts() {
+  const compact = mobileQuery.matches;
   const filtered = state.products.filter((product) => {
     const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
     return text.includes(state.searchTerm.toLowerCase());
@@ -1994,8 +1996,8 @@ function renderProducts() {
           </div>
 
           <div class="product-row-meta">
-            <span>Giá nhập ${formatCurrency(product.price)}</span>
-            <span>Giá trị tồn ${formatCurrency(product.inventory_value)}</span>
+            <span>Giá ${formatCurrency(product.price)}</span>
+            ${compact ? "" : `<span>Giá trị tồn ${formatCurrency(product.inventory_value)}</span>`}
             <span class="status-pill ${product.is_low_stock ? "cancelled" : "draft"}">${product.is_low_stock ? "Sắp hết" : "Ổn"}</span>
           </div>
 
@@ -2004,9 +2006,9 @@ function renderProducts() {
               ${isExpanded ? "Thu gọn" : "Mở"}
             </button>
             <button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">
-              ${isEditingPrice ? "Hủy sửa giá" : "Sửa giá"}
+              ${isEditingPrice ? "Hủy giá" : "Giá"}
             </button>
-            <button type="button" class="ghost-button compact-button" data-prefill="${product.id}">Nhập / xuất</button>
+            <button type="button" class="ghost-button compact-button" data-prefill="${product.id}">${compact ? "Kho" : "Nhập / xuất"}</button>
           </div>
 
           ${isExpanded || isEditingPrice ? `
@@ -2065,6 +2067,7 @@ function renderTransactions() {
 }
 
 function renderActiveCartPanel() {
+  const compact = mobileQuery.matches;
   const cart = getActiveCart();
   if (!cart) {
     activeCartPanel.innerHTML = '<div class="empty-state">Chưa có giỏ hàng nào đang mở.</div>';
@@ -2115,10 +2118,10 @@ function renderActiveCartPanel() {
         </div>
       </div>
       <div class="cart-toolbar">
-        <button type="button" class="ghost-button" data-cart-action="print">In / gửi khách</button>
-        <button type="button" class="primary-button" data-cart-action="checkout" ${cart.itemCount ? "" : "disabled"}>Chốt xuất kho</button>
-        <button type="button" class="secondary-button" data-cart-action="cancel">Hủy giỏ</button>
-        <button type="button" class="danger-button" data-cart-action="delete">Xóa giỏ</button>
+        <button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In / gửi khách"}</button>
+        <button type="button" class="primary-button" data-cart-action="checkout" ${cart.itemCount ? "" : "disabled"}>${compact ? "Xuất" : "Chốt xuất kho"}</button>
+        <button type="button" class="secondary-button" data-cart-action="cancel">${compact ? "Hủy" : "Hủy giỏ"}</button>
+        <button type="button" class="danger-button" data-cart-action="delete">${compact ? "Xóa" : "Xóa giỏ"}</button>
       </div>
     </article>
   `;
@@ -2212,6 +2215,7 @@ function renderCartItems() {
 }
 
 function renderCartQueue() {
+  const compact = mobileQuery.matches;
   const drafts = state.carts.filter((cart) => cart.status === "draft");
   const archived = state.carts.filter((cart) => {
     if (cart.status === "draft") {
@@ -2255,15 +2259,17 @@ function renderCartQueue() {
             <span>${escapeHtml(cart.orderCode || `Cập nhật ${formatDate(cart.updatedAt)}`)}</span>
             <span>${escapeHtml(formatCurrency(cart.totalAmount))}</span>
           </div>
-          <div class="queue-meta">
-            <span>${escapeHtml(cart.itemCount)} dòng | ${escapeHtml(formatQuantity(cart.totalQuantity))} số lượng | ${cart.paymentStatus === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}</span>
-            <span>${escapeHtml(formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt))}</span>
-          </div>
-          <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
+          ${compact ? "" : `
+            <div class="queue-meta">
+              <span>${escapeHtml(cart.itemCount)} dòng | ${escapeHtml(formatQuantity(cart.totalQuantity))} số lượng | ${cart.paymentStatus === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}</span>
+              <span>${escapeHtml(formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt))}</span>
+            </div>
+            <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
+          `}
           <div class="queue-actions">
-            ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="open" data-cart-id="${cart.id}">Tiếp tục bán</button>` : ""}
+            ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục bán"}</button>` : ""}
             <button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>
-            ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
+            ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">${compact ? "TT" : "Đã thanh toán"}</button>` : ""}
             ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
             <button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>
           </div>
@@ -2274,6 +2280,7 @@ function renderCartQueue() {
 }
 
 function renderCustomers() {
+  const compact = mobileQuery.matches;
   const filtered = getActiveCustomers().filter((customer) =>
     `${customer.name} ${customer.phone} ${customer.address} ${customer.zaloUrl}`
       .toLowerCase()
@@ -2298,19 +2305,19 @@ function renderCustomers() {
             <strong>${escapeHtml(customer.name)}</strong>
             <span class="status-pill draft">${draftCount} giỏ chờ</span>
           </div>
-          <div class="customer-meta">
-            <span>${escapeHtml(completedCount)} đơn đã xong</span>
-            <span>Cập nhật ${escapeHtml(formatDate(customer.updatedAt))}</span>
-          </div>
+          ${compact ? "" : `
+            <div class="customer-meta">
+              <span>${escapeHtml(completedCount)} đơn đã xong</span>
+              <span>Cập nhật ${escapeHtml(formatDate(customer.updatedAt))}</span>
+            </div>
+          `}
           <div class="customer-meta">
             <span>${escapeHtml(customer.phone || "Chưa có số liên lạc")}</span>
-            <span>${escapeHtml(customer.address || "Chưa có địa chỉ")}</span>
+            ${compact ? "" : `<span>${escapeHtml(customer.address || "Chưa có địa chỉ")}</span>`}
           </div>
-          <div class="customer-meta">
-            <span>${escapeHtml(customer.zaloUrl || "Chưa có link Zalo")}</span>
-          </div>
+          ${compact ? "" : `<div class="customer-meta"><span>${escapeHtml(customer.zaloUrl || "Chưa có link Zalo")}</span></div>`}
           <div class="customer-actions">
-            <button type="button" class="ghost-button compact-button" data-customer-action="open-cart" data-customer-id="${customer.id}">Mở giỏ</button>
+            <button type="button" class="ghost-button compact-button" data-customer-action="open-cart" data-customer-id="${customer.id}">${compact ? "Mở" : "Mở giỏ"}</button>
             <button type="button" class="ghost-button compact-button" data-customer-action="edit" data-customer-id="${customer.id}">Sửa</button>
             <button type="button" class="danger-button compact-button" data-customer-action="delete" data-customer-id="${customer.id}">Xóa</button>
           </div>
@@ -2321,6 +2328,7 @@ function renderCustomers() {
 }
 
 function renderProductManageList() {
+  const compact = mobileQuery.matches;
   const filtered = state.products.filter((product) => {
     const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
     return text.includes(state.productManageSearchTerm.toLowerCase());
@@ -2352,10 +2360,10 @@ function renderProductManageList() {
             <span>Giá ${formatCurrency(product.price)}</span>
             <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
           </div>
-          <div class="cart-line-note">${product.current_stock > 0 ? `Chỉ xóa được khi tồn kho = 0. Hiện còn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}.` : "Có thể đưa vào danh mục đã xóa vì tồn kho đang bằng 0."}</div>
+          <div class="cart-line-note">${product.current_stock > 0 ? `Còn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}.` : "Có thể ngừng bán."}</div>
           <div class="row-actions">
             <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy sửa" : "Sửa"}</button>
-            <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>Ngừng bán / Xóa</button>
+            <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>${compact ? "Xóa" : "Ngừng bán / Xóa"}</button>
           </div>
           ${isEditing ? `
             <div class="product-row-body">
@@ -2376,15 +2384,18 @@ function renderProductManageList() {
 }
 
 function renderPurchasePanel() {
-  togglePurchasePanelButton.textContent = state.purchasePanelCollapsed ? "Mở phiếu nhập" : "Thu gọn phiếu nhập";
+  createPurchaseDraftButton.textContent = mobileQuery.matches ? "Tạo phiếu" : "Tạo phiếu nháp";
+  if (purchaseSupplierMenuButton) {
+    purchaseSupplierMenuButton.textContent = mobileQuery.matches ? "NCC" : "Nhà cung cấp";
+  }
+  togglePurchasePanelButton.textContent = mobileQuery.matches
+    ? (state.purchasePanelCollapsed ? "Mở phiếu" : "Thu gọn")
+    : (state.purchasePanelCollapsed ? "Mở phiếu nhập" : "Thu gọn phiếu nhập");
   const purchase = getActivePurchase();
   if (state.purchasePanelCollapsed) {
     purchasePanel.innerHTML = `
       <article class="empty-state">
         Phiếu nhập đang được thu gọn.
-        <div class="row-actions">
-          <button type="button" class="ghost-button compact-button" data-purchase-panel-action="open">Mở lại phiếu nhập</button>
-        </div>
       </article>
     `;
     return;
@@ -2451,7 +2462,6 @@ function renderPurchasePanel() {
         <button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>
         <button type="button" class="ghost-button" data-purchase-action="mark-paid">Đã thanh toán</button>
         <button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>
-        <button type="button" class="secondary-button" data-purchase-action="collapse">Thu gọn</button>
         <button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>
       </div>
     </article>
@@ -2479,10 +2489,10 @@ function renderPurchaseSuggestions() {
             <strong>${escapeHtml(entry.product.name)}</strong>
             <div class="sales-product-meta">Tồn ${formatQuantity(entry.product.current_stock)} ${escapeHtml(entry.product.unit)} | Cần cho đơn ${formatQuantity(entry.demand)}</div>
           </div>
-          <span class="status-pill cancelled">Đề xuất ${formatQuantity(entry.suggestedQuantity || entry.shortageFromOrders || 1)}</span>
         </div>
-        <div class="queue-actions">
-          <button type="button" class="ghost-button compact-button" data-purchase-suggestion-action="add" data-product-id="${entry.product.id}" data-quantity="${entry.suggestedQuantity || entry.shortageFromOrders || 1}">Thêm vào phiếu nhập</button>
+        <div class="queue-actions purchase-suggestion-actions">
+          <span class="status-pill cancelled compact-pill">Đề xuất ${formatQuantity(entry.suggestedQuantity || entry.shortageFromOrders || 1)}</span>
+          <button type="button" class="ghost-button compact-button" data-purchase-suggestion-action="add" data-product-id="${entry.product.id}" data-quantity="${entry.suggestedQuantity || entry.shortageFromOrders || 1}">+ Phiếu</button>
         </div>
       </article>
     `)
@@ -2518,6 +2528,7 @@ function renderPurchaseOrders() {
 }
 
 function renderSuppliers() {
+  const compact = mobileQuery.matches;
   const filtered = getActiveSuppliers().filter((supplier) =>
     `${supplier.name} ${supplier.phone} ${supplier.address} ${supplier.note}`
       .toLowerCase()
@@ -2540,13 +2551,11 @@ function renderSuppliers() {
         </div>
         <div class="customer-meta">
           <span>${escapeHtml(supplier.phone || "Chưa có số liên lạc")}</span>
-          <span>${escapeHtml(supplier.address || "Chưa có địa chỉ")}</span>
+          ${compact ? "" : `<span>${escapeHtml(supplier.address || "Chưa có địa chỉ")}</span>`}
         </div>
-        <div class="customer-meta">
-          <span>${escapeHtml(supplier.note || "Chưa có ghi chú")}</span>
-        </div>
+        ${compact ? "" : `<div class="customer-meta"><span>${escapeHtml(supplier.note || "Chưa có ghi chú")}</span></div>`}
         <div class="customer-actions">
-          <button type="button" class="ghost-button compact-button" data-supplier-action="use" data-supplier-id="${supplier.id}">Dùng cho phiếu nhập</button>
+          <button type="button" class="ghost-button compact-button" data-supplier-action="use" data-supplier-id="${supplier.id}">${compact ? "Dùng" : "Dùng cho phiếu nhập"}</button>
           <button type="button" class="ghost-button compact-button" data-supplier-action="edit" data-supplier-id="${supplier.id}">Sửa</button>
           <button type="button" class="danger-button compact-button" data-supplier-action="delete" data-supplier-id="${supplier.id}">Xóa</button>
         </div>

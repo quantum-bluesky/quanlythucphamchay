@@ -521,6 +521,15 @@ button:disabled {
   box-shadow: none;
 }
 
+.compact-pill {
+  padding: 4px 10px;
+  min-height: 30px;
+}
+
+.purchase-suggestion-actions {
+  align-items: center;
+}
+
 .wide-button {
   width: 100%;
 }
@@ -1053,13 +1062,20 @@ button:disabled {
   }
 
   .action-row,
+  .sales-customer-single,
+  .menu-grid {
+    grid-template-columns: 1fr;
+  }
+
   .cart-toolbar,
   .row-actions,
   .customer-actions,
   .line-actions,
-  .sales-customer-single,
-  .menu-grid {
-    grid-template-columns: 1fr;
+  .queue-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-start;
   }
 
   .menu-panel-head,
@@ -1143,9 +1159,29 @@ button:disabled {
   .danger-button.compact-button,
   .primary-button.compact-button,
   .secondary-button.compact-button {
-    min-height: 34px;
-    padding: 0 10px;
-    font-size: 0.82rem;
+    min-height: 30px;
+    padding: 0 9px;
+  }
+
+  .cart-toolbar button,
+  .queue-actions button,
+  .customer-actions button,
+  .row-actions button,
+  .line-actions button {
+    min-height: 30px;
+    padding: 0 9px;
+  }
+
+  .purchases-panel .inline-menu-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    align-items: center;
+  }
+
+  .purchases-panel .inline-menu-actions .compact-button {
+    min-width: 0;
+    white-space: nowrap;
   }
 
   .product-list.is-compact-search,
@@ -1183,7 +1219,19 @@ button:disabled {
   .product-list.is-compact-search .row-actions,
   .customer-list.is-compact-search .customer-actions,
   .cart-queue-list.is-compact-search .queue-actions {
-    gap: 6px;
+    gap: 4px;
+  }
+
+  .purchase-suggestion-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .purchase-suggestion-actions .status-pill,
+  .purchase-suggestion-actions .compact-button {
+    min-height: 28px;
   }
 
   .pagination-bar.is-search-pagination {
