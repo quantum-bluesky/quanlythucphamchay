@@ -379,8 +379,8 @@ const SCREEN_META = {
 
 const FLOATING_SEARCH_CONFIG = {
   inventory: {
-    sourceId: "productLookupInput",
-    placeholder: "Tìm sản phẩm để nhập / xuất nhanh",
+    sourceId: "searchInput",
+    placeholder: "Tìm mặt hàng tồn kho",
   },
   "create-order": {
     sourceId: "salesSearchInput",
@@ -1922,6 +1922,7 @@ function renderSummary(summary) {
     summaryCards.innerHTML = "";
     return;
   }
+  const compact = mobileQuery.matches;
 
   const cards = [
     {
@@ -1952,7 +1953,7 @@ function renderSummary(summary) {
         <article class="summary-card">
           <span>${escapeHtml(card.label)}</span>
           <strong>${escapeHtml(card.value)}</strong>
-          <p class="panel-note">${escapeHtml(card.hint)}</p>
+          ${compact ? "" : `<p class="panel-note">${escapeHtml(card.hint)}</p>`}
         </article>
       `
     )
@@ -2002,7 +2003,7 @@ function renderProducts() {
               <div class="product-row-name">${escapeHtml(product.name)}</div>
               <div class="product-row-meta">
                 <span>${escapeHtml(product.category)}</span>
-                <span>${escapeHtml(product.unit)}</span>
+                ${compact ? "" : `<span>${escapeHtml(product.unit)}</span>`}
               </div>
             </div>
             <div class="product-row-stock">

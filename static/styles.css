@@ -1006,11 +1006,21 @@ button:disabled {
   }
 
   .quick-panel.is-collapsed {
-    padding-bottom: 16px;
+    padding-bottom: 12px;
   }
 
   .quick-panel.is-collapsed .panel-heading {
     margin-bottom: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .quick-panel.is-collapsed .panel-heading .panel-note {
+    display: none;
+  }
+
+  .quick-panel.is-collapsed .panel-heading h2 {
+    font-size: 1rem;
   }
 
   .quick-panel.is-collapsed .quick-panel-body {
@@ -1055,6 +1065,25 @@ button:disabled {
   .pagination-bar {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary-card {
+    padding: 10px 12px;
+  }
+
+  .summary-card strong {
+    margin-top: 2px;
+    font-size: 1.15rem;
+  }
+
+  .pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .search-box {
