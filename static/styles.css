@@ -1538,6 +1538,69 @@ button:disabled {
     font-size: 0.84rem;
   }
 
+  [data-menu-section="purchases"] .panel-heading .panel-note {
+    display: none;
+  }
+
+  [data-menu-section="purchases"] .purchases-panel,
+  [data-menu-section="purchases"] .sales-card {
+    overflow: visible;
+  }
+
+  [data-menu-section="purchases"] .sales-customer-card {
+    padding: 14px;
+  }
+
+  [data-menu-section="purchases"] .inline-menu-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  [data-menu-section="purchases"] .purchase-shortcut-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 8px;
+  }
+
+  [data-menu-section="purchases"].has-active-purchase .purchases-panel > .panel-heading {
+    display: none;
+  }
+
+  [data-menu-section="purchases"].has-active-purchase .sales-customer-card {
+    padding: 10px 12px;
+  }
+
+  [data-menu-section="purchases"].has-active-purchase .sales-customer-card .sales-customer-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  [data-menu-section="purchases"].has-active-purchase .sales-customer-card label span,
+  [data-menu-section="purchases"].has-active-purchase .sales-customer-card label:last-child,
+  [data-menu-section="purchases"].has-active-purchase .sales-customer-card .panel-note {
+    display: none;
+  }
+
+  [data-menu-section="purchases"].has-active-purchase .sales-customer-card input {
+    min-height: 36px;
+    padding: 6px 12px;
+  }
+
+  [data-menu-section="purchases"] .active-cart-panel .empty-state {
+    padding: 12px;
+    font-size: 0.9rem;
+  }
+
+  [data-menu-section="purchases"] .purchase-suggestion-actions {
+    margin-top: 6px;
+  }
+
+  [data-menu-section="purchases"] .cart-queue-item {
+    gap: 8px;
+    padding: 12px;
+  }
+
   .product-list.is-compact-search,
   .sales-product-list.is-compact-search,
   .cart-queue-list.is-compact-search,

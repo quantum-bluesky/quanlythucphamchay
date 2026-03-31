@@ -140,6 +140,11 @@ const purchaseSupplierMenuButton = document.querySelector('.purchases-panel [dat
 const purchaseSearchInput = document.getElementById("purchaseSearchInput");
 const purchaseSuggestionList = document.getElementById("purchaseSuggestionList");
 const purchaseOrderList = document.getElementById("purchaseOrderList");
+const purchasesSection = document.querySelector('[data-menu-section="purchases"]');
+const purchasesPanel = purchasesSection?.querySelector(".purchases-panel") || null;
+const purchaseCustomerCard = purchasesSection?.querySelector(".sales-customer-card") || null;
+const purchaseSuggestionToolbar = purchaseSearchInput?.closest(".sticky-toolbar") || null;
+const purchaseOrdersCard = purchaseOrderList?.closest(".sales-card") || null;
 const showPaidPurchases = document.getElementById("showPaidPurchases");
 const supplierOptions = document.getElementById("supplierOptions");
 const supplierForm = document.getElementById("supplierForm");
@@ -272,6 +277,42 @@ function focusCreateOrderSelection() {
       salesSearchInput?.focus();
       salesSearchInput?.select();
     }
+  }, 40);
+}
+
+function renderPurchaseEntryState() {
+  const activePurchase = getActivePurchase();
+  const compactActive = mobileQuery.matches && Boolean(activePurchase);
+  purchasesSection?.classList.toggle("has-active-purchase", compactActive);
+  purchaseCustomerCard?.classList.toggle("is-compact-active", compactActive);
+  if (createPurchaseDraftButton) {
+    createPurchaseDraftButton.textContent = compactActive
+      ? "Đổi phiếu"
+      : (mobileQuery.matches ? "Tạo phiếu" : "Tạo phiếu nháp");
+  }
+}
+
+function focusPurchaseSuggestions() {
+  if (state.activeMenu !== "purchases") {
+    switchMenu("purchases");
+  }
+  window.setTimeout(() => {
+    purchaseSuggestionToolbar?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (mobileQuery.matches) {
+      setFloatingSearchExpanded(true, { focus: true });
+    } else {
+      purchaseSearchInput?.focus();
+      purchaseSearchInput?.select();
+    }
+  }, 40);
+}
+
+function focusPurchaseOrders() {
+  if (state.activeMenu !== "purchases") {
+    switchMenu("purchases");
+  }
+  window.setTimeout(() => {
+    purchaseOrdersCard?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, 40);
 }
 
@@ -3127,6 +3168,7 @@ function renderAll() {
   renderReports();
   renderAdminSection();
   renderCreateOrderEntryState();
+  renderPurchaseEntryState();
   renderScreenToolbox();
   renderFloatingSearchDock();
   refreshSearchClearButtons();
@@ -4053,6 +4095,7 @@ supplierFormCancelButton.addEventListener("click", () => {
 createPurchaseDraftButton.addEventListener("click", () => {
   createPurchaseDraftIfMissing();
   saveAndRenderAll(["purchases"]);
+  focusPurchaseSuggestions();
   showToast("Đã tạo phiếu nhập nháp.");
 });
 
@@ -4171,6 +4214,8 @@ purchaseSuggestionList.addEventListener("click", (event) => {
 
   try {
     addSuggestionToPurchase(button.dataset.productId, button.dataset.quantity, getProductById(button.dataset.productId)?.price || 0);
+    state.purchasePanelCollapsed = mobileQuery.matches;
+    renderPurchasePanel();
     showToast("Đã thêm vào phiếu nhập.");
   } catch (error) {
     showToast(error.message, true);
@@ -4188,6 +4233,7 @@ purchasePanel.addEventListener("click", async (event) => {
     if (panelButton.dataset.purchasePanelAction === "create") {
       createPurchaseDraftIfMissing();
       saveAndRenderAll(["purchases"]);
+      focusPurchaseSuggestions();
       return;
     }
   }
@@ -4367,6 +4413,22 @@ purchaseOrderList.addEventListener("click", (event) => {
     state.activePurchaseId = button.dataset.purchaseId;
     state.purchasePanelCollapsed = false;
     saveAndRenderAll();
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const shortcutButton = event.target.closest("[data-purchase-shortcut]");
+  if (!shortcutButton) {
+    return;
+  }
+
+  if (shortcutButton.dataset.purchaseShortcut === "orders") {
+    focusPurchaseOrders();
+    return;
+  }
+
+  if (shortcutButton.dataset.purchaseShortcut === "suggestions") {
+    focusPurchaseSuggestions();
   }
 });
 
