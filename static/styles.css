@@ -916,6 +916,11 @@ button:disabled {
   margin-top: 0;
 }
 
+.inventory-top-pagination .pagination-bar,
+.inventory-bottom-pagination .pagination-bar {
+  margin-top: 0;
+}
+
 .product-collapse-card.is-collapsed .product-collapse-body {
   display: none;
 }
@@ -1666,6 +1671,25 @@ button:disabled {
     padding: 12px;
   }
 
+  [data-menu-section="inventory"] .inventory-top-pagination {
+    position: sticky;
+    top: 148px;
+    z-index: 24;
+    padding: 4px 0 8px;
+    background: linear-gradient(180deg, rgba(246, 243, 234, 0.98) 0%, rgba(246, 243, 234, 0.82) 70%, rgba(246, 243, 234, 0) 100%);
+  }
+
+  [data-menu-section="inventory"] .inventory-top-pagination .pagination-bar {
+    padding: 8px 10px;
+    border-style: solid;
+    border-radius: 14px;
+    background: rgba(255, 252, 246, 0.96);
+  }
+
+  [data-menu-section="inventory"] .inventory-bottom-pagination {
+    display: none;
+  }
+
   [data-menu-section="inventory"] .inventory-product-compact {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -1705,11 +1729,56 @@ button:disabled {
     padding-top: 6px;
   }
 
+  [data-menu-section="inventory"] .inventory-inline-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  [data-menu-section="inventory"] .inventory-inline-quantity {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 6px;
+    align-items: center;
+  }
+
+  [data-menu-section="inventory"] .inventory-inline-quantity input {
+    min-height: 34px;
+    padding: 6px 10px;
+  }
+
+  [data-menu-section="inventory"] .inventory-inline-deltas {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  [data-menu-section="inventory"] .inventory-inline-deltas .compact-button {
+    min-width: 0;
+  }
+
   [data-menu-section="inventory"] .product-row-stock {
     font-size: 0.96rem;
   }
 
   [data-menu-section="inventory"] .product-row-meta {
+    font-size: 0.84rem;
+  }
+
+  [data-menu-section="inventory"] .transaction-item {
+    gap: 6px;
+    padding: 12px;
+  }
+
+  [data-menu-section="inventory"] .transaction-item .top-line,
+  [data-menu-section="inventory"] .transaction-item .bottom-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  [data-menu-section="inventory"] .transaction-item .bottom-line {
     font-size: 0.84rem;
   }
 

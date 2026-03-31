@@ -1916,6 +1916,30 @@ function getIncomingPurchaseByProductId() {
   return incoming;
 }
 
+function getDraftCartCountByProductId() {
+  const counts = new Map();
+  state.carts
+    .filter((cart) => cart.status === "draft")
+    .forEach((cart) => {
+      cart.items.forEach((item) => {
+        counts.set(item.productId, (counts.get(item.productId) || 0) + 1);
+      });
+    });
+  return counts;
+}
+
+function getOpenPurchaseCountByProductId() {
+  const counts = new Map();
+  state.purchases
+    .filter((purchase) => ["draft", "ordered"].includes(purchase.status))
+    .forEach((purchase) => {
+      purchase.items.forEach((item) => {
+        counts.set(item.productId, (counts.get(item.productId) || 0) + 1);
+      });
+    });
+  return counts;
+}
+
 function getInventoryProductSignals(product, draftDemandMap, incomingMap) {
   const currentStock = Number(product.current_stock || 0);
   const pendingDemand = Number(draftDemandMap.get(product.id) || 0);
@@ -2294,7 +2318,9 @@ function renderSupplierOptions() {
 function renderProducts() {
   const compact = mobileQuery.matches;
   const draftDemandMap = getDraftDemandByProductId();
+  const draftCountMap = getDraftCartCountByProductId();
   const incomingMap = getIncomingPurchaseByProductId();
+  const incomingCountMap = getOpenPurchaseCountByProductId();
   const filtered = state.products.filter((product) => {
     const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
     return text.includes(state.searchTerm.toLowerCase());
@@ -2307,11 +2333,21 @@ function renderProducts() {
   }
 
   const pageData = paginateItems(filtered, "inventory");
-  productGrid.innerHTML = pageData.items
+  const paginationMarkup = renderPagination("inventory", pageData);
+  const topPagination = paginationMarkup
+    ? `<div class="inventory-top-pagination">${paginationMarkup}</div>`
+    : "";
+  const bottomPagination = paginationMarkup
+    ? `<div class="inventory-bottom-pagination">${paginationMarkup}</div>`
+    : "";
+
+  productGrid.innerHTML = topPagination + pageData.items
     .map((product) => {
       const isExpanded = state.expandedProductId === product.id;
       const isEditingPrice = state.editingPriceId === product.id;
       const signals = getInventoryProductSignals(product, draftDemandMap, incomingMap);
+      const draftCount = Number(draftCountMap.get(product.id) || 0);
+      const incomingCount = Number(incomingCountMap.get(product.id) || 0);
       const compactLayout = compact
         ? `
           <div class="inventory-product-compact">
@@ -2380,6 +2416,11 @@ function renderProducts() {
                 <span class="pill ${signals.statusClass === "cancelled" ? "warning" : ""}">${escapeHtml(signals.statusLabel === "Ổn" ? "Tồn an toàn" : signals.statusLabel)}</span>
               </div>
 
+              <div class="inventory-inline-links">
+                ${draftCount ? `<button type="button" class="ghost-button compact-button" data-inventory-link="orders" data-product-id="${product.id}">Đơn chờ xuất ${draftCount}</button>` : ""}
+                ${incomingCount ? `<button type="button" class="ghost-button compact-button" data-inventory-link="purchases" data-product-id="${product.id}">Đơn chờ nhập ${incomingCount}</button>` : ""}
+              </div>
+
               ${isEditingPrice ? `
                 <div class="inline-price-edit">
                   <input type="number" min="0" step="1000" value="${product.price}" data-price-input="${product.id}">
@@ -2388,7 +2429,13 @@ function renderProducts() {
                 </div>
               ` : ""}
 
-              <div class="action-row">
+              <div class="inventory-inline-quantity">
+                <input type="number" min="0.01" step="0.01" placeholder="Nhập số lượng..." data-quantity-input="${product.id}">
+                <button type="button" class="ghost-button compact-button" data-quantity-apply="out" data-product="${product.id}">Xuất</button>
+                <button type="button" class="ghost-button compact-button" data-quantity-apply="in" data-product="${product.id}">Nhập</button>
+              </div>
+
+              <div class="inventory-inline-deltas">
                 <button class="ghost-button compact-button" data-delta="-1" data-product="${product.id}">-1</button>
                 <button class="ghost-button compact-button" data-delta="-5" data-product="${product.id}">-5</button>
                 <button class="ghost-button compact-button" data-delta="1" data-product="${product.id}">+1</button>
@@ -2399,7 +2446,7 @@ function renderProducts() {
         </article>
       `;
     })
-    .join("") + renderPagination("inventory", pageData);
+    .join("") + bottomPagination;
 }
 
 function renderTransactions() {
@@ -2986,7 +3033,15 @@ function renderPurchaseSuggestions() {
 }
 
 function renderPurchaseOrders() {
-  const visiblePurchases = state.purchases.filter((purchase) => state.showPaidPurchases || purchase.status !== "paid");
+  const visiblePurchases = state.purchases
+    .filter((purchase) => state.showPaidPurchases || purchase.status !== "paid")
+    .filter((purchase) => {
+      if (!state.purchaseSearchTerm) {
+        return true;
+      }
+      const haystack = `${purchase.supplierName} ${purchase.receiptCode} ${purchase.items.map((item) => item.productName).join(" ")}`.toLowerCase();
+      return haystack.includes(state.purchaseSearchTerm.toLowerCase());
+    });
   purchaseOrderList.classList.toggle("is-compact-search", isSearchResultMode("purchaseOrders"));
   if (!visiblePurchases.length) {
     purchaseOrderList.innerHTML = '<div class="empty-state">Chưa có phiếu nhập nào.</div>';
@@ -3732,6 +3787,54 @@ productGrid.addEventListener("click", async (event) => {
     return;
   }
 
+  const inventoryLinkButton = event.target.closest("[data-inventory-link]");
+  if (inventoryLinkButton) {
+    const product = getProductById(inventoryLinkButton.dataset.productId);
+    if (!product) {
+      showToast("Không tìm thấy sản phẩm.", true);
+      return;
+    }
+
+    if (inventoryLinkButton.dataset.inventoryLink === "orders") {
+      state.orderSearchTerm = product.name;
+      orderSearchInput.value = product.name;
+      state.pagination.orders = 1;
+      switchMenu("orders");
+      renderCartQueue();
+      return;
+    }
+
+    if (inventoryLinkButton.dataset.inventoryLink === "purchases") {
+      state.purchaseSearchTerm = product.name;
+      purchaseSearchInput.value = product.name;
+      state.pagination.purchaseSuggestions = 1;
+      state.pagination.purchaseOrders = 1;
+      switchMenu("purchases");
+      renderPurchaseSuggestions();
+      renderPurchaseOrders();
+      return;
+    }
+  }
+
+  const quantityApplyButton = event.target.closest("[data-quantity-apply]");
+  if (quantityApplyButton) {
+    const productId = Number(quantityApplyButton.dataset.product);
+    const input = productGrid.querySelector(`[data-quantity-input="${productId}"]`);
+    const quantity = Number(input?.value);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      showToast("Hãy nhập số lượng hợp lệ.", true);
+      return;
+    }
+
+    try {
+      const product = getProductById(productId);
+      await submitTransaction(quantityApplyButton.dataset.quantityApply, product?.name || "", quantity, "Cập nhật trực tiếp");
+    } catch (error) {
+      showToast(error.message, true);
+    }
+    return;
+  }
+
   const deltaButton = event.target.closest("[data-delta]");
   if (!deltaButton) {
     return;
@@ -3750,6 +3853,14 @@ productGrid.addEventListener("click", async (event) => {
 });
 
 productGrid.addEventListener("keydown", async (event) => {
+  if (event.key === "Enter" && event.target.matches("[data-quantity-input]")) {
+    event.preventDefault();
+    const productId = event.target.dataset.quantityInput;
+    const applyButton = productGrid.querySelector(`[data-quantity-apply="in"][data-product="${productId}"]`);
+    applyButton?.click();
+    return;
+  }
+
   if (event.key !== "Enter" || !event.target.matches("[data-price-input]")) {
     return;
   }
