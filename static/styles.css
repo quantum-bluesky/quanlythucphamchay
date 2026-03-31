@@ -920,6 +920,10 @@ button:disabled {
   display: none;
 }
 
+.report-collapse-card.is-collapsed .report-collapse-body {
+  display: none;
+}
+
 .toggle-inline {
   display: inline-flex;
   align-items: center;
@@ -969,6 +973,10 @@ button:disabled {
 
 .report-summary-grid {
   margin-bottom: 20px;
+}
+
+.report-shortcut-actions {
+  margin-bottom: 14px;
 }
 
 .reports-filter-grid,
@@ -1777,6 +1785,100 @@ button:disabled {
 
   [data-menu-section="products"] .report-card {
     padding: 12px;
+  }
+
+  [data-menu-section="reports"] .panel-heading .panel-note {
+    display: none;
+  }
+
+  [data-menu-section="reports"] .reports-panel,
+  [data-menu-section="reports"] .sales-card {
+    overflow: visible;
+  }
+
+  [data-menu-section="reports"] .report-collapse-card {
+    padding: 14px;
+  }
+
+  [data-menu-section="reports"] .report-collapse-card .subheading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  [data-menu-section="reports"] .report-collapse-card.is-collapsed {
+    padding-bottom: 14px;
+  }
+
+  [data-menu-section="reports"] .reports-toolbar {
+    position: static;
+    top: auto;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  [data-menu-section="reports"] .reports-filter-grid {
+    gap: 10px;
+  }
+
+  [data-menu-section="reports"] .reports-filter-grid label {
+    gap: 6px;
+  }
+
+  [data-menu-section="reports"] .reports-filter-grid input,
+  [data-menu-section="reports"] .reports-filter-grid select {
+    min-height: 38px;
+    padding: 6px 12px;
+  }
+
+  [data-menu-section="reports"] .reports-filter-actions {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  [data-menu-section="reports"] .report-shortcut-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  [data-menu-section="reports"] .report-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  [data-menu-section="reports"] .report-summary-grid .summary-card {
+    padding: 10px 12px;
+  }
+
+  [data-menu-section="reports"] .report-summary-grid .summary-card .panel-note {
+    display: none;
+  }
+
+  [data-menu-section="reports"] .report-summary-grid .summary-card strong {
+    font-size: 1.05rem;
+  }
+
+  [data-menu-section="reports"] .report-columns {
+    gap: 14px;
+  }
+
+  [data-menu-section="reports"] .report-card {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  [data-menu-section="reports"] .report-card-meta,
+  [data-menu-section="reports"] .report-card-row,
+  [data-menu-section="reports"] .report-metric-row {
+    font-size: 0.84rem;
+  }
+
+  [data-menu-section="reports"] .report-card strong {
+    font-size: 0.96rem;
   }
 
   .product-list.is-compact-search,

@@ -425,39 +425,56 @@
           <p class="panel-note">Xem xu hướng theo tháng, kiểm tra sản phẩm biến động mạnh và danh sách cần nhập thêm.</p>
         </div>
 
-        <div class="sticky-toolbar reports-toolbar">
-          <div class="reports-filter-grid">
-            <label>
-              <span>Tháng xem chính</span>
-              <input id="reportMonthInput" type="month">
-            </label>
-            <label>
-              <span>Từ ngày</span>
-              <input id="reportStartDateInput" type="date">
-            </label>
-            <label>
-              <span>Đến ngày</span>
-              <input id="reportEndDateInput" type="date">
-            </label>
-            <label>
-              <span>Số tháng gần nhất</span>
-              <select id="reportRangeSelect">
-                <option value="3">3 tháng</option>
-                <option value="6" selected>6 tháng</option>
-                <option value="12">12 tháng</option>
-              </select>
-            </label>
-            <div class="reports-filter-actions">
-              <button type="button" id="refreshReportsButton" class="ghost-button compact-button">Làm mới báo cáo</button>
-              <button type="button" id="clearReportDateFilterButton" class="ghost-button compact-button">Bỏ lọc ngày</button>
+        <section id="reportFiltersSection" class="sales-card report-collapse-card">
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Bộ lọc báo cáo</p>
+              <h3>Mốc thời gian và phạm vi xem</h3>
+            </div>
+            <button type="button" id="reportFiltersToggleButton" class="ghost-button compact-button">Mở bộ lọc</button>
+          </div>
+          <div id="reportFiltersWrap" class="report-collapse-body">
+            <div class="sticky-toolbar reports-toolbar">
+              <div class="reports-filter-grid">
+                <label>
+                  <span>Tháng xem chính</span>
+                  <input id="reportMonthInput" type="month">
+                </label>
+                <label>
+                  <span>Từ ngày</span>
+                  <input id="reportStartDateInput" type="date">
+                </label>
+                <label>
+                  <span>Đến ngày</span>
+                  <input id="reportEndDateInput" type="date">
+                </label>
+                <label>
+                  <span>Số tháng gần nhất</span>
+                  <select id="reportRangeSelect">
+                    <option value="3">3 tháng</option>
+                    <option value="6" selected>6 tháng</option>
+                    <option value="12">12 tháng</option>
+                  </select>
+                </label>
+                <div class="reports-filter-actions">
+                  <button type="button" id="refreshReportsButton" class="ghost-button compact-button">Làm mới báo cáo</button>
+                  <button type="button" id="clearReportDateFilterButton" class="ghost-button compact-button">Bỏ lọc ngày</button>
+                </div>
+              </div>
             </div>
           </div>
+        </section>
+
+        <div class="inline-menu-actions report-shortcut-actions">
+          <button type="button" class="ghost-button compact-button" data-report-shortcut="summary">Số liệu</button>
+          <button type="button" class="ghost-button compact-button" data-report-shortcut="trend">Xu hướng</button>
+          <button type="button" class="ghost-button compact-button" data-report-shortcut="forecast">Dự báo</button>
         </div>
 
         <div id="reportSummaryCards" class="hero-stats report-summary-grid"></div>
 
         <div class="sales-columns report-columns">
-          <section class="sales-card">
+          <section id="reportTrendSection" class="sales-card">
             <div class="subheading">
               <div>
                 <p class="panel-kicker">Xu hướng tháng</p>
@@ -467,7 +484,7 @@
             <div id="reportMonthTrend" class="report-list"></div>
           </section>
 
-          <section class="sales-card">
+          <section id="reportForecastSection" class="sales-card">
             <div class="subheading">
               <div>
                 <p class="panel-kicker">Dự báo nhập</p>

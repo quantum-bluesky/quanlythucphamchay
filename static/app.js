@@ -41,6 +41,7 @@ const state = {
   reportRangeMonths: 6,
   reportStartDate: "",
   reportEndDate: "",
+  reportFiltersCollapsed: false,
   customers: [],
   suppliers: [],
   carts: [],
@@ -174,6 +175,12 @@ const reportSummaryCards = document.getElementById("reportSummaryCards");
 const reportMonthTrend = document.getElementById("reportMonthTrend");
 const forecastList = document.getElementById("forecastList");
 const reportProductActivity = document.getElementById("reportProductActivity");
+const reportsSection = document.querySelector('[data-menu-section="reports"]');
+const reportFiltersSection = document.getElementById("reportFiltersSection");
+const reportFiltersWrap = document.getElementById("reportFiltersWrap");
+const reportFiltersToggleButton = document.getElementById("reportFiltersToggleButton");
+const reportTrendSection = document.getElementById("reportTrendSection");
+const reportForecastSection = document.getElementById("reportForecastSection");
 const deletedProductList = document.getElementById("deletedProductList");
 const deletedCustomerList = document.getElementById("deletedCustomerList");
 const deletedSupplierList = document.getElementById("deletedSupplierList");
@@ -360,6 +367,41 @@ function openProductHistorySection() {
   renderProductSections();
   window.setTimeout(() => {
     productHistorySection?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 30);
+}
+
+function renderReportSections() {
+  const compact = mobileQuery.matches;
+  reportsSection?.classList.toggle("has-mobile-reports", compact);
+  if (!reportFiltersSection || !reportFiltersWrap || !reportFiltersToggleButton) {
+    return;
+  }
+  const collapsed = compact && state.reportFiltersCollapsed;
+  reportFiltersSection.classList.toggle("is-collapsed", collapsed);
+  reportFiltersWrap.hidden = collapsed;
+  reportFiltersToggleButton.textContent = collapsed ? "Mở bộ lọc" : "Thu gọn";
+}
+
+function openReportFilters({ focus = false } = {}) {
+  state.reportFiltersCollapsed = false;
+  renderReportSections();
+  window.setTimeout(() => {
+    reportFiltersSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (focus) {
+      reportMonthInput?.focus();
+    }
+  }, 30);
+}
+
+function focusReportSection(kind) {
+  const targets = {
+    summary: reportSummaryCards,
+    trend: reportTrendSection,
+    forecast: reportForecastSection,
+  };
+  const target = targets[kind] || reportSummaryCards;
+  window.setTimeout(() => {
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, 30);
 }
 
@@ -1996,12 +2038,14 @@ function applyMobileCollapsedDefaults() {
     state.purchasePanelCollapsed = false;
     state.productFormCollapsed = false;
     state.productHistoryCollapsed = false;
+    state.reportFiltersCollapsed = false;
     return;
   }
   state.activeCartPanelCollapsed = true;
   state.purchasePanelCollapsed = true;
   state.productFormCollapsed = true;
   state.productHistoryCollapsed = true;
+  state.reportFiltersCollapsed = true;
 }
 
 function showToast(message, isError = false) {
@@ -3272,6 +3316,7 @@ function renderAll() {
   renderAdminSection();
   renderCreateOrderEntryState();
   renderPurchaseEntryState();
+  renderReportSections();
   renderScreenToolbox();
   renderFloatingSearchDock();
   refreshSearchClearButtons();
@@ -4347,6 +4392,30 @@ clearReportDateFilterButton.addEventListener("click", async () => {
     await applyReportFilters({ showSuccess: true });
   } catch (error) {
     showToast(error.message, true);
+  }
+});
+
+reportFiltersToggleButton.addEventListener("click", () => {
+  state.reportFiltersCollapsed = !state.reportFiltersCollapsed;
+  renderReportSections();
+});
+
+document.addEventListener("click", (event) => {
+  const shortcutButton = event.target.closest("[data-report-shortcut]");
+  if (!shortcutButton) {
+    return;
+  }
+
+  if (shortcutButton.dataset.reportShortcut === "summary") {
+    focusReportSection("summary");
+    return;
+  }
+  if (shortcutButton.dataset.reportShortcut === "trend") {
+    focusReportSection("trend");
+    return;
+  }
+  if (shortcutButton.dataset.reportShortcut === "forecast") {
+    focusReportSection("forecast");
   }
 });
 
