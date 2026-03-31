@@ -1274,9 +1274,42 @@ button:disabled {
 
   .screen-toolbox {
     right: 12px;
-    bottom: 12px;
-    grid-template-columns: repeat(3, 52px);
+    bottom: 18px;
+    grid-template-columns: repeat(3, 46px);
+    grid-template-rows: repeat(3, 46px);
+    grid-template-areas:
+      ". up ."
+      "back help forward"
+      ". down .";
+    gap: 8px;
     justify-content: end;
+    align-items: center;
+  }
+
+  #scrollTopButton {
+    grid-area: up;
+  }
+
+  #navBackButton {
+    grid-area: back;
+  }
+
+  #openHelpButton {
+    grid-area: help;
+  }
+
+  #navForwardButton {
+    grid-area: forward;
+  }
+
+  #scrollBottomButton {
+    grid-area: down;
+  }
+
+  .toolbox-button {
+    width: 46px;
+    height: 46px;
+    font-size: 1.1rem;
   }
 
   .floating-search-dock {
