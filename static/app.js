@@ -183,6 +183,11 @@ const closeHelpButton = document.getElementById("closeHelpButton");
 const activeScreenTitle = document.getElementById("activeScreenTitle");
 const activeScreenSubtitle = document.getElementById("activeScreenSubtitle");
 const mobileQuery = window.matchMedia("(max-width: 759px)");
+const createOrderSection = document.querySelector('[data-menu-section="create-order"]');
+const createOrderPanel = createOrderSection?.querySelector(".sales-panel") || null;
+const createOrderCustomerCard = createOrderSection?.querySelector(".sales-customer-card") || null;
+const salesSearchToolbar = salesSearchInput?.closest(".sticky-toolbar") || null;
+const searchClearRefreshers = [];
 
 const quantityFormatter = new Intl.NumberFormat("vi-VN", {
   maximumFractionDigits: 2,
@@ -193,6 +198,81 @@ const currencyFormatter = new Intl.NumberFormat("vi-VN", {
   currency: "VND",
   maximumFractionDigits: 0,
 });
+
+function attachSearchClearButton(input, container) {
+  if (!input || !container || container.querySelector(".search-clear-button")) {
+    return;
+  }
+
+  const clearButton = document.createElement("button");
+  clearButton.type = "button";
+  clearButton.className = "search-clear-button";
+  clearButton.setAttribute("aria-label", "Xóa tìm kiếm");
+  clearButton.innerHTML = "&times;";
+  container.appendChild(clearButton);
+
+  const refresh = () => {
+    clearButton.hidden = !String(input.value || "").trim();
+  };
+
+  clearButton.addEventListener("click", () => {
+    input.value = "";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.focus();
+    refresh();
+  });
+
+  input.addEventListener("input", refresh);
+  input.addEventListener("change", refresh);
+  searchClearRefreshers.push(refresh);
+  refresh();
+}
+
+function setupSearchClearButtons() {
+  document.querySelectorAll(".search-box input").forEach((input) => {
+    attachSearchClearButton(input, input.closest(".search-box"));
+  });
+  attachSearchClearButton(floatingSearchInput, floatingSearchDock);
+}
+
+function refreshSearchClearButtons() {
+  searchClearRefreshers.forEach((refresh) => refresh());
+}
+
+function renderCreateOrderEntryState() {
+  const activeCart = getActiveCart();
+  const compactActive = mobileQuery.matches && Boolean(activeCart);
+  createOrderSection?.classList.toggle("has-active-cart", compactActive);
+  createOrderCustomerCard?.classList.toggle("is-compact-active", compactActive);
+  if (openCartButton) {
+    openCartButton.textContent = compactActive ? "Đổi khách" : "Mở giỏ hàng";
+  }
+}
+
+function scrollToCreateOrderTop({ focusCustomer = false } = {}) {
+  if (state.activeMenu !== "create-order") {
+    switchMenu("create-order");
+  }
+  window.setTimeout(() => {
+    createOrderPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (focusCustomer) {
+      customerLookupInput?.focus();
+      customerLookupInput?.select();
+    }
+  }, 30);
+}
+
+function focusCreateOrderSelection() {
+  window.setTimeout(() => {
+    salesSearchToolbar?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (mobileQuery.matches) {
+      setFloatingSearchExpanded(true, { focus: true });
+    } else {
+      salesSearchInput?.focus();
+      salesSearchInput?.select();
+    }
+  }, 40);
+}
 
 const SCREEN_HELP = {
   inventory: {
@@ -1083,6 +1163,7 @@ function renderFloatingSearchDock() {
     floatingSearchInput.removeAttribute("list");
   }
   syncFloatingSearchFromSource();
+  refreshSearchClearButtons();
 }
 
 function ensureCustomer(name) {
@@ -1360,6 +1441,7 @@ function openCartForCustomer(customerName) {
   customerLookupInput.value = customer.name;
   saveAndRenderAll(["customers", "carts"]);
   switchMenu("create-order");
+  focusCreateOrderSelection();
   showToast(cart.itemCount ? "Đã mở lại giỏ hàng đang chờ." : "Đã tạo giỏ hàng mới.");
 }
 
@@ -3007,8 +3089,10 @@ function renderAll() {
   renderDeletedSuppliers();
   renderReports();
   renderAdminSection();
+  renderCreateOrderEntryState();
   renderScreenToolbox();
   renderFloatingSearchDock();
+  refreshSearchClearButtons();
 }
 
 function buildPrintMarkup(cart) {
@@ -3725,8 +3809,10 @@ activeCartPanel.addEventListener("click", async (event) => {
     state.activeCartId = null;
     state.activeCartPanelCollapsed = mobileQuery.matches;
     state.expandedSalesProductId = null;
+    state.floatingSearchExpanded = false;
     customerLookupInput.value = "";
     saveAndRenderAll();
+    scrollToCreateOrderTop({ focusCustomer: true });
     return;
   }
 
@@ -4553,6 +4639,7 @@ mobileQuery.addEventListener("change", () => {
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
+  setupSearchClearButtons();
   loadSalesState();
   setHelpOpen(false);
   applyMobileCollapsedDefaults();
