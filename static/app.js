@@ -57,6 +57,7 @@ const state = {
   showPaidPurchases: false,
   expandedProductId: null,
   expandedSalesProductId: null,
+  expandedOrderId: null,
   editingPriceId: null,
   editingCustomerId: null,
   editingProductId: null,
@@ -1134,6 +1135,13 @@ function setFloatingSearchExpanded(nextValue, { focus = false } = {}) {
       floatingSearchInput.select();
     }, 0);
   }
+}
+
+function hasFloatingSearchValue() {
+  const sourceInput = getFloatingSearchSourceInput();
+  const floatingValue = String(floatingSearchInput?.value || "").trim();
+  const sourceValue = String(sourceInput?.value || "").trim();
+  return Boolean(floatingValue || sourceValue);
 }
 
 function renderFloatingSearchDock() {
@@ -2412,11 +2420,21 @@ function renderCartQueue() {
   }
 
   const pageData = paginateItems(visible, "orders");
-  cartQueueList.innerHTML = pageData.items
+  const paginationMarkup = renderPagination("orders", pageData);
+  const topPagination = paginationMarkup
+    ? `<div class="orders-top-pagination">${paginationMarkup}</div>`
+    : "";
+  const bottomPagination = paginationMarkup
+    ? `<div class="orders-bottom-pagination">${paginationMarkup}</div>`
+    : "";
+
+  cartQueueList.innerHTML = topPagination + pageData.items
     .map((cart) => {
+      const expanded = state.expandedOrderId === cart.id;
       const itemPreview = cart.items.slice(0, 3).map((item) => item.productName).join(", ");
+      const compactMeta = `${formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • ${formatCurrency(cart.totalAmount)}`;
       return `
-        <article class="cart-queue-item">
+        <article class="cart-queue-item ${expanded ? "is-expanded" : ""}">
           <div class="queue-header">
             <strong>${escapeHtml(cart.customerName)}</strong>
             <span class="status-pill ${escapeHtml(cart.status)}">
@@ -2425,9 +2443,13 @@ function renderCartQueue() {
           </div>
           <div class="queue-meta">
             <span>${escapeHtml(cart.orderCode || `Cập nhật ${formatDate(cart.updatedAt)}`)}</span>
-            <span>${escapeHtml(formatCurrency(cart.totalAmount))}</span>
+            <span>${compact ? escapeHtml(cart.paymentStatus === "paid" ? "Đã TT" : "Chưa TT") : escapeHtml(formatCurrency(cart.totalAmount))}</span>
           </div>
-          ${compact ? "" : `
+          ${compact ? `
+            <div class="queue-meta queue-meta-compact">
+              <span>${escapeHtml(compactMeta)}</span>
+            </div>
+          ` : `
             <div class="queue-meta">
               <span>${escapeHtml(cart.itemCount)} dòng | ${escapeHtml(formatQuantity(cart.totalQuantity))} số lượng | ${cart.paymentStatus === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}</span>
               <span>${escapeHtml(formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt))}</span>
@@ -2435,16 +2457,31 @@ function renderCartQueue() {
             <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
           `}
           <div class="queue-actions">
-            ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục bán"}</button>` : ""}
-            <button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>
-            ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">${compact ? "TT" : "Đã thanh toán"}</button>` : ""}
-            ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
-            <button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>
+            ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục bán"}</button>` : `<button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>`}
+            ${compact
+              ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">...</button>`
+              : `
+                <button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>
+                ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
+                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
+                <button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>
+              `}
           </div>
+          ${compact && expanded ? `
+            <div class="queue-detail-block">
+              <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
+              <div class="queue-actions queue-actions-expanded">
+                ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
+                ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">TT</button>` : ""}
+                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
+                <button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>
+              </div>
+            </div>
+          ` : ""}
         </article>
       `;
     })
-    .join("") + renderPagination("orders", pageData);
+    .join("") + bottomPagination;
 }
 
 function renderCustomers() {
@@ -3283,6 +3320,10 @@ openHelpButton.addEventListener("click", () => {
 });
 
 floatingSearchToggle.addEventListener("click", () => {
+  if (state.floatingSearchExpanded) {
+    setFloatingSearchExpanded(false);
+    return;
+  }
   setFloatingSearchExpanded(true, { focus: true });
 });
 
@@ -3859,9 +3900,17 @@ cartQueueList.addEventListener("click", (event) => {
     return;
   }
 
+  if (button.dataset.queueAction === "toggle-detail") {
+    state.expandedOrderId = state.expandedOrderId === cartId ? null : cartId;
+    renderCartQueue();
+    return;
+  }
+
   if (button.dataset.queueAction === "open") {
+    state.expandedOrderId = null;
     setActiveCart(cartId);
     switchMenu("create-order");
+    focusCreateOrderSelection();
     showToast("Đã mở giỏ hàng.");
     return;
   }
@@ -3872,6 +3921,7 @@ cartQueueList.addEventListener("click", (event) => {
   }
 
   if (button.dataset.queueAction === "mark-paid") {
+    state.expandedOrderId = null;
     state.carts = state.carts.map((entry) =>
       entry.id === cartId
         ? decorateCart({ ...entry, paymentStatus: "paid", paidAt: nowIso(), updatedAt: nowIso() })
@@ -3884,6 +3934,7 @@ cartQueueList.addEventListener("click", (event) => {
 
   if (button.dataset.queueAction === "cancel") {
     if (window.confirm(`Hủy giỏ hàng của ${cart.customerName}?`)) {
+      state.expandedOrderId = null;
       cancelCart(cartId);
       showToast("Đã hủy giỏ hàng.");
     }
@@ -3892,6 +3943,7 @@ cartQueueList.addEventListener("click", (event) => {
 
   if (button.dataset.queueAction === "delete") {
     if (window.confirm(`Xóa hẳn giỏ hàng của ${cart.customerName}?`)) {
+      state.expandedOrderId = null;
       deleteCart(cartId);
       showToast("Đã xóa giỏ hàng.");
     }
@@ -4598,6 +4650,16 @@ adminRestoreButton.addEventListener("click", async () => {
 });
 
 document.addEventListener("click", (event) => {
+  if (
+    state.floatingSearchExpanded &&
+    !floatingSearchDock.hidden &&
+    !floatingSearchDock.contains(event.target) &&
+    !getFloatingSearchSourceShell()?.contains(event.target) &&
+    !hasFloatingSearchValue()
+  ) {
+    setFloatingSearchExpanded(false);
+  }
+
   const goMenuButton = event.target.closest("[data-go-menu]");
   if (goMenuButton && !goMenuButton.closest("#menuPanel")) {
     switchMenu(goMenuButton.dataset.goMenu);
@@ -4617,7 +4679,7 @@ document.addEventListener("focusin", (event) => {
     setFloatingSearchExpanded(true);
     return;
   }
-  if (!floatingSearchDock.contains(event.target)) {
+  if (!floatingSearchDock.contains(event.target) && !hasFloatingSearchValue()) {
     setFloatingSearchExpanded(false);
   }
 });

@@ -898,6 +898,19 @@ button:disabled {
   margin-top: 12px;
 }
 
+.queue-detail-block {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(34, 49, 39, 0.16);
+}
+
+.orders-top-pagination .pagination-bar,
+.orders-bottom-pagination .pagination-bar {
+  margin-top: 0;
+}
+
 .toggle-inline {
   display: inline-flex;
   align-items: center;
@@ -1439,6 +1452,90 @@ button:disabled {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
+  }
+
+  [data-menu-section="orders"] .panel-heading .panel-note {
+    display: none;
+  }
+
+  [data-menu-section="orders"] .orders-panel {
+    overflow: visible;
+  }
+
+  [data-menu-section="orders"] .inline-menu-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  [data-menu-section="orders"] .toggle-inline {
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.9);
+    font-size: 0.82rem;
+    justify-content: center;
+  }
+
+  [data-menu-section="orders"] .order-toolbar {
+    margin-bottom: 10px;
+  }
+
+  [data-menu-section="orders"] .orders-top-pagination {
+    position: sticky;
+    top: 148px;
+    z-index: 24;
+    padding: 4px 0 8px;
+    background: linear-gradient(180deg, rgba(246, 243, 234, 0.98) 0%, rgba(246, 243, 234, 0.82) 70%, rgba(246, 243, 234, 0) 100%);
+  }
+
+  [data-menu-section="orders"] .orders-top-pagination .pagination-bar {
+    padding: 8px 10px;
+    border-style: solid;
+    border-radius: 14px;
+    background: rgba(255, 252, 246, 0.96);
+  }
+
+  [data-menu-section="orders"] .orders-bottom-pagination {
+    display: none;
+  }
+
+  [data-menu-section="orders"] .cart-queue-item {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  [data-menu-section="orders"] .queue-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: start;
+  }
+
+  [data-menu-section="orders"] .queue-header strong {
+    line-height: 1.2;
+  }
+
+  [data-menu-section="orders"] .queue-meta {
+    font-size: 0.84rem;
+  }
+
+  [data-menu-section="orders"] .queue-meta-compact {
+    display: block;
+  }
+
+  [data-menu-section="orders"] .queue-actions {
+    margin-top: 6px;
+    gap: 6px;
+  }
+
+  [data-menu-section="orders"] .queue-actions-expanded {
+    margin-top: 0;
+  }
+
+  [data-menu-section="orders"] .queue-detail-block .cart-line-note {
+    font-size: 0.84rem;
   }
 
   .product-list.is-compact-search,
