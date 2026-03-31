@@ -1904,6 +1904,72 @@ function getDraftDemandByProductId() {
   return demand;
 }
 
+function getIncomingPurchaseByProductId() {
+  const incoming = new Map();
+  state.purchases
+    .filter((purchase) => ["draft", "ordered"].includes(purchase.status))
+    .forEach((purchase) => {
+      purchase.items.forEach((item) => {
+        incoming.set(item.productId, (incoming.get(item.productId) || 0) + Number(item.quantity));
+      });
+    });
+  return incoming;
+}
+
+function getInventoryProductSignals(product, draftDemandMap, incomingMap) {
+  const currentStock = Number(product.current_stock || 0);
+  const pendingDemand = Number(draftDemandMap.get(product.id) || 0);
+  const incomingQuantity = Number(incomingMap.get(product.id) || 0);
+
+  if (currentStock <= 0 && incomingQuantity > 0) {
+    return {
+      stockLabel: "Không còn",
+      statusLabel: "Sắp nhập về",
+      statusClass: "draft",
+      pendingDemand,
+      incomingQuantity,
+    };
+  }
+
+  if (currentStock <= 0) {
+    return {
+      stockLabel: "Không còn",
+      statusLabel: "Không còn",
+      statusClass: "cancelled",
+      pendingDemand,
+      incomingQuantity,
+    };
+  }
+
+  if (pendingDemand >= currentStock) {
+    return {
+      stockLabel: `${formatQuantity(product.current_stock)} ${product.unit}`,
+      statusLabel: "Sắp xuất hết",
+      statusClass: "cancelled",
+      pendingDemand,
+      incomingQuantity,
+    };
+  }
+
+  if (product.is_low_stock) {
+    return {
+      stockLabel: `${formatQuantity(product.current_stock)} ${product.unit}`,
+      statusLabel: "Sắp hết",
+      statusClass: "cancelled",
+      pendingDemand,
+      incomingQuantity,
+    };
+  }
+
+  return {
+    stockLabel: `${formatQuantity(product.current_stock)} ${product.unit}`,
+    statusLabel: "Ổn",
+    statusClass: "draft",
+    pendingDemand,
+    incomingQuantity,
+  };
+}
+
 function getPurchaseSuggestions() {
   const draftDemand = getDraftDemandByProductId();
   return state.products
@@ -2227,6 +2293,8 @@ function renderSupplierOptions() {
 
 function renderProducts() {
   const compact = mobileQuery.matches;
+  const draftDemandMap = getDraftDemandByProductId();
+  const incomingMap = getIncomingPurchaseByProductId();
   const filtered = state.products.filter((product) => {
     const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
     return text.includes(state.searchTerm.toLowerCase());
@@ -2243,47 +2311,73 @@ function renderProducts() {
     .map((product) => {
       const isExpanded = state.expandedProductId === product.id;
       const isEditingPrice = state.editingPriceId === product.id;
-      return `
-        <article class="product-row ${product.is_low_stock ? "low-stock" : ""}">
-          <div class="product-row-head">
-            <div>
+      const signals = getInventoryProductSignals(product, draftDemandMap, incomingMap);
+      const compactLayout = compact
+        ? `
+          <div class="inventory-product-compact">
+            <div class="inventory-product-left">
               <div class="product-row-name">${escapeHtml(product.name)}</div>
               <div class="product-row-meta">
                 <span>${escapeHtml(product.category)}</span>
-                ${compact ? "" : `<span>${escapeHtml(product.unit)}</span>`}
+              </div>
+              <div class="row-actions inventory-product-actions">
+                <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
+                  ${isExpanded ? "Thu" : "Mở"}
+                </button>
+                ${renderOverflowMenu([
+                  `<button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">${isEditingPrice ? "Hủy giá" : "Giá"}</button>`,
+                  `<button type="button" class="ghost-button compact-button" data-prefill="${product.id}">Kho</button>`,
+                ])}
               </div>
             </div>
-            <div class="product-row-stock">
-              ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}
+            <div class="inventory-product-side">
+              <div class="product-row-stock">${escapeHtml(signals.stockLabel)}</div>
+              <div class="inventory-product-side-meta">
+                <span>Giá ${formatCurrency(product.price)}</span>
+                <span class="status-pill ${signals.statusClass}">${escapeHtml(signals.statusLabel)}</span>
+              </div>
             </div>
           </div>
+        `
+        : "";
+      return `
+        <article class="product-row ${product.is_low_stock ? "low-stock" : ""}">
+          ${compact
+            ? compactLayout
+            : `
+              <div class="product-row-head">
+                <div>
+                  <div class="product-row-name">${escapeHtml(product.name)}</div>
+                  <div class="product-row-meta">
+                    <span>${escapeHtml(product.category)}</span>
+                    <span>${escapeHtml(product.unit)}</span>
+                  </div>
+                </div>
+                <div class="product-row-stock">${escapeHtml(signals.stockLabel)}</div>
+              </div>
 
-          <div class="product-row-meta">
-            <span>Giá ${formatCurrency(product.price)}</span>
-            ${compact ? "" : `<span>Giá trị tồn ${formatCurrency(product.inventory_value)}</span>`}
-            <span class="status-pill ${product.is_low_stock ? "cancelled" : "draft"}">${product.is_low_stock ? "Sắp hết" : "Ổn"}</span>
-          </div>
+              <div class="product-row-meta">
+                <span>Giá ${formatCurrency(product.price)}</span>
+                <span>Giá trị tồn ${formatCurrency(product.inventory_value)}</span>
+                <span class="status-pill ${signals.statusClass}">${escapeHtml(signals.statusLabel)}</span>
+              </div>
 
-          <div class="row-actions">
-            <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
-              ${isExpanded ? "Thu" : "Mở"}
-            </button>
-            ${compact ? renderOverflowMenu([
-              `<button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">${isEditingPrice ? "Hủy giá" : "Giá"}</button>`,
-              `<button type="button" class="ghost-button compact-button" data-prefill="${product.id}">Kho</button>`,
-            ]) : `
-              <button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">
-                ${isEditingPrice ? "Hủy giá" : "Giá"}
-              </button>
-              <button type="button" class="ghost-button compact-button" data-prefill="${product.id}">Nhập / xuất</button>
+              <div class="row-actions">
+                <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
+                  ${isExpanded ? "Thu" : "Mở"}
+                </button>
+                <button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">
+                  ${isEditingPrice ? "Hủy giá" : "Giá"}
+                </button>
+                <button type="button" class="ghost-button compact-button" data-prefill="${product.id}">Nhập / xuất</button>
+              </div>
             `}
-          </div>
 
           ${isExpanded || isEditingPrice ? `
             <div class="product-row-body">
               <div class="meta-row">
                 <span class="pill">Cảnh báo dưới ${formatQuantity(product.low_stock_threshold)} ${escapeHtml(product.unit)}</span>
-                <span class="pill ${product.is_low_stock ? "warning" : ""}">${product.is_low_stock ? "Cần nhập thêm" : "Tồn an toàn"}</span>
+                <span class="pill ${signals.statusClass === "cancelled" ? "warning" : ""}">${escapeHtml(signals.statusLabel === "Ổn" ? "Tồn an toàn" : signals.statusLabel)}</span>
               </div>
 
               ${isEditingPrice ? `

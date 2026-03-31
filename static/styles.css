@@ -1656,6 +1656,63 @@ button:disabled {
     display: none;
   }
 
+  [data-menu-section="inventory"] .panel,
+  [data-menu-section="inventory"] .inventory-panel {
+    overflow: visible;
+  }
+
+  [data-menu-section="inventory"] .product-row {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  [data-menu-section="inventory"] .inventory-product-compact {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  [data-menu-section="inventory"] .inventory-product-left {
+    display: grid;
+    gap: 4px;
+    min-height: 100%;
+  }
+
+  [data-menu-section="inventory"] .inventory-product-side {
+    display: grid;
+    gap: 4px;
+    justify-items: end;
+    text-align: right;
+  }
+
+  [data-menu-section="inventory"] .inventory-product-side-meta {
+    display: grid;
+    gap: 3px;
+    justify-items: end;
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+
+  [data-menu-section="inventory"] .inventory-product-side-meta .status-pill {
+    min-height: 24px;
+    padding: 3px 9px;
+    font-size: 0.74rem;
+  }
+
+  [data-menu-section="inventory"] .inventory-product-actions {
+    margin-top: auto;
+    padding-top: 6px;
+  }
+
+  [data-menu-section="inventory"] .product-row-stock {
+    font-size: 0.96rem;
+  }
+
+  [data-menu-section="inventory"] .product-row-meta {
+    font-size: 0.84rem;
+  }
+
   [data-menu-section="products"] .panel,
   [data-menu-section="products"] .sales-card {
     overflow: visible;
