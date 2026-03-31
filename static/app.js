@@ -56,6 +56,7 @@ const state = {
   showPaidOrders: false,
   showPaidPurchases: false,
   expandedProductId: null,
+  expandedSalesProductId: null,
   editingPriceId: null,
   editingCustomerId: null,
   editingProductId: null,
@@ -780,8 +781,8 @@ function syncSalesState() {
   const activeDraftExists = state.carts.some(
     (cart) => cart.id === state.activeCartId && cart.status === "draft"
   );
-  if (!activeDraftExists) {
-    state.activeCartId = state.carts.find((cart) => cart.status === "draft")?.id || null;
+  if (state.activeCartId && !activeDraftExists) {
+    state.activeCartId = null;
   }
 
   const activePurchaseExists = state.purchases.some(
@@ -1414,6 +1415,7 @@ function toggleProductInActiveCart(productId, checked) {
     };
   });
 
+  state.expandedSalesProductId = checked ? product.id : (state.expandedSalesProductId === product.id ? null : state.expandedSalesProductId);
   saveAndRenderAll(["carts"]);
 }
 
@@ -2091,7 +2093,7 @@ function renderActiveCartPanel() {
   const compact = mobileQuery.matches;
   const cart = getActiveCart();
   if (!cart) {
-    activeCartPanel.innerHTML = '<div class="empty-state">Chưa có giỏ hàng nào đang mở.</div>';
+    activeCartPanel.innerHTML = '<div class="empty-state">Chưa có giỏ hàng nào đang mở. Hãy mở giỏ hàng trước khi chọn sản phẩm.</div>';
     return;
   }
 
@@ -2104,7 +2106,10 @@ function renderActiveCartPanel() {
             <h3>${escapeHtml(cart.customerName)}</h3>
             <p class="panel-note">${escapeHtml(cart.itemCount)} dòng • ${escapeHtml(formatCurrency(cart.totalAmount))}</p>
           </div>
-          <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Mở giỏ</button>
+          <div class="row-actions active-cart-actions">
+            <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Mở giỏ</button>
+            <button type="button" class="ghost-button compact-button" data-cart-action="close">Đóng giỏ</button>
+          </div>
         </div>
       </article>
     `;
@@ -2122,6 +2127,7 @@ function renderActiveCartPanel() {
         <div class="inline-menu-actions">
           <span class="status-pill draft">Đang chờ</span>
           <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Thu gọn</button>
+          <button type="button" class="ghost-button compact-button" data-cart-action="close">Đóng giỏ</button>
         </div>
       </div>
       <div class="active-cart-stats">
@@ -2150,50 +2156,109 @@ function renderActiveCartPanel() {
 
 function renderSalesProductList() {
   const activeCart = getActiveCart();
+  const compact = mobileQuery.matches;
   const filtered = state.products.filter((product) => {
     const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
     return text.includes(state.salesSearchTerm.toLowerCase());
   });
   salesProductList.classList.toggle("is-compact-search", isSearchResultMode("salesProducts"));
 
+  const notice = !activeCart
+    ? '<article class="inline-alert warning">Chưa mở giỏ hàng. Hãy chọn khách và bấm "Mở giỏ hàng" trước khi chọn sản phẩm.</article>'
+    : "";
+
   if (!filtered.length) {
-    salesProductList.innerHTML = '<div class="empty-state">Không có mặt hàng phù hợp.</div>';
+    salesProductList.innerHTML = `${notice}<div class="empty-state">Không có mặt hàng phù hợp.</div>`;
     return;
   }
 
   const pageData = paginateItems(filtered, "salesProducts");
-  salesProductList.innerHTML = pageData.items
+  const paginationMarkup = renderPagination("salesProducts", pageData);
+  const topPagination = paginationMarkup
+    ? `<div class="sales-top-pagination">${paginationMarkup}</div>`
+    : "";
+  const bottomPagination = paginationMarkup
+    ? `<div class="sales-bottom-pagination">${paginationMarkup}</div>`
+    : "";
+  const listMarkup = pageData.items
     .map((product) => {
-      const inCart = activeCart?.items.some((item) => item.productId === product.id) || false;
+      const cartItem = activeCart?.items.find((item) => item.productId === product.id) || null;
+      const inCart = Boolean(cartItem);
+      const expandedInline = state.expandedSalesProductId === product.id;
+      const isOutOfStock = Number(product.current_stock) <= 0;
+      const availabilityLabel = isOutOfStock
+        ? "Hết hàng. Cần nhập!"
+        : product.is_low_stock
+          ? "Sắp hết"
+          : "Có hàng";
       return `
-        <article class="sales-product-row">
+        <article class="sales-product-row ${inCart ? "is-selected" : ""} ${isOutOfStock ? "is-empty-stock" : ""}">
           <div class="sales-product-head">
             <label class="picker-toggle">
               <input type="checkbox" data-pick-product="${product.id}" ${inCart ? "checked" : ""} ${activeCart ? "" : "disabled"}>
               <span>${escapeHtml(product.name)}</span>
             </label>
-            <span class="status-pill ${product.is_low_stock ? "cancelled" : "draft"}">
-              ${product.is_low_stock ? "Sắp hết" : "Có hàng"}
+            <span class="status-pill ${(isOutOfStock || product.is_low_stock) ? "cancelled" : "draft"}">
+              ${availabilityLabel}
             </span>
           </div>
           <div class="sales-product-meta">
             Tồn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)} | Giá nhập ${formatCurrency(product.price)}
           </div>
+          ${inCart ? `
+            <div class="sales-inline-editor">
+              <label class="sales-inline-qty">
+                <span>SL</span>
+                <input type="number" min="0.01" step="0.01" value="${cartItem.quantity}" data-sales-inline-qty="${cartItem.id}">
+              </label>
+              <button type="button" class="ghost-button compact-button" data-sales-inline-action="toggle-detail" data-product-id="${product.id}">...</button>
+            </div>
+            ${expandedInline ? `
+              <div class="sales-inline-detail">
+                <label class="price-field">
+                  <span>Giá bán</span>
+                  <input class="price-input-small" type="number" min="0" step="1000" value="${cartItem.unitPrice}" data-sales-inline-price="${cartItem.id}">
+                </label>
+                <div class="line-actions">
+                  <button type="button" class="ghost-button compact-button" data-sales-inline-action="save" data-item-id="${cartItem.id}">Lưu</button>
+                  <button type="button" class="danger-button compact-button" data-sales-inline-action="remove" data-item-id="${cartItem.id}" data-product-id="${product.id}">Bỏ</button>
+                  ${compact ? "" : `<button type="button" class="ghost-button compact-button" data-sales-inline-action="collapse" data-product-id="${product.id}">Thu gọn</button>`}
+                </div>
+              </div>
+            ` : ""}
+          ` : ""}
         </article>
       `;
     })
-    .join("") + renderPagination("salesProducts", pageData);
+    .join("");
+  salesProductList.innerHTML = `${topPagination}${notice}${listMarkup}${bottomPagination}`;
 }
 
 function renderCartItems() {
   const cart = getActiveCart();
   if (!cart) {
-    cartItemsList.innerHTML = '<div class="empty-state">Mở giỏ hàng trước khi chọn mặt hàng.</div>';
+    cartItemsList.innerHTML = '<div class="empty-state">Mở giỏ hàng để xem nhanh tổng hợp các dòng đã chọn.</div>';
     return;
   }
 
   if (!cart.items.length) {
     cartItemsList.innerHTML = '<div class="empty-state">Chưa có mặt hàng nào trong giỏ.</div>';
+    return;
+  }
+
+  if (mobileQuery.matches) {
+    cartItemsList.innerHTML = `
+      <article class="active-cart-card is-collapsed">
+        <div class="active-cart-header">
+          <div>
+            <p class="panel-kicker">Giỏ hiện hành</p>
+            <h3>${escapeHtml(cart.itemCount)} dòng đã chọn</h3>
+            <p class="panel-note">Chỉnh nhanh ngay trong danh sách hàng phía trên. Mở giỏ để in hoặc chốt xuất kho.</p>
+          </div>
+          <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Mở giỏ</button>
+        </div>
+      </article>
+    `;
     return;
   }
 
@@ -3476,6 +3541,23 @@ productManageList.addEventListener("click", async (event) => {
 salesProductList.addEventListener("change", (event) => {
   const checkbox = event.target.closest("[data-pick-product]");
   if (!checkbox) {
+    const qtyInput = event.target.closest("[data-sales-inline-qty]");
+    if (!qtyInput) {
+      return;
+    }
+
+    try {
+      const quantity = Number(qtyInput.value);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        throw new Error("Số lượng phải lớn hơn 0.");
+      }
+      updateCartItem(qtyInput.dataset.salesInlineQty, {
+        quantity: Number(quantity.toFixed(2)),
+      });
+      renderSalesProductList();
+    } catch (error) {
+      showToast(error.message, true);
+    }
     return;
   }
 
@@ -3485,6 +3567,75 @@ salesProductList.addEventListener("change", (event) => {
     checkbox.checked = !checkbox.checked;
     showToast(error.message, true);
   }
+});
+
+salesProductList.addEventListener("click", (event) => {
+  const actionButton = event.target.closest("[data-sales-inline-action]");
+  if (!actionButton) {
+    return;
+  }
+
+  if (actionButton.dataset.salesInlineAction === "toggle-detail") {
+    const productId = Number(actionButton.dataset.productId);
+    state.expandedSalesProductId = state.expandedSalesProductId === productId ? null : productId;
+    renderSalesProductList();
+    return;
+  }
+
+  if (actionButton.dataset.salesInlineAction === "collapse") {
+    state.expandedSalesProductId = null;
+    renderSalesProductList();
+    return;
+  }
+
+  if (actionButton.dataset.salesInlineAction === "remove") {
+    try {
+      removeCartItem(actionButton.dataset.itemId);
+      state.expandedSalesProductId = null;
+      renderSalesProductList();
+    } catch (error) {
+      showToast(error.message, true);
+    }
+    return;
+  }
+
+  if (actionButton.dataset.salesInlineAction === "save") {
+    const itemId = actionButton.dataset.itemId;
+    const qtyInput = salesProductList.querySelector(`[data-sales-inline-qty="${itemId}"]`);
+    const priceInput = salesProductList.querySelector(`[data-sales-inline-price="${itemId}"]`);
+
+    try {
+      const quantity = Number(qtyInput?.value);
+      const unitPrice = Number(priceInput?.value);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        throw new Error("Số lượng phải lớn hơn 0.");
+      }
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+        throw new Error("Giá bán không hợp lệ.");
+      }
+      updateCartItem(itemId, {
+        quantity: Number(quantity.toFixed(2)),
+        unitPrice,
+      });
+      state.expandedSalesProductId = null;
+      showToast("Đã lưu dòng hàng.");
+      renderSalesProductList();
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  }
+});
+
+salesProductList.addEventListener("keydown", (event) => {
+  const qtyInput = event.target.closest("[data-sales-inline-qty]");
+  const priceInput = event.target.closest("[data-sales-inline-price]");
+  if (event.key !== "Enter" || (!qtyInput && !priceInput)) {
+    return;
+  }
+  event.preventDefault();
+  const itemId = qtyInput?.dataset.salesInlineQty || priceInput?.dataset.salesInlinePrice;
+  const saveButton = salesProductList.querySelector(`[data-sales-inline-action="save"][data-item-id="${itemId}"]`);
+  saveButton?.click();
 });
 
 cartItemsList.addEventListener("click", (event) => {
@@ -3566,6 +3717,16 @@ activeCartPanel.addEventListener("click", async (event) => {
   if (button.dataset.cartAction === "toggle-panel") {
     state.activeCartPanelCollapsed = !state.activeCartPanelCollapsed;
     renderActiveCartPanel();
+    renderCartItems();
+    return;
+  }
+
+  if (button.dataset.cartAction === "close") {
+    state.activeCartId = null;
+    state.activeCartPanelCollapsed = mobileQuery.matches;
+    state.expandedSalesProductId = null;
+    customerLookupInput.value = "";
+    saveAndRenderAll();
     return;
   }
 
@@ -4351,6 +4512,12 @@ adminRestoreButton.addEventListener("click", async () => {
 });
 
 document.addEventListener("click", (event) => {
+  const goMenuButton = event.target.closest("[data-go-menu]");
+  if (goMenuButton && !goMenuButton.closest("#menuPanel")) {
+    switchMenu(goMenuButton.dataset.goMenu);
+    return;
+  }
+
   const button = event.target.closest("[data-page-action]");
   if (!button) {
     return;

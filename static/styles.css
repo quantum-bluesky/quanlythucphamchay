@@ -710,6 +710,21 @@ button:disabled {
   margin-top: 18px;
 }
 
+.inline-alert {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.inline-alert.warning {
+  border-color: rgba(200, 100, 48, 0.28);
+  background: linear-gradient(180deg, #fffaf7 0%, rgba(248, 225, 214, 0.82) 100%);
+  color: var(--warning);
+}
+
 .active-cart-card {
   padding: 18px;
   border-radius: var(--radius-md);
@@ -763,6 +778,54 @@ button:disabled {
   min-height: auto;
   height: 18px;
   margin: 0;
+}
+
+.sales-inline-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 10px;
+}
+
+.sales-inline-qty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.sales-inline-qty span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.sales-inline-qty input {
+  min-height: 36px;
+  padding: 6px 10px;
+}
+
+.sales-inline-detail {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(34, 49, 39, 0.16);
+}
+
+.sales-product-row.is-selected {
+  border-color: rgba(36, 91, 63, 0.28);
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.98) 0%, rgba(237, 245, 239, 0.82) 100%);
+}
+
+.sales-product-row.is-empty-stock {
+  border-color: rgba(200, 100, 48, 0.28);
+}
+
+.sales-top-pagination .pagination-bar,
+.sales-bottom-pagination .pagination-bar {
+  margin-top: 0;
 }
 
 .cart-item {
@@ -1211,6 +1274,103 @@ button:disabled {
   .purchases-panel .inline-menu-actions .compact-button {
     min-width: 0;
     white-space: nowrap;
+  }
+
+  [data-menu-section="create-order"] .panel-heading .panel-note,
+  [data-menu-section="create-order"] .active-cart-panel .panel-note {
+    font-size: 0.9rem;
+  }
+
+  [data-menu-section="create-order"] .sales-customer-card,
+  [data-menu-section="create-order"] .sales-card {
+    padding: 14px;
+  }
+
+  [data-menu-section="create-order"] .sales-badge-row {
+    gap: 10px;
+  }
+
+  [data-menu-section="create-order"] .active-cart-panel .empty-state {
+    padding: 12px;
+    font-size: 0.9rem;
+  }
+
+  [data-menu-section="create-order"] .active-cart-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  [data-menu-section="create-order"] .sales-top-pagination {
+    position: sticky;
+    top: 152px;
+    z-index: 24;
+    padding: 4px 0 8px;
+    background: linear-gradient(180deg, rgba(246, 243, 234, 0.98) 0%, rgba(246, 243, 234, 0.82) 70%, rgba(246, 243, 234, 0) 100%);
+  }
+
+  [data-menu-section="create-order"] .sales-top-pagination .pagination-bar {
+    padding: 8px 10px;
+    border-style: solid;
+    border-radius: 14px;
+    background: rgba(255, 252, 246, 0.96);
+  }
+
+  [data-menu-section="create-order"] .sales-bottom-pagination {
+    display: none;
+  }
+
+  [data-menu-section="create-order"] .sales-product-row {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  [data-menu-section="create-order"] .sales-product-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: start;
+  }
+
+  [data-menu-section="create-order"] .picker-toggle {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  [data-menu-section="create-order"] .picker-toggle span {
+    line-height: 1.2;
+  }
+
+  [data-menu-section="create-order"] .sales-product-meta {
+    font-size: 0.84rem;
+  }
+
+  [data-menu-section="create-order"] .sales-product-list .status-pill {
+    min-height: 28px;
+    padding: 4px 10px;
+    font-size: 0.76rem;
+  }
+
+  [data-menu-section="create-order"] .sales-inline-editor {
+    margin-top: 6px;
+    gap: 8px;
+  }
+
+  [data-menu-section="create-order"] .sales-inline-qty input,
+  [data-menu-section="create-order"] .sales-inline-detail .price-input-small {
+    min-height: 34px;
+    padding: 6px 10px;
+  }
+
+  [data-menu-section="create-order"] .sales-inline-detail {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  [data-menu-section="create-order"] .sales-inline-detail .line-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .product-list.is-compact-search,
