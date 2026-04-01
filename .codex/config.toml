@@ -1,0 +1,12 @@
+# Project-level Codex config for QuanLyThucPhamChay.
+# Keep this file in Git so Codex behaves consistently across machines.
+
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+personality = "pragmatic"
+
+[windows]
+sandbox = "elevated"
+
+[features]
+multi_agent = true
