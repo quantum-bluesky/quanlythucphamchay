@@ -505,6 +505,10 @@ function getActivePurchase() {
   return state.purchases.find((purchase) => purchase.id === state.activePurchaseId) || null;
 }
 
+function canMarkPurchasePaid(purchase) {
+  return Boolean(purchase && purchase.status === "received");
+}
+
 function decorateCart(cart) {
   const items = Array.isArray(cart.items)
     ? cart.items
@@ -2904,7 +2908,7 @@ function renderPurchasePanel() {
       <div class="cart-toolbar">
         <button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>
         <button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>
-        <button type="button" class="ghost-button" data-purchase-action="mark-paid">Đã thanh toán</button>
+        <button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>
         <button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>
         <button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>
       </div>
@@ -4834,8 +4838,13 @@ purchasePanel.addEventListener("click", async (event) => {
   }
 
   if (actionButton.dataset.purchaseAction === "mark-paid") {
+    if (!canMarkPurchasePaid(purchase)) {
+      showToast("Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho.", true);
+      return;
+    }
     updatePurchase(purchase.id, () => ({
       status: "paid",
+      paidAt: nowIso(),
       supplierName: purchaseSupplierInput.value.trim(),
       note: purchaseNoteInput.value.trim(),
     }));

@@ -990,6 +990,24 @@ class InventoryStore:
 
         now = utc_now_iso()
         with self._connect() as connection:
+            existing_collections = {}
+            for key in to_update:
+                row = connection.execute(
+                    "SELECT state_value FROM app_state WHERE state_key = ?",
+                    (key,),
+                ).fetchone()
+                try:
+                    decoded = json.loads((row["state_value"] if row else "[]") or "[]")
+                except json.JSONDecodeError:
+                    decoded = []
+                existing_collections[key] = decoded if isinstance(decoded, list) else []
+
+            if "purchases" in to_update:
+                self._validate_purchase_payment_transition(
+                    existing_collections.get("purchases", []),
+                    to_update["purchases"],
+                )
+
             for key, value in to_update.items():
                 if not isinstance(value, list):
                     raise ValueError(f"Dữ liệu {key} phải là một danh sách.")
@@ -1003,6 +1021,33 @@ class InventoryStore:
                 )
 
         return self.get_sync_state()
+
+    def _validate_purchase_payment_transition(
+        self,
+        existing_purchases: list[dict],
+        incoming_purchases: list[dict],
+    ) -> None:
+        existing_by_id = {
+            str(purchase.get("id")): purchase
+            for purchase in existing_purchases
+            if purchase.get("id")
+        }
+
+        for purchase in incoming_purchases:
+            purchase_id = str(purchase.get("id") or "")
+            next_status = str(purchase.get("status") or "draft")
+            previous = existing_by_id.get(purchase_id)
+            previous_status = str(previous.get("status") or "draft") if previous else None
+
+            if next_status != "paid":
+                continue
+
+            if previous_status not in {"received", "paid"}:
+                raise ValueError("Phiếu nhập chỉ được chuyển sang đã thanh toán sau khi đã nhập kho.")
+
+            received_at = purchase.get("receivedAt") or purchase.get("received_at")
+            if not received_at:
+                raise ValueError("Phiếu nhập đã thanh toán phải có thời điểm nhập kho trước đó.")
 
     def _get_sync_collection(self, state_key: str) -> list[dict]:
         with self._connect() as connection:
