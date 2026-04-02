@@ -1,4 +1,6 @@
+import gc
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -8,10 +10,23 @@ from app import InventoryStore
 class InventoryStoreTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
-        self.store = InventoryStore(Path(self.temp_dir.name) / "inventory-test.db")
+        self.db_path = Path(self.temp_dir.name) / "inventory-test.db"
+        self.store = InventoryStore(self.db_path)
 
     def tearDown(self) -> None:
-        self.temp_dir.cleanup()
+        del self.store
+        gc.collect()
+        last_error = None
+        for _ in range(5):
+            try:
+                self.temp_dir.cleanup()
+                last_error = None
+                break
+            except PermissionError as error:
+                last_error = error
+                time.sleep(0.1)
+        if last_error is not None:
+            raise last_error
 
     def test_create_product_and_stock_summary(self) -> None:
         product = self.store.create_product(

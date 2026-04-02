@@ -1,0 +1,15 @@
+{
+  "name": "quan-ly-thuc-pham-chay",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Integration test tooling for the vegetarian inventory app",
+  "scripts": {
+    "test:integration": "playwright test",
+    "test:integration:headed": "playwright test --headed",
+    "test:integration:ui": "playwright test --ui",
+    "test:unit": "python -m unittest discover -s tests"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}

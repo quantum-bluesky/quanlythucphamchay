@@ -20,8 +20,9 @@ Mục tiêu khi làm việc trong repo này:
 - DB: `data/inventory.db`
 - Config hệ thống runtime: `data/system_config.json`
 - Tài liệu người dùng: `README.md`, `docs/HUONG_DAN_SU_DUNG.md`, `docs/DEPLOY_WINDOWS.md`
+- Tài liệu test: `docs/TESTING.md`
 - Dữ liệu seed: `data/List.txt`, `data/List_price.txt`
-- Test: `tests/`
+- Test unit + integration: `tests/`
 
 ### Module backend hiện tại
 
@@ -30,8 +31,9 @@ Mục tiêu khi làm việc trong repo này:
 - `qltpchay/config.py`: đọc/ghi config hệ thống
 - `qltpchay/auth.py`: session và cookie admin
 - `qltpchay/importer.py`: seed/import sản phẩm ban đầu
+- `qltpchay/store.py`: logic kho, báo cáo, sync state, import/export
 - `qltpchay/http_handler.py`: request handler HTTP
-- `app.py`: hiện còn giữ `InventoryStore` và bootstrap chính
+- `app.py`: entrypoint/CLI bootstrap mỏng
 
 ### Module frontend hiện tại
 
@@ -47,8 +49,9 @@ Khi cần hiểu logic hiện tại, đọc theo thứ tự:
 
 1. `README.md`
 2. `docs/HUONG_DAN_SU_DUNG.md`
-3. `app.py`
-4. `static/app.js`
+3. `qltpchay/store.py`
+4. `app.py`
+5. `static/app.js`
 
 Không giả định từ trí nhớ cũ nếu code hiện tại nói khác.
 
@@ -107,11 +110,22 @@ Nếu thay logic backend hoặc schema, ưu tiên chạy thêm:
 python -m unittest discover -s tests
 ```
 
+Nếu thay workflow UI, menu, selector, sync state hoặc điều hướng, ưu tiên chạy thêm:
+
+```powershell
+npm run test:integration
+```
+
+Suite integration dùng `Playwright` và fixture DB tạm, được cấu hình ở:
+
+- `playwright.config.js`
+- `tests/integration/run_test_server.py`
+
 Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối.
 
 ## Nguyên tắc sửa code
 
-- không thêm package ngoài nếu chưa thật cần; project đang chạy tốt bằng stdlib
+- không thêm package runtime ngoài nếu chưa thật cần; app hiện vẫn chạy tốt bằng stdlib
 - không đổi schema DB mà bỏ quên migration trong `_initialize_schema()`
 - không phá dữ liệu cũ; mọi cột mới phải có hướng tương thích ngược
 - giữ patch nhỏ, sửa đúng nguồn gốc thay vì workaround ở UI

@@ -6,6 +6,7 @@
 
 - Deploy Windows: [docs/DEPLOY_WINDOWS.md](docs/DEPLOY_WINDOWS.md)
 - Hướng dẫn sử dụng: [docs/HUONG_DAN_SU_DUNG.md](docs/HUONG_DAN_SU_DUNG.md)
+- Hướng dẫn test: [docs/TESTING.md](docs/TESTING.md)
 
 ## Tính năng chính
 
@@ -80,7 +81,7 @@ python app.py --host 0.0.0.0 --port 8080
 Hoặc:
 
 ```powershell
-python app.py serve --host 192.168.1.10 --port 9000
+python app.py --host 192.168.1.10 --port 9000 serve
 ```
 
 ## Khởi tạo danh mục từ `data\List.txt`
@@ -111,6 +112,22 @@ python app.py init --reset
 
 ## Chạy test
 
+Test unit:
+
 ```powershell
 python -m unittest discover -s tests
 ```
+
+Integration test UI trên fixture DB riêng:
+
+```powershell
+npm install
+npx playwright install chromium
+npm run test:integration
+```
+
+Suite integration sẽ:
+
+- tự dựng server test riêng trên `fixture DB` tạm
+- không dùng `data\inventory.db` đang vận hành
+- kiểm tra các màn chính, điều hướng, refresh, và luồng `Master Admin`

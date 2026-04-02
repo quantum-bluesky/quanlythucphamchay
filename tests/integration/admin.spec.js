@@ -1,0 +1,58 @@
+const { test, expect } = require("@playwright/test");
+const path = require("path");
+const fs = require("fs");
+const {
+  attachRuntimeTracking,
+  collectToast,
+  expectNoRuntimeErrors,
+  expectScreenTitle,
+  reloadHealthy,
+  switchMenu,
+} = require("./support/ui");
+
+test("master admin login, export, import, backup and restore work on fixture DB", async ({ page }, testInfo) => {
+  const runtime = attachRuntimeTracking(page);
+  const downloadsDir = testInfo.outputPath("downloads");
+  fs.mkdirSync(downloadsDir, { recursive: true });
+
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await switchMenu(page, "admin");
+  await expectScreenTitle(page, "Master Admin");
+
+  await page.locator("#adminUsernameInput").fill("masteradmin");
+  await page.locator("#adminPasswordInput").fill("admin12345");
+  await page.locator('#adminLoginForm button[type="submit"]').click();
+  await collectToast(page, runtime, "admin-login");
+  await expect(page.locator("#adminModulePanel")).toBeVisible();
+
+  const exportDownloadPromise = page.waitForEvent("download");
+  await page.locator('[data-admin-export="customers"]').click();
+  const exportDownload = await exportDownloadPromise;
+  const exportFile = path.join(downloadsDir, exportDownload.suggestedFilename());
+  await exportDownload.saveAs(exportFile);
+  expect(fs.existsSync(exportFile)).toBeTruthy();
+  await collectToast(page, runtime, "admin-export");
+
+  const backupDownloadPromise = page.waitForEvent("download");
+  await page.locator("#adminBackupButton").click();
+  const backupDownload = await backupDownloadPromise;
+  const backupFile = path.join(downloadsDir, backupDownload.suggestedFilename());
+  await backupDownload.saveAs(backupFile);
+  expect(fs.existsSync(backupFile)).toBeTruthy();
+  await collectToast(page, runtime, "admin-backup");
+
+  await page.locator("#adminImportCustomersFile").setInputFiles(exportFile);
+  await page.locator('[data-admin-import="customers"]').click();
+  await page.waitForTimeout(1200);
+  await collectToast(page, runtime, "admin-import");
+
+  await page.locator("#adminRestoreDbFile").setInputFiles(backupFile);
+  await page.locator("#adminRestoreButton").click();
+  await page.waitForTimeout(1600);
+  await collectToast(page, runtime, "admin-restore");
+  await reloadHealthy(page, runtime, "admin-reload", "Master Admin");
+  await expect(page.locator("#adminModulePanel")).toBeVisible();
+
+  expectNoRuntimeErrors(runtime);
+});

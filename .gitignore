@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 data/
+node_modules/
+playwright-report/
+test-results/
