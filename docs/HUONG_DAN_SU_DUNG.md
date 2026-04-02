@@ -199,14 +199,14 @@ Màn này có 2 phần:
 7. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
 8. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
 9. Khi hàng về thực tế, bấm `Nhập kho`
-10. Khi đã thanh toán cho nhà cung cấp, bấm `Đã thanh toán`
+10. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 
 ### Ý nghĩa trạng thái phiếu nhập
 
 - `Nháp`: đang chuẩn bị
 - `Đã đặt`: đã gửi đơn cho nhà cung cấp
 - `Đã nhập kho`: hàng đã về và tồn kho đã tăng
-- `Đã thanh toán`: đã trả tiền
+- `Đã thanh toán`: đã trả tiền sau khi hàng đã được nhập kho
 - `Đã hủy`: không tiếp tục phiếu đó nữa
 
 ## 9. Luồng quản lý nhà cung cấp

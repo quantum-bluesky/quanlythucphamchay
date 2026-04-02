@@ -83,6 +83,7 @@ export const SCREEN_HELP = {
       "Tạo hoặc mở phiếu nhập, thêm sản phẩm cần mua rồi cập nhật trạng thái theo tiến trình.",
       "Nếu có máy khác vừa tạo hoặc sửa phiếu nhập, màn hình sẽ tự làm mới khi bạn không còn nhập dở ở ô hiện tại.",
       "Trong detail từng dòng nhập, bạn có thể sửa số lượng, giá nhập và bấm Giá chung để cập nhật giá nhập mặc định của sản phẩm sau khi xác nhận.",
+      "Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho; app sẽ khóa thao tác trả tiền sớm hơn bước này.",
       "Ẩn các phiếu đã thanh toán để giữ màn hình gọn; bật lại khi cần đối chiếu lịch sử.",
     ],
     related: [

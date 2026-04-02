@@ -601,6 +601,7 @@ function syncSalesState() {
       createdAt: purchase.createdAt || nowIso(),
       updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
       receivedAt: purchase.receivedAt || null,
+      paidAt: purchase.paidAt || null,
       receiptCode: purchase.receiptCode || "",
       items: Array.isArray(purchase.items)
         ? purchase.items

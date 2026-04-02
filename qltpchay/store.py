@@ -1042,12 +1042,15 @@ class InventoryStore:
             if next_status != "paid":
                 continue
 
-            if previous_status not in {"received", "paid"}:
-                raise ValueError("Phiếu nhập chỉ được chuyển sang đã thanh toán sau khi đã nhập kho.")
-
             received_at = purchase.get("receivedAt") or purchase.get("received_at")
             if not received_at:
                 raise ValueError("Phiếu nhập đã thanh toán phải có thời điểm nhập kho trước đó.")
+
+            if previous_status is None:
+                continue
+
+            if previous_status not in {"received", "paid"}:
+                raise ValueError("Phiếu nhập chỉ được chuyển sang đã thanh toán sau khi đã nhập kho.")
 
     def _get_sync_collection(self, state_key: str) -> list[dict]:
         with self._connect() as connection:
