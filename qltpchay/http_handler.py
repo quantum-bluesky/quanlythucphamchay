@@ -22,6 +22,11 @@ def create_handler(store, admin_sessions):
                 self._serve_static_file("index.html")
                 return
 
+            if route == "/favicon.ico":
+                self.send_response(HTTPStatus.NO_CONTENT)
+                self.end_headers()
+                return
+
             if route.startswith("/static/"):
                 self._serve_static_file(route.removeprefix("/static/"))
                 return

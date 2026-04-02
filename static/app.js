@@ -1,228 +1,140 @@
-const STORAGE_KEYS = {
-  activeCartId: "qltpchay.active-cart.v1",
-  activeMenu: "qltpchay.active-menu.v1",
-  activePurchaseId: "qltpchay.active-purchase.v1",
-  menuCollapsed: "qltpchay.menu-collapsed.v1",
-  migratedSyncState: "qltpchay.server-sync-migrated.v1",
-};
+import { STORAGE_KEYS, LEGACY_STORAGE_KEYS, SYNC_COLLECTION_KEYS, state } from "./modules/app-state.js";
+import {
+  summaryCards,
+  productGrid,
+  transactionList,
+  productLookupInput,
+  productOptions,
+  quickTransactionForm,
+  productForm,
+  toast,
+  searchInput,
+  quantityInput,
+  noteInput,
+  quickPanel,
+  quickPanelToggle,
+  menuPanel,
+  menuToggleButton,
+  viewSections,
+  customerLookupInput,
+  customerOptions,
+  openCartButton,
+  draftCartBadge,
+  salesSearchInput,
+  salesProductList,
+  activeCartPanel,
+  cartItemsList,
+  showArchivedCarts,
+  showPaidOrders,
+  orderSearchInput,
+  cartQueueList,
+  customerForm,
+  customerNameInput,
+  customerPhoneInput,
+  customerAddressInput,
+  customerZaloInput,
+  customerFormCancelButton,
+  customerSearchInput,
+  customerList,
+  productManageSearchInput,
+  productManageList,
+  productHistoryList,
+  productFormCancelButton,
+  productsSection,
+  productFormSection,
+  productFormWrap,
+  productFormToggleButton,
+  productHistorySection,
+  productHistoryWrap,
+  productHistoryToggleButton,
+  purchaseSupplierInput,
+  purchaseNoteInput,
+  createPurchaseDraftButton,
+  togglePurchasePanelButton,
+  purchasePanel,
+  purchaseSupplierMenuButton,
+  purchaseSearchInput,
+  purchaseSuggestionList,
+  purchaseOrderList,
+  purchasesSection,
+  purchasesPanel,
+  purchaseCustomerCard,
+  purchaseSuggestionToolbar,
+  purchaseOrdersCard,
+  showPaidPurchases,
+  supplierOptions,
+  supplierForm,
+  supplierNameInput,
+  supplierPhoneInput,
+  supplierAddressInput,
+  supplierNoteInput,
+  supplierFormCancelButton,
+  supplierSearchInput,
+  supplierList,
+  reportMonthInput,
+  reportStartDateInput,
+  reportEndDateInput,
+  reportRangeSelect,
+  refreshReportsButton,
+  clearReportDateFilterButton,
+  reportSummaryCards,
+  reportMonthTrend,
+  forecastList,
+  reportProductActivity,
+  reportsSection,
+  reportFiltersSection,
+  reportFiltersWrap,
+  reportFiltersToggleButton,
+  reportTrendSection,
+  reportForecastSection,
+  deletedProductList,
+  deletedCustomerList,
+  deletedSupplierList,
+  adminLoginPanel,
+  adminModulePanel,
+  adminLoginForm,
+  adminUsernameInput,
+  adminPasswordInput,
+  adminLogoutButton,
+  adminBackupButton,
+  adminRestoreDbFile,
+  adminRestoreButton,
+  scrollTopButton,
+  scrollBottomButton,
+  navBackButton,
+  navForwardButton,
+  openHelpButton,
+  floatingSearchDock,
+  floatingSearchToggle,
+  floatingSearchInput,
+  helpModal,
+  helpModalBody,
+  closeHelpButton,
+  activeScreenTitle,
+  activeScreenSubtitle,
+  mobileQuery,
+  createOrderSection,
+  createOrderPanel,
+  createOrderCustomerCard,
+  salesSearchToolbar,
+  searchClearRefreshers,
+} from "./modules/dom.js";
+import { SCREEN_HELP, SCREEN_META, FLOATING_SEARCH_CONFIG } from "./modules/screen-config.js";
+import {
+  formatQuantity,
+  formatCurrency,
+  formatDate,
+  formatMonthLabel,
+  formatDateOnly,
+  escapeHtml,
+  renderOverflowMenu,
+  normalizeText,
+} from "./modules/utils.js";
 
-const LEGACY_STORAGE_KEYS = {
-  customers: "qltpchay.customers.v1",
-  carts: "qltpchay.carts.v1",
-  purchases: "qltpchay.purchases.v1",
-  suppliers: "qltpchay.suppliers.v1",
-};
-
-const SYNC_COLLECTION_KEYS = ["customers", "suppliers", "carts", "purchases"];
 const pendingPersistCollections = new Set();
 let persistScheduled = false;
 let isRefreshingState = false;
 let latestSyncUpdatedAt = {};
-
-const state = {
-  products: [],
-  deletedProducts: [],
-  productHistory: [],
-  transactions: [],
-  summary: null,
-  reports: null,
-  admin: {
-    authenticated: false,
-    username: "",
-  },
-  searchTerm: "",
-  salesSearchTerm: "",
-  orderSearchTerm: "",
-  customerSearchTerm: "",
-  productManageSearchTerm: "",
-  purchaseSearchTerm: "",
-  supplierSearchTerm: "",
-  reportFocusMonth: new Date().toISOString().slice(0, 7),
-  reportRangeMonths: 6,
-  reportStartDate: "",
-  reportEndDate: "",
-  reportFiltersCollapsed: false,
-  customers: [],
-  suppliers: [],
-  carts: [],
-  purchases: [],
-  activeCartId: null,
-  activePurchaseId: null,
-  activeMenu: "inventory",
-  menuHistory: ["inventory"],
-  menuHistoryIndex: 0,
-  helpOpen: false,
-  floatingSearchExpanded: false,
-  showArchivedCarts: false,
-  showPaidOrders: false,
-  showPaidPurchases: false,
-  expandedProductId: null,
-  expandedSalesProductId: null,
-  expandedOrderId: null,
-  productFormCollapsed: false,
-  productHistoryCollapsed: false,
-  editingPriceId: null,
-  editingCustomerId: null,
-  editingProductId: null,
-  editingCustomerFormId: null,
-  menuCollapsed: false,
-  activeCartPanelCollapsed: false,
-  purchasePanelCollapsed: false,
-  editingSupplierFormId: null,
-  pagination: {
-    inventory: 1,
-    productManage: 1,
-    salesProducts: 1,
-    orders: 1,
-    customers: 1,
-    purchaseSuggestions: 1,
-    purchaseOrders: 1,
-    suppliers: 1,
-    reportProducts: 1,
-    reportForecast: 1,
-    deletedProducts: 1,
-    deletedCustomers: 1,
-    deletedSuppliers: 1,
-  },
-};
-
-function getSyncPayload(keys = SYNC_COLLECTION_KEYS) {
-  const payload = {};
-  keys.forEach((key) => {
-    payload[key] = state[key];
-  });
-  return payload;
-}
-
-const summaryCards = document.getElementById("summaryCards");
-const productGrid = document.getElementById("productGrid");
-const transactionList = document.getElementById("transactionList");
-const productLookupInput = document.getElementById("productLookupInput");
-const productOptions = document.getElementById("productOptions");
-const quickTransactionForm = document.getElementById("quickTransactionForm");
-const productForm = document.getElementById("productForm");
-const toast = document.getElementById("toast");
-const searchInput = document.getElementById("searchInput");
-const quantityInput = document.getElementById("quantityInput");
-const noteInput = document.getElementById("noteInput");
-const quickPanel = document.getElementById("quickPanel");
-const quickPanelToggle = document.getElementById("quickPanelToggle");
-const menuPanel = document.getElementById("menuPanel");
-const menuToggleButton = document.getElementById("menuToggleButton");
-const viewSections = Array.from(document.querySelectorAll("[data-menu-section]"));
-const customerLookupInput = document.getElementById("customerLookupInput");
-const customerOptions = document.getElementById("customerOptions");
-const openCartButton = document.getElementById("openCartButton");
-const draftCartBadge = document.getElementById("draftCartBadge");
-const salesSearchInput = document.getElementById("salesSearchInput");
-const salesProductList = document.getElementById("salesProductList");
-const activeCartPanel = document.getElementById("activeCartPanel");
-const cartItemsList = document.getElementById("cartItemsList");
-const showArchivedCarts = document.getElementById("showArchivedCarts");
-const showPaidOrders = document.getElementById("showPaidOrders");
-const orderSearchInput = document.getElementById("orderSearchInput");
-const cartQueueList = document.getElementById("cartQueueList");
-const customerForm = document.getElementById("customerForm");
-const customerNameInput = document.getElementById("customerNameInput");
-const customerPhoneInput = document.getElementById("customerPhoneInput");
-const customerAddressInput = document.getElementById("customerAddressInput");
-const customerZaloInput = document.getElementById("customerZaloInput");
-const customerFormCancelButton = document.getElementById("customerFormCancelButton");
-const customerSearchInput = document.getElementById("customerSearchInput");
-const customerList = document.getElementById("customerList");
-const productManageSearchInput = document.getElementById("productManageSearchInput");
-const productManageList = document.getElementById("productManageList");
-const productHistoryList = document.getElementById("productHistoryList");
-const productFormCancelButton = document.getElementById("productFormCancelButton");
-const productsSection = document.querySelector('[data-menu-section="products"]');
-const productFormSection = document.getElementById("productFormSection");
-const productFormWrap = document.getElementById("productFormWrap");
-const productFormToggleButton = document.getElementById("productFormToggleButton");
-const productHistorySection = document.getElementById("productHistorySection");
-const productHistoryWrap = document.getElementById("productHistoryWrap");
-const productHistoryToggleButton = document.getElementById("productHistoryToggleButton");
-const purchaseSupplierInput = document.getElementById("purchaseSupplierInput");
-const purchaseNoteInput = document.getElementById("purchaseNoteInput");
-const createPurchaseDraftButton = document.getElementById("createPurchaseDraftButton");
-const togglePurchasePanelButton = document.getElementById("togglePurchasePanelButton");
-const purchasePanel = document.getElementById("purchasePanel");
-const purchaseSupplierMenuButton = document.querySelector('.purchases-panel [data-go-menu="suppliers"]');
-const purchaseSearchInput = document.getElementById("purchaseSearchInput");
-const purchaseSuggestionList = document.getElementById("purchaseSuggestionList");
-const purchaseOrderList = document.getElementById("purchaseOrderList");
-const purchasesSection = document.querySelector('[data-menu-section="purchases"]');
-const purchasesPanel = purchasesSection?.querySelector(".purchases-panel") || null;
-const purchaseCustomerCard = purchasesSection?.querySelector(".sales-customer-card") || null;
-const purchaseSuggestionToolbar = purchaseSearchInput?.closest(".sticky-toolbar") || null;
-const purchaseOrdersCard = purchaseOrderList?.closest(".sales-card") || null;
-const showPaidPurchases = document.getElementById("showPaidPurchases");
-const supplierOptions = document.getElementById("supplierOptions");
-const supplierForm = document.getElementById("supplierForm");
-const supplierNameInput = document.getElementById("supplierNameInput");
-const supplierPhoneInput = document.getElementById("supplierPhoneInput");
-const supplierAddressInput = document.getElementById("supplierAddressInput");
-const supplierNoteInput = document.getElementById("supplierNoteInput");
-const supplierFormCancelButton = document.getElementById("supplierFormCancelButton");
-const supplierSearchInput = document.getElementById("supplierSearchInput");
-const supplierList = document.getElementById("supplierList");
-const reportMonthInput = document.getElementById("reportMonthInput");
-const reportStartDateInput = document.getElementById("reportStartDateInput");
-const reportEndDateInput = document.getElementById("reportEndDateInput");
-const reportRangeSelect = document.getElementById("reportRangeSelect");
-const refreshReportsButton = document.getElementById("refreshReportsButton");
-const clearReportDateFilterButton = document.getElementById("clearReportDateFilterButton");
-const reportSummaryCards = document.getElementById("reportSummaryCards");
-const reportMonthTrend = document.getElementById("reportMonthTrend");
-const forecastList = document.getElementById("forecastList");
-const reportProductActivity = document.getElementById("reportProductActivity");
-const reportsSection = document.querySelector('[data-menu-section="reports"]');
-const reportFiltersSection = document.getElementById("reportFiltersSection");
-const reportFiltersWrap = document.getElementById("reportFiltersWrap");
-const reportFiltersToggleButton = document.getElementById("reportFiltersToggleButton");
-const reportTrendSection = document.getElementById("reportTrendSection");
-const reportForecastSection = document.getElementById("reportForecastSection");
-const deletedProductList = document.getElementById("deletedProductList");
-const deletedCustomerList = document.getElementById("deletedCustomerList");
-const deletedSupplierList = document.getElementById("deletedSupplierList");
-const adminLoginPanel = document.getElementById("adminLoginPanel");
-const adminModulePanel = document.getElementById("adminModulePanel");
-const adminLoginForm = document.getElementById("adminLoginForm");
-const adminUsernameInput = document.getElementById("adminUsernameInput");
-const adminPasswordInput = document.getElementById("adminPasswordInput");
-const adminLogoutButton = document.getElementById("adminLogoutButton");
-const adminBackupButton = document.getElementById("adminBackupButton");
-const adminRestoreDbFile = document.getElementById("adminRestoreDbFile");
-const adminRestoreButton = document.getElementById("adminRestoreButton");
-const scrollTopButton = document.getElementById("scrollTopButton");
-const scrollBottomButton = document.getElementById("scrollBottomButton");
-const navBackButton = document.getElementById("navBackButton");
-const navForwardButton = document.getElementById("navForwardButton");
-const openHelpButton = document.getElementById("openHelpButton");
-const floatingSearchDock = document.getElementById("floatingSearchDock");
-const floatingSearchToggle = document.getElementById("floatingSearchToggle");
-const floatingSearchInput = document.getElementById("floatingSearchInput");
-const helpModal = document.getElementById("helpModal");
-const helpModalBody = document.getElementById("helpModalBody");
-const closeHelpButton = document.getElementById("closeHelpButton");
-const activeScreenTitle = document.getElementById("activeScreenTitle");
-const activeScreenSubtitle = document.getElementById("activeScreenSubtitle");
-const mobileQuery = window.matchMedia("(max-width: 759px)");
-const createOrderSection = document.querySelector('[data-menu-section="create-order"]');
-const createOrderPanel = createOrderSection?.querySelector(".sales-panel") || null;
-const createOrderCustomerCard = createOrderSection?.querySelector(".sales-customer-card") || null;
-const salesSearchToolbar = salesSearchInput?.closest(".sticky-toolbar") || null;
-const searchClearRefreshers = [];
-
-const quantityFormatter = new Intl.NumberFormat("vi-VN", {
-  maximumFractionDigits: 2,
-});
-
-const currencyFormatter = new Intl.NumberFormat("vi-VN", {
-  style: "currency",
-  currency: "VND",
-  maximumFractionDigits: 0,
-});
-
 function attachSearchClearButton(input, container) {
   if (!input || !container || container.querySelector(".search-clear-button")) {
     return;
@@ -405,295 +317,6 @@ function focusReportSection(kind) {
   }, 30);
 }
 
-const SCREEN_HELP = {
-  inventory: {
-    title: "Kiểm tra nhập xuất hàng tồn",
-    overview: "Dùng màn này để xem tồn hiện tại, biết mặt hàng đang chờ nhập hoặc chờ xuất, rồi chuyển đúng sang đơn/phiếu liên quan.",
-    steps: [
-      "Gõ tên mặt hàng ở ô tìm kiếm để thu gọn danh sách cần xem.",
-      "Bấm Xuất hoặc Nhập ngay trên từng mặt hàng để mở đơn chờ / phiếu chờ liên quan, hoặc tạo luồng mới nếu chưa có.",
-      "Nếu card có badge Chờ xuất hoặc Chờ nhập, bấm trực tiếp vào badge để sang đúng màn đang xử lý mặt hàng đó.",
-      "Chỉ Master Admin mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho.",
-      "Kéo xuống phần Lịch sử gần đây để kiểm tra các giao dịch mới nhất trước khi tiếp tục thao tác khác.",
-    ],
-    related: [
-      { menu: "create-order", label: "Sang tạo đơn xuất" },
-      { menu: "purchases", label: "Sang nhập hàng" },
-      { menu: "products", label: "Quản lý sản phẩm" },
-    ],
-  },
-  "create-order": {
-    title: "Tạo đơn xuất hàng",
-    overview: "Màn này dành cho luồng bán hàng: chọn khách, thêm nhiều mặt hàng vào giỏ, chỉnh số lượng và giá bán rồi chốt đơn.",
-    steps: [
-      "Chọn khách hàng có sẵn hoặc gõ tên để mở giỏ hàng cho khách hiện hành.",
-      "Tìm mặt hàng ở danh sách chọn hàng, tick để thêm vào giỏ. Giá bán mặc định sẽ lấy theo giá bán chung của sản phẩm.",
-      "Khi mở detail của dòng hàng, bạn có thể đổi giá bán cho riêng đơn này hoặc bấm Giá chung để cập nhật giá bán mặc định của sản phẩm sau khi xác nhận.",
-      "Nếu thiếu hàng, hệ thống sẽ chuyển sang luồng nhập hàng; chỉ Master Admin mới có quyền chỉnh tồn trực tiếp.",
-    ],
-    related: [
-      { menu: "orders", label: "Xem đơn hàng" },
-      { menu: "customers", label: "Quản lý khách hàng" },
-      { menu: "purchases", label: "Lên phiếu nhập" },
-    ],
-  },
-  orders: {
-    title: "Quản lý đơn hàng",
-    overview: "Theo dõi các giỏ hàng nháp, đơn đã chốt, đơn đã thanh toán và tra cứu lịch sử đơn theo khách hay mặt hàng.",
-    steps: [
-      "Dùng ô tìm kiếm để lọc theo khách hàng, mã đơn hoặc tên mặt hàng.",
-      "Bật hoặc tắt các tùy chọn hiện đơn đã xong và đã thanh toán để thu gọn danh sách.",
-      "Mở từng đơn để in lại, cập nhật thanh toán hoặc xử lý các bước tiếp theo.",
-    ],
-    related: [
-      { menu: "create-order", label: "Quay lại tạo đơn" },
-      { menu: "customers", label: "Xem khách hàng" },
-      { menu: "reports", label: "Xem báo cáo" },
-    ],
-  },
-  customers: {
-    title: "Quản lý khách hàng",
-    overview: "Dùng để thêm mới, sửa, xóa mềm và tra cứu thông tin giao hàng, số liên lạc, Zalo của khách.",
-    steps: [
-      "Mở vào màn là thấy ngay danh sách khách hàng hiện hành.",
-      "Dùng form phía trên để thêm mới hoặc sửa dữ liệu khách đang chọn.",
-      "Tìm nhanh bằng tên, số điện thoại hoặc địa chỉ để tránh nhập trùng.",
-    ],
-    related: [
-      { menu: "create-order", label: "Sang tạo đơn" },
-      { menu: "orders", label: "Xem đơn liên quan" },
-      { menu: "history", label: "Khôi phục khách đã xóa" },
-    ],
-  },
-  products: {
-    title: "Quản lý sản phẩm",
-    overview: "Dùng để thêm mới, sửa nhanh giá nhập, giá bán mặc định và thông tin mặt hàng, ngừng bán hoặc kiểm tra lịch sử thay đổi sản phẩm.",
-    steps: [
-      "Tìm đúng mặt hàng trong danh sách để sửa nhanh ngay trên từng ô.",
-      "Khi sửa, đọc nhãn bên trái của từng dòng để tránh nhầm giữa Giá nhập và Giá bán.",
-      "Nếu cần thêm mới, dùng form phía dưới danh sách.",
-      "Xem phần Lịch sử sản phẩm bên dưới để biết thay đổi gần đây trước khi chỉnh tiếp.",
-    ],
-    related: [
-      { menu: "inventory", label: "Xem tồn kho" },
-      { menu: "purchases", label: "Chuẩn bị nhập hàng" },
-      { menu: "history", label: "Khôi phục sản phẩm đã xóa" },
-    ],
-  },
-  purchases: {
-    title: "Quản lý nhập hàng",
-    overview: "Màn này quản lý phiếu nhập nháp, đơn đã đặt, hàng đã về và trạng thái thanh toán nhập hàng.",
-    steps: [
-      "Xem ngay danh sách phiếu nhập hiện hành khi mở màn.",
-      "Tạo hoặc mở phiếu nhập, thêm sản phẩm cần mua rồi cập nhật trạng thái theo tiến trình.",
-      "Trong detail từng dòng nhập, bạn có thể sửa số lượng, giá nhập và bấm Giá chung để cập nhật giá nhập mặc định của sản phẩm sau khi xác nhận.",
-      "Ẩn các phiếu đã thanh toán để giữ màn hình gọn; bật lại khi cần đối chiếu lịch sử.",
-    ],
-    related: [
-      { menu: "suppliers", label: "Quản lý nhà cung cấp" },
-      { menu: "inventory", label: "Kiểm tra tồn kho" },
-      { menu: "create-order", label: "Quay lại đơn xuất" },
-    ],
-  },
-  suppliers: {
-    title: "Quản lý nhà cung cấp",
-    overview: "Lưu và tra cứu nhà cung cấp để dùng lại trong phiếu nhập, tránh nhập trùng thông tin nguồn hàng.",
-    steps: [
-      "Mở màn là thấy danh sách nhà cung cấp hiện có.",
-      "Dùng form để thêm mới hoặc sửa thông tin liên lạc và ghi chú làm việc.",
-      "Tìm theo tên, số điện thoại hoặc địa chỉ trước khi thêm để tránh trùng lặp.",
-    ],
-    related: [
-      { menu: "purchases", label: "Sang nhập hàng" },
-      { menu: "history", label: "Khôi phục NCC đã xóa" },
-    ],
-  },
-  reports: {
-    title: "Báo cáo và lợi nhuận",
-    overview: "Theo dõi nhập xuất, doanh thu, giá vốn, lãi gộp và danh sách mặt hàng cần nhập thêm.",
-    steps: [
-      "Chọn tháng xem chính hoặc dùng bộ lọc Từ ngày - Đến ngày để xem một khoảng cụ thể.",
-      "Đọc các thẻ tổng hợp để tách riêng chi nhập hàng, doanh thu, giá vốn và lãi gộp.",
-      "Xem tiếp xu hướng theo tháng, đề xuất nhập thêm và chi tiết từng sản phẩm bên dưới.",
-    ],
-    related: [
-      { menu: "inventory", label: "Kiểm tra tồn kho" },
-      { menu: "orders", label: "Đối chiếu đơn hàng" },
-      { menu: "purchases", label: "Đối chiếu nhập hàng" },
-    ],
-  },
-  history: {
-    title: "Lịch sử và khôi phục",
-    overview: "Quản lý các đối tượng đã xóa mềm và khôi phục lại khi ràng buộc cho phép.",
-    steps: [
-      "Chọn đúng nhóm đối tượng đã xóa cần xem: sản phẩm, khách hàng hoặc nhà cung cấp.",
-      "Đọc cảnh báo ràng buộc trước khi khôi phục để biết đối tượng nào đang trùng hoặc đang bị khóa logic.",
-      "Khôi phục xong thì quay lại màn nghiệp vụ tương ứng để tiếp tục thao tác.",
-    ],
-    related: [
-      { menu: "products", label: "Quay lại sản phẩm" },
-      { menu: "customers", label: "Quay lại khách hàng" },
-      { menu: "suppliers", label: "Quay lại nhà cung cấp" },
-    ],
-  },
-  admin: {
-    title: "Master Admin",
-    overview: "Dành cho tài khoản admin để xuất nhập master data, backup và restore toàn hệ thống.",
-    steps: [
-      "Đăng nhập bằng tài khoản admin đã cấu hình trong file hệ thống.",
-      "Dùng export/import để quản trị dữ liệu master của sản phẩm, khách hàng và nhà cung cấp.",
-      "Chỉ restore database khi đã hiểu rõ rằng dữ liệu hiện tại sẽ bị ghi đè bằng bản phục hồi.",
-    ],
-    related: [
-      { menu: "history", label: "Xem lịch sử & khôi phục nghiệp vụ" },
-      { menu: "reports", label: "Quay lại báo cáo" },
-    ],
-  },
-};
-
-const SCREEN_META = {
-  inventory: {
-    title: "Kiểm tra tồn kho",
-    subtitle: "Xem tồn hiện tại, đơn chờ nhập/xuất và đối chiếu lịch sử kho.",
-  },
-  "create-order": {
-    title: "Tạo đơn xuất hàng",
-    subtitle: "Chọn khách, thêm hàng vào giỏ và chốt đơn nhanh.",
-  },
-  orders: {
-    title: "Đơn hàng",
-    subtitle: "Theo dõi giỏ nháp, đơn đã chốt và trạng thái thanh toán.",
-  },
-  customers: {
-    title: "Khách hàng",
-    subtitle: "Lưu danh bạ giao hàng, số liên lạc và Zalo.",
-  },
-  products: {
-    title: "Sản phẩm",
-    subtitle: "Tìm, sửa nhanh giá nhập/giá bán, ngừng bán và xem lịch sử sản phẩm.",
-  },
-  purchases: {
-    title: "Nhập hàng",
-    subtitle: "Lập phiếu nhập, theo dõi tiến trình đặt và nhận hàng.",
-  },
-  suppliers: {
-    title: "Nhà cung cấp",
-    subtitle: "Quản lý nguồn hàng và thông tin liên hệ.",
-  },
-  reports: {
-    title: "Báo cáo",
-    subtitle: "Xem doanh thu, giá vốn, lãi gộp và xu hướng nhập xuất.",
-  },
-  history: {
-    title: "Lịch sử & khôi phục",
-    subtitle: "Theo dõi đối tượng đã xóa mềm và khôi phục khi đủ điều kiện.",
-  },
-  admin: {
-    title: "Master Admin",
-    subtitle: "Quản trị dữ liệu master, backup và restore hệ thống.",
-  },
-};
-
-const FLOATING_SEARCH_CONFIG = {
-  inventory: {
-    sourceId: "searchInput",
-    placeholder: "Tìm mặt hàng tồn kho",
-  },
-  "create-order": {
-    sourceId: "salesSearchInput",
-    placeholder: "Tìm sản phẩm để thêm vào giỏ",
-  },
-  orders: {
-    sourceId: "orderSearchInput",
-    placeholder: "Tìm đơn hàng theo khách, mã đơn, mặt hàng",
-  },
-  customers: {
-    sourceId: "customerSearchInput",
-    placeholder: "Tìm khách hàng",
-  },
-  products: {
-    sourceId: "productManageSearchInput",
-    placeholder: "Tìm sản phẩm để sửa nhanh",
-  },
-  purchases: {
-    sourceId: "purchaseSearchInput",
-    placeholder: "Tìm phiếu nhập hoặc mặt hàng cần nhập",
-  },
-  suppliers: {
-    sourceId: "supplierSearchInput",
-    placeholder: "Tìm nhà cung cấp",
-  },
-};
-
-function formatQuantity(value) {
-  return quantityFormatter.format(Number(value || 0));
-}
-
-function formatCurrency(value) {
-  return currencyFormatter.format(Number(value || 0));
-}
-
-function formatDate(value) {
-  if (!value) {
-    return "";
-  }
-
-  return new Date(value).toLocaleString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-function formatMonthLabel(value) {
-  if (!value) {
-    return "";
-  }
-  const [year, month] = String(value).split("-");
-  return `Tháng ${month}/${year}`;
-}
-
-function formatDateOnly(value) {
-  if (!value) {
-    return "";
-  }
-  return new Date(`${value}T00:00:00`).toLocaleDateString("vi-VN");
-}
-
-function hasCompleteReportDateFilter() {
-  return Boolean(state.reportStartDate && state.reportEndDate);
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function renderOverflowMenu(items = []) {
-  if (!items.length) {
-    return "";
-  }
-
-  return `
-    <details class="inline-more-menu">
-      <summary class="ghost-button compact-button more-menu-trigger">...</summary>
-      <div class="inline-more-menu-popover">
-        ${items.join("")}
-      </div>
-    </details>
-  `;
-}
-
-function normalizeText(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
 function getCurrentScreenHelp() {
   return SCREEN_HELP[state.activeMenu] || {
     title: "Hướng dẫn nhanh",
@@ -721,6 +344,10 @@ function getFloatingSearchSourceShell(menu = state.activeMenu) {
     return null;
   }
   return sourceInput.closest(".sticky-toolbar") || sourceInput.closest("label") || null;
+}
+
+function hasCompleteReportDateFilter() {
+  return Boolean(state.reportStartDate && state.reportEndDate);
 }
 
 function getSearchTermForKey(key) {
@@ -1025,6 +652,15 @@ function readLegacyCollections() {
 
 function hasAnySyncedData(payload) {
   return SYNC_COLLECTION_KEYS.some((key) => Array.isArray(payload?.[key]) && payload[key].length);
+}
+
+function getSyncPayload(keys = SYNC_COLLECTION_KEYS) {
+  const selectedKeys = [...new Set(keys)].filter((key) => SYNC_COLLECTION_KEYS.includes(key));
+  const payload = {};
+  selectedKeys.forEach((key) => {
+    payload[key] = JSON.parse(JSON.stringify(state[key] || []));
+  });
+  return payload;
 }
 
 async function migrateLegacyCollectionsIfNeeded(serverPayload) {
@@ -5554,3 +5190,4 @@ window.addEventListener("DOMContentLoaded", async () => {
     showToast(error.message, true);
   }
 });
+

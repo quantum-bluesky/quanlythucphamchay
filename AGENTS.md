@@ -16,6 +16,7 @@ Mục tiêu khi làm việc trong repo này:
 - Backend: `app.py`
 - Backend package phụ trợ: `qltpchay/`
 - Frontend: `static/index.html`, `static/app.js`, `static/styles.css`
+- Frontend shared modules: `static/modules/`
 - DB: `data/inventory.db`
 - Config hệ thống runtime: `data/system_config.json`
 - Tài liệu người dùng: `README.md`, `docs/HUONG_DAN_SU_DUNG.md`, `docs/DEPLOY_WINDOWS.md`
@@ -31,6 +32,14 @@ Mục tiêu khi làm việc trong repo này:
 - `qltpchay/importer.py`: seed/import sản phẩm ban đầu
 - `qltpchay/http_handler.py`: request handler HTTP
 - `app.py`: hiện còn giữ `InventoryStore` và bootstrap chính
+
+### Module frontend hiện tại
+
+- `static/app.js`: entrypoint chính và orchestration UI
+- `static/modules/app-state.js`: state dùng chung và storage keys
+- `static/modules/dom.js`: DOM refs dùng chung
+- `static/modules/screen-config.js`: help/meta/search config theo màn
+- `static/modules/utils.js`: format/escape/utility dùng chung
 
 ## Nguồn sự thật của nghiệp vụ
 
