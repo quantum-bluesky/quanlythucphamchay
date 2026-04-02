@@ -69,3 +69,68 @@ test("purchase can only be marked paid after it has been received", async ({ pag
 
   expectNoRuntimeErrors(runtime);
 });
+
+test("completed orders and received or paid purchases reject direct edits", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16");
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+
+  try {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    await switchMenu(page, "orders");
+    await expectScreenTitle(page, "Đơn hàng");
+    await page.locator("#showArchivedCarts").check();
+    await page.waitForTimeout(300);
+    const completedOrderCard = page.locator(".cart-queue-item", { hasText: "Chị Ngọc, Long Biên" }).first();
+    await completedOrderCard.locator('[data-queue-action="toggle-detail"]').click();
+    await page.waitForTimeout(300);
+    await expect(completedOrderCard.locator('[data-queue-action="delete"]')).toHaveCount(0);
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+    await page.locator("#showPaidPurchases").check();
+    await page.waitForTimeout(300);
+    const paidPurchaseCard = page.locator(".cart-queue-item", { hasText: "Đã thanh toán" }).first();
+    await paidPurchaseCard.locator('[data-purchase-list-action="open"]').click();
+    await page.waitForTimeout(400);
+    await expect(page.locator('[data-purchase-item-action="save"]')).toHaveCount(0);
+    await expect(page.locator('[data-purchase-action="delete"]')).toHaveCount(0);
+
+    const invalidCartPayload = structuredClone(originalState);
+    const completedCart = invalidCartPayload.carts.find((cart) => cart.id === "cart_completed_1");
+    completedCart.items[0].quantity = 9;
+
+    const invalidCartResponse = await request.put("/api/state", {
+      data: { carts: invalidCartPayload.carts },
+    });
+    expect(invalidCartResponse.status()).toBe(400);
+    const invalidCartBody = await invalidCartResponse.json();
+    expect(invalidCartBody.error).toContain("Đơn hàng đã chốt không thể sửa trực tiếp");
+
+    const invalidPurchasePayload = structuredClone(originalState);
+    const paidPurchase = invalidPurchasePayload.purchases.find((purchase) => purchase.id === "purchase_paid_1");
+    paidPurchase.items[0].unitCost = 99000;
+
+    const invalidPurchaseResponse = await request.put("/api/state", {
+      data: { purchases: invalidPurchasePayload.purchases },
+    });
+    expect(invalidPurchaseResponse.status()).toBe(400);
+    const invalidPurchaseBody = await invalidPurchaseResponse.json();
+    expect(invalidPurchaseBody.error).toContain("Phiếu nhập đã thanh toán không thể sửa trực tiếp");
+  } finally {
+    await request.put("/api/state", {
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});

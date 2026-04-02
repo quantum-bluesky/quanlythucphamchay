@@ -38,7 +38,8 @@ export const SCREEN_HELP = {
     steps: [
       "Dùng ô tìm kiếm để lọc theo khách hàng, mã đơn hoặc tên mặt hàng.",
       "Bật hoặc tắt các tùy chọn hiện đơn đã xong và đã thanh toán để thu gọn danh sách.",
-      "Mở từng đơn để in lại, cập nhật thanh toán hoặc xử lý các bước tiếp theo.",
+      "Đơn đã chốt chỉ còn các thao tác xem/in và cập nhật thanh toán; app sẽ khóa sửa trực tiếp để giữ lịch sử đúng workflow.",
+      "Nếu phát hiện sai sau khi đã chốt đơn, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược đơn cũ.",
     ],
     related: [
       { menu: "create-order", label: "Quay lại tạo đơn" },
@@ -84,6 +85,7 @@ export const SCREEN_HELP = {
       "Nếu có máy khác vừa tạo hoặc sửa phiếu nhập, màn hình sẽ tự làm mới khi bạn không còn nhập dở ở ô hiện tại.",
       "Trong detail từng dòng nhập, bạn có thể sửa số lượng, giá nhập và bấm Giá chung để cập nhật giá nhập mặc định của sản phẩm sau khi xác nhận.",
       "Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho; app sẽ khóa thao tác trả tiền sớm hơn bước này.",
+      "Phiếu đã nhập kho, đã thanh toán hoặc đã hủy sẽ chuyển sang chế độ chỉ xem; nếu sai sót thì xử lý bằng chứng từ điều chỉnh mới.",
       "Ẩn các phiếu đã thanh toán để giữ màn hình gọn; bật lại khi cần đối chiếu lịch sử.",
     ],
     related: [

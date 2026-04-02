@@ -1002,8 +1002,14 @@ class InventoryStore:
                     decoded = []
                 existing_collections[key] = decoded if isinstance(decoded, list) else []
 
+            if "carts" in to_update:
+                self._validate_cart_workflow_locks(
+                    existing_collections.get("carts", []),
+                    to_update["carts"],
+                )
+
             if "purchases" in to_update:
-                self._validate_purchase_payment_transition(
+                self._validate_purchase_workflow_locks(
                     existing_collections.get("purchases", []),
                     to_update["purchases"],
                 )
@@ -1022,11 +1028,80 @@ class InventoryStore:
 
         return self.get_sync_state()
 
-    def _validate_purchase_payment_transition(
+    def _validate_cart_workflow_locks(
+        self,
+        existing_carts: list[dict],
+        incoming_carts: list[dict],
+    ) -> None:
+        incoming_ids = {
+            str(cart.get("id"))
+            for cart in incoming_carts
+            if cart.get("id")
+        }
+
+        for cart in existing_carts:
+            cart_id = str(cart.get("id") or "")
+            if not cart_id or cart_id in incoming_ids:
+                continue
+            if str(cart.get("status") or "draft") != "draft":
+                raise ValueError("Chỉ được xóa hẳn giỏ hàng nháp. Đơn đã chốt hoặc đã hủy phải giữ lại lịch sử.")
+
+        existing_by_id = {
+            str(cart.get("id")): cart
+            for cart in existing_carts
+            if cart.get("id")
+        }
+
+        for cart in incoming_carts:
+            cart_id = str(cart.get("id") or "")
+            next_status = str(cart.get("status") or "draft")
+            next_payment_status = str(cart.get("paymentStatus") or "unpaid")
+
+            if next_payment_status == "paid" and next_status != "completed":
+                raise ValueError("Đơn hàng chỉ được đánh dấu đã thanh toán sau khi đã chốt.")
+
+            previous = existing_by_id.get(cart_id)
+            if not previous:
+                continue
+
+            previous_status = str(previous.get("status") or "draft")
+            previous_payment_status = str(previous.get("paymentStatus") or "unpaid")
+
+            if previous_status == "completed":
+                if next_status != "completed":
+                    raise ValueError("Đơn hàng đã chốt không thể sửa trực tiếp. Hãy tạo chứng từ điều chỉnh mới.")
+                if self._snapshot_cart_for_lock(previous) != self._snapshot_cart_for_lock(cart):
+                    raise ValueError("Đơn hàng đã chốt không thể sửa trực tiếp. Hãy tạo chứng từ điều chỉnh mới.")
+                if previous_payment_status == "paid" and next_payment_status != "paid":
+                    raise ValueError("Đơn hàng đã thanh toán không thể sửa ngược trạng thái.")
+                if previous_payment_status not in {"unpaid", "paid"}:
+                    raise ValueError("Trạng thái thanh toán đơn hàng không hợp lệ.")
+            elif previous_status == "cancelled":
+                if next_status != "cancelled":
+                    raise ValueError("Giỏ hàng đã hủy không thể mở lại hoặc sửa trực tiếp.")
+                if self._snapshot_cart_for_lock(previous) != self._snapshot_cart_for_lock(cart):
+                    raise ValueError("Giỏ hàng đã hủy không thể sửa trực tiếp.")
+                if next_payment_status != previous_payment_status:
+                    raise ValueError("Giỏ hàng đã hủy không thể đổi trạng thái thanh toán.")
+
+    def _validate_purchase_workflow_locks(
         self,
         existing_purchases: list[dict],
         incoming_purchases: list[dict],
     ) -> None:
+        incoming_ids = {
+            str(purchase.get("id"))
+            for purchase in incoming_purchases
+            if purchase.get("id")
+        }
+
+        for purchase in existing_purchases:
+            purchase_id = str(purchase.get("id") or "")
+            if not purchase_id or purchase_id in incoming_ids:
+                continue
+            if str(purchase.get("status") or "draft") != "draft":
+                raise ValueError("Chỉ được xóa hẳn phiếu nhập nháp. Phiếu đã xử lý phải giữ lại lịch sử.")
+
         existing_by_id = {
             str(purchase.get("id")): purchase
             for purchase in existing_purchases
@@ -1051,6 +1126,67 @@ class InventoryStore:
 
             if previous_status not in {"received", "paid"}:
                 raise ValueError("Phiếu nhập chỉ được chuyển sang đã thanh toán sau khi đã nhập kho.")
+
+            if previous_status == "received":
+                if next_status not in {"received", "paid"}:
+                    raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
+                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
+                    raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
+                continue
+
+            if previous_status == "paid":
+                if next_status != "paid":
+                    raise ValueError("Phiếu nhập đã thanh toán không thể sửa ngược trạng thái.")
+                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
+                    raise ValueError("Phiếu nhập đã thanh toán không thể sửa trực tiếp.")
+                continue
+
+            if previous_status == "cancelled":
+                if next_status != "cancelled":
+                    raise ValueError("Phiếu nhập đã hủy không thể mở lại hoặc sửa trực tiếp.")
+                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
+                    raise ValueError("Phiếu nhập đã hủy không thể sửa trực tiếp.")
+
+    def _snapshot_cart_for_lock(self, cart: dict) -> dict:
+        return {
+            "customerId": str(cart.get("customerId") or ""),
+            "customerName": str(cart.get("customerName") or ""),
+            "status": str(cart.get("status") or "draft"),
+            "orderCode": str(cart.get("orderCode") or ""),
+            "items": sorted(
+                [
+                    {
+                        "id": str(item.get("id") or ""),
+                        "productId": int(item.get("productId") or 0),
+                        "quantity": round(float(item.get("quantity") or 0), 2),
+                        "unitPrice": round(float(item.get("unitPrice") or 0), 2),
+                        "note": str(item.get("note") or ""),
+                    }
+                    for item in (cart.get("items") or [])
+                ],
+                key=lambda item: (item["id"], item["productId"]),
+            ),
+        }
+
+    def _snapshot_purchase_for_lock(self, purchase: dict) -> dict:
+        return {
+            "supplierName": str(purchase.get("supplierName") or ""),
+            "note": str(purchase.get("note") or ""),
+            "receiptCode": str(purchase.get("receiptCode") or ""),
+            "receivedAt": purchase.get("receivedAt") or purchase.get("received_at") or "",
+            "items": sorted(
+                [
+                    {
+                        "id": str(item.get("id") or ""),
+                        "productId": int(item.get("productId") or 0),
+                        "quantity": round(float(item.get("quantity") or 0), 2),
+                        "unitCost": round(float(item.get("unitCost") or 0), 2),
+                    }
+                    for item in (purchase.get("items") or [])
+                ],
+                key=lambda item: (item["id"], item["productId"]),
+            ),
+        }
 
     def _get_sync_collection(self, state_key: str) -> list[dict]:
         with self._connect() as connection:
