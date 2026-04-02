@@ -135,6 +135,10 @@ const pendingPersistCollections = new Set();
 let persistScheduled = false;
 let isRefreshingState = false;
 let latestSyncUpdatedAt = {};
+let latestRuntimeVersion = null;
+let autoRefreshTimer = null;
+let autoRefreshInFlight = false;
+const AUTO_REFRESH_INTERVAL_MS = 8000;
 function attachSearchClearButton(input, container) {
   if (!input || !container || container.querySelector(".search-clear-button")) {
     return;
@@ -663,6 +667,84 @@ function getSyncPayload(keys = SYNC_COLLECTION_KEYS) {
   return payload;
 }
 
+function normalizeRuntimeVersion(payload = {}) {
+  const stateVersion = payload.state || payload.updated_at || {};
+  return {
+    products: String(payload.products || ""),
+    transactions: String(payload.transactions || ""),
+    customers: String(stateVersion.customers || ""),
+    suppliers: String(stateVersion.suppliers || ""),
+    carts: String(stateVersion.carts || ""),
+    purchases: String(stateVersion.purchases || ""),
+  };
+}
+
+function updateRuntimeVersion(payload = {}) {
+  latestRuntimeVersion = normalizeRuntimeVersion(payload.runtime_version || payload);
+}
+
+function hasRuntimeVersionChanged(payload = {}) {
+  const nextVersion = normalizeRuntimeVersion(payload.runtime_version || payload);
+  if (!latestRuntimeVersion) {
+    return true;
+  }
+  return Object.keys(nextVersion).some((key) => nextVersion[key] !== latestRuntimeVersion[key]);
+}
+
+function hasInteractiveInputFocus() {
+  const activeElement = document.activeElement;
+  return Boolean(
+    activeElement &&
+    activeElement.matches(
+      'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, [contenteditable="true"]'
+    )
+  );
+}
+
+function shouldAutoRefresh() {
+  if (document.hidden || isRefreshingState || autoRefreshInFlight || persistScheduled || pendingPersistCollections.size) {
+    return false;
+  }
+  if (hasInteractiveInputFocus()) {
+    return false;
+  }
+  return true;
+}
+
+async function checkForRemoteUpdates() {
+  if (!shouldAutoRefresh()) {
+    return false;
+  }
+
+  autoRefreshInFlight = true;
+  try {
+    const runtimeVersion = await apiRequest("/api/runtime-version");
+    if (!latestRuntimeVersion) {
+      latestRuntimeVersion = normalizeRuntimeVersion(runtimeVersion);
+      return false;
+    }
+    if (!hasRuntimeVersionChanged(runtimeVersion)) {
+      return false;
+    }
+    await refreshData();
+    return true;
+  } catch (error) {
+    console.warn("Auto refresh skipped:", error);
+    return false;
+  } finally {
+    autoRefreshInFlight = false;
+  }
+}
+
+function startAutoRefreshLoop() {
+  if (autoRefreshTimer) {
+    window.clearInterval(autoRefreshTimer);
+  }
+  autoRefreshTimer = window.setInterval(() => {
+    void checkForRemoteUpdates();
+  }, AUTO_REFRESH_INTERVAL_MS);
+}
+
 async function migrateLegacyCollectionsIfNeeded(serverPayload) {
   if (readStorage(STORAGE_KEYS.migratedSyncState, false)) {
     return false;
@@ -687,10 +769,12 @@ async function migrateLegacyCollectionsIfNeeded(serverPayload) {
   syncSalesState();
 
   try {
-    await apiRequest("/api/state", {
+    const response = await apiRequest("/api/state", {
       method: "PUT",
       body: JSON.stringify(getSyncPayload()),
     });
+    latestSyncUpdatedAt = response.updated_at || latestSyncUpdatedAt;
+    updateRuntimeVersion(response);
     writeStorage(STORAGE_KEYS.migratedSyncState, true);
     showToast("Đã chuyển dữ liệu cũ từ trình duyệt lên server để đồng bộ nhiều máy.");
     return true;
@@ -710,10 +794,12 @@ async function persistCollections(keys = SYNC_COLLECTION_KEYS) {
     return;
   }
 
-  await apiRequest("/api/state", {
+  const response = await apiRequest("/api/state", {
     method: "PUT",
     body: JSON.stringify(getSyncPayload(uniqueKeys)),
   });
+  latestSyncUpdatedAt = response.updated_at || latestSyncUpdatedAt;
+  updateRuntimeVersion(response);
 }
 
 function queuePersistCollections(keys = []) {
@@ -2013,6 +2099,7 @@ async function refreshData() {
       refreshAdminStatus(),
     ]);
     latestSyncUpdatedAt = payload.updated_at || {};
+    updateRuntimeVersion(payload);
     state.products = payload.products || [];
     state.deletedProducts = deletedProductsPayload.products || [];
     state.productHistory = productHistoryPayload.history || [];
@@ -4998,7 +5085,7 @@ adminLoginForm.addEventListener("submit", async (event) => {
       authenticated: Boolean(data.authenticated),
       username: data.username || "",
     };
-    renderAdminSection();
+    renderAll();
     showToast(data.message);
   } catch (error) {
     showToast(error.message, true);
@@ -5015,7 +5102,7 @@ adminLogoutButton.addEventListener("click", async () => {
       authenticated: false,
       username: "",
     };
-    renderAdminSection();
+    renderAll();
     showToast(data.message);
   } catch (error) {
     showToast(error.message, true);
@@ -5168,6 +5255,14 @@ mobileQuery.addEventListener("change", () => {
 });
 
 window.addEventListener("scroll", renderScreenToolbox, { passive: true });
+window.addEventListener("focus", () => {
+  void checkForRemoteUpdates();
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    void checkForRemoteUpdates();
+  }
+});
 
 window.addEventListener("DOMContentLoaded", async () => {
   setupSearchClearButtons();
@@ -5186,6 +5281,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (migrated) {
       await refreshData();
     }
+    startAutoRefreshLoop();
   } catch (error) {
     showToast(error.message, true);
   }

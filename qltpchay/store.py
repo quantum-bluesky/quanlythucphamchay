@@ -926,6 +926,33 @@ class InventoryStore:
             "updated_at": row["updated_at"],
         }
 
+    def get_runtime_version(self) -> dict:
+        with self._connect() as connection:
+            product_row = connection.execute(
+                "SELECT COALESCE(MAX(updated_at), '') AS value FROM products"
+            ).fetchone()
+            transaction_row = connection.execute(
+                "SELECT COALESCE(MAX(created_at), '') AS value FROM transactions"
+            ).fetchone()
+            state_rows = connection.execute(
+                """
+                SELECT state_key, updated_at
+                FROM app_state
+                WHERE state_key IN (?, ?, ?, ?)
+                """,
+                self.SYNC_COLLECTION_KEYS,
+            ).fetchall()
+
+        state_version = {key: "" for key in self.SYNC_COLLECTION_KEYS}
+        for row in state_rows:
+            state_version[row["state_key"]] = row["updated_at"] or ""
+
+        return {
+            "products": product_row["value"] if product_row else "",
+            "transactions": transaction_row["value"] if transaction_row else "",
+            "state": state_version,
+        }
+
     def get_sync_state(self) -> dict:
         with self._connect() as connection:
             rows = connection.execute(

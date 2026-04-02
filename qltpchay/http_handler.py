@@ -72,8 +72,16 @@ def create_handler(store, admin_sessions):
                         "products": store.get_products(),
                         "summary": store.get_summary(),
                         "transactions": store.get_transactions(limit=int(limit)),
+                        "runtime_version": store.get_runtime_version(),
                         **store.get_sync_state(),
                     },
+                )
+                return
+
+            if route == "/api/runtime-version":
+                self._send_json(
+                    HTTPStatus.OK,
+                    store.get_runtime_version(),
                 )
                 return
 
@@ -308,6 +316,7 @@ def create_handler(store, admin_sessions):
                         HTTPStatus.OK,
                         {
                             "message": "Đã lưu dữ liệu đồng bộ.",
+                            "runtime_version": store.get_runtime_version(),
                             **sync_state,
                         },
                     )

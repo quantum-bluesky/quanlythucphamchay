@@ -19,6 +19,7 @@ Tài liệu này dành cho người trực tiếp dùng ứng dụng hằng ngà
 - Mỗi màn hình đều có ô tìm kiếm, nên gõ tên để thao tác nhanh
 - Có thể bấm nút `?` ở góc màn hình để xem hướng dẫn nhanh đúng theo màn hiện tại
 - Trên điện thoại, nếu cần xem danh sách dài thì dùng `Thu gọn` hoặc nút chuyển trang `Trước / Sau`
+- Nếu có máy khác vừa cập nhật dữ liệu, app sẽ tự nạp lại khi bạn không còn gõ dở ở ô nhập hiện tại
 
 ## 3. Luồng làm việc hằng ngày
 
@@ -43,6 +44,7 @@ Lưu ý:
 
 - user thường không chỉnh tăng/giảm tồn trực tiếp ở màn này nữa
 - chỉ `Master Admin` mới có chế độ chỉnh tồn trực tiếp và sẽ thấy cảnh báo rõ khi dùng
+- nếu máy khác vừa nhập hoặc xuất hàng, trạng thái tồn kho sẽ tự cập nhật lại khi màn hình đang rảnh
 
 ## 4. Luồng bán hàng cho khách
 
@@ -65,6 +67,10 @@ Vào menu:
 1. Ở cột `Danh sách để thêm vào giỏ`
 2. Tìm sản phẩm theo tên
 3. Tick chọn sản phẩm cần bán
+
+Lưu ý:
+
+- nếu máy khác vừa nhập thêm hàng hoặc đổi giá nhập mặc định, danh sách chọn hàng sẽ tự cập nhật mà không cần refresh tay
 
 Khi chọn, sản phẩm sẽ xuất hiện ở `Giỏ hiện hành`.
 
@@ -301,6 +307,8 @@ Hiện phiếu đã thanh toán
 - Tất cả thiết bị phải mở cùng một địa chỉ app/server
 - Không nên có nhiều máy cùng sửa đúng một đơn hoặc một phiếu nhập tại cùng một thời điểm
 - Nên có một người chính thao tác nhập kho và một người chính thao tác chốt đơn để tránh đè dữ liệu
+- Ở phiên bản hiện tại, các màn chính cũng sẽ tự kiểm tra và nạp lại dữ liệu mới khi màn hình đang rảnh thao tác, nên thường không cần `F5`
+- Trong lúc người dùng đang nhập dở vào ô text/number/date, app sẽ tạm hoãn tự refresh để tránh mất nội dung đang gõ
 
 ## 13. Quy trình đề xuất cho cửa hàng nhỏ
 

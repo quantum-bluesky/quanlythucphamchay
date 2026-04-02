@@ -26,6 +26,18 @@ test("master admin login, export, import, backup and restore work on fixture DB"
   await collectToast(page, runtime, "admin-login");
   await expect(page.locator("#adminModulePanel")).toBeVisible();
 
+  await switchMenu(page, "inventory");
+  await expectScreenTitle(page, "Kiểm tra tồn kho");
+  const adminToggle = page.locator('[data-product-action="toggle-expand"]').first();
+  await expect(adminToggle).toBeVisible();
+  await adminToggle.click();
+  await page.waitForTimeout(400);
+  await expect(page.locator('[data-product-action="start-price-edit"]').first()).toBeVisible();
+
+  await switchMenu(page, "admin");
+  await expectScreenTitle(page, "Master Admin");
+  await expect(page.locator("#adminModulePanel")).toBeVisible();
+
   const exportDownloadPromise = page.waitForEvent("download");
   await page.locator('[data-admin-export="customers"]').click();
   const exportDownload = await exportDownloadPromise;
