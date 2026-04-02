@@ -55,6 +55,7 @@ export const state = {
   expandedProductId: null,
   expandedSalesProductId: null,
   expandedOrderId: null,
+  inventoryAdjustmentReasons: {},
   productFormCollapsed: false,
   productHistoryCollapsed: false,
   editingPriceId: null,
@@ -81,4 +82,3 @@ export const state = {
     deletedSuppliers: 1,
   },
 };
-

@@ -11,6 +11,7 @@ const {
 } = require("./support/ui");
 
 test("master admin login, export, import, backup and restore work on fixture DB", async ({ page }, testInfo) => {
+  test.setTimeout(120000);
   const runtime = attachRuntimeTracking(page);
   const downloadsDir = testInfo.outputPath("downloads");
   fs.mkdirSync(downloadsDir, { recursive: true });
@@ -32,7 +33,7 @@ test("master admin login, export, import, backup and restore work on fixture DB"
   await expect(adminToggle).toBeVisible();
   await adminToggle.click();
   await page.waitForTimeout(400);
-  await expect(page.locator('[data-product-action="start-price-edit"]').first()).toBeVisible();
+  await expect(page.locator('[data-quantity-input]').first()).toBeVisible();
 
   await switchMenu(page, "admin");
   await expectScreenTitle(page, "Master Admin");

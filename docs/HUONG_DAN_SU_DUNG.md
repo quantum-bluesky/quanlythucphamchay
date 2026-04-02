@@ -44,6 +44,7 @@ Lưu ý:
 
 - user thường không chỉnh tăng/giảm tồn trực tiếp ở màn này nữa
 - chỉ `Master Admin` mới có chế độ chỉnh tồn trực tiếp và sẽ thấy cảnh báo rõ khi dùng
+- khi `Master Admin` chỉnh tồn trực tiếp, bắt buộc phải nhập lý do để lưu vào lịch sử và audit
 - nếu máy khác vừa nhập hoặc xuất hàng, trạng thái tồn kho sẽ tự cập nhật lại khi màn hình đang rảnh
 
 ## 4. Luồng bán hàng cho khách
@@ -117,7 +118,7 @@ Dùng màn này để:
 - in lại đơn
 - đánh dấu `Đã thanh toán`
 - hủy đơn
-- xóa đơn
+- xóa giỏ nháp tạo nhầm
 
 ### Khi nào dùng từng nút
 
@@ -125,7 +126,12 @@ Dùng màn này để:
 - `In`: in hoặc gửi lại danh sách hàng cho khách
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền
 - `Hủy`: dùng khi khách không lấy nữa
-- `Xóa`: xóa hẳn khỏi danh sách
+- `Xóa`: chỉ áp dụng cho giỏ nháp tạo nhầm; đơn đã chốt phải giữ lại lịch sử
+
+Lưu ý:
+
+- đơn đã `Đã xong` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng hay giá
+- nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
 
 ## 6. Luồng quản lý khách hàng
 
@@ -199,15 +205,20 @@ Màn này có 2 phần:
 7. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
 8. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
 9. Khi hàng về thực tế, bấm `Nhập kho`
-10. Khi đã thanh toán cho nhà cung cấp, bấm `Đã thanh toán`
+10. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 
 ### Ý nghĩa trạng thái phiếu nhập
 
 - `Nháp`: đang chuẩn bị
 - `Đã đặt`: đã gửi đơn cho nhà cung cấp
 - `Đã nhập kho`: hàng đã về và tồn kho đã tăng
-- `Đã thanh toán`: đã trả tiền
+- `Đã thanh toán`: đã trả tiền sau khi hàng đã được nhập kho
 - `Đã hủy`: không tiếp tục phiếu đó nữa
+
+Lưu ý:
+
+- chỉ `Nháp` và `Đã đặt` mới được sửa trực tiếp dòng hàng
+- phiếu đã `Đã nhập kho`, `Đã thanh toán` hoặc `Đã hủy` sẽ chuyển sang chế độ chỉ xem để giữ lịch sử đúng workflow
 
 ## 9. Luồng quản lý nhà cung cấp
 

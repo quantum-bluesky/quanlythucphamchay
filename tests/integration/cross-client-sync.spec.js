@@ -31,12 +31,25 @@ test("create-order screen auto refreshes stock and price after changes from anot
   const product = (productsPayload.products || []).find((entry) => entry.name === "Bò lát xào");
   expect(product).toBeTruthy();
 
+  const adminLoginResponse = await request.post("/api/admin/login", {
+    data: {
+      username: "masteradmin",
+      password: "admin12345",
+    },
+  });
+  expect(adminLoginResponse.ok()).toBeTruthy();
+  const adminCookie = adminLoginResponse.headers()["set-cookie"]?.split(";")[0] || "";
+  expect(adminCookie).toBeTruthy();
+
   const stockResponse = await request.post("/api/transactions", {
+    headers: {
+      Cookie: adminCookie,
+    },
     data: {
       product_id: product.id,
       transaction_type: "in",
       quantity: 5,
-      note: "Playwright cross-client sync test",
+      adjustment_reason: "Playwright cross-client sync test",
     },
   });
   expect(stockResponse.ok()).toBeTruthy();

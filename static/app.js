@@ -505,6 +505,38 @@ function getActivePurchase() {
   return state.purchases.find((purchase) => purchase.id === state.activePurchaseId) || null;
 }
 
+function canMarkPurchasePaid(purchase) {
+  return Boolean(purchase && purchase.status === "received");
+}
+
+function isDraftCart(cart) {
+  return Boolean(cart && cart.status === "draft");
+}
+
+function canDeleteCart(cart) {
+  return isDraftCart(cart);
+}
+
+function canEditPurchase(purchase) {
+  return Boolean(purchase && ["draft", "ordered"].includes(purchase.status));
+}
+
+function canDeletePurchase(purchase) {
+  return Boolean(purchase && purchase.status === "draft");
+}
+
+function isLockedPurchase(purchase) {
+  return Boolean(purchase && ["received", "paid", "cancelled"].includes(purchase.status));
+}
+
+function getInventoryAdjustmentReason(productId) {
+  return String(state.inventoryAdjustmentReasons[String(productId)] || "").trim();
+}
+
+function setInventoryAdjustmentReason(productId, value) {
+  state.inventoryAdjustmentReasons[String(productId)] = String(value || "").trimStart();
+}
+
 function decorateCart(cart) {
   const items = Array.isArray(cart.items)
     ? cart.items
@@ -597,6 +629,7 @@ function syncSalesState() {
       createdAt: purchase.createdAt || nowIso(),
       updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
       receivedAt: purchase.receivedAt || null,
+      paidAt: purchase.paidAt || null,
       receiptCode: purchase.receiptCode || "",
       items: Array.isArray(purchase.items)
         ? purchase.items
@@ -1547,6 +1580,10 @@ function cancelCart(cartId) {
 }
 
 function deleteCart(cartId) {
+  const cart = getCartById(cartId);
+  if (!canDeleteCart(cart)) {
+    throw new Error("Chỉ được xóa hẳn giỏ hàng nháp. Đơn đã chốt phải giữ lại lịch sử.");
+  }
   state.carts = state.carts.filter((cart) => cart.id !== cartId);
   if (state.activeCartId === cartId) {
     state.activeCartId = getDraftCarts()[0]?.id || null;
@@ -1958,6 +1995,7 @@ function renderInventoryDirectEditAccess() {
   const kicker = quickPanel.querySelector(".panel-kicker");
   const heading = quickPanel.querySelector("h2");
   const note = quickPanel.querySelector(".quick-panel-tools .panel-note");
+  const noteLabel = noteInput.closest("label")?.querySelector("span");
 
   quickPanel.hidden = !isAdmin;
   if (!isAdmin) {
@@ -1970,6 +2008,11 @@ function renderInventoryDirectEditAccess() {
     if (note) {
       note.textContent = "Gõ tên sản phẩm, nhập số lượng và chọn nhập hoặc xuất.";
     }
+    if (noteLabel) {
+      noteLabel.textContent = "Ghi chú";
+    }
+    noteInput.placeholder = "Tùy chọn";
+    noteInput.required = false;
     return;
   }
 
@@ -1982,6 +2025,11 @@ function renderInventoryDirectEditAccess() {
   if (note) {
     note.textContent = "Cảnh báo: chế độ này bỏ qua quy trình đơn nhập / đơn xuất chuẩn. Chỉ dùng khi cần chỉnh kho đặc biệt.";
   }
+  if (noteLabel) {
+    noteLabel.textContent = "Lý do điều chỉnh";
+  }
+  noteInput.placeholder = "Bắt buộc";
+  noteInput.required = true;
 }
 
 function applyMobileCollapsedDefaults() {
@@ -2334,6 +2382,11 @@ function renderProducts() {
               ` : ""}
 
               ${isAdmin ? `
+                <label class="price-field inventory-adjustment-reason">
+                  <span>Lý do điều chỉnh</span>
+                  <input type="text" maxlength="160" placeholder="Bắt buộc" value="${escapeHtml(getInventoryAdjustmentReason(product.id))}" data-adjust-reason-input="${product.id}">
+                </label>
+
                 <div class="inventory-inline-quantity">
                   <input type="number" min="0.01" step="0.01" placeholder="Nhập số lượng..." data-quantity-input="${product.id}">
                   <button type="button" class="ghost-button compact-button" data-quantity-apply="out" data-product="${product.id}">Xuất</button>
@@ -2668,7 +2721,7 @@ function renderCartQueue() {
                 <button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>
                 ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
                 ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
-                <button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>
+                ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
               `}
           </div>
           ${compact && expanded ? `
@@ -2678,7 +2731,7 @@ function renderCartQueue() {
                 ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
                 ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">TT</button>` : ""}
                 ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
-                <button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>
+                ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
               </div>
             </div>
           ` : ""}
@@ -2835,6 +2888,8 @@ function renderPurchasePanel() {
     ? (state.purchasePanelCollapsed ? "Mở phiếu" : "Thu gọn")
     : (state.purchasePanelCollapsed ? "Mở phiếu nhập" : "Thu gọn phiếu nhập");
   const purchase = getActivePurchase();
+  const purchaseEditable = canEditPurchase(purchase);
+  const purchaseLocked = isLockedPurchase(purchase);
   if (state.purchasePanelCollapsed) {
     purchasePanel.innerHTML = `
       <article class="empty-state">
@@ -2872,6 +2927,7 @@ function renderPurchasePanel() {
         <div class="stat-chip"><span>Tổng SL</span><strong>${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))}</strong></div>
         <div class="stat-chip"><span>Tổng tiền</span><strong>${formatCurrency(totalAmount)}</strong></div>
       </div>
+      ${purchaseLocked ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
       <div class="cart-items-list">
         ${purchase.items.length ? purchase.items.map((item) => `
           <article class="cart-item">
@@ -2885,28 +2941,30 @@ function renderPurchasePanel() {
             <div class="purchase-inline-grid">
               <label class="price-field">
                 <span>Số lượng nhập</span>
-                <input type="number" min="0.01" step="0.01" value="${item.quantity}" data-purchase-qty-input="${item.id}">
+                <input type="number" min="0.01" step="0.01" value="${item.quantity}" data-purchase-qty-input="${item.id}" ${purchaseEditable ? "" : "disabled"}>
               </label>
               <label class="price-field">
                 <span>Giá nhập</span>
-                <input type="number" min="0" step="1000" value="${item.unitCost}" data-purchase-cost-input="${item.id}">
+                <input type="number" min="0" step="1000" value="${item.unitCost}" data-purchase-cost-input="${item.id}" ${purchaseEditable ? "" : "disabled"}>
               </label>
             </div>
-            <div class="line-actions">
-              <button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">Lưu dòng</button>
-              <button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button>
-              <button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button>
-              <button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>
-            </div>
+            ${purchaseEditable ? `
+              <div class="line-actions">
+                <button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">Lưu dòng</button>
+                <button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button>
+                <button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button>
+                <button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>
+              </div>
+            ` : ""}
           </article>
         `).join("") : '<div class="empty-state">Phiếu nhập đang trống.</div>'}
       </div>
       <div class="cart-toolbar">
-        <button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>
-        <button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>
-        <button type="button" class="ghost-button" data-purchase-action="mark-paid">Đã thanh toán</button>
-        <button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>
-        <button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>
+        ${purchaseEditable ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>` : ""}
+        ${purchaseEditable ? `<button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>` : ""}
+        ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
+        ${purchaseEditable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
+        ${canDeletePurchase(purchase) ? `<button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>` : ""}
       </div>
     </article>
   `;
@@ -3468,8 +3526,10 @@ function prefillProduct(productId) {
   quantityInput.focus();
 }
 
-async function submitTransaction(transactionType, productText, quantity, note = "") {
+async function submitTransaction(transactionType, productText, quantity, note = "", options = {}) {
   const product = resolveProductFromText(productText);
+  const directAdjustment = Boolean(options.directAdjustment);
+  const adjustmentReason = String(options.adjustmentReason || "").trim();
   const data = await apiRequest("/api/transactions", {
     method: "POST",
     body: JSON.stringify({
@@ -3477,6 +3537,7 @@ async function submitTransaction(transactionType, productText, quantity, note = 
       transaction_type: transactionType,
       quantity: Number(quantity),
       note,
+      adjustment_reason: directAdjustment ? adjustmentReason : "",
     }),
   });
 
@@ -3656,7 +3717,11 @@ quickTransactionForm.addEventListener("click", async (event) => {
       button.dataset.transaction,
       productLookupInput.value,
       quantityInput.value,
-      noteInput.value
+      noteInput.value,
+      {
+        directAdjustment: true,
+        adjustmentReason: noteInput.value,
+      }
     );
   } catch (error) {
     showToast(error.message, true);
@@ -3800,10 +3865,19 @@ productGrid.addEventListener("click", async (event) => {
       showToast("Hãy nhập số lượng hợp lệ.", true);
       return;
     }
+    const reason = getInventoryAdjustmentReason(productId);
+    if (!reason) {
+      showToast("Master Admin phải nhập lý do khi chỉnh tồn trực tiếp.", true);
+      return;
+    }
 
     try {
       const product = getProductById(productId);
-      await submitTransaction(quantityApplyButton.dataset.quantityApply, product?.name || "", quantity, "Cập nhật trực tiếp");
+      await submitTransaction(quantityApplyButton.dataset.quantityApply, product?.name || "", quantity, "", {
+        directAdjustment: true,
+        adjustmentReason: reason,
+      });
+      setInventoryAdjustmentReason(productId, "");
     } catch (error) {
       showToast(error.message, true);
     }
@@ -3823,13 +3897,30 @@ productGrid.addEventListener("click", async (event) => {
   const delta = Number(deltaButton.dataset.delta);
   const productId = Number(deltaButton.dataset.product);
   const transactionType = delta > 0 ? "in" : "out";
+  const reason = getInventoryAdjustmentReason(productId);
+  if (!reason) {
+    showToast("Master Admin phải nhập lý do khi chỉnh tồn trực tiếp.", true);
+    return;
+  }
 
   try {
     const product = getProductById(productId);
-    await submitTransaction(transactionType, product?.name || "", Math.abs(delta), "Cập nhật nhanh");
+    await submitTransaction(transactionType, product?.name || "", Math.abs(delta), "", {
+      directAdjustment: true,
+      adjustmentReason: reason,
+    });
+    setInventoryAdjustmentReason(productId, "");
   } catch (error) {
     showToast(error.message, true);
   }
+});
+
+productGrid.addEventListener("input", (event) => {
+  const reasonInput = event.target.closest("[data-adjust-reason-input]");
+  if (!reasonInput) {
+    return;
+  }
+  setInventoryAdjustmentReason(reasonInput.dataset.adjustReasonInput, reasonInput.value);
 });
 
 productGrid.addEventListener("keydown", async (event) => {
@@ -4400,6 +4491,10 @@ cartQueueList.addEventListener("click", (event) => {
   }
 
   if (button.dataset.queueAction === "mark-paid") {
+    if (cart.status !== "completed") {
+      showToast("Chỉ đơn đã chốt mới được đánh dấu đã thanh toán.", true);
+      return;
+    }
     state.expandedOrderId = null;
     state.carts = state.carts.map((entry) =>
       entry.id === cartId
@@ -4412,6 +4507,10 @@ cartQueueList.addEventListener("click", (event) => {
   }
 
   if (button.dataset.queueAction === "cancel") {
+    if (!isDraftCart(cart)) {
+      showToast("Chỉ giỏ hàng nháp mới được hủy.", true);
+      return;
+    }
     if (window.confirm(`Hủy giỏ hàng của ${cart.customerName}?`)) {
       state.expandedOrderId = null;
       cancelCart(cartId);
@@ -4421,6 +4520,10 @@ cartQueueList.addEventListener("click", (event) => {
   }
 
   if (button.dataset.queueAction === "delete") {
+    if (!canDeleteCart(cart)) {
+      showToast("Chỉ được xóa hẳn giỏ hàng nháp. Đơn đã chốt phải giữ lại lịch sử.", true);
+      return;
+    }
     if (window.confirm(`Xóa hẳn giỏ hàng của ${cart.customerName}?`)) {
       state.expandedOrderId = null;
       deleteCart(cartId);
@@ -4705,6 +4808,10 @@ purchasePanel.addEventListener("click", async (event) => {
     if (!purchase) {
       return;
     }
+    if (!canEditPurchase(purchase)) {
+      showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
+      return;
+    }
     if (itemButton.dataset.purchaseItemAction === "save") {
       const qtyInput = purchasePanel.querySelector(`[data-purchase-qty-input="${itemButton.dataset.purchaseItemId}"]`);
       const costInput = purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
@@ -4804,6 +4911,10 @@ purchasePanel.addEventListener("click", async (event) => {
   }
 
   if (actionButton.dataset.purchaseAction === "delete") {
+    if (!canDeletePurchase(purchase)) {
+      showToast("Chỉ được xóa hẳn phiếu nhập nháp.", true);
+      return;
+    }
     state.purchases = state.purchases.filter((entry) => entry.id !== purchase.id);
     state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
     saveAndRenderAll(["purchases"]);
@@ -4812,6 +4923,10 @@ purchasePanel.addEventListener("click", async (event) => {
   }
 
   if (actionButton.dataset.purchaseAction === "mark-ordered") {
+    if (!canEditPurchase(purchase)) {
+      showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
+      return;
+    }
     updatePurchase(purchase.id, () => ({
       status: "ordered",
       supplierName: purchaseSupplierInput.value.trim(),
@@ -4823,6 +4938,10 @@ purchasePanel.addEventListener("click", async (event) => {
   }
 
   if (actionButton.dataset.purchaseAction === "cancel") {
+    if (!canEditPurchase(purchase)) {
+      showToast("Phiếu nhập đã khóa, không thể hủy trực tiếp.", true);
+      return;
+    }
     updatePurchase(purchase.id, () => ({
       status: "cancelled",
       supplierName: purchaseSupplierInput.value.trim(),
@@ -4834,8 +4953,13 @@ purchasePanel.addEventListener("click", async (event) => {
   }
 
   if (actionButton.dataset.purchaseAction === "mark-paid") {
+    if (!canMarkPurchasePaid(purchase)) {
+      showToast("Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho.", true);
+      return;
+    }
     updatePurchase(purchase.id, () => ({
       status: "paid",
+      paidAt: nowIso(),
       supplierName: purchaseSupplierInput.value.trim(),
       note: purchaseNoteInput.value.trim(),
     }));
@@ -4845,6 +4969,10 @@ purchasePanel.addEventListener("click", async (event) => {
   }
 
   if (actionButton.dataset.purchaseAction === "receive") {
+    if (!canEditPurchase(purchase)) {
+      showToast("Phiếu nhập đã khóa, không thể nhập kho lại.", true);
+      return;
+    }
     try {
       const data = await apiRequest("/api/purchases/receive", {
         method: "POST",
