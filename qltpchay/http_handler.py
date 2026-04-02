@@ -9,11 +9,18 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .auth import parse_cookie_header
-from .constants import ADMIN_SESSION_COOKIE, STATIC_DIR
+from .constants import ADMIN_SESSION_COOKIE, APP_NAME, APP_VERSION, STATIC_DIR
 
 
 def create_handler(store, admin_sessions):
     class InventoryRequestHandler(BaseHTTPRequestHandler):
+        @staticmethod
+        def _get_app_info() -> dict:
+            return {
+                "name": APP_NAME,
+                "version": APP_VERSION,
+            }
+
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
             route = parsed.path
@@ -69,6 +76,7 @@ def create_handler(store, admin_sessions):
                 self._send_json(
                     HTTPStatus.OK,
                     {
+                        "app": self._get_app_info(),
                         "products": store.get_products(),
                         "summary": store.get_summary(),
                         "transactions": store.get_transactions(limit=int(limit)),
@@ -81,7 +89,10 @@ def create_handler(store, admin_sessions):
             if route == "/api/runtime-version":
                 self._send_json(
                     HTTPStatus.OK,
-                    store.get_runtime_version(),
+                    {
+                        **store.get_runtime_version(),
+                        "app": self._get_app_info(),
+                    },
                 )
                 return
 
@@ -320,6 +331,7 @@ def create_handler(store, admin_sessions):
                         HTTPStatus.OK,
                         {
                             "message": "Đã lưu dữ liệu đồng bộ.",
+                            "app": self._get_app_info(),
                             "runtime_version": store.get_runtime_version(),
                             **sync_state,
                         },

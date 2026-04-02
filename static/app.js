@@ -112,6 +112,9 @@ import {
   closeHelpButton,
   activeScreenTitle,
   activeScreenSubtitle,
+  appVersionButton,
+  appVersionLabel,
+  aboutContent,
   mobileQuery,
   createOrderSection,
   createOrderPanel,
@@ -136,6 +139,10 @@ let persistScheduled = false;
 let isRefreshingState = false;
 let latestSyncUpdatedAt = {};
 let latestRuntimeVersion = null;
+let currentAppInfo = {
+  name: document.title || "Quản lý thực phẩm chay",
+  version: "",
+};
 let autoRefreshTimer = null;
 let autoRefreshInFlight = false;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
@@ -700,24 +707,56 @@ function getSyncPayload(keys = SYNC_COLLECTION_KEYS) {
   return payload;
 }
 
+function getRuntimeVersionPayload(payload = {}) {
+  const runtimePayload = payload.runtime_version || payload;
+  if (payload.app && !runtimePayload.app) {
+    return {
+      ...runtimePayload,
+      app: payload.app,
+    };
+  }
+  return runtimePayload;
+}
+
 function normalizeRuntimeVersion(payload = {}) {
-  const stateVersion = payload.state || payload.updated_at || {};
+  const runtimePayload = getRuntimeVersionPayload(payload);
+  const stateVersion = runtimePayload.state || runtimePayload.updated_at || {};
   return {
-    products: String(payload.products || ""),
-    transactions: String(payload.transactions || ""),
+    products: String(runtimePayload.products || ""),
+    transactions: String(runtimePayload.transactions || ""),
     customers: String(stateVersion.customers || ""),
     suppliers: String(stateVersion.suppliers || ""),
     carts: String(stateVersion.carts || ""),
     purchases: String(stateVersion.purchases || ""),
+    appVersion: String(runtimePayload.app?.version || ""),
   };
 }
 
+function normalizeAppInfo(payload = {}) {
+  const app = payload.app || payload;
+  return {
+    name: String(app.name || ""),
+    version: String(app.version || ""),
+  };
+}
+
+function updateAppInfo(payload = {}) {
+  const nextAppInfo = normalizeAppInfo(payload);
+  if (nextAppInfo.name) {
+    currentAppInfo.name = nextAppInfo.name;
+  }
+  if (nextAppInfo.version) {
+    currentAppInfo.version = nextAppInfo.version;
+  }
+}
+
 function updateRuntimeVersion(payload = {}) {
-  latestRuntimeVersion = normalizeRuntimeVersion(payload.runtime_version || payload);
+  latestRuntimeVersion = normalizeRuntimeVersion(payload);
+  updateAppInfo(payload);
 }
 
 function hasRuntimeVersionChanged(payload = {}) {
-  const nextVersion = normalizeRuntimeVersion(payload.runtime_version || payload);
+  const nextVersion = normalizeRuntimeVersion(payload);
   if (!latestRuntimeVersion) {
     return true;
   }
@@ -941,6 +980,100 @@ function renderScreenHeader() {
   const meta = SCREEN_META[state.activeMenu] || SCREEN_META.inventory;
   activeScreenTitle.textContent = meta.title;
   activeScreenSubtitle.textContent = meta.subtitle;
+}
+
+function formatAppVersionLabel(version = currentAppInfo.version) {
+  const cleanVersion = String(version || "").trim();
+  if (!cleanVersion) {
+    return "Đang tải...";
+  }
+  return cleanVersion.startsWith("v") ? cleanVersion : `v${cleanVersion}`;
+}
+
+function renderAppVersion() {
+  if (!appVersionLabel || !appVersionButton) {
+    return;
+  }
+  const versionLabel = formatAppVersionLabel();
+  appVersionLabel.textContent = versionLabel;
+  appVersionButton.title = currentAppInfo.version
+    ? `Mở màn About (${versionLabel})`
+    : "Mở màn About";
+}
+
+function renderAboutSection() {
+  if (!aboutContent) {
+    return;
+  }
+
+  const versionLabel = formatAppVersionLabel();
+  const productCountLabel = state.summary
+    ? `${state.summary.product_count} mặt hàng`
+    : "Đang tải dữ liệu";
+  const adminStatus = state.admin?.authenticated
+    ? `Đã đăng nhập: ${state.admin.username || "Master Admin"}`
+    : "Chưa đăng nhập";
+  const syncStatus = latestRuntimeVersion
+    ? "Đang theo dõi thay đổi dữ liệu từ server"
+    : "Đang kết nối runtime";
+
+  aboutContent.innerHTML = `
+    <article class="report-card about-highlight-card">
+      <div class="report-card-head">
+        <strong>${escapeHtml(currentAppInfo.name)}</strong>
+        <span class="pill">${escapeHtml(versionLabel)}</span>
+      </div>
+      <p class="panel-note">Ứng dụng quản lý thực phẩm chay cho cửa hàng nhỏ, ưu tiên thao tác nhanh trên điện thoại và dùng chung dữ liệu qua SQLite + server nội bộ.</p>
+    </article>
+    <article class="report-card">
+      <div class="report-card-head">
+        <strong>Thông tin hiện tại</strong>
+      </div>
+      <div class="report-card-row">
+        <span>Phiên bản app</span>
+        <strong>${escapeHtml(versionLabel)}</strong>
+      </div>
+      <div class="report-card-row">
+        <span>Dữ liệu sản phẩm</span>
+        <strong>${escapeHtml(productCountLabel)}</strong>
+      </div>
+      <div class="report-card-row">
+        <span>Đồng bộ nhiều máy</span>
+        <strong>${escapeHtml(syncStatus)}</strong>
+      </div>
+      <div class="report-card-row">
+        <span>Master Admin</span>
+        <strong>${escapeHtml(adminStatus)}</strong>
+      </div>
+    </article>
+    <article class="report-card">
+      <div class="report-card-head">
+        <strong>Thành phần chính</strong>
+      </div>
+      <div class="report-card-row">
+        <span>Backend</span>
+        <strong>Python stdlib</strong>
+      </div>
+      <div class="report-card-row">
+        <span>Dữ liệu</span>
+        <strong>SQLite</strong>
+      </div>
+      <div class="report-card-row">
+        <span>Giao diện</span>
+        <strong>SPA HTML/CSS/JS</strong>
+      </div>
+    </article>
+    <article class="report-card">
+      <div class="report-card-head">
+        <strong>Đi nhanh</strong>
+      </div>
+      <div class="help-related-actions">
+        <button type="button" class="ghost-button compact-button" data-go-menu="inventory">Về tồn kho</button>
+        <button type="button" class="ghost-button compact-button" data-go-menu="reports">Xem báo cáo</button>
+        <button type="button" class="ghost-button compact-button" data-go-menu="admin">Mở Master Admin</button>
+      </div>
+    </article>
+  `;
 }
 
 function renderHelpModal() {
@@ -3409,6 +3542,7 @@ function renderAll() {
   renderMenu();
   renderViewSections();
   renderScreenHeader();
+  renderAppVersion();
   renderInventoryDirectEditAccess();
   renderSummary(state.summary);
   renderProductOptions();
@@ -3433,6 +3567,7 @@ function renderAll() {
   renderDeletedSuppliers();
   renderReports();
   renderAdminSection();
+  renderAboutSection();
   renderCreateOrderEntryState();
   renderPurchaseEntryState();
   renderReportSections();
@@ -5037,6 +5172,12 @@ purchaseOrderList.addEventListener("click", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  const versionButton = event.target.closest("#appVersionButton");
+  if (versionButton) {
+    switchMenu("about");
+    return;
+  }
+
   const shortcutButton = event.target.closest("[data-purchase-shortcut]");
   if (!shortcutButton) {
     return;

@@ -148,6 +148,20 @@ export const SCREEN_HELP = {
       { menu: "reports", label: "Quay lại báo cáo" },
     ],
   },
+  about: {
+    title: "About ứng dụng",
+    overview: "Màn này hiển thị phiên bản app đang chạy và vài thông tin hệ thống cơ bản để đối chiếu nhanh.",
+    steps: [
+      "Bấm vào badge Version ở đầu ứng dụng để mở màn About.",
+      "Kiểm tra phiên bản hiện tại trước khi trao đổi lỗi, cập nhật hoặc hỗ trợ từ xa.",
+      "Dùng các nút đi nhanh để quay lại tồn kho, báo cáo hoặc Master Admin.",
+    ],
+    related: [
+      { menu: "inventory", label: "Quay lại tồn kho" },
+      { menu: "reports", label: "Xem báo cáo" },
+      { menu: "admin", label: "Mở Master Admin" },
+    ],
+  },
 };
 
 export const SCREEN_META = {
@@ -190,6 +204,10 @@ export const SCREEN_META = {
   admin: {
     title: "Master Admin",
     subtitle: "Quản trị dữ liệu master, backup và restore hệ thống.",
+  },
+  about: {
+    title: "About ứng dụng",
+    subtitle: "Xem phiên bản app đang chạy và thông tin hệ thống cơ bản.",
   },
 };
 

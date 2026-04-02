@@ -18,6 +18,7 @@ Tài liệu này dành cho người trực tiếp dùng ứng dụng hằng ngà
 - Mỗi lần làm việc chỉ chọn đúng `Menu nghiệp vụ`
 - Mỗi màn hình đều có ô tìm kiếm, nên gõ tên để thao tác nhanh
 - Có thể bấm nút `?` ở góc màn hình để xem hướng dẫn nhanh đúng theo màn hiện tại
+- Có thể bấm `Version` ở đầu ứng dụng để mở màn `About` và kiểm tra phiên bản app đang chạy
 - Trên điện thoại, nếu cần xem danh sách dài thì dùng `Thu gọn` hoặc nút chuyển trang `Trước / Sau`
 - Nếu có máy khác vừa cập nhật dữ liệu, app sẽ tự nạp lại khi bạn không còn gõ dở ở ô nhập hiện tại
 

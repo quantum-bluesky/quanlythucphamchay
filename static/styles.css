@@ -106,6 +106,24 @@ h3 {
   margin-top: 10px;
 }
 
+.hero-panel-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.app-version-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+}
+
+.app-version-caption {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .panel {
   border-radius: var(--radius-lg);
   padding: 22px;
@@ -990,6 +1008,18 @@ button:disabled {
 
 .report-summary-grid {
   margin-bottom: 20px;
+}
+
+.about-grid {
+  grid-template-columns: 1fr;
+}
+
+.about-panel {
+  overflow: hidden;
+}
+
+.about-highlight-card {
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.98) 0%, rgba(237, 245, 239, 0.96) 100%);
 }
 
 .report-shortcut-actions {

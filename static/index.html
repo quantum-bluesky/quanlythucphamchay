@@ -14,6 +14,12 @@
         <h1 id="activeScreenTitle">Kho, đơn hàng và khách hàng</h1>
         <p id="activeScreenSubtitle" class="hero-copy">Chọn đúng menu nghiệp vụ để chỉ hiện phần liên quan, giảm nhầm lẫn khi thao tác trên màn hình nhỏ.</p>
       </div>
+      <div class="hero-panel-foot">
+        <button type="button" id="appVersionButton" class="ghost-button compact-button app-version-button" aria-controls="aboutSection">
+          <span class="app-version-caption">Version</span>
+          <strong id="appVersionLabel">Đang tải...</strong>
+        </button>
+      </div>
     </section>
 
     <div id="toast" class="toast" hidden></div>
@@ -662,6 +668,19 @@
             </div>
           </section>
         </section>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="about" id="aboutSection">
+      <section class="panel about-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">About</p>
+            <h2>Thông tin ứng dụng và phiên bản hiện tại</h2>
+          </div>
+          <button type="button" class="ghost-button compact-button" data-go-menu="inventory">Về tồn kho</button>
+        </div>
+        <div id="aboutContent" class="report-list about-grid"></div>
       </section>
     </section>
 
