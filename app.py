@@ -1,222 +1,37 @@
 import argparse
 import base64
-import json
 import hashlib
+import json
 import mimetypes
-import os
 import re
 import secrets
 import shutil
 import sqlite3
-from datetime import date, datetime, timezone
-from decimal import Decimal, InvalidOperation
+from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from decimal import Decimal
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from urllib.parse import parse_qs, urlparse
 
-
-BASE_DIR = Path(__file__).resolve().parent
-STATIC_DIR = BASE_DIR / "static"
-DATA_DIR = BASE_DIR / "data"
-BACKUP_DIR = DATA_DIR / "backups"
-DB_PATH = DATA_DIR / "inventory.db"
-CONFIG_PATH = DATA_DIR / "system_config.json"
-DEFAULT_INIT_FILE = DATA_DIR / "List_price.txt"
-DEFAULT_HOST = "192.168.1.18"
-DEFAULT_PORT = 8000
-DEFAULT_ADMIN_USERNAME = "masteradmin"
-DEFAULT_ADMIN_PASSWORD = "admin12345"
-ADMIN_SESSION_COOKIE = "qltpchay_admin_session"
-
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
-
-def parse_positive_decimal(value, field_name: str) -> Decimal:
-    try:
-        number = Decimal(str(value))
-    except (InvalidOperation, TypeError, ValueError) as exc:
-        raise ValueError(f"{field_name} không hợp lệ.") from exc
-
-    if number <= 0:
-        raise ValueError(f"{field_name} phải lớn hơn 0.")
-
-    return number
-
-
-def parse_non_negative_decimal(value, field_name: str) -> Decimal:
-    try:
-        number = Decimal(str(value))
-    except (InvalidOperation, TypeError, ValueError) as exc:
-        raise ValueError(f"{field_name} không hợp lệ.") from exc
-
-    if number < 0:
-        raise ValueError(f"{field_name} không được nhỏ hơn 0.")
-
-    return number
-
-
-def parse_month_key(value: str | None) -> tuple[int, int] | None:
-    if not value:
-        return None
-    match = re.fullmatch(r"(\d{4})-(\d{2})", str(value).strip())
-    if not match:
-        return None
-    year = int(match.group(1))
-    month = int(match.group(2))
-    if month < 1 or month > 12:
-        return None
-    return year, month
-
-
-def parse_date_key(value: str | None) -> date | None:
-    if value in (None, ""):
-        return None
-    try:
-        return datetime.strptime(str(value).strip(), "%Y-%m-%d").date()
-    except ValueError as exc:
-        raise ValueError("Ngày lọc báo cáo không hợp lệ. Định dạng đúng là YYYY-MM-DD.") from exc
-
-
-def shift_month(year: int, month: int, offset: int) -> tuple[int, int]:
-    total = year * 12 + (month - 1) + offset
-    return total // 12, total % 12 + 1
-
-
-def month_key(year: int, month: int) -> str:
-    return f"{year:04d}-{month:02d}"
-
-
-def extract_labeled_price(note: str, label: str) -> float | None:
-    match = re.search(rf"{label}:\s*([0-9]+(?:\.[0-9]+)?)", note or "")
-    if not match:
-        return None
-    try:
-        return float(match.group(1))
-    except ValueError:
-        return None
-
-
-def extract_price_from_note(note: str, transaction_type: str) -> float | None:
-    label = "Giá bán" if transaction_type == "out" else "Giá nhập"
-    return extract_labeled_price(note, label)
-
-
-def extract_cost_from_note(note: str) -> float | None:
-    return extract_labeled_price(note, "Giá vốn")
-
-
-def normalize_key(value: str | None) -> str:
-    return str(value or "").strip().lower()
-
-
-def build_default_system_config(*, use_env_seed: bool) -> dict:
-    config = {
-        "server": {
-            "host": DEFAULT_HOST,
-            "port": DEFAULT_PORT,
-        },
-        "admin": {
-            "username": DEFAULT_ADMIN_USERNAME,
-            "password": DEFAULT_ADMIN_PASSWORD,
-        },
-    }
-    if use_env_seed:
-        config["server"]["host"] = os.environ.get("APP_HOST", DEFAULT_HOST)
-        try:
-            config["server"]["port"] = int(os.environ.get("APP_PORT", str(DEFAULT_PORT)))
-        except ValueError:
-            config["server"]["port"] = DEFAULT_PORT
-        config["admin"]["username"] = os.environ.get("MASTER_ADMIN_USERNAME", DEFAULT_ADMIN_USERNAME)
-        config["admin"]["password"] = os.environ.get("MASTER_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
-    return config
-
-
-def save_system_config(config: dict, config_path: Path = CONFIG_PATH) -> None:
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(
-        json.dumps(config, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-
-
-def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
-    if not config_path.exists():
-        config = build_default_system_config(use_env_seed=True)
-        save_system_config(config, config_path)
-        return config
-
-    try:
-        raw_config = json.loads(config_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as exc:
-        raise ValueError(f"File config hệ thống không hợp lệ: {config_path}") from exc
-
-    defaults = build_default_system_config(use_env_seed=False)
-    config = {
-        "server": {
-            "host": str(raw_config.get("server", {}).get("host") or defaults["server"]["host"]).strip(),
-            "port": defaults["server"]["port"],
-        },
-        "admin": {
-            "username": str(raw_config.get("admin", {}).get("username") or defaults["admin"]["username"]).strip(),
-            "password": str(raw_config.get("admin", {}).get("password") or defaults["admin"]["password"]),
-        },
-    }
-
-    try:
-        config["server"]["port"] = int(raw_config.get("server", {}).get("port", defaults["server"]["port"]))
-    except (TypeError, ValueError):
-        config["server"]["port"] = defaults["server"]["port"]
-
-    if not config["server"]["host"]:
-        config["server"]["host"] = defaults["server"]["host"]
-    if not config["admin"]["username"]:
-        config["admin"]["username"] = defaults["admin"]["username"]
-    if not config["admin"]["password"]:
-        config["admin"]["password"] = defaults["admin"]["password"]
-
-    if config != raw_config:
-        save_system_config(config, config_path)
-
-    return config
-
-
-def parse_cookie_header(cookie_header: str | None) -> dict[str, str]:
-    cookies: dict[str, str] = {}
-    if not cookie_header:
-        return cookies
-    for part in cookie_header.split(";"):
-        if "=" not in part:
-            continue
-        key, value = part.split("=", 1)
-        cookies[key.strip()] = value.strip()
-    return cookies
-
-
-class AdminSessionManager:
-    def __init__(self, username: str, password: str):
-        self.username = username
-        self.password = password
-        self._sessions: dict[str, str] = {}
-
-    def login(self, username: str, password: str) -> str:
-        if username != self.username or password != self.password:
-            raise ValueError("Sai tài khoản hoặc mật khẩu admin.")
-        token = secrets.token_urlsafe(32)
-        self._sessions[token] = self.username
-        return token
-
-    def logout(self, token: str | None) -> None:
-        if token:
-            self._sessions.pop(token, None)
-
-    def get_username(self, token: str | None) -> str | None:
-        if not token:
-            return None
-        return self._sessions.get(token)
+from qltpchay.auth import AdminSessionManager
+from qltpchay.config import load_system_config
+from qltpchay.constants import BACKUP_DIR, BASE_DIR, CONFIG_PATH, DATA_DIR, DB_PATH, DEFAULT_INIT_FILE
+from qltpchay.helpers import (
+    extract_cost_from_note,
+    extract_price_from_note,
+    month_key,
+    normalize_key,
+    parse_date_key,
+    parse_non_negative_decimal,
+    parse_month_key,
+    parse_positive_decimal,
+    shift_month,
+    utc_now_iso,
+)
+from qltpchay.http_handler import create_handler as modular_create_handler
+from qltpchay.importer import import_products_from_file as modular_import_products_from_file
 
 
 class InventoryStore:
@@ -2219,7 +2034,7 @@ def run_init_command(
     if reset:
         store.reset_all_data()
 
-    result = import_products_from_file(
+    result = modular_import_products_from_file(
         store=store,
         file_path=seed_path,
         default_category=category,
@@ -2265,7 +2080,7 @@ def run_server(system_config: dict, host: str | None = None, port: int | None = 
         str(system_config["admin"]["username"]),
         str(system_config["admin"]["password"]),
     )
-    server = ThreadingHTTPServer((resolved_host, resolved_port), create_handler(store, admin_sessions))
+    server = ThreadingHTTPServer((resolved_host, resolved_port), modular_create_handler(store, admin_sessions))
     print(f"Inventory app running at http://{resolved_host}:{resolved_port}")
     print(f"System config file: {CONFIG_PATH}")
     print(f"Master Admin username: {system_config['admin']['username']}")
