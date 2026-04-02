@@ -3,6 +3,7 @@ import json
 import secrets
 import shutil
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -39,11 +40,19 @@ class InventoryStore:
             self.db_path = fallback_root / f"{suffix}-{requested_path.name}"
             self._initialize_schema()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         connection = sqlite3.connect(str(self.db_path))
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
-        return connection
+        try:
+            yield connection
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
 
     def _initialize_schema(self) -> None:
         with self._connect() as connection:
