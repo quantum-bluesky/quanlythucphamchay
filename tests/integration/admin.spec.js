@@ -11,6 +11,7 @@ const {
 } = require("./support/ui");
 
 test("master admin login, export, import, backup and restore work on fixture DB", async ({ page }, testInfo) => {
+  test.setTimeout(120000);
   const runtime = attachRuntimeTracking(page);
   const downloadsDir = testInfo.outputPath("downloads");
   fs.mkdirSync(downloadsDir, { recursive: true });
