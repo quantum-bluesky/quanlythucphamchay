@@ -529,6 +529,14 @@ function isLockedPurchase(purchase) {
   return Boolean(purchase && ["received", "paid", "cancelled"].includes(purchase.status));
 }
 
+function getInventoryAdjustmentReason(productId) {
+  return String(state.inventoryAdjustmentReasons[String(productId)] || "").trim();
+}
+
+function setInventoryAdjustmentReason(productId, value) {
+  state.inventoryAdjustmentReasons[String(productId)] = String(value || "").trimStart();
+}
+
 function decorateCart(cart) {
   const items = Array.isArray(cart.items)
     ? cart.items
@@ -1987,6 +1995,7 @@ function renderInventoryDirectEditAccess() {
   const kicker = quickPanel.querySelector(".panel-kicker");
   const heading = quickPanel.querySelector("h2");
   const note = quickPanel.querySelector(".quick-panel-tools .panel-note");
+  const noteLabel = noteInput.closest("label")?.querySelector("span");
 
   quickPanel.hidden = !isAdmin;
   if (!isAdmin) {
@@ -1999,6 +2008,11 @@ function renderInventoryDirectEditAccess() {
     if (note) {
       note.textContent = "Gõ tên sản phẩm, nhập số lượng và chọn nhập hoặc xuất.";
     }
+    if (noteLabel) {
+      noteLabel.textContent = "Ghi chú";
+    }
+    noteInput.placeholder = "Tùy chọn";
+    noteInput.required = false;
     return;
   }
 
@@ -2011,6 +2025,11 @@ function renderInventoryDirectEditAccess() {
   if (note) {
     note.textContent = "Cảnh báo: chế độ này bỏ qua quy trình đơn nhập / đơn xuất chuẩn. Chỉ dùng khi cần chỉnh kho đặc biệt.";
   }
+  if (noteLabel) {
+    noteLabel.textContent = "Lý do điều chỉnh";
+  }
+  noteInput.placeholder = "Bắt buộc";
+  noteInput.required = true;
 }
 
 function applyMobileCollapsedDefaults() {
@@ -2363,6 +2382,11 @@ function renderProducts() {
               ` : ""}
 
               ${isAdmin ? `
+                <label class="price-field inventory-adjustment-reason">
+                  <span>Lý do điều chỉnh</span>
+                  <input type="text" maxlength="160" placeholder="Bắt buộc" value="${escapeHtml(getInventoryAdjustmentReason(product.id))}" data-adjust-reason-input="${product.id}">
+                </label>
+
                 <div class="inventory-inline-quantity">
                   <input type="number" min="0.01" step="0.01" placeholder="Nhập số lượng..." data-quantity-input="${product.id}">
                   <button type="button" class="ghost-button compact-button" data-quantity-apply="out" data-product="${product.id}">Xuất</button>
@@ -3502,8 +3526,10 @@ function prefillProduct(productId) {
   quantityInput.focus();
 }
 
-async function submitTransaction(transactionType, productText, quantity, note = "") {
+async function submitTransaction(transactionType, productText, quantity, note = "", options = {}) {
   const product = resolveProductFromText(productText);
+  const directAdjustment = Boolean(options.directAdjustment);
+  const adjustmentReason = String(options.adjustmentReason || "").trim();
   const data = await apiRequest("/api/transactions", {
     method: "POST",
     body: JSON.stringify({
@@ -3511,6 +3537,7 @@ async function submitTransaction(transactionType, productText, quantity, note = 
       transaction_type: transactionType,
       quantity: Number(quantity),
       note,
+      adjustment_reason: directAdjustment ? adjustmentReason : "",
     }),
   });
 
@@ -3690,7 +3717,11 @@ quickTransactionForm.addEventListener("click", async (event) => {
       button.dataset.transaction,
       productLookupInput.value,
       quantityInput.value,
-      noteInput.value
+      noteInput.value,
+      {
+        directAdjustment: true,
+        adjustmentReason: noteInput.value,
+      }
     );
   } catch (error) {
     showToast(error.message, true);
@@ -3834,10 +3865,19 @@ productGrid.addEventListener("click", async (event) => {
       showToast("Hãy nhập số lượng hợp lệ.", true);
       return;
     }
+    const reason = getInventoryAdjustmentReason(productId);
+    if (!reason) {
+      showToast("Master Admin phải nhập lý do khi chỉnh tồn trực tiếp.", true);
+      return;
+    }
 
     try {
       const product = getProductById(productId);
-      await submitTransaction(quantityApplyButton.dataset.quantityApply, product?.name || "", quantity, "Cập nhật trực tiếp");
+      await submitTransaction(quantityApplyButton.dataset.quantityApply, product?.name || "", quantity, "", {
+        directAdjustment: true,
+        adjustmentReason: reason,
+      });
+      setInventoryAdjustmentReason(productId, "");
     } catch (error) {
       showToast(error.message, true);
     }
@@ -3857,13 +3897,30 @@ productGrid.addEventListener("click", async (event) => {
   const delta = Number(deltaButton.dataset.delta);
   const productId = Number(deltaButton.dataset.product);
   const transactionType = delta > 0 ? "in" : "out";
+  const reason = getInventoryAdjustmentReason(productId);
+  if (!reason) {
+    showToast("Master Admin phải nhập lý do khi chỉnh tồn trực tiếp.", true);
+    return;
+  }
 
   try {
     const product = getProductById(productId);
-    await submitTransaction(transactionType, product?.name || "", Math.abs(delta), "Cập nhật nhanh");
+    await submitTransaction(transactionType, product?.name || "", Math.abs(delta), "", {
+      directAdjustment: true,
+      adjustmentReason: reason,
+    });
+    setInventoryAdjustmentReason(productId, "");
   } catch (error) {
     showToast(error.message, true);
   }
+});
+
+productGrid.addEventListener("input", (event) => {
+  const reasonInput = event.target.closest("[data-adjust-reason-input]");
+  if (!reasonInput) {
+    return;
+  }
+  setInventoryAdjustmentReason(reasonInput.dataset.adjustReasonInput, reasonInput.value);
 });
 
 productGrid.addEventListener("keydown", async (event) => {

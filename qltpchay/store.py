@@ -647,12 +647,16 @@ class InventoryStore:
         transaction_type: str,
         quantity,
         note: str = "",
+        adjustment_reason: str = "",
+        actor: str = "",
     ) -> dict:
         if transaction_type not in {"in", "out"}:
             raise ValueError("Loại giao dịch không hợp lệ.")
 
         amount = parse_positive_decimal(quantity, "Số lượng")
         clean_note = (note or "").strip()
+        clean_adjustment_reason = (adjustment_reason or "").strip()
+        clean_actor = (actor or "").strip()
         now = utc_now_iso()
 
         with self._connect() as connection:
@@ -661,6 +665,19 @@ class InventoryStore:
 
             if transaction_type == "out" and amount > current_stock:
                 raise ValueError("Số lượng xuất lớn hơn tồn kho hiện tại.")
+
+            if clean_adjustment_reason:
+                clean_note = f"Điều chỉnh trực tiếp bởi {clean_actor or 'Master Admin'} | Lý do: {clean_adjustment_reason}"
+                self._record_audit(
+                    connection,
+                    entity_type="product",
+                    entity_id=product["id"],
+                    entity_name=product["name"],
+                    action="direct_adjustment",
+                    message=clean_note,
+                )
+            elif clean_actor:
+                raise ValueError("Master Admin phải nhập lý do khi chỉnh tồn trực tiếp.")
 
             cursor = connection.execute(
                 """

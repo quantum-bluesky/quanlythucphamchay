@@ -1,6 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
   switchMenu,
@@ -131,6 +132,70 @@ test("completed orders and received or paid purchases reject direct edits", asyn
       },
     });
   }
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("direct stock adjustment requires admin login and a reason", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+
+  const anonymousResponse = await request.post("/api/transactions", {
+    data: {
+      product_id: 1,
+      transaction_type: "in",
+      quantity: 1,
+      adjustment_reason: "anonymous",
+    },
+  });
+  expect(anonymousResponse.status()).toBe(401);
+
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  await switchMenu(page, "admin");
+  await expectScreenTitle(page, "Master Admin");
+  await page.locator("#adminUsernameInput").fill("masteradmin");
+  await page.locator("#adminPasswordInput").fill("admin12345");
+  await page.locator('#adminLoginForm button[type="submit"]').click();
+  await collectToast(page, runtime, "admin-login");
+
+  await switchMenu(page, "inventory");
+  await expectScreenTitle(page, "Kiểm tra tồn kho");
+  const adminToggle = page.locator('[data-product-action="toggle-expand"]').first();
+  const productId = await adminToggle.getAttribute("data-product-id");
+  await adminToggle.click();
+  await page.waitForTimeout(300);
+
+  const expandedRow = page.locator(".product-row-body").first();
+  await expandedRow.locator('[data-delta="1"]').click();
+  const missingReasonToast = await collectToast(page, runtime, "inventory-adjust-missing-reason", {
+    errorPattern: /^$/,
+  });
+  expect(missingReasonToast).toContain("lý do");
+
+  const reason = "Kiểm kê lệch cuối ngày";
+  await expandedRow.locator("[data-adjust-reason-input]").fill(reason);
+  await expandedRow.locator('[data-delta="1"]').click();
+  await collectToast(page, runtime, "inventory-adjust-success");
+
+  const transactionPayload = await page.evaluate(async () => {
+    const response = await fetch("/api/transactions?limit=5");
+    return response.json();
+  });
+  expect(transactionPayload.transactions[0].note).toContain(`Lý do: ${reason}`);
+
+  await page.evaluate(async ({ targetProductId }) => {
+    await fetch("/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        product_id: Number(targetProductId),
+        transaction_type: "out",
+        quantity: 1,
+        adjustment_reason: "Hoàn nguyên sau test",
+      }),
+    });
+  }, { targetProductId: Number(productId) });
 
   expectNoRuntimeErrors(runtime);
 });

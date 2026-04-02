@@ -44,6 +44,7 @@ Lưu ý:
 
 - user thường không chỉnh tăng/giảm tồn trực tiếp ở màn này nữa
 - chỉ `Master Admin` mới có chế độ chỉnh tồn trực tiếp và sẽ thấy cảnh báo rõ khi dùng
+- khi `Master Admin` chỉnh tồn trực tiếp, bắt buộc phải nhập lý do để lưu vào lịch sử và audit
 - nếu máy khác vừa nhập hoặc xuất hàng, trạng thái tồn kho sẽ tự cập nhật lại khi màn hình đang rảnh
 
 ## 4. Luồng bán hàng cho khách

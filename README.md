@@ -31,7 +31,7 @@
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần
 - Có lịch sử quản lý sản phẩm và màn quản lý các đối tượng đã xóa để khôi phục an toàn
 - Có module `Master Admin` để export/import file master và backup/restore toàn bộ database
-- Chỉ `Master Admin` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất
+- Chỉ `Master Admin` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit
 - Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất
 - Các list dài có phân trang `Trước / Sau` để thao tác gọn hơn trên mobile
 

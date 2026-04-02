@@ -255,11 +255,15 @@ def create_handler(store, admin_sessions):
                     return
 
                 if self.path == "/api/transactions":
+                    if not self._require_admin():
+                        return
                     transaction = store.create_transaction(
                         product_id=int(payload.get("product_id", 0)),
                         transaction_type=payload.get("transaction_type"),
                         quantity=payload.get("quantity"),
                         note=payload.get("note", ""),
+                        adjustment_reason=payload.get("adjustment_reason", ""),
+                        actor=self._get_admin_username() or "",
                     )
                     self._send_json(
                         HTTPStatus.CREATED,

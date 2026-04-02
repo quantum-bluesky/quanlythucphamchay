@@ -7,7 +7,7 @@ export const SCREEN_HELP = {
       "Bấm Xuất hoặc Nhập ngay trên từng mặt hàng để mở đơn chờ / phiếu chờ liên quan, hoặc tạo luồng mới nếu chưa có.",
       "Nếu card có badge Chờ xuất hoặc Chờ nhập, bấm trực tiếp vào badge để sang đúng màn đang xử lý mặt hàng đó.",
       "Nếu có máy khác vừa cập nhật tồn hoặc giá, màn hình sẽ tự nạp lại khi bạn đang rảnh thao tác; trong lúc đang gõ thì app sẽ tạm hoãn để tránh mất dữ liệu đang nhập.",
-      "Chỉ Master Admin mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho.",
+      "Chỉ Master Admin mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho và bắt buộc nhập lý do điều chỉnh.",
       "Kéo xuống phần Lịch sử gần đây để kiểm tra các giao dịch mới nhất trước khi tiếp tục thao tác khác.",
     ],
     related: [
