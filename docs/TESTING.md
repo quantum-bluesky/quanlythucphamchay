@@ -95,6 +95,7 @@ Các nhóm kiểm tra chính:
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
 - `Master Admin`: login, export, import, backup, restore
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
+- `UI mobile floating`: menu nổi, tìm kiếm nhanh và cụm nút điều hướng auto-hide vào mép màn hình rồi mở lại an toàn
 
 Ngoài click thao tác, suite còn kiểm tra:
 
@@ -111,6 +112,7 @@ Ngoài click thao tác, suite còn kiểm tra:
 - Spec chính:
   - `tests/integration/core-workflows.spec.js`
   - `tests/integration/management-screens.spec.js`
+  - `tests/integration/mobile-floating-ui.spec.js`
   - `tests/integration/admin.spec.js`
   - `tests/integration/acceptance-checklist.spec.js`
   - `tests/integration/acceptance-sales-phase-b.spec.js`

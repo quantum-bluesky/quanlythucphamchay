@@ -107,6 +107,7 @@ import {
   navBackButton,
   navForwardButton,
   openHelpButton,
+  screenToolbox,
   floatingSearchDock,
   floatingSearchToggle,
   floatingSearchInput,
@@ -955,6 +956,7 @@ function switchMenu(menu, { recordHistory = true } = {}) {
   }
   state.activeMenu = menu;
   state.floatingSearchExpanded = false;
+  state.floatingSearchAutoHidden = false;
   if (mobileQuery.matches) {
     state.menuCollapsed = true;
   }
@@ -980,6 +982,7 @@ function navigateMenuHistory(direction) {
 
 function renderMenu() {
   menuPanel.classList.toggle("is-collapsed", state.menuCollapsed);
+  menuPanel.classList.toggle("is-edge-hidden", isMobileFloatingClusterMode() && state.menuAutoHidden);
   menuToggleButton.setAttribute("aria-expanded", state.menuCollapsed ? "false" : "true");
   menuToggleButton.textContent = mobileQuery.matches
     ? (state.menuCollapsed ? "☰" : "Đóng")
@@ -1141,6 +1144,109 @@ function setHelpOpen(nextValue) {
   renderHelpModal();
 }
 
+function isMobileFloatingClusterMode() {
+  return mobileQuery.matches;
+}
+
+function isFloatingClusterAutoHidden(clusterKey) {
+  const stateKey = {
+    menu: "menuAutoHidden",
+    search: "floatingSearchAutoHidden",
+    toolbox: "toolboxAutoHidden",
+  }[clusterKey];
+  return Boolean(stateKey ? state[stateKey] : false);
+}
+
+function setFloatingClusterAutoHidden(clusterKey, nextValue) {
+  const stateKey = {
+    menu: "menuAutoHidden",
+    search: "floatingSearchAutoHidden",
+    toolbox: "toolboxAutoHidden",
+  }[clusterKey];
+  if (!stateKey) {
+    return;
+  }
+  const normalizedValue = isMobileFloatingClusterMode() && Boolean(nextValue);
+  if (state[stateKey] === normalizedValue) {
+    return;
+  }
+  state[stateKey] = normalizedValue;
+  if (clusterKey === "menu") {
+    renderMenu();
+    return;
+  }
+  if (clusterKey === "toolbox") {
+    renderScreenToolbox();
+    return;
+  }
+  renderFloatingSearchDock();
+}
+
+function revealFloatingCluster(clusterKey) {
+  setFloatingClusterAutoHidden(clusterKey, false);
+}
+
+function resetFloatingClusterAutoHide() {
+  state.menuAutoHidden = false;
+  state.floatingSearchAutoHidden = false;
+  state.toolboxAutoHidden = false;
+}
+
+function interceptEdgeHiddenClusterReveal(event, clusterKey, container) {
+  if (
+    !isMobileFloatingClusterMode() ||
+    !container ||
+    !container.contains(event.target) ||
+    !isFloatingClusterAutoHidden(clusterKey)
+  ) {
+    return false;
+  }
+  revealFloatingCluster(clusterKey);
+  event.preventDefault();
+  event.stopPropagation();
+  return true;
+}
+
+function revealEdgeHiddenClusterFromViewportClick(event) {
+  if (!isMobileFloatingClusterMode()) {
+    return false;
+  }
+
+  const hiddenClusters = [
+    { key: "menu", node: menuPanel, edge: "left" },
+    { key: "search", node: floatingSearchDock, edge: "left" },
+    { key: "toolbox", node: screenToolbox, edge: "right" },
+  ];
+
+  for (const cluster of hiddenClusters) {
+    if (!cluster.node || cluster.node.hidden || !isFloatingClusterAutoHidden(cluster.key)) {
+      continue;
+    }
+
+    const rect = cluster.node.getBoundingClientRect();
+    const edgeRect = cluster.edge === "right"
+      ? { left: rect.left, right: window.innerWidth, top: rect.top, bottom: rect.bottom }
+      : { left: 0, right: rect.right, top: rect.top, bottom: rect.bottom };
+
+    if (
+      edgeRect.right <= edgeRect.left ||
+      event.clientX < edgeRect.left ||
+      event.clientX > edgeRect.right ||
+      event.clientY < edgeRect.top ||
+      event.clientY > edgeRect.bottom
+    ) {
+      continue;
+    }
+
+    revealFloatingCluster(cluster.key);
+    event.preventDefault();
+    event.stopPropagation();
+    return true;
+  }
+
+  return false;
+}
+
 function renderScreenToolbox() {
   const scrollTop = window.scrollY || window.pageYOffset || 0;
   const viewportBottom = scrollTop + window.innerHeight;
@@ -1153,6 +1259,7 @@ function renderScreenToolbox() {
   navBackButton.disabled = state.menuHistoryIndex <= 0;
   navForwardButton.disabled = state.menuHistoryIndex >= state.menuHistory.length - 1;
   openHelpButton.setAttribute("aria-pressed", state.helpOpen ? "true" : "false");
+  screenToolbox?.classList.toggle("is-edge-hidden", isMobileFloatingClusterMode() && state.toolboxAutoHidden);
 }
 
 function scrollPageTo(position) {
@@ -1189,6 +1296,9 @@ function syncFloatingSearchToSource(value) {
 
 function setFloatingSearchExpanded(nextValue, { focus = false } = {}) {
   state.floatingSearchExpanded = Boolean(nextValue);
+  if (state.floatingSearchExpanded) {
+    state.floatingSearchAutoHidden = false;
+  }
   renderFloatingSearchDock();
   if (focus && state.floatingSearchExpanded && !floatingSearchDock.hidden) {
     window.setTimeout(() => {
@@ -1213,6 +1323,7 @@ function renderFloatingSearchDock() {
     node.classList.remove("mobile-floating-search-hidden");
   });
   if (!shouldShow) {
+    state.floatingSearchAutoHidden = false;
     return;
   }
 
@@ -1222,6 +1333,7 @@ function renderFloatingSearchDock() {
   }
 
   floatingSearchDock.classList.toggle("is-expanded", state.floatingSearchExpanded);
+  floatingSearchDock.classList.toggle("is-edge-hidden", state.floatingSearchAutoHidden);
   floatingSearchInput.placeholder = config.placeholder;
   floatingSearchToggle.title = config.placeholder;
   const sourceInput = getFloatingSearchSourceInput();
@@ -3843,7 +3955,24 @@ openHelpButton.addEventListener("click", () => {
   setHelpOpen(!state.helpOpen);
 });
 
+document.addEventListener("click", (event) => {
+  revealEdgeHiddenClusterFromViewportClick(event);
+}, true);
+
+menuPanel.addEventListener("click", (event) => {
+  interceptEdgeHiddenClusterReveal(event, "menu", menuPanel);
+}, true);
+
+floatingSearchDock.addEventListener("click", (event) => {
+  interceptEdgeHiddenClusterReveal(event, "search", floatingSearchDock);
+}, true);
+
+screenToolbox?.addEventListener("click", (event) => {
+  interceptEdgeHiddenClusterReveal(event, "toolbox", screenToolbox);
+}, true);
+
 floatingSearchToggle.addEventListener("click", () => {
+  revealFloatingCluster("search");
   if (state.floatingSearchExpanded) {
     setFloatingSearchExpanded(false);
     return;
@@ -3852,6 +3981,7 @@ floatingSearchToggle.addEventListener("click", () => {
 });
 
 floatingSearchInput.addEventListener("focus", () => {
+  revealFloatingCluster("search");
   setFloatingSearchExpanded(true);
 });
 
@@ -3876,6 +4006,7 @@ helpModal.addEventListener("click", (event) => {
 });
 
 menuPanel.addEventListener("click", (event) => {
+  revealFloatingCluster("menu");
   if (event.target.closest("#menuToggleButton")) {
     state.menuCollapsed = !state.menuCollapsed;
     writeStorage(STORAGE_KEYS.menuCollapsed, state.menuCollapsed);
@@ -5558,14 +5689,23 @@ adminRestoreButton.addEventListener("click", async () => {
 });
 
 document.addEventListener("click", (event) => {
+  if (isMobileFloatingClusterMode()) {
+    if (!menuPanel.contains(event.target)) {
+      setFloatingClusterAutoHidden("menu", true);
+    }
+    if (screenToolbox && !screenToolbox.contains(event.target)) {
+      setFloatingClusterAutoHidden("toolbox", true);
+    }
+  }
+
   if (
-    state.floatingSearchExpanded &&
     !floatingSearchDock.hidden &&
     !floatingSearchDock.contains(event.target) &&
     !getFloatingSearchSourceShell()?.contains(event.target) &&
     !hasFloatingSearchValue()
   ) {
     setFloatingSearchExpanded(false);
+    setFloatingClusterAutoHidden("search", true);
   }
 
   const goMenuButton = event.target.closest("[data-go-menu]");
@@ -5583,12 +5723,37 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("focusin", (event) => {
   const sourceInput = getFloatingSearchSourceInput();
+  const sourceShell = getFloatingSearchSourceShell();
+  const insideFloatingSearch = (
+    event.target === floatingSearchInput ||
+    event.target === sourceInput ||
+    floatingSearchDock.contains(event.target) ||
+    sourceShell?.contains(event.target)
+  );
+
+  if (menuPanel.contains(event.target)) {
+    revealFloatingCluster("menu");
+  } else if (isMobileFloatingClusterMode()) {
+    setFloatingClusterAutoHidden("menu", true);
+  }
+
+  if (screenToolbox?.contains(event.target)) {
+    revealFloatingCluster("toolbox");
+  } else if (isMobileFloatingClusterMode()) {
+    setFloatingClusterAutoHidden("toolbox", true);
+  }
+
+  if (insideFloatingSearch) {
+    revealFloatingCluster("search");
+  }
+
   if (event.target === floatingSearchInput || event.target === sourceInput) {
     setFloatingSearchExpanded(true);
     return;
   }
-  if (!floatingSearchDock.contains(event.target) && !hasFloatingSearchValue()) {
+  if (!insideFloatingSearch && !hasFloatingSearchValue()) {
     setFloatingSearchExpanded(false);
+    setFloatingClusterAutoHidden("search", true);
   }
 });
 
@@ -5605,6 +5770,7 @@ mobileQuery.addEventListener("change", () => {
   applyMobileCollapsedDefaults();
   setQuickPanelCollapsed(mobileQuery.matches);
   state.floatingSearchExpanded = false;
+  resetFloatingClusterAutoHide();
   renderAll();
 });
 

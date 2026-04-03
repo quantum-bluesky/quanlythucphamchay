@@ -30,6 +30,14 @@ async function expectScreenTitle(page, title) {
 
 async function switchMenu(page, menu) {
   const toggle = page.locator("#menuToggleButton");
+  const menuPanel = page.locator("#menuPanel");
+  if (await menuPanel.evaluate((node) => node.classList.contains("is-edge-hidden"))) {
+    const box = await menuPanel.boundingBox();
+    if (box) {
+      await page.mouse.click(box.x + box.width - 18, box.y + 18);
+    }
+    await page.waitForTimeout(200);
+  }
   if (await toggle.isVisible()) {
     const expanded = await toggle.getAttribute("aria-expanded");
     if (expanded !== "true") {

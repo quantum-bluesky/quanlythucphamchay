@@ -1129,9 +1129,57 @@ button:disabled {
 }
 
 @media (max-width: 759px) {
+  :root {
+    --floating-edge-peek: 36px;
+    --floating-edge-strip: 6px;
+  }
+
   .app-shell {
     width: min(100vw - 16px, 1180px);
     padding-top: 68px;
+  }
+
+  .menu-panel,
+  .screen-toolbox,
+  .floating-search-dock {
+    transition: transform 180ms ease, opacity 160ms ease;
+    will-change: transform;
+  }
+
+  .menu-panel.is-edge-hidden,
+  .floating-search-dock.is-edge-hidden {
+    transform: translateX(calc(-100% + var(--floating-edge-peek)));
+    opacity: 0.98;
+  }
+
+  .screen-toolbox.is-edge-hidden {
+    transform: translateX(calc(100% - var(--floating-edge-peek)));
+    opacity: 0.98;
+  }
+
+  .menu-panel.is-edge-hidden::after,
+  .floating-search-dock.is-edge-hidden::after,
+  .screen-toolbox.is-edge-hidden::after {
+    content: "";
+    position: absolute;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(36, 91, 63, 0.88) 0%, rgba(47, 122, 84, 0.78) 100%);
+    pointer-events: none;
+  }
+
+  .menu-panel.is-edge-hidden::after,
+  .floating-search-dock.is-edge-hidden::after {
+    top: 10px;
+    right: 6px;
+    bottom: 10px;
+    width: var(--floating-edge-strip);
+  }
+
+  .screen-toolbox.is-edge-hidden::after {
+    top: 14px;
+    left: 6px;
+    bottom: 14px;
+    width: var(--floating-edge-strip);
   }
 
   .menu-panel {
