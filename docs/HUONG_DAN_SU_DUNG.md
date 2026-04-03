@@ -173,6 +173,7 @@ Màn này dùng để:
 - thêm mặt hàng mới
 - sửa tên / loại / đơn vị / giá nhập / giá bán mặc định / ngưỡng cảnh báo
 - xóa mặt hàng chưa có giao dịch
+- xem lịch sử thay đổi giá/trạng thái liên quan và lọc theo người thao tác, khoảng ngày
 
 ### Cách sửa nhanh
 
@@ -181,6 +182,7 @@ Màn này dùng để:
 3. Đổi thông tin ngay trên dòng sản phẩm
 4. Đọc kỹ nhãn bên trái từng dòng để tránh nhập nhầm giữa `Giá nhập` và `Giá bán`
 5. Bấm `Lưu nhanh`
+6. Ở khối `Lịch sử sản phẩm`, có thể nhập tên người thao tác hoặc chọn `Từ ngày/Đến ngày` để lọc nhanh audit gần đây
 
 ## 8. Luồng nhập hàng
 

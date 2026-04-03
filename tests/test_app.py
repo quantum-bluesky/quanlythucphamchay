@@ -155,6 +155,59 @@ class InventoryStoreTests(unittest.TestCase):
                 }
             )
 
+    def test_save_sync_state_logs_status_changes_with_actor(self) -> None:
+        self.store.save_sync_state(
+            {
+                "carts": [{"id": "cart-1", "orderCode": "DH-01", "status": "draft", "items": []}],
+                "expected_updated_at": {"carts": self.store.get_sync_state()["updated_at"]["carts"]},
+                "actor": "thu-ngan-a",
+            }
+        )
+        sync_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "carts": [{"id": "cart-1", "orderCode": "DH-01", "status": "completed", "items": []}],
+                "expected_updated_at": {"carts": sync_state["updated_at"]["carts"]},
+                "actor": "thu-ngan-a",
+            }
+        )
+
+        history = self.store.get_product_history(limit=40, actor="thu-ngan-a")
+        self.assertEqual(history, [])
+
+        with self.store._connect() as connection:
+            log = connection.execute(
+                """
+                SELECT entity_type, action, actor, message
+                FROM audit_logs
+                WHERE entity_type = 'cart'
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+        self.assertIsNotNone(log)
+        self.assertEqual(log["action"], "status-change")
+        self.assertEqual(log["actor"], "thu-ngan-a")
+        self.assertIn("draft", log["message"])
+        self.assertIn("completed", log["message"])
+
+    def test_product_history_supports_actor_filter(self) -> None:
+        product = self.store.create_product(
+            name="Đậu gà viên",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        self.store.update_product_price(product["id"], 25000, actor="user-a")
+        self.store.update_product_sale_price(product["id"], 32000, actor="user-b")
+
+        actor_a_logs = self.store.get_product_history(limit=20, actor="user-a")
+        actor_b_logs = self.store.get_product_history(limit=20, actor="user-b")
+
+        self.assertTrue(any(entry["action"] == "update-price" for entry in actor_a_logs))
+        self.assertFalse(any(entry["action"] == "update-sale-price" for entry in actor_a_logs))
+        self.assertTrue(any(entry["action"] == "update-sale-price" for entry in actor_b_logs))
+
 
 if __name__ == "__main__":
     unittest.main()

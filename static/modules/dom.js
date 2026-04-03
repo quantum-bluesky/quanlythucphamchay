@@ -45,6 +45,9 @@ export const productFormToggleButton = document.getElementById("productFormToggl
 export const productHistorySection = document.getElementById("productHistorySection");
 export const productHistoryWrap = document.getElementById("productHistoryWrap");
 export const productHistoryToggleButton = document.getElementById("productHistoryToggleButton");
+export const productHistoryActorInput = document.getElementById("productHistoryActorInput");
+export const productHistoryStartDateInput = document.getElementById("productHistoryStartDateInput");
+export const productHistoryEndDateInput = document.getElementById("productHistoryEndDateInput");
 export const purchaseSupplierInput = document.getElementById("purchaseSupplierInput");
 export const purchaseNoteInput = document.getElementById("purchaseNoteInput");
 export const createPurchaseDraftButton = document.getElementById("createPurchaseDraftButton");
@@ -119,4 +122,3 @@ export const createOrderPanel = createOrderSection?.querySelector(".sales-panel"
 export const createOrderCustomerCard = createOrderSection?.querySelector(".sales-customer-card") || null;
 export const salesSearchToolbar = salesSearchInput?.closest(".sticky-toolbar") || null;
 export const searchClearRefreshers = [];
-
