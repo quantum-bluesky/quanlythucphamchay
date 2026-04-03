@@ -5,7 +5,9 @@
   "description": "Integration test tooling for the vegetarian inventory app",
   "scripts": {
     "test:integration": "playwright test",
+    "test:acceptance": "playwright test tests/integration/acceptance-checklist.spec.js tests/integration/core-workflows.spec.js tests/integration/management-screens.spec.js tests/integration/admin.spec.js tests/integration/cross-client-sync.spec.js tests/integration/workflow-phase-a.spec.js tests/integration/workflow-phase-c.spec.js",
     "test:integration:headed": "playwright test --headed",
+    "test:acceptance:headed": "playwright test --headed tests/integration/acceptance-checklist.spec.js tests/integration/core-workflows.spec.js tests/integration/management-screens.spec.js tests/integration/admin.spec.js tests/integration/cross-client-sync.spec.js tests/integration/workflow-phase-a.spec.js tests/integration/workflow-phase-c.spec.js",
     "test:integration:ui": "playwright test --ui",
     "test:unit": "python -m unittest discover -s tests"
   },

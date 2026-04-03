@@ -7,6 +7,7 @@
 - Deploy Windows: [docs/DEPLOY_WINDOWS.md](docs/DEPLOY_WINDOWS.md)
 - Hướng dẫn sử dụng: [docs/HUONG_DAN_SU_DUNG.md](docs/HUONG_DAN_SU_DUNG.md)
 - Hướng dẫn test: [docs/TESTING.md](docs/TESTING.md)
+- Acceptance checklist: [docs/ACCEPTANCE_CHECKLIST.md](docs/ACCEPTANCE_CHECKLIST.md)
 - Phân tích workflow: [docs/WORKFLOW_REVIEW.md](docs/WORKFLOW_REVIEW.md)
 
 ## Tính năng chính
@@ -135,11 +136,18 @@ npx playwright install chromium
 npm run test:integration
 ```
 
+Acceptance automation theo checklist:
+
+```powershell
+npm run test:acceptance
+```
+
 Suite integration sẽ:
 
 - tự dựng server test riêng trên `fixture DB` tạm
 - không dùng `data\inventory.db` đang vận hành
 - kiểm tra các màn chính, điều hướng, refresh, và luồng `Master Admin`
+- có thêm bộ acceptance automation bám checklist ở `docs/ACCEPTANCE_CHECKLIST.md`
 
 ## API chứng từ điều chỉnh (Phase B)
 

@@ -7,6 +7,11 @@ Project có 2 lớp test:
 - `unit test` cho logic backend nhỏ
 - `integration test` cho toàn bộ giao diện và API theo luồng nghiệp vụ thật
 
+Ngoài ra có thêm `acceptance checklist` để kiểm soát case bàn giao:
+
+- checklist: `docs/ACCEPTANCE_CHECKLIST.md`
+- automation bundle: `npm run test:acceptance`
+
 ## 1. Unit test
 
 Chạy:
@@ -36,6 +41,18 @@ npx playwright install chromium
 
 ```powershell
 npm run test:integration
+```
+
+### Chạy acceptance automation theo checklist
+
+```powershell
+npm run test:acceptance
+```
+
+### Chạy acceptance có giao diện browser
+
+```powershell
+npm run test:acceptance:headed
 ```
 
 ### Chạy có giao diện browser
@@ -69,9 +86,14 @@ Ngoài click thao tác, suite còn kiểm tra:
   - `tests/integration/core-workflows.spec.js`
   - `tests/integration/management-screens.spec.js`
   - `tests/integration/admin.spec.js`
+  - `tests/integration/acceptance-checklist.spec.js`
+  - `tests/integration/cross-client-sync.spec.js`
+  - `tests/integration/workflow-phase-a.spec.js`
+  - `tests/integration/workflow-phase-c.spec.js`
 
 ## Lưu ý
 
 - App runtime thật vẫn chỉ cần `Python stdlib + SQLite`
 - `Node.js` và `Playwright` chỉ cần cho bộ test integration
 - Nếu sửa workflow, label, selector hoặc menu, hãy cập nhật test tương ứng
+- Nếu thêm hoặc đổi workflow nghiệp vụ, hãy cập nhật luôn checklist acceptance để người test và agent dùng chung một chuẩn

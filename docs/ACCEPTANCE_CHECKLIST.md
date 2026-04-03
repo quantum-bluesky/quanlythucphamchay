@@ -1,0 +1,104 @@
+# Acceptance Checklist
+
+Tài liệu này là nguồn chuẩn để kiểm soát `acceptance test` của hệ thống.
+
+Mục tiêu:
+
+- giúp người vận hành biết cần kiểm tra gì trước khi dùng thật
+- giúp Codex agent biết bộ case nào phải chạy tự động
+- tách rõ case `Auto` và `Manual`
+
+## 1. Quy tắc dùng checklist
+
+- `P0`: case chặn release, phải pass
+- `P1`: case quan trọng, nên pass trước khi bàn giao
+- `P2`: case mở rộng, có thể chạy theo đợt
+- `Auto`: đã có thể chạy bằng Playwright hoặc unit/integration test
+- `Manual`: hiện chưa tự động hóa hoàn toàn, cần người dùng xác nhận
+
+## 2. Bộ case chuẩn
+
+| ID | Priority | Màn / luồng | Mục tiêu | Type | Nguồn chạy / ghi nhận |
+| --- | --- | --- | --- | --- | --- |
+| ACC-ABOUT-01 | P1 | About / Version | Bấm `Version` mở đúng màn `About`, version khớp backend | Auto | `tests/integration/acceptance-checklist.spec.js` |
+| ACC-INV-01 | P0 | Tồn kho -> Nhập hàng | Bấm `Nhập` từ card tồn kho mở đúng màn `Nhập hàng` | Auto | `tests/integration/acceptance-checklist.spec.js` |
+| ACC-INV-02 | P0 | Tồn kho -> Xuất hàng | Bấm `Xuất` từ card tồn kho mở đúng màn `Tạo đơn xuất hàng` | Auto | `tests/integration/core-workflows.spec.js` |
+| ACC-SALE-01 | P0 | Tạo đơn xuất hàng | Tạo giỏ, thêm hàng, chốt đơn và đối chiếu tồn kho / đơn hàng | Manual | Ghi theo mẫu ở mục 4 |
+| ACC-SALE-02 | P0 | Tạo đơn xuất hàng | Khi thiếu hàng, user thường không được bypass sang chỉnh tồn trực tiếp | Manual | Ghi theo mẫu ở mục 4 |
+| ACC-ORD-01 | P1 | Đơn hàng | Mở đơn, xem chi tiết, không lỗi runtime sau reload | Auto | `tests/integration/management-screens.spec.js` |
+| ACC-CUS-01 | P1 | Khách hàng | Mở sửa khách hàng, form nạp dữ liệu đúng, reload không lỗi | Auto | `tests/integration/management-screens.spec.js` |
+| ACC-PROD-01 | P1 | Sản phẩm | Mở sửa nhanh sản phẩm, màn không lỗi runtime | Auto | `tests/integration/core-workflows.spec.js` |
+| ACC-PUR-01 | P0 | Nhập hàng | Phiếu chỉ được `paid` sau khi `received` | Auto | `tests/integration/workflow-phase-a.spec.js` |
+| ACC-PUR-02 | P0 | Nhập hàng | Phiếu `received/paid` không cho sửa trực tiếp | Auto | `tests/integration/workflow-phase-a.spec.js` |
+| ACC-SUP-01 | P1 | Nhà cung cấp | Mở sửa nhà cung cấp, form nạp dữ liệu đúng, reload không lỗi | Auto | `tests/integration/management-screens.spec.js` |
+| ACC-REP-01 | P1 | Báo cáo | Làm mới báo cáo, đổi bộ lọc, màn không lỗi runtime | Auto | `tests/integration/acceptance-checklist.spec.js`, `tests/integration/management-screens.spec.js` |
+| ACC-HIS-01 | P1 | Khôi phục | Màn khôi phục hiển thị đủ nhóm đã xóa và thao tác không lỗi | Auto | `tests/integration/acceptance-checklist.spec.js`, `tests/integration/management-screens.spec.js` |
+| ACC-ADM-01 | P0 | Master Admin | Đăng nhập admin thành công, mở module quản trị | Auto | `tests/integration/admin.spec.js` |
+| ACC-ADM-02 | P0 | Master Admin | Export / import / backup / restore chạy trên fixture DB | Auto | `tests/integration/admin.spec.js` |
+| ACC-ADM-03 | P0 | Tồn kho admin | Chỉnh tồn trực tiếp phải có đăng nhập admin và lý do | Auto | `tests/integration/workflow-phase-a.spec.js` |
+| ACC-SYNC-01 | P0 | Nhiều máy / create-order | Màn bán hàng tự refresh tồn kho và giá sau thay đổi từ máy khác | Auto | `tests/integration/cross-client-sync.spec.js` |
+| ACC-SYNC-02 | P0 | Nhiều máy / draft cart | Lưu dữ liệu stale bị chặn với conflict metadata | Auto | `tests/integration/workflow-phase-c.spec.js` |
+| ACC-SYNC-03 | P0 | Nhiều máy / draft purchase | Lưu dữ liệu stale bị chặn với conflict metadata | Auto | `tests/integration/workflow-phase-c.spec.js` |
+
+## 3. Bộ chạy tự động chuẩn cho Codex agent
+
+Chạy tối thiểu:
+
+```powershell
+node --check static/app.js
+python -m py_compile app.py
+python -m unittest discover -s tests
+```
+
+Chạy acceptance automation:
+
+```powershell
+npm install
+npx playwright install chromium
+npm run test:acceptance
+```
+
+`npm run test:acceptance` là bộ chạy chuẩn cho agent. Bộ này gồm:
+
+- case acceptance cốt lõi theo checklist
+- các spec regression quan trọng đã có
+- một số case bổ sung ngoài checklist để bắt lỗi runtime, reload, health màn hình
+
+## 4. Mẫu ghi nhận cho case Manual
+
+Ghi theo mẫu này khi kiểm thử thủ công:
+
+```text
+ID:
+Ngày test:
+Người test:
+Dữ liệu test:
+Các bước:
+1.
+2.
+3.
+Kết quả mong đợi:
+1.
+2.
+Kết quả thực tế:
+Pass/Fail:
+Ghi chú / ảnh chụp / log:
+```
+
+## 5. Đề xuất ưu tiên tự động hóa tiếp
+
+Các case hiện vẫn nên tự động hóa tiếp:
+
+- `ACC-SALE-01`: chốt đơn hoàn chỉnh và đối chiếu lại tồn kho, đơn hàng
+- `ACC-SALE-02`: luồng thiếu hàng của user thường
+- luồng Phase B:
+  - phiếu điều chỉnh tồn
+  - phiếu trả hàng khách
+  - phiếu trả NCC
+
+## 6. Tiêu chuẩn pass cho một đợt bàn giao
+
+- tất cả `P0 Auto` phải pass
+- các `P1 Auto` nên pass hoặc có giải trình rõ
+- các `Manual` quan trọng phải được ghi nhận kết quả
+- help trong app, README và hướng dẫn sử dụng phải khớp workflow đang test
