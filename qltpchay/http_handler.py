@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .auth import parse_cookie_header
 from .constants import ADMIN_SESSION_COOKIE, APP_NAME, APP_VERSION, STATIC_DIR
+from .store import SyncConflictError
 
 
 def create_handler(store, admin_sessions):
@@ -385,6 +386,18 @@ def create_handler(store, admin_sessions):
                             "app": self._get_app_info(),
                             "runtime_version": store.get_runtime_version(),
                             **sync_state,
+                        },
+                    )
+                except SyncConflictError as exc:
+                    self._send_json(
+                        HTTPStatus.CONFLICT,
+                        {
+                            "error": str(exc),
+                            "conflict": {
+                                "state_key": exc.state_key,
+                                "expected_updated_at": exc.expected_updated_at,
+                                "actual_updated_at": exc.actual_updated_at,
+                            },
                         },
                     )
                 except ValueError as exc:

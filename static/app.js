@@ -704,6 +704,11 @@ function getSyncPayload(keys = SYNC_COLLECTION_KEYS) {
   selectedKeys.forEach((key) => {
     payload[key] = JSON.parse(JSON.stringify(state[key] || []));
   });
+  const expectedUpdatedAt = {};
+  selectedKeys.forEach((key) => {
+    expectedUpdatedAt[key] = String(latestSyncUpdatedAt?.[key] || "");
+  });
+  payload.expected_updated_at = expectedUpdatedAt;
   return payload;
 }
 
@@ -892,6 +897,16 @@ function queuePersistCollections(keys = []) {
     try {
       await persistCollections(keysToPersist);
     } catch (error) {
+      if (error?.status === 409 && error?.payload?.conflict?.state_key) {
+        const conflictLabel = getSyncCollectionLabel(error.payload.conflict.state_key);
+        showToast(`Dữ liệu ${conflictLabel} vừa được cập nhật từ máy khác. App đã tự tải lại.`, true);
+        try {
+          await refreshData();
+        } catch {
+          // Ignore secondary refresh failures here.
+        }
+        return;
+      }
       showToast(`Lưu đồng bộ thất bại: ${error.message}`, true);
       try {
         await refreshData();
@@ -2191,6 +2206,16 @@ function showToast(message, isError = false) {
   }, 3200);
 }
 
+function getSyncCollectionLabel(stateKey = "") {
+  const labels = {
+    customers: "khách hàng",
+    suppliers: "nhà cung cấp",
+    carts: "giỏ hàng / đơn hàng",
+    purchases: "phiếu nhập",
+  };
+  return labels[stateKey] || "dữ liệu đồng bộ";
+}
+
 async function apiRequest(path, options = {}) {
   const response = await fetch(path, {
     headers: {
@@ -2201,7 +2226,10 @@ async function apiRequest(path, options = {}) {
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || "Có lỗi xảy ra.");
+    const error = new Error(data.error || "Có lỗi xảy ra.");
+    error.status = response.status;
+    error.payload = data;
+    throw error;
   }
 
   return data;
@@ -5555,4 +5583,3 @@ window.addEventListener("DOMContentLoaded", async () => {
     showToast(error.message, true);
   }
 });
-

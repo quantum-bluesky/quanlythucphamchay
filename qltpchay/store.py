@@ -22,6 +22,18 @@ from .helpers import (
     shift_month,
     utc_now_iso,
 )
+
+
+class SyncConflictError(ValueError):
+    def __init__(self, state_key: str, expected_updated_at: str, actual_updated_at: str):
+        self.state_key = state_key
+        self.expected_updated_at = expected_updated_at
+        self.actual_updated_at = actual_updated_at
+        super().__init__(
+            f"Dữ liệu {state_key} đã được cập nhật từ máy khác. Vui lòng tải lại trước khi lưu."
+        )
+
+
 class InventoryStore:
     SYNC_COLLECTION_KEYS = ("customers", "suppliers", "carts", "purchases")
 
@@ -1281,13 +1293,19 @@ class InventoryStore:
         }
         if not to_update:
             raise ValueError("Không có dữ liệu đồng bộ hợp lệ.")
+        expected_updated_at = payload.get("expected_updated_at", {})
+        if expected_updated_at is None:
+            expected_updated_at = {}
+        if not isinstance(expected_updated_at, dict):
+            raise ValueError("Trường expected_updated_at phải là object.")
 
         now = utc_now_iso()
         with self._connect() as connection:
             existing_collections = {}
+            current_updated_at = {}
             for key in to_update:
                 row = connection.execute(
-                    "SELECT state_value FROM app_state WHERE state_key = ?",
+                    "SELECT state_value, updated_at FROM app_state WHERE state_key = ?",
                     (key,),
                 ).fetchone()
                 try:
@@ -1295,6 +1313,15 @@ class InventoryStore:
                 except json.JSONDecodeError:
                     decoded = []
                 existing_collections[key] = decoded if isinstance(decoded, list) else []
+                current_updated_at[key] = str((row["updated_at"] if row else "") or "")
+
+            for key in to_update:
+                if key not in expected_updated_at:
+                    continue
+                expected_value = str(expected_updated_at.get(key) or "")
+                actual_value = current_updated_at.get(key, "")
+                if expected_value != actual_value:
+                    raise SyncConflictError(key, expected_value, actual_value)
 
             if "carts" in to_update:
                 self._validate_cart_workflow_locks(
