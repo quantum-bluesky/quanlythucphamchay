@@ -55,6 +55,7 @@ Resolve the repository and request type first, then hand off to the narrowest wo
 
 ## Playbooks
 
+- For PR summary or inspection, load [references/pr-triage.md](./references/pr-triage.md).
 - For review comment follow-up, load [references/review.md](./references/review.md).
 - For CI investigation, load [references/ci.md](./references/ci.md).
 - For publish flow, load [references/publish.md](./references/publish.md).

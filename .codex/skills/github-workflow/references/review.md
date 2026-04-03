@@ -3,11 +3,12 @@
 ## Use This Playbook
 
 Use when the request is about PR review comments, requested changes, unresolved threads, or "what is actionable in this review?"
+Do not use it for general PR summary or broad PR inspection; use `pr-triage.md` for that.
 
 ## Steps
 
 1. Resolve the repo and PR number first.
-2. Fetch review comments, changed files, and the current diff.
+2. Fetch review comments, unresolved thread context when available, changed files, and the current diff.
 3. Separate true defects from preference-only feedback.
 4. Prioritize findings by regression risk, missing tests, and behavioral impact.
 5. If asked to fix comments, implement only the actionable items that the user approved or clearly requested.
