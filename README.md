@@ -19,11 +19,13 @@
 - Đơn đã chốt và phiếu đã nhập kho/đã thanh toán được khóa sửa trực tiếp để tránh thay đổi ngược lịch sử
 - Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server
 - Tự nạp lại dữ liệu mới từ máy khác ở các màn chính khi màn hình đang rảnh thao tác, giúp thấy tồn kho và giá mới hơn mà không cần `F5`
+- Có kiểm tra xung đột khi nhiều máy cùng lưu `giỏ nháp` hoặc `phiếu nhập nháp`; app sẽ chặn ghi đè và yêu cầu tải dữ liệu mới nhất trước khi lưu tiếp
 - In nhanh danh sách hàng và tổng tiền cho khách ngay từ giỏ hàng hoặc từ lịch sử đơn
 - Giao diện theo menu nghiệp vụ riêng cho tồn kho, tạo đơn, đơn hàng, khách hàng và sản phẩm
 - Các màn chọn đối tượng đều có ô tìm kiếm/gõ tên để thao tác nhanh trên điện thoại
 - Quản lý nhập hàng với phiếu nhập nháp, trạng thái đặt hàng/nhập kho và gợi ý sản phẩm cần nhập
 - Phiếu nhập chỉ được chuyển sang `Đã thanh toán` sau khi đã `Nhập kho`, để tránh trả tiền khi hàng chưa được nhận vào tồn
+- Có API chứng từ điều chỉnh cho Phase B gồm: `phiếu điều chỉnh tồn`, `phiếu trả hàng khách`, `phiếu trả NCC` để không sửa ngược chứng từ cũ
 - Báo cáo nhập xuất theo tháng, xem xu hướng gần đây và dự báo mặt hàng nên nhập thêm
 - Quản lý khách hàng có thêm số liên lạc, địa chỉ ship và link Zalo
 - Quản lý đơn hàng có trạng thái thanh toán
@@ -138,3 +140,14 @@ Suite integration sẽ:
 - tự dựng server test riêng trên `fixture DB` tạm
 - không dùng `data\inventory.db` đang vận hành
 - kiểm tra các màn chính, điều hướng, refresh, và luồng `Master Admin`
+
+## API chứng từ điều chỉnh (Phase B)
+
+Các API mới để tạo chứng từ điều chỉnh, giữ tương thích dữ liệu cũ vì vẫn ghi vào bảng `transactions` hiện có:
+
+- `POST /api/adjustments/inventory` (yêu cầu Master Admin)
+  - tạo `phiếu điều chỉnh tồn`, nhận `items[].quantity_delta` âm/dương và `reason`
+- `POST /api/returns/customers`
+  - tạo `phiếu trả hàng khách`, cộng tồn kho theo danh sách hàng khách trả
+- `POST /api/returns/suppliers`
+  - tạo `phiếu trả NCC`, trừ tồn kho khi trả hàng lỗi/không đạt về nhà cung cấp

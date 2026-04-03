@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .auth import parse_cookie_header
 from .constants import ADMIN_SESSION_COOKIE, APP_NAME, APP_VERSION, STATIC_DIR
+from .store import SyncConflictError
 
 
 def create_handler(store, admin_sessions):
@@ -318,6 +319,57 @@ def create_handler(store, admin_sessions):
                     )
                     return
 
+                if self.path == "/api/adjustments/inventory":
+                    if not self._require_admin():
+                        return
+                    receipt = store.create_inventory_adjustment_receipt(
+                        items=payload.get("items", []),
+                        reason=payload.get("reason", ""),
+                        note=payload.get("note", ""),
+                        actor=self._get_admin_username() or "",
+                    )
+                    self._send_json(
+                        HTTPStatus.CREATED,
+                        {
+                            "message": "Đã tạo phiếu điều chỉnh tồn.",
+                            "receipt": receipt,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
+                if self.path == "/api/returns/customers":
+                    receipt = store.create_customer_return_receipt(
+                        customer_name=payload.get("customer_name", ""),
+                        items=payload.get("items", []),
+                        note=payload.get("note", ""),
+                    )
+                    self._send_json(
+                        HTTPStatus.CREATED,
+                        {
+                            "message": "Đã tạo phiếu trả hàng khách.",
+                            "receipt": receipt,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
+                if self.path == "/api/returns/suppliers":
+                    receipt = store.create_supplier_return_receipt(
+                        supplier_name=payload.get("supplier_name", ""),
+                        items=payload.get("items", []),
+                        note=payload.get("note", ""),
+                    )
+                    self._send_json(
+                        HTTPStatus.CREATED,
+                        {
+                            "message": "Đã tạo phiếu trả nhà cung cấp.",
+                            "receipt": receipt,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
             except ValueError as exc:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
@@ -334,6 +386,18 @@ def create_handler(store, admin_sessions):
                             "app": self._get_app_info(),
                             "runtime_version": store.get_runtime_version(),
                             **sync_state,
+                        },
+                    )
+                except SyncConflictError as exc:
+                    self._send_json(
+                        HTTPStatus.CONFLICT,
+                        {
+                            "error": str(exc),
+                            "conflict": {
+                                "state_key": exc.state_key,
+                                "expected_updated_at": exc.expected_updated_at,
+                                "actual_updated_at": exc.actual_updated_at,
+                            },
                         },
                     )
                 except ValueError as exc:

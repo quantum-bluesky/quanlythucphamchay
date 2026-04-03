@@ -22,6 +22,18 @@ from .helpers import (
     shift_month,
     utc_now_iso,
 )
+
+
+class SyncConflictError(ValueError):
+    def __init__(self, state_key: str, expected_updated_at: str, actual_updated_at: str):
+        self.state_key = state_key
+        self.expected_updated_at = expected_updated_at
+        self.actual_updated_at = actual_updated_at
+        super().__init__(
+            f"Dữ liệu {state_key} đã được cập nhật từ máy khác. Vui lòng tải lại trước khi lưu."
+        )
+
+
 class InventoryStore:
     SYNC_COLLECTION_KEYS = ("customers", "suppliers", "carts", "purchases")
 
@@ -923,6 +935,283 @@ class InventoryStore:
             "total_amount": round(float(total_amount), 2),
         }
 
+    def create_inventory_adjustment_receipt(
+        self,
+        items: list[dict],
+        reason: str,
+        actor: str = "",
+        note: str = "",
+    ) -> dict:
+        clean_reason = (reason or "").strip()
+        clean_actor = (actor or "").strip() or "Master Admin"
+        clean_note = (note or "").strip()
+        if not clean_reason:
+            raise ValueError("Lý do điều chỉnh là bắt buộc.")
+        if not items:
+            raise ValueError("Phiếu điều chỉnh đang trống.")
+
+        now = utc_now_iso()
+        receipt_suffix = hashlib.sha1(f"{clean_reason}-{clean_actor}-{now}".encode("utf-8")).hexdigest()[:6]
+        receipt_code = f"DC-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{receipt_suffix}"
+
+        with self._connect() as connection:
+            transactions = []
+            total_in = Decimal("0")
+            total_out = Decimal("0")
+
+            for raw_item in items:
+                product_id = int(raw_item.get("product_id", 0))
+                delta = Decimal(str(raw_item.get("quantity_delta", 0)))
+                if delta == 0:
+                    raise ValueError("Số lượng điều chỉnh phải khác 0.")
+                quantity = parse_positive_decimal(abs(delta), "Số lượng điều chỉnh")
+                direction = "in" if delta > 0 else "out"
+                product = self._get_product_or_raise(connection, product_id)
+                current_stock = self._get_stock_for_product(connection, product_id)
+                if direction == "out" and quantity > current_stock:
+                    raise ValueError(
+                        f"Số lượng điều chỉnh giảm của {product['name']} lớn hơn tồn kho hiện tại."
+                    )
+
+                transaction_note = (
+                    f"Phiếu điều chỉnh {receipt_code} | Người chỉnh: {clean_actor} | Lý do: {clean_reason}"
+                )
+                if clean_note:
+                    transaction_note += f" | {clean_note}"
+
+                cursor = connection.execute(
+                    """
+                    INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                    VALUES(?, ?, ?, ?, ?)
+                    """,
+                    (product_id, direction, float(quantity), transaction_note, now),
+                )
+                current_after = self._get_stock_for_product(connection, product_id)
+                if direction == "in":
+                    total_in += quantity
+                else:
+                    total_out += quantity
+                transactions.append(
+                    {
+                        "id": cursor.lastrowid,
+                        "product_id": product_id,
+                        "product_name": product["name"],
+                        "unit": product["unit"],
+                        "transaction_type": direction,
+                        "quantity": float(quantity),
+                        "current_stock": round(float(current_after), 2),
+                    }
+                )
+
+            self._record_audit(
+                connection,
+                entity_type="inventory_adjustment",
+                entity_id=receipt_code,
+                entity_name="Phiếu điều chỉnh tồn",
+                action="create",
+                message=f"{clean_actor} tạo phiếu điều chỉnh | Lý do: {clean_reason}",
+            )
+
+        return {
+            "receipt_code": receipt_code,
+            "reason": clean_reason,
+            "actor": clean_actor,
+            "note": clean_note,
+            "created_at": now,
+            "transactions": transactions,
+            "total_in_quantity": round(float(total_in), 2),
+            "total_out_quantity": round(float(total_out), 2),
+        }
+
+    def create_customer_return_receipt(
+        self,
+        customer_name: str,
+        items: list[dict],
+        note: str = "",
+    ) -> dict:
+        clean_customer_name = (customer_name or "").strip()
+        clean_note = (note or "").strip()
+        if not clean_customer_name:
+            raise ValueError("Khách hàng là bắt buộc.")
+        if not items:
+            raise ValueError("Phiếu trả hàng khách đang trống.")
+
+        grouped_items: dict[int, dict] = {}
+        for raw_item in items:
+            product_id = int(raw_item.get("product_id", 0))
+            quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
+            unit_refund = parse_non_negative_decimal(raw_item.get("unit_refund", 0), "Giá hoàn")
+
+            existing = grouped_items.get(product_id)
+            if existing:
+                existing["quantity"] += quantity
+                existing["unit_refund"] = unit_refund
+            else:
+                grouped_items[product_id] = {
+                    "product_id": product_id,
+                    "quantity": quantity,
+                    "unit_refund": unit_refund,
+                }
+
+        now = utc_now_iso()
+        receipt_suffix = hashlib.sha1(f"{clean_customer_name}-{clean_note}-{now}".encode("utf-8")).hexdigest()[:6]
+        receipt_code = f"THK-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{receipt_suffix}"
+
+        with self._connect() as connection:
+            transactions = []
+            total_amount = Decimal("0")
+            total_quantity = Decimal("0")
+
+            for product_id, item in grouped_items.items():
+                product = self._get_product_or_raise(connection, product_id)
+                line_total = item["quantity"] * item["unit_refund"]
+                total_amount += line_total
+                total_quantity += item["quantity"]
+
+                transaction_note = (
+                    f"Phiếu trả khách {receipt_code} | Khách: {clean_customer_name} | Giá hoàn: {float(item['unit_refund']):.0f}"
+                )
+                if clean_note:
+                    transaction_note += f" | {clean_note}"
+
+                cursor = connection.execute(
+                    """
+                    INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                    VALUES(?, 'in', ?, ?, ?)
+                    """,
+                    (product_id, float(item["quantity"]), transaction_note, now),
+                )
+                current_stock = self._get_stock_for_product(connection, product_id)
+                transactions.append(
+                    {
+                        "id": cursor.lastrowid,
+                        "product_id": product_id,
+                        "product_name": product["name"],
+                        "unit": product["unit"],
+                        "quantity": float(item["quantity"]),
+                        "unit_refund": float(item["unit_refund"]),
+                        "line_total": round(float(line_total), 2),
+                        "current_stock": round(float(current_stock), 2),
+                    }
+                )
+            self._record_audit(
+                connection,
+                entity_type="customer_return",
+                entity_id=receipt_code,
+                entity_name=clean_customer_name,
+                action="create",
+                message=f"Tạo phiếu trả hàng khách {receipt_code}",
+            )
+
+        return {
+            "receipt_code": receipt_code,
+            "customer_name": clean_customer_name,
+            "note": clean_note,
+            "created_at": now,
+            "transactions": transactions,
+            "total_quantity": round(float(total_quantity), 2),
+            "total_amount": round(float(total_amount), 2),
+        }
+
+    def create_supplier_return_receipt(
+        self,
+        supplier_name: str,
+        items: list[dict],
+        note: str = "",
+    ) -> dict:
+        clean_supplier_name = (supplier_name or "").strip()
+        clean_note = (note or "").strip()
+        if not clean_supplier_name:
+            raise ValueError("Nhà cung cấp là bắt buộc.")
+        if not items:
+            raise ValueError("Phiếu trả NCC đang trống.")
+
+        grouped_items: dict[int, dict] = {}
+        for raw_item in items:
+            product_id = int(raw_item.get("product_id", 0))
+            quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
+            unit_cost = parse_non_negative_decimal(raw_item.get("unit_cost", 0), "Giá trả NCC")
+
+            existing = grouped_items.get(product_id)
+            if existing:
+                existing["quantity"] += quantity
+                existing["unit_cost"] = unit_cost
+            else:
+                grouped_items[product_id] = {
+                    "product_id": product_id,
+                    "quantity": quantity,
+                    "unit_cost": unit_cost,
+                }
+
+        now = utc_now_iso()
+        receipt_suffix = hashlib.sha1(f"{clean_supplier_name}-{clean_note}-{now}".encode("utf-8")).hexdigest()[:6]
+        receipt_code = f"TNCC-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{receipt_suffix}"
+
+        with self._connect() as connection:
+            products_by_id: dict[int, sqlite3.Row] = {}
+            current_stock_by_id: dict[int, Decimal] = {}
+            for product_id, item in grouped_items.items():
+                product = self._get_product_or_raise(connection, product_id)
+                current_stock = self._get_stock_for_product(connection, product_id)
+                if item["quantity"] > current_stock:
+                    raise ValueError(
+                        f"Số lượng trả NCC của {product['name']} lớn hơn tồn kho hiện tại."
+                    )
+                products_by_id[product_id] = product
+                current_stock_by_id[product_id] = current_stock
+
+            transactions = []
+            total_amount = Decimal("0")
+            total_quantity = Decimal("0")
+            for product_id, item in grouped_items.items():
+                product = products_by_id[product_id]
+                line_total = item["quantity"] * item["unit_cost"]
+                total_amount += line_total
+                total_quantity += item["quantity"]
+                transaction_note = (
+                    f"Phiếu trả NCC {receipt_code} | NCC: {clean_supplier_name} | Giá trả: {float(item['unit_cost']):.0f}"
+                )
+                if clean_note:
+                    transaction_note += f" | {clean_note}"
+                cursor = connection.execute(
+                    """
+                    INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                    VALUES(?, 'out', ?, ?, ?)
+                    """,
+                    (product_id, float(item["quantity"]), transaction_note, now),
+                )
+                remaining_stock = current_stock_by_id[product_id] - item["quantity"]
+                transactions.append(
+                    {
+                        "id": cursor.lastrowid,
+                        "product_id": product_id,
+                        "product_name": product["name"],
+                        "unit": product["unit"],
+                        "quantity": float(item["quantity"]),
+                        "unit_cost": float(item["unit_cost"]),
+                        "line_total": round(float(line_total), 2),
+                        "remaining_stock": round(float(remaining_stock), 2),
+                    }
+                )
+            self._record_audit(
+                connection,
+                entity_type="supplier_return",
+                entity_id=receipt_code,
+                entity_name=clean_supplier_name,
+                action="create",
+                message=f"Tạo phiếu trả NCC {receipt_code}",
+            )
+
+        return {
+            "receipt_code": receipt_code,
+            "supplier_name": clean_supplier_name,
+            "note": clean_note,
+            "created_at": now,
+            "transactions": transactions,
+            "total_quantity": round(float(total_quantity), 2),
+            "total_amount": round(float(total_amount), 2),
+        }
+
     def _serialize_product_row(self, row: sqlite3.Row) -> dict:
         current_stock = round(float(row["current_stock"]), 2)
         threshold = round(float(row["low_stock_threshold"]), 2)
@@ -1004,13 +1293,19 @@ class InventoryStore:
         }
         if not to_update:
             raise ValueError("Không có dữ liệu đồng bộ hợp lệ.")
+        expected_updated_at = payload.get("expected_updated_at", {})
+        if expected_updated_at is None:
+            expected_updated_at = {}
+        if not isinstance(expected_updated_at, dict):
+            raise ValueError("Trường expected_updated_at phải là object.")
 
         now = utc_now_iso()
         with self._connect() as connection:
             existing_collections = {}
+            current_updated_at = {}
             for key in to_update:
                 row = connection.execute(
-                    "SELECT state_value FROM app_state WHERE state_key = ?",
+                    "SELECT state_value, updated_at FROM app_state WHERE state_key = ?",
                     (key,),
                 ).fetchone()
                 try:
@@ -1018,6 +1313,15 @@ class InventoryStore:
                 except json.JSONDecodeError:
                     decoded = []
                 existing_collections[key] = decoded if isinstance(decoded, list) else []
+                current_updated_at[key] = str((row["updated_at"] if row else "") or "")
+
+            for key in to_update:
+                if key not in expected_updated_at:
+                    continue
+                expected_value = str(expected_updated_at.get(key) or "")
+                actual_value = current_updated_at.get(key, "")
+                if expected_value != actual_value:
+                    raise SyncConflictError(key, expected_value, actual_value)
 
             if "carts" in to_update:
                 self._validate_cart_workflow_locks(
@@ -1689,4 +1993,3 @@ class InventoryStore:
                 "end_date": parsed_end.isoformat() if parsed_end else "",
             },
         }
-

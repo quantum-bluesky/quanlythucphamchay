@@ -8,6 +8,7 @@ export const SCREEN_HELP = {
       "Nếu card có badge Chờ xuất hoặc Chờ nhập, bấm trực tiếp vào badge để sang đúng màn đang xử lý mặt hàng đó.",
       "Nếu có máy khác vừa cập nhật tồn hoặc giá, màn hình sẽ tự nạp lại khi bạn đang rảnh thao tác; trong lúc đang gõ thì app sẽ tạm hoãn để tránh mất dữ liệu đang nhập.",
       "Chỉ Master Admin mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho và bắt buộc nhập lý do điều chỉnh.",
+      "Nếu cần xử lý sai lệch sau khi chứng từ đã xử lý, ưu tiên tạo phiếu điều chỉnh tồn thay vì sửa ngược đơn/phiếu cũ.",
       "Kéo xuống phần Lịch sử gần đây để kiểm tra các giao dịch mới nhất trước khi tiếp tục thao tác khác.",
     ],
     related: [
@@ -23,6 +24,7 @@ export const SCREEN_HELP = {
       "Chọn khách hàng có sẵn hoặc gõ tên để mở giỏ hàng cho khách hiện hành.",
       "Tìm mặt hàng ở danh sách chọn hàng, tick để thêm vào giỏ. Giá bán mặc định sẽ lấy theo giá bán chung của sản phẩm.",
       "Nếu máy khác vừa nhập thêm hàng hoặc đổi giá nhập mặc định, danh sách chọn hàng sẽ tự cập nhật khi bạn không còn focus ở ô đang gõ.",
+      "Nếu có 2 máy cùng sửa một giỏ nháp, app sẽ chặn ghi đè và báo xung đột để bạn tải lại dữ liệu mới nhất trước khi lưu tiếp.",
       "Khi mở detail của dòng hàng, bạn có thể đổi giá bán cho riêng đơn này hoặc bấm Giá chung để cập nhật giá bán mặc định của sản phẩm sau khi xác nhận.",
       "Nếu thiếu hàng, hệ thống sẽ chuyển sang luồng nhập hàng; chỉ Master Admin mới có quyền chỉnh tồn trực tiếp.",
     ],
@@ -39,7 +41,7 @@ export const SCREEN_HELP = {
       "Dùng ô tìm kiếm để lọc theo khách hàng, mã đơn hoặc tên mặt hàng.",
       "Bật hoặc tắt các tùy chọn hiện đơn đã xong và đã thanh toán để thu gọn danh sách.",
       "Đơn đã chốt chỉ còn các thao tác xem/in và cập nhật thanh toán; app sẽ khóa sửa trực tiếp để giữ lịch sử đúng workflow.",
-      "Nếu phát hiện sai sau khi đã chốt đơn, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược đơn cũ.",
+      "Nếu phát hiện sai sau khi đã chốt đơn, hãy tạo phiếu trả hàng khách hoặc phiếu điều chỉnh phù hợp thay vì sửa ngược đơn cũ.",
     ],
     related: [
       { menu: "create-order", label: "Quay lại tạo đơn" },
@@ -83,9 +85,10 @@ export const SCREEN_HELP = {
       "Xem ngay danh sách phiếu nhập hiện hành khi mở màn.",
       "Tạo hoặc mở phiếu nhập, thêm sản phẩm cần mua rồi cập nhật trạng thái theo tiến trình.",
       "Nếu có máy khác vừa tạo hoặc sửa phiếu nhập, màn hình sẽ tự làm mới khi bạn không còn nhập dở ở ô hiện tại.",
+      "Nếu 2 máy cùng lưu trên một phiếu nháp, app sẽ báo xung đột đồng bộ và tự tải lại để tránh ghi đè dữ liệu của nhau.",
       "Trong detail từng dòng nhập, bạn có thể sửa số lượng, giá nhập và bấm Giá chung để cập nhật giá nhập mặc định của sản phẩm sau khi xác nhận.",
       "Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho; app sẽ khóa thao tác trả tiền sớm hơn bước này.",
-      "Phiếu đã nhập kho, đã thanh toán hoặc đã hủy sẽ chuyển sang chế độ chỉ xem; nếu sai sót thì xử lý bằng chứng từ điều chỉnh mới.",
+      "Phiếu đã nhập kho, đã thanh toán hoặc đã hủy sẽ chuyển sang chế độ chỉ xem; nếu sai sót thì xử lý bằng phiếu trả NCC hoặc chứng từ điều chỉnh mới.",
       "Ẩn các phiếu đã thanh toán để giữ màn hình gọn; bật lại khi cần đối chiếu lịch sử.",
     ],
     related: [
