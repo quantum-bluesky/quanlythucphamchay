@@ -164,6 +164,13 @@ Mặc định nên:
 4. chạy kiểm tra cú pháp tối thiểu
 5. cập nhật help/docs nếu workflow hoặc label thay đổi
 
+## Quy ước bổ sung cho tooling/setup
+
+- nếu trong lúc làm task phát hiện thiếu tool hoặc dependency môi trường, không chỉ báo miệng rồi bỏ qua
+- mặc định phải đề xuất bổ sung và nếu hợp lý thì cập nhật luôn vào script setup + tài liệu setup/test/deploy để máy khác dùng lại được
+- ưu tiên giữ setup có thể chạy lặp lại nhiều lần an toàn
+- đã biết một dependency tooling cần có: `PyYAML` cho workflow Git Issue / `quick_validate.py`
+
 ## Prompt khởi động tốt cho Codex ở repo này
 
 ```text

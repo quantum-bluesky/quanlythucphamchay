@@ -12,10 +12,46 @@ Tài liệu này dành cho người cài và vận hành ứng dụng trên Wind
 
 - Windows 10 hoặc Windows 11
 - Python 3.11 trở lên
+- `PyYAML` cho các script/tooling Python của Codex, nhất là workflow Git Issue
+- Node.js LTS nếu cần chạy test / setup tooling
+- Git để cập nhật mã nguồn
+- GitHub CLI `gh` nếu máy này cần tạo Issue / branch / PR trên GitHub
+- `winget` nếu muốn dùng script setup tự động
 - Trình duyệt web: Edge, Chrome hoặc Safari trên điện thoại
 - Máy deploy nên có IP nội bộ cố định hoặc ít thay đổi
 
-## 3. Cài Python
+## 3. Setup nhanh môi trường
+
+Repo đã có script setup Windows chạy lặp lại an toàn:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+```
+
+Script sẽ:
+
+- kiểm tra `Python`, `Node.js`, `Git`, `gh`
+- kiểm tra và cài `PyYAML` nếu thiếu cho tooling Python
+- chỉ cài phần còn thiếu bằng `winget`
+- chạy `npm install`
+- chạy `npx playwright install chromium`
+- chạy kiểm tra nhanh `python -m py_compile app.py` và `node --check static/app.js`
+
+Có thể chạy lại 1 hay nhiều lần; các bước setup đều có tính idempotent ở mức vận hành.
+
+Nếu chỉ muốn kiểm tra máy còn thiếu gì:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 -CheckOnly
+```
+
+Nếu máy này dùng để thao tác GitHub, sau khi cài `gh` cần đăng nhập:
+
+```powershell
+gh auth login
+```
+
+## 4. Cài Python thủ công
 
 Nếu máy chưa có Python:
 
@@ -29,7 +65,7 @@ python --version
 
 Nếu thấy hiện phiên bản Python là được.
 
-## 4. Chép ứng dụng lên máy Windows
+## 5. Chép ứng dụng lên máy Windows
 
 Ví dụ thư mục cài:
 
@@ -43,7 +79,7 @@ Mở PowerShell tại thư mục dự án:
 cd D:\QUAN\Program\QuanLyThucPhamChay
 ```
 
-## 5. Khởi tạo dữ liệu danh mục ban đầu
+## 6. Khởi tạo dữ liệu danh mục ban đầu
 
 Nếu đã chuẩn bị `data\List_price.txt`, chạy:
 
@@ -57,7 +93,7 @@ Nếu muốn xóa sạch và nạp lại từ đầu:
 python app.py init --reset
 ```
 
-## 6. Chạy ứng dụng để dùng trong mạng nội bộ
+## 7. Chạy ứng dụng để dùng trong mạng nội bộ
 
 Ví dụ chạy để thiết bị khác trong mạng có thể truy cập:
 
@@ -76,7 +112,7 @@ Ví dụ:
 http://192.168.1.18:8000
 ```
 
-## 6.1. Tài khoản Master Admin
+## 7.1. Tài khoản Master Admin
 
 Hệ thống dùng file cấu hình:
 
@@ -111,7 +147,7 @@ python app.py config
 
 Nên đổi mật khẩu admin trước khi đưa vào sử dụng thật.
 
-## 7. Cho phép qua Windows Firewall
+## 8. Cho phép qua Windows Firewall
 
 Nếu máy khác không vào được, mở port trên Windows Firewall.
 
@@ -123,7 +159,7 @@ New-NetFirewallRule -DisplayName "QuanLyThucPhamChay 8000" -Direction Inbound -A
 
 Nếu dùng port khác thì đổi lại số port.
 
-## 8. Cách dùng ổn định trong thực tế
+## 9. Cách dùng ổn định trong thực tế
 
 Nên cố định:
 
@@ -137,11 +173,11 @@ Khi đó người dùng chỉ cần nhớ:
 http://192.168.1.18:8000
 ```
 
-## 9. Chạy tự động khi mở máy
+## 10. Chạy tự động khi mở máy
 
 Cách đơn giản nhất là dùng Task Scheduler.
 
-### 9.1. Tạo file chạy
+### 10.1. Tạo file chạy
 
 Tạo file `start-server.bat` trong thư mục dự án với nội dung:
 
@@ -151,7 +187,7 @@ cd /d D:\QUAN\Program\QuanLyThucPhamChay
 python app.py --host 0.0.0.0 --port 8000
 ```
 
-### 9.2. Tạo Scheduled Task
+### 10.2. Tạo Scheduled Task
 
 1. Mở `Task Scheduler`
 2. Chọn `Create Task`
@@ -168,7 +204,7 @@ python app.py --host 0.0.0.0 --port 8000
 
 Sau đó mỗi lần mở máy, ứng dụng sẽ tự chạy.
 
-## 10. Sao lưu dữ liệu
+## 11. Sao lưu dữ liệu
 
 File dữ liệu chính:
 
@@ -184,7 +220,7 @@ Nên sao lưu định kỳ file này sang nơi khác:
 
 Chỉ cần copy file `inventory.db` là đủ.
 
-## 11. Cập nhật ứng dụng
+## 12. Cập nhật ứng dụng
 
 Khi cập nhật mã nguồn:
 
@@ -200,7 +236,7 @@ SQLite sẽ tự giữ lại dữ liệu cũ trong `data\inventory.db`.
 
 Nếu bản cập nhật có thêm trường dữ liệu mới, ví dụ `giá bán mặc định` của sản phẩm, app sẽ tự nâng cấp cấu trúc DB khi chạy lại. Nên backup `data\inventory.db` trước mỗi lần cập nhật phiên bản lớn.
 
-## 12. Kiểm tra nhanh sau deploy
+## 13. Kiểm tra nhanh sau deploy
 
 Sau khi deploy, cần thử 5 việc sau:
 
@@ -212,7 +248,7 @@ Sau khi deploy, cần thử 5 việc sau:
 6. Kiểm tra 1 sản phẩm có đủ `giá nhập` và `giá bán mặc định`
 7. Tắt mở lại app và xác nhận dữ liệu vẫn còn
 
-## 13. Lỗi thường gặp
+## 14. Lỗi thường gặp
 
 ### Không mở được từ điện thoại
 
@@ -237,7 +273,7 @@ data\inventory.db
 
 Khi chuyển máy, phải copy cả thư mục dự án hoặc ít nhất là file DB sang máy mới.
 
-## 14. Khuyến nghị vận hành
+## 15. Khuyến nghị vận hành
 
 - Chỉ nên có 1 máy chủ chính chạy app
 - Người dùng khác chỉ mở bằng trình duyệt, không nên chạy thêm app server khác

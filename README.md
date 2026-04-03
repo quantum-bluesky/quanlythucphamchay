@@ -95,6 +95,51 @@ Hoặc:
 python app.py --host 192.168.1.10 --port 9000 serve
 ```
 
+## Setup môi trường trên máy mới
+
+Các tool nên có khi làm việc với project này:
+
+- `Python 3.11+` để chạy app, unit test và script backend
+- `PyYAML` cho Python tooling của bộ skill Git Issue, ví dụ `quick_validate.py`
+- `Node.js LTS + npm` để cài tooling test frontend/integration
+- `Playwright Chromium` để chạy integration test và chụp ảnh UI
+- `Git` để pull/push mã nguồn
+- `GitHub CLI (gh)` để tạo issue / branch / PR từ máy local
+- `winget` trên Windows để script setup tự cài phần còn thiếu
+
+Script setup idempotent:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+```
+
+Có thể chạy lại nhiều lần. Script sẽ:
+
+- bỏ qua tool đã có sẵn
+- chỉ cài phần còn thiếu
+- cài thêm Python package `PyYAML` nếu môi trường chưa có
+- chạy `npm install`
+- chạy `npx playwright install chromium`
+- kiểm tra nhanh bằng `python -m py_compile app.py` và `node --check static/app.js`
+
+Chế độ chỉ kiểm tra:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 -CheckOnly
+```
+
+Nếu đã có `Node.js`, có thể gọi nhanh qua `npm`:
+
+```powershell
+npm run setup:windows
+```
+
+Riêng workflow GitHub cần đăng nhập `gh` sau khi cài:
+
+```powershell
+gh auth login
+```
+
 ## Khởi tạo danh mục từ `data\List.txt`
 
 ```powershell

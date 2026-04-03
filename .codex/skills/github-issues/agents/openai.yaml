@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Issues"
+  short_description: "Create and manage GitHub issues"
+  default_prompt: "Use $github-issues to create or manage GitHub issues from the current repo or an explicit owner/repo."

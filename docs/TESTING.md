@@ -12,6 +12,29 @@ Ngoài ra có thêm `acceptance checklist` để kiểm soát case bàn giao:
 - checklist: `docs/ACCEPTANCE_CHECKLIST.md`
 - automation bundle: `npm run test:acceptance`
 
+## 0. Setup tool trước khi test
+
+Máy mới nên chạy script setup chung của repo:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+```
+
+Script sẽ kiểm tra và cài nếu thiếu:
+
+- `Python 3.11+`
+- `PyYAML` cho tooling Python như Git Issue / `quick_validate.py`
+- `Node.js LTS + npm`
+- `Git`
+- `GitHub CLI (gh)` cho workflow GitHub
+- `Playwright Chromium`
+
+Có thể chạy lại nhiều lần. Nếu chỉ muốn xem máy còn thiếu gì:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 -CheckOnly
+```
+
 ## 1. Unit test
 
 Chạy:
