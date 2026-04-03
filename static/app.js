@@ -47,6 +47,9 @@ import {
   productHistorySection,
   productHistoryWrap,
   productHistoryToggleButton,
+  productHistoryActorInput,
+  productHistoryStartDateInput,
+  productHistoryEndDateInput,
   purchaseSupplierInput,
   purchaseNoteInput,
   createPurchaseDraftButton,
@@ -709,6 +712,7 @@ function getSyncPayload(keys = SYNC_COLLECTION_KEYS) {
     expectedUpdatedAt[key] = String(latestSyncUpdatedAt?.[key] || "");
   });
   payload.expected_updated_at = expectedUpdatedAt;
+  payload.actor = state.admin?.authenticated ? (state.admin.username || "Master Admin") : "Nhân viên";
   return payload;
 }
 
@@ -2300,10 +2304,20 @@ async function refreshReportData() {
 async function refreshData() {
   isRefreshingState = true;
   try {
+    const historyParams = new URLSearchParams({ limit: "30" });
+    if (state.productHistoryActorFilter.trim()) {
+      historyParams.set("actor", state.productHistoryActorFilter.trim());
+    }
+    if (state.productHistoryStartDate) {
+      historyParams.set("start_date", `${state.productHistoryStartDate}T00:00:00`);
+    }
+    if (state.productHistoryEndDate) {
+      historyParams.set("end_date", `${state.productHistoryEndDate}T23:59:59`);
+    }
     const [payload, deletedProductsPayload, productHistoryPayload] = await Promise.all([
       apiRequest("/api/state?transaction_limit=16"),
       apiRequest("/api/products/deleted"),
-      apiRequest("/api/products/history?limit=30"),
+      apiRequest(`/api/products/history?${historyParams.toString()}`),
       refreshReportData(),
       refreshAdminStatus(),
     ]);
@@ -3251,6 +3265,7 @@ function renderProductHistory() {
           </div>
           <div class="cart-line-note">${escapeHtml(entry.message || "")}</div>
           <div class="report-card-row">
+            <span>${escapeHtml(entry.actor || "Không rõ người thao tác")}</span>
             <span>${escapeHtml(formatDate(entry.created_at))}</span>
           </div>
         </article>
@@ -3567,6 +3582,15 @@ function renderAll() {
     purchaseSupplierInput.value = activePurchase.supplierName || "";
     purchaseNoteInput.value = activePurchase.note || "";
   }
+  if (productHistoryActorInput) {
+    productHistoryActorInput.value = state.productHistoryActorFilter || "";
+  }
+  if (productHistoryStartDateInput) {
+    productHistoryStartDateInput.value = state.productHistoryStartDate || "";
+  }
+  if (productHistoryEndDateInput) {
+    productHistoryEndDateInput.value = state.productHistoryEndDate || "";
+  }
   renderMenu();
   renderViewSections();
   renderScreenHeader();
@@ -3714,7 +3738,10 @@ async function submitTransaction(transactionType, productText, quantity, note = 
 async function updateProductPrice(productId, price) {
   const data = await apiRequest(`/api/products/${productId}/price`, {
     method: "PUT",
-    body: JSON.stringify({ price: Number(price) }),
+    body: JSON.stringify({
+      price: Number(price),
+      actor: state.admin?.authenticated ? (state.admin.username || "Master Admin") : "Nhân viên",
+    }),
   });
   state.editingPriceId = null;
   await refreshData();
@@ -3724,7 +3751,10 @@ async function updateProductPrice(productId, price) {
 async function updateProductSalePrice(productId, salePrice) {
   const data = await apiRequest(`/api/products/${productId}/sale-price`, {
     method: "PUT",
-    body: JSON.stringify({ sale_price: Number(salePrice) }),
+    body: JSON.stringify({
+      sale_price: Number(salePrice),
+      actor: state.admin?.authenticated ? (state.admin.username || "Master Admin") : "Nhân viên",
+    }),
   });
   await refreshData();
   showToast(data.message);
@@ -4188,6 +4218,33 @@ orderSearchInput.addEventListener("input", (event) => {
   state.orderSearchTerm = event.target.value;
   state.pagination.orders = 1;
   renderCartQueue();
+});
+
+productHistoryActorInput?.addEventListener("input", async (event) => {
+  state.productHistoryActorFilter = event.target.value;
+  try {
+    await refreshData();
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+productHistoryStartDateInput?.addEventListener("change", async (event) => {
+  state.productHistoryStartDate = event.target.value;
+  try {
+    await refreshData();
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+productHistoryEndDateInput?.addEventListener("change", async (event) => {
+  state.productHistoryEndDate = event.target.value;
+  try {
+    await refreshData();
+  } catch (error) {
+    showToast(error.message, true);
+  }
 });
 
 customerSearchInput.addEventListener("input", (event) => {

@@ -310,6 +310,20 @@
             <button type="button" id="productHistoryToggleButton" class="ghost-button compact-button">Mở lịch sử</button>
           </div>
           <div id="productHistoryWrap" class="product-collapse-body">
+            <div class="sticky-toolbar">
+              <label class="search-box">
+                <span class="sr-only">Lọc lịch sử theo người thao tác</span>
+                <input id="productHistoryActorInput" type="search" placeholder="Lọc theo người thao tác...">
+              </label>
+              <label>
+                <span>Từ ngày</span>
+                <input id="productHistoryStartDateInput" type="date">
+              </label>
+              <label>
+                <span>Đến ngày</span>
+                <input id="productHistoryEndDateInput" type="date">
+              </label>
+            </div>
             <div id="productHistoryList" class="report-list"></div>
           </div>
         </section>

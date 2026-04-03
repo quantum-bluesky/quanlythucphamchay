@@ -71,6 +71,7 @@ export const SCREEN_HELP = {
       "Khi sửa, đọc nhãn bên trái của từng dòng để tránh nhầm giữa Giá nhập và Giá bán.",
       "Nếu cần thêm mới, dùng form phía dưới danh sách.",
       "Xem phần Lịch sử sản phẩm bên dưới để biết thay đổi gần đây trước khi chỉnh tiếp.",
+      "Có thể lọc lịch sử theo người thao tác, từ ngày và đến ngày để đối chiếu audit nhanh.",
     ],
     related: [
       { menu: "inventory", label: "Xem tồn kho" },

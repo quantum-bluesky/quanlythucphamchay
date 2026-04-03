@@ -56,9 +56,19 @@ def create_handler(store, admin_sessions):
             if route == "/api/products/history":
                 query = parse_qs(parsed.query)
                 limit = query.get("limit", ["40"])[0]
+                actor = query.get("actor", [""])[0]
+                start_date = query.get("start_date", [None])[0]
+                end_date = query.get("end_date", [None])[0]
                 self._send_json(
                     HTTPStatus.OK,
-                    {"history": store.get_product_history(limit=int(limit))},
+                    {
+                        "history": store.get_product_history(
+                            limit=int(limit),
+                            actor=actor,
+                            start_date=start_date,
+                            end_date=end_date,
+                        )
+                    },
                 )
                 return
 
@@ -378,6 +388,7 @@ def create_handler(store, admin_sessions):
             if urlparse(self.path).path == "/api/state":
                 try:
                     payload = self._read_json_body()
+                    payload["actor"] = payload.get("actor") or self._get_admin_username() or "Nhân viên"
                     sync_state = store.save_sync_state(payload)
                     self._send_json(
                         HTTPStatus.OK,
@@ -433,7 +444,11 @@ def create_handler(store, admin_sessions):
             if match:
                 try:
                     payload = self._read_json_body()
-                    product = store.update_product_price(match.group(1), payload.get("price", 0))
+                    product = store.update_product_price(
+                        match.group(1),
+                        payload.get("price", 0),
+                        actor=payload.get("actor") or self._get_admin_username() or "Nhân viên",
+                    )
                     self._send_json(
                         HTTPStatus.OK,
                         {
@@ -450,7 +465,11 @@ def create_handler(store, admin_sessions):
             if match:
                 try:
                     payload = self._read_json_body()
-                    product = store.update_product_sale_price(match.group(1), payload.get("sale_price", 0))
+                    product = store.update_product_sale_price(
+                        match.group(1),
+                        payload.get("sale_price", 0),
+                        actor=payload.get("actor") or self._get_admin_username() or "Nhân viên",
+                    )
                     self._send_json(
                         HTTPStatus.OK,
                         {

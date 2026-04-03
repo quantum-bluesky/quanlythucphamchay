@@ -112,6 +112,7 @@ class InventoryStore:
                     entity_id TEXT NOT NULL,
                     entity_name TEXT NOT NULL DEFAULT '',
                     action TEXT NOT NULL,
+                    actor TEXT NOT NULL DEFAULT '',
                     message TEXT NOT NULL DEFAULT '',
                     created_at TEXT NOT NULL
                 );
@@ -143,6 +144,13 @@ class InventoryStore:
                     "ALTER TABLE products ADD COLUMN deleted_at TEXT"
                 )
             now = utc_now_iso()
+            audit_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(audit_logs)").fetchall()
+            }
+            if "actor" not in audit_columns:
+                connection.execute(
+                    "ALTER TABLE audit_logs ADD COLUMN actor TEXT NOT NULL DEFAULT ''"
+                )
             for key in self.SYNC_COLLECTION_KEYS:
                 connection.execute(
                     """
@@ -181,14 +189,15 @@ class InventoryStore:
         entity_id: str | int,
         entity_name: str,
         action: str,
+        actor: str = "",
         message: str = "",
     ) -> None:
         connection.execute(
             """
-            INSERT INTO audit_logs(entity_type, entity_id, entity_name, action, message, created_at)
-            VALUES(?, ?, ?, ?, ?, ?)
+            INSERT INTO audit_logs(entity_type, entity_id, entity_name, action, actor, message, created_at)
+            VALUES(?, ?, ?, ?, ?, ?, ?)
             """,
-            (entity_type, str(entity_id), entity_name, action, message, utc_now_iso()),
+            (entity_type, str(entity_id), entity_name, action, (actor or "").strip(), message, utc_now_iso()),
         )
 
     def _count_product_sync_usage(self, product_id: int) -> dict:
@@ -402,7 +411,7 @@ class InventoryStore:
             )
             return cursor.rowcount > 0
 
-    def update_product_price(self, product_id: int, price: str | int | float) -> dict:
+    def update_product_price(self, product_id: int, price: str | int | float, actor: str = "") -> dict:
         parsed_price = float(parse_non_negative_decimal(price, "Giá nhập"))
         now = utc_now_iso()
 
@@ -422,12 +431,13 @@ class InventoryStore:
                 entity_id=product_id,
                 entity_name=product["name"],
                 action="update-price",
+                actor=actor,
                 message=f"Cập nhật giá nhập thành {parsed_price:.0f}.",
             )
 
         return self.get_product_by_id(int(product_id))
 
-    def update_product_sale_price(self, product_id: int, sale_price: str | int | float) -> dict:
+    def update_product_sale_price(self, product_id: int, sale_price: str | int | float, actor: str = "") -> dict:
         parsed_sale_price = float(parse_non_negative_decimal(sale_price, "Giá bán"))
         now = utc_now_iso()
 
@@ -447,6 +457,7 @@ class InventoryStore:
                 entity_id=product_id,
                 entity_name=product["name"],
                 action="update-sale-price",
+                actor=actor,
                 message=f"Cập nhật giá bán thành {parsed_sale_price:.0f}.",
             )
 
@@ -585,18 +596,36 @@ class InventoryStore:
     def get_deleted_products(self) -> list[dict]:
         return [product for product in self.get_products(include_deleted=True) if product["is_deleted"]]
 
-    def get_product_history(self, limit: int = 40) -> list[dict]:
+    def get_product_history(
+        self,
+        limit: int = 40,
+        actor: str = "",
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> list[dict]:
         safe_limit = max(1, min(int(limit), 200))
+        clean_actor = (actor or "").strip().lower()
+        clauses = ["entity_type = 'product'"]
+        params: list = []
+        if clean_actor:
+            clauses.append("LOWER(actor) = ?")
+            params.append(clean_actor)
+        if start_date:
+            clauses.append("created_at >= ?")
+            params.append(str(start_date))
+        if end_date:
+            clauses.append("created_at <= ?")
+            params.append(str(end_date))
         with self._connect() as connection:
             rows = connection.execute(
                 """
-                SELECT id, entity_id, entity_name, action, message, created_at
+                SELECT id, entity_id, entity_name, action, actor, message, created_at
                 FROM audit_logs
-                WHERE entity_type = 'product'
+                WHERE {where_clause}
                 ORDER BY created_at DESC, id DESC
                 LIMIT ?
-                """,
-                (safe_limit,),
+                """.format(where_clause=" AND ".join(clauses)),
+                (*params, safe_limit),
             ).fetchall()
         return [
             {
@@ -604,6 +633,7 @@ class InventoryStore:
                 "product_id": int(row["entity_id"]),
                 "product_name": row["entity_name"],
                 "action": row["action"],
+                "actor": row["actor"] or "",
                 "message": row["message"],
                 "created_at": row["created_at"],
             }
@@ -686,6 +716,7 @@ class InventoryStore:
                     entity_id=product["id"],
                     entity_name=product["name"],
                     action="direct_adjustment",
+                    actor=clean_actor,
                     message=clean_note,
                 )
             elif clean_actor:
@@ -1298,6 +1329,7 @@ class InventoryStore:
             expected_updated_at = {}
         if not isinstance(expected_updated_at, dict):
             raise ValueError("Trường expected_updated_at phải là object.")
+        actor = str(payload.get("actor") or "").strip()
 
         now = utc_now_iso()
         with self._connect() as connection:
@@ -1324,12 +1356,24 @@ class InventoryStore:
                     raise SyncConflictError(key, expected_value, actual_value)
 
             if "carts" in to_update:
+                self._audit_cart_changes(
+                    connection,
+                    existing_collections.get("carts", []),
+                    to_update["carts"],
+                    actor=actor,
+                )
                 self._validate_cart_workflow_locks(
                     existing_collections.get("carts", []),
                     to_update["carts"],
                 )
 
             if "purchases" in to_update:
+                self._audit_purchase_changes(
+                    connection,
+                    existing_collections.get("purchases", []),
+                    to_update["purchases"],
+                    actor=actor,
+                )
                 self._validate_purchase_workflow_locks(
                     existing_collections.get("purchases", []),
                     to_update["purchases"],
@@ -1348,6 +1392,64 @@ class InventoryStore:
                 )
 
         return self.get_sync_state()
+
+    def _audit_cart_changes(
+        self,
+        connection: sqlite3.Connection,
+        existing_carts: list[dict],
+        incoming_carts: list[dict],
+        *,
+        actor: str = "",
+    ) -> None:
+        existing_by_id = {str(cart.get("id") or ""): cart for cart in existing_carts if cart.get("id")}
+        for cart in incoming_carts:
+            cart_id = str(cart.get("id") or "")
+            if not cart_id:
+                continue
+            previous = existing_by_id.get(cart_id)
+            if not previous:
+                continue
+            previous_status = str(previous.get("status") or "draft")
+            next_status = str(cart.get("status") or "draft")
+            if previous_status != next_status:
+                self._record_audit(
+                    connection,
+                    entity_type="cart",
+                    entity_id=cart_id,
+                    entity_name=str(cart.get("orderCode") or cart_id),
+                    action="status-change",
+                    actor=actor,
+                    message=f"Trạng thái đơn đổi từ {previous_status} sang {next_status}.",
+                )
+
+    def _audit_purchase_changes(
+        self,
+        connection: sqlite3.Connection,
+        existing_purchases: list[dict],
+        incoming_purchases: list[dict],
+        *,
+        actor: str = "",
+    ) -> None:
+        existing_by_id = {str(purchase.get("id") or ""): purchase for purchase in existing_purchases if purchase.get("id")}
+        for purchase in incoming_purchases:
+            purchase_id = str(purchase.get("id") or "")
+            if not purchase_id:
+                continue
+            previous = existing_by_id.get(purchase_id)
+            if not previous:
+                continue
+            previous_status = str(previous.get("status") or "draft")
+            next_status = str(purchase.get("status") or "draft")
+            if previous_status != next_status:
+                self._record_audit(
+                    connection,
+                    entity_type="purchase",
+                    entity_id=purchase_id,
+                    entity_name=str(purchase.get("receiptCode") or purchase_id),
+                    action="status-change",
+                    actor=actor,
+                    message=f"Trạng thái phiếu nhập đổi từ {previous_status} sang {next_status}.",
+                )
 
     def _validate_cart_workflow_locks(
         self,
