@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from app import InventoryStore
+from qltpchay.store import SyncConflictError
 
 
 class InventoryStoreTests(unittest.TestCase):
@@ -129,6 +130,29 @@ class InventoryStoreTests(unittest.TestCase):
             self.store.create_inventory_adjustment_receipt(
                 items=[{"product_id": product["id"], "quantity_delta": 1}],
                 reason="",
+            )
+
+    def test_save_sync_state_accepts_matching_expected_updated_at(self) -> None:
+        initial = self.store.get_sync_state()
+        expected = initial["updated_at"]["carts"]
+
+        payload = {
+            "carts": [{"id": "cart-1", "status": "draft", "items": []}],
+            "expected_updated_at": {"carts": expected},
+        }
+        result = self.store.save_sync_state(payload)
+
+        self.assertEqual(result["carts"][0]["id"], "cart-1")
+
+    def test_save_sync_state_rejects_stale_expected_updated_at(self) -> None:
+        self.store.save_sync_state({"carts": [{"id": "cart-a", "status": "draft", "items": []}]})
+
+        with self.assertRaises(SyncConflictError):
+            self.store.save_sync_state(
+                {
+                    "carts": [{"id": "cart-b", "status": "draft", "items": []}],
+                    "expected_updated_at": {"carts": "stale-version"},
+                }
             )
 
 
