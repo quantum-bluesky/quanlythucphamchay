@@ -53,6 +53,13 @@ Resolve the repository and request type first, then hand off to the narrowest wo
 - For write actions, return the created or updated URL and the exact identifier such as issue number or PR number.
 - For mixed requests, say which narrower flow you are taking and why.
 
+## Playbooks
+
+- For review comment follow-up, load [references/review.md](./references/review.md).
+- For CI investigation, load [references/ci.md](./references/ci.md).
+- For publish flow, load [references/publish.md](./references/publish.md).
+- For issue triage, load [references/issue-triage.md](./references/issue-triage.md).
+
 ## Examples
 
 - "Use $github-workflow to summarize the open PRs in this repo and tell me what needs attention."
