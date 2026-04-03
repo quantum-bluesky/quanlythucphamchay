@@ -259,6 +259,22 @@ Màn này dùng để:
 
 ### Cách đọc nhanh
 
+## 11. Luồng điều chỉnh tồn và trả hàng (Phase B)
+
+Khi đã chốt đơn hoặc đã nhập kho mà phát hiện sai, không sửa ngược chứng từ cũ.
+
+Dùng 1 trong 3 loại chứng từ điều chỉnh:
+
+- `Phiếu điều chỉnh tồn`: tăng/giảm trực tiếp theo kiểm kho thực tế, bắt buộc có lý do
+- `Phiếu trả hàng khách`: khi khách trả hàng, hàng quay lại tồn kho
+- `Phiếu trả NCC`: khi trả ngược hàng về nhà cung cấp, tồn kho sẽ giảm
+
+Lưu ý:
+
+- `Phiếu điều chỉnh tồn` nên dùng bởi `Master Admin` khi cần xử lý chênh lệch gấp
+- Mỗi phiếu đều lưu thành giao dịch kho mới để giữ lịch sử và audit
+- Các chứng từ cũ vẫn giữ nguyên, không bị sửa đè
+
 1. Chọn `Tháng xem chính`
 2. Chọn `Số tháng gần nhất`
 3. Xem 4 thẻ tổng quan ở trên
