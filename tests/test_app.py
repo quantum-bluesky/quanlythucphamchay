@@ -58,6 +58,79 @@ class InventoryStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lớn hơn tồn kho"):
             self.store.create_transaction(product["id"], "out", 3)
 
+    def test_inventory_adjustment_receipt_updates_stock_with_reason(self) -> None:
+        product = self.store.create_product(
+            name="Tàu hũ ky",
+            category="Đồ khô",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        self.store.create_transaction(product["id"], "in", 5, "Tồn đầu")
+
+        receipt = self.store.create_inventory_adjustment_receipt(
+            items=[{"product_id": product["id"], "quantity_delta": -2}],
+            reason="Kiểm kho lệch thực tế",
+            actor="masteradmin",
+        )
+        refreshed = self.store.get_product_by_id(product["id"])
+
+        self.assertTrue(receipt["receipt_code"].startswith("DC-"))
+        self.assertEqual(receipt["total_out_quantity"], 2.0)
+        self.assertEqual(refreshed["current_stock"], 3.0)
+
+    def test_customer_return_receipt_increases_stock(self) -> None:
+        product = self.store.create_product(
+            name="Nem chay",
+            category="Đồ chay đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        self.store.create_transaction(product["id"], "in", 1, "Tồn đầu")
+
+        receipt = self.store.create_customer_return_receipt(
+            customer_name="Cô Mai",
+            items=[{"product_id": product["id"], "quantity": 2, "unit_refund": 45000}],
+            note="Khách trả do giao dư",
+        )
+        refreshed = self.store.get_product_by_id(product["id"])
+
+        self.assertTrue(receipt["receipt_code"].startswith("THK-"))
+        self.assertEqual(receipt["total_quantity"], 2.0)
+        self.assertEqual(refreshed["current_stock"], 3.0)
+
+    def test_supplier_return_receipt_reduces_stock(self) -> None:
+        product = self.store.create_product(
+            name="Đậu hũ non",
+            category="Đồ tươi",
+            unit="hộp",
+            low_stock_threshold=3,
+        )
+        self.store.create_transaction(product["id"], "in", 7, "Nhập đầu")
+
+        receipt = self.store.create_supplier_return_receipt(
+            supplier_name="NCC Hòa Bình",
+            items=[{"product_id": product["id"], "quantity": 2, "unit_cost": 12000}],
+            note="Hàng lỗi bao bì",
+        )
+        refreshed = self.store.get_product_by_id(product["id"])
+
+        self.assertTrue(receipt["receipt_code"].startswith("TNCC-"))
+        self.assertEqual(receipt["total_quantity"], 2.0)
+        self.assertEqual(refreshed["current_stock"], 5.0)
+
+    def test_inventory_adjustment_requires_reason(self) -> None:
+        product = self.store.create_product(
+            name="Mì căn",
+            category="Đồ khô",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        with self.assertRaisesRegex(ValueError, "Lý do điều chỉnh"):
+            self.store.create_inventory_adjustment_receipt(
+                items=[{"product_id": product["id"], "quantity_delta": 1}],
+                reason="",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
