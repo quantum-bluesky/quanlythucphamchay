@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Workflow"
+  short_description: "Route common GitHub repo workflows"
+  default_prompt: "Use $github-workflow to handle a GitHub task in the current repo or an explicit owner/repo."
