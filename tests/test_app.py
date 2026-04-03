@@ -2,6 +2,7 @@ import gc
 import tempfile
 import time
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from app import InventoryStore
@@ -191,6 +192,39 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertIn("draft", log["message"])
         self.assertIn("completed", log["message"])
 
+    def test_save_sync_state_logs_purchase_status_changes_with_actor(self) -> None:
+        self.store.save_sync_state(
+            {
+                "purchases": [{"id": "purchase-1", "receiptCode": "PN-01", "status": "draft", "items": []}],
+                "expected_updated_at": {"purchases": self.store.get_sync_state()["updated_at"]["purchases"]},
+                "actor": "thu-ngan-b",
+            }
+        )
+        sync_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "purchases": [{"id": "purchase-1", "receiptCode": "PN-01", "status": "ordered", "items": []}],
+                "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
+                "actor": "thu-ngan-b",
+            }
+        )
+
+        with self.store._connect() as connection:
+            log = connection.execute(
+                """
+                SELECT entity_type, action, actor, message
+                FROM audit_logs
+                WHERE entity_type = 'purchase'
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+        self.assertIsNotNone(log)
+        self.assertEqual(log["action"], "status-change")
+        self.assertEqual(log["actor"], "thu-ngan-b")
+        self.assertIn("draft", log["message"])
+        self.assertIn("ordered", log["message"])
+
     def test_product_history_supports_actor_filter(self) -> None:
         product = self.store.create_product(
             name="Đậu gà viên",
@@ -207,6 +241,37 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertTrue(any(entry["action"] == "update-price" for entry in actor_a_logs))
         self.assertFalse(any(entry["action"] == "update-sale-price" for entry in actor_a_logs))
         self.assertTrue(any(entry["action"] == "update-sale-price" for entry in actor_b_logs))
+
+    def test_product_history_supports_date_range_filter(self) -> None:
+        product = self.store.create_product(
+            name="Nấm đùi gà sốt",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        self.store.update_product_price(product["id"], 28000, actor="user-date")
+
+        log_entry = next(
+            entry
+            for entry in self.store.get_product_history(limit=20)
+            if entry["product_id"] == product["id"] and entry["action"] == "update-price"
+        )
+        created_at = datetime.fromisoformat(log_entry["created_at"])
+        one_second_before = (created_at - timedelta(seconds=1)).isoformat(timespec="seconds")
+        one_second_after = (created_at + timedelta(seconds=1)).isoformat(timespec="seconds")
+
+        included_logs = self.store.get_product_history(
+            limit=20,
+            start_date=one_second_before,
+            end_date=one_second_after,
+        )
+        excluded_logs = self.store.get_product_history(
+            limit=20,
+            start_date=one_second_after,
+        )
+
+        self.assertTrue(any(entry["id"] == log_entry["id"] for entry in included_logs))
+        self.assertFalse(any(entry["id"] == log_entry["id"] for entry in excluded_logs))
 
 
 if __name__ == "__main__":

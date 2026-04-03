@@ -1,4 +1,10 @@
 const { test, expect } = require("@playwright/test");
+const {
+  attachRuntimeTracking,
+  expectNoRuntimeErrors,
+  expectScreenTitle,
+  switchMenu,
+} = require("./support/ui");
 
 test("product history supports actor filter for default price updates", async ({ request }) => {
   const productsResponse = await request.get("/api/products");
@@ -51,4 +57,54 @@ test("state sync stores actor when cart status changes", async ({ request }) => 
     },
   });
   expect(completeResponse.ok()).toBeTruthy();
+});
+
+test("product history filter form applies actor and date filters in UI", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const productsResponse = await request.get("/api/products");
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const actor = "phase-d-ui";
+  const updateResponse = await request.put(`/api/products/${product.id}/sale-price`, {
+    data: {
+      sale_price: Number(product.sale_price || 0) + 2000,
+      actor,
+    },
+  });
+  expect(updateResponse.ok()).toBeTruthy();
+
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await switchMenu(page, "products");
+  await expectScreenTitle(page, "Sản phẩm");
+
+  await page.evaluate(() => {
+    document.getElementById("productHistoryToggleButton")?.click();
+  });
+  await expect(page.locator("#productHistoryActorInput")).toBeVisible();
+  await page.locator("#productHistoryActorInput").fill(actor);
+
+  await expect.poll(async () => {
+    return page.locator("#productHistoryList .report-card").count();
+  }).toBeGreaterThan(0);
+  await expect.poll(async () => {
+    return page.locator("#productHistoryList .report-card").evaluateAll((cards, actorName) => {
+      const texts = cards.map((card) => card.textContent || "");
+      return texts.length > 0
+        && texts.every((text) => text.includes(actorName))
+        && texts.some((text) => text.includes("update-sale-price"));
+    }, actor);
+  }).toBeTruthy();
+
+  await page.screenshot({ path: "test-results/phase-d-product-history-filter.png", fullPage: true });
+
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  await page.locator("#productHistoryStartDateInput").fill(tomorrow);
+  await page.locator("#productHistoryEndDateInput").fill(tomorrow);
+  await expect(page.locator("#productHistoryList .empty-state")).toHaveText("Chưa có thay đổi sản phẩm nào gần đây.");
+
+  expectNoRuntimeErrors(runtime);
 });
