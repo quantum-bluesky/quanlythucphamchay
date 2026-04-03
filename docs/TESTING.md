@@ -68,14 +68,17 @@ Suite hiện tại chạy trên `fixture DB` tạm, không đụng vào `data\in
 Các nhóm kiểm tra chính:
 
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
+- `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, thiếu hàng của user thường
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
 - `Master Admin`: login, export, import, backup, restore
+- `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
 
 Ngoài click thao tác, suite còn kiểm tra:
 
 - refresh lại ngay trên từng màn
 - lỗi runtime kiểu `... is not defined`
 - toast lỗi đồng bộ hoặc lỗi JS
+- đối chiếu lại stock / order / transaction sau khi chạy case nghiệp vụ chính
 
 ## File chính của suite
 
@@ -87,6 +90,7 @@ Ngoài click thao tác, suite còn kiểm tra:
   - `tests/integration/management-screens.spec.js`
   - `tests/integration/admin.spec.js`
   - `tests/integration/acceptance-checklist.spec.js`
+  - `tests/integration/acceptance-sales-phase-b.spec.js`
   - `tests/integration/cross-client-sync.spec.js`
   - `tests/integration/workflow-phase-a.spec.js`
   - `tests/integration/workflow-phase-c.spec.js`

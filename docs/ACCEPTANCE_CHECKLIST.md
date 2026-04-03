@@ -23,13 +23,16 @@ Mục tiêu:
 | ACC-ABOUT-01 | P1 | About / Version | Bấm `Version` mở đúng màn `About`, version khớp backend | Auto | `tests/integration/acceptance-checklist.spec.js` |
 | ACC-INV-01 | P0 | Tồn kho -> Nhập hàng | Bấm `Nhập` từ card tồn kho mở đúng màn `Nhập hàng` | Auto | `tests/integration/acceptance-checklist.spec.js` |
 | ACC-INV-02 | P0 | Tồn kho -> Xuất hàng | Bấm `Xuất` từ card tồn kho mở đúng màn `Tạo đơn xuất hàng` | Auto | `tests/integration/core-workflows.spec.js` |
-| ACC-SALE-01 | P0 | Tạo đơn xuất hàng | Tạo giỏ, thêm hàng, chốt đơn và đối chiếu tồn kho / đơn hàng | Manual | Ghi theo mẫu ở mục 4 |
-| ACC-SALE-02 | P0 | Tạo đơn xuất hàng | Khi thiếu hàng, user thường không được bypass sang chỉnh tồn trực tiếp | Manual | Ghi theo mẫu ở mục 4 |
+| ACC-SALE-01 | P0 | Tạo đơn xuất hàng | Tạo giỏ, thêm hàng, chốt đơn và đối chiếu tồn kho / đơn hàng | Auto | `tests/integration/acceptance-sales-phase-b.spec.js` |
+| ACC-SALE-02 | P0 | Tạo đơn xuất hàng | Khi thiếu hàng, user thường không được bypass sang chỉnh tồn trực tiếp | Auto | `tests/integration/acceptance-sales-phase-b.spec.js` |
 | ACC-ORD-01 | P1 | Đơn hàng | Mở đơn, xem chi tiết, không lỗi runtime sau reload | Auto | `tests/integration/management-screens.spec.js` |
 | ACC-CUS-01 | P1 | Khách hàng | Mở sửa khách hàng, form nạp dữ liệu đúng, reload không lỗi | Auto | `tests/integration/management-screens.spec.js` |
 | ACC-PROD-01 | P1 | Sản phẩm | Mở sửa nhanh sản phẩm, màn không lỗi runtime | Auto | `tests/integration/core-workflows.spec.js` |
 | ACC-PUR-01 | P0 | Nhập hàng | Phiếu chỉ được `paid` sau khi `received` | Auto | `tests/integration/workflow-phase-a.spec.js` |
 | ACC-PUR-02 | P0 | Nhập hàng | Phiếu `received/paid` không cho sửa trực tiếp | Auto | `tests/integration/workflow-phase-a.spec.js` |
+| ACC-PHB-01 | P1 | Phase B / Phiếu điều chỉnh tồn | Tạo phiếu điều chỉnh tồn, cập nhật tồn kho và audit đúng receipt | Auto | `tests/integration/acceptance-sales-phase-b.spec.js` |
+| ACC-PHB-02 | P1 | Phase B / Phiếu trả hàng khách | Tạo phiếu trả hàng khách, hàng quay lại tồn kho và có giao dịch tương ứng | Auto | `tests/integration/acceptance-sales-phase-b.spec.js` |
+| ACC-PHB-03 | P1 | Phase B / Phiếu trả NCC | Tạo phiếu trả NCC, tồn kho giảm và có giao dịch tương ứng | Auto | `tests/integration/acceptance-sales-phase-b.spec.js` |
 | ACC-SUP-01 | P1 | Nhà cung cấp | Mở sửa nhà cung cấp, form nạp dữ liệu đúng, reload không lỗi | Auto | `tests/integration/management-screens.spec.js` |
 | ACC-REP-01 | P1 | Báo cáo | Làm mới báo cáo, đổi bộ lọc, màn không lỗi runtime | Auto | `tests/integration/acceptance-checklist.spec.js`, `tests/integration/management-screens.spec.js` |
 | ACC-HIS-01 | P1 | Khôi phục | Màn khôi phục hiển thị đủ nhóm đã xóa và thao tác không lỗi | Auto | `tests/integration/acceptance-checklist.spec.js`, `tests/integration/management-screens.spec.js` |
@@ -87,18 +90,18 @@ Ghi chú / ảnh chụp / log:
 
 ## 5. Đề xuất ưu tiên tự động hóa tiếp
 
-Các case hiện vẫn nên tự động hóa tiếp:
+Checklist hiện đã phủ tự động các case P0 chính. Các phần nên mở rộng tiếp nếu tăng scope release:
 
-- `ACC-SALE-01`: chốt đơn hoàn chỉnh và đối chiếu lại tồn kho, đơn hàng
-- `ACC-SALE-02`: luồng thiếu hàng của user thường
-- luồng Phase B:
-  - phiếu điều chỉnh tồn
-  - phiếu trả hàng khách
-  - phiếu trả NCC
+- luồng `in / gửi khách` sau khi chốt đơn
+- nhánh thiếu hàng của `Master Admin` khi chọn sang màn tồn kho để bypass bằng điều chỉnh trực tiếp
+- các case validate âm cho Phase B:
+  - phiếu điều chỉnh thiếu lý do
+  - phiếu trả NCC vượt tồn
+  - phiếu trả hàng / điều chỉnh nhiều dòng cùng lúc
 
 ## 6. Tiêu chuẩn pass cho một đợt bàn giao
 
 - tất cả `P0 Auto` phải pass
 - các `P1 Auto` nên pass hoặc có giải trình rõ
-- các `Manual` quan trọng phải được ghi nhận kết quả
+- các `Manual` còn lại nếu có phải được ghi nhận kết quả
 - help trong app, README và hướng dẫn sử dụng phải khớp workflow đang test

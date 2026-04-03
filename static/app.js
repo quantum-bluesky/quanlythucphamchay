@@ -3781,7 +3781,7 @@ async function checkoutActiveCart() {
   }));
 
   state.activeCartId = getDraftCarts().find((entry) => entry.id !== cart.id)?.id || null;
-  saveAndRenderAll(["carts"]);
+  saveAndRenderAll();
   await persistCollections(["carts"]);
   await refreshData();
   printCart(cart.id);
@@ -5161,7 +5161,7 @@ purchasePanel.addEventListener("click", async (event) => {
           : entry
       );
       state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
-      saveAndRenderAll(["purchases"]);
+      saveAndRenderAll();
       await persistCollections(["purchases"]);
       await refreshData();
       showToast(data.message);
