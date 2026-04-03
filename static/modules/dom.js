@@ -105,6 +105,7 @@ export const scrollBottomButton = document.getElementById("scrollBottomButton");
 export const navBackButton = document.getElementById("navBackButton");
 export const navForwardButton = document.getElementById("navForwardButton");
 export const openHelpButton = document.getElementById("openHelpButton");
+export const screenToolbox = document.querySelector(".screen-toolbox");
 export const floatingSearchDock = document.getElementById("floatingSearchDock");
 export const floatingSearchToggle = document.getElementById("floatingSearchToggle");
 export const floatingSearchInput = document.getElementById("floatingSearchInput");

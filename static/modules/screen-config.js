@@ -1,3 +1,6 @@
+const MOBILE_FLOATING_HINT =
+  "Trên điện thoại, menu nổi, tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi bạn chạm ra ngoài; chạm lại vào phần mép còn lộ ra để mở đúng cụm cần dùng.";
+
 export const SCREEN_HELP = {
   inventory: {
     title: "Kiểm tra nhập xuất hàng tồn",
@@ -10,6 +13,7 @@ export const SCREEN_HELP = {
       "Chỉ Master Admin mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho và bắt buộc nhập lý do điều chỉnh.",
       "Nếu cần xử lý sai lệch sau khi chứng từ đã xử lý, ưu tiên tạo phiếu điều chỉnh tồn thay vì sửa ngược đơn/phiếu cũ.",
       "Kéo xuống phần Lịch sử gần đây để kiểm tra các giao dịch mới nhất trước khi tiếp tục thao tác khác.",
+      MOBILE_FLOATING_HINT,
     ],
     related: [
       { menu: "create-order", label: "Sang tạo đơn xuất" },
@@ -27,6 +31,7 @@ export const SCREEN_HELP = {
       "Nếu có 2 máy cùng sửa một giỏ nháp, app sẽ chặn ghi đè và báo xung đột để bạn tải lại dữ liệu mới nhất trước khi lưu tiếp.",
       "Khi mở detail của dòng hàng, bạn có thể đổi giá bán cho riêng đơn này hoặc bấm Giá chung để cập nhật giá bán mặc định của sản phẩm sau khi xác nhận.",
       "Nếu thiếu hàng, hệ thống sẽ chuyển sang luồng nhập hàng; chỉ Master Admin mới có quyền chỉnh tồn trực tiếp.",
+      MOBILE_FLOATING_HINT,
     ],
     related: [
       { menu: "orders", label: "Xem đơn hàng" },
@@ -42,6 +47,7 @@ export const SCREEN_HELP = {
       "Bật hoặc tắt các tùy chọn hiện đơn đã xong và đã thanh toán để thu gọn danh sách.",
       "Đơn đã chốt chỉ còn các thao tác xem/in và cập nhật thanh toán; app sẽ khóa sửa trực tiếp để giữ lịch sử đúng workflow.",
       "Nếu phát hiện sai sau khi đã chốt đơn, hãy tạo phiếu trả hàng khách hoặc phiếu điều chỉnh phù hợp thay vì sửa ngược đơn cũ.",
+      MOBILE_FLOATING_HINT,
     ],
     related: [
       { menu: "create-order", label: "Quay lại tạo đơn" },
@@ -56,6 +62,7 @@ export const SCREEN_HELP = {
       "Mở vào màn là thấy ngay danh sách khách hàng hiện hành.",
       "Dùng form phía trên để thêm mới hoặc sửa dữ liệu khách đang chọn.",
       "Tìm nhanh bằng tên, số điện thoại hoặc địa chỉ để tránh nhập trùng.",
+      MOBILE_FLOATING_HINT,
     ],
     related: [
       { menu: "create-order", label: "Sang tạo đơn" },
@@ -72,6 +79,7 @@ export const SCREEN_HELP = {
       "Nếu cần thêm mới, dùng form phía dưới danh sách.",
       "Xem phần Lịch sử sản phẩm bên dưới để biết thay đổi gần đây trước khi chỉnh tiếp.",
       "Có thể lọc lịch sử theo người thao tác, từ ngày và đến ngày để đối chiếu audit nhanh.",
+      MOBILE_FLOATING_HINT,
     ],
     related: [
       { menu: "inventory", label: "Xem tồn kho" },
@@ -91,6 +99,7 @@ export const SCREEN_HELP = {
       "Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho; app sẽ khóa thao tác trả tiền sớm hơn bước này.",
       "Phiếu đã nhập kho, đã thanh toán hoặc đã hủy sẽ chuyển sang chế độ chỉ xem; nếu sai sót thì xử lý bằng phiếu trả NCC hoặc chứng từ điều chỉnh mới.",
       "Ẩn các phiếu đã thanh toán để giữ màn hình gọn; bật lại khi cần đối chiếu lịch sử.",
+      MOBILE_FLOATING_HINT,
     ],
     related: [
       { menu: "suppliers", label: "Quản lý nhà cung cấp" },
@@ -105,6 +114,7 @@ export const SCREEN_HELP = {
       "Mở màn là thấy danh sách nhà cung cấp hiện có.",
       "Dùng form để thêm mới hoặc sửa thông tin liên lạc và ghi chú làm việc.",
       "Tìm theo tên, số điện thoại hoặc địa chỉ trước khi thêm để tránh trùng lặp.",
+      MOBILE_FLOATING_HINT,
     ],
     related: [
       { menu: "purchases", label: "Sang nhập hàng" },
@@ -118,6 +128,7 @@ export const SCREEN_HELP = {
       "Chọn tháng xem chính hoặc dùng bộ lọc Từ ngày - Đến ngày để xem một khoảng cụ thể.",
       "Đọc các thẻ tổng hợp để tách riêng chi nhập hàng, doanh thu, giá vốn và lãi gộp.",
       "Xem tiếp xu hướng theo tháng, đề xuất nhập thêm và chi tiết từng sản phẩm bên dưới.",
+      MOBILE_FLOATING_HINT,
     ],
     related: [
       { menu: "inventory", label: "Kiểm tra tồn kho" },
@@ -132,6 +143,7 @@ export const SCREEN_HELP = {
       "Chọn đúng nhóm đối tượng đã xóa cần xem: sản phẩm, khách hàng hoặc nhà cung cấp.",
       "Đọc cảnh báo ràng buộc trước khi khôi phục để biết đối tượng nào đang trùng hoặc đang bị khóa logic.",
       "Khôi phục xong thì quay lại màn nghiệp vụ tương ứng để tiếp tục thao tác.",
+      MOBILE_FLOATING_HINT,
     ],
     related: [
       { menu: "products", label: "Quay lại sản phẩm" },
@@ -146,6 +158,7 @@ export const SCREEN_HELP = {
       "Đăng nhập bằng tài khoản admin đã cấu hình trong file hệ thống.",
       "Dùng export/import để quản trị dữ liệu master của sản phẩm, khách hàng và nhà cung cấp.",
       "Chỉ restore database khi đã hiểu rõ rằng dữ liệu hiện tại sẽ bị ghi đè bằng bản phục hồi.",
+      MOBILE_FLOATING_HINT,
     ],
     related: [
       { menu: "history", label: "Xem lịch sử & khôi phục nghiệp vụ" },
@@ -159,6 +172,7 @@ export const SCREEN_HELP = {
       "Bấm vào badge Version ở đầu ứng dụng để mở màn About.",
       "Kiểm tra phiên bản hiện tại trước khi trao đổi lỗi, cập nhật hoặc hỗ trợ từ xa.",
       "Dùng các nút đi nhanh để quay lại tồn kho, báo cáo hoặc Master Admin.",
+      MOBILE_FLOATING_HINT,
     ],
     related: [
       { menu: "inventory", label: "Quay lại tồn kho" },
