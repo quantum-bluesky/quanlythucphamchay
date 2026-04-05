@@ -15,6 +15,7 @@ test("mobile floating clusters auto-hide to screen edges and reveal without firi
   const menuPanel = page.locator("#menuPanel");
   const floatingSearchDock = page.locator("#floatingSearchDock");
   const screenToolbox = page.locator(".screen-toolbox");
+  const screenHeaderBar = page.locator("#screenHeaderBar");
   const helpModal = page.locator("#helpModal");
   const clickVisibleEdge = async (locator, side = "left") => {
     const box = await locator.boundingBox();
@@ -41,6 +42,12 @@ test("mobile floating clusters auto-hide to screen edges and reveal without firi
   await expect(screenToolbox).not.toHaveClass(/is-edge-hidden/);
   await expect(helpModal).toBeHidden();
   await expectScreenTitle(page, "Kiểm tra tồn kho");
+
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect(screenHeaderBar).toBeVisible();
+  const headerBox = await screenHeaderBar.boundingBox();
+  expect(headerBox).toBeTruthy();
+  expect(headerBox.y).toBeLessThan(20);
 
   expectNoRuntimeErrors(runtime);
 });

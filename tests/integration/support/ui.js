@@ -25,7 +25,7 @@ function attachRuntimeTracking(page) {
 }
 
 async function expectScreenTitle(page, title) {
-  await expect(page.locator("#activeScreenTitle")).toHaveText(title);
+  await expect(page.locator("#activeScreenBarTitle")).toHaveText(title);
 }
 
 async function switchMenu(page, menu) {
