@@ -38,6 +38,9 @@ import {
   customerAddressInput,
   customerZaloInput,
   customerFormCancelButton,
+  customerFormSection,
+  customerFormWrap,
+  customerFormToggleButton,
   customerSearchInput,
   customerList,
   productManageSearchInput,
@@ -76,6 +79,9 @@ import {
   supplierAddressInput,
   supplierNoteInput,
   supplierFormCancelButton,
+  supplierFormSection,
+  supplierFormWrap,
+  supplierFormToggleButton,
   supplierSearchInput,
   supplierList,
   reportMonthInput,
@@ -269,15 +275,15 @@ function renderProductSections() {
   productsSection?.classList.toggle("has-mobile-products", compact);
 
   if (productFormSection && productFormWrap && productFormToggleButton) {
-    productFormSection.classList.toggle("is-collapsed", compact && state.productFormCollapsed);
-    productFormWrap.hidden = compact && state.productFormCollapsed;
-    productFormToggleButton.textContent = compact && state.productFormCollapsed ? "Mở form" : "Thu gọn";
+    productFormSection.classList.toggle("is-collapsed", state.productFormCollapsed);
+    productFormWrap.hidden = state.productFormCollapsed;
+    productFormToggleButton.textContent = state.productFormCollapsed ? "Mở form" : "Thu gọn";
   }
 
   if (productHistorySection && productHistoryWrap && productHistoryToggleButton) {
-    productHistorySection.classList.toggle("is-collapsed", compact && state.productHistoryCollapsed);
-    productHistoryWrap.hidden = compact && state.productHistoryCollapsed;
-    productHistoryToggleButton.textContent = compact && state.productHistoryCollapsed ? "Mở lịch sử" : "Thu gọn";
+    productHistorySection.classList.toggle("is-collapsed", state.productHistoryCollapsed);
+    productHistoryWrap.hidden = state.productHistoryCollapsed;
+    productHistoryToggleButton.textContent = state.productHistoryCollapsed ? "Mở lịch sử" : "Thu gọn";
   }
 }
 
@@ -310,6 +316,46 @@ function renderReportSections() {
   reportFiltersSection.classList.toggle("is-collapsed", collapsed);
   reportFiltersWrap.hidden = collapsed;
   reportFiltersToggleButton.textContent = collapsed ? "Mở bộ lọc" : "Thu gọn";
+}
+
+function renderEntityForms() {
+  if (customerFormSection && customerFormWrap && customerFormToggleButton) {
+    customerFormSection.classList.toggle("is-collapsed", state.customerFormCollapsed);
+    customerFormWrap.hidden = state.customerFormCollapsed;
+    customerFormToggleButton.textContent = state.customerFormCollapsed
+      ? "Thêm mới"
+      : (state.editingCustomerFormId ? "Thu gọn" : "Đang tạo mới");
+  }
+
+  if (supplierFormSection && supplierFormWrap && supplierFormToggleButton) {
+    supplierFormSection.classList.toggle("is-collapsed", state.supplierFormCollapsed);
+    supplierFormWrap.hidden = state.supplierFormCollapsed;
+    supplierFormToggleButton.textContent = state.supplierFormCollapsed
+      ? "Thêm mới"
+      : (state.editingSupplierFormId ? "Thu gọn" : "Đang tạo mới");
+  }
+}
+
+function openCustomerForm({ focus = false } = {}) {
+  state.customerFormCollapsed = false;
+  renderEntityForms();
+  window.setTimeout(() => {
+    customerFormSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (focus) {
+      customerNameInput?.focus();
+    }
+  }, 30);
+}
+
+function openSupplierForm({ focus = false } = {}) {
+  state.supplierFormCollapsed = false;
+  renderEntityForms();
+  window.setTimeout(() => {
+    supplierFormSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (focus) {
+      supplierNameInput?.focus();
+    }
+  }, 30);
 }
 
 function openReportFilters({ focus = false } = {}) {
@@ -3749,6 +3795,7 @@ function renderAll() {
   renderCreateOrderEntryState();
   renderPurchaseEntryState();
   renderReportSections();
+  renderEntityForms();
   renderScreenToolbox();
   renderFloatingSearchDock();
   refreshSearchClearButtons();
@@ -4412,6 +4459,8 @@ customerForm.addEventListener("submit", (event) => {
     );
     customerForm.reset();
     state.editingCustomerFormId = null;
+    state.customerFormCollapsed = true;
+    renderEntityForms();
     showToast("Đã lưu khách hàng.");
   } catch (error) {
     showToast(error.message, true);
@@ -4421,6 +4470,23 @@ customerForm.addEventListener("submit", (event) => {
 customerFormCancelButton.addEventListener("click", () => {
   state.editingCustomerFormId = null;
   customerForm.reset();
+  state.customerFormCollapsed = true;
+  renderEntityForms();
+});
+
+customerFormToggleButton?.addEventListener("click", () => {
+  if (!state.customerFormCollapsed && !state.editingCustomerFormId) {
+    customerForm.reset();
+  }
+  if (state.customerFormCollapsed) {
+    state.editingCustomerFormId = null;
+    customerForm.reset();
+  }
+  state.customerFormCollapsed = !state.customerFormCollapsed;
+  renderEntityForms();
+  if (!state.customerFormCollapsed) {
+    window.setTimeout(() => customerNameInput?.focus(), 30);
+  }
 });
 
 openCartButton.addEventListener("click", () => {
@@ -4926,7 +4992,7 @@ customerList.addEventListener("click", (event) => {
     customerPhoneInput.value = customer.phone || "";
     customerAddressInput.value = customer.address || "";
     customerZaloInput.value = customer.zaloUrl || "";
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    openCustomerForm({ focus: true });
     return;
   }
 
@@ -4991,6 +5057,8 @@ supplierForm.addEventListener("submit", (event) => {
     );
     supplierForm.reset();
     state.editingSupplierFormId = null;
+    state.supplierFormCollapsed = true;
+    renderEntityForms();
     showToast("Đã lưu nhà cung cấp.");
   } catch (error) {
     showToast(error.message, true);
@@ -5000,6 +5068,23 @@ supplierForm.addEventListener("submit", (event) => {
 supplierFormCancelButton.addEventListener("click", () => {
   state.editingSupplierFormId = null;
   supplierForm.reset();
+  state.supplierFormCollapsed = true;
+  renderEntityForms();
+});
+
+supplierFormToggleButton?.addEventListener("click", () => {
+  if (!state.supplierFormCollapsed && !state.editingSupplierFormId) {
+    supplierForm.reset();
+  }
+  if (state.supplierFormCollapsed) {
+    state.editingSupplierFormId = null;
+    supplierForm.reset();
+  }
+  state.supplierFormCollapsed = !state.supplierFormCollapsed;
+  renderEntityForms();
+  if (!state.supplierFormCollapsed) {
+    window.setTimeout(() => supplierNameInput?.focus(), 30);
+  }
 });
 
 createPurchaseDraftButton.addEventListener("click", () => {
@@ -5470,6 +5555,7 @@ supplierList.addEventListener("click", (event) => {
     supplierPhoneInput.value = supplier.phone || "";
     supplierAddressInput.value = supplier.address || "";
     supplierNoteInput.value = supplier.note || "";
+    openSupplierForm({ focus: true });
     return;
   }
 
