@@ -77,6 +77,8 @@ Lưu ý:
 
 Khi chọn, sản phẩm sẽ xuất hiện ở `Giỏ hiện hành`.
 
+Các mặt hàng đã chọn sẽ tự ẩn khỏi danh sách chọn phía dưới và được gom vào khối `Giỏ hiện hành` bên trên. Nếu cần xem hoặc sửa nhanh nhiều dòng đã chọn, bấm nút `...` để sổ phần danh sách đó ra.
+
 ### Bước 3: Sửa số lượng và giá bán
 
 Trong `Giỏ hiện hành`:
@@ -202,14 +204,15 @@ Màn này có 2 phần:
 
 1. Xem `Gợi ý nhập`
 2. Bấm `Thêm vào phiếu nhập` cho các mặt hàng cần nhập
-3. Chọn nhà cung cấp
-4. Ghi chú phiếu nếu cần
-5. Sửa trực tiếp số lượng và giá nhập từng dòng
-6. Bấm `Lưu dòng` nếu có chỉnh
-7. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
-8. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
-9. Khi hàng về thực tế, bấm `Nhập kho`
-10. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
+3. Các mặt hàng đã thêm sẽ tự ẩn khỏi danh sách gợi ý phía dưới và được gom vào phần tóm tắt `Phiếu nhập hiện hành`; bấm `...` để sổ danh sách dòng đã chọn ra nếu cần sửa nhanh
+4. Chọn nhà cung cấp
+5. Ghi chú phiếu nếu cần
+6. Sửa trực tiếp số lượng và giá nhập từng dòng
+7. Bấm `Lưu dòng` nếu có chỉnh
+8. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
+9. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
+10. Khi hàng về thực tế, bấm `Nhập kho`
+11. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 
 ### Ý nghĩa trạng thái phiếu nhập
 

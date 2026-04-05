@@ -138,6 +138,20 @@
 
         <section id="activeCartPanel" class="active-cart-panel"></section>
 
+        <section id="selectedCartSection" class="sales-card product-collapse-card selected-cart-section" hidden>
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Hàng đã chọn</p>
+              <h3>Các dòng đang nằm trong giỏ</h3>
+              <p id="selectedCartSummaryNote" class="panel-note"></p>
+            </div>
+            <button type="button" id="selectedCartToggleButton" class="ghost-button compact-button">...</button>
+          </div>
+          <div id="selectedCartWrap" class="product-collapse-body">
+            <div id="cartItemsList" class="cart-items-list"></div>
+          </div>
+        </section>
+
         <div class="sales-columns">
           <section class="sales-card">
             <div class="subheading">
@@ -153,16 +167,6 @@
               </label>
             </div>
             <div id="salesProductList" class="sales-product-list"></div>
-          </section>
-
-          <section class="sales-card">
-            <div class="subheading">
-              <div>
-                <p class="panel-kicker">Giỏ hiện hành</p>
-                <h3>Các dòng hàng đã chọn</h3>
-              </div>
-            </div>
-            <div id="cartItemsList" class="cart-items-list"></div>
           </section>
         </div>
       </section>

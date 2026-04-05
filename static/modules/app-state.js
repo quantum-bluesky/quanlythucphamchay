@@ -70,7 +70,9 @@ export const state = {
   menuAutoHidden: false,
   toolboxAutoHidden: false,
   activeCartPanelCollapsed: false,
+  selectedCartItemsCollapsed: true,
   purchasePanelCollapsed: false,
+  selectedPurchaseItemsCollapsed: true,
   editingSupplierFormId: null,
   pagination: {
     inventory: 1,
