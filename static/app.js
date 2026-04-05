@@ -3330,7 +3330,14 @@ function renderPurchaseSuggestions() {
   }
 
   const pageData = paginateItems(filtered, "purchaseSuggestions");
-  purchaseSuggestionList.innerHTML = pageData.items
+  const paginationMarkup = renderPagination("purchaseSuggestions", pageData);
+  const topPagination = paginationMarkup
+    ? `<div class="purchase-suggestions-top-pagination">${paginationMarkup}</div>`
+    : "";
+  const bottomPagination = paginationMarkup
+    ? `<div class="purchase-suggestions-bottom-pagination">${paginationMarkup}</div>`
+    : "";
+  purchaseSuggestionList.innerHTML = topPagination + pageData.items
     .map((entry) => `
       <article class="sales-product-row">
         <div class="sales-product-head">
@@ -3345,7 +3352,7 @@ function renderPurchaseSuggestions() {
         </div>
       </article>
     `)
-    .join("") + renderPagination("purchaseSuggestions", pageData);
+    .join("") + bottomPagination;
 }
 
 function renderPurchaseOrders() {
@@ -3365,7 +3372,14 @@ function renderPurchaseOrders() {
   }
 
   const pageData = paginateItems(visiblePurchases, "purchaseOrders");
-  purchaseOrderList.innerHTML = pageData.items
+  const paginationMarkup = renderPagination("purchaseOrders", pageData);
+  const topPagination = paginationMarkup
+    ? `<div class="purchase-orders-top-pagination">${paginationMarkup}</div>`
+    : "";
+  const bottomPagination = paginationMarkup
+    ? `<div class="purchase-orders-bottom-pagination">${paginationMarkup}</div>`
+    : "";
+  purchaseOrderList.innerHTML = topPagination + pageData.items
     .map((purchase) => `
       <article class="cart-queue-item">
         <div class="queue-header">
@@ -3381,7 +3395,7 @@ function renderPurchaseOrders() {
         </div>
       </article>
     `)
-    .join("") + renderPagination("purchaseOrders", pageData);
+    .join("") + bottomPagination;
 }
 
 function renderSuppliers() {
