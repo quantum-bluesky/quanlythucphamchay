@@ -761,6 +761,10 @@ button:disabled {
   gap: 20px;
 }
 
+[data-menu-section="create-order"] .sales-columns {
+  grid-template-columns: 1fr;
+}
+
 .sales-customer-card,
 .sales-card {
   border-radius: var(--radius-md);
@@ -983,6 +987,19 @@ button:disabled {
 }
 
 .product-collapse-card.is-collapsed .product-collapse-body {
+  display: none;
+}
+
+.selected-cart-section,
+.selected-items-shell {
+  margin-top: 6px;
+}
+
+.selected-items-heading {
+  margin-bottom: 12px;
+}
+
+.selected-items-shell.is-collapsed .selected-items-body {
   display: none;
 }
 
