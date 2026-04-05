@@ -154,10 +154,11 @@ Thông tin nên lưu:
 
 ### Cách dùng
 
-1. Điền thông tin vào form
-2. Bấm `Lưu khách hàng`
-3. Khi cần sửa, bấm `Sửa`
-4. Khi cần mở giỏ hàng nhanh cho khách, bấm `Mở giỏ`
+1. Mở màn là thấy ngay danh sách khách hàng để tìm nhanh
+2. Khi cần tạo mới, bấm `Thêm mới` để mở form
+3. Điền thông tin rồi bấm `Lưu khách hàng`
+4. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
+5. Khi cần mở giỏ hàng nhanh cho khách, bấm `Mở giỏ`
 
 Khuyến nghị:
 
@@ -181,11 +182,13 @@ Màn này dùng để:
 ### Cách sửa nhanh
 
 1. Tìm sản phẩm
-2. Bấm `Sửa`
-3. Đổi thông tin ngay trên dòng sản phẩm
-4. Đọc kỹ nhãn bên trái từng dòng để tránh nhập nhầm giữa `Giá nhập` và `Giá bán`
-5. Bấm `Lưu nhanh`
-6. Ở khối `Lịch sử sản phẩm`, có thể nhập tên người thao tác hoặc chọn `Từ ngày/Đến ngày` để lọc nhanh audit gần đây
+2. Khi cần thêm mới, bấm `Mở form` ở khối `Thêm sản phẩm`
+3. Khi cần xem audit, bấm `Mở lịch sử` ở khối `Lịch sử sản phẩm`
+4. Bấm `Sửa` trên đúng dòng sản phẩm cần chỉnh
+5. Đổi thông tin ngay trên dòng sản phẩm
+6. Đọc kỹ nhãn bên trái từng dòng để tránh nhập nhầm giữa `Giá nhập` và `Giá bán`
+7. Bấm `Lưu nhanh`
+8. Ở khối `Lịch sử sản phẩm`, có thể nhập tên người thao tác hoặc chọn `Từ ngày/Đến ngày` để lọc nhanh audit gần đây
 
 ## 8. Luồng nhập hàng
 
@@ -244,9 +247,11 @@ Nên lưu:
 
 ### Cách dùng
 
-1. Tạo nhà cung cấp mới
-2. Khi vào phiếu nhập, chọn lại nhà cung cấp đó
-3. Có thể bấm `Dùng cho phiếu nhập` để chuyển nhanh sang màn nhập hàng
+1. Mở màn là thấy ngay danh sách nhà cung cấp để tìm nhanh
+2. Khi cần tạo mới, bấm `Thêm mới` để mở form
+3. Lưu nhà cung cấp rồi dùng lại trong phiếu nhập
+4. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
+5. Có thể bấm `Dùng cho phiếu nhập` để chuyển nhanh sang màn nhập hàng
 
 ## 10. Luồng báo cáo tháng
 

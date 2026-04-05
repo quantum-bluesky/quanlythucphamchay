@@ -61,7 +61,7 @@ export const SCREEN_HELP = {
     overview: "Dùng để thêm mới, sửa, xóa mềm và tra cứu thông tin giao hàng, số liên lạc, Zalo của khách.",
     steps: [
       "Mở vào màn là thấy ngay danh sách khách hàng hiện hành.",
-      "Dùng form phía trên để thêm mới hoặc sửa dữ liệu khách đang chọn.",
+      "Form tạo/sửa được thu gọn sẵn để ưu tiên phần danh sách; bấm Thêm mới hoặc Sửa để mở đúng lúc cần nhập liệu.",
       "Tìm nhanh bằng tên, số điện thoại hoặc địa chỉ để tránh nhập trùng.",
       MOBILE_FLOATING_HINT,
     ],
@@ -114,7 +114,7 @@ export const SCREEN_HELP = {
     overview: "Lưu và tra cứu nhà cung cấp để dùng lại trong phiếu nhập, tránh nhập trùng thông tin nguồn hàng.",
     steps: [
       "Mở màn là thấy danh sách nhà cung cấp hiện có.",
-      "Dùng form để thêm mới hoặc sửa thông tin liên lạc và ghi chú làm việc.",
+      "Form tạo/sửa được thu gọn sẵn để ưu tiên phần danh sách; bấm Thêm mới hoặc Sửa để mở đúng lúc cần nhập liệu.",
       "Tìm theo tên, số điện thoại hoặc địa chỉ trước khi thêm để tránh trùng lặp.",
       MOBILE_FLOATING_HINT,
     ],
