@@ -114,8 +114,7 @@ import {
   helpModal,
   helpModalBody,
   closeHelpButton,
-  activeScreenTitle,
-  activeScreenSubtitle,
+  activeScreenBarTitle,
   appVersionButton,
   appVersionLabel,
   aboutContent,
@@ -1000,8 +999,7 @@ function renderViewSections() {
 
 function renderScreenHeader() {
   const meta = SCREEN_META[state.activeMenu] || SCREEN_META.inventory;
-  activeScreenTitle.textContent = meta.title;
-  activeScreenSubtitle.textContent = meta.subtitle;
+  activeScreenBarTitle.textContent = meta.title;
 }
 
 function formatAppVersionLabel(version = currentAppInfo.version) {

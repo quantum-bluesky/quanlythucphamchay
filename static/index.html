@@ -7,21 +7,18 @@
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <main class="app-shell">
-    <section class="hero-panel hero-compact">
-      <div>
-        <p class="eyebrow">Quản lý nhanh trên điện thoại</p>
-        <h1 id="activeScreenTitle">Kho, đơn hàng và khách hàng</h1>
-        <p id="activeScreenSubtitle" class="hero-copy">Chọn đúng menu nghiệp vụ để chỉ hiện phần liên quan, giảm nhầm lẫn khi thao tác trên màn hình nhỏ.</p>
-      </div>
-      <div class="hero-panel-foot">
-        <button type="button" id="appVersionButton" class="ghost-button compact-button app-version-button" aria-controls="aboutSection">
-          <span class="app-version-caption">Version</span>
-          <strong id="appVersionLabel">Đang tải...</strong>
-        </button>
-      </div>
-    </section>
+  <div class="screen-header-bar" id="screenHeaderBar" aria-live="polite">
+    <div class="screen-header-main">
+      <span class="screen-header-label">Màn hiện tại</span>
+      <strong id="activeScreenBarTitle">Kiểm tra tồn kho</strong>
+    </div>
+    <button type="button" id="appVersionButton" class="ghost-button compact-button app-version-button" aria-controls="aboutSection">
+      <span class="app-version-caption">Version</span>
+      <strong id="appVersionLabel">Đang tải...</strong>
+    </button>
+  </div>
 
+  <main class="app-shell">
     <div id="toast" class="toast" hidden></div>
 
     <nav class="panel menu-panel" id="menuPanel">
