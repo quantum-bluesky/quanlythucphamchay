@@ -23,6 +23,10 @@ import {
   salesSearchInput,
   salesProductList,
   activeCartPanel,
+  selectedCartSection,
+  selectedCartToggleButton,
+  selectedCartSummaryNote,
+  selectedCartWrap,
   cartItemsList,
   showArchivedCarts,
   showPaidOrders,
@@ -34,6 +38,9 @@ import {
   customerAddressInput,
   customerZaloInput,
   customerFormCancelButton,
+  customerFormSection,
+  customerFormWrap,
+  customerFormToggleButton,
   customerSearchInput,
   customerList,
   productManageSearchInput,
@@ -72,6 +79,9 @@ import {
   supplierAddressInput,
   supplierNoteInput,
   supplierFormCancelButton,
+  supplierFormSection,
+  supplierFormWrap,
+  supplierFormToggleButton,
   supplierSearchInput,
   supplierList,
   reportMonthInput,
@@ -265,15 +275,15 @@ function renderProductSections() {
   productsSection?.classList.toggle("has-mobile-products", compact);
 
   if (productFormSection && productFormWrap && productFormToggleButton) {
-    productFormSection.classList.toggle("is-collapsed", compact && state.productFormCollapsed);
-    productFormWrap.hidden = compact && state.productFormCollapsed;
-    productFormToggleButton.textContent = compact && state.productFormCollapsed ? "Mở form" : "Thu gọn";
+    productFormSection.classList.toggle("is-collapsed", state.productFormCollapsed);
+    productFormWrap.hidden = state.productFormCollapsed;
+    productFormToggleButton.textContent = state.productFormCollapsed ? "Mở form" : "Thu gọn";
   }
 
   if (productHistorySection && productHistoryWrap && productHistoryToggleButton) {
-    productHistorySection.classList.toggle("is-collapsed", compact && state.productHistoryCollapsed);
-    productHistoryWrap.hidden = compact && state.productHistoryCollapsed;
-    productHistoryToggleButton.textContent = compact && state.productHistoryCollapsed ? "Mở lịch sử" : "Thu gọn";
+    productHistorySection.classList.toggle("is-collapsed", state.productHistoryCollapsed);
+    productHistoryWrap.hidden = state.productHistoryCollapsed;
+    productHistoryToggleButton.textContent = state.productHistoryCollapsed ? "Mở lịch sử" : "Thu gọn";
   }
 }
 
@@ -306,6 +316,46 @@ function renderReportSections() {
   reportFiltersSection.classList.toggle("is-collapsed", collapsed);
   reportFiltersWrap.hidden = collapsed;
   reportFiltersToggleButton.textContent = collapsed ? "Mở bộ lọc" : "Thu gọn";
+}
+
+function renderEntityForms() {
+  if (customerFormSection && customerFormWrap && customerFormToggleButton) {
+    customerFormSection.classList.toggle("is-collapsed", state.customerFormCollapsed);
+    customerFormWrap.hidden = state.customerFormCollapsed;
+    customerFormToggleButton.textContent = state.customerFormCollapsed
+      ? "Thêm mới"
+      : (state.editingCustomerFormId ? "Thu gọn" : "Đang tạo mới");
+  }
+
+  if (supplierFormSection && supplierFormWrap && supplierFormToggleButton) {
+    supplierFormSection.classList.toggle("is-collapsed", state.supplierFormCollapsed);
+    supplierFormWrap.hidden = state.supplierFormCollapsed;
+    supplierFormToggleButton.textContent = state.supplierFormCollapsed
+      ? "Thêm mới"
+      : (state.editingSupplierFormId ? "Thu gọn" : "Đang tạo mới");
+  }
+}
+
+function openCustomerForm({ focus = false } = {}) {
+  state.customerFormCollapsed = false;
+  renderEntityForms();
+  window.setTimeout(() => {
+    customerFormSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (focus) {
+      customerNameInput?.focus();
+    }
+  }, 30);
+}
+
+function openSupplierForm({ focus = false } = {}) {
+  state.supplierFormCollapsed = false;
+  renderEntityForms();
+  window.setTimeout(() => {
+    supplierFormSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (focus) {
+      supplierNameInput?.focus();
+    }
+  }, 30);
 }
 
 function openReportFilters({ focus = false } = {}) {
@@ -2786,10 +2836,12 @@ function renderActiveCartPanel() {
 
 function renderSalesProductList() {
   const activeCart = getActiveCart();
+  const selectedProductIds = new Set((activeCart?.items || []).map((item) => Number(item.productId)));
   const compact = mobileQuery.matches;
   const filtered = state.products.filter((product) => {
     const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
-    return text.includes(state.salesSearchTerm.toLowerCase());
+    const isExpandedSelected = selectedProductIds.has(Number(product.id)) && state.expandedSalesProductId === Number(product.id);
+    return text.includes(state.salesSearchTerm.toLowerCase()) && (!selectedProductIds.has(Number(product.id)) || isExpandedSelected);
   });
   salesProductList.classList.toggle("is-compact-search", isSearchResultMode("salesProducts"));
 
@@ -2798,7 +2850,7 @@ function renderSalesProductList() {
     : "";
 
   if (!filtered.length) {
-    salesProductList.innerHTML = `${notice}<div class="empty-state">Không có mặt hàng phù hợp.</div>`;
+    salesProductList.innerHTML = `${notice}<div class="empty-state">${activeCart?.items?.length ? "Các mặt hàng đang khớp đã được chuyển lên phần giỏ hiện hành phía trên." : "Không có mặt hàng phù hợp."}</div>`;
     return;
   }
 
@@ -2867,31 +2919,26 @@ function renderSalesProductList() {
 
 function renderCartItems() {
   const cart = getActiveCart();
+  if (!selectedCartSection || !selectedCartToggleButton || !selectedCartSummaryNote || !selectedCartWrap) {
+    return;
+  }
   if (!cart) {
-    cartItemsList.innerHTML = '<div class="empty-state">Mở giỏ hàng để xem nhanh tổng hợp các dòng đã chọn.</div>';
+    selectedCartSection.hidden = true;
+    cartItemsList.innerHTML = "";
     return;
   }
 
   if (!cart.items.length) {
-    cartItemsList.innerHTML = '<div class="empty-state">Chưa có mặt hàng nào trong giỏ.</div>';
+    selectedCartSection.hidden = true;
+    cartItemsList.innerHTML = "";
     return;
   }
 
-  if (mobileQuery.matches) {
-    cartItemsList.innerHTML = `
-      <article class="active-cart-card is-collapsed">
-        <div class="active-cart-header">
-          <div>
-            <p class="panel-kicker">Giỏ hiện hành</p>
-            <h3>${escapeHtml(cart.itemCount)} dòng đã chọn</h3>
-            <p class="panel-note">Chỉnh nhanh ngay trong danh sách hàng phía trên. Mở giỏ để in hoặc chốt xuất kho.</p>
-          </div>
-          <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Mở giỏ</button>
-        </div>
-      </article>
-    `;
-    return;
-  }
+  selectedCartSection.hidden = false;
+  selectedCartSection.classList.toggle("is-collapsed", state.selectedCartItemsCollapsed);
+  selectedCartWrap.hidden = state.selectedCartItemsCollapsed;
+  selectedCartSummaryNote.textContent = `${cart.itemCount} dòng • ${formatQuantity(cart.totalQuantity)} món • ${formatCurrency(cart.totalAmount)}`;
+  selectedCartToggleButton.textContent = state.selectedCartItemsCollapsed ? "..." : "Thu gọn";
 
   cartItemsList.innerHTML = cart.items
     .map((item) => {
@@ -3197,6 +3244,37 @@ function renderPurchasePanel() {
   }
 
   const totalAmount = purchase.items.reduce((sum, item) => sum + item.lineTotal, 0);
+  const selectedItemsMarkup = purchase.items.length
+    ? purchase.items.map((item) => `
+        <article class="cart-item">
+          <div class="cart-item-header">
+            <div>
+              <strong>${escapeHtml(item.productName)}</strong>
+              <div class="cart-line-note">${formatQuantity(item.quantity)} ${escapeHtml(item.unit)} | Giá nhập ${formatCurrency(item.unitCost)}</div>
+            </div>
+            <strong>${formatCurrency(item.lineTotal)}</strong>
+          </div>
+          <div class="purchase-inline-grid">
+            <label class="price-field">
+              <span>Số lượng nhập</span>
+              <input type="number" min="0.01" step="0.01" value="${item.quantity}" data-purchase-qty-input="${item.id}" ${purchaseEditable ? "" : "disabled"}>
+            </label>
+            <label class="price-field">
+              <span>Giá nhập</span>
+              <input type="number" min="0" step="1000" value="${item.unitCost}" data-purchase-cost-input="${item.id}" ${purchaseEditable ? "" : "disabled"}>
+            </label>
+          </div>
+          ${purchaseEditable ? `
+            <div class="line-actions">
+              <button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">Lưu dòng</button>
+              <button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button>
+              <button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button>
+              <button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>
+            </div>
+          ` : ""}
+        </article>
+      `).join("")
+    : '<div class="empty-state">Phiếu nhập đang trống.</div>';
   purchasePanel.innerHTML = `
     <article class="active-cart-card">
       <div class="active-cart-header">
@@ -3213,37 +3291,19 @@ function renderPurchasePanel() {
         <div class="stat-chip"><span>Tổng tiền</span><strong>${formatCurrency(totalAmount)}</strong></div>
       </div>
       ${purchaseLocked ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
-      <div class="cart-items-list">
-        ${purchase.items.length ? purchase.items.map((item) => `
-          <article class="cart-item">
-            <div class="cart-item-header">
-              <div>
-                <strong>${escapeHtml(item.productName)}</strong>
-                <div class="cart-line-note">${formatQuantity(item.quantity)} ${escapeHtml(item.unit)} | Giá nhập ${formatCurrency(item.unitCost)}</div>
-              </div>
-              <strong>${formatCurrency(item.lineTotal)}</strong>
-            </div>
-            <div class="purchase-inline-grid">
-              <label class="price-field">
-                <span>Số lượng nhập</span>
-                <input type="number" min="0.01" step="0.01" value="${item.quantity}" data-purchase-qty-input="${item.id}" ${purchaseEditable ? "" : "disabled"}>
-              </label>
-              <label class="price-field">
-                <span>Giá nhập</span>
-                <input type="number" min="0" step="1000" value="${item.unitCost}" data-purchase-cost-input="${item.id}" ${purchaseEditable ? "" : "disabled"}>
-              </label>
-            </div>
-            ${purchaseEditable ? `
-              <div class="line-actions">
-                <button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">Lưu dòng</button>
-                <button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button>
-                <button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button>
-                <button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>
-              </div>
-            ` : ""}
-          </article>
-        `).join("") : '<div class="empty-state">Phiếu nhập đang trống.</div>'}
-      </div>
+      <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">
+        <div class="subheading selected-items-heading">
+          <div>
+            <p class="panel-kicker">Hàng đã chọn</p>
+            <h3>Các dòng đang nằm trong phiếu</h3>
+            <p class="panel-note">${purchase.items.length} dòng • ${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))} món • ${formatCurrency(totalAmount)}</p>
+          </div>
+          <button type="button" class="ghost-button compact-button" data-purchase-selected-action="toggle">${state.selectedPurchaseItemsCollapsed ? "..." : "Thu gọn"}</button>
+        </div>
+        <div class="cart-items-list selected-items-body" ${state.selectedPurchaseItemsCollapsed ? "hidden" : ""}>
+          ${selectedItemsMarkup}
+        </div>
+      </section>
       <div class="cart-toolbar">
         ${purchaseEditable ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>` : ""}
         ${purchaseEditable ? `<button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>` : ""}
@@ -3256,14 +3316,16 @@ function renderPurchasePanel() {
 }
 
 function renderPurchaseSuggestions() {
+  const activePurchase = getActivePurchase();
+  const selectedProductIds = new Set((activePurchase?.items || []).map((item) => Number(item.productId)));
   const filtered = getPurchaseSuggestions().filter((entry) => {
     const text = `${entry.product.name} ${entry.product.category}`.toLowerCase();
-    return text.includes(state.purchaseSearchTerm.toLowerCase());
+    return text.includes(state.purchaseSearchTerm.toLowerCase()) && !selectedProductIds.has(Number(entry.product.id));
   });
   purchaseSuggestionList.classList.toggle("is-compact-search", isSearchResultMode("purchaseSuggestions"));
 
   if (!filtered.length) {
-    purchaseSuggestionList.innerHTML = '<div class="empty-state">Không có gợi ý nhập hàng.</div>';
+    purchaseSuggestionList.innerHTML = `<div class="empty-state">${activePurchase?.items?.length ? "Các mặt hàng đang khớp đã được chuyển vào phần phiếu nhập hiện hành phía trên." : "Không có gợi ý nhập hàng."}</div>`;
     return;
   }
 
@@ -3733,6 +3795,7 @@ function renderAll() {
   renderCreateOrderEntryState();
   renderPurchaseEntryState();
   renderReportSections();
+  renderEntityForms();
   renderScreenToolbox();
   renderFloatingSearchDock();
   refreshSearchClearButtons();
@@ -4396,6 +4459,8 @@ customerForm.addEventListener("submit", (event) => {
     );
     customerForm.reset();
     state.editingCustomerFormId = null;
+    state.customerFormCollapsed = true;
+    renderEntityForms();
     showToast("Đã lưu khách hàng.");
   } catch (error) {
     showToast(error.message, true);
@@ -4405,6 +4470,23 @@ customerForm.addEventListener("submit", (event) => {
 customerFormCancelButton.addEventListener("click", () => {
   state.editingCustomerFormId = null;
   customerForm.reset();
+  state.customerFormCollapsed = true;
+  renderEntityForms();
+});
+
+customerFormToggleButton?.addEventListener("click", () => {
+  if (!state.customerFormCollapsed && !state.editingCustomerFormId) {
+    customerForm.reset();
+  }
+  if (state.customerFormCollapsed) {
+    state.editingCustomerFormId = null;
+    customerForm.reset();
+  }
+  state.customerFormCollapsed = !state.customerFormCollapsed;
+  renderEntityForms();
+  if (!state.customerFormCollapsed) {
+    window.setTimeout(() => customerNameInput?.focus(), 30);
+  }
 });
 
 openCartButton.addEventListener("click", () => {
@@ -4806,6 +4888,11 @@ activeCartPanel.addEventListener("click", async (event) => {
   }
 });
 
+selectedCartToggleButton?.addEventListener("click", () => {
+  state.selectedCartItemsCollapsed = !state.selectedCartItemsCollapsed;
+  renderCartItems();
+});
+
 cartQueueList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-queue-action]");
   if (!button) {
@@ -4905,7 +4992,7 @@ customerList.addEventListener("click", (event) => {
     customerPhoneInput.value = customer.phone || "";
     customerAddressInput.value = customer.address || "";
     customerZaloInput.value = customer.zaloUrl || "";
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    openCustomerForm({ focus: true });
     return;
   }
 
@@ -4970,6 +5057,8 @@ supplierForm.addEventListener("submit", (event) => {
     );
     supplierForm.reset();
     state.editingSupplierFormId = null;
+    state.supplierFormCollapsed = true;
+    renderEntityForms();
     showToast("Đã lưu nhà cung cấp.");
   } catch (error) {
     showToast(error.message, true);
@@ -4979,6 +5068,23 @@ supplierForm.addEventListener("submit", (event) => {
 supplierFormCancelButton.addEventListener("click", () => {
   state.editingSupplierFormId = null;
   supplierForm.reset();
+  state.supplierFormCollapsed = true;
+  renderEntityForms();
+});
+
+supplierFormToggleButton?.addEventListener("click", () => {
+  if (!state.supplierFormCollapsed && !state.editingSupplierFormId) {
+    supplierForm.reset();
+  }
+  if (state.supplierFormCollapsed) {
+    state.editingSupplierFormId = null;
+    supplierForm.reset();
+  }
+  state.supplierFormCollapsed = !state.supplierFormCollapsed;
+  renderEntityForms();
+  if (!state.supplierFormCollapsed) {
+    window.setTimeout(() => supplierNameInput?.focus(), 30);
+  }
 });
 
 createPurchaseDraftButton.addEventListener("click", () => {
@@ -5136,6 +5242,13 @@ purchaseSuggestionList.addEventListener("click", (event) => {
 });
 
 purchasePanel.addEventListener("click", async (event) => {
+  const selectedToggleButton = event.target.closest("[data-purchase-selected-action]");
+  if (selectedToggleButton?.dataset.purchaseSelectedAction === "toggle") {
+    state.selectedPurchaseItemsCollapsed = !state.selectedPurchaseItemsCollapsed;
+    renderPurchasePanel();
+    return;
+  }
+
   const panelButton = event.target.closest("[data-purchase-panel-action]");
   if (panelButton) {
     if (panelButton.dataset.purchasePanelAction === "open") {
@@ -5442,6 +5555,7 @@ supplierList.addEventListener("click", (event) => {
     supplierPhoneInput.value = supplier.phone || "";
     supplierAddressInput.value = supplier.address || "";
     supplierNoteInput.value = supplier.note || "";
+    openSupplierForm({ focus: true });
     return;
   }
 
