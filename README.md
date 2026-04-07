@@ -10,6 +10,79 @@
 - Acceptance checklist: [docs/ACCEPTANCE_CHECKLIST.md](docs/ACCEPTANCE_CHECKLIST.md)
 - Phân tích workflow: [docs/WORKFLOW_REVIEW.md](docs/WORKFLOW_REVIEW.md)
 
+## Cấu trúc frontend để làm song song
+
+- `static/app.js`: bootstrap app và wiring giữa các module
+- `static/modules/ui/`: renderer/UI helpers; ưu tiên sửa ở đây khi Issue chỉ đổi hiển thị
+- `static/modules/controllers/`: đăng ký event handler/controller; ưu tiên sửa ở đây khi Issue chỉ đổi điều hướng hoặc tương tác
+- `static/modules/domain-helpers/`: helper nghiệp vụ theo domain như `sales`, `purchases`, `inventory`
+- `static/modules/navigation-runtime.js`: menu history, floating search, help modal, edge-hidden navigation orchestration
+- `static/modules/sync-runtime.js`: sync state nhiều máy, auto refresh, migrate dữ liệu cũ, persist queue
+- `static/modules/entity-product-mutations.js`: mutate customer/supplier/product impact helpers
+- `static/modules/`: state, DOM refs, config màn hình và utility dùng chung
+
+Quy ước tách việc:
+
+- Issue UI nên ưu tiên chạm `static/modules/ui/*`
+- Issue controller nên ưu tiên chạm `static/modules/controllers/*`
+- Issue runtime điều hướng nên ưu tiên chạm `static/modules/navigation-runtime.js`
+- Issue sync/runtime nhiều máy nên ưu tiên chạm `static/modules/sync-runtime.js`
+- Issue helper nghiệp vụ nên ưu tiên chạm `static/modules/domain-helpers/*` hoặc `static/modules/entity-product-mutations.js`
+- Chỉ sửa `static/app.js` khi cần đổi contract dùng chung hoặc wiring bootstrap
+
+Pattern hiện tại đã áp dụng trước cho domain `products`:
+
+- UI: `static/modules/ui/products-ui.js`
+- Controller: `static/modules/controllers/products-controller.js`
+
+Các domain đã có file UI riêng để giảm conflict khi làm song song:
+
+- `static/modules/ui/inventory-ui.js`
+- `static/modules/ui/sales-ui.js`
+- `static/modules/ui/purchases-ui.js`
+- `static/modules/ui/entities-ui.js`
+- `static/modules/ui/reports-admin-ui.js`
+
+Các domain đã có file controller riêng:
+
+- `static/modules/controllers/inventory-controller.js`
+- `static/modules/controllers/sales-controller.js`
+- `static/modules/controllers/purchases-controller.js`
+- `static/modules/controllers/entities-controller.js`
+- `static/modules/controllers/reports-admin-controller.js`
+
+Các helper/runtime đã được tách riêng:
+
+- `static/modules/domain-helpers/sales-domain.js`
+- `static/modules/domain-helpers/purchases-domain.js`
+- `static/modules/domain-helpers/inventory-domain.js`
+- `static/modules/navigation-runtime.js`
+- `static/modules/sync-runtime.js`
+- `static/modules/entity-product-mutations.js`
+
+Contract chuẩn giữa các controller:
+
+- `state`: shared app state
+- `dom`: DOM refs và input/output element theo domain
+- `actions`: hàm gây side-effect hoặc mutate state/server
+- `renderers`: hàm render lại UI của domain hoặc màn liên quan
+- `queries`: hàm getter/check điều kiện, không nên gây side-effect
+- `utils`: formatter, helper hoặc constant nhẹ
+
+Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team controller chỉ bám `controllers/*`, còn dependency contract giữa các file vẫn đồng nhất.
+
+## Viết tắt màn hình
+
+- `SP`: Sản phẩm
+- `NH`: Nhập hàng
+- `AD`: Admin
+- `KP`: Khôi phục
+- `XH`: Xuất hàng
+- `TK`: Tồn kho
+- `ĐH`: Đơn hàng
+- `NCC`: Nhà cung cấp
+- `KH`: Khách hàng
+
 ## Tính năng chính
 
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
