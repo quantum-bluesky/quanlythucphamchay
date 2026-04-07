@@ -10,6 +10,19 @@
 - Acceptance checklist: [docs/ACCEPTANCE_CHECKLIST.md](docs/ACCEPTANCE_CHECKLIST.md)
 - Phân tích workflow: [docs/WORKFLOW_REVIEW.md](docs/WORKFLOW_REVIEW.md)
 
+## Cấu trúc frontend để làm song song
+
+- `static/app.js`: bootstrap app, orchestration dữ liệu dùng chung, ghép các module
+- `static/modules/ui/`: renderer/UI helpers; ưu tiên sửa ở đây khi Issue chỉ đổi hiển thị
+- `static/modules/controllers/`: đăng ký event handler/controller; ưu tiên sửa ở đây khi Issue chỉ đổi điều hướng hoặc tương tác
+- `static/modules/`: state, DOM refs, config màn hình và utility dùng chung
+
+Quy ước tách việc:
+
+- Issue UI nên ưu tiên chạm `static/modules/ui/*`
+- Issue controller nên ưu tiên chạm `static/modules/controllers/*`
+- Chỉ sửa `static/app.js` khi cần đổi contract dùng chung hoặc wiring bootstrap
+
 ## Tính năng chính
 
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết

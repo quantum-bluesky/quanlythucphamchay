@@ -136,6 +136,8 @@ import {
   searchClearRefreshers,
 } from "./modules/dom.js";
 import { SCREEN_HELP, SCREEN_META, FLOATING_SEARCH_CONFIG } from "./modules/screen-config.js";
+import { createCoreUi } from "./modules/ui/core-ui.js";
+import { registerCoreControllerEvents } from "./modules/controllers/core-controller.js";
 import {
   formatQuantity,
   formatCurrency,
@@ -159,6 +161,7 @@ let currentAppInfo = {
 let autoRefreshTimer = null;
 let autoRefreshInFlight = false;
 let skipNextPurchaseSupplierChangePersist = false;
+let coreUi = null;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
 function attachSearchClearButton(input, container) {
   if (!input || !container || container.querySelector(".search-clear-button")) {
@@ -1052,162 +1055,73 @@ function navigateMenuHistory(direction) {
   }
 }
 
+function getCoreUi() {
+  if (!coreUi) {
+    coreUi = createCoreUi({
+      state,
+      dom: {
+        menuPanel,
+        menuToggleButton,
+        viewSections,
+        activeScreenBarTitle,
+        appVersionButton,
+        appVersionLabel,
+        aboutContent,
+        helpModal,
+        helpModalBody,
+        scrollTopButton,
+        scrollBottomButton,
+        navBackButton,
+        navForwardButton,
+        openHelpButton,
+        screenToolbox,
+        floatingSearchDock,
+        floatingSearchToggle,
+        floatingSearchInput,
+        mobileQuery,
+      },
+      screenMeta: SCREEN_META,
+      currentAppInfo,
+      getLatestRuntimeVersion: () => latestRuntimeVersion,
+      escapeHtml,
+      getCurrentScreenHelp,
+      getFloatingSearchConfig,
+      getFloatingSearchSourceInput,
+      getFloatingSearchSourceShell,
+      isMobileFloatingClusterMode,
+      syncFloatingSearchFromSource,
+      refreshSearchClearButtons,
+    });
+  }
+  return coreUi;
+}
+
 function renderMenu() {
-  menuPanel.classList.toggle("is-collapsed", state.menuCollapsed);
-  menuPanel.classList.toggle("is-edge-hidden", isMobileFloatingClusterMode() && state.menuAutoHidden);
-  menuToggleButton.setAttribute("aria-expanded", state.menuCollapsed ? "false" : "true");
-  menuToggleButton.textContent = mobileQuery.matches
-    ? (state.menuCollapsed ? "☰" : "Đóng")
-    : (state.menuCollapsed ? "Mở menu" : "Thu gọn menu");
-  menuPanel.querySelectorAll("[data-menu]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.menu === state.activeMenu);
-  });
+  getCoreUi().renderMenu();
 }
 
 function renderViewSections() {
-  viewSections.forEach((section) => {
-    section.classList.toggle("is-active", section.dataset.menuSection === state.activeMenu);
-  });
+  getCoreUi().renderViewSections();
 }
 
 function renderScreenHeader() {
-  const meta = SCREEN_META[state.activeMenu] || SCREEN_META.inventory;
-  activeScreenBarTitle.textContent = meta.title;
+  getCoreUi().renderScreenHeader();
 }
 
 function formatAppVersionLabel(version = currentAppInfo.version) {
-  const cleanVersion = String(version || "").trim();
-  if (!cleanVersion) {
-    return "Đang tải...";
-  }
-  return cleanVersion.startsWith("v") ? cleanVersion : `v${cleanVersion}`;
+  return getCoreUi().formatAppVersionLabel(version);
 }
 
 function renderAppVersion() {
-  if (!appVersionLabel || !appVersionButton) {
-    return;
-  }
-  const versionLabel = formatAppVersionLabel();
-  appVersionLabel.textContent = versionLabel;
-  appVersionButton.title = currentAppInfo.version
-    ? `Mở màn About (${versionLabel})`
-    : "Mở màn About";
+  getCoreUi().renderAppVersion();
 }
 
 function renderAboutSection() {
-  if (!aboutContent) {
-    return;
-  }
-
-  const versionLabel = formatAppVersionLabel();
-  const productCountLabel = state.summary
-    ? `${state.summary.product_count} mặt hàng`
-    : "Đang tải dữ liệu";
-  const adminStatus = state.admin?.authenticated
-    ? `Đã đăng nhập: ${state.admin.username || "Master Admin"}`
-    : "Chưa đăng nhập";
-  const syncStatus = latestRuntimeVersion
-    ? "Đang theo dõi thay đổi dữ liệu từ server"
-    : "Đang kết nối runtime";
-
-  aboutContent.innerHTML = `
-    <article class="report-card about-highlight-card">
-      <div class="report-card-head">
-        <strong>${escapeHtml(currentAppInfo.name)}</strong>
-        <span class="pill">${escapeHtml(versionLabel)}</span>
-      </div>
-      <p class="panel-note">Ứng dụng quản lý thực phẩm chay cho cửa hàng nhỏ, ưu tiên thao tác nhanh trên điện thoại và dùng chung dữ liệu qua SQLite + server nội bộ.</p>
-    </article>
-    <article class="report-card">
-      <div class="report-card-head">
-        <strong>Thông tin hiện tại</strong>
-      </div>
-      <div class="report-card-row">
-        <span>Phiên bản app</span>
-        <strong>${escapeHtml(versionLabel)}</strong>
-      </div>
-      <div class="report-card-row">
-        <span>Dữ liệu sản phẩm</span>
-        <strong>${escapeHtml(productCountLabel)}</strong>
-      </div>
-      <div class="report-card-row">
-        <span>Đồng bộ nhiều máy</span>
-        <strong>${escapeHtml(syncStatus)}</strong>
-      </div>
-      <div class="report-card-row">
-        <span>Master Admin</span>
-        <strong>${escapeHtml(adminStatus)}</strong>
-      </div>
-    </article>
-    <article class="report-card">
-      <div class="report-card-head">
-        <strong>Thành phần chính</strong>
-      </div>
-      <div class="report-card-row">
-        <span>Backend</span>
-        <strong>Python stdlib</strong>
-      </div>
-      <div class="report-card-row">
-        <span>Dữ liệu</span>
-        <strong>SQLite</strong>
-      </div>
-      <div class="report-card-row">
-        <span>Giao diện</span>
-        <strong>SPA HTML/CSS/JS</strong>
-      </div>
-    </article>
-    <article class="report-card">
-      <div class="report-card-head">
-        <strong>Đi nhanh</strong>
-      </div>
-      <div class="help-related-actions">
-        <button type="button" class="ghost-button compact-button" data-go-menu="inventory">Về tồn kho</button>
-        <button type="button" class="ghost-button compact-button" data-go-menu="reports">Xem báo cáo</button>
-        <button type="button" class="ghost-button compact-button" data-go-menu="admin">Mở Master Admin</button>
-      </div>
-    </article>
-  `;
+  getCoreUi().renderAboutSection();
 }
 
 function renderHelpModal() {
-  const help = getCurrentScreenHelp();
-  helpModal.hidden = !state.helpOpen;
-  if (!state.helpOpen) {
-    return;
-  }
-
-  const relatedActions = Array.isArray(help.related) && help.related.length
-    ? `
-        <div class="help-card">
-          <h3>Màn liên quan</h3>
-          <div class="help-related-actions">
-            ${help.related
-              .map(
-                (item) => `
-                  <button type="button" class="ghost-button compact-button" data-help-menu="${escapeHtml(item.menu)}">
-                    ${escapeHtml(item.label)}
-                  </button>
-                `
-              )
-              .join("")}
-          </div>
-        </div>
-      `
-    : "";
-
-  helpModalBody.innerHTML = `
-    <article class="help-card">
-      <h3>${escapeHtml(help.title)}</h3>
-      <p class="panel-note">${escapeHtml(help.overview)}</p>
-    </article>
-    <article class="help-card">
-      <h3>Luồng thao tác cơ bản</h3>
-      <ul>
-        ${help.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
-      </ul>
-    </article>
-    ${relatedActions}
-  `;
+  getCoreUi().renderHelpModal();
 }
 
 function setHelpOpen(nextValue) {
@@ -1319,18 +1233,7 @@ function revealEdgeHiddenClusterFromViewportClick(event) {
 }
 
 function renderScreenToolbox() {
-  const scrollTop = window.scrollY || window.pageYOffset || 0;
-  const viewportBottom = scrollTop + window.innerHeight;
-  const documentBottom = Math.max(
-    document.documentElement.scrollHeight,
-    document.body.scrollHeight
-  );
-  scrollTopButton.disabled = scrollTop <= 8;
-  scrollBottomButton.disabled = viewportBottom >= documentBottom - 8;
-  navBackButton.disabled = state.menuHistoryIndex <= 0;
-  navForwardButton.disabled = state.menuHistoryIndex >= state.menuHistory.length - 1;
-  openHelpButton.setAttribute("aria-pressed", state.helpOpen ? "true" : "false");
-  screenToolbox?.classList.toggle("is-edge-hidden", isMobileFloatingClusterMode() && state.toolboxAutoHidden);
+  getCoreUi().renderScreenToolbox();
 }
 
 function scrollPageTo(position) {
@@ -1387,35 +1290,7 @@ function hasFloatingSearchValue() {
 }
 
 function renderFloatingSearchDock() {
-  const config = getFloatingSearchConfig();
-  const shouldShow = mobileQuery.matches && Boolean(config);
-  floatingSearchDock.hidden = !shouldShow;
-  document.querySelectorAll(".mobile-floating-search-hidden").forEach((node) => {
-    node.classList.remove("mobile-floating-search-hidden");
-  });
-  if (!shouldShow) {
-    state.floatingSearchAutoHidden = false;
-    return;
-  }
-
-  const sourceShell = getFloatingSearchSourceShell();
-  if (sourceShell) {
-    sourceShell.classList.add("mobile-floating-search-hidden");
-  }
-
-  floatingSearchDock.classList.toggle("is-expanded", state.floatingSearchExpanded);
-  floatingSearchDock.classList.toggle("is-edge-hidden", state.floatingSearchAutoHidden);
-  floatingSearchInput.placeholder = config.placeholder;
-  floatingSearchToggle.title = config.placeholder;
-  const sourceInput = getFloatingSearchSourceInput();
-  const sourceListId = sourceInput?.getAttribute("list") || "";
-  if (sourceListId) {
-    floatingSearchInput.setAttribute("list", sourceListId);
-  } else {
-    floatingSearchInput.removeAttribute("list");
-  }
-  syncFloatingSearchFromSource();
-  refreshSearchClearButtons();
+  getCoreUi().renderFloatingSearchDock();
 }
 
 function ensureCustomer(name) {
@@ -4028,100 +3903,49 @@ async function checkoutActiveCart() {
   showToast(data.message);
 }
 
-quickPanelToggle.addEventListener("click", () => {
-  const collapsed = quickPanel.classList.contains("is-collapsed");
-  setQuickPanelCollapsed(!collapsed);
-});
-
-scrollTopButton.addEventListener("click", () => {
-  scrollPageTo("top");
-});
-
-scrollBottomButton.addEventListener("click", () => {
-  scrollPageTo("bottom");
-});
-
-navBackButton.addEventListener("click", () => {
-  navigateMenuHistory("back");
-});
-
-navForwardButton.addEventListener("click", () => {
-  navigateMenuHistory("forward");
-});
-
-openHelpButton.addEventListener("click", () => {
-  setHelpOpen(!state.helpOpen);
-});
-
-document.addEventListener("click", (event) => {
-  revealEdgeHiddenClusterFromViewportClick(event);
-}, true);
-
-menuPanel.addEventListener("click", (event) => {
-  interceptEdgeHiddenClusterReveal(event, "menu", menuPanel);
-}, true);
-
-floatingSearchDock.addEventListener("click", (event) => {
-  interceptEdgeHiddenClusterReveal(event, "search", floatingSearchDock);
-}, true);
-
-screenToolbox?.addEventListener("click", (event) => {
-  interceptEdgeHiddenClusterReveal(event, "toolbox", screenToolbox);
-}, true);
-
-floatingSearchToggle.addEventListener("click", () => {
-  revealFloatingCluster("search");
-  if (state.floatingSearchExpanded) {
-    setFloatingSearchExpanded(false);
-    return;
-  }
-  setFloatingSearchExpanded(true, { focus: true });
-});
-
-floatingSearchInput.addEventListener("focus", () => {
-  revealFloatingCluster("search");
-  setFloatingSearchExpanded(true);
-});
-
-floatingSearchInput.addEventListener("input", (event) => {
-  syncFloatingSearchToSource(event.target.value);
-});
-
-closeHelpButton.addEventListener("click", () => {
-  setHelpOpen(false);
-});
-
-helpModal.addEventListener("click", (event) => {
-  if (event.target.closest("[data-help-close='backdrop']")) {
-    setHelpOpen(false);
-    return;
-  }
-  const helpMenuButton = event.target.closest("[data-help-menu]");
-  if (helpMenuButton) {
-    switchMenu(helpMenuButton.dataset.helpMenu);
-    setHelpOpen(false);
-  }
-});
-
-menuPanel.addEventListener("click", (event) => {
-  revealFloatingCluster("menu");
-  if (event.target.closest("#menuToggleButton")) {
-    state.menuCollapsed = !state.menuCollapsed;
-    writeStorage(STORAGE_KEYS.menuCollapsed, state.menuCollapsed);
-    renderMenu();
-    return;
-  }
-
-  const menuButton = event.target.closest("[data-menu]");
-  if (menuButton) {
-    switchMenu(menuButton.dataset.menu);
-    return;
-  }
-
-  const goMenuButton = event.target.closest("[data-go-menu]");
-  if (goMenuButton) {
-    switchMenu(goMenuButton.dataset.goMenu);
-  }
+registerCoreControllerEvents({
+  state,
+  dom: {
+    quickPanel,
+    quickPanelToggle,
+    menuPanel,
+    floatingSearchDock,
+    screenToolbox,
+    floatingSearchToggle,
+    floatingSearchInput,
+    closeHelpButton,
+    helpModal,
+    mobileQuery,
+    scrollTopButton,
+    scrollBottomButton,
+    navBackButton,
+    navForwardButton,
+    openHelpButton,
+  },
+  setQuickPanelCollapsed,
+  scrollPageTo,
+  navigateMenuHistory,
+  setHelpOpen,
+  revealEdgeHiddenClusterFromViewportClick,
+  interceptEdgeHiddenClusterReveal,
+  revealFloatingCluster,
+  setFloatingSearchExpanded,
+  syncFloatingSearchToSource,
+  switchMenu,
+  writeStorage,
+  storageKeys: STORAGE_KEYS,
+  renderMenu,
+  getFloatingSearchSourceShell,
+  getFloatingSearchSourceInput,
+  hasFloatingSearchValue,
+  isMobileFloatingClusterMode,
+  setFloatingClusterAutoHidden,
+  updatePagination,
+  applyMobileCollapsedDefaults,
+  resetFloatingClusterAutoHide,
+  renderAll,
+  renderScreenToolbox,
+  checkForRemoteUpdates,
 });
 
 quickTransactionForm.addEventListener("click", async (event) => {
@@ -5876,102 +5700,6 @@ adminRestoreButton.addEventListener("click", async () => {
     showToast(`${data.message} Backup trước restore: ${data.previous_backup}`);
   } catch (error) {
     showToast(error.message, true);
-  }
-});
-
-document.addEventListener("click", (event) => {
-  if (isMobileFloatingClusterMode()) {
-    if (!menuPanel.contains(event.target)) {
-      setFloatingClusterAutoHidden("menu", true);
-    }
-    if (screenToolbox && !screenToolbox.contains(event.target)) {
-      setFloatingClusterAutoHidden("toolbox", true);
-    }
-  }
-
-  if (
-    !floatingSearchDock.hidden &&
-    !floatingSearchDock.contains(event.target) &&
-    !getFloatingSearchSourceShell()?.contains(event.target) &&
-    !hasFloatingSearchValue()
-  ) {
-    setFloatingSearchExpanded(false);
-    setFloatingClusterAutoHidden("search", true);
-  }
-
-  const goMenuButton = event.target.closest("[data-go-menu]");
-  if (goMenuButton && !goMenuButton.closest("#menuPanel")) {
-    switchMenu(goMenuButton.dataset.goMenu);
-    return;
-  }
-
-  const button = event.target.closest("[data-page-action]");
-  if (!button) {
-    return;
-  }
-  updatePagination(button.dataset.pageKey, button.dataset.pageAction);
-});
-
-document.addEventListener("focusin", (event) => {
-  const sourceInput = getFloatingSearchSourceInput();
-  const sourceShell = getFloatingSearchSourceShell();
-  const insideFloatingSearch = (
-    event.target === floatingSearchInput ||
-    event.target === sourceInput ||
-    floatingSearchDock.contains(event.target) ||
-    sourceShell?.contains(event.target)
-  );
-
-  if (menuPanel.contains(event.target)) {
-    revealFloatingCluster("menu");
-  } else if (isMobileFloatingClusterMode()) {
-    setFloatingClusterAutoHidden("menu", true);
-  }
-
-  if (screenToolbox?.contains(event.target)) {
-    revealFloatingCluster("toolbox");
-  } else if (isMobileFloatingClusterMode()) {
-    setFloatingClusterAutoHidden("toolbox", true);
-  }
-
-  if (insideFloatingSearch) {
-    revealFloatingCluster("search");
-  }
-
-  if (event.target === floatingSearchInput || event.target === sourceInput) {
-    setFloatingSearchExpanded(true);
-    return;
-  }
-  if (!insideFloatingSearch && !hasFloatingSearchValue()) {
-    setFloatingSearchExpanded(false);
-    setFloatingClusterAutoHidden("search", true);
-  }
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && state.helpOpen) {
-    setHelpOpen(false);
-  }
-  if (event.key === "Escape" && state.floatingSearchExpanded) {
-    setFloatingSearchExpanded(false);
-  }
-});
-
-mobileQuery.addEventListener("change", () => {
-  applyMobileCollapsedDefaults();
-  setQuickPanelCollapsed(mobileQuery.matches);
-  state.floatingSearchExpanded = false;
-  resetFloatingClusterAutoHide();
-  renderAll();
-});
-
-window.addEventListener("scroll", renderScreenToolbox, { passive: true });
-window.addEventListener("focus", () => {
-  void checkForRemoteUpdates();
-});
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    void checkForRemoteUpdates();
   }
 });
 
