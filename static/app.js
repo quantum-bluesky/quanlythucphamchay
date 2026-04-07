@@ -139,6 +139,9 @@ import { SCREEN_HELP, SCREEN_META, FLOATING_SEARCH_CONFIG } from "./modules/scre
 import { createCoreUi } from "./modules/ui/core-ui.js";
 import { createProductsUi } from "./modules/ui/products-ui.js";
 import { createInventoryUi } from "./modules/ui/inventory-ui.js";
+import { createSalesDomainHelpers } from "./modules/domain-helpers/sales-domain.js";
+import { createPurchasesDomainHelpers } from "./modules/domain-helpers/purchases-domain.js";
+import { createInventoryDomainHelpers } from "./modules/domain-helpers/inventory-domain.js";
 import { createSalesUi } from "./modules/ui/sales-ui.js";
 import { createPurchasesUi } from "./modules/ui/purchases-ui.js";
 import { createEntitiesUi } from "./modules/ui/entities-ui.js";
@@ -176,6 +179,9 @@ let skipNextPurchaseSupplierChangePersist = false;
 let coreUi = null;
 let productsUi = null;
 let inventoryUi = null;
+let salesDomainHelpers = null;
+let purchasesDomainHelpers = null;
+let inventoryDomainHelpers = null;
 let salesUi = null;
 let purchasesUi = null;
 let entitiesUi = null;
@@ -336,6 +342,66 @@ function getInventoryUi() {
     });
   }
   return inventoryUi;
+}
+
+function getSalesDomainHelpers() {
+  if (!salesDomainHelpers) {
+    salesDomainHelpers = createSalesDomainHelpers({
+      state,
+      mobileQuery,
+      customerLookupInput,
+      salesSearchInput,
+      purchaseSearchInput,
+      writeStorage,
+      storageKeys: STORAGE_KEYS,
+      normalizeText,
+      nowIso,
+      createId,
+      renderProducts,
+      renderSalesProductList,
+      focusCreateOrderSelection,
+      focusPurchaseOrders,
+      switchMenu,
+      showToast,
+      saveAndRenderAll,
+      getProductById,
+      getOpenPurchasesForProduct,
+    });
+  }
+  return salesDomainHelpers;
+}
+
+function getPurchasesDomainHelpers() {
+  if (!purchasesDomainHelpers) {
+    purchasesDomainHelpers = createPurchasesDomainHelpers({
+      state,
+      mobileQuery,
+      purchaseSupplierInput,
+      purchaseNoteInput,
+      purchaseSearchInput,
+      writeStorage,
+      storageKeys: STORAGE_KEYS,
+      nowIso,
+      createId,
+      getProductById,
+      renderProducts,
+      focusPurchaseOrders,
+      switchMenu,
+      showToast,
+      saveAndRenderAll,
+    });
+  }
+  return purchasesDomainHelpers;
+}
+
+function getInventoryDomainHelpers() {
+  if (!inventoryDomainHelpers) {
+    inventoryDomainHelpers = createInventoryDomainHelpers({
+      state,
+      formatQuantity,
+    });
+  }
+  return inventoryDomainHelpers;
 }
 
 function getSalesUi() {
@@ -735,11 +801,11 @@ function getProductById(productId) {
 }
 
 function getCartById(cartId) {
-  return state.carts.find((cart) => cart.id === cartId) || null;
+  return getSalesDomainHelpers().getCartById(cartId);
 }
 
 function getActiveCart() {
-  return state.carts.find((cart) => cart.id === state.activeCartId && cart.status === "draft") || null;
+  return getSalesDomainHelpers().getActiveCart();
 }
 
 function getDraftCarts() {
@@ -747,11 +813,11 @@ function getDraftCarts() {
 }
 
 function getActivePurchase() {
-  return state.purchases.find((purchase) => purchase.id === state.activePurchaseId) || null;
+  return getPurchasesDomainHelpers().getActivePurchase();
 }
 
 function canMarkPurchasePaid(purchase) {
-  return Boolean(purchase && purchase.status === "received");
+  return getPurchasesDomainHelpers().canMarkPurchasePaid(purchase);
 }
 
 function isDraftCart(cart) {
@@ -763,73 +829,27 @@ function canDeleteCart(cart) {
 }
 
 function canEditPurchase(purchase) {
-  return Boolean(purchase && ["draft", "ordered"].includes(purchase.status));
+  return getPurchasesDomainHelpers().canEditPurchase(purchase);
 }
 
 function canDeletePurchase(purchase) {
-  return Boolean(purchase && purchase.status === "draft");
+  return getPurchasesDomainHelpers().canDeletePurchase(purchase);
 }
 
 function isLockedPurchase(purchase) {
-  return Boolean(purchase && ["received", "paid", "cancelled"].includes(purchase.status));
+  return getPurchasesDomainHelpers().isLockedPurchase(purchase);
 }
 
 function getInventoryAdjustmentReason(productId) {
-  return String(state.inventoryAdjustmentReasons[String(productId)] || "").trim();
+  return getInventoryDomainHelpers().getInventoryAdjustmentReason(productId);
 }
 
 function setInventoryAdjustmentReason(productId, value) {
-  state.inventoryAdjustmentReasons[String(productId)] = String(value || "").trimStart();
+  return getInventoryDomainHelpers().setInventoryAdjustmentReason(productId, value);
 }
 
 function decorateCart(cart) {
-  const items = Array.isArray(cart.items)
-    ? cart.items
-        .map((item) => {
-          const product = getProductById(item.productId);
-          const quantity = Number(item.quantity);
-          const unitPrice = Number(item.unitPrice);
-          if (!Number.isFinite(quantity) || quantity <= 0) {
-            return null;
-          }
-          if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-            return null;
-          }
-
-          return {
-            id: item.id || createId("item"),
-            productId: Number(item.productId),
-            productName: product?.name || item.productName || "Sản phẩm",
-            unit: product?.unit || item.unit || "",
-            quantity,
-            unitPrice,
-            note: item.note || "",
-            lineTotal: Number((quantity * unitPrice).toFixed(2)),
-          };
-        })
-        .filter(Boolean)
-    : [];
-
-  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0);
-
-  return {
-    id: cart.id || createId("cart"),
-    customerId: cart.customerId || "",
-    customerName: cart.customerName || "Khách lẻ",
-    status: cart.status || "draft",
-    paymentStatus: cart.paymentStatus || "unpaid",
-    items,
-    itemCount: items.length,
-    totalQuantity: Number(totalQuantity.toFixed(2)),
-    totalAmount: Number(totalAmount.toFixed(2)),
-    createdAt: cart.createdAt || nowIso(),
-    updatedAt: cart.updatedAt || cart.createdAt || nowIso(),
-    completedAt: cart.completedAt || null,
-    cancelledAt: cart.cancelledAt || null,
-    paidAt: cart.paidAt || null,
-    orderCode: cart.orderCode || "",
-  };
+  return getSalesDomainHelpers().decorateCart(cart);
 }
 
 function syncSalesState() {
@@ -1707,193 +1727,31 @@ function setActiveCart(cartId) {
 }
 
 function setActivePurchase(purchaseId) {
-  const purchase = state.purchases.find((entry) => entry.id === purchaseId);
-  if (!purchase || !["draft", "ordered"].includes(purchase.status)) {
-    return;
-  }
-
-  state.activePurchaseId = purchase.id;
-  state.purchasePanelCollapsed = false;
-  purchaseSupplierInput.value = purchase.supplierName || "";
-  purchaseNoteInput.value = purchase.note || "";
-  saveAndRenderAll();
+  return getPurchasesDomainHelpers().setActivePurchase(purchaseId);
 }
 
 function openCartForCustomer(customerName) {
-  const customer = resolveCustomerFromText(customerName);
-  let cart = state.carts.find(
-    (entry) => entry.status === "draft" && entry.customerId === customer.id
-  );
-
-  if (!cart) {
-    cart = decorateCart({
-      id: createId("cart"),
-      customerId: customer.id,
-      customerName: customer.name,
-      status: "draft",
-      items: [],
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-    });
-    state.carts.unshift(cart);
-  }
-
-  state.activeCartId = cart.id;
-  state.activeCartPanelCollapsed = mobileQuery.matches;
-  customerLookupInput.value = customer.name;
-  saveAndRenderAll(["customers", "carts"]);
-  switchMenu("create-order");
-  focusCreateOrderSelection();
-  showToast(cart.itemCount ? "Đã mở lại giỏ hàng đang chờ." : "Đã tạo giỏ hàng mới.");
+  return getSalesDomainHelpers().openCartForCustomer(customerName);
 }
 
 function startInventoryOutFlow(productId) {
-  const product = getProductById(productId);
-  if (!product) {
-    throw new Error("Không tìm thấy sản phẩm.");
-  }
-
-  const relatedDraftCarts = getDraftCartsForProduct(product.id);
-  if (relatedDraftCarts.length === 1) {
-    setActiveCart(relatedDraftCarts[0].id);
-    state.salesSearchTerm = product.name;
-    salesSearchInput.value = product.name;
-    state.pagination.salesProducts = 1;
-    switchMenu("create-order");
-    focusCreateOrderSelection();
-    showToast("Đã mở đơn chờ xuất liên quan.");
-    return;
-  }
-
-  if (relatedDraftCarts.length > 1) {
-    state.expandedProductId = product.id;
-    renderProducts();
-    showToast("Mặt hàng này đang có nhiều đơn chờ xuất. Hãy chọn đúng đơn bên dưới.");
-    return;
-  }
-
-  state.salesSearchTerm = product.name;
-  salesSearchInput.value = product.name;
-  state.pagination.salesProducts = 1;
-  switchMenu("create-order");
-  renderSalesProductList();
-  showToast("Chưa có đơn chờ xuất cho mặt hàng này. Hãy chọn khách để tạo đơn mới.");
+  return getSalesDomainHelpers().startInventoryOutFlow(productId);
 }
 
 function startInventoryInFlow(productId) {
-  const product = getProductById(productId);
-  if (!product) {
-    throw new Error("Không tìm thấy sản phẩm.");
-  }
-
-  const relatedPurchases = getOpenPurchasesForProduct(product.id);
-  if (relatedPurchases.length === 1) {
-    setActivePurchase(relatedPurchases[0].id);
-    state.purchaseSearchTerm = product.name;
-    purchaseSearchInput.value = product.name;
-    state.pagination.purchaseSuggestions = 1;
-    state.pagination.purchaseOrders = 1;
-    switchMenu("purchases");
-    focusPurchaseOrders();
-    showToast("Đã mở phiếu nhập chờ liên quan.");
-    return;
-  }
-
-  if (relatedPurchases.length > 1) {
-    state.expandedProductId = product.id;
-    renderProducts();
-    showToast("Mặt hàng này đang có nhiều phiếu nhập chờ. Hãy chọn đúng phiếu bên dưới.");
-    return;
-  }
-
-  addSuggestionToPurchase(product.id, Math.max(1, product.low_stock_threshold || 1), product.price || 0);
-  state.purchaseSearchTerm = product.name;
-  purchaseSearchInput.value = product.name;
-  state.pagination.purchaseSuggestions = 1;
-  state.pagination.purchaseOrders = 1;
-  switchMenu("purchases");
-  focusPurchaseOrders();
-  showToast("Đã tạo phiếu nhập nháp mới cho mặt hàng này.");
+  return getPurchasesDomainHelpers().startInventoryInFlow(productId);
 }
 
 function updateCart(cartId, updater) {
-  const index = state.carts.findIndex((cart) => cart.id === cartId);
-  if (index === -1) {
-    throw new Error("Không tìm thấy giỏ hàng.");
-  }
-
-  const updated = decorateCart(updater(state.carts[index]));
-  state.carts[index] = updated;
-  return updated;
+  return getSalesDomainHelpers().updateCart(cartId, updater);
 }
 
 function toggleProductInActiveCart(productId, checked) {
-  const cart = getActiveCart();
-  if (!cart) {
-    throw new Error("Hãy mở giỏ hàng cho khách trước.");
-  }
-
-  const product = getProductById(productId);
-  if (!product) {
-    throw new Error("Sản phẩm không tồn tại.");
-  }
-
-  updateCart(cart.id, (currentCart) => {
-    const exists = currentCart.items.some((item) => item.productId === product.id);
-    let nextItems = currentCart.items;
-
-    if (checked && !exists) {
-      nextItems = [
-        ...currentCart.items,
-        {
-          id: createId("item"),
-          productId: product.id,
-          productName: product.name,
-          unit: product.unit,
-          quantity: 1,
-          unitPrice: Number(product.sale_price ?? product.price ?? 0),
-          note: "",
-        },
-      ];
-    }
-
-    if (!checked && exists) {
-      nextItems = currentCart.items.filter((item) => item.productId !== product.id);
-    }
-
-    return {
-      ...currentCart,
-      items: nextItems,
-      updatedAt: nowIso(),
-    };
-  });
-
-  state.expandedSalesProductId = checked ? product.id : (state.expandedSalesProductId === product.id ? null : state.expandedSalesProductId);
-  saveAndRenderAll(["carts"]);
+  return getSalesDomainHelpers().toggleProductInActiveCart(productId, checked);
 }
 
 function updateCartItem(itemId, changes) {
-  const cart = getActiveCart();
-  if (!cart) {
-    throw new Error("Không có giỏ hàng đang mở.");
-  }
-
-  updateCart(cart.id, (currentCart) => ({
-    ...currentCart,
-    items: currentCart.items.map((item) => {
-      if (item.id !== itemId) {
-        return item;
-      }
-
-      return {
-        ...item,
-        ...changes,
-      };
-    }),
-    updatedAt: nowIso(),
-  }));
-
-  saveAndRenderAll(["carts"]);
+  return getSalesDomainHelpers().updateCartItem(itemId, changes);
 }
 
 function changeItemQuantity(itemId, delta) {
@@ -1917,18 +1775,7 @@ function changeItemQuantity(itemId, delta) {
 }
 
 function removeCartItem(itemId) {
-  const cart = getActiveCart();
-  if (!cart) {
-    throw new Error("Không có giỏ hàng đang mở.");
-  }
-
-  updateCart(cart.id, (currentCart) => ({
-    ...currentCart,
-    items: currentCart.items.filter((item) => item.id !== itemId),
-    updatedAt: nowIso(),
-  }));
-
-  saveAndRenderAll(["carts"]);
+  return getSalesDomainHelpers().removeCartItem(itemId);
 }
 
 function cancelCart(cartId) {
@@ -2091,141 +1938,35 @@ function createPurchaseDraftIfMissing() {
 }
 
 function updatePurchase(purchaseId, updater) {
-  const index = state.purchases.findIndex((purchase) => purchase.id === purchaseId);
-  if (index === -1) {
-    throw new Error("Không tìm thấy phiếu nhập.");
-  }
-
-  const current = state.purchases[index];
-  const updated = {
-    ...current,
-    ...updater(current),
-    updatedAt: nowIso(),
-  };
-  updated.items = (updated.items || []).map((item) => ({
-    ...item,
-    lineTotal: Number((Number(item.quantity) * Number(item.unitCost)).toFixed(2)),
-  }));
-  state.purchases[index] = updated;
-  return updated;
+  return getPurchasesDomainHelpers().updatePurchase(purchaseId, updater);
 }
 
 function getDraftDemandByProductId() {
-  const demand = new Map();
-  state.carts
-    .filter((cart) => cart.status === "draft")
-    .forEach((cart) => {
-      cart.items.forEach((item) => {
-        demand.set(item.productId, (demand.get(item.productId) || 0) + Number(item.quantity));
-      });
-    });
-  return demand;
+  return getSalesDomainHelpers().getDraftDemandByProductId();
 }
 
 function getIncomingPurchaseByProductId() {
-  const incoming = new Map();
-  state.purchases
-    .filter((purchase) => ["draft", "ordered"].includes(purchase.status))
-    .forEach((purchase) => {
-      purchase.items.forEach((item) => {
-        incoming.set(item.productId, (incoming.get(item.productId) || 0) + Number(item.quantity));
-      });
-    });
-  return incoming;
+  return getPurchasesDomainHelpers().getIncomingPurchaseByProductId();
 }
 
 function getDraftCartCountByProductId() {
-  const counts = new Map();
-  state.carts
-    .filter((cart) => cart.status === "draft")
-    .forEach((cart) => {
-      cart.items.forEach((item) => {
-        counts.set(item.productId, (counts.get(item.productId) || 0) + 1);
-      });
-    });
-  return counts;
+  return getSalesDomainHelpers().getDraftCartCountByProductId();
 }
 
 function getOpenPurchaseCountByProductId() {
-  const counts = new Map();
-  state.purchases
-    .filter((purchase) => ["draft", "ordered"].includes(purchase.status))
-    .forEach((purchase) => {
-      purchase.items.forEach((item) => {
-        counts.set(item.productId, (counts.get(item.productId) || 0) + 1);
-      });
-    });
-  return counts;
+  return getPurchasesDomainHelpers().getOpenPurchaseCountByProductId();
 }
 
 function getDraftCartsForProduct(productId) {
-  return state.carts.filter(
-    (cart) =>
-      cart.status === "draft" &&
-      cart.items.some((item) => Number(item.productId) === Number(productId))
-  );
+  return getSalesDomainHelpers().getDraftCartsForProduct(productId);
 }
 
 function getOpenPurchasesForProduct(productId) {
-  return state.purchases.filter(
-    (purchase) =>
-      ["draft", "ordered"].includes(purchase.status) &&
-      purchase.items.some((item) => Number(item.productId) === Number(productId))
-  );
+  return getPurchasesDomainHelpers().getOpenPurchasesForProduct(productId);
 }
 
 function getInventoryProductSignals(product, draftDemandMap, incomingMap) {
-  const currentStock = Number(product.current_stock || 0);
-  const pendingDemand = Number(draftDemandMap.get(product.id) || 0);
-  const incomingQuantity = Number(incomingMap.get(product.id) || 0);
-
-  if (currentStock <= 0 && incomingQuantity > 0) {
-    return {
-      stockLabel: "Không còn",
-      statusLabel: "Sắp nhập về",
-      statusClass: "draft",
-      pendingDemand,
-      incomingQuantity,
-    };
-  }
-
-  if (currentStock <= 0) {
-    return {
-      stockLabel: "Không còn",
-      statusLabel: "Không còn",
-      statusClass: "cancelled",
-      pendingDemand,
-      incomingQuantity,
-    };
-  }
-
-  if (pendingDemand >= currentStock) {
-    return {
-      stockLabel: `${formatQuantity(product.current_stock)} ${product.unit}`,
-      statusLabel: "Sắp xuất hết",
-      statusClass: "cancelled",
-      pendingDemand,
-      incomingQuantity,
-    };
-  }
-
-  if (product.is_low_stock) {
-    return {
-      stockLabel: `${formatQuantity(product.current_stock)} ${product.unit}`,
-      statusLabel: "Sắp hết",
-      statusClass: "cancelled",
-      pendingDemand,
-      incomingQuantity,
-    };
-  }
-
-  return {
-    stockLabel: `${formatQuantity(product.current_stock)} ${product.unit}`,
-    statusLabel: "Ổn",
-    statusClass: "draft",
-    pendingDemand,
-    incomingQuantity,
-  };
+  return getInventoryDomainHelpers().getInventoryProductSignals(product, draftDemandMap, incomingMap);
 }
 
 function getPurchaseSuggestions() {
@@ -2247,45 +1988,7 @@ function getPurchaseSuggestions() {
 }
 
 function addSuggestionToPurchase(productId, quantity, unitCost) {
-  const product = getProductById(productId);
-  if (!product) {
-    throw new Error("Không tìm thấy sản phẩm.");
-  }
-
-  const purchase = createPurchaseDraftIfMissing();
-  updatePurchase(purchase.id, (currentPurchase) => {
-    const existing = currentPurchase.items.find((item) => item.productId === product.id);
-    let nextItems = currentPurchase.items;
-    if (existing) {
-      nextItems = currentPurchase.items.map((item) =>
-        item.productId === product.id
-          ? {
-              ...item,
-              quantity: Number((Number(item.quantity) + Number(quantity)).toFixed(2)),
-              unitCost: Number(unitCost),
-            }
-          : item
-      );
-    } else {
-      nextItems = [
-        ...currentPurchase.items,
-        {
-          id: createId("purchase_item"),
-          productId: product.id,
-          productName: product.name,
-          unit: product.unit,
-          quantity: Number(quantity),
-          unitCost: Number(unitCost),
-        },
-      ];
-    }
-    return {
-      supplierName: purchaseSupplierInput?.value?.trim() || currentPurchase.supplierName,
-      note: purchaseNoteInput?.value?.trim() || currentPurchase.note,
-      items: nextItems,
-    };
-  });
-  saveAndRenderAll(["purchases"]);
+  return getPurchasesDomainHelpers().addSuggestionToPurchase(productId, quantity, unitCost);
 }
 
 function createPurchaseSuggestionFromCart(cart) {
