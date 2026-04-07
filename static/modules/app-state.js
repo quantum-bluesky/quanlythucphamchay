@@ -74,6 +74,8 @@ export const state = {
   selectedCartItemsCollapsed: true,
   purchasePanelCollapsed: false,
   selectedPurchaseItemsCollapsed: true,
+  pendingPurchaseSupplierFlow: false,
+  pendingPurchaseSupplierName: "",
   editingSupplierFormId: null,
   supplierFormCollapsed: true,
   pagination: {

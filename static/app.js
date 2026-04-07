@@ -158,6 +158,7 @@ let currentAppInfo = {
 };
 let autoRefreshTimer = null;
 let autoRefreshInFlight = false;
+let skipNextPurchaseSupplierChangePersist = false;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
 function attachSearchClearButton(input, container) {
   if (!input || !container || container.querySelector(".search-clear-button")) {
@@ -356,6 +357,25 @@ function openSupplierForm({ focus = false } = {}) {
       supplierNameInput?.focus();
     }
   }, 30);
+}
+
+function clearPendingPurchaseSupplierFlow() {
+  state.pendingPurchaseSupplierFlow = false;
+  state.pendingPurchaseSupplierName = "";
+}
+
+function beginSupplierCreateFromPurchase() {
+  const pendingName = purchaseSupplierInput?.value?.trim() || "";
+  state.pendingPurchaseSupplierFlow = true;
+  state.pendingPurchaseSupplierName = pendingName;
+  state.editingSupplierFormId = null;
+  state.supplierSearchTerm = "";
+  state.pagination.suppliers = 1;
+  switchMenu("suppliers");
+  supplierForm?.reset();
+  supplierNameInput.value = pendingName;
+  renderSuppliers();
+  openSupplierForm({ focus: true });
 }
 
 function openReportFilters({ focus = false } = {}) {
@@ -994,6 +1014,9 @@ function saveAndRenderAll(changedCollections = []) {
 function switchMenu(menu, { recordHistory = true } = {}) {
   if (!menu) {
     return;
+  }
+  if (menu !== "suppliers") {
+    clearPendingPurchaseSupplierFlow();
   }
   if (recordHistory && state.activeMenu !== menu) {
     const baseHistory = state.menuHistory.slice(0, state.menuHistoryIndex + 1);
@@ -5060,6 +5083,19 @@ supplierSearchInput.addEventListener("input", (event) => {
 supplierForm.addEventListener("submit", (event) => {
   event.preventDefault();
   try {
+    const editingSupplierId = state.editingSupplierFormId;
+    const isPurchaseCreateFlow = state.pendingPurchaseSupplierFlow && !editingSupplierId;
+    const savedSupplierName = supplierNameInput.value.trim();
+    if (isPurchaseCreateFlow) {
+      purchaseSupplierInput.value = savedSupplierName;
+      const purchase = createPurchaseDraftIfMissing();
+      if (purchase) {
+        updatePurchase(purchase.id, () => ({
+          supplierName: savedSupplierName,
+          note: purchaseNoteInput.value.trim(),
+        }));
+      }
+    }
     upsertSupplier(
       {
         name: supplierNameInput.value,
@@ -5067,12 +5103,22 @@ supplierForm.addEventListener("submit", (event) => {
         address: supplierAddressInput.value,
         note: supplierNoteInput.value,
       },
-      state.editingSupplierFormId
+      editingSupplierId
     );
     supplierForm.reset();
     state.editingSupplierFormId = null;
     state.supplierFormCollapsed = true;
     renderEntityForms();
+    if (isPurchaseCreateFlow) {
+      clearPendingPurchaseSupplierFlow();
+      switchMenu("purchases");
+      window.setTimeout(() => {
+        purchaseSupplierInput?.focus();
+        purchaseSupplierInput?.select();
+      }, 30);
+      showToast("Đã lưu nhà cung cấp và áp dụng cho phiếu nhập.");
+      return;
+    }
     showToast("Đã lưu nhà cung cấp.");
   } catch (error) {
     showToast(error.message, true);
@@ -5080,6 +5126,7 @@ supplierForm.addEventListener("submit", (event) => {
 });
 
 supplierFormCancelButton.addEventListener("click", () => {
+  clearPendingPurchaseSupplierFlow();
   state.editingSupplierFormId = null;
   supplierForm.reset();
   state.supplierFormCollapsed = true;
@@ -5088,10 +5135,12 @@ supplierFormCancelButton.addEventListener("click", () => {
 
 supplierFormToggleButton?.addEventListener("click", () => {
   if (!state.supplierFormCollapsed && !state.editingSupplierFormId) {
+    clearPendingPurchaseSupplierFlow();
     supplierForm.reset();
   }
   if (state.supplierFormCollapsed) {
     state.editingSupplierFormId = null;
+    clearPendingPurchaseSupplierFlow();
     supplierForm.reset();
   }
   state.supplierFormCollapsed = !state.supplierFormCollapsed;
@@ -5114,6 +5163,10 @@ togglePurchasePanelButton.addEventListener("click", () => {
 });
 
 purchaseSupplierInput.addEventListener("change", () => {
+  if (skipNextPurchaseSupplierChangePersist) {
+    skipNextPurchaseSupplierChangePersist = false;
+    return;
+  }
   const purchase = getActivePurchase();
   if (!purchase) {
     return;
@@ -5135,6 +5188,17 @@ purchaseNoteInput.addEventListener("change", () => {
     note: purchaseNoteInput.value.trim(),
   }));
   saveAndRenderAll(["purchases"]);
+});
+
+purchaseSupplierMenuButton?.addEventListener("pointerdown", () => {
+  skipNextPurchaseSupplierChangePersist = true;
+});
+
+purchaseSupplierMenuButton?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  skipNextPurchaseSupplierChangePersist = false;
+  beginSupplierCreateFromPurchase();
 });
 
 purchaseSearchInput.addEventListener("input", (event) => {
@@ -5564,6 +5628,7 @@ supplierList.addEventListener("click", (event) => {
   }
 
   if (button.dataset.supplierAction === "edit") {
+    clearPendingPurchaseSupplierFlow();
     state.editingSupplierFormId = supplierId;
     supplierNameInput.value = supplier.name;
     supplierPhoneInput.value = supplier.phone || "";
