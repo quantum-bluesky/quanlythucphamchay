@@ -138,6 +138,10 @@ import {
 import { SCREEN_HELP, SCREEN_META, FLOATING_SEARCH_CONFIG } from "./modules/screen-config.js";
 import { createCoreUi } from "./modules/ui/core-ui.js";
 import { createProductsUi } from "./modules/ui/products-ui.js";
+import { createSalesUi } from "./modules/ui/sales-ui.js";
+import { createPurchasesUi } from "./modules/ui/purchases-ui.js";
+import { createEntitiesUi } from "./modules/ui/entities-ui.js";
+import { createReportsAdminUi } from "./modules/ui/reports-admin-ui.js";
 import { registerCoreControllerEvents } from "./modules/controllers/core-controller.js";
 import { registerProductsControllerEvents } from "./modules/controllers/products-controller.js";
 import {
@@ -165,6 +169,10 @@ let autoRefreshInFlight = false;
 let skipNextPurchaseSupplierChangePersist = false;
 let coreUi = null;
 let productsUi = null;
+let salesUi = null;
+let purchasesUi = null;
+let entitiesUi = null;
+let reportsAdminUi = null;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
 function attachSearchClearButton(input, container) {
   if (!input || !container || container.querySelector(".search-clear-button")) {
@@ -207,13 +215,7 @@ function refreshSearchClearButtons() {
 }
 
 function renderCreateOrderEntryState() {
-  const activeCart = getActiveCart();
-  const compactActive = mobileQuery.matches && Boolean(activeCart);
-  createOrderSection?.classList.toggle("has-active-cart", compactActive);
-  createOrderCustomerCard?.classList.toggle("is-compact-active", compactActive);
-  if (openCartButton) {
-    openCartButton.textContent = compactActive ? "Đổi khách" : "Mở giỏ hàng";
-  }
+  getSalesUi().renderCreateOrderEntryState();
 }
 
 function scrollToCreateOrderTop({ focusCustomer = false } = {}) {
@@ -242,15 +244,7 @@ function focusCreateOrderSelection() {
 }
 
 function renderPurchaseEntryState() {
-  const activePurchase = getActivePurchase();
-  const compactActive = mobileQuery.matches && Boolean(activePurchase);
-  purchasesSection?.classList.toggle("has-active-purchase", compactActive);
-  purchaseCustomerCard?.classList.toggle("is-compact-active", compactActive);
-  if (createPurchaseDraftButton) {
-    createPurchaseDraftButton.textContent = compactActive
-      ? "Đổi phiếu"
-      : (mobileQuery.matches ? "Tạo phiếu" : "Tạo phiếu nháp");
-  }
+  getPurchasesUi().renderPurchaseEntryState();
 }
 
 function focusPurchaseSuggestions() {
@@ -305,6 +299,139 @@ function getProductsUi() {
   return productsUi;
 }
 
+function getSalesUi() {
+  if (!salesUi) {
+    salesUi = createSalesUi({
+      state,
+      dom: {
+        createOrderSection,
+        createOrderCustomerCard,
+        openCartButton,
+        activeCartPanel,
+        salesProductList,
+        selectedCartSection,
+        selectedCartToggleButton,
+        selectedCartSummaryNote,
+        selectedCartWrap,
+        cartItemsList,
+        cartQueueList,
+      },
+      formatQuantity,
+      formatCurrency,
+      formatDate,
+      escapeHtml,
+      mobileQuery,
+      getActiveCart,
+      getProductById,
+      isSearchResultMode,
+      paginateItems,
+      renderPagination,
+    });
+  }
+  return salesUi;
+}
+
+function getPurchasesUi() {
+  if (!purchasesUi) {
+    purchasesUi = createPurchasesUi({
+      state,
+      dom: {
+        purchasesSection,
+        purchaseCustomerCard,
+        createPurchaseDraftButton,
+        purchaseSupplierMenuButton,
+        togglePurchasePanelButton,
+        purchasePanel,
+        purchaseSuggestionList,
+        purchaseOrderList,
+      },
+      formatQuantity,
+      formatCurrency,
+      formatDate,
+      escapeHtml,
+      mobileQuery,
+      getActivePurchase,
+      canEditPurchase,
+      canDeletePurchase,
+      canMarkPurchasePaid,
+      isLockedPurchase,
+      getPurchaseSuggestions,
+      isSearchResultMode,
+      paginateItems,
+      renderPagination,
+    });
+  }
+  return purchasesUi;
+}
+
+function getEntitiesUi() {
+  if (!entitiesUi) {
+    entitiesUi = createEntitiesUi({
+      state,
+      dom: {
+        customerFormSection,
+        customerFormWrap,
+        customerFormToggleButton,
+        supplierFormSection,
+        supplierFormWrap,
+        supplierFormToggleButton,
+        customerList,
+        supplierList,
+        deletedCustomerList,
+        deletedSupplierList,
+      },
+      formatDate,
+      escapeHtml,
+      normalizeText,
+      mobileQuery,
+      getActiveCustomers,
+      getActiveSuppliers,
+      getDeletedCustomers,
+      getDeletedSuppliers,
+      getCustomerDeleteImpact,
+      getSupplierDeleteImpact,
+      isSearchResultMode,
+      paginateItems,
+      renderPagination,
+    });
+  }
+  return entitiesUi;
+}
+
+function getReportsAdminUi() {
+  if (!reportsAdminUi) {
+    reportsAdminUi = createReportsAdminUi({
+      state,
+      dom: {
+        reportsSection,
+        reportFiltersSection,
+        reportFiltersWrap,
+        reportFiltersToggleButton,
+        reportMonthInput,
+        reportStartDateInput,
+        reportEndDateInput,
+        reportRangeSelect,
+        reportSummaryCards,
+        reportMonthTrend,
+        forecastList,
+        reportProductActivity,
+        adminLoginPanel,
+        adminModulePanel,
+        adminPasswordInput,
+      },
+      escapeHtml,
+      formatCurrency,
+      formatQuantity,
+      formatMonthLabel,
+      formatDateOnly,
+      paginateItems,
+      renderPagination,
+      mobileQuery,
+    });
+  }
+  return reportsAdminUi;
+}
+
 function renderProductSections() {
   getProductsUi().renderProductSections();
 }
@@ -329,33 +456,11 @@ function openProductHistorySection() {
 }
 
 function renderReportSections() {
-  const compact = mobileQuery.matches;
-  reportsSection?.classList.toggle("has-mobile-reports", compact);
-  if (!reportFiltersSection || !reportFiltersWrap || !reportFiltersToggleButton) {
-    return;
-  }
-  const collapsed = compact && state.reportFiltersCollapsed;
-  reportFiltersSection.classList.toggle("is-collapsed", collapsed);
-  reportFiltersWrap.hidden = collapsed;
-  reportFiltersToggleButton.textContent = collapsed ? "Mở bộ lọc" : "Thu gọn";
+  getReportsAdminUi().renderReportSections();
 }
 
 function renderEntityForms() {
-  if (customerFormSection && customerFormWrap && customerFormToggleButton) {
-    customerFormSection.classList.toggle("is-collapsed", state.customerFormCollapsed);
-    customerFormWrap.hidden = state.customerFormCollapsed;
-    customerFormToggleButton.textContent = state.customerFormCollapsed
-      ? "Thêm mới"
-      : (state.editingCustomerFormId ? "Thu gọn" : "Đang tạo mới");
-  }
-
-  if (supplierFormSection && supplierFormWrap && supplierFormToggleButton) {
-    supplierFormSection.classList.toggle("is-collapsed", state.supplierFormCollapsed);
-    supplierFormWrap.hidden = state.supplierFormCollapsed;
-    supplierFormToggleButton.textContent = state.supplierFormCollapsed
-      ? "Thêm mới"
-      : (state.editingSupplierFormId ? "Thu gọn" : "Đang tạo mới");
-  }
+  getEntitiesUi().renderEntityForms();
 }
 
 function openCustomerForm({ focus = false } = {}) {
@@ -2686,213 +2791,15 @@ function renderTransactions() {
 }
 
 function renderActiveCartPanel() {
-  const compact = mobileQuery.matches;
-  const cart = getActiveCart();
-  if (!cart) {
-    activeCartPanel.innerHTML = '<div class="empty-state">Chưa có giỏ hàng nào đang mở. Hãy mở giỏ hàng trước khi chọn sản phẩm.</div>';
-    return;
-  }
-
-  if (state.activeCartPanelCollapsed) {
-    activeCartPanel.innerHTML = `
-      <article class="active-cart-card is-collapsed">
-        <div class="active-cart-header">
-          <div>
-            <p class="panel-kicker">Giỏ hiện hành</p>
-            <h3>${escapeHtml(cart.customerName)}</h3>
-            <p class="panel-note">${escapeHtml(cart.itemCount)} dòng • ${escapeHtml(formatCurrency(cart.totalAmount))}</p>
-          </div>
-          <div class="row-actions active-cart-actions">
-            <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Mở giỏ</button>
-            <button type="button" class="ghost-button compact-button" data-cart-action="close">Đóng giỏ</button>
-          </div>
-        </div>
-      </article>
-    `;
-    return;
-  }
-
-  activeCartPanel.innerHTML = `
-    <article class="active-cart-card">
-      <div class="active-cart-header">
-        <div>
-          <p class="panel-kicker">Khách hiện hành</p>
-          <h3>${escapeHtml(cart.customerName)}</h3>
-          <p class="panel-note">Tạo lúc ${escapeHtml(formatDate(cart.createdAt))}. Cập nhật ${escapeHtml(formatDate(cart.updatedAt))}.</p>
-        </div>
-        <div class="inline-menu-actions">
-          <span class="status-pill draft">Đang chờ</span>
-          <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Thu gọn</button>
-          <button type="button" class="ghost-button compact-button" data-cart-action="close">Đóng giỏ</button>
-        </div>
-      </div>
-      <div class="active-cart-stats">
-        <div class="stat-chip">
-          <span>Số dòng hàng</span>
-          <strong>${escapeHtml(cart.itemCount)}</strong>
-        </div>
-        <div class="stat-chip">
-          <span>Tổng số lượng</span>
-          <strong>${escapeHtml(formatQuantity(cart.totalQuantity))}</strong>
-        </div>
-        <div class="stat-chip">
-          <span>Tổng tiền bán</span>
-          <strong>${escapeHtml(formatCurrency(cart.totalAmount))}</strong>
-        </div>
-      </div>
-      <div class="cart-toolbar">
-        <button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In / gửi khách"}</button>
-        <button type="button" class="primary-button" data-cart-action="checkout" ${cart.itemCount ? "" : "disabled"}>${compact ? "Xuất" : "Chốt xuất kho"}</button>
-        <button type="button" class="secondary-button" data-cart-action="cancel">${compact ? "Hủy" : "Hủy giỏ"}</button>
-        <button type="button" class="danger-button" data-cart-action="delete">${compact ? "Xóa" : "Xóa giỏ"}</button>
-      </div>
-    </article>
-  `;
+  getSalesUi().renderActiveCartPanel();
 }
 
 function renderSalesProductList() {
-  const activeCart = getActiveCart();
-  const selectedProductIds = new Set((activeCart?.items || []).map((item) => Number(item.productId)));
-  const compact = mobileQuery.matches;
-  const filtered = state.products.filter((product) => {
-    const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
-    const isExpandedSelected = selectedProductIds.has(Number(product.id)) && state.expandedSalesProductId === Number(product.id);
-    return text.includes(state.salesSearchTerm.toLowerCase()) && (!selectedProductIds.has(Number(product.id)) || isExpandedSelected);
-  });
-  salesProductList.classList.toggle("is-compact-search", isSearchResultMode("salesProducts"));
-
-  const notice = !activeCart
-    ? '<article class="inline-alert warning">Chưa mở giỏ hàng. Hãy chọn khách và bấm "Mở giỏ hàng" trước khi chọn sản phẩm.</article>'
-    : "";
-
-  if (!filtered.length) {
-    salesProductList.innerHTML = `${notice}<div class="empty-state">${activeCart?.items?.length ? "Các mặt hàng đang khớp đã được chuyển lên phần giỏ hiện hành phía trên." : "Không có mặt hàng phù hợp."}</div>`;
-    return;
-  }
-
-  const pageData = paginateItems(filtered, "salesProducts");
-  const paginationMarkup = renderPagination("salesProducts", pageData);
-  const topPagination = paginationMarkup
-    ? `<div class="sales-top-pagination">${paginationMarkup}</div>`
-    : "";
-  const bottomPagination = paginationMarkup
-    ? `<div class="sales-bottom-pagination">${paginationMarkup}</div>`
-    : "";
-  const listMarkup = pageData.items
-    .map((product) => {
-      const cartItem = activeCart?.items.find((item) => item.productId === product.id) || null;
-      const inCart = Boolean(cartItem);
-      const expandedInline = state.expandedSalesProductId === product.id;
-      const isOutOfStock = Number(product.current_stock) <= 0;
-      const availabilityLabel = isOutOfStock
-        ? "Hết hàng. Cần nhập!"
-        : product.is_low_stock
-          ? "Sắp hết"
-          : "Có hàng";
-      return `
-        <article class="sales-product-row ${inCart ? "is-selected" : ""} ${isOutOfStock ? "is-empty-stock" : ""}">
-          <div class="sales-product-head">
-            <label class="picker-toggle">
-              <input type="checkbox" data-pick-product="${product.id}" ${inCart ? "checked" : ""} ${activeCart ? "" : "disabled"}>
-              <span>${escapeHtml(product.name)}</span>
-            </label>
-            <span class="status-pill ${(isOutOfStock || product.is_low_stock) ? "cancelled" : "draft"}">
-              ${availabilityLabel}
-            </span>
-          </div>
-          <div class="sales-product-meta">
-            Tồn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)} | Giá nhập ${formatCurrency(product.price)}
-          </div>
-          ${inCart ? `
-            <div class="sales-inline-editor">
-              <label class="sales-inline-qty">
-                <span>SL</span>
-                <input type="number" min="0.01" step="0.01" value="${cartItem.quantity}" data-sales-inline-qty="${cartItem.id}">
-              </label>
-              <button type="button" class="ghost-button compact-button" data-sales-inline-action="toggle-detail" data-product-id="${product.id}">...</button>
-            </div>
-            ${expandedInline ? `
-              <div class="sales-inline-detail">
-                <label class="price-field">
-                  <span>Giá bán</span>
-                  <input class="price-input-small" type="number" min="0" step="1000" value="${cartItem.unitPrice}" data-sales-inline-price="${cartItem.id}">
-                </label>
-                <div class="line-actions">
-                  <button type="button" class="ghost-button compact-button" data-sales-inline-action="save" data-item-id="${cartItem.id}">Lưu</button>
-                  <button type="button" class="ghost-button compact-button" data-sales-inline-action="update-default-price" data-product-id="${product.id}" data-item-id="${cartItem.id}">Giá chung</button>
-                  <button type="button" class="danger-button compact-button" data-sales-inline-action="remove" data-item-id="${cartItem.id}" data-product-id="${product.id}">Bỏ</button>
-                  ${compact ? "" : `<button type="button" class="ghost-button compact-button" data-sales-inline-action="collapse" data-product-id="${product.id}">Thu gọn</button>`}
-                </div>
-              </div>
-            ` : ""}
-          ` : ""}
-        </article>
-      `;
-    })
-    .join("");
-  salesProductList.innerHTML = `${topPagination}${notice}${listMarkup}${bottomPagination}`;
+  getSalesUi().renderSalesProductList();
 }
 
 function renderCartItems() {
-  const cart = getActiveCart();
-  if (!selectedCartSection || !selectedCartToggleButton || !selectedCartSummaryNote || !selectedCartWrap) {
-    return;
-  }
-  if (!cart) {
-    selectedCartSection.hidden = true;
-    cartItemsList.innerHTML = "";
-    return;
-  }
-
-  if (!cart.items.length) {
-    selectedCartSection.hidden = true;
-    cartItemsList.innerHTML = "";
-    return;
-  }
-
-  selectedCartSection.hidden = false;
-  selectedCartSection.classList.toggle("is-collapsed", state.selectedCartItemsCollapsed);
-  selectedCartWrap.hidden = state.selectedCartItemsCollapsed;
-  selectedCartSummaryNote.textContent = `${cart.itemCount} dòng • ${formatQuantity(cart.totalQuantity)} món • ${formatCurrency(cart.totalAmount)}`;
-  selectedCartToggleButton.textContent = state.selectedCartItemsCollapsed ? "..." : "Thu gọn";
-
-  cartItemsList.innerHTML = cart.items
-    .map((item) => {
-      const product = getProductById(item.productId);
-      return `
-        <article class="cart-item">
-          <div class="cart-item-header">
-            <div>
-              <strong>${escapeHtml(item.productName)}</strong>
-              <div class="cart-line-note">Tồn kho hiện tại ${formatQuantity(product?.current_stock || 0)} ${escapeHtml(item.unit)}</div>
-            </div>
-            <strong>${escapeHtml(formatCurrency(item.lineTotal))}</strong>
-          </div>
-
-          <div class="cart-item-controls">
-            <div class="qty-control">
-              <button type="button" class="ghost-button compact-button" data-qty-delta="-1" data-item-id="${item.id}">-1</button>
-              <button type="button" class="ghost-button compact-button" data-qty-delta="-0.5" data-item-id="${item.id}">-0.5</button>
-              <input class="qty-input" type="number" min="0.01" step="0.01" value="${item.quantity}" data-qty-input="${item.id}">
-              <button type="button" class="ghost-button compact-button" data-qty-delta="0.5" data-item-id="${item.id}">+0.5</button>
-              <button type="button" class="ghost-button compact-button" data-qty-delta="1" data-item-id="${item.id}">+1</button>
-            </div>
-            <div class="cart-line-pricing">
-              <label class="price-field">
-                <span>Giá bán cho khách</span>
-                <input class="price-input-small" type="number" min="0" step="1000" value="${item.unitPrice}" data-price-input-cart="${item.id}">
-              </label>
-              <div class="line-actions">
-                <button type="button" class="ghost-button compact-button" data-line-action="save" data-item-id="${item.id}">Lưu dòng</button>
-                <button type="button" class="ghost-button compact-button" data-line-action="update-default-price" data-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button>
-                <button type="button" class="danger-button compact-button" data-line-action="remove" data-item-id="${item.id}">Loại bỏ</button>
-              </div>
-            </div>
-          </div>
-        </article>
-      `;
-    })
-    .join("");
+  getSalesUi().renderCartItems();
 }
 
 function renderCartQueue() {
@@ -3042,227 +2949,19 @@ function renderProductManageList() {
 }
 
 function renderPurchasePanel() {
-  createPurchaseDraftButton.textContent = mobileQuery.matches ? "Tạo phiếu" : "Tạo phiếu nháp";
-  if (purchaseSupplierMenuButton) {
-    purchaseSupplierMenuButton.textContent = mobileQuery.matches ? "NCC" : "Nhà cung cấp";
-  }
-  togglePurchasePanelButton.textContent = mobileQuery.matches
-    ? (state.purchasePanelCollapsed ? "Mở phiếu" : "Thu gọn")
-    : (state.purchasePanelCollapsed ? "Mở phiếu nhập" : "Thu gọn phiếu nhập");
-  const purchase = getActivePurchase();
-  const purchaseEditable = canEditPurchase(purchase);
-  const purchaseLocked = isLockedPurchase(purchase);
-  if (state.purchasePanelCollapsed) {
-    purchasePanel.innerHTML = `
-      <article class="empty-state">
-        Phiếu nhập đang được thu gọn.
-      </article>
-    `;
-    return;
-  }
-
-  if (!purchase) {
-    purchasePanel.innerHTML = `
-      <div class="empty-state">
-        Chưa có phiếu nhập nào đang mở.
-        <div class="row-actions">
-          <button type="button" class="ghost-button compact-button" data-purchase-panel-action="create">Tạo phiếu nhập nháp</button>
-        </div>
-      </div>
-    `;
-    return;
-  }
-
-  const totalAmount = purchase.items.reduce((sum, item) => sum + item.lineTotal, 0);
-  const selectedItemsMarkup = purchase.items.length
-    ? purchase.items.map((item) => `
-        <article class="cart-item">
-          <div class="cart-item-header">
-            <div>
-              <strong>${escapeHtml(item.productName)}</strong>
-              <div class="cart-line-note">${formatQuantity(item.quantity)} ${escapeHtml(item.unit)} | Giá nhập ${formatCurrency(item.unitCost)}</div>
-            </div>
-            <strong>${formatCurrency(item.lineTotal)}</strong>
-          </div>
-          <div class="purchase-inline-grid">
-            <label class="price-field">
-              <span>Số lượng nhập</span>
-              <input type="number" min="0.01" step="0.01" value="${item.quantity}" data-purchase-qty-input="${item.id}" ${purchaseEditable ? "" : "disabled"}>
-            </label>
-            <label class="price-field">
-              <span>Giá nhập</span>
-              <input type="number" min="0" step="1000" value="${item.unitCost}" data-purchase-cost-input="${item.id}" ${purchaseEditable ? "" : "disabled"}>
-            </label>
-          </div>
-          ${purchaseEditable ? `
-            <div class="line-actions">
-              <button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">Lưu dòng</button>
-              <button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button>
-              <button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button>
-              <button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>
-            </div>
-          ` : ""}
-        </article>
-      `).join("")
-    : '<div class="empty-state">Phiếu nhập đang trống.</div>';
-  purchasePanel.innerHTML = `
-    <article class="active-cart-card">
-      <div class="active-cart-header">
-        <div>
-          <p class="panel-kicker">Phiếu nhập hiện hành</p>
-          <h3>${escapeHtml(purchase.supplierName || "Chưa có nhà cung cấp")}</h3>
-          <p class="panel-note">${escapeHtml(purchase.note || "Chưa có ghi chú")}</p>
-        </div>
-        <span class="status-pill ${escapeHtml(purchase.status === "received" || purchase.status === "paid" ? "completed" : purchase.status === "cancelled" ? "cancelled" : "draft")}">${purchase.status === "paid" ? "Đã thanh toán" : purchase.status === "received" ? "Đã nhập kho" : purchase.status === "ordered" ? "Đã đặt" : purchase.status === "cancelled" ? "Đã hủy" : "Nháp"}</span>
-      </div>
-      <div class="active-cart-stats">
-        <div class="stat-chip"><span>Số dòng</span><strong>${purchase.items.length}</strong></div>
-        <div class="stat-chip"><span>Tổng SL</span><strong>${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))}</strong></div>
-        <div class="stat-chip"><span>Tổng tiền</span><strong>${formatCurrency(totalAmount)}</strong></div>
-      </div>
-      ${purchaseLocked ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
-      <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">
-        <div class="subheading selected-items-heading">
-          <div>
-            <p class="panel-kicker">Hàng đã chọn</p>
-            <h3>Các dòng đang nằm trong phiếu</h3>
-            <p class="panel-note">${purchase.items.length} dòng • ${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))} món • ${formatCurrency(totalAmount)}</p>
-          </div>
-          <button type="button" class="ghost-button compact-button" data-purchase-selected-action="toggle">${state.selectedPurchaseItemsCollapsed ? "..." : "Thu gọn"}</button>
-        </div>
-        <div class="cart-items-list selected-items-body" ${state.selectedPurchaseItemsCollapsed ? "hidden" : ""}>
-          ${selectedItemsMarkup}
-        </div>
-      </section>
-      <div class="cart-toolbar">
-        ${purchaseEditable ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>` : ""}
-        ${purchaseEditable ? `<button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>` : ""}
-        ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
-        ${purchaseEditable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
-        ${canDeletePurchase(purchase) ? `<button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>` : ""}
-      </div>
-    </article>
-  `;
+  getPurchasesUi().renderPurchasePanel();
 }
 
 function renderPurchaseSuggestions() {
-  const activePurchase = getActivePurchase();
-  const selectedProductIds = new Set((activePurchase?.items || []).map((item) => Number(item.productId)));
-  const filtered = getPurchaseSuggestions().filter((entry) => {
-    const text = `${entry.product.name} ${entry.product.category}`.toLowerCase();
-    return text.includes(state.purchaseSearchTerm.toLowerCase()) && !selectedProductIds.has(Number(entry.product.id));
-  });
-  purchaseSuggestionList.classList.toggle("is-compact-search", isSearchResultMode("purchaseSuggestions"));
-
-  if (!filtered.length) {
-    purchaseSuggestionList.innerHTML = `<div class="empty-state">${activePurchase?.items?.length ? "Các mặt hàng đang khớp đã được chuyển vào phần phiếu nhập hiện hành phía trên." : "Không có gợi ý nhập hàng."}</div>`;
-    return;
-  }
-
-  const pageData = paginateItems(filtered, "purchaseSuggestions");
-  const paginationMarkup = renderPagination("purchaseSuggestions", pageData);
-  const topPagination = paginationMarkup
-    ? `<div class="purchase-suggestions-top-pagination">${paginationMarkup}</div>`
-    : "";
-  const bottomPagination = paginationMarkup
-    ? `<div class="purchase-suggestions-bottom-pagination">${paginationMarkup}</div>`
-    : "";
-  purchaseSuggestionList.innerHTML = topPagination + pageData.items
-    .map((entry) => `
-      <article class="sales-product-row">
-        <div class="sales-product-head">
-          <div>
-            <strong>${escapeHtml(entry.product.name)}</strong>
-            <div class="sales-product-meta">Tồn ${formatQuantity(entry.product.current_stock)} ${escapeHtml(entry.product.unit)} | Cần cho đơn ${formatQuantity(entry.demand)}</div>
-          </div>
-        </div>
-        <div class="queue-actions purchase-suggestion-actions">
-          <span class="status-pill cancelled compact-pill">Đề xuất ${formatQuantity(entry.suggestedQuantity || entry.shortageFromOrders || 1)}</span>
-          <button type="button" class="ghost-button compact-button" data-purchase-suggestion-action="add" data-product-id="${entry.product.id}" data-quantity="${entry.suggestedQuantity || entry.shortageFromOrders || 1}">+ Phiếu</button>
-        </div>
-      </article>
-    `)
-    .join("") + bottomPagination;
+  getPurchasesUi().renderPurchaseSuggestions();
 }
 
 function renderPurchaseOrders() {
-  const visiblePurchases = state.purchases
-    .filter((purchase) => state.showPaidPurchases || purchase.status !== "paid")
-    .filter((purchase) => {
-      if (!state.purchaseSearchTerm) {
-        return true;
-      }
-      const haystack = `${purchase.supplierName} ${purchase.receiptCode} ${purchase.items.map((item) => item.productName).join(" ")}`.toLowerCase();
-      return haystack.includes(state.purchaseSearchTerm.toLowerCase());
-    });
-  purchaseOrderList.classList.toggle("is-compact-search", isSearchResultMode("purchaseOrders"));
-  if (!visiblePurchases.length) {
-    purchaseOrderList.innerHTML = '<div class="empty-state">Chưa có phiếu nhập nào.</div>';
-    return;
-  }
-
-  const pageData = paginateItems(visiblePurchases, "purchaseOrders");
-  const paginationMarkup = renderPagination("purchaseOrders", pageData);
-  const topPagination = paginationMarkup
-    ? `<div class="purchase-orders-top-pagination">${paginationMarkup}</div>`
-    : "";
-  const bottomPagination = paginationMarkup
-    ? `<div class="purchase-orders-bottom-pagination">${paginationMarkup}</div>`
-    : "";
-  purchaseOrderList.innerHTML = topPagination + pageData.items
-    .map((purchase) => `
-      <article class="cart-queue-item">
-        <div class="queue-header">
-          <strong>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
-          <span class="status-pill ${purchase.status === "received" || purchase.status === "paid" ? "completed" : purchase.status === "cancelled" ? "cancelled" : "draft"}">${purchase.status === "paid" ? "Đã thanh toán" : purchase.status === "received" ? "Đã nhập kho" : purchase.status === "ordered" ? "Đã đặt" : purchase.status === "cancelled" ? "Đã hủy" : "Nháp"}</span>
-        </div>
-        <div class="queue-meta">
-          <span>${escapeHtml(purchase.receiptCode || formatDate(purchase.updatedAt))}</span>
-          <span>${formatCurrency(purchase.items.reduce((sum, item) => sum + item.lineTotal, 0))}</span>
-        </div>
-        <div class="queue-actions">
-          <button type="button" class="ghost-button compact-button" data-purchase-list-action="open" data-purchase-id="${purchase.id}">Mở</button>
-        </div>
-      </article>
-    `)
-    .join("") + bottomPagination;
+  getPurchasesUi().renderPurchaseOrders();
 }
 
 function renderSuppliers() {
-  const compact = mobileQuery.matches;
-  const filtered = getActiveSuppliers().filter((supplier) =>
-    `${supplier.name} ${supplier.phone} ${supplier.address} ${supplier.note}`
-      .toLowerCase()
-      .includes(normalizeText(state.supplierSearchTerm))
-  );
-  supplierList.classList.toggle("is-compact-search", isSearchResultMode("suppliers"));
-
-  if (!filtered.length) {
-    supplierList.innerHTML = '<div class="empty-state">Không có nhà cung cấp phù hợp.</div>';
-    return;
-  }
-
-  const pageData = paginateItems(filtered, "suppliers");
-  supplierList.innerHTML = pageData.items
-    .map((supplier) => `
-      <article class="customer-item">
-        <div class="customer-header">
-          <strong>${escapeHtml(supplier.name)}</strong>
-          <span class="status-pill draft">${state.purchases.filter((purchase) => normalizeText(purchase.supplierName) === normalizeText(supplier.name)).length} phiếu</span>
-        </div>
-        <div class="customer-meta">
-          <span>${escapeHtml(supplier.phone || "Chưa có số liên lạc")}</span>
-          ${compact ? "" : `<span>${escapeHtml(supplier.address || "Chưa có địa chỉ")}</span>`}
-        </div>
-        ${compact ? "" : `<div class="customer-meta"><span>${escapeHtml(supplier.note || "Chưa có ghi chú")}</span></div>`}
-        <div class="customer-actions">
-          <button type="button" class="ghost-button compact-button" data-supplier-action="use" data-supplier-id="${supplier.id}">${compact ? "Dùng" : "Dùng cho phiếu nhập"}</button>
-          <button type="button" class="ghost-button compact-button" data-supplier-action="edit" data-supplier-id="${supplier.id}">Sửa</button>
-          <button type="button" class="danger-button compact-button" data-supplier-action="delete" data-supplier-id="${supplier.id}">Xóa</button>
-        </div>
-      </article>
-    `)
-    .join("") + renderPagination("suppliers", pageData);
+  getEntitiesUi().renderSuppliers();
 }
 
 function renderProductHistory() {
@@ -3305,263 +3004,19 @@ function renderDeletedProducts() {
 }
 
 function renderDeletedCustomers() {
-  const deletedCustomers = getDeletedCustomers();
-  if (!deletedCustomers.length) {
-    deletedCustomerList.innerHTML = '<div class="empty-state">Không có khách hàng nào đã xóa.</div>';
-    return;
-  }
-
-  const pageData = paginateItems(deletedCustomers, "deletedCustomers");
-  deletedCustomerList.innerHTML = pageData.items
-    .map((customer) => {
-      const impact = getCustomerDeleteImpact(customer.id);
-      return `
-        <article class="customer-item">
-          <div class="customer-header">
-            <strong>${escapeHtml(customer.name)}</strong>
-            <span class="status-pill cancelled">Đã xóa</span>
-          </div>
-          <div class="customer-meta">
-            <span>${escapeHtml(customer.phone || "Chưa có số liên lạc")}</span>
-            <span>${escapeHtml(formatDate(customer.deletedAt))}</span>
-          </div>
-          <div class="cart-line-note">Lịch sử đơn đã giữ nguyên. Khôi phục sẽ đưa khách hàng quay lại danh bạ đang dùng.</div>
-          <div class="cart-line-note">Đơn lịch sử liên quan: ${escapeHtml(String(impact.historyCount))}</div>
-          <div class="row-actions">
-            <button type="button" class="ghost-button compact-button" data-deleted-customer-action="restore" data-customer-id="${customer.id}">Khôi phục</button>
-          </div>
-        </article>
-      `;
-    })
-    .join("") + renderPagination("deletedCustomers", pageData);
+  getEntitiesUi().renderDeletedCustomers();
 }
 
 function renderDeletedSuppliers() {
-  const deletedSuppliers = getDeletedSuppliers();
-  if (!deletedSuppliers.length) {
-    deletedSupplierList.innerHTML = '<div class="empty-state">Không có nhà cung cấp nào đã xóa.</div>';
-    return;
-  }
-
-  const pageData = paginateItems(deletedSuppliers, "deletedSuppliers");
-  deletedSupplierList.innerHTML = pageData.items
-    .map((supplier) => {
-      const impact = getSupplierDeleteImpact(supplier.name);
-      return `
-        <article class="customer-item">
-          <div class="customer-header">
-            <strong>${escapeHtml(supplier.name)}</strong>
-            <span class="status-pill cancelled">Đã xóa</span>
-          </div>
-          <div class="customer-meta">
-            <span>${escapeHtml(supplier.phone || "Chưa có số liên lạc")}</span>
-            <span>${escapeHtml(formatDate(supplier.deletedAt))}</span>
-          </div>
-          <div class="cart-line-note">Phiếu nhập lịch sử vẫn giữ nguyên. Khôi phục sẽ đưa nhà cung cấp quay lại danh bạ hoạt động.</div>
-          <div class="cart-line-note">Phiếu nhập lịch sử liên quan: ${escapeHtml(String(impact.historyCount))}</div>
-          <div class="row-actions">
-            <button type="button" class="ghost-button compact-button" data-deleted-supplier-action="restore" data-supplier-id="${supplier.id}">Khôi phục</button>
-          </div>
-        </article>
-      `;
-    })
-    .join("") + renderPagination("deletedSuppliers", pageData);
+  getEntitiesUi().renderDeletedSuppliers();
 }
 
 function renderReports() {
-  if (reportMonthInput) {
-    reportMonthInput.value = state.reportFocusMonth;
-  }
-  if (reportStartDateInput) {
-    reportStartDateInput.value = state.reportStartDate || "";
-  }
-  if (reportEndDateInput) {
-    reportEndDateInput.value = state.reportEndDate || "";
-  }
-  if (reportRangeSelect) {
-    reportRangeSelect.value = String(state.reportRangeMonths);
-  }
-
-  if (!state.reports) {
-    reportSummaryCards.innerHTML = "";
-    reportMonthTrend.innerHTML = '<div class="empty-state">Chưa có dữ liệu báo cáo.</div>';
-    forecastList.innerHTML = '<div class="empty-state">Chưa có dữ liệu dự báo.</div>';
-    reportProductActivity.innerHTML = '<div class="empty-state">Chưa có dữ liệu sản phẩm theo tháng.</div>';
-    return;
-  }
-
-  const focus = state.reports.focus_summary || {};
-  const range = state.reports.range_summary || {};
-  const dateFilter = state.reports.date_filter || {};
-  const isDateFiltered = Boolean(dateFilter.active);
-  const currentPeriodLabel = isDateFiltered
-    ? `${formatDateOnly(dateFilter.start_date)} - ${formatDateOnly(dateFilter.end_date)}`
-    : formatMonthLabel(state.reports.focus_month);
-
-  const reportCards = [
-    {
-      label: isDateFiltered ? "Khoảng đang xem" : "Tháng đang xem",
-      value: currentPeriodLabel,
-      hint: isDateFiltered ? "Tổng hợp theo khoảng ngày đã chọn" : "Mốc tổng hợp chính",
-    },
-    {
-      label: "Chi nhập hàng",
-      value: formatCurrency(focus.purchase_value),
-      hint: `Nhập ${formatQuantity(focus.in_quantity)} mặt hàng trong kỳ`,
-    },
-    {
-      label: "Doanh thu",
-      value: formatCurrency(focus.revenue_value),
-      hint: `Xuất ${formatQuantity(focus.out_quantity)} mặt hàng trong kỳ`,
-    },
-    {
-      label: "Giá vốn",
-      value: formatCurrency(focus.cogs_value),
-      hint: "Giá vốn của lượng hàng đã xuất",
-    },
-    {
-      label: "Lãi gộp kỳ",
-      value: formatCurrency(focus.gross_profit_value),
-      hint: Number(focus.gross_profit_value || 0) >= 0 ? "Doanh thu lớn hơn giá vốn" : "Giá vốn đang cao hơn doanh thu",
-    },
-    {
-      label: isDateFiltered ? "Số tháng hiển thị" : `Lãi gộp ${range.months || state.reportRangeMonths} tháng`,
-      value: isDateFiltered ? `${range.months || 0} tháng` : formatCurrency(range.gross_profit_value),
-      hint: isDateFiltered
-        ? `Doanh thu ${formatCurrency(range.revenue_value)} | Giá vốn ${formatCurrency(range.cogs_value)}`
-        : `Doanh thu ${formatCurrency(range.revenue_value)} | Giá vốn ${formatCurrency(range.cogs_value)}`,
-    },
-  ];
-
-  reportSummaryCards.innerHTML = reportCards
-    .map(
-      (card) => `
-        <article class="summary-card">
-          <span>${escapeHtml(card.label)}</span>
-          <strong>${escapeHtml(card.value)}</strong>
-          <p class="panel-note">${escapeHtml(card.hint)}</p>
-        </article>
-      `
-    )
-    .join("");
-
-  const months = Array.isArray(state.reports.months) ? state.reports.months : [];
-  reportMonthTrend.innerHTML = months.length
-    ? months
-        .map(
-          (entry) => `
-            <article class="report-card">
-              <div class="report-card-head">
-                <strong>${escapeHtml(formatMonthLabel(entry.month))}</strong>
-                <span class="status-pill ${Number(entry.net_quantity) >= 0 ? "draft" : "cancelled"}">${Number(entry.net_quantity) >= 0 ? "Tăng tồn" : "Giảm tồn"}</span>
-              </div>
-              <div class="report-metric-row">
-                <span>Nhập</span>
-                <strong class="report-highlight">${escapeHtml(formatQuantity(entry.in_quantity))}</strong>
-              </div>
-              <div class="report-metric-row">
-                <span>Xuất</span>
-                <strong class="report-warning">${escapeHtml(formatQuantity(entry.out_quantity))}</strong>
-              </div>
-              <div class="report-card-row">
-                <span>Chi nhập hàng</span>
-                <span>${escapeHtml(formatCurrency(entry.purchase_value))}</span>
-              </div>
-              <div class="report-card-row">
-                <span>Doanh thu</span>
-                <span>${escapeHtml(formatCurrency(entry.revenue_value))}</span>
-              </div>
-              <div class="report-card-row">
-                <span>Giá vốn</span>
-                <span>${escapeHtml(formatCurrency(entry.cogs_value))}</span>
-              </div>
-              <div class="report-card-row">
-                <span>Lãi gộp</span>
-                <span class="${Number(entry.gross_profit_value) >= 0 ? "report-highlight" : "report-warning"}">${escapeHtml(formatCurrency(entry.gross_profit_value))}</span>
-              </div>
-            </article>
-          `
-        )
-        .join("")
-    : '<div class="empty-state">Chưa có dữ liệu tháng nào.</div>';
-
-  const forecastItems = Array.isArray(state.reports.forecast) ? state.reports.forecast : [];
-  if (!forecastItems.length) {
-    forecastList.innerHTML = '<div class="empty-state">Chưa có mặt hàng nào cần ưu tiên nhập thêm.</div>';
-  } else {
-    const pageData = paginateItems(forecastItems, "reportForecast");
-    forecastList.innerHTML = pageData.items
-      .map(
-        (item) => `
-          <article class="report-card">
-            <div class="report-card-head">
-              <strong>${escapeHtml(item.name)}</strong>
-              <span class="status-pill cancelled">Đề xuất ${escapeHtml(formatQuantity(item.recommended_purchase))} ${escapeHtml(item.unit)}</span>
-            </div>
-            <div class="report-card-meta">
-              <span>Tồn ${escapeHtml(formatQuantity(item.current_stock))} ${escapeHtml(item.unit)}</span>
-              <span>Ngưỡng ${escapeHtml(formatQuantity(item.low_stock_threshold))}</span>
-            </div>
-            <div class="report-card-row">
-              <span>Xuất TB 3 tháng</span>
-              <span>${escapeHtml(formatQuantity(item.avg_monthly_out))} ${escapeHtml(item.unit)}</span>
-            </div>
-            <div class="report-card-row">
-              <span>Đơn chờ / đang nhập</span>
-              <span>${escapeHtml(formatQuantity(item.pending_demand))} / ${escapeHtml(formatQuantity(item.incoming_quantity))}</span>
-            </div>
-            <div class="cart-line-note">${escapeHtml(item.reason || "")}</div>
-          </article>
-        `
-      )
-      .join("") + renderPagination("reportForecast", pageData);
-  }
-
-  const productActivity = Array.isArray(state.reports.product_activity) ? state.reports.product_activity : [];
-  if (!productActivity.length) {
-    reportProductActivity.innerHTML = `<div class="empty-state">${isDateFiltered ? "Khoảng ngày này chưa có biến động nhập xuất theo sản phẩm." : "Tháng này chưa có biến động nhập xuất theo sản phẩm."}</div>`;
-  } else {
-    const pageData = paginateItems(productActivity, "reportProducts");
-    reportProductActivity.innerHTML = pageData.items
-      .map(
-        (item) => `
-          <article class="product-row ${Number(item.out_quantity) > Number(item.in_quantity) ? "low-stock" : ""}">
-            <div class="product-row-head">
-              <div>
-                <div class="product-row-name">${escapeHtml(item.name)}</div>
-                <div class="product-row-meta">
-                  <span>${escapeHtml(item.category)}</span>
-                  <span>${escapeHtml(item.unit)}</span>
-                </div>
-              </div>
-              <div class="product-row-stock">${escapeHtml(formatQuantity(item.current_stock))} ${escapeHtml(item.unit)}</div>
-            </div>
-            <div class="product-row-meta">
-              <span>Nhập ${escapeHtml(formatQuantity(item.in_quantity))}</span>
-              <span>Xuất ${escapeHtml(formatQuantity(item.out_quantity))}</span>
-            </div>
-            <div class="product-row-meta">
-              <span>Chi nhập ${escapeHtml(formatCurrency(item.purchase_value))}</span>
-              <span>Doanh thu ${escapeHtml(formatCurrency(item.revenue_value))}</span>
-            </div>
-            <div class="product-row-meta">
-              <span>Giá vốn ${escapeHtml(formatCurrency(item.cogs_value))}</span>
-              <span class="${Number(item.gross_profit_value) >= 0 ? "report-highlight" : "report-warning"}">Lãi gộp ${escapeHtml(formatCurrency(item.gross_profit_value))}</span>
-            </div>
-          </article>
-        `
-      )
-      .join("") + renderPagination("reportProducts", pageData);
-  }
+  getReportsAdminUi().renderReports();
 }
 
 function renderAdminSection() {
-  const isAuthenticated = Boolean(state.admin?.authenticated);
-  adminLoginPanel.hidden = isAuthenticated;
-  adminModulePanel.hidden = !isAuthenticated;
-  if (!isAuthenticated) {
-    adminPasswordInput.value = "";
-  }
+  getReportsAdminUi().renderAdminSection();
 }
 
 function renderAll() {

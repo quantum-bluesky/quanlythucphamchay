@@ -28,6 +28,13 @@ Pattern hiện tại đã áp dụng trước cho domain `products`:
 - UI: `static/modules/ui/products-ui.js`
 - Controller: `static/modules/controllers/products-controller.js`
 
+Các domain đã có file UI riêng để giảm conflict khi làm song song:
+
+- `static/modules/ui/sales-ui.js`
+- `static/modules/ui/purchases-ui.js`
+- `static/modules/ui/entities-ui.js`
+- `static/modules/ui/reports-admin-ui.js`
+
 ## Tính năng chính
 
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
