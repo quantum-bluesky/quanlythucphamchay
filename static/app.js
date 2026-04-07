@@ -144,6 +144,10 @@ import { createEntitiesUi } from "./modules/ui/entities-ui.js";
 import { createReportsAdminUi } from "./modules/ui/reports-admin-ui.js";
 import { registerCoreControllerEvents } from "./modules/controllers/core-controller.js";
 import { registerProductsControllerEvents } from "./modules/controllers/products-controller.js";
+import { registerSalesControllerEvents } from "./modules/controllers/sales-controller.js";
+import { registerPurchasesControllerEvents } from "./modules/controllers/purchases-controller.js";
+import { registerEntitiesControllerEvents } from "./modules/controllers/entities-controller.js";
+import { registerReportsAdminControllerEvents } from "./modules/controllers/reports-admin-controller.js";
 import {
   formatQuantity,
   formatCurrency,
@@ -3601,1311 +3605,160 @@ searchInput.addEventListener("input", (event) => {
   renderProducts();
 });
 
-salesSearchInput.addEventListener("input", (event) => {
-  state.salesSearchTerm = event.target.value;
-  state.pagination.salesProducts = 1;
-  renderSalesProductList();
+registerSalesControllerEvents({
+  state,
+  dom: {
+    salesSearchInput,
+    orderSearchInput,
+    showArchivedCarts,
+    showPaidOrders,
+    salesProductList,
+    cartItemsList,
+    activeCartPanel,
+    selectedCartToggleButton,
+    cartQueueList,
+  },
+  renderSalesProductList,
+  renderCartItems,
+  renderActiveCartPanel,
+  renderCartQueue,
+  renderCreateOrderEntryState,
+  showToast,
+  openCartForCustomer,
+  updateCartItem,
+  removeCartItem,
+  getActiveCart,
+  getCartById,
+  saveAndRenderAll,
+  checkoutActiveCart,
+  printCart,
+  updateProductSalePrice,
+  formatCurrency,
 });
 
-orderSearchInput.addEventListener("input", (event) => {
-  state.orderSearchTerm = event.target.value;
-  state.pagination.orders = 1;
-  renderCartQueue();
+registerEntitiesControllerEvents({
+  state,
+  dom: {
+    customerSearchInput,
+    customerForm,
+    customerFormCancelButton,
+    customerFormToggleButton,
+    customerLookupInput,
+    openCartButton,
+    customerNameInput,
+    customerPhoneInput,
+    customerAddressInput,
+    customerZaloInput,
+    customerList,
+    supplierSearchInput,
+    supplierForm,
+    supplierFormCancelButton,
+    supplierFormToggleButton,
+    supplierNameInput,
+    supplierPhoneInput,
+    supplierAddressInput,
+    supplierNoteInput,
+    supplierList,
+    deletedProductList,
+    deletedCustomerList,
+    deletedSupplierList,
+  },
+  renderCustomers,
+  renderSuppliers,
+  renderEntityForms,
+  openSupplierForm,
+  openCartForCustomer,
+  upsertCustomer,
+  upsertSupplier,
+  clearPendingPurchaseSupplierFlow,
+  createPurchaseDraftIfMissing,
+  updatePurchase,
+  switchMenu,
+  showToast,
+  saveAndRenderAll,
+  purchaseNoteInput,
+  purchaseSupplierInput,
+  deleteCustomer,
+  deleteSupplier,
+  restoreCustomer,
+  restoreSupplier,
+  getCustomerDeleteImpact,
+  getSupplierDeleteImpact,
+  formatQuantity,
+  refreshData,
+  apiRequest,
 });
 
-customerSearchInput.addEventListener("input", (event) => {
-  state.customerSearchTerm = event.target.value;
-  state.pagination.customers = 1;
-  renderCustomers();
+registerPurchasesControllerEvents({
+  state,
+  dom: {
+    createPurchaseDraftButton,
+    togglePurchasePanelButton,
+    purchaseSupplierInput,
+    purchaseNoteInput,
+    purchaseSupplierMenuButton,
+    purchaseSearchInput,
+    purchaseSuggestionList,
+    purchasePanel,
+    purchaseOrderList,
+  },
+  createPurchaseDraftIfMissing,
+  saveAndRenderAll,
+  focusPurchaseSuggestions,
+  showToast,
+  renderPurchasePanel,
+  getActivePurchase,
+  updatePurchase,
+  getProductById,
+  canEditPurchase,
+  canDeletePurchase,
+  canMarkPurchasePaid,
+  nowIso,
+  apiRequest,
+  persistCollections,
+  updateProductPrice,
+  refreshData,
+  beginSupplierCreateFromPurchase,
+  setSkipNextPurchaseSupplierChangePersist: (value) => { skipNextPurchaseSupplierChangePersist = value; },
+  getSkipNextPurchaseSupplierChangePersist: () => skipNextPurchaseSupplierChangePersist,
+  focusPurchaseOrders,
+  switchMenu,
+  renderPurchaseSuggestions,
+  renderPurchaseOrders,
+  mobileQuery,
+  addSuggestionToPurchase,
 });
 
-customerForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  try {
-    upsertCustomer(
-      {
-        name: customerNameInput.value,
-        phone: customerPhoneInput.value,
-        address: customerAddressInput.value,
-        zaloUrl: customerZaloInput.value,
-      },
-      state.editingCustomerFormId
-    );
-    customerForm.reset();
-    state.editingCustomerFormId = null;
-    state.customerFormCollapsed = true;
-    renderEntityForms();
-    showToast("Đã lưu khách hàng.");
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-customerFormCancelButton.addEventListener("click", () => {
-  state.editingCustomerFormId = null;
-  customerForm.reset();
-  state.customerFormCollapsed = true;
-  renderEntityForms();
-});
-
-customerFormToggleButton?.addEventListener("click", () => {
-  if (!state.customerFormCollapsed && !state.editingCustomerFormId) {
-    customerForm.reset();
-  }
-  if (state.customerFormCollapsed) {
-    state.editingCustomerFormId = null;
-    customerForm.reset();
-  }
-  state.customerFormCollapsed = !state.customerFormCollapsed;
-  renderEntityForms();
-  if (!state.customerFormCollapsed) {
-    window.setTimeout(() => customerNameInput?.focus(), 30);
-  }
-});
-
-openCartButton.addEventListener("click", () => {
-  try {
-    openCartForCustomer(customerLookupInput.value);
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-customerLookupInput.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter") {
-    return;
-  }
-
-  event.preventDefault();
-  openCartButton.click();
-});
-
-salesProductList.addEventListener("change", (event) => {
-  const checkbox = event.target.closest("[data-pick-product]");
-  if (!checkbox) {
-    const qtyInput = event.target.closest("[data-sales-inline-qty]");
-    if (!qtyInput) {
-      return;
-    }
-
-    try {
-      const quantity = Number(qtyInput.value);
-      if (!Number.isFinite(quantity) || quantity <= 0) {
-        throw new Error("Số lượng phải lớn hơn 0.");
-      }
-      updateCartItem(qtyInput.dataset.salesInlineQty, {
-        quantity: Number(quantity.toFixed(2)),
-      });
-      renderSalesProductList();
-    } catch (error) {
-      showToast(error.message, true);
-    }
-    return;
-  }
-
-  try {
-    toggleProductInActiveCart(checkbox.dataset.pickProduct, checkbox.checked);
-  } catch (error) {
-    checkbox.checked = !checkbox.checked;
-    showToast(error.message, true);
-  }
-});
-
-salesProductList.addEventListener("click", async (event) => {
-  const actionButton = event.target.closest("[data-sales-inline-action]");
-  if (!actionButton) {
-    return;
-  }
-
-  if (actionButton.dataset.salesInlineAction === "toggle-detail") {
-    const productId = Number(actionButton.dataset.productId);
-    state.expandedSalesProductId = state.expandedSalesProductId === productId ? null : productId;
-    renderSalesProductList();
-    return;
-  }
-
-  if (actionButton.dataset.salesInlineAction === "collapse") {
-    state.expandedSalesProductId = null;
-    renderSalesProductList();
-    return;
-  }
-
-  if (actionButton.dataset.salesInlineAction === "remove") {
-    try {
-      removeCartItem(actionButton.dataset.itemId);
-      state.expandedSalesProductId = null;
-      renderSalesProductList();
-    } catch (error) {
-      showToast(error.message, true);
-    }
-    return;
-  }
-
-  if (actionButton.dataset.salesInlineAction === "save") {
-    const itemId = actionButton.dataset.itemId;
-    const qtyInput = salesProductList.querySelector(`[data-sales-inline-qty="${itemId}"]`);
-    const priceInput = salesProductList.querySelector(`[data-sales-inline-price="${itemId}"]`);
-
-    try {
-      const quantity = Number(qtyInput?.value);
-      const unitPrice = Number(priceInput?.value);
-      if (!Number.isFinite(quantity) || quantity <= 0) {
-        throw new Error("Số lượng phải lớn hơn 0.");
-      }
-      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-        throw new Error("Giá bán không hợp lệ.");
-      }
-      updateCartItem(itemId, {
-        quantity: Number(quantity.toFixed(2)),
-        unitPrice,
-      });
-      state.expandedSalesProductId = null;
-      showToast("Đã lưu dòng hàng.");
-      renderSalesProductList();
-    } catch (error) {
-      showToast(error.message, true);
-    }
-  }
-
-  if (actionButton.dataset.salesInlineAction === "update-default-price") {
-    const itemId = actionButton.dataset.itemId;
-    const productId = actionButton.dataset.productId;
-    const priceInput = salesProductList.querySelector(`[data-sales-inline-price="${itemId}"]`);
-
-    try {
-      const unitPrice = Number(priceInput?.value);
-      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-        throw new Error("Giá bán không hợp lệ.");
-      }
-      const product = getProductById(productId);
-      if (!product) {
-        throw new Error("Không tìm thấy sản phẩm.");
-      }
-      if (!window.confirm(`Cập nhật giá bán chung của "${product.name}" thành ${formatCurrency(unitPrice)}?\nGiá mặc định này sẽ được dùng cho các đơn xuất mới sau đó.`)) {
-        return;
-      }
-      updateCartItem(itemId, { unitPrice });
-      await persistCollections(["carts"]);
-      await updateProductSalePrice(productId, unitPrice);
-    } catch (error) {
-      showToast(error.message, true);
-    }
-  }
-});
-
-salesProductList.addEventListener("keydown", (event) => {
-  const qtyInput = event.target.closest("[data-sales-inline-qty]");
-  const priceInput = event.target.closest("[data-sales-inline-price]");
-  if (event.key !== "Enter" || (!qtyInput && !priceInput)) {
-    return;
-  }
-  event.preventDefault();
-  const itemId = qtyInput?.dataset.salesInlineQty || priceInput?.dataset.salesInlinePrice;
-  const saveButton = salesProductList.querySelector(`[data-sales-inline-action="save"][data-item-id="${itemId}"]`);
-  saveButton?.click();
-});
-
-cartItemsList.addEventListener("click", async (event) => {
-  const deltaButton = event.target.closest("[data-qty-delta]");
-  if (deltaButton) {
-    try {
-      changeItemQuantity(deltaButton.dataset.itemId, Number(deltaButton.dataset.qtyDelta));
-    } catch (error) {
-      showToast(error.message, true);
-    }
-    return;
-  }
-
-  const actionButton = event.target.closest("[data-line-action]");
-  if (!actionButton) {
-    return;
-  }
-
-  if (actionButton.dataset.lineAction === "remove") {
-    try {
-      removeCartItem(actionButton.dataset.itemId);
-    } catch (error) {
-      showToast(error.message, true);
-    }
-    return;
-  }
-
-  if (actionButton.dataset.lineAction === "save") {
-    const itemId = actionButton.dataset.itemId;
-    const qtyInput = cartItemsList.querySelector(`[data-qty-input="${itemId}"]`);
-    const priceInput = cartItemsList.querySelector(`[data-price-input-cart="${itemId}"]`);
-
-    try {
-      const quantity = Number(qtyInput?.value);
-      const unitPrice = Number(priceInput?.value);
-      if (!Number.isFinite(quantity) || quantity <= 0) {
-        throw new Error("Số lượng phải lớn hơn 0.");
-      }
-      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-        throw new Error("Giá bán không hợp lệ.");
-      }
-
-      updateCartItem(itemId, {
-        quantity: Number(quantity.toFixed(2)),
-        unitPrice,
-      });
-      showToast("Đã lưu dòng hàng.");
-    } catch (error) {
-      showToast(error.message, true);
-    }
-  }
-
-  if (actionButton.dataset.lineAction === "update-default-price") {
-    const itemId = actionButton.dataset.itemId;
-    const productId = actionButton.dataset.productId;
-    const priceInput = cartItemsList.querySelector(`[data-price-input-cart="${itemId}"]`);
-
-    try {
-      const unitPrice = Number(priceInput?.value);
-      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-        throw new Error("Giá bán không hợp lệ.");
-      }
-      const product = getProductById(productId);
-      if (!product) {
-        throw new Error("Không tìm thấy sản phẩm.");
-      }
-      if (!window.confirm(`Cập nhật giá bán chung của "${product.name}" thành ${formatCurrency(unitPrice)}?\nGiá mặc định này sẽ được dùng cho các đơn xuất mới sau đó.`)) {
-        return;
-      }
-      updateCartItem(itemId, { unitPrice });
-      await persistCollections(["carts"]);
-      await updateProductSalePrice(productId, unitPrice);
-    } catch (error) {
-      showToast(error.message, true);
-    }
-  }
-});
-
-cartItemsList.addEventListener("keydown", (event) => {
-  const qtyInput = event.target.closest("[data-qty-input]");
-  const priceInput = event.target.closest("[data-price-input-cart]");
-  if (event.key !== "Enter" || (!qtyInput && !priceInput)) {
-    return;
-  }
-
-  event.preventDefault();
-  const itemId = qtyInput?.dataset.qtyInput || priceInput?.dataset.priceInputCart;
-  const saveButton = cartItemsList.querySelector(`[data-line-action="save"][data-item-id="${itemId}"]`);
-  saveButton?.click();
-});
-
-activeCartPanel.addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-cart-action]");
-  if (!button) {
-    return;
-  }
-
-  const cart = getActiveCart();
-  if (!cart) {
-    showToast("Không có giỏ hàng đang mở.", true);
-    return;
-  }
-
-  if (button.dataset.cartAction === "toggle-panel") {
-    state.activeCartPanelCollapsed = !state.activeCartPanelCollapsed;
-    renderActiveCartPanel();
-    renderCartItems();
-    return;
-  }
-
-  if (button.dataset.cartAction === "close") {
-    state.activeCartId = null;
-    state.activeCartPanelCollapsed = mobileQuery.matches;
-    state.expandedSalesProductId = null;
-    state.floatingSearchExpanded = false;
-    customerLookupInput.value = "";
-    saveAndRenderAll();
-    scrollToCreateOrderTop({ focusCustomer: true });
-    return;
-  }
-
-  if (button.dataset.cartAction === "print") {
-    printCart(cart.id);
-    return;
-  }
-
-  if (button.dataset.cartAction === "cancel") {
-    if (window.confirm(`Hủy giỏ hàng của ${cart.customerName}?`)) {
-      cancelCart(cart.id);
-      showToast("Đã hủy giỏ hàng.");
-    }
-    return;
-  }
-
-  if (button.dataset.cartAction === "delete") {
-    if (window.confirm(`Xóa hẳn giỏ hàng của ${cart.customerName}?`)) {
-      deleteCart(cart.id);
-      showToast("Đã xóa giỏ hàng.");
-    }
-    return;
-  }
-
-  if (button.dataset.cartAction === "checkout") {
-    try {
-      await checkoutActiveCart();
-    } catch (error) {
-      showToast(error.message, true);
-    }
-  }
-});
-
-selectedCartToggleButton?.addEventListener("click", () => {
-  state.selectedCartItemsCollapsed = !state.selectedCartItemsCollapsed;
-  renderCartItems();
-});
-
-cartQueueList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-queue-action]");
-  if (!button) {
-    return;
-  }
-
-  const cartId = button.dataset.cartId;
-  const cart = getCartById(cartId);
-  if (!cart) {
-    showToast("Không tìm thấy giỏ hàng.", true);
-    return;
-  }
-
-  if (button.dataset.queueAction === "toggle-detail") {
-    state.expandedOrderId = state.expandedOrderId === cartId ? null : cartId;
-    renderCartQueue();
-    return;
-  }
-
-  if (button.dataset.queueAction === "open") {
-    state.expandedOrderId = null;
-    setActiveCart(cartId);
-    switchMenu("create-order");
-    focusCreateOrderSelection();
-    showToast("Đã mở giỏ hàng.");
-    return;
-  }
-
-  if (button.dataset.queueAction === "print") {
-    printCart(cartId);
-    return;
-  }
-
-  if (button.dataset.queueAction === "mark-paid") {
-    if (cart.status !== "completed") {
-      showToast("Chỉ đơn đã chốt mới được đánh dấu đã thanh toán.", true);
-      return;
-    }
-    state.expandedOrderId = null;
-    state.carts = state.carts.map((entry) =>
-      entry.id === cartId
-        ? decorateCart({ ...entry, paymentStatus: "paid", paidAt: nowIso(), updatedAt: nowIso() })
-        : entry
-    );
-    saveAndRenderAll(["carts"]);
-    showToast("Đã cập nhật trạng thái thanh toán.");
-    return;
-  }
-
-  if (button.dataset.queueAction === "cancel") {
-    if (!isDraftCart(cart)) {
-      showToast("Chỉ giỏ hàng nháp mới được hủy.", true);
-      return;
-    }
-    if (window.confirm(`Hủy giỏ hàng của ${cart.customerName}?`)) {
-      state.expandedOrderId = null;
-      cancelCart(cartId);
-      showToast("Đã hủy giỏ hàng.");
-    }
-    return;
-  }
-
-  if (button.dataset.queueAction === "delete") {
-    if (!canDeleteCart(cart)) {
-      showToast("Chỉ được xóa hẳn giỏ hàng nháp. Đơn đã chốt phải giữ lại lịch sử.", true);
-      return;
-    }
-    if (window.confirm(`Xóa hẳn giỏ hàng của ${cart.customerName}?`)) {
-      state.expandedOrderId = null;
-      deleteCart(cartId);
-      showToast("Đã xóa giỏ hàng.");
-    }
-  }
-});
-
-customerList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-customer-action]");
-  if (!button) {
-    return;
-  }
-
-  const customerId = button.dataset.customerId;
-  const customer = state.customers.find((entry) => entry.id === customerId);
-  if (!customer) {
-    showToast("Không tìm thấy khách hàng.", true);
-    return;
-  }
-
-  if (button.dataset.customerAction === "open-cart") {
-    openCartForCustomer(customer.name);
-    return;
-  }
-
-  if (button.dataset.customerAction === "edit") {
-    state.editingCustomerFormId = customerId;
-    customerNameInput.value = customer.name;
-    customerPhoneInput.value = customer.phone || "";
-    customerAddressInput.value = customer.address || "";
-    customerZaloInput.value = customer.zaloUrl || "";
-    openCustomerForm({ focus: true });
-    return;
-  }
-
-  if (button.dataset.customerAction === "delete") {
-    const impact = getCustomerDeleteImpact(customerId);
-    const warnings = [
-      `Khách hàng: ${customer.name}`,
-      "Nếu xóa, khách hàng sẽ bị ẩn khỏi danh bạ đang dùng.",
-      "Lịch sử đơn cũ vẫn được giữ lại.",
-    ];
-    if (impact.draftCount > 0) {
-      warnings.push(`Đang có ${impact.draftCount} giỏ hàng nháp của khách này.`);
-    }
-    if (impact.historyCount > 0) {
-      warnings.push(`Có ${impact.historyCount} đơn lịch sử liên quan.`);
-    }
-    if (!window.confirm(warnings.join("\n"))) {
-      return;
-    }
-    try {
-      deleteCustomer(customerId);
-      showToast("Đã chuyển khách hàng sang danh mục đã xóa.");
-    } catch (error) {
-      showToast(error.message, true);
-    }
-  }
-});
-
-showArchivedCarts.addEventListener("change", (event) => {
-  state.showArchivedCarts = event.target.checked;
-  renderCartQueue();
-});
-
-showPaidOrders.addEventListener("change", (event) => {
-  state.showPaidOrders = event.target.checked;
-  renderCartQueue();
-});
-
-showPaidPurchases.addEventListener("change", (event) => {
-  state.showPaidPurchases = event.target.checked;
-  state.pagination.purchaseOrders = 1;
-  renderPurchaseOrders();
-});
-
-supplierSearchInput.addEventListener("input", (event) => {
-  state.supplierSearchTerm = event.target.value;
-  state.pagination.suppliers = 1;
-  renderSuppliers();
-});
-
-supplierForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  try {
-    const editingSupplierId = state.editingSupplierFormId;
-    const isPurchaseCreateFlow = state.pendingPurchaseSupplierFlow && !editingSupplierId;
-    const savedSupplierName = supplierNameInput.value.trim();
-    if (isPurchaseCreateFlow) {
-      purchaseSupplierInput.value = savedSupplierName;
-      const purchase = createPurchaseDraftIfMissing();
-      if (purchase) {
-        updatePurchase(purchase.id, () => ({
-          supplierName: savedSupplierName,
-          note: purchaseNoteInput.value.trim(),
-        }));
-      }
-    }
-    upsertSupplier(
-      {
-        name: supplierNameInput.value,
-        phone: supplierPhoneInput.value,
-        address: supplierAddressInput.value,
-        note: supplierNoteInput.value,
-      },
-      editingSupplierId
-    );
-    supplierForm.reset();
-    state.editingSupplierFormId = null;
-    state.supplierFormCollapsed = true;
-    renderEntityForms();
-    if (isPurchaseCreateFlow) {
-      clearPendingPurchaseSupplierFlow();
-      switchMenu("purchases");
-      window.setTimeout(() => {
-        purchaseSupplierInput?.focus();
-        purchaseSupplierInput?.select();
-      }, 30);
-      showToast("Đã lưu nhà cung cấp và áp dụng cho phiếu nhập.");
-      return;
-    }
-    showToast("Đã lưu nhà cung cấp.");
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-supplierFormCancelButton.addEventListener("click", () => {
-  clearPendingPurchaseSupplierFlow();
-  state.editingSupplierFormId = null;
-  supplierForm.reset();
-  state.supplierFormCollapsed = true;
-  renderEntityForms();
-});
-
-supplierFormToggleButton?.addEventListener("click", () => {
-  if (!state.supplierFormCollapsed && !state.editingSupplierFormId) {
-    clearPendingPurchaseSupplierFlow();
-    supplierForm.reset();
-  }
-  if (state.supplierFormCollapsed) {
-    state.editingSupplierFormId = null;
-    clearPendingPurchaseSupplierFlow();
-    supplierForm.reset();
-  }
-  state.supplierFormCollapsed = !state.supplierFormCollapsed;
-  renderEntityForms();
-  if (!state.supplierFormCollapsed) {
-    window.setTimeout(() => supplierNameInput?.focus(), 30);
-  }
-});
-
-createPurchaseDraftButton.addEventListener("click", () => {
-  createPurchaseDraftIfMissing();
-  saveAndRenderAll(["purchases"]);
-  focusPurchaseSuggestions();
-  showToast("Đã tạo phiếu nhập nháp.");
-});
-
-togglePurchasePanelButton.addEventListener("click", () => {
-  state.purchasePanelCollapsed = !state.purchasePanelCollapsed;
-  renderPurchasePanel();
-});
-
-purchaseSupplierInput.addEventListener("change", () => {
-  if (skipNextPurchaseSupplierChangePersist) {
-    skipNextPurchaseSupplierChangePersist = false;
-    return;
-  }
-  const purchase = getActivePurchase();
-  if (!purchase) {
-    return;
-  }
-  updatePurchase(purchase.id, () => ({
-    supplierName: purchaseSupplierInput.value.trim(),
-    note: purchaseNoteInput.value.trim(),
-  }));
-  saveAndRenderAll(["purchases"]);
-});
-
-purchaseNoteInput.addEventListener("change", () => {
-  const purchase = getActivePurchase();
-  if (!purchase) {
-    return;
-  }
-  updatePurchase(purchase.id, () => ({
-    supplierName: purchaseSupplierInput.value.trim(),
-    note: purchaseNoteInput.value.trim(),
-  }));
-  saveAndRenderAll(["purchases"]);
-});
-
-purchaseSupplierMenuButton?.addEventListener("pointerdown", () => {
-  skipNextPurchaseSupplierChangePersist = true;
-});
-
-purchaseSupplierMenuButton?.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  skipNextPurchaseSupplierChangePersist = false;
-  beginSupplierCreateFromPurchase();
-});
-
-purchaseSearchInput.addEventListener("input", (event) => {
-  state.purchaseSearchTerm = event.target.value;
-  state.pagination.purchaseSuggestions = 1;
-  renderPurchaseSuggestions();
-});
-
-async function applyReportFilters({ showSuccess = false } = {}) {
-  state.pagination.reportProducts = 1;
-  state.pagination.reportForecast = 1;
-  await refreshReportData();
-  renderReports();
-  if (showSuccess) {
-    showToast("Đã làm mới báo cáo.");
-  }
-}
-
-reportMonthInput.addEventListener("change", async (event) => {
-  state.reportFocusMonth = event.target.value || new Date().toISOString().slice(0, 7);
-  try {
-    await applyReportFilters();
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-reportRangeSelect.addEventListener("change", async (event) => {
-  state.reportRangeMonths = Number(event.target.value || 6);
-  try {
-    await applyReportFilters();
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-async function onReportDateFilterChange() {
-  if ((state.reportStartDate && !state.reportEndDate) || (!state.reportStartDate && state.reportEndDate)) {
-    renderReports();
-    return;
-  }
-  try {
-    await applyReportFilters();
-  } catch (error) {
-    showToast(error.message, true);
-  }
-}
-
-reportStartDateInput.addEventListener("change", async (event) => {
-  state.reportStartDate = event.target.value || "";
-  await onReportDateFilterChange();
-});
-
-reportEndDateInput.addEventListener("change", async (event) => {
-  state.reportEndDate = event.target.value || "";
-  await onReportDateFilterChange();
-});
-
-refreshReportsButton.addEventListener("click", async () => {
-  if ((state.reportStartDate && !state.reportEndDate) || (!state.reportStartDate && state.reportEndDate)) {
-    showToast("Cần chọn đủ Từ ngày và Đến ngày để lọc theo khoảng ngày.", true);
-    return;
-  }
-  try {
-    await applyReportFilters({ showSuccess: true });
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-clearReportDateFilterButton.addEventListener("click", async () => {
-  state.reportStartDate = "";
-  state.reportEndDate = "";
-  try {
-    await applyReportFilters({ showSuccess: true });
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-reportFiltersToggleButton.addEventListener("click", () => {
-  state.reportFiltersCollapsed = !state.reportFiltersCollapsed;
-  renderReportSections();
-});
-
-document.addEventListener("click", (event) => {
-  const shortcutButton = event.target.closest("[data-report-shortcut]");
-  if (!shortcutButton) {
-    return;
-  }
-
-  if (shortcutButton.dataset.reportShortcut === "summary") {
-    focusReportSection("summary");
-    return;
-  }
-  if (shortcutButton.dataset.reportShortcut === "trend") {
-    focusReportSection("trend");
-    return;
-  }
-  if (shortcutButton.dataset.reportShortcut === "forecast") {
-    focusReportSection("forecast");
-  }
-});
-
-purchaseSuggestionList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-purchase-suggestion-action]");
-  if (!button) {
-    return;
-  }
-
-  try {
-    addSuggestionToPurchase(button.dataset.productId, button.dataset.quantity, getProductById(button.dataset.productId)?.price || 0);
-    state.purchasePanelCollapsed = mobileQuery.matches;
-    renderPurchasePanel();
-    showToast("Đã thêm vào phiếu nhập.");
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-purchasePanel.addEventListener("click", async (event) => {
-  const selectedToggleButton = event.target.closest("[data-purchase-selected-action]");
-  if (selectedToggleButton?.dataset.purchaseSelectedAction === "toggle") {
-    state.selectedPurchaseItemsCollapsed = !state.selectedPurchaseItemsCollapsed;
-    renderPurchasePanel();
-    return;
-  }
-
-  const panelButton = event.target.closest("[data-purchase-panel-action]");
-  if (panelButton) {
-    if (panelButton.dataset.purchasePanelAction === "open") {
-      state.purchasePanelCollapsed = false;
-      renderPurchasePanel();
-      return;
-    }
-    if (panelButton.dataset.purchasePanelAction === "create") {
-      createPurchaseDraftIfMissing();
-      saveAndRenderAll(["purchases"]);
-      focusPurchaseSuggestions();
-      return;
-    }
-  }
-
-  const itemButton = event.target.closest("[data-purchase-item-action]");
-  if (itemButton) {
-    const purchase = getActivePurchase();
-    if (!purchase) {
-      return;
-    }
-    if (!canEditPurchase(purchase)) {
-      showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
-      return;
-    }
-    if (itemButton.dataset.purchaseItemAction === "save") {
-      const qtyInput = purchasePanel.querySelector(`[data-purchase-qty-input="${itemButton.dataset.purchaseItemId}"]`);
-      const costInput = purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
-      const quantity = Number(qtyInput?.value);
-      const unitCost = Number(costInput?.value);
-      if (!Number.isFinite(quantity) || quantity <= 0) {
-        showToast("Số lượng nhập phải lớn hơn 0.", true);
-        return;
-      }
-      if (!Number.isFinite(unitCost) || unitCost < 0) {
-        showToast("Giá nhập không hợp lệ.", true);
-        return;
-      }
-      updatePurchase(purchase.id, (currentPurchase) => ({
-        items: currentPurchase.items.map((item) =>
-          item.id === itemButton.dataset.purchaseItemId
-            ? {
-                ...item,
-                quantity: Number(quantity.toFixed(2)),
-                unitCost,
-              }
-            : item
-        ),
-        supplierName: purchaseSupplierInput.value.trim(),
-        note: purchaseNoteInput.value.trim(),
-      }));
-      saveAndRenderAll(["purchases"]);
-      showToast("Đã lưu dòng nhập hàng.");
-      return;
-    }
-    if (itemButton.dataset.purchaseItemAction === "update-default-cost") {
-      const costInput = purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
-      const unitCost = Number(costInput?.value);
-      if (!Number.isFinite(unitCost) || unitCost < 0) {
-        showToast("Giá nhập không hợp lệ.", true);
-        return;
-      }
-      const product = getProductById(itemButton.dataset.productId);
-      if (!product) {
-        showToast("Không tìm thấy sản phẩm.", true);
-        return;
-      }
-      if (!window.confirm(`Cập nhật giá nhập chung của "${product.name}" thành ${formatCurrency(unitCost)}?\nGiá mặc định này sẽ được dùng cho các phiếu nhập mới sau đó.`)) {
-        return;
-      }
-      updatePurchase(purchase.id, (currentPurchase) => ({
-        items: currentPurchase.items.map((item) =>
-          item.id === itemButton.dataset.purchaseItemId
-            ? {
-                ...item,
-                unitCost,
-              }
-            : item
-        ),
-        supplierName: purchaseSupplierInput.value.trim(),
-        note: purchaseNoteInput.value.trim(),
-      }));
-      await persistCollections(["purchases"]);
-      await updateProductPrice(itemButton.dataset.productId, unitCost);
-      return;
-    }
-    updatePurchase(purchase.id, (currentPurchase) => ({
-      items: currentPurchase.items
-        .map((item) =>
-          item.id === itemButton.dataset.purchaseItemId
-            ? {
-                ...item,
-                quantity: itemButton.dataset.purchaseItemAction === "add-one"
-                  ? Number((Number(item.quantity) + 1).toFixed(2))
-                  : item.quantity,
-              }
-            : item
-        )
-        .filter((item) => itemButton.dataset.purchaseItemAction === "remove" ? item.id !== itemButton.dataset.purchaseItemId : true),
-      supplierName: purchaseSupplierInput.value.trim(),
-      note: purchaseNoteInput.value.trim(),
-    }));
-    saveAndRenderAll(["purchases"]);
-    return;
-  }
-
-  const actionButton = event.target.closest("[data-purchase-action]");
-  if (!actionButton) {
-    return;
-  }
-
-  const purchase = getActivePurchase();
-  if (!purchase) {
-    showToast("Không có phiếu nhập đang mở.", true);
-    return;
-  }
-
-  if (actionButton.dataset.purchaseAction === "collapse") {
-    state.purchasePanelCollapsed = true;
-    renderPurchasePanel();
-    return;
-  }
-
-  if (actionButton.dataset.purchaseAction === "delete") {
-    if (!canDeletePurchase(purchase)) {
-      showToast("Chỉ được xóa hẳn phiếu nhập nháp.", true);
-      return;
-    }
-    state.purchases = state.purchases.filter((entry) => entry.id !== purchase.id);
-    state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
-    saveAndRenderAll(["purchases"]);
-    showToast("Đã xóa phiếu nhập.");
-    return;
-  }
-
-  if (actionButton.dataset.purchaseAction === "mark-ordered") {
-    if (!canEditPurchase(purchase)) {
-      showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
-      return;
-    }
-    updatePurchase(purchase.id, () => ({
-      status: "ordered",
-      supplierName: purchaseSupplierInput.value.trim(),
-      note: purchaseNoteInput.value.trim(),
-    }));
-    saveAndRenderAll(["purchases"]);
-    showToast("Đã cập nhật trạng thái đặt hàng.");
-    return;
-  }
-
-  if (actionButton.dataset.purchaseAction === "cancel") {
-    if (!canEditPurchase(purchase)) {
-      showToast("Phiếu nhập đã khóa, không thể hủy trực tiếp.", true);
-      return;
-    }
-    updatePurchase(purchase.id, () => ({
-      status: "cancelled",
-      supplierName: purchaseSupplierInput.value.trim(),
-      note: purchaseNoteInput.value.trim(),
-    }));
-    saveAndRenderAll(["purchases"]);
-    showToast("Đã hủy phiếu nhập.");
-    return;
-  }
-
-  if (actionButton.dataset.purchaseAction === "mark-paid") {
-    if (!canMarkPurchasePaid(purchase)) {
-      showToast("Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho.", true);
-      return;
-    }
-    updatePurchase(purchase.id, () => ({
-      status: "paid",
-      paidAt: nowIso(),
-      supplierName: purchaseSupplierInput.value.trim(),
-      note: purchaseNoteInput.value.trim(),
-    }));
-    saveAndRenderAll(["purchases"]);
-    showToast("Đã cập nhật phiếu nhập là đã thanh toán.");
-    return;
-  }
-
-  if (actionButton.dataset.purchaseAction === "receive") {
-    if (!canEditPurchase(purchase)) {
-      showToast("Phiếu nhập đã khóa, không thể nhập kho lại.", true);
-      return;
-    }
-    try {
-      const data = await apiRequest("/api/purchases/receive", {
-        method: "POST",
-        body: JSON.stringify({
-          supplier_name: purchaseSupplierInput.value.trim(),
-          note: purchaseNoteInput.value.trim(),
-          items: purchase.items.map((item) => ({
-            product_id: item.productId,
-            quantity: item.quantity,
-            unit_cost: item.unitCost,
-          })),
-        }),
-      });
-      state.purchases = state.purchases.map((entry) =>
-        entry.id === purchase.id
-          ? {
-              ...entry,
-              status: "received",
-              receiptCode: data.receipt?.receipt_code || "",
-              receivedAt: data.receipt?.created_at || nowIso(),
-              updatedAt: data.receipt?.created_at || nowIso(),
-            }
-          : entry
-      );
-      state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
-      saveAndRenderAll();
-      await persistCollections(["purchases"]);
-      await refreshData();
-      showToast(data.message);
-    } catch (error) {
-      showToast(error.message, true);
-    }
-  }
-});
-
-purchasePanel.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter") {
-    return;
-  }
-  const qtyInput = event.target.closest("[data-purchase-qty-input]");
-  const costInput = event.target.closest("[data-purchase-cost-input]");
-  if (!qtyInput && !costInput) {
-    return;
-  }
-  event.preventDefault();
-  const itemId = qtyInput?.dataset.purchaseQtyInput || costInput?.dataset.purchaseCostInput;
-  const saveButton = purchasePanel.querySelector(`[data-purchase-item-action="save"][data-purchase-item-id="${itemId}"]`);
-  saveButton?.click();
-});
-
-purchaseOrderList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-purchase-list-action]");
-  if (!button) {
-    return;
-  }
-
-  if (button.dataset.purchaseListAction === "open") {
-    state.activePurchaseId = button.dataset.purchaseId;
-    state.purchasePanelCollapsed = false;
-    saveAndRenderAll();
-  }
-});
-
-document.addEventListener("click", (event) => {
-  const versionButton = event.target.closest("#appVersionButton");
-  if (versionButton) {
-    switchMenu("about");
-    return;
-  }
-
-  const shortcutButton = event.target.closest("[data-purchase-shortcut]");
-  if (!shortcutButton) {
-    return;
-  }
-
-  if (shortcutButton.dataset.purchaseShortcut === "orders") {
-    focusPurchaseOrders();
-    return;
-  }
-
-  if (shortcutButton.dataset.purchaseShortcut === "suggestions") {
-    focusPurchaseSuggestions();
-  }
-});
-
-supplierList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-supplier-action]");
-  if (!button) {
-    return;
-  }
-
-  const supplierId = button.dataset.supplierId;
-  const supplier = state.suppliers.find((entry) => entry.id === supplierId);
-  if (!supplier) {
-    showToast("Không tìm thấy nhà cung cấp.", true);
-    return;
-  }
-
-  if (button.dataset.supplierAction === "use") {
-    purchaseSupplierInput.value = supplier.name;
-    switchMenu("purchases");
-    createPurchaseDraftIfMissing();
-    const purchase = getActivePurchase();
-    if (purchase) {
-      updatePurchase(purchase.id, () => ({
-        supplierName: supplier.name,
-        note: purchaseNoteInput.value.trim(),
-      }));
-      saveAndRenderAll(["purchases"]);
-    }
-    showToast("Đã chọn nhà cung cấp cho phiếu nhập.");
-    return;
-  }
-
-  if (button.dataset.supplierAction === "edit") {
-    clearPendingPurchaseSupplierFlow();
-    state.editingSupplierFormId = supplierId;
-    supplierNameInput.value = supplier.name;
-    supplierPhoneInput.value = supplier.phone || "";
-    supplierAddressInput.value = supplier.address || "";
-    supplierNoteInput.value = supplier.note || "";
-    openSupplierForm({ focus: true });
-    return;
-  }
-
-  if (button.dataset.supplierAction === "delete") {
-    const impact = getSupplierDeleteImpact(supplier.name);
-    const warnings = [
-      `Nhà cung cấp: ${supplier.name}`,
-      "Nếu xóa, nhà cung cấp sẽ bị ẩn khỏi danh bạ đang dùng.",
-      "Lịch sử phiếu nhập cũ vẫn được giữ lại.",
-    ];
-    if (impact.activeCount > 0) {
-      warnings.push(`Đang có ${impact.activeCount} phiếu nhập draft/ordered/received dùng nhà cung cấp này.`);
-    }
-    if (impact.historyCount > 0) {
-      warnings.push(`Có ${impact.historyCount} phiếu nhập lịch sử liên quan.`);
-    }
-    if (!window.confirm(warnings.join("\n"))) {
-      return;
-    }
-    try {
-      deleteSupplier(supplierId);
-      showToast("Đã chuyển nhà cung cấp sang danh mục đã xóa.");
-    } catch (error) {
-      showToast(error.message, true);
-    }
-  }
-});
-
-deletedProductList.addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-deleted-product-action]");
-  if (!button) {
-    return;
-  }
-  if (button.dataset.deletedProductAction !== "restore") {
-    return;
-  }
-  const productId = Number(button.dataset.productId);
-  const product = state.deletedProducts.find((entry) => Number(entry.id) === productId);
-  if (!product) {
-    showToast("Không tìm thấy sản phẩm đã xóa.", true);
-    return;
-  }
-  const warning = [
-    `Khôi phục sản phẩm ${product.name}?`,
-    "Sản phẩm sẽ xuất hiện lại ở tồn kho, tạo đơn, nhập hàng và quản lý sản phẩm.",
-    `Tồn hiện tại sau khi khôi phục: ${formatQuantity(product.current_stock)} ${product.unit}`,
-  ].join("\n");
-  if (!window.confirm(warning)) {
-    return;
-  }
-  try {
-    const data = await apiRequest(`/api/products/${productId}/restore`, {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
-    await refreshData();
-    showToast(data.message);
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-deletedCustomerList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-deleted-customer-action]");
-  if (!button) {
-    return;
-  }
-  const customer = state.customers.find((entry) => entry.id === button.dataset.customerId);
-  if (!customer) {
-    showToast("Không tìm thấy khách hàng đã xóa.", true);
-    return;
-  }
-  const warning = [
-    `Khôi phục khách hàng ${customer.name}?`,
-    "Khách hàng sẽ xuất hiện lại trong danh bạ đang dùng.",
-  ].join("\n");
-  if (!window.confirm(warning)) {
-    return;
-  }
-  try {
-    restoreCustomer(button.dataset.customerId);
-    showToast("Đã khôi phục khách hàng.");
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-deletedSupplierList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-deleted-supplier-action]");
-  if (!button) {
-    return;
-  }
-  const supplier = state.suppliers.find((entry) => entry.id === button.dataset.supplierId);
-  if (!supplier) {
-    showToast("Không tìm thấy nhà cung cấp đã xóa.", true);
-    return;
-  }
-  const warning = [
-    `Khôi phục nhà cung cấp ${supplier.name}?`,
-    "Nhà cung cấp sẽ xuất hiện lại trong danh bạ đang dùng.",
-  ].join("\n");
-  if (!window.confirm(warning)) {
-    return;
-  }
-  try {
-    restoreSupplier(button.dataset.supplierId);
-    showToast("Đã khôi phục nhà cung cấp.");
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-adminLoginForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    const data = await apiRequest("/api/admin/login", {
-      method: "POST",
-      body: JSON.stringify({
-        username: adminUsernameInput.value.trim(),
-        password: adminPasswordInput.value,
-      }),
-    });
-    state.admin = {
-      authenticated: Boolean(data.authenticated),
-      username: data.username || "",
-    };
-    renderAll();
-    showToast(data.message);
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-adminLogoutButton.addEventListener("click", async () => {
-  try {
-    const data = await apiRequest("/api/admin/logout", {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
-    state.admin = {
-      authenticated: false,
-      username: "",
-    };
-    renderAll();
-    showToast(data.message);
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-adminModulePanel.addEventListener("click", async (event) => {
-  const exportButton = event.target.closest("[data-admin-export]");
-  if (exportButton) {
-    const entity = exportButton.dataset.adminExport;
-    try {
-      await downloadAdminFile(`/api/admin/export/${entity}`, `${entity}-master.json`);
-      showToast("Đã tải file master.");
-    } catch (error) {
-      showToast(error.message, true);
-    }
-    return;
-  }
-
-  const importButton = event.target.closest("[data-admin-import]");
-  if (importButton) {
-    const entity = importButton.dataset.adminImport;
-    const inputMap = {
-      products: document.getElementById("adminImportProductsFile"),
-      customers: document.getElementById("adminImportCustomersFile"),
-      suppliers: document.getElementById("adminImportSuppliersFile"),
-    };
-    const fileInput = inputMap[entity];
-    const file = fileInput?.files?.[0];
-    if (!file) {
-      showToast("Hãy chọn file import trước.", true);
-      return;
-    }
-    try {
-      const rawText = await readFileAsText(file);
-      const payload = JSON.parse(rawText);
-      const warning = [
-        `Import master data cho ${entity}?`,
-        "Dữ liệu trùng tên sẽ được cập nhật.",
-        "Sản phẩm/khách hàng/nhà cung cấp đã xóa có thể được khôi phục nếu trùng với file nhập.",
-      ].join("\n");
-      if (!window.confirm(warning)) {
-        return;
-      }
-      const data = await apiRequest(`/api/admin/import/${entity}`, {
-        method: "POST",
-        body: JSON.stringify({
-          records: payload.records || [],
-        }),
-      });
-      fileInput.value = "";
-      await refreshData();
-      showToast(`${data.message} Created ${data.result.created}, updated ${data.result.updated}, restored ${data.result.restored}.`);
-    } catch (error) {
-      showToast(error.message, true);
-    }
-    return;
-  }
-});
-
-adminBackupButton.addEventListener("click", async () => {
-  try {
-    await downloadAdminFile("/api/admin/backup", "inventory-backup.db");
-    showToast("Đã tải file backup database.");
-  } catch (error) {
-    showToast(error.message, true);
-  }
-});
-
-adminRestoreButton.addEventListener("click", async () => {
-  const file = adminRestoreDbFile.files?.[0];
-  if (!file) {
-    showToast("Hãy chọn file database để restore.", true);
-    return;
-  }
-  const warning = [
-    "Restore database toàn hệ thống?",
-    "Toàn bộ dữ liệu hiện tại sẽ bị ghi đè.",
-    "Chỉ tiếp tục nếu bạn chắc chắn file restore là bản sao đúng.",
-  ].join("\n");
-  if (!window.confirm(warning)) {
-    return;
-  }
-  try {
-    const contentBase64 = await readFileAsBase64(file);
-    const data = await apiRequest("/api/admin/restore", {
-      method: "POST",
-      body: JSON.stringify({
-        filename: file.name,
-        content_base64: contentBase64,
-      }),
-    });
-    adminRestoreDbFile.value = "";
-    await refreshData();
-    showToast(`${data.message} Backup trước restore: ${data.previous_backup}`);
-  } catch (error) {
-    showToast(error.message, true);
-  }
+registerReportsAdminControllerEvents({
+  state,
+  dom: {
+    reportMonthInput,
+    reportRangeSelect,
+    reportStartDateInput,
+    reportEndDateInput,
+    refreshReportsButton,
+    clearReportDateFilterButton,
+    reportFiltersToggleButton,
+    adminLoginForm,
+    adminUsernameInput,
+    adminPasswordInput,
+    adminLogoutButton,
+    adminModulePanel,
+    adminBackupButton,
+    adminRestoreButton,
+    adminRestoreDbFile,
+  },
+  refreshReportData,
+  renderReports,
+  showToast,
+  renderReportSections,
+  focusReportSection,
+  apiRequest,
+  renderAll,
+  downloadAdminFile,
+  readFileAsText,
+  readFileAsBase64,
+  refreshData,
 });
 
 window.addEventListener("DOMContentLoaded", async () => {

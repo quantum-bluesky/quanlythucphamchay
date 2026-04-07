@@ -35,6 +35,13 @@ Các domain đã có file UI riêng để giảm conflict khi làm song song:
 - `static/modules/ui/entities-ui.js`
 - `static/modules/ui/reports-admin-ui.js`
 
+Các domain đã có file controller riêng:
+
+- `static/modules/controllers/sales-controller.js`
+- `static/modules/controllers/purchases-controller.js`
+- `static/modules/controllers/entities-controller.js`
+- `static/modules/controllers/reports-admin-controller.js`
+
 ## Tính năng chính
 
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
