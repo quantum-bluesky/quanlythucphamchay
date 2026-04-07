@@ -23,6 +23,11 @@ Quy ước tách việc:
 - Issue controller nên ưu tiên chạm `static/modules/controllers/*`
 - Chỉ sửa `static/app.js` khi cần đổi contract dùng chung hoặc wiring bootstrap
 
+Pattern hiện tại đã áp dụng trước cho domain `products`:
+
+- UI: `static/modules/ui/products-ui.js`
+- Controller: `static/modules/controllers/products-controller.js`
+
 ## Tính năng chính
 
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
