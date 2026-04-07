@@ -22,6 +22,20 @@ Tài liệu này dành cho người trực tiếp dùng ứng dụng hằng ngà
 - Trên điện thoại, nếu cần xem danh sách dài thì dùng `Thu gọn` hoặc nút chuyển trang `Trước / Sau`
 - Trên điện thoại, menu nổi, tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi bạn chạm ra ngoài; chạm lại vào phần mép còn lộ ra để mở đúng cụm cần dùng
 - Nếu có máy khác vừa cập nhật dữ liệu, app sẽ tự nạp lại khi bạn không còn gõ dở ở ô nhập hiện tại
+- Khi đổi màn hình bằng menu, app vẫn giữ lịch sử `Quay lại / Tiến tới`, nên có thể nhảy qua lại giữa các màn đang xử lý mà không cần tìm lại từ đầu
+- Ô `Tìm kiếm nhanh` nổi sẽ tự bám theo màn hiện tại; khi đổi màn, app sẽ tự nối lại đúng ô tìm kiếm của màn đó
+
+## 2.1. Viết tắt màn hình
+
+- `SP`: Sản phẩm
+- `NH`: Nhập hàng
+- `AD`: Admin
+- `KP`: Khôi phục
+- `XH`: Xuất hàng
+- `TK`: Tồn kho
+- `ĐH`: Đơn hàng
+- `NCC`: Nhà cung cấp
+- `KH`: Khách hàng
 
 ## 3. Luồng làm việc hằng ngày
 
