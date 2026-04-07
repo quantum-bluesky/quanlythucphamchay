@@ -30,6 +30,7 @@ Pattern hiện tại đã áp dụng trước cho domain `products`:
 
 Các domain đã có file UI riêng để giảm conflict khi làm song song:
 
+- `static/modules/ui/inventory-ui.js`
 - `static/modules/ui/sales-ui.js`
 - `static/modules/ui/purchases-ui.js`
 - `static/modules/ui/entities-ui.js`
@@ -37,10 +38,34 @@ Các domain đã có file UI riêng để giảm conflict khi làm song song:
 
 Các domain đã có file controller riêng:
 
+- `static/modules/controllers/inventory-controller.js`
 - `static/modules/controllers/sales-controller.js`
 - `static/modules/controllers/purchases-controller.js`
 - `static/modules/controllers/entities-controller.js`
 - `static/modules/controllers/reports-admin-controller.js`
+
+Contract chuẩn giữa các controller:
+
+- `state`: shared app state
+- `dom`: DOM refs và input/output element theo domain
+- `actions`: hàm gây side-effect hoặc mutate state/server
+- `renderers`: hàm render lại UI của domain hoặc màn liên quan
+- `queries`: hàm getter/check điều kiện, không nên gây side-effect
+- `utils`: formatter, helper hoặc constant nhẹ
+
+Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team controller chỉ bám `controllers/*`, còn dependency contract giữa các file vẫn đồng nhất.
+
+## Viết tắt màn hình
+
+- `SP`: Sản phẩm
+- `NH`: Nhập hàng
+- `AD`: Admin
+- `KP`: Khôi phục
+- `XH`: Xuất hàng
+- `TK`: Tồn kho
+- `ĐH`: Đơn hàng
+- `NCC`: Nhà cung cấp
+- `KH`: Khách hàng
 
 ## Tính năng chính
 

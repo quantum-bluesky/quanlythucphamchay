@@ -1,47 +1,35 @@
-export function registerSalesControllerEvents(deps) {
+export function registerSalesControllerEvents(contract) {
   const {
     state,
     dom,
-    renderSalesProductList,
-    renderCartItems,
-    renderActiveCartPanel,
-    renderCartQueue,
-    renderCreateOrderEntryState,
-    showToast,
-    openCartForCustomer,
-    updateCartItem,
-    removeCartItem,
-    getActiveCart,
-    getCartById,
-    saveAndRenderAll,
-    checkoutActiveCart,
-    printCart,
-    updateProductSalePrice,
-    formatCurrency,
-  } = deps;
+    actions,
+    renderers,
+    queries,
+    utils,
+  } = contract;
 
   dom.salesSearchInput.addEventListener("input", (event) => {
     state.salesSearchTerm = event.target.value;
     state.pagination.salesProducts = 1;
-    renderSalesProductList();
+    renderers.renderSalesProductList();
   });
 
   dom.orderSearchInput.addEventListener("input", (event) => {
     state.orderSearchTerm = event.target.value;
     state.pagination.orders = 1;
-    renderCartQueue();
+    renderers.renderCartQueue();
   });
 
   dom.showArchivedCarts.addEventListener("change", (event) => {
     state.showArchivedCarts = event.target.checked;
     state.pagination.orders = 1;
-    renderCartQueue();
+    renderers.renderCartQueue();
   });
 
   dom.showPaidOrders.addEventListener("change", (event) => {
     state.showPaidOrders = event.target.checked;
     state.pagination.orders = 1;
-    renderCartQueue();
+    renderers.renderCartQueue();
   });
 
   dom.salesProductList.addEventListener("change", (event) => {
@@ -52,66 +40,80 @@ export function registerSalesControllerEvents(deps) {
       try {
         const quantity = Number(qtyInput.value);
         if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
-        updateCartItem(qtyInput.dataset.salesInlineQty, { quantity: Number(quantity.toFixed(2)) });
-        renderSalesProductList();
+        actions.updateCartItem(qtyInput.dataset.salesInlineQty, { quantity: Number(quantity.toFixed(2)) });
+        renderers.renderSalesProductList();
       } catch (error) {
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
       return;
     }
-    const activeCart = getActiveCart();
+
+    const activeCart = queries.getActiveCart();
     if (!activeCart) {
-      showToast("Hãy mở giỏ hàng trước.", true);
+      actions.showToast("Hãy mở giỏ hàng trước.", true);
       checkbox.checked = false;
       return;
     }
+
     if (checkbox.checked) {
       try {
         const product = state.products.find((entry) => Number(entry.id) === Number(checkbox.dataset.pickProduct));
         if (!product) throw new Error("Không tìm thấy sản phẩm.");
-        updateCartItem(`${activeCart.id}:${product.id}`, { productId: product.id, productName: product.name, quantity: 1, unitPrice: Number(product.sale_price || 0), unit: product.unit }, { upsertByProduct: true });
-        renderSalesProductList();
-        renderCartItems();
-        renderActiveCartPanel();
+        actions.updateCartItem(
+          `${activeCart.id}:${product.id}`,
+          {
+            productId: product.id,
+            productName: product.name,
+            quantity: 1,
+            unitPrice: Number(product.sale_price || 0),
+            unit: product.unit,
+          },
+          { upsertByProduct: true }
+        );
+        renderers.renderSalesProductList();
+        renderers.renderCartItems();
+        renderers.renderActiveCartPanel();
       } catch (error) {
         checkbox.checked = false;
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
       return;
     }
+
     const item = activeCart.items.find((entry) => Number(entry.productId) === Number(checkbox.dataset.pickProduct));
     if (item) {
-      removeCartItem(item.id);
-      renderSalesProductList();
-      renderCartItems();
-      renderActiveCartPanel();
+      actions.removeCartItem(item.id);
+      renderers.renderSalesProductList();
+      renderers.renderCartItems();
+      renderers.renderActiveCartPanel();
     }
   });
 
   dom.salesProductList.addEventListener("click", async (event) => {
     const actionButton = event.target.closest("[data-sales-inline-action]");
     if (!actionButton) return;
-    const activeCart = getActiveCart();
+    const activeCart = queries.getActiveCart();
     if (!activeCart) {
-      showToast("Hãy mở giỏ hàng trước.", true);
+      actions.showToast("Hãy mở giỏ hàng trước.", true);
       return;
     }
+
     if (actionButton.dataset.salesInlineAction === "toggle-detail") {
       const productId = Number(actionButton.dataset.productId);
       state.expandedSalesProductId = state.expandedSalesProductId === productId ? null : productId;
-      renderSalesProductList();
+      renderers.renderSalesProductList();
       return;
     }
     if (actionButton.dataset.salesInlineAction === "collapse") {
       state.expandedSalesProductId = null;
-      renderSalesProductList();
+      renderers.renderSalesProductList();
       return;
     }
     if (actionButton.dataset.salesInlineAction === "remove") {
-      removeCartItem(actionButton.dataset.itemId);
-      renderSalesProductList();
-      renderCartItems();
-      renderActiveCartPanel();
+      actions.removeCartItem(actionButton.dataset.itemId);
+      renderers.renderSalesProductList();
+      renderers.renderCartItems();
+      renderers.renderActiveCartPanel();
       return;
     }
     if (actionButton.dataset.salesInlineAction === "save") {
@@ -122,13 +124,13 @@ export function registerSalesControllerEvents(deps) {
         const unitPrice = Number(priceInput?.value);
         if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
         if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new Error("Giá bán không hợp lệ.");
-        updateCartItem(actionButton.dataset.itemId, { quantity: Number(quantity.toFixed(2)), unitPrice });
-        renderSalesProductList();
-        renderCartItems();
-        renderActiveCartPanel();
-        showToast("Đã lưu dòng.");
+        actions.updateCartItem(actionButton.dataset.itemId, { quantity: Number(quantity.toFixed(2)), unitPrice });
+        renderers.renderSalesProductList();
+        renderers.renderCartItems();
+        renderers.renderActiveCartPanel();
+        actions.showToast("Đã lưu dòng.");
       } catch (error) {
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
       return;
     }
@@ -137,18 +139,18 @@ export function registerSalesControllerEvents(deps) {
       const unitPrice = Number(priceInput?.value);
       const product = state.products.find((entry) => Number(entry.id) === Number(actionButton.dataset.productId));
       if (!product) {
-        showToast("Không tìm thấy sản phẩm.", true);
+        actions.showToast("Không tìm thấy sản phẩm.", true);
         return;
       }
       if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-        showToast("Giá bán không hợp lệ.", true);
+        actions.showToast("Giá bán không hợp lệ.", true);
         return;
       }
-      if (!window.confirm(`Cập nhật giá bán chung của "${product.name}" thành ${formatCurrency(unitPrice)}?`)) return;
+      if (!window.confirm(`Cập nhật giá bán chung của "${product.name}" thành ${utils.formatCurrency(unitPrice)}?`)) return;
       try {
-        await updateProductSalePrice(actionButton.dataset.productId, unitPrice);
+        await actions.updateProductSalePrice(actionButton.dataset.productId, unitPrice);
       } catch (error) {
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
     }
   });
@@ -167,27 +169,28 @@ export function registerSalesControllerEvents(deps) {
   dom.cartItemsList.addEventListener("click", async (event) => {
     const deltaButton = event.target.closest("[data-qty-delta]");
     if (deltaButton) {
-      const cart = getActiveCart();
+      const cart = queries.getActiveCart();
       const item = cart?.items.find((entry) => entry.id === deltaButton.dataset.itemId);
       if (!item) return;
       const nextQuantity = Number((Number(item.quantity) + Number(deltaButton.dataset.qtyDelta)).toFixed(2));
       if (nextQuantity <= 0) {
-        removeCartItem(item.id);
+        actions.removeCartItem(item.id);
       } else {
-        updateCartItem(item.id, { quantity: nextQuantity });
+        actions.updateCartItem(item.id, { quantity: nextQuantity });
       }
-      renderCartItems();
-      renderSalesProductList();
-      renderActiveCartPanel();
+      renderers.renderCartItems();
+      renderers.renderSalesProductList();
+      renderers.renderActiveCartPanel();
       return;
     }
+
     const lineButton = event.target.closest("[data-line-action]");
     if (!lineButton) return;
     if (lineButton.dataset.lineAction === "remove") {
-      removeCartItem(lineButton.dataset.itemId);
-      renderCartItems();
-      renderSalesProductList();
-      renderActiveCartPanel();
+      actions.removeCartItem(lineButton.dataset.itemId);
+      renderers.renderCartItems();
+      renderers.renderSalesProductList();
+      renderers.renderActiveCartPanel();
       return;
     }
     if (lineButton.dataset.lineAction === "save") {
@@ -198,13 +201,13 @@ export function registerSalesControllerEvents(deps) {
         const unitPrice = Number(priceInput?.value);
         if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
         if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new Error("Giá bán không hợp lệ.");
-        updateCartItem(lineButton.dataset.itemId, { quantity: Number(quantity.toFixed(2)), unitPrice });
-        renderCartItems();
-        renderSalesProductList();
-        renderActiveCartPanel();
-        showToast("Đã lưu dòng.");
+        actions.updateCartItem(lineButton.dataset.itemId, { quantity: Number(quantity.toFixed(2)), unitPrice });
+        renderers.renderCartItems();
+        renderers.renderSalesProductList();
+        renderers.renderActiveCartPanel();
+        actions.showToast("Đã lưu dòng.");
       } catch (error) {
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
       return;
     }
@@ -212,13 +215,13 @@ export function registerSalesControllerEvents(deps) {
       const priceInput = dom.cartItemsList.querySelector(`[data-price-input-cart="${lineButton.dataset.itemId}"]`);
       const unitPrice = Number(priceInput?.value);
       if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-        showToast("Giá bán không hợp lệ.", true);
+        actions.showToast("Giá bán không hợp lệ.", true);
         return;
       }
       try {
-        await updateProductSalePrice(lineButton.dataset.productId, unitPrice);
+        await actions.updateProductSalePrice(lineButton.dataset.productId, unitPrice);
       } catch (error) {
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
     }
   });
@@ -237,77 +240,77 @@ export function registerSalesControllerEvents(deps) {
   dom.activeCartPanel.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-cart-action]");
     if (!button) return;
-    const cart = getActiveCart();
+    const cart = queries.getActiveCart();
     if (button.dataset.cartAction === "toggle-panel") {
       state.activeCartPanelCollapsed = !state.activeCartPanelCollapsed;
-      renderActiveCartPanel();
+      renderers.renderActiveCartPanel();
       return;
     }
     if (button.dataset.cartAction === "close") {
       state.activeCartId = null;
-      saveAndRenderAll(["carts"]);
-      renderCreateOrderEntryState();
+      actions.saveAndRenderAll(["carts"]);
+      renderers.renderCreateOrderEntryState();
       return;
     }
     if (!cart) return;
     if (button.dataset.cartAction === "print") {
-      printCart(cart.id);
+      actions.printCart(cart.id);
       return;
     }
     if (button.dataset.cartAction === "checkout") {
       try {
-        await checkoutActiveCart();
+        await actions.checkoutActiveCart();
       } catch (error) {
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
       return;
     }
     if (button.dataset.cartAction === "cancel") {
       cart.status = "cancelled";
-      saveAndRenderAll(["carts"]);
+      actions.saveAndRenderAll(["carts"]);
       return;
     }
     if (button.dataset.cartAction === "delete") {
       state.carts = state.carts.filter((entry) => entry.id !== cart.id);
       state.activeCartId = null;
-      saveAndRenderAll(["carts"]);
+      actions.saveAndRenderAll(["carts"]);
     }
   });
 
   dom.selectedCartToggleButton?.addEventListener("click", () => {
     state.selectedCartItemsCollapsed = !state.selectedCartItemsCollapsed;
-    renderCartItems();
+    renderers.renderCartItems();
   });
 
   dom.cartQueueList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-cart-list-action]");
     if (!button) return;
-    const cart = getCartById(button.dataset.cartId);
+    const cart = queries.getCartById(button.dataset.cartId);
     if (!cart) return;
     if (button.dataset.cartListAction === "open") {
       state.activeCartId = cart.id;
       state.activeMenu = cart.status === "draft" ? "create-order" : "orders";
-      saveAndRenderAll(["carts"]);
+      actions.saveAndRenderAll(["carts"]);
       return;
     }
     if (button.dataset.cartListAction === "print") {
-      printCart(cart.id);
+      actions.printCart(cart.id);
       return;
     }
     if (button.dataset.cartListAction === "paid") {
       cart.paymentStatus = "paid";
-      saveAndRenderAll(["carts"]);
+      actions.saveAndRenderAll(["carts"]);
       return;
     }
     if (button.dataset.cartListAction === "cancel") {
       cart.status = "cancelled";
-      saveAndRenderAll(["carts"]);
+      actions.saveAndRenderAll(["carts"]);
       return;
     }
     if (button.dataset.cartListAction === "delete") {
       state.carts = state.carts.filter((entry) => entry.id !== cart.id);
       if (state.activeCartId === cart.id) state.activeCartId = null;
-      saveAndRenderAll(["carts"]);
+      actions.saveAndRenderAll(["carts"]);
     }
   });
 }

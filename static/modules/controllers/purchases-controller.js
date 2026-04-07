@@ -1,98 +1,77 @@
-export function registerPurchasesControllerEvents(deps) {
+export function registerPurchasesControllerEvents(contract) {
   const {
     state,
     dom,
-    createPurchaseDraftIfMissing,
-    saveAndRenderAll,
-    focusPurchaseSuggestions,
-    showToast,
-    renderPurchasePanel,
-    getActivePurchase,
-    updatePurchase,
-    getProductById,
-    canEditPurchase,
-    canDeletePurchase,
-    canMarkPurchasePaid,
-    nowIso,
-    apiRequest,
-    persistCollections,
-    updateProductPrice,
-    refreshData,
-    beginSupplierCreateFromPurchase,
-    setSkipNextPurchaseSupplierChangePersist,
-    getSkipNextPurchaseSupplierChangePersist,
-    focusPurchaseOrders,
-    switchMenu,
-    renderPurchaseSuggestions,
-    renderPurchaseOrders,
-    mobileQuery,
-    addSuggestionToPurchase,
-  } = deps;
+    actions,
+    renderers,
+    queries,
+    utils,
+  } = contract;
 
   dom.createPurchaseDraftButton.addEventListener("click", () => {
-    createPurchaseDraftIfMissing();
-    saveAndRenderAll(["purchases"]);
-    focusPurchaseSuggestions();
-    showToast("Đã tạo phiếu nhập nháp.");
+    actions.createPurchaseDraftIfMissing();
+    actions.saveAndRenderAll(["purchases"]);
+    actions.focusPurchaseSuggestions();
+    actions.showToast("Đã tạo phiếu nhập nháp.");
   });
 
   dom.togglePurchasePanelButton.addEventListener("click", () => {
     state.purchasePanelCollapsed = !state.purchasePanelCollapsed;
-    renderPurchasePanel();
+    renderers.renderPurchasePanel();
   });
 
   dom.purchaseSupplierInput.addEventListener("change", () => {
-    if (getSkipNextPurchaseSupplierChangePersist()) {
-      setSkipNextPurchaseSupplierChangePersist(false);
+    if (queries.getSkipNextPurchaseSupplierChangePersist()) {
+      actions.setSkipNextPurchaseSupplierChangePersist(false);
       return;
     }
-    const purchase = getActivePurchase();
+    const purchase = queries.getActivePurchase();
     if (!purchase) return;
-    updatePurchase(purchase.id, () => ({
+    actions.updatePurchase(purchase.id, () => ({
       supplierName: dom.purchaseSupplierInput.value.trim(),
       note: dom.purchaseNoteInput.value.trim(),
     }));
-    saveAndRenderAll(["purchases"]);
+    actions.saveAndRenderAll(["purchases"]);
   });
 
   dom.purchaseNoteInput.addEventListener("change", () => {
-    const purchase = getActivePurchase();
+    const purchase = queries.getActivePurchase();
     if (!purchase) return;
-    updatePurchase(purchase.id, () => ({
+    actions.updatePurchase(purchase.id, () => ({
       supplierName: dom.purchaseSupplierInput.value.trim(),
       note: dom.purchaseNoteInput.value.trim(),
     }));
-    saveAndRenderAll(["purchases"]);
+    actions.saveAndRenderAll(["purchases"]);
   });
 
   dom.purchaseSupplierMenuButton?.addEventListener("pointerdown", () => {
-    setSkipNextPurchaseSupplierChangePersist(true);
+    actions.setSkipNextPurchaseSupplierChangePersist(true);
   });
 
   dom.purchaseSupplierMenuButton?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    setSkipNextPurchaseSupplierChangePersist(false);
-    beginSupplierCreateFromPurchase();
+    actions.setSkipNextPurchaseSupplierChangePersist(false);
+    actions.beginSupplierCreateFromPurchase();
   });
 
   dom.purchaseSearchInput.addEventListener("input", (event) => {
     state.purchaseSearchTerm = event.target.value;
     state.pagination.purchaseSuggestions = 1;
-    renderPurchaseSuggestions();
-    renderPurchaseOrders();
+    renderers.renderPurchaseSuggestions();
+    renderers.renderPurchaseOrders();
   });
 
   dom.purchaseSuggestionList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-purchase-suggestion-action]");
     if (!button) return;
     try {
-      addSuggestionToPurchase(button.dataset.productId, button.dataset.quantity, getProductById(button.dataset.productId)?.price || 0);
-      state.purchasePanelCollapsed = mobileQuery.matches;
-      renderPurchasePanel();
-      showToast("Đã thêm vào phiếu nhập.");
+      actions.addSuggestionToPurchase(button.dataset.productId, button.dataset.quantity, queries.getProductById(button.dataset.productId)?.price || 0);
+      state.purchasePanelCollapsed = utils.mobileQuery.matches;
+      renderers.renderPurchasePanel();
+      actions.showToast("Đã thêm vào phiếu nhập.");
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
@@ -100,29 +79,30 @@ export function registerPurchasesControllerEvents(deps) {
     const selectedToggleButton = event.target.closest("[data-purchase-selected-action]");
     if (selectedToggleButton?.dataset.purchaseSelectedAction === "toggle") {
       state.selectedPurchaseItemsCollapsed = !state.selectedPurchaseItemsCollapsed;
-      renderPurchasePanel();
+      renderers.renderPurchasePanel();
       return;
     }
     const panelButton = event.target.closest("[data-purchase-panel-action]");
     if (panelButton) {
       if (panelButton.dataset.purchasePanelAction === "open") {
         state.purchasePanelCollapsed = false;
-        renderPurchasePanel();
+        renderers.renderPurchasePanel();
         return;
       }
       if (panelButton.dataset.purchasePanelAction === "create") {
-        createPurchaseDraftIfMissing();
-        saveAndRenderAll(["purchases"]);
-        focusPurchaseSuggestions();
+        actions.createPurchaseDraftIfMissing();
+        actions.saveAndRenderAll(["purchases"]);
+        actions.focusPurchaseSuggestions();
       }
       return;
     }
+
     const itemButton = event.target.closest("[data-purchase-item-action]");
     if (itemButton) {
-      const purchase = getActivePurchase();
+      const purchase = queries.getActivePurchase();
       if (!purchase) return;
-      if (!canEditPurchase(purchase)) {
-        showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
+      if (!queries.canEditPurchase(purchase)) {
+        actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
         return;
       }
       if (itemButton.dataset.purchaseItemAction === "save") {
@@ -131,117 +111,117 @@ export function registerPurchasesControllerEvents(deps) {
         const quantity = Number(qtyInput?.value);
         const unitCost = Number(costInput?.value);
         if (!Number.isFinite(quantity) || quantity <= 0) {
-          showToast("Số lượng nhập phải lớn hơn 0.", true);
+          actions.showToast("Số lượng nhập phải lớn hơn 0.", true);
           return;
         }
         if (!Number.isFinite(unitCost) || unitCost < 0) {
-          showToast("Giá nhập không hợp lệ.", true);
+          actions.showToast("Giá nhập không hợp lệ.", true);
           return;
         }
-        updatePurchase(purchase.id, (currentPurchase) => ({
+        actions.updatePurchase(purchase.id, (currentPurchase) => ({
           items: currentPurchase.items.map((item) => item.id === itemButton.dataset.purchaseItemId ? { ...item, quantity: Number(quantity.toFixed(2)), unitCost } : item),
           supplierName: dom.purchaseSupplierInput.value.trim(),
           note: dom.purchaseNoteInput.value.trim(),
         }));
-        saveAndRenderAll(["purchases"]);
-        showToast("Đã lưu dòng nhập hàng.");
+        actions.saveAndRenderAll(["purchases"]);
+        actions.showToast("Đã lưu dòng nhập hàng.");
         return;
       }
       if (itemButton.dataset.purchaseItemAction === "update-default-cost") {
         const costInput = dom.purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
         const unitCost = Number(costInput?.value);
         if (!Number.isFinite(unitCost) || unitCost < 0) {
-          showToast("Giá nhập không hợp lệ.", true);
+          actions.showToast("Giá nhập không hợp lệ.", true);
           return;
         }
-        const product = getProductById(itemButton.dataset.productId);
+        const product = queries.getProductById(itemButton.dataset.productId);
         if (!product) {
-          showToast("Không tìm thấy sản phẩm.", true);
+          actions.showToast("Không tìm thấy sản phẩm.", true);
           return;
         }
         if (!window.confirm(`Cập nhật giá nhập chung của "${product.name}" thành ${unitCost.toLocaleString("vi-VN")} đ?\nGiá mặc định này sẽ được dùng cho các phiếu nhập mới sau đó.`)) {
           return;
         }
-        updatePurchase(purchase.id, (currentPurchase) => ({
+        actions.updatePurchase(purchase.id, (currentPurchase) => ({
           items: currentPurchase.items.map((item) => item.id === itemButton.dataset.purchaseItemId ? { ...item, unitCost } : item),
           supplierName: dom.purchaseSupplierInput.value.trim(),
           note: dom.purchaseNoteInput.value.trim(),
         }));
-        await persistCollections(["purchases"]);
-        await updateProductPrice(itemButton.dataset.productId, unitCost);
+        await actions.persistCollections(["purchases"]);
+        await actions.updateProductPrice(itemButton.dataset.productId, unitCost);
         return;
       }
-      updatePurchase(purchase.id, (currentPurchase) => ({
+      actions.updatePurchase(purchase.id, (currentPurchase) => ({
         items: currentPurchase.items
           .map((item) => item.id === itemButton.dataset.purchaseItemId ? { ...item, quantity: itemButton.dataset.purchaseItemAction === "add-one" ? Number((Number(item.quantity) + 1).toFixed(2)) : item.quantity } : item)
           .filter((item) => itemButton.dataset.purchaseItemAction === "remove" ? item.id !== itemButton.dataset.purchaseItemId : true),
         supplierName: dom.purchaseSupplierInput.value.trim(),
         note: dom.purchaseNoteInput.value.trim(),
       }));
-      saveAndRenderAll(["purchases"]);
+      actions.saveAndRenderAll(["purchases"]);
       return;
     }
 
     const actionButton = event.target.closest("[data-purchase-action]");
     if (!actionButton) return;
-    const purchase = getActivePurchase();
+    const purchase = queries.getActivePurchase();
     if (!purchase) {
-      showToast("Không có phiếu nhập đang mở.", true);
+      actions.showToast("Không có phiếu nhập đang mở.", true);
       return;
     }
     if (actionButton.dataset.purchaseAction === "collapse") {
       state.purchasePanelCollapsed = true;
-      renderPurchasePanel();
+      renderers.renderPurchasePanel();
       return;
     }
     if (actionButton.dataset.purchaseAction === "delete") {
-      if (!canDeletePurchase(purchase)) {
-        showToast("Chỉ được xóa hẳn phiếu nhập nháp.", true);
+      if (!queries.canDeletePurchase(purchase)) {
+        actions.showToast("Chỉ được xóa hẳn phiếu nhập nháp.", true);
         return;
       }
       state.purchases = state.purchases.filter((entry) => entry.id !== purchase.id);
       state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
-      saveAndRenderAll(["purchases"]);
-      showToast("Đã xóa phiếu nhập.");
+      actions.saveAndRenderAll(["purchases"]);
+      actions.showToast("Đã xóa phiếu nhập.");
       return;
     }
     if (actionButton.dataset.purchaseAction === "mark-ordered") {
-      if (!canEditPurchase(purchase)) {
-        showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
+      if (!queries.canEditPurchase(purchase)) {
+        actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
         return;
       }
-      updatePurchase(purchase.id, () => ({ status: "ordered", supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
-      saveAndRenderAll(["purchases"]);
-      showToast("Đã cập nhật trạng thái đặt hàng.");
+      actions.updatePurchase(purchase.id, () => ({ status: "ordered", supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
+      actions.saveAndRenderAll(["purchases"]);
+      actions.showToast("Đã cập nhật trạng thái đặt hàng.");
       return;
     }
     if (actionButton.dataset.purchaseAction === "cancel") {
-      if (!canEditPurchase(purchase)) {
-        showToast("Phiếu nhập đã khóa, không thể hủy trực tiếp.", true);
+      if (!queries.canEditPurchase(purchase)) {
+        actions.showToast("Phiếu nhập đã khóa, không thể hủy trực tiếp.", true);
         return;
       }
-      updatePurchase(purchase.id, () => ({ status: "cancelled", supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
-      saveAndRenderAll(["purchases"]);
-      showToast("Đã hủy phiếu nhập.");
+      actions.updatePurchase(purchase.id, () => ({ status: "cancelled", supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
+      actions.saveAndRenderAll(["purchases"]);
+      actions.showToast("Đã hủy phiếu nhập.");
       return;
     }
     if (actionButton.dataset.purchaseAction === "mark-paid") {
-      if (!canMarkPurchasePaid(purchase)) {
-        showToast("Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho.", true);
+      if (!queries.canMarkPurchasePaid(purchase)) {
+        actions.showToast("Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho.", true);
         return;
       }
-      updatePurchase(purchase.id, () => ({ status: "paid", paidAt: nowIso(), supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
-      saveAndRenderAll(["purchases"]);
-      showToast("Đã cập nhật phiếu nhập là đã thanh toán.");
+      actions.updatePurchase(purchase.id, () => ({ status: "paid", paidAt: utils.nowIso(), supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
+      actions.saveAndRenderAll(["purchases"]);
+      actions.showToast("Đã cập nhật phiếu nhập là đã thanh toán.");
       return;
     }
     if (actionButton.dataset.purchaseAction === "receive") {
-      if (!canEditPurchase(purchase)) {
-        showToast("Phiếu nhập đã khóa, không thể nhập kho lại.", true);
+      if (!queries.canEditPurchase(purchase)) {
+        actions.showToast("Phiếu nhập đã khóa, không thể nhập kho lại.", true);
         return;
       }
       try {
-        const data = await apiRequest("/api/purchases/receive", {
+        const data = await actions.apiRequest("/api/purchases/receive", {
           method: "POST",
           body: JSON.stringify({
             supplier_name: dom.purchaseSupplierInput.value.trim(),
@@ -249,14 +229,14 @@ export function registerPurchasesControllerEvents(deps) {
             items: purchase.items.map((item) => ({ product_id: item.productId, quantity: item.quantity, unit_cost: item.unitCost })),
           }),
         });
-        state.purchases = state.purchases.map((entry) => entry.id === purchase.id ? { ...entry, status: "received", receiptCode: data.receipt?.receipt_code || "", receivedAt: data.receipt?.created_at || nowIso(), updatedAt: data.receipt?.created_at || nowIso() } : entry);
+        state.purchases = state.purchases.map((entry) => entry.id === purchase.id ? { ...entry, status: "received", receiptCode: data.receipt?.receipt_code || "", receivedAt: data.receipt?.created_at || utils.nowIso(), updatedAt: data.receipt?.created_at || utils.nowIso() } : entry);
         state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
-        saveAndRenderAll();
-        await persistCollections(["purchases"]);
-        await refreshData();
-        showToast(data.message);
+        actions.saveAndRenderAll();
+        await actions.persistCollections(["purchases"]);
+        await actions.refreshData();
+        actions.showToast(data.message);
       } catch (error) {
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
     }
   });
@@ -278,24 +258,24 @@ export function registerPurchasesControllerEvents(deps) {
     if (button.dataset.purchaseListAction === "open") {
       state.activePurchaseId = button.dataset.purchaseId;
       state.purchasePanelCollapsed = false;
-      saveAndRenderAll();
+      actions.saveAndRenderAll();
     }
   });
 
   document.addEventListener("click", (event) => {
     const versionButton = event.target.closest("#appVersionButton");
     if (versionButton) {
-      switchMenu("about");
+      actions.switchMenu("about");
       return;
     }
     const shortcutButton = event.target.closest("[data-purchase-shortcut]");
     if (!shortcutButton) return;
     if (shortcutButton.dataset.purchaseShortcut === "orders") {
-      focusPurchaseOrders();
+      actions.focusPurchaseOrders();
       return;
     }
     if (shortcutButton.dataset.purchaseShortcut === "suggestions") {
-      focusPurchaseSuggestions();
+      actions.focusPurchaseSuggestions();
     }
   });
 }

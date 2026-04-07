@@ -23,6 +23,18 @@ Tài liệu này dành cho người trực tiếp dùng ứng dụng hằng ngà
 - Trên điện thoại, menu nổi, tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi bạn chạm ra ngoài; chạm lại vào phần mép còn lộ ra để mở đúng cụm cần dùng
 - Nếu có máy khác vừa cập nhật dữ liệu, app sẽ tự nạp lại khi bạn không còn gõ dở ở ô nhập hiện tại
 
+## 2.1. Viết tắt màn hình
+
+- `SP`: Sản phẩm
+- `NH`: Nhập hàng
+- `AD`: Admin
+- `KP`: Khôi phục
+- `XH`: Xuất hàng
+- `TK`: Tồn kho
+- `ĐH`: Đơn hàng
+- `NCC`: Nhà cung cấp
+- `KH`: Khách hàng
+
 ## 3. Luồng làm việc hằng ngày
 
 ### Luồng A: Kiểm tra tồn kho đầu ngày

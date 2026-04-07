@@ -1,20 +1,12 @@
-export function registerProductsControllerEvents(deps) {
+export function registerProductsControllerEvents(contract) {
   const {
     state,
     dom,
-    apiRequest,
-    refreshData,
-    switchMenu,
-    prefillProduct,
-    showToast,
-    renderProductSections,
-    renderProductManageList,
-    getProductById,
-    getProductDeleteImpact,
-    formatQuantity,
-    openProductFormSection,
-    openProductHistorySection,
-  } = deps;
+    actions,
+    renderers,
+    queries,
+    utils,
+  } = contract;
 
   dom.productForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -23,11 +15,11 @@ export function registerProductsControllerEvents(deps) {
 
     try {
       const data = state.editingProductId
-        ? await apiRequest(`/api/products/${state.editingProductId}`, {
+        ? await actions.apiRequest(`/api/products/${state.editingProductId}`, {
             method: "PUT",
             body: JSON.stringify(payload),
           })
-        : await apiRequest("/api/products", {
+        : await actions.apiRequest("/api/products", {
             method: "POST",
             body: JSON.stringify(payload),
           });
@@ -41,12 +33,12 @@ export function registerProductsControllerEvents(deps) {
       if (dom.mobileQuery.matches) {
         state.productFormCollapsed = true;
       }
-      await refreshData();
-      switchMenu("inventory");
-      prefillProduct(data.product.id);
-      showToast(data.message);
+      await actions.refreshData();
+      actions.switchMenu("inventory");
+      actions.prefillProduct(data.product.id);
+      actions.showToast(data.message);
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
@@ -61,64 +53,62 @@ export function registerProductsControllerEvents(deps) {
     if (dom.mobileQuery.matches) {
       state.productFormCollapsed = true;
     }
-    renderProductSections();
+    renderers.renderProductSections();
   });
 
   dom.productManageSearchInput.addEventListener("input", (event) => {
     state.productManageSearchTerm = event.target.value;
     state.pagination.productManage = 1;
-    renderProductManageList();
+    renderers.renderProductManageList();
   });
 
   dom.productHistoryActorInput?.addEventListener("input", async (event) => {
     state.productHistoryActorFilter = event.target.value;
     try {
-      await refreshData();
+      await actions.refreshData();
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
   dom.productHistoryStartDateInput?.addEventListener("change", async (event) => {
     state.productHistoryStartDate = event.target.value;
     try {
-      await refreshData();
+      await actions.refreshData();
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
   dom.productHistoryEndDateInput?.addEventListener("change", async (event) => {
     state.productHistoryEndDate = event.target.value;
     try {
-      await refreshData();
+      await actions.refreshData();
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
   dom.productManageList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-product-manage-action]");
-    if (!button) {
-      return;
-    }
+    if (!button) return;
 
     const productId = Number(button.dataset.productId);
-    const product = getProductById(productId);
+    const product = queries.getProductById(productId);
     if (!product) {
-      showToast("Không tìm thấy sản phẩm.", true);
+      actions.showToast("Không tìm thấy sản phẩm.", true);
       return;
     }
 
     if (button.dataset.productManageAction === "edit") {
       state.editingProductId = productId;
-      renderProductManageList();
+      renderers.renderProductManageList();
       return;
     }
 
     if (button.dataset.productManageAction === "cancel") {
       state.editingProductId = null;
-      renderProductManageList();
+      renderers.renderProductManageList();
       return;
     }
 
@@ -127,7 +117,7 @@ export function registerProductsControllerEvents(deps) {
         dom.productManageList.querySelector(`[data-manage-input="${field}"][data-product-id="${productId}"]`)?.value || "";
 
       try {
-        const data = await apiRequest(`/api/products/${productId}`, {
+        const data = await actions.apiRequest(`/api/products/${productId}`, {
           method: "PUT",
           body: JSON.stringify({
             name: getValue("name"),
@@ -139,19 +129,19 @@ export function registerProductsControllerEvents(deps) {
           }),
         });
         state.editingProductId = null;
-        await refreshData();
-        showToast(data.message);
+        await actions.refreshData();
+        actions.showToast(data.message);
       } catch (error) {
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
       return;
     }
 
     if (button.dataset.productManageAction === "delete") {
-      const impact = getProductDeleteImpact(productId);
+      const impact = queries.getProductDeleteImpact(productId);
       const warnings = [
         `Sản phẩm: ${product.name}`,
-        `Tồn hiện tại: ${formatQuantity(product.current_stock)} ${product.unit}`,
+        `Tồn hiện tại: ${utils.formatQuantity(product.current_stock)} ${product.unit}`,
         "Nếu xóa, sản phẩm sẽ bị ẩn khỏi tồn kho, tạo đơn, nhập hàng và danh mục đang dùng.",
         "Lịch sử giao dịch sản phẩm vẫn được giữ lại.",
       ];
@@ -163,45 +153,41 @@ export function registerProductsControllerEvents(deps) {
       }
       warnings.push("Chỉ nên xóa khi mặt hàng đã ngừng bán và tồn kho bằng 0.");
 
-      if (!window.confirm(warnings.join("\n"))) {
-        return;
-      }
+      if (!window.confirm(warnings.join("\n"))) return;
 
       try {
-        const data = await apiRequest(`/api/products/${productId}`, {
+        const data = await actions.apiRequest(`/api/products/${productId}`, {
           method: "DELETE",
         });
-        await refreshData();
-        showToast(data.message);
+        await actions.refreshData();
+        actions.showToast(data.message);
       } catch (error) {
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
     }
   });
 
   dom.productFormToggleButton.addEventListener("click", () => {
     state.productFormCollapsed = !state.productFormCollapsed;
-    renderProductSections();
+    renderers.renderProductSections();
   });
 
   dom.productHistoryToggleButton.addEventListener("click", () => {
     state.productHistoryCollapsed = !state.productHistoryCollapsed;
-    renderProductSections();
+    renderers.renderProductSections();
   });
 
   document.addEventListener("click", (event) => {
     const shortcutButton = event.target.closest("[data-product-shortcut]");
-    if (!shortcutButton) {
-      return;
-    }
+    if (!shortcutButton) return;
 
     if (shortcutButton.dataset.productShortcut === "form") {
-      openProductFormSection({ focus: true });
+      actions.openProductFormSection({ focus: true });
       return;
     }
 
     if (shortcutButton.dataset.productShortcut === "history") {
-      openProductHistorySection();
+      actions.openProductHistorySection();
     }
   });
 }

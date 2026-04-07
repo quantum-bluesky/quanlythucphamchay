@@ -1,159 +1,137 @@
-export function registerCoreControllerEvents(deps) {
+export function registerCoreControllerEvents(contract) {
   const {
     state,
     dom,
-    setQuickPanelCollapsed,
-    scrollPageTo,
-    navigateMenuHistory,
-    setHelpOpen,
-    revealEdgeHiddenClusterFromViewportClick,
-    interceptEdgeHiddenClusterReveal,
-    revealFloatingCluster,
-    setFloatingSearchExpanded,
-    syncFloatingSearchToSource,
-    switchMenu,
-    writeStorage,
-    storageKeys,
-    renderMenu,
-    getFloatingSearchSourceShell,
-    getFloatingSearchSourceInput,
-    hasFloatingSearchValue,
-    isMobileFloatingClusterMode,
-    setFloatingClusterAutoHidden,
-    updatePagination,
-    applyMobileCollapsedDefaults,
-    resetFloatingClusterAutoHide,
-    renderAll,
-    renderScreenToolbox,
-    checkForRemoteUpdates,
-  } = deps;
+    actions,
+    renderers,
+    queries,
+    utils,
+  } = contract;
 
   dom.quickPanelToggle.addEventListener("click", () => {
     const collapsed = dom.quickPanel.classList.contains("is-collapsed");
-    setQuickPanelCollapsed(!collapsed);
+    actions.setQuickPanelCollapsed(!collapsed);
   });
 
   dom.scrollTopButton.addEventListener("click", () => {
-    scrollPageTo("top");
+    actions.scrollPageTo("top");
   });
 
   dom.scrollBottomButton.addEventListener("click", () => {
-    scrollPageTo("bottom");
+    actions.scrollPageTo("bottom");
   });
 
   dom.navBackButton.addEventListener("click", () => {
-    navigateMenuHistory("back");
+    actions.navigateMenuHistory("back");
   });
 
   dom.navForwardButton.addEventListener("click", () => {
-    navigateMenuHistory("forward");
+    actions.navigateMenuHistory("forward");
   });
 
   dom.openHelpButton.addEventListener("click", () => {
-    setHelpOpen(!state.helpOpen);
+    actions.setHelpOpen(!state.helpOpen);
   });
 
   document.addEventListener("click", (event) => {
-    revealEdgeHiddenClusterFromViewportClick(event);
+    actions.revealEdgeHiddenClusterFromViewportClick(event);
   }, true);
 
   dom.menuPanel.addEventListener("click", (event) => {
-    interceptEdgeHiddenClusterReveal(event, "menu", dom.menuPanel);
+    actions.interceptEdgeHiddenClusterReveal(event, "menu", dom.menuPanel);
   }, true);
 
   dom.floatingSearchDock.addEventListener("click", (event) => {
-    interceptEdgeHiddenClusterReveal(event, "search", dom.floatingSearchDock);
+    actions.interceptEdgeHiddenClusterReveal(event, "search", dom.floatingSearchDock);
   }, true);
 
   dom.screenToolbox?.addEventListener("click", (event) => {
-    interceptEdgeHiddenClusterReveal(event, "toolbox", dom.screenToolbox);
+    actions.interceptEdgeHiddenClusterReveal(event, "toolbox", dom.screenToolbox);
   }, true);
 
   dom.floatingSearchToggle.addEventListener("click", () => {
-    revealFloatingCluster("search");
+    actions.revealFloatingCluster("search");
     if (state.floatingSearchExpanded) {
-      setFloatingSearchExpanded(false);
+      actions.setFloatingSearchExpanded(false);
       return;
     }
-    setFloatingSearchExpanded(true, { focus: true });
+    actions.setFloatingSearchExpanded(true, { focus: true });
   });
 
   dom.floatingSearchInput.addEventListener("focus", () => {
-    revealFloatingCluster("search");
-    setFloatingSearchExpanded(true);
+    actions.revealFloatingCluster("search");
+    actions.setFloatingSearchExpanded(true);
   });
 
   dom.floatingSearchInput.addEventListener("input", (event) => {
-    syncFloatingSearchToSource(event.target.value);
+    actions.syncFloatingSearchToSource(event.target.value);
   });
 
   dom.closeHelpButton.addEventListener("click", () => {
-    setHelpOpen(false);
+    actions.setHelpOpen(false);
   });
 
   dom.helpModal.addEventListener("click", (event) => {
     if (event.target.closest("[data-help-close='backdrop']")) {
-      setHelpOpen(false);
+      actions.setHelpOpen(false);
       return;
     }
     const helpMenuButton = event.target.closest("[data-help-menu]");
     if (helpMenuButton) {
-      switchMenu(helpMenuButton.dataset.helpMenu);
-      setHelpOpen(false);
+      actions.switchMenu(helpMenuButton.dataset.helpMenu);
+      actions.setHelpOpen(false);
     }
   });
 
   dom.menuPanel.addEventListener("click", (event) => {
-    revealFloatingCluster("menu");
+    actions.revealFloatingCluster("menu");
     if (event.target.closest("#menuToggleButton")) {
       state.menuCollapsed = !state.menuCollapsed;
-      writeStorage(storageKeys.menuCollapsed, state.menuCollapsed);
-      renderMenu();
+      actions.writeStorage(utils.storageKeys.menuCollapsed, state.menuCollapsed);
+      renderers.renderMenu();
       return;
     }
 
     const menuButton = event.target.closest("[data-menu]");
     if (menuButton) {
-      switchMenu(menuButton.dataset.menu);
+      actions.switchMenu(menuButton.dataset.menu);
     }
   });
 
   document.addEventListener("click", (event) => {
-    if (isMobileFloatingClusterMode()) {
+    if (queries.isMobileFloatingClusterMode()) {
       if (!dom.menuPanel.contains(event.target)) {
-        setFloatingClusterAutoHidden("menu", true);
+        actions.setFloatingClusterAutoHidden("menu", true);
       }
       if (dom.screenToolbox && !dom.screenToolbox.contains(event.target)) {
-        setFloatingClusterAutoHidden("toolbox", true);
+        actions.setFloatingClusterAutoHidden("toolbox", true);
       }
     }
 
     if (
       !dom.floatingSearchDock.hidden &&
       !dom.floatingSearchDock.contains(event.target) &&
-      !getFloatingSearchSourceShell()?.contains(event.target) &&
-      !hasFloatingSearchValue()
+      !queries.getFloatingSearchSourceShell()?.contains(event.target) &&
+      !queries.hasFloatingSearchValue()
     ) {
-      setFloatingSearchExpanded(false);
-      setFloatingClusterAutoHidden("search", true);
+      actions.setFloatingSearchExpanded(false);
+      actions.setFloatingClusterAutoHidden("search", true);
     }
 
     const goMenuButton = event.target.closest("[data-go-menu]");
     if (goMenuButton && !goMenuButton.closest("#menuPanel")) {
-      switchMenu(goMenuButton.dataset.goMenu);
+      actions.switchMenu(goMenuButton.dataset.goMenu);
       return;
     }
 
     const button = event.target.closest("[data-page-action]");
-    if (!button) {
-      return;
-    }
-    updatePagination(button.dataset.pageKey, button.dataset.pageAction);
+    if (!button) return;
+    actions.updatePagination(button.dataset.pageKey, button.dataset.pageAction);
   });
 
   document.addEventListener("focusin", (event) => {
-    const sourceInput = getFloatingSearchSourceInput();
-    const sourceShell = getFloatingSearchSourceShell();
+    const sourceInput = queries.getFloatingSearchSourceInput();
+    const sourceShell = queries.getFloatingSearchSourceShell();
     const insideFloatingSearch = (
       event.target === dom.floatingSearchInput ||
       event.target === sourceInput ||
@@ -162,55 +140,55 @@ export function registerCoreControllerEvents(deps) {
     );
 
     if (dom.menuPanel.contains(event.target)) {
-      revealFloatingCluster("menu");
-    } else if (isMobileFloatingClusterMode()) {
-      setFloatingClusterAutoHidden("menu", true);
+      actions.revealFloatingCluster("menu");
+    } else if (queries.isMobileFloatingClusterMode()) {
+      actions.setFloatingClusterAutoHidden("menu", true);
     }
 
     if (dom.screenToolbox?.contains(event.target)) {
-      revealFloatingCluster("toolbox");
-    } else if (isMobileFloatingClusterMode()) {
-      setFloatingClusterAutoHidden("toolbox", true);
+      actions.revealFloatingCluster("toolbox");
+    } else if (queries.isMobileFloatingClusterMode()) {
+      actions.setFloatingClusterAutoHidden("toolbox", true);
     }
 
     if (insideFloatingSearch) {
-      revealFloatingCluster("search");
+      actions.revealFloatingCluster("search");
     }
 
     if (event.target === dom.floatingSearchInput || event.target === sourceInput) {
-      setFloatingSearchExpanded(true);
+      actions.setFloatingSearchExpanded(true);
       return;
     }
-    if (!insideFloatingSearch && !hasFloatingSearchValue()) {
-      setFloatingSearchExpanded(false);
-      setFloatingClusterAutoHidden("search", true);
+    if (!insideFloatingSearch && !queries.hasFloatingSearchValue()) {
+      actions.setFloatingSearchExpanded(false);
+      actions.setFloatingClusterAutoHidden("search", true);
     }
   });
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && state.helpOpen) {
-      setHelpOpen(false);
+      actions.setHelpOpen(false);
     }
     if (event.key === "Escape" && state.floatingSearchExpanded) {
-      setFloatingSearchExpanded(false);
+      actions.setFloatingSearchExpanded(false);
     }
   });
 
   dom.mobileQuery.addEventListener("change", () => {
-    applyMobileCollapsedDefaults();
-    setQuickPanelCollapsed(dom.mobileQuery.matches);
+    actions.applyMobileCollapsedDefaults();
+    actions.setQuickPanelCollapsed(dom.mobileQuery.matches);
     state.floatingSearchExpanded = false;
-    resetFloatingClusterAutoHide();
-    renderAll();
+    actions.resetFloatingClusterAutoHide();
+    renderers.renderAll();
   });
 
-  window.addEventListener("scroll", renderScreenToolbox, { passive: true });
+  window.addEventListener("scroll", renderers.renderScreenToolbox, { passive: true });
   window.addEventListener("focus", () => {
-    void checkForRemoteUpdates();
+    void actions.checkForRemoteUpdates();
   });
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
-      void checkForRemoteUpdates();
+      void actions.checkForRemoteUpdates();
     }
   });
 }

@@ -1,39 +1,30 @@
-export function registerReportsAdminControllerEvents(deps) {
+export function registerReportsAdminControllerEvents(contract) {
   const {
     state,
     dom,
-    refreshReportData,
-    renderReports,
-    showToast,
-    renderReportSections,
-    focusReportSection,
-    apiRequest,
-    renderAll,
-    downloadAdminFile,
-    readFileAsText,
-    readFileAsBase64,
-    refreshData,
-  } = deps;
+    actions,
+    renderers,
+  } = contract;
 
   async function applyReportFilters({ showSuccess = false } = {}) {
     state.pagination.reportProducts = 1;
     state.pagination.reportForecast = 1;
-    await refreshReportData();
-    renderReports();
+    await actions.refreshReportData();
+    renderers.renderReports();
     if (showSuccess) {
-      showToast("Đã làm mới báo cáo.");
+      actions.showToast("Đã làm mới báo cáo.");
     }
   }
 
   async function onReportDateFilterChange() {
     if ((state.reportStartDate && !state.reportEndDate) || (!state.reportStartDate && state.reportEndDate)) {
-      renderReports();
+      renderers.renderReports();
       return;
     }
     try {
       await applyReportFilters();
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   }
 
@@ -42,7 +33,7 @@ export function registerReportsAdminControllerEvents(deps) {
     try {
       await applyReportFilters();
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
@@ -51,7 +42,7 @@ export function registerReportsAdminControllerEvents(deps) {
     try {
       await applyReportFilters();
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
@@ -67,13 +58,13 @@ export function registerReportsAdminControllerEvents(deps) {
 
   dom.refreshReportsButton.addEventListener("click", async () => {
     if ((state.reportStartDate && !state.reportEndDate) || (!state.reportStartDate && state.reportEndDate)) {
-      showToast("Cần chọn đủ Từ ngày và Đến ngày để lọc theo khoảng ngày.", true);
+      actions.showToast("Cần chọn đủ Từ ngày và Đến ngày để lọc theo khoảng ngày.", true);
       return;
     }
     try {
       await applyReportFilters({ showSuccess: true });
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
@@ -83,37 +74,35 @@ export function registerReportsAdminControllerEvents(deps) {
     try {
       await applyReportFilters({ showSuccess: true });
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
   dom.reportFiltersToggleButton.addEventListener("click", () => {
     state.reportFiltersCollapsed = !state.reportFiltersCollapsed;
-    renderReportSections();
+    renderers.renderReportSections();
   });
 
   document.addEventListener("click", (event) => {
     const shortcutButton = event.target.closest("[data-report-shortcut]");
-    if (!shortcutButton) {
-      return;
-    }
+    if (!shortcutButton) return;
     if (shortcutButton.dataset.reportShortcut === "summary") {
-      focusReportSection("summary");
+      actions.focusReportSection("summary");
       return;
     }
     if (shortcutButton.dataset.reportShortcut === "trend") {
-      focusReportSection("trend");
+      actions.focusReportSection("trend");
       return;
     }
     if (shortcutButton.dataset.reportShortcut === "forecast") {
-      focusReportSection("forecast");
+      actions.focusReportSection("forecast");
     }
   });
 
   dom.adminLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      const data = await apiRequest("/api/admin/login", {
+      const data = await actions.apiRequest("/api/admin/login", {
         method: "POST",
         body: JSON.stringify({
           username: dom.adminUsernameInput.value.trim(),
@@ -124,24 +113,24 @@ export function registerReportsAdminControllerEvents(deps) {
         authenticated: Boolean(data.authenticated),
         username: data.username || "",
       };
-      renderAll();
-      showToast(data.message);
+      renderers.renderAll();
+      actions.showToast(data.message);
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
   dom.adminLogoutButton.addEventListener("click", async () => {
     try {
-      const data = await apiRequest("/api/admin/logout", {
+      const data = await actions.apiRequest("/api/admin/logout", {
         method: "POST",
         body: JSON.stringify({}),
       });
       state.admin = { authenticated: false, username: "" };
-      renderAll();
-      showToast(data.message);
+      renderers.renderAll();
+      actions.showToast(data.message);
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
@@ -150,10 +139,10 @@ export function registerReportsAdminControllerEvents(deps) {
     if (exportButton) {
       const entity = exportButton.dataset.adminExport;
       try {
-        await downloadAdminFile(`/api/admin/export/${entity}`, `${entity}-master.json`);
-        showToast("Đã tải file master.");
+        await actions.downloadAdminFile(`/api/admin/export/${entity}`, `${entity}-master.json`);
+        actions.showToast("Đã tải file master.");
       } catch (error) {
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
       return;
     }
@@ -169,11 +158,11 @@ export function registerReportsAdminControllerEvents(deps) {
       const fileInput = inputMap[entity];
       const file = fileInput?.files?.[0];
       if (!file) {
-        showToast("Hãy chọn file import trước.", true);
+        actions.showToast("Hãy chọn file import trước.", true);
         return;
       }
       try {
-        const rawText = await readFileAsText(file);
+        const rawText = await actions.readFileAsText(file);
         const payload = JSON.parse(rawText);
         const warning = [
           `Import master data cho ${entity}?`,
@@ -183,32 +172,32 @@ export function registerReportsAdminControllerEvents(deps) {
         if (!window.confirm(warning)) {
           return;
         }
-        const data = await apiRequest(`/api/admin/import/${entity}`, {
+        const data = await actions.apiRequest(`/api/admin/import/${entity}`, {
           method: "POST",
           body: JSON.stringify({ records: payload.records || [] }),
         });
         fileInput.value = "";
-        await refreshData();
-        showToast(`${data.message} Created ${data.result.created}, updated ${data.result.updated}, restored ${data.result.restored}.`);
+        await actions.refreshData();
+        actions.showToast(`${data.message} Created ${data.result.created}, updated ${data.result.updated}, restored ${data.result.restored}.`);
       } catch (error) {
-        showToast(error.message, true);
+        actions.showToast(error.message, true);
       }
     }
   });
 
   dom.adminBackupButton.addEventListener("click", async () => {
     try {
-      await downloadAdminFile("/api/admin/backup", "inventory-backup.db");
-      showToast("Đã tải file backup database.");
+      await actions.downloadAdminFile("/api/admin/backup", "inventory-backup.db");
+      actions.showToast("Đã tải file backup database.");
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 
   dom.adminRestoreButton.addEventListener("click", async () => {
     const file = dom.adminRestoreDbFile.files?.[0];
     if (!file) {
-      showToast("Hãy chọn file database để restore.", true);
+      actions.showToast("Hãy chọn file database để restore.", true);
       return;
     }
     const warning = [
@@ -220,8 +209,8 @@ export function registerReportsAdminControllerEvents(deps) {
       return;
     }
     try {
-      const contentBase64 = await readFileAsBase64(file);
-      const data = await apiRequest("/api/admin/restore", {
+      const contentBase64 = await actions.readFileAsBase64(file);
+      const data = await actions.apiRequest("/api/admin/restore", {
         method: "POST",
         body: JSON.stringify({
           filename: file.name,
@@ -229,10 +218,10 @@ export function registerReportsAdminControllerEvents(deps) {
         }),
       });
       dom.adminRestoreDbFile.value = "";
-      await refreshData();
-      showToast(`${data.message} Backup trước restore: ${data.previous_backup}`);
+      await actions.refreshData();
+      actions.showToast(`${data.message} Backup trước restore: ${data.previous_backup}`);
     } catch (error) {
-      showToast(error.message, true);
+      actions.showToast(error.message, true);
     }
   });
 }
