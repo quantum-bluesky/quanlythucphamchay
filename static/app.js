@@ -144,6 +144,7 @@ import { createPurchasesDomainHelpers } from "./modules/domain-helpers/purchases
 import { createInventoryDomainHelpers } from "./modules/domain-helpers/inventory-domain.js";
 import { createSyncRuntimeHelpers } from "./modules/sync-runtime.js";
 import { createEntityProductMutationHelpers } from "./modules/entity-product-mutations.js";
+import { createNavigationRuntimeHelpers } from "./modules/navigation-runtime.js";
 import { createSalesUi } from "./modules/ui/sales-ui.js";
 import { createPurchasesUi } from "./modules/ui/purchases-ui.js";
 import { createEntitiesUi } from "./modules/ui/entities-ui.js";
@@ -186,6 +187,7 @@ let purchasesDomainHelpers = null;
 let inventoryDomainHelpers = null;
 let syncRuntimeHelpers = null;
 let entityProductMutationHelpers = null;
+let navigationRuntimeHelpers = null;
 let salesUi = null;
 let purchasesUi = null;
 let entitiesUi = null;
@@ -460,6 +462,34 @@ function getEntityProductMutationHelpers() {
   return entityProductMutationHelpers;
 }
 
+function getNavigationRuntimeHelpers() {
+  if (!navigationRuntimeHelpers) {
+    navigationRuntimeHelpers = createNavigationRuntimeHelpers({
+      state,
+      screenHelp: SCREEN_HELP,
+      floatingSearchConfig: FLOATING_SEARCH_CONFIG,
+      dom: {
+        menuPanel,
+        floatingSearchDock,
+        screenToolbox,
+        mobileQuery,
+        floatingSearchInput,
+      },
+      writeStorage,
+      storageKeys: STORAGE_KEYS,
+      renderMenu,
+      renderViewSections,
+      renderScreenHeader,
+      renderScreenToolbox,
+      renderFloatingSearchDock,
+      renderHelpModal,
+      refreshSearchClearButtons,
+      clearPendingPurchaseSupplierFlow,
+    });
+  }
+  return navigationRuntimeHelpers;
+}
+
 function getSalesUi() {
   if (!salesUi) {
     salesUi = createSalesUi({
@@ -689,32 +719,19 @@ function focusReportSection(kind) {
 }
 
 function getCurrentScreenHelp() {
-  return SCREEN_HELP[state.activeMenu] || {
-    title: "Hướng dẫn nhanh",
-    overview: "Màn hình này chưa có hướng dẫn riêng.",
-    steps: ["Thao tác theo các nút chính đang hiển thị trên màn hình."],
-    related: [],
-  };
+  return getNavigationRuntimeHelpers().getCurrentScreenHelp();
 }
 
 function getFloatingSearchConfig(menu = state.activeMenu) {
-  return FLOATING_SEARCH_CONFIG[menu] || null;
+  return getNavigationRuntimeHelpers().getFloatingSearchConfig(menu);
 }
 
 function getFloatingSearchSourceInput(menu = state.activeMenu) {
-  const config = getFloatingSearchConfig(menu);
-  if (!config) {
-    return null;
-  }
-  return document.getElementById(config.sourceId);
+  return getNavigationRuntimeHelpers().getFloatingSearchSourceInput(menu);
 }
 
 function getFloatingSearchSourceShell(menu = state.activeMenu) {
-  const sourceInput = getFloatingSearchSourceInput(menu);
-  if (!sourceInput) {
-    return null;
-  }
-  return sourceInput.closest(".sticky-toolbar") || sourceInput.closest("label") || null;
+  return getNavigationRuntimeHelpers().getFloatingSearchSourceShell(menu);
 }
 
 function hasCompleteReportDateFilter() {
@@ -1111,44 +1128,11 @@ function saveAndRenderAll(changedCollections = []) {
 }
 
 function switchMenu(menu, { recordHistory = true } = {}) {
-  if (!menu) {
-    return;
-  }
-  if (menu !== "suppliers") {
-    clearPendingPurchaseSupplierFlow();
-  }
-  if (recordHistory && state.activeMenu !== menu) {
-    const baseHistory = state.menuHistory.slice(0, state.menuHistoryIndex + 1);
-    if (baseHistory[baseHistory.length - 1] !== menu) {
-      baseHistory.push(menu);
-    }
-    state.menuHistory = baseHistory;
-    state.menuHistoryIndex = state.menuHistory.length - 1;
-  }
-  state.activeMenu = menu;
-  state.floatingSearchExpanded = false;
-  state.floatingSearchAutoHidden = false;
-  if (mobileQuery.matches) {
-    state.menuCollapsed = true;
-  }
-  writeStorage(STORAGE_KEYS.activeMenu, state.activeMenu);
-  writeStorage(STORAGE_KEYS.menuCollapsed, state.menuCollapsed);
-  renderMenu();
-  renderViewSections();
-  renderScreenHeader();
-  renderScreenToolbox();
-  renderFloatingSearchDock();
+  return getNavigationRuntimeHelpers().switchMenu(menu, { recordHistory });
 }
 
 function navigateMenuHistory(direction) {
-  if (direction === "back" && state.menuHistoryIndex > 0) {
-    state.menuHistoryIndex -= 1;
-    switchMenu(state.menuHistory[state.menuHistoryIndex], { recordHistory: false });
-  }
-  if (direction === "forward" && state.menuHistoryIndex < state.menuHistory.length - 1) {
-    state.menuHistoryIndex += 1;
-    switchMenu(state.menuHistory[state.menuHistoryIndex], { recordHistory: false });
-  }
+  return getNavigationRuntimeHelpers().navigateMenuHistory(direction);
 }
 
 function getCoreUi() {
@@ -1221,111 +1205,35 @@ function renderHelpModal() {
 }
 
 function setHelpOpen(nextValue) {
-  state.helpOpen = Boolean(nextValue);
-  renderHelpModal();
+  return getNavigationRuntimeHelpers().setHelpOpen(nextValue);
 }
 
 function isMobileFloatingClusterMode() {
-  return mobileQuery.matches;
+  return getNavigationRuntimeHelpers().isMobileFloatingClusterMode();
 }
 
 function isFloatingClusterAutoHidden(clusterKey) {
-  const stateKey = {
-    menu: "menuAutoHidden",
-    search: "floatingSearchAutoHidden",
-    toolbox: "toolboxAutoHidden",
-  }[clusterKey];
-  return Boolean(stateKey ? state[stateKey] : false);
+  return getNavigationRuntimeHelpers().isFloatingClusterAutoHidden(clusterKey);
 }
 
 function setFloatingClusterAutoHidden(clusterKey, nextValue) {
-  const stateKey = {
-    menu: "menuAutoHidden",
-    search: "floatingSearchAutoHidden",
-    toolbox: "toolboxAutoHidden",
-  }[clusterKey];
-  if (!stateKey) {
-    return;
-  }
-  const normalizedValue = isMobileFloatingClusterMode() && Boolean(nextValue);
-  if (state[stateKey] === normalizedValue) {
-    return;
-  }
-  state[stateKey] = normalizedValue;
-  if (clusterKey === "menu") {
-    renderMenu();
-    return;
-  }
-  if (clusterKey === "toolbox") {
-    renderScreenToolbox();
-    return;
-  }
-  renderFloatingSearchDock();
+  return getNavigationRuntimeHelpers().setFloatingClusterAutoHidden(clusterKey, nextValue);
 }
 
 function revealFloatingCluster(clusterKey) {
-  setFloatingClusterAutoHidden(clusterKey, false);
+  return getNavigationRuntimeHelpers().revealFloatingCluster(clusterKey);
 }
 
 function resetFloatingClusterAutoHide() {
-  state.menuAutoHidden = false;
-  state.floatingSearchAutoHidden = false;
-  state.toolboxAutoHidden = false;
+  return getNavigationRuntimeHelpers().resetFloatingClusterAutoHide();
 }
 
 function interceptEdgeHiddenClusterReveal(event, clusterKey, container) {
-  if (
-    !isMobileFloatingClusterMode() ||
-    !container ||
-    !container.contains(event.target) ||
-    !isFloatingClusterAutoHidden(clusterKey)
-  ) {
-    return false;
-  }
-  revealFloatingCluster(clusterKey);
-  event.preventDefault();
-  event.stopPropagation();
-  return true;
+  return getNavigationRuntimeHelpers().interceptEdgeHiddenClusterReveal(event, clusterKey, container);
 }
 
 function revealEdgeHiddenClusterFromViewportClick(event) {
-  if (!isMobileFloatingClusterMode()) {
-    return false;
-  }
-
-  const hiddenClusters = [
-    { key: "menu", node: menuPanel, edge: "left" },
-    { key: "search", node: floatingSearchDock, edge: "left" },
-    { key: "toolbox", node: screenToolbox, edge: "right" },
-  ];
-
-  for (const cluster of hiddenClusters) {
-    if (!cluster.node || cluster.node.hidden || !isFloatingClusterAutoHidden(cluster.key)) {
-      continue;
-    }
-
-    const rect = cluster.node.getBoundingClientRect();
-    const edgeRect = cluster.edge === "right"
-      ? { left: rect.left, right: window.innerWidth, top: rect.top, bottom: rect.bottom }
-      : { left: 0, right: rect.right, top: rect.top, bottom: rect.bottom };
-
-    if (
-      edgeRect.right <= edgeRect.left ||
-      event.clientX < edgeRect.left ||
-      event.clientX > edgeRect.right ||
-      event.clientY < edgeRect.top ||
-      event.clientY > edgeRect.bottom
-    ) {
-      continue;
-    }
-
-    revealFloatingCluster(cluster.key);
-    event.preventDefault();
-    event.stopPropagation();
-    return true;
-  }
-
-  return false;
+  return getNavigationRuntimeHelpers().revealEdgeHiddenClusterFromViewportClick(event);
 }
 
 function renderScreenToolbox() {
@@ -1333,56 +1241,23 @@ function renderScreenToolbox() {
 }
 
 function scrollPageTo(position) {
-  const documentBottom = Math.max(
-    document.documentElement.scrollHeight,
-    document.body.scrollHeight
-  );
-  if (position === "top") {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    return;
-  }
-  window.scrollTo({ top: documentBottom, behavior: "smooth" });
+  return getNavigationRuntimeHelpers().scrollPageTo(position);
 }
 
 function syncFloatingSearchFromSource() {
-  const sourceInput = getFloatingSearchSourceInput();
-  if (!sourceInput) {
-    floatingSearchInput.value = "";
-    return;
-  }
-  if (document.activeElement !== floatingSearchInput) {
-    floatingSearchInput.value = sourceInput.value || "";
-  }
+  return getNavigationRuntimeHelpers().syncFloatingSearchFromSource();
 }
 
 function syncFloatingSearchToSource(value) {
-  const sourceInput = getFloatingSearchSourceInput();
-  if (!sourceInput) {
-    return;
-  }
-  sourceInput.value = value;
-  sourceInput.dispatchEvent(new Event("input", { bubbles: true }));
+  return getNavigationRuntimeHelpers().syncFloatingSearchToSource(value);
 }
 
 function setFloatingSearchExpanded(nextValue, { focus = false } = {}) {
-  state.floatingSearchExpanded = Boolean(nextValue);
-  if (state.floatingSearchExpanded) {
-    state.floatingSearchAutoHidden = false;
-  }
-  renderFloatingSearchDock();
-  if (focus && state.floatingSearchExpanded && !floatingSearchDock.hidden) {
-    window.setTimeout(() => {
-      floatingSearchInput.focus();
-      floatingSearchInput.select();
-    }, 0);
-  }
+  return getNavigationRuntimeHelpers().setFloatingSearchExpanded(nextValue, { focus });
 }
 
 function hasFloatingSearchValue() {
-  const sourceInput = getFloatingSearchSourceInput();
-  const floatingValue = String(floatingSearchInput?.value || "").trim();
-  const sourceValue = String(sourceInput?.value || "").trim();
-  return Boolean(floatingValue || sourceValue);
+  return getNavigationRuntimeHelpers().hasFloatingSearchValue();
 }
 
 function renderFloatingSearchDock() {

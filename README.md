@@ -12,15 +12,22 @@
 
 ## Cấu trúc frontend để làm song song
 
-- `static/app.js`: bootstrap app, orchestration dữ liệu dùng chung, ghép các module
+- `static/app.js`: bootstrap app và wiring giữa các module
 - `static/modules/ui/`: renderer/UI helpers; ưu tiên sửa ở đây khi Issue chỉ đổi hiển thị
 - `static/modules/controllers/`: đăng ký event handler/controller; ưu tiên sửa ở đây khi Issue chỉ đổi điều hướng hoặc tương tác
+- `static/modules/domain-helpers/`: helper nghiệp vụ theo domain như `sales`, `purchases`, `inventory`
+- `static/modules/navigation-runtime.js`: menu history, floating search, help modal, edge-hidden navigation orchestration
+- `static/modules/sync-runtime.js`: sync state nhiều máy, auto refresh, migrate dữ liệu cũ, persist queue
+- `static/modules/entity-product-mutations.js`: mutate customer/supplier/product impact helpers
 - `static/modules/`: state, DOM refs, config màn hình và utility dùng chung
 
 Quy ước tách việc:
 
 - Issue UI nên ưu tiên chạm `static/modules/ui/*`
 - Issue controller nên ưu tiên chạm `static/modules/controllers/*`
+- Issue runtime điều hướng nên ưu tiên chạm `static/modules/navigation-runtime.js`
+- Issue sync/runtime nhiều máy nên ưu tiên chạm `static/modules/sync-runtime.js`
+- Issue helper nghiệp vụ nên ưu tiên chạm `static/modules/domain-helpers/*` hoặc `static/modules/entity-product-mutations.js`
 - Chỉ sửa `static/app.js` khi cần đổi contract dùng chung hoặc wiring bootstrap
 
 Pattern hiện tại đã áp dụng trước cho domain `products`:
@@ -43,6 +50,15 @@ Các domain đã có file controller riêng:
 - `static/modules/controllers/purchases-controller.js`
 - `static/modules/controllers/entities-controller.js`
 - `static/modules/controllers/reports-admin-controller.js`
+
+Các helper/runtime đã được tách riêng:
+
+- `static/modules/domain-helpers/sales-domain.js`
+- `static/modules/domain-helpers/purchases-domain.js`
+- `static/modules/domain-helpers/inventory-domain.js`
+- `static/modules/navigation-runtime.js`
+- `static/modules/sync-runtime.js`
+- `static/modules/entity-product-mutations.js`
 
 Contract chuẩn giữa các controller:
 
