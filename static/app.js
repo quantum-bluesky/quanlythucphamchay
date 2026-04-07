@@ -142,6 +142,8 @@ import { createInventoryUi } from "./modules/ui/inventory-ui.js";
 import { createSalesDomainHelpers } from "./modules/domain-helpers/sales-domain.js";
 import { createPurchasesDomainHelpers } from "./modules/domain-helpers/purchases-domain.js";
 import { createInventoryDomainHelpers } from "./modules/domain-helpers/inventory-domain.js";
+import { createSyncRuntimeHelpers } from "./modules/sync-runtime.js";
+import { createEntityProductMutationHelpers } from "./modules/entity-product-mutations.js";
 import { createSalesUi } from "./modules/ui/sales-ui.js";
 import { createPurchasesUi } from "./modules/ui/purchases-ui.js";
 import { createEntitiesUi } from "./modules/ui/entities-ui.js";
@@ -182,6 +184,8 @@ let inventoryUi = null;
 let salesDomainHelpers = null;
 let purchasesDomainHelpers = null;
 let inventoryDomainHelpers = null;
+let syncRuntimeHelpers = null;
+let entityProductMutationHelpers = null;
 let salesUi = null;
 let purchasesUi = null;
 let entitiesUi = null;
@@ -402,6 +406,58 @@ function getInventoryDomainHelpers() {
     });
   }
   return inventoryDomainHelpers;
+}
+
+function getSyncRuntimeHelpers() {
+  if (!syncRuntimeHelpers) {
+    syncRuntimeHelpers = createSyncRuntimeHelpers({
+      state,
+      storageKeys: STORAGE_KEYS,
+      legacyStorageKeys: LEGACY_STORAGE_KEYS,
+      syncCollectionKeys: SYNC_COLLECTION_KEYS,
+      readStorage,
+      writeStorage,
+      apiRequest,
+      refreshData,
+      syncSalesState,
+      showToast,
+      normalizeRuntimeVersion,
+      normalizeAppInfo,
+      getLatestSyncUpdatedAt: () => latestSyncUpdatedAt,
+      setLatestSyncUpdatedAt: (value) => { latestSyncUpdatedAt = value; },
+      getLatestRuntimeVersion: () => latestRuntimeVersion,
+      setLatestRuntimeVersion: (value) => { latestRuntimeVersion = value; },
+      currentAppInfo,
+      getIsRefreshingState: () => isRefreshingState,
+      getAutoRefreshInFlight: () => autoRefreshInFlight,
+      setAutoRefreshInFlight: (value) => { autoRefreshInFlight = value; },
+      getPersistScheduled: () => persistScheduled,
+      setPersistScheduled: (value) => { persistScheduled = value; },
+      pendingPersistCollections,
+      setAutoRefreshTimer: (value) => { autoRefreshTimer = value; },
+      getAutoRefreshTimer: () => autoRefreshTimer,
+      autoRefreshIntervalMs: AUTO_REFRESH_INTERVAL_MS,
+    });
+  }
+  return syncRuntimeHelpers;
+}
+
+function getEntityProductMutationHelpers() {
+  if (!entityProductMutationHelpers) {
+    entityProductMutationHelpers = createEntityProductMutationHelpers({
+      state,
+      nowIso,
+      createId,
+      normalizeText,
+      saveAndRenderAll,
+      decorateCart,
+      getActiveCustomers,
+      getActiveSuppliers,
+      customerLookupInput,
+      purchaseSupplierInput,
+    });
+  }
+  return entityProductMutationHelpers;
 }
 
 function getSalesUi() {
@@ -944,31 +1000,15 @@ function syncSalesState() {
 }
 
 function readLegacyCollections() {
-  return {
-    customers: readStorage(LEGACY_STORAGE_KEYS.customers, []),
-    suppliers: readStorage(LEGACY_STORAGE_KEYS.suppliers, []),
-    carts: readStorage(LEGACY_STORAGE_KEYS.carts, []),
-    purchases: readStorage(LEGACY_STORAGE_KEYS.purchases, []),
-  };
+  return getSyncRuntimeHelpers().readLegacyCollections();
 }
 
 function hasAnySyncedData(payload) {
-  return SYNC_COLLECTION_KEYS.some((key) => Array.isArray(payload?.[key]) && payload[key].length);
+  return getSyncRuntimeHelpers().hasAnySyncedData(payload);
 }
 
 function getSyncPayload(keys = SYNC_COLLECTION_KEYS) {
-  const selectedKeys = [...new Set(keys)].filter((key) => SYNC_COLLECTION_KEYS.includes(key));
-  const payload = {};
-  selectedKeys.forEach((key) => {
-    payload[key] = JSON.parse(JSON.stringify(state[key] || []));
-  });
-  const expectedUpdatedAt = {};
-  selectedKeys.forEach((key) => {
-    expectedUpdatedAt[key] = String(latestSyncUpdatedAt?.[key] || "");
-  });
-  payload.expected_updated_at = expectedUpdatedAt;
-  payload.actor = state.admin?.authenticated ? (state.admin.username || "Master Admin") : "Nhân viên";
-  return payload;
+  return getSyncRuntimeHelpers().getSyncPayload(keys);
 }
 
 function getRuntimeVersionPayload(payload = {}) {
@@ -1015,16 +1055,11 @@ function updateAppInfo(payload = {}) {
 }
 
 function updateRuntimeVersion(payload = {}) {
-  latestRuntimeVersion = normalizeRuntimeVersion(payload);
-  updateAppInfo(payload);
+  return getSyncRuntimeHelpers().updateRuntimeVersion(payload);
 }
 
 function hasRuntimeVersionChanged(payload = {}) {
-  const nextVersion = normalizeRuntimeVersion(payload);
-  if (!latestRuntimeVersion) {
-    return true;
-  }
-  return Object.keys(nextVersion).some((key) => nextVersion[key] !== latestRuntimeVersion[key]);
+  return getSyncRuntimeHelpers().hasRuntimeVersionChanged(payload);
 }
 
 function hasInteractiveInputFocus() {
@@ -1048,152 +1083,31 @@ function shouldAutoRefresh() {
 }
 
 async function checkForRemoteUpdates() {
-  if (!shouldAutoRefresh()) {
-    return false;
-  }
-
-  autoRefreshInFlight = true;
-  try {
-    const runtimeVersion = await apiRequest("/api/runtime-version");
-    if (!latestRuntimeVersion) {
-      latestRuntimeVersion = normalizeRuntimeVersion(runtimeVersion);
-      return false;
-    }
-    if (!hasRuntimeVersionChanged(runtimeVersion)) {
-      return false;
-    }
-    await refreshData();
-    return true;
-  } catch (error) {
-    console.warn("Auto refresh skipped:", error);
-    return false;
-  } finally {
-    autoRefreshInFlight = false;
-  }
+  return getSyncRuntimeHelpers().checkForRemoteUpdates();
 }
 
 function startAutoRefreshLoop() {
-  if (autoRefreshTimer) {
-    window.clearInterval(autoRefreshTimer);
-  }
-  autoRefreshTimer = window.setInterval(() => {
-    void checkForRemoteUpdates();
-  }, AUTO_REFRESH_INTERVAL_MS);
+  return getSyncRuntimeHelpers().startAutoRefreshLoop();
 }
 
 async function migrateLegacyCollectionsIfNeeded(serverPayload) {
-  if (readStorage(STORAGE_KEYS.migratedSyncState, false)) {
-    return false;
-  }
-
-  const legacyCollections = readLegacyCollections();
-  if (hasAnySyncedData(serverPayload) || !hasAnySyncedData(legacyCollections)) {
-    return false;
-  }
-
-  const previousCollections = {
-    customers: state.customers,
-    suppliers: state.suppliers,
-    carts: state.carts,
-    purchases: state.purchases,
-  };
-
-  state.customers = legacyCollections.customers;
-  state.suppliers = legacyCollections.suppliers;
-  state.carts = legacyCollections.carts;
-  state.purchases = legacyCollections.purchases;
-  syncSalesState();
-
-  try {
-    const response = await apiRequest("/api/state", {
-      method: "PUT",
-      body: JSON.stringify(getSyncPayload()),
-    });
-    latestSyncUpdatedAt = response.updated_at || latestSyncUpdatedAt;
-    updateRuntimeVersion(response);
-    writeStorage(STORAGE_KEYS.migratedSyncState, true);
-    showToast("Đã chuyển dữ liệu cũ từ trình duyệt lên server để đồng bộ nhiều máy.");
-    return true;
-  } catch (error) {
-    state.customers = previousCollections.customers;
-    state.suppliers = previousCollections.suppliers;
-    state.carts = previousCollections.carts;
-    state.purchases = previousCollections.purchases;
-    syncSalesState();
-    throw error;
-  }
+  return getSyncRuntimeHelpers().migrateLegacyCollectionsIfNeeded(serverPayload);
 }
 
 async function persistCollections(keys = SYNC_COLLECTION_KEYS) {
-  const uniqueKeys = [...new Set(keys)].filter((key) => SYNC_COLLECTION_KEYS.includes(key));
-  if (!uniqueKeys.length) {
-    return;
-  }
-
-  const response = await apiRequest("/api/state", {
-    method: "PUT",
-    body: JSON.stringify(getSyncPayload(uniqueKeys)),
-  });
-  latestSyncUpdatedAt = response.updated_at || latestSyncUpdatedAt;
-  updateRuntimeVersion(response);
+  return getSyncRuntimeHelpers().persistCollections(keys);
 }
 
 function queuePersistCollections(keys = []) {
-  keys
-    .filter((key) => SYNC_COLLECTION_KEYS.includes(key))
-    .forEach((key) => pendingPersistCollections.add(key));
-
-  if (persistScheduled || !pendingPersistCollections.size) {
-    return;
-  }
-
-  persistScheduled = true;
-  window.setTimeout(async () => {
-    const keysToPersist = [...pendingPersistCollections];
-    pendingPersistCollections.clear();
-    persistScheduled = false;
-
-    try {
-      await persistCollections(keysToPersist);
-    } catch (error) {
-      if (error?.status === 409 && error?.payload?.conflict?.state_key) {
-        const conflictLabel = getSyncCollectionLabel(error.payload.conflict.state_key);
-        showToast(`Dữ liệu ${conflictLabel} vừa được cập nhật từ máy khác. App đã tự tải lại.`, true);
-        try {
-          await refreshData();
-        } catch {
-          // Ignore secondary refresh failures here.
-        }
-        return;
-      }
-      showToast(`Lưu đồng bộ thất bại: ${error.message}`, true);
-      try {
-        await refreshData();
-      } catch {
-        // Ignore secondary refresh failures here.
-      }
-    }
-  }, 0);
+  return getSyncRuntimeHelpers().queuePersistCollections(keys);
 }
 
 function loadSalesState() {
-  state.activeCartId = readStorage(STORAGE_KEYS.activeCartId, null);
-  state.activePurchaseId = readStorage(STORAGE_KEYS.activePurchaseId, null);
-  state.activeMenu = readStorage(STORAGE_KEYS.activeMenu, "inventory");
-  state.menuCollapsed = mobileQuery.matches ? true : readStorage(STORAGE_KEYS.menuCollapsed, false);
-  state.menuHistory = [state.activeMenu];
-  state.menuHistoryIndex = 0;
-  state.activeCartPanelCollapsed = mobileQuery.matches;
-  state.purchasePanelCollapsed = mobileQuery.matches;
-  syncSalesState();
+  return getSyncRuntimeHelpers().loadSalesState();
 }
 
 function saveAndRenderAll(changedCollections = []) {
-  syncSalesState();
-  renderAll();
-  if (!isRefreshingState) {
-    queuePersistCollections(changedCollections);
-  }
+  return getSyncRuntimeHelpers().saveAndRenderAll(changedCollections, renderAll);
 }
 
 function switchMenu(menu, { recordHistory = true } = {}) {
@@ -1476,144 +1390,15 @@ function renderFloatingSearchDock() {
 }
 
 function ensureCustomer(name) {
-  const cleanName = String(name || "").trim();
-  if (!cleanName) {
-    throw new Error("Hãy nhập tên khách hàng.");
-  }
-
-  const existing = getActiveCustomers().find((customer) => normalizeText(customer.name) === normalizeText(cleanName));
-  if (existing) {
-    return existing;
-  }
-
-  const customer = {
-    id: createId("customer"),
-    name: cleanName,
-    createdAt: nowIso(),
-    updatedAt: nowIso(),
-  };
-  state.customers.push(customer);
-  return customer;
+  return getEntityProductMutationHelpers().ensureCustomer(name);
 }
 
 function upsertCustomer(payload, customerId = null) {
-  const cleanName = String(payload.name || "").trim();
-  const cleanPhone = String(payload.phone || "").trim();
-  const cleanAddress = String(payload.address || "").trim();
-  const cleanZaloUrl = String(payload.zaloUrl || payload.zalo_url || "").trim();
-
-  if (!cleanName) {
-    throw new Error("Tên khách hàng là bắt buộc.");
-  }
-
-  const duplicateByName = getActiveCustomers().find(
-    (customer) => customer.id !== customerId && normalizeText(customer.name) === normalizeText(cleanName)
-  );
-  if (duplicateByName) {
-    throw new Error("Tên khách hàng đã tồn tại.");
-  }
-
-  if (cleanPhone) {
-    const duplicateByPhone = getActiveCustomers().find(
-      (customer) => customer.id !== customerId && normalizeText(customer.phone) === normalizeText(cleanPhone)
-    );
-    if (duplicateByPhone) {
-      throw new Error("Số điện thoại khách hàng đã tồn tại.");
-    }
-  }
-
-  if (customerId) {
-    state.customers = state.customers.map((customer) =>
-      customer.id === customerId
-        ? {
-            ...customer,
-            name: cleanName,
-            phone: cleanPhone,
-            address: cleanAddress,
-            zaloUrl: cleanZaloUrl,
-            updatedAt: nowIso(),
-          }
-        : customer
-    );
-    state.carts = state.carts.map((cart) =>
-      cart.customerId === customerId
-        ? decorateCart({ ...cart, customerName: cleanName, updatedAt: nowIso() })
-        : cart
-    );
-  } else {
-    state.customers.push({
-      id: createId("customer"),
-      name: cleanName,
-      phone: cleanPhone,
-      address: cleanAddress,
-      zaloUrl: cleanZaloUrl,
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-    });
-  }
-
-  saveAndRenderAll(["customers", "carts"]);
+  return getEntityProductMutationHelpers().upsertCustomer(payload, customerId);
 }
 
 function upsertSupplier(payload, supplierId = null) {
-  const cleanName = String(payload.name || "").trim();
-  const cleanPhone = String(payload.phone || "").trim();
-  const cleanAddress = String(payload.address || "").trim();
-  const cleanNote = String(payload.note || "").trim();
-
-  if (!cleanName) {
-    throw new Error("Tên nhà cung cấp là bắt buộc.");
-  }
-
-  const duplicateByName = getActiveSuppliers().find(
-    (supplier) => supplier.id !== supplierId && normalizeText(supplier.name) === normalizeText(cleanName)
-  );
-  if (duplicateByName) {
-    throw new Error("Tên nhà cung cấp đã tồn tại.");
-  }
-
-  if (cleanPhone) {
-    const duplicateByPhone = getActiveSuppliers().find(
-      (supplier) => supplier.id !== supplierId && normalizeText(supplier.phone) === normalizeText(cleanPhone)
-    );
-    if (duplicateByPhone) {
-      throw new Error("Số điện thoại nhà cung cấp đã tồn tại.");
-    }
-  }
-
-  if (supplierId) {
-    const currentSupplier = state.suppliers.find((supplier) => supplier.id === supplierId);
-    const previousName = currentSupplier?.name || "";
-    state.suppliers = state.suppliers.map((supplier) =>
-      supplier.id === supplierId
-        ? {
-            ...supplier,
-            name: cleanName,
-            phone: cleanPhone,
-            address: cleanAddress,
-            note: cleanNote,
-            updatedAt: nowIso(),
-          }
-        : supplier
-    );
-    state.purchases = state.purchases.map((purchase) =>
-      normalizeText(purchase.supplierName) === normalizeText(previousName)
-        ? { ...purchase, supplierName: cleanName, updatedAt: nowIso() }
-        : purchase
-    );
-  } else {
-    state.suppliers.push({
-      id: createId("supplier"),
-      name: cleanName,
-      phone: cleanPhone,
-      address: cleanAddress,
-      note: cleanNote,
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-    });
-  }
-
-  saveAndRenderAll(["suppliers", "purchases"]);
+  return getEntityProductMutationHelpers().upsertSupplier(payload, supplierId);
 }
 
 function getCustomerDeleteImpact(customerId) {
@@ -1651,24 +1436,7 @@ function getProductDeleteImpact(productId) {
 }
 
 function deleteSupplier(supplierId) {
-  const supplier = state.suppliers.find((entry) => entry.id === supplierId);
-  if (!supplier) {
-    throw new Error("Không tìm thấy nhà cung cấp.");
-  }
-  const impact = getSupplierDeleteImpact(supplier.name);
-  if (impact.activeCount > 0) {
-    throw new Error("Nhà cung cấp đang gắn với phiếu nhập draft/ordered/received, không thể xóa.");
-  }
-
-  state.suppliers = state.suppliers.map((entry) =>
-    entry.id === supplierId
-      ? { ...entry, deletedAt: nowIso(), updatedAt: nowIso() }
-      : entry
-  );
-  if (purchaseSupplierInput.value && normalizeText(purchaseSupplierInput.value) === normalizeText(supplier.name)) {
-    purchaseSupplierInput.value = "";
-  }
-  saveAndRenderAll(["suppliers", "purchases"]);
+  return getEntityProductMutationHelpers().deleteSupplier(supplierId);
 }
 
 function resolveProductFromText(text) {
@@ -1811,111 +1579,19 @@ function deleteCart(cartId) {
 }
 
 function renameCustomer(customerId, newName) {
-  const cleanName = String(newName || "").trim();
-  if (!cleanName) {
-    throw new Error("Tên khách hàng không được để trống.");
-  }
-
-  const duplicate = getActiveCustomers().find(
-    (customer) => customer.id !== customerId && normalizeText(customer.name) === normalizeText(cleanName)
-  );
-  if (duplicate) {
-    throw new Error("Tên khách hàng đã tồn tại.");
-  }
-
-  state.customers = state.customers.map((customer) =>
-    customer.id === customerId
-      ? { ...customer, name: cleanName, updatedAt: nowIso() }
-      : customer
-  );
-
-  state.carts = state.carts.map((cart) =>
-    cart.customerId === customerId
-      ? decorateCart({ ...cart, customerName: cleanName, updatedAt: nowIso() })
-      : cart
-  );
-
-  if (getActiveCart()?.customerId === customerId) {
-    customerLookupInput.value = cleanName;
-  }
-
-  state.editingCustomerId = null;
-  saveAndRenderAll(["customers", "carts"]);
+  return getEntityProductMutationHelpers().renameCustomer(customerId, newName);
 }
 
 function deleteCustomer(customerId) {
-  const customer = state.customers.find((entry) => entry.id === customerId);
-  if (!customer) {
-    throw new Error("Không tìm thấy khách hàng.");
-  }
-  const impact = getCustomerDeleteImpact(customerId);
-  if (impact.draftCount > 0) {
-    throw new Error("Khách hàng đang có giỏ hàng nháp, không thể xóa.");
-  }
-
-  state.customers = state.customers.map((entry) =>
-    entry.id === customerId
-      ? { ...entry, deletedAt: nowIso(), updatedAt: nowIso() }
-      : entry
-  );
-  if (customerLookupInput.value && normalizeText(customerLookupInput.value) === normalizeText(customer.name)) {
-    customerLookupInput.value = "";
-  }
-  saveAndRenderAll(["customers", "carts"]);
+  return getEntityProductMutationHelpers().deleteCustomer(customerId);
 }
 
 function restoreCustomer(customerId) {
-  const customer = state.customers.find((entry) => entry.id === customerId);
-  if (!customer) {
-    throw new Error("Không tìm thấy khách hàng.");
-  }
-  const duplicateByName = getActiveCustomers().find(
-    (entry) => entry.id !== customerId && normalizeText(entry.name) === normalizeText(customer.name)
-  );
-  if (duplicateByName) {
-    throw new Error("Đang có khách hàng hoạt động khác trùng tên, không thể khôi phục.");
-  }
-  if (customer.phone) {
-    const duplicateByPhone = getActiveCustomers().find(
-      (entry) => entry.id !== customerId && normalizeText(entry.phone) === normalizeText(customer.phone)
-    );
-    if (duplicateByPhone) {
-      throw new Error("Đang có khách hàng hoạt động khác trùng số điện thoại, không thể khôi phục.");
-    }
-  }
-  state.customers = state.customers.map((entry) =>
-    entry.id === customerId
-      ? { ...entry, deletedAt: null, updatedAt: nowIso() }
-      : entry
-  );
-  saveAndRenderAll(["customers"]);
+  return getEntityProductMutationHelpers().restoreCustomer(customerId);
 }
 
 function restoreSupplier(supplierId) {
-  const supplier = state.suppliers.find((entry) => entry.id === supplierId);
-  if (!supplier) {
-    throw new Error("Không tìm thấy nhà cung cấp.");
-  }
-  const duplicateByName = getActiveSuppliers().find(
-    (entry) => entry.id !== supplierId && normalizeText(entry.name) === normalizeText(supplier.name)
-  );
-  if (duplicateByName) {
-    throw new Error("Đang có nhà cung cấp hoạt động khác trùng tên, không thể khôi phục.");
-  }
-  if (supplier.phone) {
-    const duplicateByPhone = getActiveSuppliers().find(
-      (entry) => entry.id !== supplierId && normalizeText(entry.phone) === normalizeText(supplier.phone)
-    );
-    if (duplicateByPhone) {
-      throw new Error("Đang có nhà cung cấp hoạt động khác trùng số điện thoại, không thể khôi phục.");
-    }
-  }
-  state.suppliers = state.suppliers.map((entry) =>
-    entry.id === supplierId
-      ? { ...entry, deletedAt: null, updatedAt: nowIso() }
-      : entry
-  );
-  saveAndRenderAll(["suppliers"]);
+  return getEntityProductMutationHelpers().restoreSupplier(supplierId);
 }
 
 function createPurchaseDraftIfMissing() {
