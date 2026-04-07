@@ -274,31 +274,37 @@ export function registerSalesControllerEvents(contract) {
   });
 
   dom.cartQueueList.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-cart-list-action]");
+    const button = event.target.closest("[data-cart-list-action], [data-queue-action]");
     if (!button) return;
+    const action = button.dataset.cartListAction || button.dataset.queueAction;
+    if (action === "toggle-detail") {
+      state.expandedOrderId = state.expandedOrderId === button.dataset.cartId ? null : button.dataset.cartId;
+      renderers.renderCartQueue();
+      return;
+    }
     const cart = queries.getCartById(button.dataset.cartId);
     if (!cart) return;
-    if (button.dataset.cartListAction === "open") {
+    if (action === "open") {
       state.activeCartId = cart.id;
       state.activeMenu = cart.status === "draft" ? "create-order" : "orders";
       actions.saveAndRenderAll(["carts"]);
       return;
     }
-    if (button.dataset.cartListAction === "print") {
+    if (action === "print") {
       actions.printCart(cart.id);
       return;
     }
-    if (button.dataset.cartListAction === "paid") {
+    if (action === "paid" || action === "mark-paid") {
       cart.paymentStatus = "paid";
       actions.saveAndRenderAll(["carts"]);
       return;
     }
-    if (button.dataset.cartListAction === "cancel") {
+    if (action === "cancel") {
       cart.status = "cancelled";
       actions.saveAndRenderAll(["carts"]);
       return;
     }
-    if (button.dataset.cartListAction === "delete") {
+    if (action === "delete") {
       state.carts = state.carts.filter((entry) => entry.id !== cart.id);
       if (state.activeCartId === cart.id) state.activeCartId = null;
       actions.saveAndRenderAll(["carts"]);

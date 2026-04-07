@@ -9,6 +9,7 @@ export function createSalesUi(deps) {
     mobileQuery,
     getActiveCart,
     getProductById,
+    canDeleteCart,
     isSearchResultMode,
     paginateItems,
     renderPagination,
@@ -178,44 +179,82 @@ export function createSalesUi(deps) {
   }
 
   function renderCartQueue() {
-    const visibleCarts = state.carts
-      .filter((cart) => state.showArchivedCarts || cart.status === "draft")
-      .filter((cart) => state.showPaidOrders || cart.paymentStatus !== "paid")
-      .filter((cart) => {
-        if (!state.orderSearchTerm) {
-          return true;
-        }
-        const haystack = `${cart.customerName} ${cart.id} ${cart.items.map((item) => item.productName).join(" ")}`.toLowerCase();
-        return haystack.includes(state.orderSearchTerm.toLowerCase());
-      });
+    const compact = mobileQuery.matches;
+    const drafts = state.carts.filter((cart) => cart.status === "draft");
+    const archived = state.carts.filter((cart) => {
+      if (cart.status === "draft") return false;
+      if (!state.showPaidOrders && cart.paymentStatus === "paid") return false;
+      return true;
+    });
+    const visibleCarts = (state.showArchivedCarts ? [...drafts, ...archived] : drafts).filter((cart) => {
+      if (!state.orderSearchTerm) return true;
+      const haystack = `${cart.customerName} ${cart.orderCode} ${cart.items.map((item) => item.productName).join(" ")}`.toLowerCase();
+      return haystack.includes(state.orderSearchTerm.toLowerCase());
+    });
     dom.cartQueueList.classList.toggle("is-compact-search", isSearchResultMode("orders"));
+    if (dom.draftCartBadge) {
+      dom.draftCartBadge.textContent = String(drafts.length);
+    }
     if (!visibleCarts.length) {
-      dom.cartQueueList.innerHTML = '<div class="empty-state">Chưa có đơn hàng nào phù hợp.</div>';
+      dom.cartQueueList.innerHTML = '<div class="empty-state">Không có đơn hàng phù hợp.</div>';
       return;
     }
     const pageData = paginateItems(visibleCarts, "orders");
-    dom.cartQueueList.innerHTML = pageData.items
-      .map((cart) => `
-        <article class="cart-queue-item">
+    const paginationMarkup = renderPagination("orders", pageData);
+    const topPagination = paginationMarkup ? `<div class="orders-top-pagination">${paginationMarkup}</div>` : "";
+    const bottomPagination = paginationMarkup ? `<div class="orders-bottom-pagination">${paginationMarkup}</div>` : "";
+    dom.cartQueueList.innerHTML = topPagination + pageData.items
+      .map((cart) => {
+        const expanded = state.expandedOrderId === cart.id;
+        const itemPreview = cart.items.slice(0, 3).map((item) => item.productName).join(", ");
+        const compactMeta = `${formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • ${formatCurrency(cart.totalAmount)}`;
+        return `
+        <article class="cart-queue-item ${expanded ? "is-expanded" : ""}">
           <div class="queue-header">
             <strong>${escapeHtml(cart.customerName)}</strong>
             <span class="status-pill ${cart.status === "draft" ? "draft" : "completed"}">${cart.status === "draft" ? "Nháp" : cart.status === "cancelled" ? "Đã hủy" : "Đã xong"}</span>
           </div>
           <div class="queue-meta">
-            <span>${escapeHtml(formatDate(cart.updatedAt))}</span>
-            <span>${formatCurrency(cart.totalAmount)}</span>
+            <span>${escapeHtml(cart.orderCode || `Cập nhật ${formatDate(cart.updatedAt)}`)}</span>
+            <span>${compact ? escapeHtml(cart.paymentStatus === "paid" ? "Đã TT" : "Chưa TT") : escapeHtml(formatCurrency(cart.totalAmount))}</span>
           </div>
+          ${compact
+            ? `<div class="queue-meta queue-meta-compact"><span>${escapeHtml(compactMeta)}</span></div>`
+            : `
+              <div class="queue-meta">
+                <span>${escapeHtml(cart.itemCount)} dòng | ${escapeHtml(formatQuantity(cart.totalQuantity))} số lượng | ${cart.paymentStatus === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}</span>
+                <span>${escapeHtml(formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt))}</span>
+              </div>
+              <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
+            `}
           <div class="queue-actions">
-            ${cart.status !== "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">Chi tiết</button>` : ""}
-            <button type="button" class="ghost-button compact-button" data-cart-list-action="open" data-cart-id="${cart.id}">Mở</button>
-            ${cart.status !== "draft" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-cart-id="${cart.id}">In</button>` : ""}
-            ${cart.status !== "draft" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
-            ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-cart-id="${cart.id}" data-queue-action="cancel">Hủy</button>` : ""}
-            ${cart.status === "draft" ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-cart-id="${cart.id}" data-queue-action="delete">Xóa</button>` : ""}
+            ${cart.status === "draft"
+              ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="open" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục bán"}</button>`
+              : `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>`}
+            ${compact
+              ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">...</button>`
+              : `
+                <button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>
+                ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
+                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
+                ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
+              `}
           </div>
+          ${compact && expanded ? `
+            <div class="queue-detail-block">
+              <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
+              <div class="queue-actions queue-actions-expanded">
+                ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
+                ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">TT</button>` : ""}
+                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
+                ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
+              </div>
+            </div>
+          ` : ""}
         </article>
-      `)
-      .join("") + renderPagination("orders", pageData);
+      `;
+      })
+      .join("") + bottomPagination;
   }
 
   return {
