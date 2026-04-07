@@ -206,11 +206,12 @@ export function createSalesUi(deps) {
             <span>${formatCurrency(cart.totalAmount)}</span>
           </div>
           <div class="queue-actions">
+            ${cart.status !== "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">Chi tiết</button>` : ""}
             <button type="button" class="ghost-button compact-button" data-cart-list-action="open" data-cart-id="${cart.id}">Mở</button>
             ${cart.status !== "draft" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-cart-id="${cart.id}">In</button>` : ""}
             ${cart.status !== "draft" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
-            ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
-            ${cart.status === "draft" ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
+            ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-cart-id="${cart.id}" data-queue-action="cancel">Hủy</button>` : ""}
+            ${cart.status === "draft" ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-cart-id="${cart.id}" data-queue-action="delete">Xóa</button>` : ""}
           </div>
         </article>
       `)

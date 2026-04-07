@@ -59,17 +59,7 @@ export function registerSalesControllerEvents(contract) {
       try {
         const product = state.products.find((entry) => Number(entry.id) === Number(checkbox.dataset.pickProduct));
         if (!product) throw new Error("Không tìm thấy sản phẩm.");
-        actions.updateCartItem(
-          `${activeCart.id}:${product.id}`,
-          {
-            productId: product.id,
-            productName: product.name,
-            quantity: 1,
-            unitPrice: Number(product.sale_price || 0),
-            unit: product.unit,
-          },
-          { upsertByProduct: true }
-        );
+        actions.toggleProductInActiveCart(product.id, true);
         renderers.renderSalesProductList();
         renderers.renderCartItems();
         renderers.renderActiveCartPanel();
@@ -82,7 +72,7 @@ export function registerSalesControllerEvents(contract) {
 
     const item = activeCart.items.find((entry) => Number(entry.productId) === Number(checkbox.dataset.pickProduct));
     if (item) {
-      actions.removeCartItem(item.id);
+      actions.toggleProductInActiveCart(item.productId, false);
       renderers.renderSalesProductList();
       renderers.renderCartItems();
       renderers.renderActiveCartPanel();
@@ -184,18 +174,19 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
 
-    const lineButton = event.target.closest("[data-line-action]");
+    const lineButton = event.target.closest("[data-line-action], [data-cart-item-action]");
     if (!lineButton) return;
-    if (lineButton.dataset.lineAction === "remove") {
+    const lineAction = lineButton.dataset.lineAction || lineButton.dataset.cartItemAction;
+    if (lineAction === "remove") {
       actions.removeCartItem(lineButton.dataset.itemId);
       renderers.renderCartItems();
       renderers.renderSalesProductList();
       renderers.renderActiveCartPanel();
       return;
     }
-    if (lineButton.dataset.lineAction === "save") {
+    if (lineAction === "save") {
       const qtyInput = dom.cartItemsList.querySelector(`[data-qty-input="${lineButton.dataset.itemId}"]`);
-      const priceInput = dom.cartItemsList.querySelector(`[data-price-input-cart="${lineButton.dataset.itemId}"]`);
+      const priceInput = dom.cartItemsList.querySelector(`[data-price-input-cart="${lineButton.dataset.itemId}"], [data-price-input="${lineButton.dataset.itemId}"]`);
       try {
         const quantity = Number(qtyInput?.value);
         const unitPrice = Number(priceInput?.value);
@@ -211,8 +202,8 @@ export function registerSalesControllerEvents(contract) {
       }
       return;
     }
-    if (lineButton.dataset.lineAction === "update-default-price") {
-      const priceInput = dom.cartItemsList.querySelector(`[data-price-input-cart="${lineButton.dataset.itemId}"]`);
+    if (lineAction === "update-default-price") {
+      const priceInput = dom.cartItemsList.querySelector(`[data-price-input-cart="${lineButton.dataset.itemId}"], [data-price-input="${lineButton.dataset.itemId}"]`);
       const unitPrice = Number(priceInput?.value);
       if (!Number.isFinite(unitPrice) || unitPrice < 0) {
         actions.showToast("Giá bán không hợp lệ.", true);
@@ -229,11 +220,11 @@ export function registerSalesControllerEvents(contract) {
   dom.cartItemsList.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     const qtyInput = event.target.closest("[data-qty-input]");
-    const priceInput = event.target.closest("[data-price-input-cart]");
+    const priceInput = event.target.closest("[data-price-input-cart], [data-price-input]");
     if (!qtyInput && !priceInput) return;
     event.preventDefault();
-    const itemId = qtyInput?.dataset.qtyInput || priceInput?.dataset.priceInputCart;
-    const saveButton = dom.cartItemsList.querySelector(`[data-line-action="save"][data-item-id="${itemId}"]`);
+    const itemId = qtyInput?.dataset.qtyInput || priceInput?.dataset.priceInputCart || priceInput?.dataset.priceInput;
+    const saveButton = dom.cartItemsList.querySelector(`[data-line-action="save"][data-item-id="${itemId}"], [data-cart-item-action="save"][data-item-id="${itemId}"]`);
     saveButton?.click();
   });
 

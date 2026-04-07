@@ -62,6 +62,12 @@ export function registerPurchasesControllerEvents(contract) {
     renderers.renderPurchaseOrders();
   });
 
+  dom.showPaidPurchases?.addEventListener("change", (event) => {
+    state.showPaidPurchases = event.target.checked;
+    state.pagination.purchaseOrders = 1;
+    renderers.renderPurchaseOrders();
+  });
+
   dom.purchaseSuggestionList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-purchase-suggestion-action]");
     if (!button) return;

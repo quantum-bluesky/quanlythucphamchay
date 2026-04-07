@@ -3174,6 +3174,7 @@ registerSalesControllerEvents({
   actions: {
     showToast,
     openCartForCustomer,
+    toggleProductInActiveCart,
     updateCartItem,
     removeCartItem,
     saveAndRenderAll,
@@ -3267,6 +3268,7 @@ registerPurchasesControllerEvents({
     purchaseNoteInput,
     purchaseSupplierMenuButton,
     purchaseSearchInput,
+    showPaidPurchases,
     purchaseSuggestionList,
     purchasePanel,
     purchaseOrderList,
