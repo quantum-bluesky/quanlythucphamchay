@@ -213,9 +213,10 @@ Màn này có 2 phần:
 6. Sửa trực tiếp số lượng và giá nhập từng dòng
 7. Bấm `Lưu dòng` nếu có chỉnh
 8. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
-9. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
-10. Khi hàng về thực tế, bấm `Nhập kho`
-11. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
+9. Nếu đang gõ tên nhà cung cấp mới chưa có trong danh bạ, bấm `NCC` để mở form nhà cung cấp với tên đang nhập; lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
+10. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
+11. Khi hàng về thực tế, bấm `Nhập kho`
+12. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 
 ### Ý nghĩa trạng thái phiếu nhập
 
