@@ -59,3 +59,81 @@ test("purchases screen can create a new supplier and apply it back to the draft 
 
   expectNoRuntimeErrors(runtime);
 });
+
+test("suppliers screen can edit supplier without rewriting paid purchase history", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const supplierName = `NCC Locked ${Date.now()}`;
+  const renamedSupplier = `${supplierName} Updated`;
+  const now = new Date().toISOString();
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16");
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+
+  const injectedSupplier = {
+    id: `supplier_locked_${Date.now()}`,
+    name: supplierName,
+    phone: "0909000099",
+    address: "Dia chi NCC khoa lich su",
+    note: "Supplier test paid purchase history",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const paidPurchase = {
+    id: `purchase_paid_${Date.now()}`,
+    supplierName,
+    note: "Phieu da thanh toan de chan sua nguoc",
+    status: "paid",
+    createdAt: now,
+    updatedAt: now,
+    receivedAt: now,
+    receiptCode: `PN-LOCKED-${Date.now()}`,
+    items: [],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      data: {
+        customers: originalState.customers,
+        suppliers: [...(originalState.suppliers || []), injectedSupplier],
+        carts: originalState.carts,
+        purchases: [...(originalState.purchases || []), paidPurchase],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    await switchMenu(page, "suppliers");
+    await expectScreenTitle(page, "Nhà cung cấp");
+
+    await page.locator(`[data-supplier-action="edit"][data-supplier-id="${injectedSupplier.id}"]`).click();
+    await expect(page.locator("#supplierNameInput")).toHaveValue(supplierName);
+
+    await page.locator("#supplierNameInput").fill(renamedSupplier);
+    await page.locator("#supplierForm button[type=\"submit\"]").click();
+
+    const toastText = await collectToast(page, runtime, "supplier-edit-locked-history", {
+      errorPattern: /^$/,
+    });
+    expect(toastText).toContain("Đã lưu nhà cung cấp");
+
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16");
+    expect(latestStateResponse.ok()).toBeTruthy();
+    const latestState = await latestStateResponse.json();
+    expect((latestState.suppliers || []).some((supplier) => supplier.name === renamedSupplier)).toBeTruthy();
+    expect((latestState.purchases || []).some((purchase) => purchase.id === paidPurchase.id && purchase.supplierName === supplierName)).toBeTruthy();
+  } finally {
+    await request.put("/api/state", {
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});

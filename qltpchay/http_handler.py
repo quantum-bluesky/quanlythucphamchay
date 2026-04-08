@@ -13,7 +13,9 @@ from .constants import ADMIN_SESSION_COOKIE, APP_NAME, APP_VERSION, STATIC_DIR
 from .store import SyncConflictError
 
 
-def create_handler(store, admin_sessions):
+def create_handler(store, admin_sessions, system_config: dict | None = None):
+    debug_config = (system_config or {}).get("debug", {})
+
     class InventoryRequestHandler(BaseHTTPRequestHandler):
         @staticmethod
         def _get_app_info() -> dict:
@@ -21,6 +23,47 @@ def create_handler(store, admin_sessions):
                 "name": APP_NAME,
                 "version": APP_VERSION,
             }
+
+        @staticmethod
+        def _get_debug_info() -> dict:
+            return {
+                "sync_state": bool(debug_config.get("sync_state")),
+            }
+
+        @classmethod
+        def _is_sync_debug_enabled(cls) -> bool:
+            return cls._get_debug_info()["sync_state"]
+
+        def _build_sync_debug_summary(self, payload: dict | None) -> dict:
+            payload = payload or {}
+            keys = [
+                key
+                for key in ("customers", "suppliers", "carts", "purchases")
+                if isinstance(payload.get(key), list)
+            ]
+            purchase_statuses: dict[str, int] = {}
+            for purchase in payload.get("purchases", []) if isinstance(payload.get("purchases"), list) else []:
+                status = str(purchase.get("status") or "draft")
+                purchase_statuses[status] = purchase_statuses.get(status, 0) + 1
+
+            return {
+                "client": f"{self.client_address[0]}:{self.client_address[1]}",
+                "actor": str(payload.get("actor") or ""),
+                "keys": keys,
+                "counts": {
+                    key: len(payload.get(key) or [])
+                    for key in keys
+                },
+                "purchase_statuses": purchase_statuses,
+                "expected_updated_at": payload.get("expected_updated_at", {}),
+            }
+
+        def _log_sync_debug(self, message: str, payload: dict | None = None) -> None:
+            if not self._is_sync_debug_enabled():
+                return
+            timestamp = datetime.now().isoformat(timespec="seconds")
+            summary = self._build_sync_debug_summary(payload)
+            print(f"[sync-debug] {timestamp} {message}: {json.dumps(summary, ensure_ascii=False)}")
 
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
@@ -88,6 +131,7 @@ def create_handler(store, admin_sessions):
                     HTTPStatus.OK,
                     {
                         "app": self._get_app_info(),
+                        "debug": self._get_debug_info(),
                         "products": store.get_products(),
                         "summary": store.get_summary(),
                         "transactions": store.get_transactions(limit=int(limit)),
@@ -103,6 +147,7 @@ def create_handler(store, admin_sessions):
                     {
                         **store.get_runtime_version(),
                         "app": self._get_app_info(),
+                        "debug": self._get_debug_info(),
                     },
                 )
                 return
@@ -389,17 +434,21 @@ def create_handler(store, admin_sessions):
                 try:
                     payload = self._read_json_body()
                     payload["actor"] = payload.get("actor") or self._get_admin_username() or "Nhân viên"
+                    self._log_sync_debug("PUT /api/state received", payload)
                     sync_state = store.save_sync_state(payload)
+                    self._log_sync_debug("PUT /api/state saved", payload)
                     self._send_json(
                         HTTPStatus.OK,
                         {
                             "message": "Đã lưu dữ liệu đồng bộ.",
                             "app": self._get_app_info(),
+                            "debug": self._get_debug_info(),
                             "runtime_version": store.get_runtime_version(),
                             **sync_state,
                         },
                     )
                 except SyncConflictError as exc:
+                    self._log_sync_debug(f"PUT /api/state conflict: {exc}", payload if 'payload' in locals() else None)
                     self._send_json(
                         HTTPStatus.CONFLICT,
                         {
@@ -412,6 +461,7 @@ def create_handler(store, admin_sessions):
                         },
                     )
                 except ValueError as exc:
+                    self._log_sync_debug(f"PUT /api/state bad-request: {exc}", payload if 'payload' in locals() else None)
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 

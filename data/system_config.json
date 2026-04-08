@@ -6,5 +6,8 @@
   "admin": {
     "username": "masteradmin",
     "password": "admin12345"
+  },
+  "debug": {
+    "sync_state": true
   }
 }

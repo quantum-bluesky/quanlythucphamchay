@@ -10,6 +10,15 @@ from .constants import (
     DEFAULT_PORT,
 )
 
+TRUTHY_VALUES = {"1", "true", "yes", "on"}
+
+
+def _parse_env_flag(name: str, default: bool) -> bool:
+    raw_value = os.environ.get(name)
+    if raw_value is None:
+        return default
+    return str(raw_value).strip().lower() in TRUTHY_VALUES
+
 
 def build_default_system_config(*, use_env_seed: bool) -> dict:
     config = {
@@ -21,6 +30,9 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
             "username": DEFAULT_ADMIN_USERNAME,
             "password": DEFAULT_ADMIN_PASSWORD,
         },
+        "debug": {
+            "sync_state": False,
+        },
     }
     if use_env_seed:
         config["server"]["host"] = os.environ.get("APP_HOST", DEFAULT_HOST)
@@ -30,6 +42,7 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
             config["server"]["port"] = DEFAULT_PORT
         config["admin"]["username"] = os.environ.get("MASTER_ADMIN_USERNAME", DEFAULT_ADMIN_USERNAME)
         config["admin"]["password"] = os.environ.get("MASTER_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
+        config["debug"]["sync_state"] = _parse_env_flag("APP_DEBUG_SYNC_STATE", False)
     return config
 
 
@@ -62,6 +75,9 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
             "username": str(raw_config.get("admin", {}).get("username") or defaults["admin"]["username"]).strip(),
             "password": str(raw_config.get("admin", {}).get("password") or defaults["admin"]["password"]),
         },
+        "debug": {
+            "sync_state": bool(raw_config.get("debug", {}).get("sync_state", defaults["debug"]["sync_state"])),
+        },
     }
 
     try:
@@ -80,4 +96,3 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         save_system_config(config, config_path)
 
     return config
-
