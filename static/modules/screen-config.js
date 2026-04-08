@@ -98,7 +98,7 @@ export const SCREEN_HELP = {
       "Nếu có máy khác vừa tạo hoặc sửa phiếu nhập, màn hình sẽ tự làm mới khi bạn không còn nhập dở ở ô hiện tại.",
       "Nếu 2 máy cùng lưu trên một phiếu nháp, app sẽ báo xung đột đồng bộ và tự tải lại để tránh ghi đè dữ liệu của nhau.",
       "Trong detail từng dòng nhập, bạn có thể sửa số lượng, giá nhập và bấm Giá chung để cập nhật giá nhập mặc định của sản phẩm sau khi xác nhận.",
-      "Nếu đang gõ tên NCC mới chưa có sẵn, bấm nút NCC để mở thẳng form nhà cung cấp với tên đang nhập và lưu xong sẽ quay lại phiếu nhập.",
+      "Nếu đang gõ tên NCC mới chưa có sẵn, bấm nút NCC để mở thẳng form nhà cung cấp với tên đang nhập; nếu tên đó đã có, app sẽ mở luôn chế độ sửa NCC rồi quay lại phiếu nhập sau khi lưu.",
       "Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho; app sẽ khóa thao tác trả tiền sớm hơn bước này.",
       "Phiếu đã nhập kho, đã thanh toán hoặc đã hủy sẽ chuyển sang chế độ chỉ xem; nếu sai sót thì xử lý bằng phiếu trả NCC hoặc chứng từ điều chỉnh mới.",
       "Ẩn các phiếu đã thanh toán để giữ màn hình gọn; bật lại khi cần đối chiếu lịch sử.",
@@ -116,7 +116,7 @@ export const SCREEN_HELP = {
     steps: [
       "Mở màn là thấy danh sách nhà cung cấp hiện có.",
       "Form tạo/sửa được thu gọn sẵn để ưu tiên phần danh sách; bấm Thêm mới hoặc Sửa để mở đúng lúc cần nhập liệu.",
-      "Nếu đi từ màn Nhập hàng sang bằng nút NCC, form sẽ mở sẵn với tên nhà cung cấp đang gõ để lưu nhanh rồi quay lại phiếu nhập.",
+      "Nếu đi từ màn Nhập hàng sang bằng nút NCC, form sẽ mở sẵn với tên nhà cung cấp đang gõ; nếu NCC đã tồn tại thì app chuyển thẳng sang chế độ sửa để cập nhật nhanh rồi quay lại phiếu nhập.",
       "Tìm theo tên, số điện thoại hoặc địa chỉ trước khi thêm để tránh trùng lặp.",
       MOBILE_FLOATING_HINT,
     ],

@@ -26,7 +26,28 @@ export function createSyncRuntimeHelpers(deps) {
     setAutoRefreshTimer,
     getAutoRefreshTimer,
     autoRefreshIntervalMs,
+    isSyncDebugEnabled,
+    logSyncDebug,
   } = deps;
+
+  function buildCollectionSummary(payload = {}) {
+    const purchases = Array.isArray(payload.purchases) ? payload.purchases : [];
+    const purchaseStatuses = purchases.reduce((summary, purchase) => {
+      const status = String(purchase?.status || "draft");
+      summary[status] = (summary[status] || 0) + 1;
+      return summary;
+    }, {});
+
+    return {
+      keys: syncCollectionKeys.filter((key) => Array.isArray(payload[key])),
+      counts: syncCollectionKeys.reduce((summary, key) => {
+        summary[key] = Array.isArray(payload[key]) ? payload[key].length : 0;
+        return summary;
+      }, {}),
+      purchaseStatuses,
+      expectedUpdatedAt: payload.expected_updated_at || {},
+    };
+  }
 
   function readLegacyCollections() {
     return {
@@ -139,16 +160,32 @@ export function createSyncRuntimeHelpers(deps) {
     syncSalesState();
 
     try {
+      const syncPayload = getSyncPayload();
+      if (isSyncDebugEnabled()) {
+        logSyncDebug("migrate-legacy -> request", buildCollectionSummary(syncPayload));
+      }
       const response = await apiRequest("/api/state", {
         method: "PUT",
-        body: JSON.stringify(getSyncPayload()),
+        body: JSON.stringify(syncPayload),
       });
+      if (isSyncDebugEnabled()) {
+        logSyncDebug("migrate-legacy -> success", {
+          responseUpdatedAt: response.updated_at || {},
+        });
+      }
       setLatestSyncUpdatedAt(response.updated_at || getLatestSyncUpdatedAt());
       updateRuntimeVersion(response);
       writeStorage(storageKeys.migratedSyncState, true);
       showToast("Đã chuyển dữ liệu cũ từ trình duyệt lên server để đồng bộ nhiều máy.");
       return true;
     } catch (error) {
+      if (isSyncDebugEnabled()) {
+        logSyncDebug("migrate-legacy -> error", {
+          message: error?.message || "",
+          status: error?.status || 0,
+          payload: error?.payload || null,
+        });
+      }
       state.customers = previousCollections.customers;
       state.suppliers = previousCollections.suppliers;
       state.carts = previousCollections.carts;
@@ -161,10 +198,20 @@ export function createSyncRuntimeHelpers(deps) {
   async function persistCollections(keys = syncCollectionKeys) {
     const uniqueKeys = [...new Set(keys)].filter((key) => syncCollectionKeys.includes(key));
     if (!uniqueKeys.length) return;
+    const syncPayload = getSyncPayload(uniqueKeys);
+    if (isSyncDebugEnabled()) {
+      logSyncDebug("persistCollections -> request", buildCollectionSummary(syncPayload));
+    }
     const response = await apiRequest("/api/state", {
       method: "PUT",
-      body: JSON.stringify(getSyncPayload(uniqueKeys)),
+      body: JSON.stringify(syncPayload),
     });
+    if (isSyncDebugEnabled()) {
+      logSyncDebug("persistCollections -> success", {
+        keys: uniqueKeys,
+        responseUpdatedAt: response.updated_at || {},
+      });
+    }
     setLatestSyncUpdatedAt(response.updated_at || getLatestSyncUpdatedAt());
     updateRuntimeVersion(response);
   }
@@ -180,6 +227,14 @@ export function createSyncRuntimeHelpers(deps) {
       try {
         await persistCollections(keysToPersist);
       } catch (error) {
+        if (isSyncDebugEnabled()) {
+          logSyncDebug("queuePersistCollections -> error", {
+            keys: keysToPersist,
+            message: error?.message || "",
+            status: error?.status || 0,
+            payload: error?.payload || null,
+          });
+        }
         if (error?.status === 409 && error?.payload?.conflict?.state_key) {
           showToast(`Dữ liệu vừa được cập nhật từ máy khác. App đã tự tải lại.`, true);
           try { await refreshData(); } catch {}

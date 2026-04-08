@@ -29,6 +29,9 @@ export const state = {
     authenticated: false,
     username: "",
   },
+  debug: {
+    syncState: false,
+  },
   searchTerm: "",
   salesSearchTerm: "",
   orderSearchTerm: "",

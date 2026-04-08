@@ -77,10 +77,15 @@ def run_server(system_config: dict, host: str | None = None, port: int | None = 
         str(system_config["admin"]["username"]),
         str(system_config["admin"]["password"]),
     )
-    server = ThreadingHTTPServer((resolved_host, resolved_port), modular_create_handler(store, admin_sessions))
+    server = ThreadingHTTPServer(
+        (resolved_host, resolved_port),
+        modular_create_handler(store, admin_sessions, system_config=system_config),
+    )
     print(f"Inventory app running at http://{resolved_host}:{resolved_port}")
     print(f"System config file: {CONFIG_PATH}")
     print(f"Master Admin username: {system_config['admin']['username']}")
+    if system_config.get("debug", {}).get("sync_state"):
+        print("Sync debug logging: enabled")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

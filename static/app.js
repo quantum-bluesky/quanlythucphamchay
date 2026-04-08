@@ -439,6 +439,17 @@ function getSyncRuntimeHelpers() {
       setAutoRefreshTimer: (value) => { autoRefreshTimer = value; },
       getAutoRefreshTimer: () => autoRefreshTimer,
       autoRefreshIntervalMs: AUTO_REFRESH_INTERVAL_MS,
+      isSyncDebugEnabled: () => Boolean(state.debug?.syncState),
+      logSyncDebug: (message, details = null) => {
+        if (!state.debug?.syncState) {
+          return;
+        }
+        if (details === null) {
+          console.debug(`[sync-debug] ${message}`);
+          return;
+        }
+        console.debug(`[sync-debug] ${message}`, details);
+      },
     });
   }
   return syncRuntimeHelpers;
@@ -683,17 +694,34 @@ function clearPendingPurchaseSupplierFlow() {
   state.pendingPurchaseSupplierName = "";
 }
 
+function fillSupplierForm(supplier = {}) {
+  supplierNameInput.value = supplier.name || "";
+  supplierPhoneInput.value = supplier.phone || "";
+  supplierAddressInput.value = supplier.address || "";
+  supplierNoteInput.value = supplier.note || "";
+}
+
 function beginSupplierCreateFromPurchase() {
   const pendingName = purchaseSupplierInput?.value?.trim() || "";
+  const existingSupplier = pendingName
+    ? getActiveSuppliers().find((supplier) => normalizeText(supplier.name) === normalizeText(pendingName))
+    : null;
   state.pendingPurchaseSupplierFlow = true;
-  state.pendingPurchaseSupplierName = pendingName;
-  state.editingSupplierFormId = null;
+  state.pendingPurchaseSupplierName = existingSupplier?.name || pendingName;
   state.supplierSearchTerm = "";
   state.pagination.suppliers = 1;
   switchMenu("suppliers");
   supplierForm?.reset();
-  supplierNameInput.value = pendingName;
   renderSuppliers();
+  if (existingSupplier) {
+    state.editingSupplierFormId = existingSupplier.id;
+    fillSupplierForm(existingSupplier);
+    openSupplierForm({ focus: true });
+    showToast("Nhà cung cấp đã có sẵn. App mở chế độ sửa để cập nhật rồi quay lại phiếu nhập.");
+    return;
+  }
+  state.editingSupplierFormId = null;
+  supplierNameInput.value = pendingName;
   openSupplierForm({ focus: true });
 }
 
@@ -1063,6 +1091,17 @@ function normalizeAppInfo(payload = {}) {
   };
 }
 
+function normalizeDebugConfig(payload = {}) {
+  const debug = payload.debug || payload;
+  return {
+    syncState: Boolean(debug.sync_state ?? debug.syncState),
+  };
+}
+
+function updateDebugConfig(payload = {}) {
+  state.debug = normalizeDebugConfig(payload);
+}
+
 function updateAppInfo(payload = {}) {
   const nextAppInfo = normalizeAppInfo(payload);
   if (nextAppInfo.name) {
@@ -1074,6 +1113,7 @@ function updateAppInfo(payload = {}) {
 }
 
 function updateRuntimeVersion(payload = {}) {
+  updateDebugConfig(payload);
   return getSyncRuntimeHelpers().updateRuntimeVersion(payload);
 }
 
@@ -1274,8 +1314,8 @@ function upsertCustomer(payload, customerId = null) {
   return getEntityProductMutationHelpers().upsertCustomer(payload, customerId);
 }
 
-function upsertSupplier(payload, supplierId = null) {
-  return getEntityProductMutationHelpers().upsertSupplier(payload, supplierId);
+function upsertSupplier(payload, supplierId = null, options = {}) {
+  return getEntityProductMutationHelpers().upsertSupplier(payload, supplierId, options);
 }
 
 function getCustomerDeleteImpact(customerId) {
@@ -1760,6 +1800,7 @@ async function refreshData() {
       refreshAdminStatus(),
     ]);
     latestSyncUpdatedAt = payload.updated_at || {};
+    updateDebugConfig(payload);
     updateRuntimeVersion(payload);
     state.products = payload.products || [];
     state.deletedProducts = deletedProductsPayload.products || [];

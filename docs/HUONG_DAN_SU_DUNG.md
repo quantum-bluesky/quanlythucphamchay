@@ -227,10 +227,11 @@ Màn này có 2 phần:
 6. Sửa trực tiếp số lượng và giá nhập từng dòng
 7. Bấm `Lưu dòng` nếu có chỉnh
 8. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
-9. Nếu đang gõ tên nhà cung cấp mới chưa có trong danh bạ, bấm `NCC` để mở form nhà cung cấp với tên đang nhập; lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
-10. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
-11. Khi hàng về thực tế, bấm `Nhập kho`
-12. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
+9. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, bấm `NCC` để mở form nhà cung cấp với tên đang nhập; nếu tên đó đã tồn tại thì app sẽ mở thẳng chế độ sửa NCC
+10. Lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
+11. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
+12. Khi hàng về thực tế, bấm `Nhập kho`
+13. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 
 ### Ý nghĩa trạng thái phiếu nhập
 
@@ -266,7 +267,8 @@ Nên lưu:
 2. Khi cần tạo mới, bấm `Thêm mới` để mở form
 3. Lưu nhà cung cấp rồi dùng lại trong phiếu nhập
 4. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
-5. Có thể bấm `Dùng cho phiếu nhập` để chuyển nhanh sang màn nhập hàng
+5. Nếu đi từ màn `NH` sang bằng nút `NCC`, app sẽ mở sẵn form theo tên đang gõ; nếu NCC đã tồn tại thì app chuyển luôn sang chế độ sửa
+6. Có thể bấm `Dùng cho phiếu nhập` để chuyển nhanh sang màn nhập hàng
 
 ## 10. Luồng báo cáo tháng
 
