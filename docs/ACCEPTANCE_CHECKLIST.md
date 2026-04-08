@@ -18,30 +18,30 @@ Mục tiêu:
 
 ## 2. Bộ case chuẩn
 
-| ID | Priority | Màn / luồng | Mục tiêu | Type | Nguồn chạy / ghi nhận |
-| --- | --- | --- | --- | --- | --- |
-| ACC-ABOUT-01 | P1 | About / Version | Bấm `Version` mở đúng màn `About`, version khớp backend | Auto | `tests/integration/acceptance-checklist.spec.js` |
-| ACC-INV-01 | P0 | Tồn kho -> Nhập hàng | Bấm `Nhập` từ card tồn kho mở đúng màn `Nhập hàng` | Auto | `tests/integration/acceptance-checklist.spec.js` |
-| ACC-INV-02 | P0 | Tồn kho -> Xuất hàng | Bấm `Xuất` từ card tồn kho mở đúng màn `Tạo đơn xuất hàng` | Auto | `tests/integration/core-workflows.spec.js` |
-| ACC-SALE-01 | P0 | Tạo đơn xuất hàng | Tạo giỏ, thêm hàng, chốt đơn và đối chiếu tồn kho / đơn hàng | Auto | `tests/integration/acceptance-sales-phase-b.spec.js` |
-| ACC-SALE-02 | P0 | Tạo đơn xuất hàng | Khi thiếu hàng, user thường không được bypass sang chỉnh tồn trực tiếp | Auto | `tests/integration/acceptance-sales-phase-b.spec.js` |
-| ACC-ORD-01 | P1 | Đơn hàng | Mở đơn, xem chi tiết, không lỗi runtime sau reload | Auto | `tests/integration/management-screens.spec.js` |
-| ACC-CUS-01 | P1 | Khách hàng | Mở sửa khách hàng, form nạp dữ liệu đúng, reload không lỗi | Auto | `tests/integration/management-screens.spec.js` |
-| ACC-PROD-01 | P1 | Sản phẩm | Mở sửa nhanh sản phẩm, màn không lỗi runtime | Auto | `tests/integration/core-workflows.spec.js` |
-| ACC-PUR-01 | P0 | Nhập hàng | Phiếu chỉ được `paid` sau khi `received` | Auto | `tests/integration/workflow-phase-a.spec.js` |
-| ACC-PUR-02 | P0 | Nhập hàng | Phiếu `received/paid` không cho sửa trực tiếp | Auto | `tests/integration/workflow-phase-a.spec.js` |
-| ACC-PHB-01 | P1 | Phase B / Phiếu điều chỉnh tồn | Tạo phiếu điều chỉnh tồn, cập nhật tồn kho và audit đúng receipt | Auto | `tests/integration/acceptance-sales-phase-b.spec.js` |
-| ACC-PHB-02 | P1 | Phase B / Phiếu trả hàng khách | Tạo phiếu trả hàng khách, hàng quay lại tồn kho và có giao dịch tương ứng | Auto | `tests/integration/acceptance-sales-phase-b.spec.js` |
-| ACC-PHB-03 | P1 | Phase B / Phiếu trả NCC | Tạo phiếu trả NCC, tồn kho giảm và có giao dịch tương ứng | Auto | `tests/integration/acceptance-sales-phase-b.spec.js` |
-| ACC-SUP-01 | P1 | Nhà cung cấp | Mở sửa nhà cung cấp, form nạp dữ liệu đúng, reload không lỗi | Auto | `tests/integration/management-screens.spec.js` |
-| ACC-REP-01 | P1 | Báo cáo | Làm mới báo cáo, đổi bộ lọc, màn không lỗi runtime | Auto | `tests/integration/acceptance-checklist.spec.js`, `tests/integration/management-screens.spec.js` |
-| ACC-HIS-01 | P1 | Khôi phục | Màn khôi phục hiển thị đủ nhóm đã xóa và thao tác không lỗi | Auto | `tests/integration/acceptance-checklist.spec.js`, `tests/integration/management-screens.spec.js` |
-| ACC-ADM-01 | P0 | Master Admin | Đăng nhập admin thành công, mở module quản trị | Auto | `tests/integration/admin.spec.js` |
-| ACC-ADM-02 | P0 | Master Admin | Export / import / backup / restore chạy trên fixture DB | Auto | `tests/integration/admin.spec.js` |
-| ACC-ADM-03 | P0 | Tồn kho admin | Chỉnh tồn trực tiếp phải có đăng nhập admin và lý do | Auto | `tests/integration/workflow-phase-a.spec.js` |
-| ACC-SYNC-01 | P0 | Nhiều máy / create-order | Màn bán hàng tự refresh tồn kho và giá sau thay đổi từ máy khác | Auto | `tests/integration/cross-client-sync.spec.js` |
-| ACC-SYNC-02 | P0 | Nhiều máy / draft cart | Lưu dữ liệu stale bị chặn với conflict metadata | Auto | `tests/integration/workflow-phase-c.spec.js` |
-| ACC-SYNC-03 | P0 | Nhiều máy / draft purchase | Lưu dữ liệu stale bị chặn với conflict metadata | Auto | `tests/integration/workflow-phase-c.spec.js` |
+| STT | ID           | Priority | Màn / luồng                    | Mục tiêu                                                                  | Type | Nguồn chạy / ghi nhận                                                                            |
+| --- | ------------ | -------- | ------------------------------ | ------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------ |
+| 1   | ACC-ABOUT-01 | P1       | About / Version                | Bấm `Version` mở đúng màn `About`, version khớp backend                   | Auto | `tests/integration/acceptance-checklist.spec.js`                                                 |
+| 2   | ACC-INV-01   | P0       | Tồn kho -> Nhập hàng           | Bấm `Nhập` từ card tồn kho mở đúng màn `Nhập hàng`                        | Auto | `tests/integration/acceptance-checklist.spec.js`                                                 |
+| 3   | ACC-INV-02   | P0       | Tồn kho -> Xuất hàng           | Bấm `Xuất` từ card tồn kho mở đúng màn `Tạo đơn xuất hàng`                | Auto | `tests/integration/core-workflows.spec.js`                                                       |
+| 4   | ACC-SALE-01  | P0       | Tạo đơn xuất hàng              | Tạo giỏ, thêm hàng, chốt đơn và đối chiếu tồn kho / đơn hàng              | Auto | `tests/integration/acceptance-sales-phase-b.spec.js`                                             |
+| 5   | ACC-SALE-02  | P0       | Tạo đơn xuất hàng              | Khi thiếu hàng, user thường không được bypass sang chỉnh tồn trực tiếp    | Auto | `tests/integration/acceptance-sales-phase-b.spec.js`                                             |
+| 6   | ACC-ORD-01   | P1       | Đơn hàng                       | Mở đơn, xem chi tiết, không lỗi runtime sau reload                        | Auto | `tests/integration/management-screens.spec.js`                                                   |
+| 7   | ACC-CUS-01   | P1       | Khách hàng                     | Mở sửa khách hàng, form nạp dữ liệu đúng, reload không lỗi                | Auto | `tests/integration/management-screens.spec.js`                                                   |
+| 8   | ACC-PROD-01  | P1       | Sản phẩm                       | Mở sửa nhanh sản phẩm, màn không lỗi runtime                              | Auto | `tests/integration/core-workflows.spec.js`                                                       |
+| 9   | ACC-PUR-01   | P0       | Nhập hàng                      | Phiếu chỉ được `paid` sau khi `received`                                  | Auto | `tests/integration/workflow-phase-a.spec.js`                                                     |
+| 10  | ACC-PUR-02   | P0       | Nhập hàng                      | Phiếu `received/paid` không cho sửa trực tiếp                             | Auto | `tests/integration/workflow-phase-a.spec.js`                                                     |
+| 11  | ACC-PHB-01   | P1       | Phase B / Phiếu điều chỉnh tồn | Tạo phiếu điều chỉnh tồn, cập nhật tồn kho và audit đúng receipt          | Auto | `tests/integration/acceptance-sales-phase-b.spec.js`                                             |
+| 12  | ACC-PHB-02   | P1       | Phase B / Phiếu trả hàng khách | Tạo phiếu trả hàng khách, hàng quay lại tồn kho và có giao dịch tương ứng | Auto | `tests/integration/acceptance-sales-phase-b.spec.js`                                             |
+| 13  | ACC-PHB-03   | P1       | Phase B / Phiếu trả NCC        | Tạo phiếu trả NCC, tồn kho giảm và có giao dịch tương ứng                 | Auto | `tests/integration/acceptance-sales-phase-b.spec.js`                                             |
+| 14  | ACC-SUP-01   | P1       | Nhà cung cấp                   | Mở sửa nhà cung cấp, form nạp dữ liệu đúng, reload không lỗi              | Auto | `tests/integration/management-screens.spec.js`                                                   |
+| 15  | ACC-REP-01   | P1       | Báo cáo                        | Làm mới báo cáo, đổi bộ lọc, màn không lỗi runtime                        | Auto | `tests/integration/acceptance-checklist.spec.js`, `tests/integration/management-screens.spec.js` |
+| 16  | ACC-HIS-01   | P1       | Khôi phục                      | Màn khôi phục hiển thị đủ nhóm đã xóa và thao tác không lỗi               | Auto | `tests/integration/acceptance-checklist.spec.js`, `tests/integration/management-screens.spec.js` |
+| 17  | ACC-ADM-01   | P0       | Master Admin                   | Đăng nhập admin thành công, mở module quản trị                            | Auto | `tests/integration/admin.spec.js`                                                                |
+| 18  | ACC-ADM-02   | P0       | Master Admin                   | Export / import / backup / restore chạy trên fixture DB                   | Auto | `tests/integration/admin.spec.js`                                                                |
+| 19  | ACC-ADM-03   | P0       | Tồn kho admin                  | Chỉnh tồn trực tiếp phải có đăng nhập admin và lý do                      | Auto | `tests/integration/workflow-phase-a.spec.js`                                                     |
+| 20  | ACC-SYNC-01  | P0       | Nhiều máy / create-order       | Màn bán hàng tự refresh tồn kho và giá sau thay đổi từ máy khác           | Auto | `tests/integration/cross-client-sync.spec.js`                                                    |
+| 21  | ACC-SYNC-02  | P0       | Nhiều máy / draft cart         | Lưu dữ liệu stale bị chặn với conflict metadata                           | Auto | `tests/integration/workflow-phase-c.spec.js`                                                     |
+| 22  | ACC-SYNC-03  | P0       | Nhiều máy / draft purchase     | Lưu dữ liệu stale bị chặn với conflict metadata                           | Auto | `tests/integration/workflow-phase-c.spec.js`                                                     |
 
 ## 3. Bộ chạy tự động chuẩn cho Codex agent
 
