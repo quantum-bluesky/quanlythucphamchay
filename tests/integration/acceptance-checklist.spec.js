@@ -74,3 +74,69 @@ test("ACC-REP-01 and ACC-HIS-01 reports refresh and history screen render health
 
   expectNoRuntimeErrors(runtime);
 });
+
+test("ACC-SUP-02 suppliers create stays healthy with legacy paid purchases using received_at", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const now = new Date().toISOString();
+  const supplierName = `NCC Legacy ${Date.now()}`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16");
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+
+  const legacyPaidPurchase = {
+    id: `purchase_legacy_paid_${Date.now()}`,
+    supplierName: "NCC Legacy Locked",
+    note: "Legacy payload uses received_at",
+    status: "paid",
+    createdAt: now,
+    updatedAt: now,
+    paidAt: now,
+    received_at: now,
+    receiptCode: `PN-LEGACY-${Date.now()}`,
+    items: [],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      data: {
+        purchases: [...(originalState.purchases || []), legacyPaidPurchase],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    await switchMenu(page, "suppliers");
+    await expectScreenTitle(page, "Nhà cung cấp");
+    await page.locator("#supplierFormToggleButton").click();
+    await expect(page.locator("#supplierFormSection")).not.toHaveClass(/is-collapsed/);
+
+    await page.locator("#supplierNameInput").fill(supplierName);
+    await page.locator("#supplierPhoneInput").fill("0909000098");
+    await page.locator("#supplierAddressInput").fill("Dia chi NCC legacy");
+    await page.locator("#supplierForm button[type=\"submit\"]").click();
+
+    const toastText = await collectToast(page, runtime, "acc-supplier-legacy-purchase-create", {
+      errorPattern: /^$/,
+    });
+    expect(toastText).toContain("Đã lưu nhà cung cấp");
+
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16");
+    expect(latestStateResponse.ok()).toBeTruthy();
+    const latestState = await latestStateResponse.json();
+    expect((latestState.suppliers || []).some((supplier) => supplier.name === supplierName)).toBeTruthy();
+  } finally {
+    await request.put("/api/state", {
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
