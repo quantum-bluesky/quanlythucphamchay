@@ -77,11 +77,12 @@ export function createEntityProductMutationHelpers(deps) {
     saveAndRenderAll(["customers", "carts"]);
   }
 
-  function upsertSupplier(payload, supplierId = null) {
+  function upsertSupplier(payload, supplierId = null, options = {}) {
     const cleanName = String(payload.name || "").trim();
     const cleanPhone = String(payload.phone || "").trim();
     const cleanAddress = String(payload.address || "").trim();
     const cleanNote = String(payload.note || "").trim();
+    const extraCollections = Array.isArray(options.extraCollections) ? options.extraCollections : [];
     if (!cleanName) throw new Error("Tên nhà cung cấp là bắt buộc.");
     const duplicateByName = getActiveSuppliers().find((supplier) => supplier.id !== supplierId && normalizeText(supplier.name) === normalizeText(cleanName));
     if (duplicateByName) throw new Error("Tên nhà cung cấp đã tồn tại.");
@@ -89,15 +90,40 @@ export function createEntityProductMutationHelpers(deps) {
       const duplicateByPhone = getActiveSuppliers().find((supplier) => supplier.id !== supplierId && normalizeText(supplier.phone) === normalizeText(cleanPhone));
       if (duplicateByPhone) throw new Error("Số điện thoại nhà cung cấp đã tồn tại.");
     }
+    const changedCollections = [...new Set(["suppliers", ...extraCollections])];
+    let savedSupplierId = supplierId || null;
     if (supplierId) {
       const currentSupplier = state.suppliers.find((supplier) => supplier.id === supplierId);
       const previousName = currentSupplier?.name || "";
       state.suppliers = state.suppliers.map((supplier) => supplier.id === supplierId ? { ...supplier, name: cleanName, phone: cleanPhone, address: cleanAddress, note: cleanNote, updatedAt: nowIso() } : supplier);
-      state.purchases = state.purchases.map((purchase) => normalizeText(purchase.supplierName) === normalizeText(previousName) ? { ...purchase, supplierName: cleanName, updatedAt: nowIso() } : purchase);
+      let purchasesChanged = false;
+      state.purchases = state.purchases.map((purchase) => {
+        const status = String(purchase.status || "draft");
+        if (!["draft", "ordered"].includes(status)) {
+          return purchase;
+        }
+        if (normalizeText(purchase.supplierName) !== normalizeText(previousName)) {
+          return purchase;
+        }
+        purchasesChanged = true;
+        return { ...purchase, supplierName: cleanName, updatedAt: nowIso() };
+      });
+      if (purchaseSupplierInput.value && normalizeText(purchaseSupplierInput.value) === normalizeText(previousName)) {
+        purchaseSupplierInput.value = cleanName;
+      }
+      if (purchasesChanged) {
+        changedCollections.push("purchases");
+      }
     } else {
-      state.suppliers.push({ id: createId("supplier"), name: cleanName, phone: cleanPhone, address: cleanAddress, note: cleanNote, createdAt: nowIso(), updatedAt: nowIso() });
+      savedSupplierId = createId("supplier");
+      state.suppliers.push({ id: savedSupplierId, name: cleanName, phone: cleanPhone, address: cleanAddress, note: cleanNote, createdAt: nowIso(), updatedAt: nowIso() });
     }
-    saveAndRenderAll(["suppliers", "purchases"]);
+    saveAndRenderAll([...new Set(changedCollections)]);
+    return {
+      supplierId: savedSupplierId,
+      supplierName: cleanName,
+      changedCollections: [...new Set(changedCollections)],
+    };
   }
 
   function deleteSupplier(supplierId) {

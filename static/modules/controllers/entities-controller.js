@@ -120,9 +120,9 @@ export function registerEntitiesControllerEvents(contract) {
     event.preventDefault();
     try {
       const editingSupplierId = state.editingSupplierFormId;
-      const isPurchaseCreateFlow = state.pendingPurchaseSupplierFlow && !editingSupplierId;
+      const isPurchaseSupplierFlow = state.pendingPurchaseSupplierFlow;
       const savedSupplierName = dom.supplierNameInput.value.trim();
-      if (isPurchaseCreateFlow) {
+      if (isPurchaseSupplierFlow) {
         dom.purchaseSupplierInput.value = savedSupplierName;
         const purchase = actions.createPurchaseDraftIfMissing();
         if (purchase) {
@@ -137,12 +137,14 @@ export function registerEntitiesControllerEvents(contract) {
         phone: dom.supplierPhoneInput.value,
         address: dom.supplierAddressInput.value,
         note: dom.supplierNoteInput.value,
-      }, editingSupplierId);
+      }, editingSupplierId, {
+        extraCollections: isPurchaseSupplierFlow ? ["purchases"] : [],
+      });
       dom.supplierForm.reset();
       state.editingSupplierFormId = null;
       state.supplierFormCollapsed = true;
       renderers.renderEntityForms();
-      if (isPurchaseCreateFlow) {
+      if (isPurchaseSupplierFlow) {
         actions.clearPendingPurchaseSupplierFlow();
         actions.switchMenu("purchases");
         window.setTimeout(() => {

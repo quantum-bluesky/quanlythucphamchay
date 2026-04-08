@@ -94,6 +94,7 @@ Các nhóm kiểm tra chính:
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, thiếu hàng của user thường
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
+- `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa
 - `Master Admin`: login, export, import, backup, restore
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
 - `UI mobile floating`: menu nổi, tìm kiếm nhanh và cụm nút điều hướng auto-hide vào mép màn hình rồi mở lại an toàn
@@ -128,3 +129,4 @@ Ngoài click thao tác, suite còn kiểm tra:
 - `Node.js` và `Playwright` chỉ cần cho bộ test integration
 - Nếu sửa workflow, label, selector hoặc menu, hãy cập nhật test tương ứng
 - Nếu thêm hoặc đổi workflow nghiệp vụ, hãy cập nhật luôn checklist acceptance để người test và agent dùng chung một chuẩn
+- Nếu cần điều tra lỗi sync nhiều máy, có thể bật `debug.sync_state=true` trong `data/system_config.json` để xem log `/api/state` ở console server và browser
