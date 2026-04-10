@@ -109,10 +109,7 @@ export function registerReportsAdminControllerEvents(contract) {
           password: dom.adminPasswordInput.value,
         }),
       });
-      state.admin = {
-        authenticated: Boolean(data.authenticated),
-        username: data.username || "",
-      };
+      actions.updateAdminSessionState(data, { resetReminder: true });
       renderers.renderAll();
       actions.showToast(data.message);
     } catch (error) {
@@ -121,17 +118,7 @@ export function registerReportsAdminControllerEvents(contract) {
   });
 
   dom.adminLogoutButton.addEventListener("click", async () => {
-    try {
-      const data = await actions.apiRequest("/api/admin/logout", {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
-      state.admin = { authenticated: false, username: "" };
-      renderers.renderAll();
-      actions.showToast(data.message);
-    } catch (error) {
-      actions.showToast(error.message, true);
-    }
+    await actions.performAdminLogout();
   });
 
   dom.adminModulePanel.addEventListener("click", async (event) => {

@@ -105,9 +105,11 @@ import {
   deletedSupplierList,
   adminLoginPanel,
   adminModulePanel,
+  adminSessionHeader,
   adminLoginForm,
   adminUsernameInput,
   adminPasswordInput,
+  adminSessionUserLabel,
   adminLogoutButton,
   adminBackupButton,
   adminRestoreDbFile,
@@ -192,6 +194,7 @@ let salesUi = null;
 let purchasesUi = null;
 let entitiesUi = null;
 let reportsAdminUi = null;
+let adminSessionReminderTimer = null;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
 function attachSearchClearButton(input, container) {
   if (!input || !container || container.querySelector(".search-clear-button")) {
@@ -621,7 +624,9 @@ function getReportsAdminUi() {
         reportProductActivity,
         adminLoginPanel,
         adminModulePanel,
+        adminSessionHeader,
         adminPasswordInput,
+        adminSessionUserLabel,
       },
       escapeHtml,
       formatCurrency,
@@ -1718,7 +1723,124 @@ async function apiRequest(path, options = {}) {
 }
 
 async function refreshAdminStatus() {
-  state.admin = await apiRequest("/api/admin/status");
+  const payload = await apiRequest("/api/admin/status");
+  updateAdminSessionState(payload);
+}
+
+function normalizeAdminTimeoutMinutes(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 30;
+  }
+  return Math.round(parsed);
+}
+
+function parseAdminSessionStartedAtMs(value) {
+  const timestamp = String(value || "").trim();
+  if (!timestamp) return NaN;
+  return Date.parse(timestamp);
+}
+
+function clearAdminSessionReminder() {
+  if (adminSessionReminderTimer) {
+    window.clearTimeout(adminSessionReminderTimer);
+    adminSessionReminderTimer = null;
+  }
+}
+
+function scheduleAdminSessionReminder() {
+  clearAdminSessionReminder();
+  if (!state.admin?.authenticated) {
+    return;
+  }
+  const timeoutMinutes = normalizeAdminTimeoutMinutes(state.admin.timeoutMinutes);
+  const timeoutMs = timeoutMinutes * 60 * 1000;
+  let nextReminderAtMs = Number(state.admin.nextReminderAtMs || 0);
+  if (!Number.isFinite(nextReminderAtMs) || nextReminderAtMs <= 0) {
+    const sessionStartedAtMs = parseAdminSessionStartedAtMs(state.admin.sessionStartedAt);
+    nextReminderAtMs = Number.isFinite(sessionStartedAtMs)
+      ? sessionStartedAtMs + timeoutMs
+      : Date.now() + timeoutMs;
+    state.admin.nextReminderAtMs = nextReminderAtMs;
+  }
+  const delayMs = Math.max(0, nextReminderAtMs - Date.now());
+  adminSessionReminderTimer = window.setTimeout(() => {
+    void handleAdminSessionReminder();
+  }, delayMs);
+}
+
+async function performAdminLogout(message) {
+  try {
+    const data = await apiRequest("/api/admin/logout", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    updateAdminSessionState(data, { resetReminder: true });
+    renderAll();
+    showToast(message || data.message);
+  } catch (error) {
+    showToast(error.message, true);
+  }
+}
+
+async function handleAdminSessionReminder() {
+  if (!state.admin?.authenticated) {
+    clearAdminSessionReminder();
+    return;
+  }
+  const timeoutMinutes = normalizeAdminTimeoutMinutes(state.admin.timeoutMinutes);
+  const shouldLogout = window.confirm(
+    [
+      `Master Admin đã đăng nhập đủ ${timeoutMinutes} phút.`,
+      "Chọn OK để đăng xuất ngay.",
+      `Chọn Cancel để giữ quyền Admin và hệ thống sẽ nhắc lại sau ${timeoutMinutes} phút.`,
+    ].join("\n"),
+  );
+  if (shouldLogout) {
+    await performAdminLogout("Đã tự động đăng xuất Master Admin theo xác nhận.");
+    return;
+  }
+  state.admin.nextReminderAtMs = Date.now() + timeoutMinutes * 60 * 1000;
+  scheduleAdminSessionReminder();
+  showToast(`Tiếp tục phiên Master Admin. Hệ thống sẽ nhắc lại sau ${timeoutMinutes} phút.`);
+}
+
+function updateAdminSessionState(payload = {}, { resetReminder = false } = {}) {
+  const previous = state.admin || {};
+  const authenticated = Boolean(payload.authenticated);
+  const timeoutMinutes = normalizeAdminTimeoutMinutes(payload.timeout_minutes ?? payload.timeoutMinutes);
+  const sessionStartedAt = String(payload.session_started_at ?? payload.sessionStartedAt ?? "").trim();
+  const sameSession = Boolean(
+    authenticated &&
+    previous.authenticated &&
+    previous.sessionStartedAt &&
+    sessionStartedAt &&
+    previous.sessionStartedAt === sessionStartedAt &&
+    String(previous.username || "") === String(payload.username || ""),
+  );
+  let nextReminderAtMs = 0;
+  if (authenticated) {
+    if (!resetReminder && sameSession) {
+      const existingReminderAtMs = Number(previous.nextReminderAtMs || 0);
+      if (Number.isFinite(existingReminderAtMs) && existingReminderAtMs > 0) {
+        nextReminderAtMs = existingReminderAtMs;
+      }
+    }
+    if (!nextReminderAtMs) {
+      const sessionStartedAtMs = parseAdminSessionStartedAtMs(sessionStartedAt);
+      nextReminderAtMs = Number.isFinite(sessionStartedAtMs)
+        ? sessionStartedAtMs + timeoutMinutes * 60 * 1000
+        : Date.now() + timeoutMinutes * 60 * 1000;
+    }
+  }
+  state.admin = {
+    authenticated,
+    username: String(payload.username || ""),
+    sessionStartedAt,
+    timeoutMinutes,
+    nextReminderAtMs,
+  };
+  scheduleAdminSessionReminder();
 }
 
 async function downloadAdminFile(path, fallbackName) {
@@ -2619,6 +2741,7 @@ registerReportsAdminControllerEvents({
     adminLoginForm,
     adminUsernameInput,
     adminPasswordInput,
+    adminSessionHeader,
     adminLogoutButton,
     adminModulePanel,
     adminBackupButton,
@@ -2630,6 +2753,8 @@ registerReportsAdminControllerEvents({
     showToast,
     focusReportSection,
     apiRequest,
+    updateAdminSessionState,
+    performAdminLogout,
     downloadAdminFile,
     readFileAsText,
     readFileAsBase64,

@@ -82,6 +82,16 @@ export function createReportsAdminUi(deps) {
     const isAuthenticated = Boolean(state.admin?.authenticated);
     dom.adminLoginPanel.hidden = isAuthenticated;
     dom.adminModulePanel.hidden = !isAuthenticated;
+    if (dom.adminSessionHeader) {
+      dom.adminSessionHeader.hidden = !isAuthenticated;
+    }
+    if (dom.adminSessionUserLabel) {
+      if (isAuthenticated) {
+        dom.adminSessionUserLabel.textContent = state.admin.username || "Master Admin";
+      } else {
+        dom.adminSessionUserLabel.textContent = "Chưa đăng nhập";
+      }
+    }
     if (!isAuthenticated) {
       dom.adminPasswordInput.value = "";
     }

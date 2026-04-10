@@ -12,7 +12,6 @@ from .constants import (
 
 TRUTHY_VALUES = {"1", "true", "yes", "on"}
 
-
 def _parse_env_flag(name: str, default: bool) -> bool:
     raw_value = os.environ.get(name)
     if raw_value is None:
@@ -91,7 +90,6 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         config["admin"]["username"] = defaults["admin"]["username"]
     if not config["admin"]["password"]:
         config["admin"]["password"] = defaults["admin"]["password"]
-
     if config != raw_config:
         save_system_config(config, config_path)
 

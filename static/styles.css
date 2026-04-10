@@ -72,6 +72,29 @@ select {
   backdrop-filter: blur(12px);
 }
 
+.screen-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.admin-session-header {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 30px;
+}
+
+.admin-session-header .panel-note {
+  margin: 0;
+  line-height: 1.2;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
 .screen-header-main {
   min-width: 0;
   display: grid;
@@ -148,11 +171,19 @@ h3 {
   flex: 0 0 auto;
   width: fit-content;
   white-space: nowrap;
+  align-self: flex-end;
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
 .app-version-caption {
   color: var(--muted);
   font-weight: 600;
+  font-size: 0.7rem;
+}
+
+#appVersionLabel {
+  font-size: 0.6rem;
 }
 
 .panel {
@@ -1196,14 +1227,14 @@ button:disabled {
     --floating-edge-peek: 36px;
     --floating-edge-strip: 6px;
     --screen-header-bar-top: 8px;
-    --screen-header-bar-height: 56px;
+    --screen-header-bar-height: 72px;
     --screen-header-bar-gap: 8px;
     --list-pagination-top: calc(var(--screen-header-bar-top) + var(--screen-header-bar-height) + 6px);
   }
 
   .app-shell {
     width: min(100vw - 16px, 1180px);
-    padding-top: 68px;
+    padding-top: calc(12px + var(--screen-header-bar-offset));
   }
 
   .screen-header-bar {
@@ -1219,6 +1250,33 @@ button:disabled {
 
   #activeScreenBarTitle {
     font-size: 0.98rem;
+  }
+
+  .screen-header-actions {
+    gap: 4px;
+  }
+
+  .admin-session-header {
+    gap: 8px;
+  }
+
+  .admin-session-header .panel-note {
+    max-width: 118px;
+    font-size: 0.74rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-version-button {
+    gap: 8px;
+  }
+
+  .app-version-caption {
+    font-size: 0.62rem;
+  }
+
+  #appVersionLabel {
+    font-size: 0.8rem;
   }
 
   .menu-panel,
@@ -2306,7 +2364,7 @@ button:disabled {
 @media (min-width: 760px) and (max-width: 1100px) {
   :root {
     --screen-header-bar-top: 8px;
-    --screen-header-bar-height: 58px;
+    --screen-header-bar-height: 68px;
     --screen-header-bar-gap: 10px;
     --list-pagination-top: calc(var(--screen-header-bar-top) + var(--screen-header-bar-height) + 8px);
   }
@@ -2325,6 +2383,18 @@ button:disabled {
 
   .screen-header-label {
     font-size: 0.68rem;
+  }
+
+  .admin-session-header .panel-note {
+    font-size: 0.78rem;
+  }
+
+  .app-version-caption {
+    font-size: 0.66rem;
+  }
+
+  #appVersionLabel {
+    font-size: 0.84rem;
   }
 
   #activeScreenBarTitle {

@@ -405,6 +405,13 @@ Màn này có 2 nhóm chức năng:
   - nhà cung cấp
   - định dạng hỗ trợ: `JSON` hoặc `CSV`
 - backup / restore database toàn hệ thống
+- trạng thái phiên admin: hiện user đã đăng nhập và có nút `Đăng xuất` ngay trên đầu khối Master Data
+
+Lưu ý timeout phiên:
+
+- sau mỗi `session_timeout_minutes` (mặc định 30 phút), app sẽ hiện hộp thoại nhắc đăng xuất
+- chọn `OK`: đăng xuất Master Admin
+- chọn `Cancel`: vẫn giữ quyền Admin và hẹn nhắc lại sau đúng chu kỳ timeout
 
 ### Khi nào dùng export / import master
 

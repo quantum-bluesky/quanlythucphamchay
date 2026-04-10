@@ -28,6 +28,9 @@ export const state = {
   admin: {
     authenticated: false,
     username: "",
+    sessionStartedAt: "",
+    timeoutMinutes: 30,
+    nextReminderAtMs: 0,
   },
   debug: {
     syncState: false,

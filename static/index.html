@@ -12,10 +12,16 @@
       <span class="screen-header-label">Màn hiện tại</span>
       <strong id="activeScreenBarTitle">Kiểm tra tồn kho</strong>
     </div>
-    <button type="button" id="appVersionButton" class="ghost-button compact-button app-version-button" aria-controls="aboutSection">
-      <span class="app-version-caption">Version</span>
-      <strong id="appVersionLabel">Đang tải...</strong>
-    </button>
+    <div class="screen-header-actions">
+      <div id="adminSessionHeader" class="admin-session-header" hidden>
+        <span id="adminSessionUserLabel" class="panel-note">Chưa đăng nhập</span>
+        <button type="button" id="adminLogoutButton" class="ghost-button compact-button">Logout</button>
+      </div>
+      <button type="button" id="appVersionButton" class="ghost-button compact-button app-version-button" aria-controls="aboutSection">
+        <span class="app-version-caption">Version</span>
+        <strong id="appVersionLabel">Đang tải...</strong>
+      </button>
+    </div>
   </div>
 
   <main class="app-shell">
@@ -637,7 +643,6 @@
                 <p class="panel-kicker">Master Data</p>
                 <h3>Xuất và nhập các file master</h3>
               </div>
-              <button type="button" id="adminLogoutButton" class="ghost-button compact-button">Đăng xuất</button>
             </div>
 
             <div class="report-list">

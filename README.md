@@ -113,6 +113,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần
 - Có lịch sử quản lý sản phẩm và màn quản lý các đối tượng đã xóa để khôi phục an toàn
 - Có module `Master Admin` để export/import file master (JSON/CSV) và backup/restore toàn bộ database
+- Có nhắc đăng xuất theo chu kỳ cho phiên `Master Admin` (mặc định 30 phút, đổi được trong config)
 - Chỉ `Master Admin` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit
 - Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất
 - Các list dài có phân trang `Trước / Sau` để thao tác gọn hơn trên mobile
@@ -148,7 +149,8 @@ Ví dụ:
   },
   "admin": {
     "username": "masteradmin",
-    "password": "admin12345"
+    "password": "admin12345",
+    "session_timeout_minutes": 30
   },
   "debug": {
     "sync_state": false
@@ -156,7 +158,7 @@ Ví dụ:
 }
 ```
 
-Muốn đổi tài khoản admin hoặc host/port mặc định, hãy sửa file này rồi chạy lại app.
+Muốn đổi tài khoản admin, host/port mặc định hoặc chu kỳ nhắc logout admin, hãy sửa file này rồi chạy lại app.
 
 Nếu cần điều tra lỗi đồng bộ nhiều máy như `PUT /api/state 400`, bật:
 

@@ -161,6 +161,7 @@ export const SCREEN_HELP = {
     steps: [
       "Đăng nhập bằng tài khoản admin đã cấu hình trong file hệ thống.",
       "Dùng export/import để quản trị dữ liệu master của sản phẩm, khách hàng và nhà cung cấp (hỗ trợ cả JSON và CSV).",
+      "Sau mỗi chu kỳ timeout (mặc định 30 phút), app sẽ nhắc đăng xuất Master Admin; bấm Cancel để giữ phiên và nhắc lại ở chu kỳ tiếp theo.",
       "Chỉ restore database khi đã hiểu rõ rằng dữ liệu hiện tại sẽ bị ghi đè bằng bản phục hồi.",
       MOBILE_FLOATING_HINT,
     ],

@@ -17,6 +17,11 @@ from .store import SyncConflictError
 
 def create_handler(store, admin_sessions, system_config: dict | None = None):
     debug_config = (system_config or {}).get("debug", {})
+    admin_config = (system_config or {}).get("admin", {})
+    try:
+        admin_session_timeout_minutes = max(1, int(admin_config.get("session_timeout_minutes", 30)))
+    except (TypeError, ValueError):
+        admin_session_timeout_minutes = 30
 
     class InventoryRequestHandler(BaseHTTPRequestHandler):
         @staticmethod
@@ -174,11 +179,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return
 
             if route == "/api/admin/status":
-                username = self._get_admin_username()
-                self._send_json(
-                    HTTPStatus.OK,
-                    {"authenticated": bool(username), "username": username or ""},
-                )
+                self._send_json(HTTPStatus.OK, self._get_admin_status_payload())
                 return
 
             if route.startswith("/api/admin/"):
@@ -235,8 +236,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         HTTPStatus.OK,
                         {
                             "message": "Đã đăng nhập Master Admin.",
-                            "authenticated": True,
-                            "username": admin_sessions.username,
+                            **self._get_admin_status_payload(session_token=token),
                         },
                         extra_headers=[("Set-Cookie", self._build_session_cookie(token))],
                     )
@@ -745,6 +745,17 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
         def _get_admin_username(self) -> str | None:
             return admin_sessions.get_username(self._get_admin_session_token())
+
+        def _get_admin_status_payload(self, session_token: str | None = None) -> dict:
+            token = session_token if session_token is not None else self._get_admin_session_token()
+            session = admin_sessions.get_session(token)
+            username = str(session.get("username") or "") if session else ""
+            return {
+                "authenticated": bool(session),
+                "username": username,
+                "session_started_at": str(session.get("started_at") or "") if session else "",
+                "timeout_minutes": admin_session_timeout_minutes,
+            }
 
         def _require_admin(self) -> bool:
             if self._get_admin_username():

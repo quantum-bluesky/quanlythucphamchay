@@ -6,6 +6,7 @@
   "admin": {
     "username": "masteradmin",
     "password": "admin12345"
+	"session_timeout_minutes": 30
   },
   "debug": {
     "sync_state": true
