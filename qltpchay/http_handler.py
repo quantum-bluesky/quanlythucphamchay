@@ -1,4 +1,6 @@
 import base64
+import csv
+import io
 import json
 import mimetypes
 import re
@@ -195,14 +197,27 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 export_match = re.fullmatch(r"/api/admin/export/(products|customers|suppliers)", route)
                 if export_match:
                     entity_type = export_match.group(1)
+                    query = parse_qs(parsed.query)
+                    export_format = str(query.get("format", ["json"])[0]).strip().lower()
+                    if export_format not in {"json", "csv"}:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Định dạng export không hợp lệ. Chỉ hỗ trợ json/csv."})
+                        return
                     payload = store.export_master_data(entity_type)
-                    filename = f"{entity_type}-master-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
-                    self._send_binary(
-                        HTTPStatus.OK,
-                        json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
-                        content_type="application/json; charset=utf-8",
-                        download_name=filename,
-                    )
+                    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+                    if export_format == "csv":
+                        self._send_binary(
+                            HTTPStatus.OK,
+                            self._build_master_csv_bytes(entity_type, payload.get("records", [])),
+                            content_type="text/csv; charset=utf-8",
+                            download_name=f"{entity_type}-master-{timestamp}.csv",
+                        )
+                    else:
+                        self._send_binary(
+                            HTTPStatus.OK,
+                            json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+                            content_type="application/json; charset=utf-8",
+                            download_name=f"{entity_type}-master-{timestamp}.json",
+                        )
                     return
 
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy tài nguyên."})
@@ -246,7 +261,16 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 if import_match:
                     try:
                         payload = self._read_json_body()
-                        records = payload.get("records", [])
+                        import_format = str(payload.get("format") or "json").strip().lower()
+                        if import_format == "json":
+                            records = payload.get("records", [])
+                        elif import_format == "csv":
+                            records = self._parse_master_csv_records(
+                                import_match.group(1),
+                                str(payload.get("content") or ""),
+                            )
+                        else:
+                            raise ValueError("Định dạng import không hợp lệ. Chỉ hỗ trợ json/csv.")
                         result = store.import_master_data(import_match.group(1), records)
                         self._send_json(
                             HTTPStatus.OK,
@@ -566,6 +590,116 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return json.loads(raw_body)
             except json.JSONDecodeError as exc:
                 raise ValueError("Dữ liệu JSON không hợp lệ.") from exc
+
+        @staticmethod
+        def _master_csv_columns(entity_type: str) -> list[str]:
+            if entity_type == "products":
+                return [
+                    "name",
+                    "category",
+                    "unit",
+                    "price",
+                    "sale_price",
+                    "low_stock_threshold",
+                ]
+            if entity_type == "customers":
+                return [
+                    "id",
+                    "name",
+                    "phone",
+                    "address",
+                    "zaloUrl",
+                    "createdAt",
+                    "updatedAt",
+                    "deletedAt",
+                ]
+            if entity_type == "suppliers":
+                return [
+                    "id",
+                    "name",
+                    "phone",
+                    "address",
+                    "note",
+                    "createdAt",
+                    "updatedAt",
+                    "deletedAt",
+                ]
+            raise ValueError("Loại dữ liệu master không hợp lệ.")
+
+        @classmethod
+        def _build_master_csv_bytes(cls, entity_type: str, records: list[dict]) -> bytes:
+            output = io.StringIO()
+            columns = cls._master_csv_columns(entity_type)
+            writer = csv.DictWriter(output, fieldnames=columns, extrasaction="ignore")
+            writer.writeheader()
+            for record in records:
+                row = {
+                    key: "" if record.get(key) is None else str(record.get(key))
+                    for key in columns
+                }
+                writer.writerow(row)
+            return output.getvalue().encode("utf-8-sig")
+
+        @staticmethod
+        def _parse_csv_float(value: str, field_name: str, default: float | None = None) -> float | None:
+            cleaned = str(value or "").strip()
+            if not cleaned:
+                return default
+            try:
+                return float(cleaned)
+            except ValueError as exc:
+                raise ValueError(f"Giá trị số không hợp lệ ở cột '{field_name}': {cleaned}") from exc
+
+        @classmethod
+        def _parse_master_csv_records(cls, entity_type: str, raw_csv: str) -> list[dict]:
+            raw_text = str(raw_csv or "").lstrip("\ufeff").strip()
+            if not raw_text:
+                raise ValueError("File CSV import đang trống.")
+
+            try:
+                reader = csv.DictReader(io.StringIO(raw_text))
+            except csv.Error as exc:
+                raise ValueError("Không đọc được định dạng CSV.") from exc
+
+            if not reader.fieldnames:
+                raise ValueError("File CSV thiếu dòng tiêu đề (header).")
+
+            records: list[dict] = []
+            for row in reader:
+                data = {str(key or "").strip(): str(value or "").strip() for key, value in row.items() if key}
+                if not any(data.values()):
+                    continue
+                if entity_type == "products":
+                    price = cls._parse_csv_float(data.get("price", ""), "price", 0)
+                    threshold = cls._parse_csv_float(data.get("low_stock_threshold", ""), "low_stock_threshold", 5)
+                    records.append(
+                        {
+                            "name": data.get("name", ""),
+                            "category": data.get("category", ""),
+                            "unit": data.get("unit", ""),
+                            "price": 0 if price is None else price,
+                            "sale_price": cls._parse_csv_float(data.get("sale_price", ""), "sale_price", None),
+                            "low_stock_threshold": 5 if threshold is None else threshold,
+                        }
+                    )
+                    continue
+
+                base_record = {
+                    "id": data.get("id", ""),
+                    "name": data.get("name", ""),
+                    "phone": data.get("phone", ""),
+                    "address": data.get("address", ""),
+                    "createdAt": data.get("createdAt", ""),
+                    "updatedAt": data.get("updatedAt", ""),
+                    "deletedAt": data.get("deletedAt", "") or None,
+                }
+                if entity_type == "customers":
+                    base_record["zaloUrl"] = data.get("zaloUrl", "")
+                else:
+                    base_record["note"] = data.get("note", "")
+                records.append(base_record)
+
+            return records
 
         def _serve_static_file(self, relative_path: str) -> None:
             safe_path = (STATIC_DIR / relative_path).resolve()

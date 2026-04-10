@@ -135,11 +135,22 @@ export function registerReportsAdminControllerEvents(contract) {
   });
 
   dom.adminModulePanel.addEventListener("click", async (event) => {
+    const formatMap = {
+      products: document.getElementById("adminMasterFormatProducts"),
+      customers: document.getElementById("adminMasterFormatCustomers"),
+      suppliers: document.getElementById("adminMasterFormatSuppliers"),
+    };
+    const getMasterFormat = (entity) => {
+      const value = String(formatMap[entity]?.value || "json").toLowerCase();
+      return value === "csv" ? "csv" : "json";
+    };
+
     const exportButton = event.target.closest("[data-admin-export]");
     if (exportButton) {
       const entity = exportButton.dataset.adminExport;
+      const format = getMasterFormat(entity);
       try {
-        await actions.downloadAdminFile(`/api/admin/export/${entity}`, `${entity}-master.json`);
+        await actions.downloadAdminFile(`/api/admin/export/${entity}?format=${format}`, `${entity}-master.${format}`);
         actions.showToast("Đã tải file master.");
       } catch (error) {
         actions.showToast(error.message, true);
@@ -162,8 +173,8 @@ export function registerReportsAdminControllerEvents(contract) {
         return;
       }
       try {
+        const format = getMasterFormat(entity);
         const rawText = await actions.readFileAsText(file);
-        const payload = JSON.parse(rawText);
         const warning = [
           `Import master data cho ${entity}?`,
           "Dữ liệu trùng tên sẽ được cập nhật.",
@@ -172,9 +183,22 @@ export function registerReportsAdminControllerEvents(contract) {
         if (!window.confirm(warning)) {
           return;
         }
+        let requestBody = {};
+        if (format === "csv") {
+          requestBody = {
+            format: "csv",
+            content: rawText,
+          };
+        } else {
+          const payload = JSON.parse(rawText);
+          requestBody = {
+            format: "json",
+            records: payload.records || [],
+          };
+        }
         const data = await actions.apiRequest(`/api/admin/import/${entity}`, {
           method: "POST",
-          body: JSON.stringify({ records: payload.records || [] }),
+          body: JSON.stringify(requestBody),
         });
         fileInput.value = "";
         await actions.refreshData();
