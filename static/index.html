@@ -644,10 +644,14 @@
               <article class="report-card">
                 <div class="report-card-head">
                   <strong>Mặt hàng</strong>
+                  <select id="adminMasterFormatProducts" class="ghost-button compact-button" aria-label="Định dạng file mặt hàng">
+                    <option value="json" selected>JSON</option>
+                    <option value="csv">CSV</option>
+                  </select>
                   <button type="button" class="ghost-button compact-button" data-admin-export="products">Xuất file</button>
                 </div>
                 <div class="purchase-inline-grid">
-                  <input id="adminImportProductsFile" type="file" accept=".json,application/json">
+                  <input id="adminImportProductsFile" type="file" accept=".json,application/json,.csv,text/csv">
                   <button type="button" class="primary-button compact-button" data-admin-import="products">Nhập file</button>
                 </div>
               </article>
@@ -655,10 +659,14 @@
               <article class="report-card">
                 <div class="report-card-head">
                   <strong>Khách hàng</strong>
+                  <select id="adminMasterFormatCustomers" class="ghost-button compact-button" aria-label="Định dạng file khách hàng">
+                    <option value="json" selected>JSON</option>
+                    <option value="csv">CSV</option>
+                  </select>
                   <button type="button" class="ghost-button compact-button" data-admin-export="customers">Xuất file</button>
                 </div>
                 <div class="purchase-inline-grid">
-                  <input id="adminImportCustomersFile" type="file" accept=".json,application/json">
+                  <input id="adminImportCustomersFile" type="file" accept=".json,application/json,.csv,text/csv">
                   <button type="button" class="primary-button compact-button" data-admin-import="customers">Nhập file</button>
                 </div>
               </article>
@@ -666,10 +674,14 @@
               <article class="report-card">
                 <div class="report-card-head">
                   <strong>Nhà cung cấp</strong>
+                  <select id="adminMasterFormatSuppliers" class="ghost-button compact-button" aria-label="Định dạng file nhà cung cấp">
+                    <option value="json" selected>JSON</option>
+                    <option value="csv">CSV</option>
+                  </select>
                   <button type="button" class="ghost-button compact-button" data-admin-export="suppliers">Xuất file</button>
                 </div>
                 <div class="purchase-inline-grid">
-                  <input id="adminImportSuppliersFile" type="file" accept=".json,application/json">
+                  <input id="adminImportSuppliersFile" type="file" accept=".json,application/json,.csv,text/csv">
                   <button type="button" class="primary-button compact-button" data-admin-import="suppliers">Nhập file</button>
                 </div>
               </article>
