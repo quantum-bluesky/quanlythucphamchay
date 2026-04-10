@@ -46,6 +46,7 @@ python -m unittest discover -s tests
 Quy ước mã case unit:
 
 - `UT-DB-*`: case dữ liệu / DB / receipt ledger
+- `UT-NORM-*`: case migration / bảng quan hệ chuẩn hóa
 - `UT-SYNC-*`: case sync state / conflict
 - `UT-AUD-*`: case audit
 - `UT-HIS-*`: case history filter

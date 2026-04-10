@@ -20,8 +20,26 @@ Tài liệu này mô tả database runtime thực tế của ứng dụng theo c
 products (danh mục sản phẩm)
   1 --- n transactions (giao dịch nhập/xuất kho)
 
+customers
+suppliers
+  1 --- n carts / purchases (tham chiếu mềm theo id hoặc tên tại thời điểm lưu)
+
+carts
+  1 --- n cart_items
+
+purchases
+  1 --- n purchase_items
+
+inventory_receipts
+  1 --- n inventory_receipt_items
+  gói receipt chuẩn hóa cho:
+  - purchase receipt
+  - inventory adjustment
+  - customer return
+  - supplier return
+
 app_state
-  lưu JSON cho customers / suppliers / carts / purchases
+  giữ version + legacy cache cho customers / suppliers / carts / purchases
 
 audit_logs
   lưu audit cho product price, direct adjustment, trạng thái cart/purchase,
@@ -98,10 +116,87 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 
 ### Vai trò nghiệp vụ
 
-- lưu các collection nghiệp vụ dạng JSON để SPA dùng chung nhiều máy
-- dùng `updated_at` cho optimistic concurrency ở Phase C
+- sau chuẩn hóa DB, bảng này giữ:
+  - `updated_at` làm version cho optimistic concurrency
+  - `state_value` làm legacy cache tương thích ngược
+- nguồn sự thật chính cho `customers/suppliers/carts/purchases` đã chuyển sang bảng quan hệ riêng
 
-## 7. Bảng `audit_logs`
+## 7. Các bảng quan hệ cho sync collections
+
+### `customers`
+
+- `id`, `name`, `phone`, `address`, `zalo_url`
+- `created_at`, `updated_at`, `deleted_at`
+
+### `suppliers`
+
+- `id`, `name`, `phone`, `address`, `note`
+- `created_at`, `updated_at`, `deleted_at`
+
+### `carts`
+
+- header đơn hàng nháp/đã chốt
+- cột chính:
+  - `id`, `customer_id`, `customer_name`
+  - `status`, `payment_status`
+  - `created_at`, `updated_at`, `completed_at`, `cancelled_at`, `paid_at`
+  - `order_code`
+
+### `cart_items`
+
+- detail của `carts`
+- cột chính:
+  - `id`, `cart_id`
+  - `product_id`, `product_name`
+  - `quantity`, `unit_price`, `note`, `sort_order`
+
+### `purchases`
+
+- header phiếu nhập
+- cột chính:
+  - `id`, `supplier_id`, `supplier_name`
+  - `note`, `status`
+  - `created_at`, `updated_at`, `received_at`, `paid_at`
+  - `receipt_code`
+
+### `purchase_items`
+
+- detail của `purchases`
+- cột chính:
+  - `id`, `purchase_id`
+  - `product_id`, `product_name`
+  - `quantity`, `unit_cost`, `sort_order`
+
+## 8. Bảng receipt chuẩn hóa
+
+### `inventory_receipts`
+
+- header receipt chuẩn hóa cho nhiều loại chứng từ
+- `receipt_type` hiện hỗ trợ:
+  - `purchase`
+  - `inventory_adjustment`
+  - `customer_return`
+  - `supplier_return`
+- cột chính:
+  - `receipt_code`
+  - `customer_id`, `customer_name`
+  - `supplier_id`, `supplier_name`
+  - `actor`, `reason`, `note`
+  - `created_at`
+
+### `inventory_receipt_items`
+
+- detail line của receipt
+- cột chính:
+  - `receipt_id`
+  - `product_id`, `product_name`, `unit`
+  - `transaction_type`
+  - `quantity`
+  - `unit_amount`, `line_total`
+  - `stock_after`
+  - `transaction_id`
+
+## 9. Bảng `audit_logs`
 
 Nguồn: `CREATE TABLE IF NOT EXISTS audit_logs` trong `qltpchay/store.py`.
 
@@ -127,7 +222,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS audit_logs` trong `qltpchay/store.py`.
 - audit chuyển trạng thái cart và purchase
 - audit tạo chứng từ điều chỉnh/trả hàng
 
-## 8. Cách tính tồn kho
+## 10. Cách tính tồn kho
 
 App không có cột `current_stock` trong bảng `products`.
 
@@ -142,7 +237,7 @@ Hệ quả thiết kế:
 - giúp truy vết theo lịch sử giao dịch
 - buộc workflow điều chỉnh phải đi qua chứng từ hoặc transaction hợp lệ
 
-## 9. Chiến lược migration
+## 11. Chiến lược migration
 
 Schema được migrate inline trong `initialize_schema()` bằng:
 
@@ -158,8 +253,12 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - thêm `is_deleted`
 - thêm `deleted_at`
 - thêm `actor` vào `audit_logs`
+- thêm bảng quan hệ cho `customers/suppliers/carts/purchases`
+- backfill tự động từ `app_state`
+- thêm bảng `inventory_receipts` và `inventory_receipt_items`
+- backfill receipt lịch sử từ `transactions.note` khi nhận diện được mã `PN/DC/THK/TNCC`
 
-## 10. Ràng buộc nghiệp vụ chính gắn với DB
+## 12. Ràng buộc nghiệp vụ chính gắn với DB
 
 - `products.price` là giá nhập mặc định
 - `products.sale_price` là giá bán mặc định
@@ -168,21 +267,23 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - đơn đã `completed` và phiếu nhập đã `received/paid` không được sửa ngược trực tiếp
 - `app_state.updated_at` được dùng để chặn ghi đè stale save
 
-## 11. Điểm mạnh và giới hạn hiện tại
+## 13. Điểm mạnh và giới hạn hiện tại
 
 ### Điểm mạnh
 
 - schema nhỏ, dễ backup/restore
 - tương thích ngược tốt cho cửa hàng nhỏ
 - audit và workflow lock đã bám vào data model hiện tại
+- state chính đã có bảng quan hệ nên dễ query/report hơn trước
+- receipt đã có header/detail riêng để mở rộng báo cáo điều chỉnh/trả hàng
 
 ### Giới hạn
 
-- `customers`, `suppliers`, `carts`, `purchases` vẫn là JSON trong `app_state`, chưa chuẩn hóa thành bảng quan hệ riêng
-- chứng từ Phase B chưa có bảng header/detail riêng, đang encode vào `transactions.note` + `audit_logs`
-- báo cáo tài chính chi tiết hơn trong tương lai sẽ khó hơn nếu tiếp tục chỉ dựa vào JSON + note text
+- app vẫn giữ `app_state` làm legacy cache để tương thích ngược
+- `supplier_id` và `customer_id` trong một số receipt cũ có thể chưa backfill đầy đủ nếu dữ liệu lịch sử chỉ có tên
+- reporting sâu cho receipt lịch sử cũ phụ thuộc chất lượng `transactions.note`
 
-## 12. Định hướng nếu mở rộng sau này
+## 14. Định hướng nếu mở rộng sau này
 
 - giữ `transactions` làm ledger trung tâm
 - cân nhắc tách bảng quan hệ cho `carts`, `purchases`, `customers`, `suppliers`
