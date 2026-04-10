@@ -8,7 +8,7 @@ export function registerInventoryControllerEvents(contract) {
   } = contract;
 
   const requireAdmin = () => {
-    if (Boolean(state.admin?.authenticated)) {
+    if (Boolean(state.admin?.isAdmin)) {
       return true;
     }
     actions.showToast("Chỉ Master Admin mới được chỉnh trực tiếp ở màn tồn kho.", true);

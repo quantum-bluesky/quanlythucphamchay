@@ -76,6 +76,7 @@ def run_server(system_config: dict, host: str | None = None, port: int | None = 
     admin_sessions = AdminSessionManager(
         str(system_config["admin"]["username"]),
         str(system_config["admin"]["password"]),
+        users=system_config.get("users", []),
     )
     server = ThreadingHTTPServer(
         (resolved_host, resolved_port),
@@ -84,6 +85,8 @@ def run_server(system_config: dict, host: str | None = None, port: int | None = 
     print(f"Inventory app running at http://{resolved_host}:{resolved_port}")
     print(f"System config file: {CONFIG_PATH}")
     print(f"Master Admin username: {system_config['admin']['username']}")
+    if system_config.get("EnableLogin"):
+        print("Login mode: enabled")
     if system_config.get("debug", {}).get("sync_state"):
         print("Sync debug logging: enabled")
     try:

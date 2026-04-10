@@ -15,7 +15,7 @@
     <div class="screen-header-actions">
       <div id="adminSessionHeader" class="admin-session-header" hidden>
         <span id="adminSessionUserLabel" class="panel-note">Chưa đăng nhập</span>
-        <button type="button" id="adminLogoutButton" class="ghost-button compact-button">Logout</button>
+        <button type="button" id="adminLogoutButton" class="ghost-button compact-button">Login</button>
       </div>
       <button type="button" id="appVersionButton" class="ghost-button compact-button app-version-button" aria-controls="aboutSection">
         <span class="app-version-caption">Version</span>
@@ -23,6 +23,34 @@
       </button>
     </div>
   </div>
+
+  <section class="view-section" data-menu-section="login">
+    <section class="panel login-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="panel-kicker">Đăng nhập hệ thống</p>
+          <h2>Dùng tài khoản user hoặc admin</h2>
+        </div>
+        <p class="panel-note">User thường dùng cho thao tác hằng ngày. Admin dùng thêm cho phần Master Admin và chỉnh tồn trực tiếp.</p>
+      </div>
+
+      <section id="adminLoginPanel" class="sales-card">
+        <form id="adminLoginForm" class="customer-form">
+          <label>
+            <span>Tài khoản</span>
+            <input id="adminUsernameInput" type="text" autocomplete="username" required>
+          </label>
+          <label>
+            <span>Mật khẩu</span>
+            <input id="adminPasswordInput" type="password" autocomplete="current-password" required>
+          </label>
+          <div class="customer-form-actions">
+            <button type="submit" class="primary-button">Login</button>
+          </div>
+        </form>
+      </section>
+    </section>
+  </section>
 
   <main class="app-shell">
     <div id="toast" class="toast" hidden></div>
@@ -613,28 +641,6 @@
           </div>
           <p class="panel-note">Chỉ dùng cho quản trị hệ thống. Các thao tác restore có thể ghi đè toàn bộ dữ liệu hiện tại.</p>
         </div>
-
-        <section id="adminLoginPanel" class="sales-card">
-          <div class="subheading">
-            <div>
-              <p class="panel-kicker">Đăng nhập admin</p>
-              <h3>Truy cập module quản trị</h3>
-            </div>
-          </div>
-          <form id="adminLoginForm" class="customer-form">
-            <label>
-              <span>Tài khoản admin</span>
-              <input id="adminUsernameInput" type="text" autocomplete="username" required>
-            </label>
-            <label>
-              <span>Mật khẩu admin</span>
-              <input id="adminPasswordInput" type="password" autocomplete="current-password" required>
-            </label>
-            <div class="customer-form-actions">
-              <button type="submit" class="primary-button">Đăng nhập Master Admin</button>
-            </div>
-          </form>
-        </section>
 
         <section id="adminModulePanel" class="sales-columns" hidden>
           <section class="sales-card">

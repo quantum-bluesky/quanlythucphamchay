@@ -4,6 +4,7 @@ import io
 import json
 import mimetypes
 import re
+import sys
 from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
@@ -11,15 +12,20 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .auth import parse_cookie_header
-from .constants import ADMIN_SESSION_COOKIE, APP_NAME, APP_VERSION, STATIC_DIR
+from .constants import ADMIN_SESSION_COOKIE, APP_NAME, STATIC_DIR
 from .store import SyncConflictError
 
 
 def create_handler(store, admin_sessions, system_config: dict | None = None):
     debug_config = (system_config or {}).get("debug", {})
-    admin_config = (system_config or {}).get("admin", {})
+    auth_enabled = bool((system_config or {}).get("EnableLogin"))
+    app_version = str((system_config or {}).get("version") or "").strip() or "2.3.1"
     try:
-        admin_session_timeout_minutes = max(1, int(admin_config.get("session_timeout_minutes", 30)))
+        session_timeout_minutes = max(1, int((system_config or {}).get("session_timeout_minutes", 360)))
+    except (TypeError, ValueError):
+        session_timeout_minutes = 360
+    try:
+        admin_session_timeout_minutes = max(1, int((system_config or {}).get("admin_session_timeout_minutes", 30)))
     except (TypeError, ValueError):
         admin_session_timeout_minutes = 30
 
@@ -28,7 +34,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
         def _get_app_info() -> dict:
             return {
                 "name": APP_NAME,
-                "version": APP_VERSION,
+                "version": app_version,
             }
 
         @staticmethod
@@ -70,7 +76,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return
             timestamp = datetime.now().isoformat(timespec="seconds")
             summary = self._build_sync_debug_summary(payload)
-            print(f"[sync-debug] {timestamp} {message}: {json.dumps(summary, ensure_ascii=False)}")
+            line = f"[sync-debug] {timestamp} {message}: {json.dumps(summary, ensure_ascii=False)}"
+            try:
+                sys.stdout.buffer.write(line.encode(sys.stdout.encoding or "utf-8", errors="backslashreplace") + b"\n")
+                sys.stdout.flush()
+            except Exception:
+                pass
 
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
@@ -87,6 +98,18 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
             if route.startswith("/static/"):
                 self._serve_static_file(route.removeprefix("/static/"))
+                return
+
+            if route == "/api/session/status":
+                self._send_json(HTTPStatus.OK, self._get_session_status_payload())
+                return
+
+            if route == "/api/admin/status":
+                self._send_json(HTTPStatus.OK, self._get_session_status_payload())
+                return
+
+            if route.startswith("/api/") and self._is_login_enabled() and not self._get_current_session():
+                self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "Cần đăng nhập hệ thống."})
                 return
 
             if route == "/api/products":
@@ -178,10 +201,6 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 self._send_json(HTTPStatus.OK, payload)
                 return
 
-            if route == "/api/admin/status":
-                self._send_json(HTTPStatus.OK, self._get_admin_status_payload())
-                return
-
             if route.startswith("/api/admin/"):
                 if not self._require_admin():
                     return
@@ -225,32 +244,70 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
         def do_POST(self) -> None:
             route = urlparse(self.path).path
-            if route == "/api/admin/login":
+            if route == "/api/session/login":
                 try:
                     payload = self._read_json_body()
-                    token = admin_sessions.login(
+                    session_data = admin_sessions.login(
                         str(payload.get("username", "")).strip(),
                         str(payload.get("password", "")).strip(),
                     )
                     self._send_json(
                         HTTPStatus.OK,
                         {
-                            "message": "Đã đăng nhập Master Admin.",
-                            **self._get_admin_status_payload(session_token=token),
+                            "message": "Đã đăng nhập hệ thống.",
+                            **self._get_session_status_payload(session_token=session_data["token"]),
                         },
-                        extra_headers=[("Set-Cookie", self._build_session_cookie(token))],
+                        extra_headers=[("Set-Cookie", self._build_session_cookie(session_data["token"]))],
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+                return
+
+            if route == "/api/session/logout":
+                admin_sessions.logout(self._get_session_token())
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "message": "Đã đăng xuất hệ thống.",
+                        **self._get_session_status_payload(session_token=""),
+                    },
+                    extra_headers=[("Set-Cookie", self._build_logout_cookie())],
+                )
+                return
+
+            if route == "/api/admin/login":
+                try:
+                    payload = self._read_json_body()
+                    session_data = admin_sessions.login(
+                        str(payload.get("username", "")).strip(),
+                        str(payload.get("password", "")).strip(),
+                        require_admin=True,
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã đăng nhập Master Admin.",
+                            **self._get_session_status_payload(session_token=session_data["token"]),
+                        },
+                        extra_headers=[("Set-Cookie", self._build_session_cookie(session_data["token"]))],
                     )
                 except ValueError as exc:
                     self._send_json(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
                 return
 
             if route == "/api/admin/logout":
-                admin_sessions.logout(self._get_admin_session_token())
+                admin_sessions.logout(self._get_session_token())
                 self._send_json(
                     HTTPStatus.OK,
-                    {"message": "Đã đăng xuất Master Admin.", "authenticated": False},
+                    {
+                        "message": "Đã đăng xuất Master Admin.",
+                        **self._get_session_status_payload(session_token=""),
+                    },
                     extra_headers=[("Set-Cookie", self._build_logout_cookie())],
                 )
+                return
+
+            if route.startswith("/api/") and self._is_login_enabled() and not self._require_authenticated_session():
                 return
 
             if route.startswith("/api/admin/"):
@@ -360,7 +417,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         quantity=payload.get("quantity"),
                         note=payload.get("note", ""),
                         adjustment_reason=payload.get("adjustment_reason", ""),
-                        actor=self._get_admin_username() or "",
+                        actor=self._get_current_username() or "",
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -411,7 +468,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         items=payload.get("items", []),
                         reason=payload.get("reason", ""),
                         note=payload.get("note", ""),
-                        actor=self._get_admin_username() or "",
+                        actor=self._get_current_username() or "",
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -460,10 +517,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
 
         def do_PUT(self) -> None:
+            if self._is_login_enabled() and not self._require_authenticated_session():
+                return
             if urlparse(self.path).path == "/api/state":
                 try:
                     payload = self._read_json_body()
-                    payload["actor"] = payload.get("actor") or self._get_admin_username() or "Nhân viên"
+                    payload["actor"] = payload.get("actor") or self._get_current_actor_name()
                     self._log_sync_debug("PUT /api/state received", payload)
                     sync_state = store.save_sync_state(payload)
                     self._log_sync_debug("PUT /api/state saved", payload)
@@ -527,7 +586,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     product = store.update_product_price(
                         match.group(1),
                         payload.get("price", 0),
-                        actor=payload.get("actor") or self._get_admin_username() or "Nhân viên",
+                        actor=payload.get("actor") or self._get_current_actor_name(),
                     )
                     self._send_json(
                         HTTPStatus.OK,
@@ -548,7 +607,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     product = store.update_product_sale_price(
                         match.group(1),
                         payload.get("sale_price", 0),
-                        actor=payload.get("actor") or self._get_admin_username() or "Nhân viên",
+                        actor=payload.get("actor") or self._get_current_actor_name(),
                     )
                     self._send_json(
                         HTTPStatus.OK,
@@ -565,6 +624,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
 
         def do_DELETE(self) -> None:
+            if self._is_login_enabled() and not self._require_authenticated_session():
+                return
             match = re.fullmatch(r"/api/products/(\d+)$", urlparse(self.path).path)
             if not match:
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
@@ -739,26 +800,49 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self.end_headers()
             self.wfile.write(payload)
 
-        def _get_admin_session_token(self) -> str | None:
+        @staticmethod
+        def _is_login_enabled() -> bool:
+            return auth_enabled
+
+        def _get_session_token(self) -> str | None:
             cookies = parse_cookie_header(self.headers.get("Cookie"))
             return cookies.get(ADMIN_SESSION_COOKIE)
 
-        def _get_admin_username(self) -> str | None:
-            return admin_sessions.get_username(self._get_admin_session_token())
+        def _get_current_session(self) -> dict | None:
+            return admin_sessions.get_session(self._get_session_token())
 
-        def _get_admin_status_payload(self, session_token: str | None = None) -> dict:
-            token = session_token if session_token is not None else self._get_admin_session_token()
+        def _get_current_username(self) -> str | None:
+            return admin_sessions.get_username(self._get_session_token())
+
+        def _get_current_role(self) -> str:
+            return str(admin_sessions.get_role(self._get_session_token()) or "")
+
+        def _get_current_actor_name(self) -> str:
+            return self._get_current_username() or "Nhân viên"
+
+        def _get_session_status_payload(self, session_token: str | None = None) -> dict:
+            token = session_token if session_token is not None else self._get_session_token()
             session = admin_sessions.get_session(token)
             username = str(session.get("username") or "") if session else ""
+            role = str(session.get("role") or "") if session else ""
             return {
                 "authenticated": bool(session),
                 "username": username,
+                "role": role,
+                "is_admin": role == "admin",
+                "enable_login": auth_enabled,
                 "session_started_at": str(session.get("started_at") or "") if session else "",
-                "timeout_minutes": admin_session_timeout_minutes,
+                "timeout_minutes": admin_session_timeout_minutes if role == "admin" else session_timeout_minutes,
             }
 
+        def _require_authenticated_session(self) -> bool:
+            if self._get_current_session():
+                return True
+            self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "Cần đăng nhập hệ thống."})
+            return False
+
         def _require_admin(self) -> bool:
-            if self._get_admin_username():
+            if admin_sessions.is_admin(self._get_session_token()):
                 return True
             self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "Cần đăng nhập Master Admin."})
             return False

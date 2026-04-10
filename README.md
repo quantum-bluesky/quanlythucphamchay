@@ -112,8 +112,9 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, giá nhập, giá bán mặc định và ngưỡng cảnh báo
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần
 - Có lịch sử quản lý sản phẩm và màn quản lý các đối tượng đã xóa để khôi phục an toàn
+- Có login hệ thống cho `user` thường và `Master Admin`; có thể bật `EnableLogin` để bắt buộc login mới dùng app
 - Có module `Master Admin` để export/import file master (JSON/CSV) và backup/restore toàn bộ database
-- Có nhắc đăng xuất theo chu kỳ cho phiên `Master Admin` (mặc định 30 phút, đổi được trong config)
+- Timeout phiên tách riêng trong config: `session_timeout_minutes` cho user thường và `admin_session_timeout_minutes` cho admin
 - Chỉ `Master Admin` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit
 - Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất
 - Các list dài có phân trang `Trước / Sau` để thao tác gọn hơn trên mobile
@@ -147,18 +148,26 @@ Ví dụ:
     "host": "127.0.0.1",
     "port": 8000
   },
+  "EnableLogin": false,
+  "session_timeout_minutes": 360,
+  "admin_session_timeout_minutes": 30,
   "admin": {
     "username": "masteradmin",
-    "password": "admin12345",
-    "session_timeout_minutes": 30
+    "password": "admin12345"
   },
+  "users": [
+    {
+      "username": "staff",
+      "password": "staff12345"
+    }
+  ],
   "debug": {
     "sync_state": false
   }
 }
 ```
 
-Muốn đổi tài khoản admin, host/port mặc định hoặc chu kỳ nhắc logout admin, hãy sửa file này rồi chạy lại app.
+Muốn đổi tài khoản user/admin, bật `EnableLogin`, hoặc đổi timeout phiên thì sửa trực tiếp `system_config.json`. App không tự ghi đè lại các giá trị timeout này trong lúc đang chạy.
 
 Nếu cần điều tra lỗi đồng bộ nhiều máy như `PUT /api/state 400`, bật:
 

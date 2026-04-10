@@ -196,6 +196,7 @@ let entitiesUi = null;
 let reportsAdminUi = null;
 let adminSessionReminderTimer = null;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
+const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
 function attachSearchClearButton(input, container) {
   if (!input || !container || container.querySelector(".search-clear-button")) {
     return;
@@ -627,6 +628,7 @@ function getReportsAdminUi() {
         adminSessionHeader,
         adminPasswordInput,
         adminSessionUserLabel,
+        adminLogoutButton,
       },
       escapeHtml,
       formatCurrency,
@@ -1175,6 +1177,10 @@ function saveAndRenderAll(changedCollections = []) {
 }
 
 function switchMenu(menu, { recordHistory = true } = {}) {
+  if (state.admin?.enableLogin && !state.admin?.authenticated && menu !== "login") {
+    showToast("Cần login trước khi dùng hệ thống.", true);
+    menu = "login";
+  }
   return getNavigationRuntimeHelpers().switchMenu(menu, { recordHistory });
 }
 
@@ -1713,6 +1719,12 @@ async function apiRequest(path, options = {}) {
 
   const data = await response.json();
   if (!response.ok) {
+    if (response.status === 401 && state.admin?.enableLogin) {
+      redirectToLoginScreen({
+        rememberMenu: true,
+        message: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      });
+    }
     const error = new Error(data.error || "Có lỗi xảy ra.");
     error.status = response.status;
     error.payload = data;
@@ -1722,15 +1734,15 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
-async function refreshAdminStatus() {
-  const payload = await apiRequest("/api/admin/status");
+async function refreshSessionStatus() {
+  const payload = await apiRequest("/api/session/status");
   updateAdminSessionState(payload);
 }
 
 function normalizeAdminTimeoutMinutes(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 30;
+    return 360;
   }
   return Math.round(parsed);
 }
@@ -1741,15 +1753,96 @@ function parseAdminSessionStartedAtMs(value) {
   return Date.parse(timestamp);
 }
 
-function clearAdminSessionReminder() {
+function clearSessionReminder() {
   if (adminSessionReminderTimer) {
     window.clearTimeout(adminSessionReminderTimer);
     adminSessionReminderTimer = null;
   }
 }
 
-function scheduleAdminSessionReminder() {
-  clearAdminSessionReminder();
+function clearProtectedSessionData() {
+  state.products = [];
+  state.deletedProducts = [];
+  state.productHistory = [];
+  state.transactions = [];
+  state.summary = null;
+  state.reports = null;
+  state.customers = [];
+  state.suppliers = [];
+  state.carts = [];
+  state.purchases = [];
+  state.activeCartId = null;
+  state.activePurchaseId = null;
+}
+
+function getLoginReturnMenu() {
+  return String(state.admin?.returnMenuAfterLogin || "inventory").trim() || "inventory";
+}
+
+function setLoginReturnMenu(menu) {
+  state.admin = {
+    ...(state.admin || {}),
+    returnMenuAfterLogin: String(menu || "inventory").trim() || "inventory",
+  };
+}
+
+function isLoginScreenTarget(target) {
+  return Boolean(
+    dom.adminLoginPanel?.contains(target) ||
+    dom.adminLoginForm?.contains(target)
+  );
+}
+
+function redirectToLoginScreen({ rememberMenu = true, message = "" } = {}) {
+  if (rememberMenu) {
+    setLoginReturnMenu(state.activeMenu && state.activeMenu !== "login" ? state.activeMenu : "inventory");
+  }
+  clearProtectedSessionData();
+  latestSyncUpdatedAt = {};
+  if (state.activeMenu !== "login") {
+    switchMenu("login");
+  }
+  renderAll();
+  if (message) {
+    showToast(message, true);
+  }
+}
+
+function shouldBlockInteractionForLogin(event) {
+  if (!state.admin?.enableLogin || state.admin?.authenticated) {
+    return false;
+  }
+  if (isLoginScreenTarget(event.target)) {
+    return false;
+  }
+  if (event.type === "keydown") {
+    return ["Enter", " ", "Spacebar"].includes(event.key);
+  }
+  return true;
+}
+
+function handleBlockedLoginInteraction(event) {
+  if (!shouldBlockInteractionForLogin(event)) {
+    return false;
+  }
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  const shouldGoLogin = window.confirm(
+    [
+      "Bạn cần đăng nhập để sử dụng hệ thống.",
+      "Chọn OK để chuyển sang màn Login.",
+      "Sau khi đăng nhập xong hệ thống sẽ quay lại màn trước đó.",
+    ].join("\n"),
+  );
+  if (shouldGoLogin) {
+    redirectToLoginScreen({ rememberMenu: true });
+    dom.adminUsernameInput?.focus();
+  }
+  return true;
+}
+
+function scheduleSessionReminder() {
+  clearSessionReminder();
   if (!state.admin?.authenticated) {
     return;
   }
@@ -1765,17 +1858,22 @@ function scheduleAdminSessionReminder() {
   }
   const delayMs = Math.max(0, nextReminderAtMs - Date.now());
   adminSessionReminderTimer = window.setTimeout(() => {
-    void handleAdminSessionReminder();
+    void handleSessionReminder();
   }, delayMs);
 }
 
-async function performAdminLogout(message) {
+async function performSessionLogout(message) {
   try {
-    const data = await apiRequest("/api/admin/logout", {
+    const data = await apiRequest("/api/session/logout", {
       method: "POST",
       body: JSON.stringify({}),
     });
     updateAdminSessionState(data, { resetReminder: true });
+    if (state.admin?.enableLogin) {
+      clearProtectedSessionData();
+      state.admin.returnMenuAfterLogin = "inventory";
+      switchMenu("login");
+    }
     renderAll();
     showToast(message || data.message);
   } catch (error) {
@@ -1783,26 +1881,27 @@ async function performAdminLogout(message) {
   }
 }
 
-async function handleAdminSessionReminder() {
+async function handleSessionReminder() {
   if (!state.admin?.authenticated) {
-    clearAdminSessionReminder();
+    clearSessionReminder();
     return;
   }
   const timeoutMinutes = normalizeAdminTimeoutMinutes(state.admin.timeoutMinutes);
+  const roleLabel = state.admin?.isAdmin ? "Master Admin" : "user";
   const shouldLogout = window.confirm(
     [
-      `Master Admin đã đăng nhập đủ ${timeoutMinutes} phút.`,
+      `${roleLabel} đã đăng nhập đủ ${timeoutMinutes} phút.`,
       "Chọn OK để đăng xuất ngay.",
-      `Chọn Cancel để giữ quyền Admin và hệ thống sẽ nhắc lại sau ${timeoutMinutes} phút.`,
+      `Chọn Cancel để tiếp tục dùng hệ thống và nhắc lại sau ${timeoutMinutes} phút.`,
     ].join("\n"),
   );
   if (shouldLogout) {
-    await performAdminLogout("Đã tự động đăng xuất Master Admin theo xác nhận.");
+    await performSessionLogout("Đã tự động đăng xuất theo xác nhận.");
     return;
   }
   state.admin.nextReminderAtMs = Date.now() + timeoutMinutes * 60 * 1000;
-  scheduleAdminSessionReminder();
-  showToast(`Tiếp tục phiên Master Admin. Hệ thống sẽ nhắc lại sau ${timeoutMinutes} phút.`);
+  scheduleSessionReminder();
+  showToast(`Tiếp tục phiên đăng nhập. Hệ thống sẽ nhắc lại sau ${timeoutMinutes} phút.`);
 }
 
 function updateAdminSessionState(payload = {}, { resetReminder = false } = {}) {
@@ -1810,13 +1909,17 @@ function updateAdminSessionState(payload = {}, { resetReminder = false } = {}) {
   const authenticated = Boolean(payload.authenticated);
   const timeoutMinutes = normalizeAdminTimeoutMinutes(payload.timeout_minutes ?? payload.timeoutMinutes);
   const sessionStartedAt = String(payload.session_started_at ?? payload.sessionStartedAt ?? "").trim();
+  const returnMenuAfterLogin = String(
+    payload.return_menu_after_login ?? payload.returnMenuAfterLogin ?? previous.returnMenuAfterLogin ?? ""
+  ).trim();
   const sameSession = Boolean(
     authenticated &&
     previous.authenticated &&
     previous.sessionStartedAt &&
     sessionStartedAt &&
     previous.sessionStartedAt === sessionStartedAt &&
-    String(previous.username || "") === String(payload.username || ""),
+    String(previous.username || "") === String(payload.username || "") &&
+    String(previous.role || "") === String(payload.role || ""),
   );
   let nextReminderAtMs = 0;
   if (authenticated) {
@@ -1836,11 +1939,18 @@ function updateAdminSessionState(payload = {}, { resetReminder = false } = {}) {
   state.admin = {
     authenticated,
     username: String(payload.username || ""),
+    role: String(payload.role || ""),
+    isAdmin: Boolean(payload.is_admin ?? payload.isAdmin),
+    enableLogin: Boolean(payload.enable_login ?? payload.enableLogin),
     sessionStartedAt,
     timeoutMinutes,
     nextReminderAtMs,
+    returnMenuAfterLogin,
   };
-  scheduleAdminSessionReminder();
+  scheduleSessionReminder();
+  if (previous.authenticated && !authenticated && state.admin?.enableLogin) {
+    redirectToLoginScreen({ rememberMenu: true });
+  }
 }
 
 async function downloadAdminFile(path, fallbackName) {
@@ -1901,9 +2011,17 @@ async function refreshReportData() {
   state.reportFocusMonth = state.reports?.focus_month || focusMonth;
 }
 
-async function refreshData() {
+async function refreshData({ sessionAlreadyLoaded = false } = {}) {
   isRefreshingState = true;
   try {
+    if (!sessionAlreadyLoaded) {
+      await refreshSessionStatus();
+    }
+    if (state.admin?.enableLogin && !state.admin?.authenticated) {
+      redirectToLoginScreen({ rememberMenu: true });
+      return { login_required: true };
+    }
+
     const historyParams = new URLSearchParams({ limit: "30" });
     if (state.productHistoryActorFilter.trim()) {
       historyParams.set("actor", state.productHistoryActorFilter.trim());
@@ -1919,7 +2037,6 @@ async function refreshData() {
       apiRequest("/api/products/deleted"),
       apiRequest(`/api/products/history?${historyParams.toString()}`),
       refreshReportData(),
-      refreshAdminStatus(),
     ]);
     latestSyncUpdatedAt = payload.updated_at || {};
     updateDebugConfig(payload);
@@ -2404,7 +2521,7 @@ async function checkoutActiveCart() {
   const shortages = getCartShortages(cart).filter((entry) => entry.shortage > 0);
   if (shortages.length) {
     const shortageNames = shortages.map((entry) => `${entry.product?.name || entry.item.productName} thiếu ${formatQuantity(entry.shortage)}`).join(", ");
-    if (state.admin?.authenticated) {
+  if (state.admin?.isAdmin) {
       const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng: ${shortageNames}.\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel để tạo phiếu nhập hàng dự kiến.`);
       if (shouldAdjustStock) {
         switchMenu("inventory");
@@ -2479,6 +2596,7 @@ registerCoreControllerEvents({
     revealFloatingCluster,
     setFloatingSearchExpanded,
     syncFloatingSearchToSource,
+    handleBlockedLoginInteraction,
     switchMenu,
     writeStorage,
     setFloatingClusterAutoHidden,
@@ -2754,11 +2872,12 @@ registerReportsAdminControllerEvents({
     focusReportSection,
     apiRequest,
     updateAdminSessionState,
-    performAdminLogout,
+    performSessionLogout,
     downloadAdminFile,
     readFileAsText,
     readFileAsBase64,
     refreshData,
+    switchMenu,
   },
   renderers: {
     renderReports,
@@ -2773,10 +2892,16 @@ window.addEventListener("DOMContentLoaded", async () => {
   setHelpOpen(false);
   applyMobileCollapsedDefaults();
   setQuickPanelCollapsed(mobileQuery.matches);
-  renderAll();
 
   try {
-    const payload = await refreshData();
+    await refreshSessionStatus();
+    if (state.admin?.enableLogin && !state.admin?.authenticated) {
+      state.activeMenu = "login";
+      state.menuHistory = ["login"];
+      state.menuHistoryIndex = 0;
+    }
+    renderAll();
+    const payload = await refreshData({ sessionAlreadyLoaded: true });
     const migrated = await migrateLegacyCollectionsIfNeeded(payload);
     if (!readStorage(STORAGE_KEYS.migratedSyncState, false) && hasAnySyncedData(payload)) {
       writeStorage(STORAGE_KEYS.migratedSyncState, true);

@@ -21,7 +21,7 @@ export function createInventoryUi(deps) {
   } = deps;
 
   function renderInventoryDirectEditAccess() {
-    const isAdmin = Boolean(state.admin?.authenticated);
+    const isAdmin = Boolean(state.admin?.isAdmin);
     const kicker = dom.quickPanel.querySelector(".panel-kicker");
     const heading = dom.quickPanel.querySelector("h2");
     const note = dom.quickPanel.querySelector(".quick-panel-tools .panel-note");
@@ -86,7 +86,7 @@ export function createInventoryUi(deps) {
 
   function renderProducts() {
     const compact = mobileQuery.matches;
-    const isAdmin = Boolean(state.admin?.authenticated);
+    const isAdmin = Boolean(state.admin?.isAdmin);
     const draftDemandMap = getDraftDemandByProductId();
     const draftCountMap = getDraftCartCountByProductId();
     const incomingMap = getIncomingPurchaseByProductId();

@@ -25,6 +25,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html {
   font-size: 16px;
 }
@@ -233,6 +237,11 @@ h3 {
   background: linear-gradient(135deg, var(--accent) 0%, #2f7a54 100%);
   color: white;
   box-shadow: 0 14px 24px rgba(36, 91, 63, 0.22);
+}
+
+.menu-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .view-section {
