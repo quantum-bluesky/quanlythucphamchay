@@ -7,7 +7,7 @@ const {
   switchMenu,
 } = require("./support/ui");
 
-test("purchase can only be marked paid after it has been received", async ({ page, request }) => {
+test("ACC-PUR-01 purchase can only be marked paid after it has been received", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   const stateResponse = await request.get("/api/state?transaction_limit=16");
@@ -71,7 +71,7 @@ test("purchase can only be marked paid after it has been received", async ({ pag
   expectNoRuntimeErrors(runtime);
 });
 
-test("completed orders and received or paid purchases reject direct edits", async ({ page, request }) => {
+test("ACC-PUR-02 completed orders and received or paid purchases reject direct edits", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   const stateResponse = await request.get("/api/state?transaction_limit=16");
@@ -129,7 +129,7 @@ test("completed orders and received or paid purchases reject direct edits", asyn
   expectNoRuntimeErrors(runtime);
 });
 
-test("direct stock adjustment requires admin login and a reason", async ({ page, request }) => {
+test("ACC-ADM-03 direct stock adjustment requires admin login and a reason", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   const anonymousResponse = await request.post("/api/transactions", {

@@ -6,7 +6,7 @@ const {
   switchMenu,
 } = require("./support/ui");
 
-test("product history supports actor filter for default price updates", async ({ request }) => {
+test("IT-PHD-01 product history supports actor filter for default price updates", async ({ request }) => {
   const productsResponse = await request.get("/api/products");
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
@@ -29,7 +29,7 @@ test("product history supports actor filter for default price updates", async ({
   expect(historyPayload.history.every((entry) => (entry.actor || "").toLowerCase() === "phase-d-tester")).toBeTruthy();
 });
 
-test("state sync stores actor when cart status changes", async ({ request }) => {
+test("IT-PHD-02 state sync stores actor when cart status changes", async ({ request }) => {
   const stateResponse = await request.get("/api/state?transaction_limit=16");
   expect(stateResponse.ok()).toBeTruthy();
   const statePayload = await stateResponse.json();
@@ -59,7 +59,7 @@ test("state sync stores actor when cart status changes", async ({ request }) => 
   expect(completeResponse.ok()).toBeTruthy();
 });
 
-test("product history filter form applies actor and date filters in UI", async ({ page, request }) => {
+test("IT-PHD-03 product history filter form applies actor and date filters in UI", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const productsResponse = await request.get("/api/products");
   expect(productsResponse.ok()).toBeTruthy();

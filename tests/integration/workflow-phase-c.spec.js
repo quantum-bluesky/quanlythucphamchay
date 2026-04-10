@@ -1,6 +1,6 @@
 const { test, expect } = require("@playwright/test");
 
-test("state sync rejects stale carts updates with conflict metadata", async ({ request }) => {
+test("ACC-SYNC-02 state sync rejects stale carts updates with conflict metadata", async ({ request }) => {
   const stateResponse = await request.get("/api/state?transaction_limit=16");
   expect(stateResponse.ok()).toBeTruthy();
   const statePayload = await stateResponse.json();
@@ -26,7 +26,7 @@ test("state sync rejects stale carts updates with conflict metadata", async ({ r
   expect(stalePayload.conflict?.state_key).toBe("carts");
 });
 
-test("state sync rejects stale purchases updates with conflict metadata", async ({ request }) => {
+test("ACC-SYNC-03 state sync rejects stale purchases updates with conflict metadata", async ({ request }) => {
   const stateResponse = await request.get("/api/state?transaction_limit=16");
   expect(stateResponse.ok()).toBeTruthy();
   const statePayload = await stateResponse.json();

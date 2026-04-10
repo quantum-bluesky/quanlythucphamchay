@@ -15,6 +15,8 @@ Mục tiêu:
 - `P2`: case mở rộng, có thể chạy theo đợt
 - `Auto`: đã có thể chạy bằng Playwright hoặc unit/integration test
 - `Manual`: hiện chưa tự động hóa hoàn toàn, cần người dùng xác nhận
+- mọi case `Auto` phải có mã ở đầu tên test để lọc bằng `--grep`
+- nếu 1 test Playwright cover nhiều case checklist, title test có thể ghi nhiều mã ở đầu theo dạng `ACC-XXX / ACC-YYY`
 
 ## 2. Bộ case chuẩn
 

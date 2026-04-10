@@ -7,7 +7,7 @@ const {
   switchMenu,
 } = require("./support/ui");
 
-test("create-order screen auto refreshes stock and price after changes from another client", async ({ page, request }) => {
+test("ACC-SYNC-01 create-order screen auto refreshes stock and price after changes from another client", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.goto("/");

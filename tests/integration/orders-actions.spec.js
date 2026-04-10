@@ -7,7 +7,7 @@ const {
   switchMenu,
 } = require("./support/ui");
 
-test("orders screen actions expand details, mark paid, and reopen draft carts", async ({ page }) => {
+test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draft carts", async ({ page }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.goto("/");

@@ -30,7 +30,7 @@ class InventoryStoreTests(unittest.TestCase):
         if last_error is not None:
             raise last_error
 
-    def test_create_product_and_stock_summary(self) -> None:
+    def test_ut_db_01_create_product_and_stock_summary(self) -> None:
         product = self.store.create_product(
             name="Chả lụa chay",
             category="Đồ chay đông lạnh",
@@ -48,7 +48,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(summary["product_count"], 1)
         self.assertEqual(summary["total_stock"], 6.0)
 
-    def test_stock_out_cannot_exceed_inventory(self) -> None:
+    def test_ut_db_02_stock_out_cannot_exceed_inventory(self) -> None:
         product = self.store.create_product(
             name="Xúc xích chay",
             category="Đồ chay đông lạnh",
@@ -60,7 +60,7 @@ class InventoryStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lớn hơn tồn kho"):
             self.store.create_transaction(product["id"], "out", 3)
 
-    def test_inventory_adjustment_receipt_updates_stock_with_reason(self) -> None:
+    def test_ut_db_03_inventory_adjustment_receipt_updates_stock_with_reason(self) -> None:
         product = self.store.create_product(
             name="Tàu hũ ky",
             category="Đồ khô",
@@ -80,7 +80,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(receipt["total_out_quantity"], 2.0)
         self.assertEqual(refreshed["current_stock"], 3.0)
 
-    def test_customer_return_receipt_increases_stock(self) -> None:
+    def test_ut_db_04_customer_return_receipt_increases_stock(self) -> None:
         product = self.store.create_product(
             name="Nem chay",
             category="Đồ chay đông lạnh",
@@ -100,7 +100,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(receipt["total_quantity"], 2.0)
         self.assertEqual(refreshed["current_stock"], 3.0)
 
-    def test_supplier_return_receipt_reduces_stock(self) -> None:
+    def test_ut_db_05_supplier_return_receipt_reduces_stock(self) -> None:
         product = self.store.create_product(
             name="Đậu hũ non",
             category="Đồ tươi",
@@ -120,7 +120,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(receipt["total_quantity"], 2.0)
         self.assertEqual(refreshed["current_stock"], 5.0)
 
-    def test_inventory_adjustment_requires_reason(self) -> None:
+    def test_ut_db_06_inventory_adjustment_requires_reason(self) -> None:
         product = self.store.create_product(
             name="Mì căn",
             category="Đồ khô",
@@ -133,7 +133,7 @@ class InventoryStoreTests(unittest.TestCase):
                 reason="",
             )
 
-    def test_save_sync_state_accepts_matching_expected_updated_at(self) -> None:
+    def test_ut_sync_01_save_sync_state_accepts_matching_expected_updated_at(self) -> None:
         initial = self.store.get_sync_state()
         expected = initial["updated_at"]["carts"]
 
@@ -145,7 +145,7 @@ class InventoryStoreTests(unittest.TestCase):
 
         self.assertEqual(result["carts"][0]["id"], "cart-1")
 
-    def test_save_sync_state_rejects_stale_expected_updated_at(self) -> None:
+    def test_ut_sync_02_save_sync_state_rejects_stale_expected_updated_at(self) -> None:
         self.store.save_sync_state({"carts": [{"id": "cart-a", "status": "draft", "items": []}]})
 
         with self.assertRaises(SyncConflictError):
@@ -156,7 +156,7 @@ class InventoryStoreTests(unittest.TestCase):
                 }
             )
 
-    def test_save_sync_state_logs_status_changes_with_actor(self) -> None:
+    def test_ut_aud_01_save_sync_state_logs_cart_status_changes_with_actor(self) -> None:
         self.store.save_sync_state(
             {
                 "carts": [{"id": "cart-1", "orderCode": "DH-01", "status": "draft", "items": []}],
@@ -192,7 +192,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertIn("draft", log["message"])
         self.assertIn("completed", log["message"])
 
-    def test_save_sync_state_logs_purchase_status_changes_with_actor(self) -> None:
+    def test_ut_aud_02_save_sync_state_logs_purchase_status_changes_with_actor(self) -> None:
         self.store.save_sync_state(
             {
                 "purchases": [{"id": "purchase-1", "receiptCode": "PN-01", "status": "draft", "items": []}],
@@ -225,7 +225,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertIn("draft", log["message"])
         self.assertIn("ordered", log["message"])
 
-    def test_product_history_supports_actor_filter(self) -> None:
+    def test_ut_his_01_product_history_supports_actor_filter(self) -> None:
         product = self.store.create_product(
             name="Đậu gà viên",
             category="Đông lạnh",
@@ -242,7 +242,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertFalse(any(entry["action"] == "update-sale-price" for entry in actor_a_logs))
         self.assertTrue(any(entry["action"] == "update-sale-price" for entry in actor_b_logs))
 
-    def test_product_history_supports_date_range_filter(self) -> None:
+    def test_ut_his_02_product_history_supports_date_range_filter(self) -> None:
         product = self.store.create_product(
             name="Nấm đùi gà sốt",
             category="Đông lạnh",
