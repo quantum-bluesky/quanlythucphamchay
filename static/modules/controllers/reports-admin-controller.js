@@ -144,6 +144,13 @@ export function registerReportsAdminControllerEvents(contract) {
       const value = String(formatMap[entity]?.value || "json").toLowerCase();
       return value === "csv" ? "csv" : "json";
     };
+    const hasExpectedExtension = (fileName, format) => {
+      const name = String(fileName || "").toLowerCase();
+      if (format === "csv") {
+        return name.endsWith(".csv");
+      }
+      return name.endsWith(".json");
+    };
 
     const exportButton = event.target.closest("[data-admin-export]");
     if (exportButton) {
@@ -174,6 +181,10 @@ export function registerReportsAdminControllerEvents(contract) {
       }
       try {
         const format = getMasterFormat(entity);
+        if (!hasExpectedExtension(file.name, format)) {
+          actions.showToast(`File không đúng định dạng đã chọn (${format.toUpperCase()}).`, true);
+          return;
+        }
         const rawText = await actions.readFileAsText(file);
         const warning = [
           `Import master data cho ${entity}?`,
@@ -191,8 +202,21 @@ export function registerReportsAdminControllerEvents(contract) {
           };
         } else {
           const payload = JSON.parse(rawText);
+          const sourceEntityType = String(payload.entity_type || "").trim().toLowerCase();
+          if (sourceEntityType && sourceEntityType !== entity) {
+            actions.showToast(
+              `File JSON thuộc loại '${sourceEntityType}', không khớp '${entity}'.`,
+              true,
+            );
+            return;
+          }
+          if (!Array.isArray(payload.records) || payload.records.length === 0) {
+            actions.showToast("File JSON không có records hợp lệ để import.", true);
+            return;
+          }
           requestBody = {
             format: "json",
+            entity_type: sourceEntityType,
             records: payload.records || [],
           };
         }

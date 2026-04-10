@@ -261,17 +261,23 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 if import_match:
                     try:
                         payload = self._read_json_body()
+                        import_entity_type = import_match.group(1)
+                        self._validate_import_entity_match(import_entity_type, payload)
                         import_format = str(payload.get("format") or "json").strip().lower()
                         if import_format == "json":
                             records = payload.get("records", [])
                         elif import_format == "csv":
                             records = self._parse_master_csv_records(
-                                import_match.group(1),
+                                import_entity_type,
                                 str(payload.get("content") or ""),
                             )
                         else:
                             raise ValueError("Định dạng import không hợp lệ. Chỉ hỗ trợ json/csv.")
-                        result = store.import_master_data(import_match.group(1), records)
+                        if not isinstance(records, list):
+                            raise ValueError("Dữ liệu import không hợp lệ.")
+                        if not records:
+                            raise ValueError("File import không có bản ghi hợp lệ.")
+                        result = store.import_master_data(import_entity_type, records)
                         self._send_json(
                             HTTPStatus.OK,
                             {
@@ -663,6 +669,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
             if not reader.fieldnames:
                 raise ValueError("File CSV thiếu dòng tiêu đề (header).")
+            normalized_headers = {str(field or "").strip() for field in reader.fieldnames if field}
+            required_headers = set(cls._master_csv_columns(entity_type))
+            missing_headers = sorted(required_headers - normalized_headers)
+            if missing_headers:
+                raise ValueError(
+                    "File CSV không đúng mẫu cho dữ liệu "
+                    f"{entity_type}. Thiếu cột: {', '.join(missing_headers)}."
+                )
 
             records: list[dict] = []
             for row in reader:
@@ -700,6 +714,15 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 records.append(base_record)
 
             return records
+
+        @staticmethod
+        def _validate_import_entity_match(import_entity_type: str, payload: dict) -> None:
+            source_entity_type = str(payload.get("entity_type") or "").strip().lower()
+            if source_entity_type and source_entity_type != import_entity_type:
+                raise ValueError(
+                    "File import không đúng loại dữ liệu. "
+                    f"Bạn đang import '{source_entity_type}' vào '{import_entity_type}'."
+                )
 
         def _serve_static_file(self, relative_path: str) -> None:
             safe_path = (STATIC_DIR / relative_path).resolve()
