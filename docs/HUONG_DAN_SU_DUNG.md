@@ -397,6 +397,12 @@ Vào menu:
 
 Chỉ người quản trị hệ thống mới nên dùng màn này.
 
+Từ phiên bản này, màn `Master Admin` cũng là nơi login hệ thống:
+
+- `user` thường: dùng các màn nghiệp vụ chung
+- `Master Admin`: có thêm phần quản trị master data, backup/restore và chỉnh tồn trực tiếp
+- nếu `EnableLogin = true` trong `system_config.json`, người dùng phải login thì mới dùng được app
+
 Màn này có 2 nhóm chức năng:
 
 - export / import file master:
@@ -405,6 +411,15 @@ Màn này có 2 nhóm chức năng:
   - nhà cung cấp
   - định dạng hỗ trợ: `JSON` hoặc `CSV`
 - backup / restore database toàn hệ thống
+- trạng thái phiên: nút `Login` / `Logout` nằm ở thanh header nổi; khi đã login sẽ hiện tên user bên cạnh
+
+Lưu ý timeout phiên:
+
+- `session_timeout_minutes`: timeout chung cho user thường
+- `admin_session_timeout_minutes`: timeout riêng cho tài khoản admin
+- khi đủ timeout, app sẽ hiện hộp thoại nhắc logout
+- chọn `OK`: logout ngay
+- chọn `Cancel`: vẫn giữ phiên hiện tại và hẹn nhắc lại sau đúng chu kỳ timeout tương ứng
 
 ### Khi nào dùng export / import master
 

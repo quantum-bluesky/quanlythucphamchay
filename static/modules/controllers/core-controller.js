@@ -1,3 +1,5 @@
+const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
+
 export function registerCoreControllerEvents(contract) {
   const {
     state,
@@ -31,6 +33,12 @@ export function registerCoreControllerEvents(contract) {
 
   dom.openHelpButton.addEventListener("click", () => {
     actions.setHelpOpen(!state.helpOpen);
+  });
+
+  LOGIN_GUARD_EVENT_TYPES.forEach((eventType) => {
+    document.addEventListener(eventType, (event) => {
+      actions.handleBlockedLoginInteraction(event);
+    }, true);
   });
 
   document.addEventListener("click", (event) => {

@@ -269,8 +269,12 @@ def main() -> int:
     admin_sessions = AdminSessionManager(
         str(system_config["admin"]["username"]),
         str(system_config["admin"]["password"]),
+        users=system_config.get("users", []),
     )
-    server = ThreadingHTTPServer((args.host, args.port), create_handler(store, admin_sessions))
+    server = ThreadingHTTPServer(
+        (args.host, args.port),
+        create_handler(store, admin_sessions, system_config=system_config),
+    )
 
     def shutdown_handler(*_args) -> None:
         server.shutdown()

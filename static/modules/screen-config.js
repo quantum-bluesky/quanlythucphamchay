@@ -157,10 +157,12 @@ export const SCREEN_HELP = {
   },
   admin: {
     title: "Master Admin",
-    overview: "Dành cho tài khoản admin để xuất nhập master data, backup và restore toàn hệ thống.",
+    overview: "Màn này vừa là nơi login hệ thống, vừa là nơi tài khoản admin quản trị master data, backup và restore.",
     steps: [
-      "Đăng nhập bằng tài khoản admin đã cấu hình trong file hệ thống.",
+      "Dùng tài khoản user hoặc admin đã cấu hình trong file hệ thống để login. Nếu bật EnableLogin thì phải login mới dùng được app.",
       "Dùng export/import để quản trị dữ liệu master của sản phẩm, khách hàng và nhà cung cấp (hỗ trợ cả JSON và CSV).",
+      "User thường chỉ dùng được phần nghiệp vụ chung; riêng Master Admin mới thấy module quản trị và chỉnh tồn trực tiếp.",
+      "Session user thường dùng session_timeout_minutes, còn admin dùng admin_session_timeout_minutes trong system_config.json.",
       "Chỉ restore database khi đã hiểu rõ rằng dữ liệu hiện tại sẽ bị ghi đè bằng bản phục hồi.",
       MOBILE_FLOATING_HINT,
     ],

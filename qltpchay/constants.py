@@ -2,7 +2,6 @@ from pathlib import Path
 
 
 APP_NAME = "Quản lý thực phẩm chay"
-APP_VERSION = "2.1.2"
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 DATA_DIR = BASE_DIR / "data"

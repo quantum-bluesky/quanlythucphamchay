@@ -102,18 +102,18 @@ export function registerReportsAdminControllerEvents(contract) {
   dom.adminLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      const data = await actions.apiRequest("/api/admin/login", {
+      const data = await actions.apiRequest("/api/session/login", {
         method: "POST",
         body: JSON.stringify({
           username: dom.adminUsernameInput.value.trim(),
           password: dom.adminPasswordInput.value,
         }),
       });
-      state.admin = {
-        authenticated: Boolean(data.authenticated),
-        username: data.username || "",
-      };
-      renderers.renderAll();
+      actions.updateAdminSessionState(data, { resetReminder: true });
+      await actions.refreshData({ sessionAlreadyLoaded: true });
+      const returnMenu = state.admin?.returnMenuAfterLogin || "inventory";
+      state.admin.returnMenuAfterLogin = "";
+      actions.switchMenu(returnMenu);
       actions.showToast(data.message);
     } catch (error) {
       actions.showToast(error.message, true);
@@ -121,17 +121,11 @@ export function registerReportsAdminControllerEvents(contract) {
   });
 
   dom.adminLogoutButton.addEventListener("click", async () => {
-    try {
-      const data = await actions.apiRequest("/api/admin/logout", {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
-      state.admin = { authenticated: false, username: "" };
-      renderers.renderAll();
-      actions.showToast(data.message);
-    } catch (error) {
-      actions.showToast(error.message, true);
+    if (state.admin?.authenticated) {
+      await actions.performSessionLogout();
+      return;
     }
+    actions.switchMenu("admin");
   });
 
   dom.adminModulePanel.addEventListener("click", async (event) => {

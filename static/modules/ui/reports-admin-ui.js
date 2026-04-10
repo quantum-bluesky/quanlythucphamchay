@@ -80,8 +80,24 @@ export function createReportsAdminUi(deps) {
 
   function renderAdminSection() {
     const isAuthenticated = Boolean(state.admin?.authenticated);
+    const isAdmin = Boolean(state.admin?.isAdmin);
     dom.adminLoginPanel.hidden = isAuthenticated;
-    dom.adminModulePanel.hidden = !isAuthenticated;
+    dom.adminModulePanel.hidden = !isAdmin;
+    if (dom.adminSessionHeader) {
+      dom.adminSessionHeader.hidden = !isAuthenticated;
+    }
+    if (dom.adminSessionUserLabel) {
+      if (isAuthenticated) {
+        dom.adminSessionUserLabel.textContent = state.admin.username || "Master Admin";
+        dom.adminSessionUserLabel.hidden = false;
+      } else {
+        dom.adminSessionUserLabel.textContent = "";
+        dom.adminSessionUserLabel.hidden = true;
+      }
+    }
+    if (dom.adminLogoutButton) {
+      dom.adminLogoutButton.textContent = isAuthenticated ? "Logout" : "Login";
+    }
     if (!isAuthenticated) {
       dom.adminPasswordInput.value = "";
     }

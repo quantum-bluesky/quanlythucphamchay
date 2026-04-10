@@ -107,6 +107,7 @@ export function createSyncRuntimeHelpers(deps) {
   }
 
   function shouldAutoRefresh() {
+    if (state.admin?.enableLogin && !state.admin?.authenticated) return false;
     if (document.hidden || getIsRefreshingState() || getAutoRefreshInFlight() || getPersistScheduled() || pendingPersistCollections.size) return false;
     if (hasInteractiveInputFocus()) return false;
     return true;
