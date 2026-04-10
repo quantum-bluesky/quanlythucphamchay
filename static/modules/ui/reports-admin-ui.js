@@ -84,7 +84,7 @@ export function createReportsAdminUi(deps) {
     dom.adminLoginPanel.hidden = isAuthenticated;
     dom.adminModulePanel.hidden = !isAdmin;
     if (dom.adminSessionHeader) {
-      dom.adminSessionHeader.hidden = false;
+      dom.adminSessionHeader.hidden = !isAuthenticated;
     }
     if (dom.adminSessionUserLabel) {
       if (isAuthenticated) {

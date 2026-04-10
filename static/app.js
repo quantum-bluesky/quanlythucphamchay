@@ -1948,6 +1948,9 @@ function updateAdminSessionState(payload = {}, { resetReminder = false } = {}) {
     returnMenuAfterLogin,
   };
   scheduleSessionReminder();
+  if (previous.authenticated && !authenticated && state.admin?.enableLogin) {
+    redirectToLoginScreen({ rememberMenu: true });
+  }
 }
 
 async function downloadAdminFile(path, fallbackName) {
@@ -2889,10 +2892,16 @@ window.addEventListener("DOMContentLoaded", async () => {
   setHelpOpen(false);
   applyMobileCollapsedDefaults();
   setQuickPanelCollapsed(mobileQuery.matches);
-  renderAll();
 
   try {
-    const payload = await refreshData();
+    await refreshSessionStatus();
+    if (state.admin?.enableLogin && !state.admin?.authenticated) {
+      state.activeMenu = "login";
+      state.menuHistory = ["login"];
+      state.menuHistoryIndex = 0;
+    }
+    renderAll();
+    const payload = await refreshData({ sessionAlreadyLoaded: true });
     const migrated = await migrateLegacyCollectionsIfNeeded(payload);
     if (!readStorage(STORAGE_KEYS.migratedSyncState, false) && hasAnySyncedData(payload)) {
       writeStorage(STORAGE_KEYS.migratedSyncState, true);

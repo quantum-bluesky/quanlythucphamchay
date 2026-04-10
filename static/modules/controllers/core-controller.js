@@ -1,3 +1,5 @@
+const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
+
 export function registerCoreControllerEvents(contract) {
   const {
     state,
