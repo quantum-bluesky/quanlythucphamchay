@@ -996,9 +996,9 @@ function syncSalesState() {
       status: purchase.status || "draft",
       createdAt: purchase.createdAt || nowIso(),
       updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
-      receivedAt: purchase.receivedAt || null,
-      paidAt: purchase.paidAt || null,
-      receiptCode: purchase.receiptCode || "",
+      receivedAt: purchase.receivedAt || purchase.received_at || null,
+      paidAt: purchase.paidAt || purchase.paid_at || null,
+      receiptCode: purchase.receiptCode || purchase.receipt_code || "",
       items: Array.isArray(purchase.items)
         ? purchase.items
             .map((item) => {

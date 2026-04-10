@@ -42,6 +42,7 @@ Mục tiêu:
 | 20  | ACC-SYNC-01  | P0       | Nhiều máy / create-order       | Màn bán hàng tự refresh tồn kho và giá sau thay đổi từ máy khác           | Auto | `tests/integration/cross-client-sync.spec.js`                                                    |
 | 21  | ACC-SYNC-02  | P0       | Nhiều máy / draft cart         | Lưu dữ liệu stale bị chặn với conflict metadata                           | Auto | `tests/integration/workflow-phase-c.spec.js`                                                     |
 | 22  | ACC-SYNC-03  | P0       | Nhiều máy / draft purchase     | Lưu dữ liệu stale bị chặn với conflict metadata                           | Auto | `tests/integration/workflow-phase-c.spec.js`                                                     |
+| 23  | ACC-SUP-02   | P0       | Nhà cung cấp + dữ liệu legacy  | Tạo mới NCC không bị lỗi sync khi có phiếu `paid` legacy dùng `received_at` | Auto | `tests/integration/acceptance-checklist.spec.js`                                                 |
 
 ## 3. Bộ chạy tự động chuẩn cho Codex agent
 
