@@ -102,7 +102,7 @@ export function registerReportsAdminControllerEvents(contract) {
   dom.adminLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      const data = await actions.apiRequest("/api/admin/login", {
+      const data = await actions.apiRequest("/api/session/login", {
         method: "POST",
         body: JSON.stringify({
           username: dom.adminUsernameInput.value.trim(),
@@ -110,7 +110,7 @@ export function registerReportsAdminControllerEvents(contract) {
         }),
       });
       actions.updateAdminSessionState(data, { resetReminder: true });
-      renderers.renderAll();
+      await actions.refreshData({ sessionAlreadyLoaded: true });
       actions.showToast(data.message);
     } catch (error) {
       actions.showToast(error.message, true);
@@ -118,7 +118,11 @@ export function registerReportsAdminControllerEvents(contract) {
   });
 
   dom.adminLogoutButton.addEventListener("click", async () => {
-    await actions.performAdminLogout();
+    if (state.admin?.authenticated) {
+      await actions.performSessionLogout();
+      return;
+    }
+    actions.switchMenu("admin");
   });
 
   dom.adminModulePanel.addEventListener("click", async (event) => {

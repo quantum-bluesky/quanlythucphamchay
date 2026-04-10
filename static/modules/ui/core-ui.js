@@ -24,6 +24,7 @@ export function createCoreUi(deps) {
   }
 
   function renderMenu() {
+    const loginLocked = Boolean(state.admin?.enableLogin && !state.admin?.authenticated);
     dom.menuPanel.classList.toggle("is-collapsed", state.menuCollapsed);
     dom.menuPanel.classList.toggle(
       "is-edge-hidden",
@@ -35,6 +36,7 @@ export function createCoreUi(deps) {
       : (state.menuCollapsed ? "Mở menu" : "Thu gọn menu");
     dom.menuPanel.querySelectorAll("[data-menu]").forEach((button) => {
       button.classList.toggle("is-active", button.dataset.menu === state.activeMenu);
+      button.disabled = loginLocked && button.dataset.menu !== "admin";
     });
   }
 
@@ -70,7 +72,7 @@ export function createCoreUi(deps) {
       ? `${state.summary.product_count} mặt hàng`
       : "Đang tải dữ liệu";
     const adminStatus = state.admin?.authenticated
-      ? `Đã đăng nhập: ${state.admin.username || "Master Admin"}`
+      ? `${state.admin.username || "Unknown"} (${state.admin.isAdmin ? "Admin" : "User"})`
       : "Chưa đăng nhập";
     const syncStatus = getLatestRuntimeVersion()
       ? "Đang theo dõi thay đổi dữ liệu từ server"
@@ -101,7 +103,7 @@ export function createCoreUi(deps) {
           <strong>${escapeHtml(syncStatus)}</strong>
         </div>
         <div class="report-card-row">
-          <span>Master Admin</span>
+          <span>Phiên đăng nhập</span>
           <strong>${escapeHtml(adminStatus)}</strong>
         </div>
       </article>

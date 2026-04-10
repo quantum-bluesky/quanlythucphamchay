@@ -28,8 +28,11 @@ export const state = {
   admin: {
     authenticated: false,
     username: "",
+    role: "",
+    isAdmin: false,
+    enableLogin: false,
     sessionStartedAt: "",
-    timeoutMinutes: 30,
+    timeoutMinutes: 360,
     nextReminderAtMs: 0,
   },
   debug: {

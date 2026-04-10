@@ -1,13 +1,22 @@
 {
+  "version": "2.3.1",
   "server": {
     "host": "0.0.0.0",
     "port": 4000
   },
+  "EnableLogin": true,
+  "session_timeout_minutes": 360,
+  "admin_session_timeout_minutes": 30,
   "admin": {
     "username": "masteradmin",
     "password": "admin12345"
-	"session_timeout_minutes": 30
   },
+  "users": [
+    {
+      "username": "user",
+      "password": "user12345"
+    }
+  ],
   "debug": {
     "sync_state": true
   }
