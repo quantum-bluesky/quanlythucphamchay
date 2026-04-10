@@ -111,6 +111,9 @@ export function registerReportsAdminControllerEvents(contract) {
       });
       actions.updateAdminSessionState(data, { resetReminder: true });
       await actions.refreshData({ sessionAlreadyLoaded: true });
+      const returnMenu = state.admin?.returnMenuAfterLogin || "inventory";
+      state.admin.returnMenuAfterLogin = "";
+      actions.switchMenu(returnMenu);
       actions.showToast(data.message);
     } catch (error) {
       actions.showToast(error.message, true);

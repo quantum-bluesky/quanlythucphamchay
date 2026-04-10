@@ -33,6 +33,12 @@ export function registerCoreControllerEvents(contract) {
     actions.setHelpOpen(!state.helpOpen);
   });
 
+  LOGIN_GUARD_EVENT_TYPES.forEach((eventType) => {
+    document.addEventListener(eventType, (event) => {
+      actions.handleBlockedLoginInteraction(event);
+    }, true);
+  });
+
   document.addEventListener("click", (event) => {
     actions.revealEdgeHiddenClusterFromViewportClick(event);
   }, true);

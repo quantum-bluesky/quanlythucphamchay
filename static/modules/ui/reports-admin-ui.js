@@ -81,7 +81,7 @@ export function createReportsAdminUi(deps) {
   function renderAdminSection() {
     const isAuthenticated = Boolean(state.admin?.authenticated);
     const isAdmin = Boolean(state.admin?.isAdmin);
-    dom.adminLoginPanel.hidden = isAdmin;
+    dom.adminLoginPanel.hidden = isAuthenticated;
     dom.adminModulePanel.hidden = !isAdmin;
     if (dom.adminSessionHeader) {
       dom.adminSessionHeader.hidden = false;

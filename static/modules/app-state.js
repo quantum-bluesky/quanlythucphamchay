@@ -34,6 +34,7 @@ export const state = {
     sessionStartedAt: "",
     timeoutMinutes: 360,
     nextReminderAtMs: 0,
+    returnMenuAfterLogin: "",
   },
   debug: {
     syncState: false,
