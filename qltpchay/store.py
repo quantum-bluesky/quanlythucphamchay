@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import secrets
 import shutil
 import sqlite3
@@ -119,6 +120,132 @@ class InventoryStore:
 
                 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity
                 ON audit_logs(entity_type, created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS customers (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    phone TEXT NOT NULL DEFAULT '',
+                    address TEXT NOT NULL DEFAULT '',
+                    zalo_url TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    deleted_at TEXT
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_customers_name
+                ON customers(name COLLATE NOCASE);
+
+                CREATE TABLE IF NOT EXISTS suppliers (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    phone TEXT NOT NULL DEFAULT '',
+                    address TEXT NOT NULL DEFAULT '',
+                    note TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    deleted_at TEXT
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_suppliers_name
+                ON suppliers(name COLLATE NOCASE);
+
+                CREATE TABLE IF NOT EXISTS carts (
+                    id TEXT PRIMARY KEY,
+                    customer_id TEXT NOT NULL DEFAULT '',
+                    customer_name TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'draft',
+                    payment_status TEXT NOT NULL DEFAULT 'unpaid',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    cancelled_at TEXT,
+                    paid_at TEXT,
+                    order_code TEXT NOT NULL DEFAULT ''
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_carts_status_updated_at
+                ON carts(status, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS cart_items (
+                    id TEXT PRIMARY KEY,
+                    cart_id TEXT NOT NULL,
+                    product_id INTEGER NOT NULL DEFAULT 0,
+                    product_name TEXT NOT NULL DEFAULT '',
+                    quantity REAL NOT NULL DEFAULT 0,
+                    unit_price REAL NOT NULL DEFAULT 0,
+                    note TEXT NOT NULL DEFAULT '',
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (cart_id) REFERENCES carts(id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_cart_items_cart_id
+                ON cart_items(cart_id, sort_order, id);
+
+                CREATE TABLE IF NOT EXISTS purchases (
+                    id TEXT PRIMARY KEY,
+                    supplier_id TEXT NOT NULL DEFAULT '',
+                    supplier_name TEXT NOT NULL DEFAULT '',
+                    note TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'draft',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    received_at TEXT,
+                    paid_at TEXT,
+                    receipt_code TEXT NOT NULL DEFAULT ''
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_purchases_status_updated_at
+                ON purchases(status, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS purchase_items (
+                    id TEXT PRIMARY KEY,
+                    purchase_id TEXT NOT NULL,
+                    product_id INTEGER NOT NULL DEFAULT 0,
+                    product_name TEXT NOT NULL DEFAULT '',
+                    quantity REAL NOT NULL DEFAULT 0,
+                    unit_cost REAL NOT NULL DEFAULT 0,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_purchase_items_purchase_id
+                ON purchase_items(purchase_id, sort_order, id);
+
+                CREATE TABLE IF NOT EXISTS inventory_receipts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    receipt_code TEXT NOT NULL UNIQUE,
+                    receipt_type TEXT NOT NULL CHECK(receipt_type IN ('purchase', 'inventory_adjustment', 'customer_return', 'supplier_return')),
+                    customer_id TEXT NOT NULL DEFAULT '',
+                    customer_name TEXT NOT NULL DEFAULT '',
+                    supplier_id TEXT NOT NULL DEFAULT '',
+                    supplier_name TEXT NOT NULL DEFAULT '',
+                    actor TEXT NOT NULL DEFAULT '',
+                    reason TEXT NOT NULL DEFAULT '',
+                    note TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_inventory_receipts_type_created_at
+                ON inventory_receipts(receipt_type, created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS inventory_receipt_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    receipt_id INTEGER NOT NULL,
+                    product_id INTEGER NOT NULL,
+                    product_name TEXT NOT NULL DEFAULT '',
+                    unit TEXT NOT NULL DEFAULT '',
+                    transaction_type TEXT NOT NULL CHECK(transaction_type IN ('in', 'out')),
+                    quantity REAL NOT NULL DEFAULT 0,
+                    unit_amount REAL,
+                    line_total REAL,
+                    stock_after REAL,
+                    transaction_id INTEGER,
+                    FOREIGN KEY (receipt_id) REFERENCES inventory_receipts(id) ON DELETE CASCADE,
+                    FOREIGN KEY (transaction_id) REFERENCES transactions(id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_inventory_receipt_items_receipt_id
+                ON inventory_receipt_items(receipt_id, id);
                 """
             )
             columns = {
@@ -159,6 +286,532 @@ class InventoryStore:
                     """,
                     (key, now),
                 )
+            self._migrate_legacy_sync_state_if_needed(connection)
+            self._backfill_receipts_from_transactions_if_needed(connection)
+
+    def _migrate_legacy_sync_state_if_needed(self, connection: sqlite3.Connection) -> None:
+        for state_key in self.SYNC_COLLECTION_KEYS:
+            table_name = state_key
+            count_row = connection.execute(
+                f"SELECT COUNT(*) AS total FROM {table_name}"
+            ).fetchone()
+            if int(count_row["total"] or 0) > 0:
+                continue
+            row = connection.execute(
+                "SELECT state_value, updated_at FROM app_state WHERE state_key = ?",
+                (state_key,),
+            ).fetchone()
+            if not row:
+                continue
+            try:
+                decoded = json.loads(row["state_value"] or "[]")
+            except json.JSONDecodeError:
+                decoded = []
+            if not isinstance(decoded, list) or not decoded:
+                continue
+            self._replace_sync_collection_records(connection, state_key, decoded)
+            canonical = self._load_sync_collection_from_tables(connection, state_key)
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), row["updated_at"], state_key),
+            )
+
+    def _backfill_receipts_from_transactions_if_needed(self, connection: sqlite3.Connection) -> None:
+        row = connection.execute(
+            "SELECT COUNT(*) AS total FROM inventory_receipts"
+        ).fetchone()
+        if int(row["total"] or 0) > 0:
+            return
+
+        transaction_rows = connection.execute(
+            """
+            SELECT t.id, t.product_id, t.transaction_type, t.quantity, t.note, t.created_at,
+                   p.name AS product_name, p.unit
+            FROM transactions t
+            LEFT JOIN products p ON p.id = t.product_id
+            ORDER BY t.created_at ASC, t.id ASC
+            """
+        ).fetchall()
+
+        grouped: dict[str, dict] = {}
+        for row in transaction_rows:
+            note = str(row["note"] or "")
+            match = re.search(r"\b(PN|DC|THK|TNCC)-\d{8}-\d{6}-[a-f0-9]{6}\b", note)
+            if not match:
+                continue
+            receipt_code = match.group(0)
+            entry = grouped.get(receipt_code)
+            if not entry:
+                receipt_type = {
+                    "PN": "purchase",
+                    "DC": "inventory_adjustment",
+                    "THK": "customer_return",
+                    "TNCC": "supplier_return",
+                }[match.group(1)]
+                entry = {
+                    "receipt_type": receipt_type,
+                    "receipt_code": receipt_code,
+                    "customer_name": "",
+                    "supplier_name": "",
+                    "actor": "",
+                    "reason": "",
+                    "note": "",
+                    "created_at": row["created_at"],
+                    "items": [],
+                }
+                grouped[receipt_code] = entry
+
+            if entry["receipt_type"] == "purchase":
+                supplier_match = re.search(r"\bNCC:\s*([^|]+)", note)
+                if supplier_match and not entry["supplier_name"]:
+                    entry["supplier_name"] = supplier_match.group(1).strip()
+                unit_amount = extract_price_from_note(note, "in")
+            elif entry["receipt_type"] == "inventory_adjustment":
+                actor_match = re.search(r"\bNgười chỉnh:\s*([^|]+)", note)
+                reason_match = re.search(r"\bLý do:\s*([^|]+)", note)
+                if actor_match and not entry["actor"]:
+                    entry["actor"] = actor_match.group(1).strip()
+                if reason_match and not entry["reason"]:
+                    entry["reason"] = reason_match.group(1).strip()
+                unit_amount = None
+            elif entry["receipt_type"] == "customer_return":
+                customer_match = re.search(r"\bKhách:\s*([^|]+)", note)
+                if customer_match and not entry["customer_name"]:
+                    entry["customer_name"] = customer_match.group(1).strip()
+                unit_amount = extract_labeled_price(note, "Giá hoàn")
+            else:
+                supplier_match = re.search(r"\bNCC:\s*([^|]+)", note)
+                if supplier_match and not entry["supplier_name"]:
+                    entry["supplier_name"] = supplier_match.group(1).strip()
+                unit_amount = extract_labeled_price(note, "Giá trả")
+
+            line_total = round(float(row["quantity"]) * float(unit_amount), 2) if unit_amount is not None else None
+            entry["items"].append(
+                {
+                    "product_id": int(row["product_id"] or 0),
+                    "product_name": row["product_name"] or "",
+                    "unit": row["unit"] or "",
+                    "transaction_type": row["transaction_type"],
+                    "quantity": round(float(row["quantity"] or 0), 2),
+                    "unit_amount": unit_amount,
+                    "line_total": line_total,
+                    "transaction_id": row["id"],
+                }
+            )
+
+        for entry in grouped.values():
+            receipt_id = self._insert_inventory_receipt(
+                connection,
+                receipt_code=entry["receipt_code"],
+                receipt_type=entry["receipt_type"],
+                customer_name=entry["customer_name"],
+                supplier_name=entry["supplier_name"],
+                actor=entry["actor"],
+                reason=entry["reason"],
+                note=entry["note"],
+                created_at=entry["created_at"],
+            )
+            for item in entry["items"]:
+                self._insert_inventory_receipt_item(
+                    connection,
+                    receipt_id=receipt_id,
+                    product_id=item["product_id"],
+                    product_name=item["product_name"],
+                    unit=item["unit"],
+                    transaction_type=item["transaction_type"],
+                    quantity=item["quantity"],
+                    unit_amount=item["unit_amount"],
+                    line_total=item["line_total"],
+                    stock_after=None,
+                    transaction_id=item["transaction_id"],
+                )
+
+    def _serialize_customer_row(self, row: sqlite3.Row) -> dict:
+        deleted_at = row["deleted_at"]
+        return {
+            "id": row["id"],
+            "name": row["name"],
+            "phone": row["phone"],
+            "address": row["address"],
+            "zaloUrl": row["zalo_url"],
+            "createdAt": row["created_at"],
+            "updatedAt": row["updated_at"],
+            "deletedAt": deleted_at,
+            "deleted_at": deleted_at,
+        }
+
+    def _serialize_supplier_row(self, row: sqlite3.Row) -> dict:
+        deleted_at = row["deleted_at"]
+        return {
+            "id": row["id"],
+            "name": row["name"],
+            "phone": row["phone"],
+            "address": row["address"],
+            "note": row["note"],
+            "createdAt": row["created_at"],
+            "updatedAt": row["updated_at"],
+            "deletedAt": deleted_at,
+            "deleted_at": deleted_at,
+        }
+
+    def _serialize_cart_item_row(self, row: sqlite3.Row) -> dict:
+        return {
+            "id": row["id"],
+            "productId": int(row["product_id"] or 0),
+            "product_id": int(row["product_id"] or 0),
+            "productName": row["product_name"] or "",
+            "quantity": round(float(row["quantity"] or 0), 2),
+            "unitPrice": round(float(row["unit_price"] or 0), 2),
+            "unit_price": round(float(row["unit_price"] or 0), 2),
+            "note": row["note"] or "",
+        }
+
+    def _serialize_purchase_item_row(self, row: sqlite3.Row) -> dict:
+        return {
+            "id": row["id"],
+            "productId": int(row["product_id"] or 0),
+            "product_id": int(row["product_id"] or 0),
+            "productName": row["product_name"] or "",
+            "quantity": round(float(row["quantity"] or 0), 2),
+            "unitCost": round(float(row["unit_cost"] or 0), 2),
+            "unit_cost": round(float(row["unit_cost"] or 0), 2),
+        }
+
+    def _load_sync_collection_from_tables(
+        self,
+        connection: sqlite3.Connection,
+        state_key: str,
+    ) -> list[dict]:
+        if state_key == "customers":
+            rows = connection.execute(
+                """
+                SELECT id, name, phone, address, zalo_url, created_at, updated_at, deleted_at
+                FROM customers
+                ORDER BY datetime(updated_at) DESC, name COLLATE NOCASE, id
+                """
+            ).fetchall()
+            return [self._serialize_customer_row(row) for row in rows]
+
+        if state_key == "suppliers":
+            rows = connection.execute(
+                """
+                SELECT id, name, phone, address, note, created_at, updated_at, deleted_at
+                FROM suppliers
+                ORDER BY datetime(updated_at) DESC, name COLLATE NOCASE, id
+                """
+            ).fetchall()
+            return [self._serialize_supplier_row(row) for row in rows]
+
+        if state_key == "carts":
+            cart_rows = connection.execute(
+                """
+                SELECT id, customer_id, customer_name, status, payment_status, created_at, updated_at,
+                       completed_at, cancelled_at, paid_at, order_code
+                FROM carts
+                ORDER BY datetime(updated_at) DESC, id
+                """
+            ).fetchall()
+            item_rows = connection.execute(
+                """
+                SELECT id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order
+                FROM cart_items
+                ORDER BY cart_id, sort_order, id
+                """
+            ).fetchall()
+            items_by_cart: dict[str, list[dict]] = {}
+            for row in item_rows:
+                items_by_cart.setdefault(str(row["cart_id"]), []).append(self._serialize_cart_item_row(row))
+            carts = []
+            for row in cart_rows:
+                cart_items = items_by_cart.get(str(row["id"]), [])
+                carts.append(
+                    {
+                        "id": row["id"],
+                        "customerId": row["customer_id"] or "",
+                        "customerName": row["customer_name"] or "",
+                        "status": row["status"] or "draft",
+                        "paymentStatus": row["payment_status"] or "unpaid",
+                        "createdAt": row["created_at"],
+                        "updatedAt": row["updated_at"],
+                        "completedAt": row["completed_at"],
+                        "cancelledAt": row["cancelled_at"],
+                        "paidAt": row["paid_at"],
+                        "orderCode": row["order_code"] or "",
+                        "items": cart_items,
+                    }
+                )
+            return carts
+
+        if state_key == "purchases":
+            purchase_rows = connection.execute(
+                """
+                SELECT id, supplier_id, supplier_name, note, status, created_at, updated_at,
+                       received_at, paid_at, receipt_code
+                FROM purchases
+                ORDER BY datetime(updated_at) DESC, id
+                """
+            ).fetchall()
+            item_rows = connection.execute(
+                """
+                SELECT id, purchase_id, product_id, product_name, quantity, unit_cost, sort_order
+                FROM purchase_items
+                ORDER BY purchase_id, sort_order, id
+                """
+            ).fetchall()
+            items_by_purchase: dict[str, list[dict]] = {}
+            for row in item_rows:
+                items_by_purchase.setdefault(str(row["purchase_id"]), []).append(self._serialize_purchase_item_row(row))
+            purchases = []
+            for row in purchase_rows:
+                received_at = row["received_at"]
+                paid_at = row["paid_at"]
+                purchases.append(
+                    {
+                        "id": row["id"],
+                        "supplierId": row["supplier_id"] or "",
+                        "supplierName": row["supplier_name"] or "",
+                        "note": row["note"] or "",
+                        "status": row["status"] or "draft",
+                        "createdAt": row["created_at"],
+                        "updatedAt": row["updated_at"],
+                        "receivedAt": received_at,
+                        "received_at": received_at,
+                        "paidAt": paid_at,
+                        "paid_at": paid_at,
+                        "receiptCode": row["receipt_code"] or "",
+                        "receipt_code": row["receipt_code"] or "",
+                        "items": items_by_purchase.get(str(row["id"]), []),
+                    }
+                )
+            return purchases
+
+        raise ValueError("Collection đồng bộ không hợp lệ.")
+
+    def _replace_sync_collection_records(
+        self,
+        connection: sqlite3.Connection,
+        state_key: str,
+        records: list[dict],
+    ) -> None:
+        if state_key == "customers":
+            connection.execute("DELETE FROM customers")
+            for record in records:
+                name = str(record.get("name") or "").strip()
+                if not name:
+                    continue
+                connection.execute(
+                    """
+                    INSERT INTO customers(id, name, phone, address, zalo_url, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(record.get("id") or f"customer_{secrets.token_hex(6)}"),
+                        name,
+                        str(record.get("phone") or "").strip(),
+                        str(record.get("address") or "").strip(),
+                        str(record.get("zaloUrl") or record.get("zalo_url") or "").strip(),
+                        str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
+                        str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
+                        record.get("deletedAt") or record.get("deleted_at"),
+                    ),
+                )
+            return
+
+        if state_key == "suppliers":
+            connection.execute("DELETE FROM suppliers")
+            for record in records:
+                name = str(record.get("name") or "").strip()
+                if not name:
+                    continue
+                connection.execute(
+                    """
+                    INSERT INTO suppliers(id, name, phone, address, note, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(record.get("id") or f"supplier_{secrets.token_hex(6)}"),
+                        name,
+                        str(record.get("phone") or "").strip(),
+                        str(record.get("address") or "").strip(),
+                        str(record.get("note") or "").strip(),
+                        str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
+                        str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
+                        record.get("deletedAt") or record.get("deleted_at"),
+                    ),
+                )
+            return
+
+        if state_key == "carts":
+            connection.execute("DELETE FROM cart_items")
+            connection.execute("DELETE FROM carts")
+            for record in records:
+                cart_id = str(record.get("id") or f"cart_{secrets.token_hex(6)}")
+                connection.execute(
+                    """
+                    INSERT INTO carts(
+                        id, customer_id, customer_name, status, payment_status, created_at, updated_at,
+                        completed_at, cancelled_at, paid_at, order_code
+                    )
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        cart_id,
+                        str(record.get("customerId") or "").strip(),
+                        str(record.get("customerName") or "").strip(),
+                        str(record.get("status") or "draft"),
+                        str(record.get("paymentStatus") or "unpaid"),
+                        str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
+                        str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
+                        record.get("completedAt") or record.get("completed_at"),
+                        record.get("cancelledAt") or record.get("cancelled_at"),
+                        record.get("paidAt") or record.get("paid_at"),
+                        str(record.get("orderCode") or record.get("order_code") or ""),
+                    ),
+                )
+                for index, item in enumerate(record.get("items") or []):
+                    connection.execute(
+                        """
+                        INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
+                            cart_id,
+                            int(item.get("productId") or item.get("product_id") or 0),
+                            str(item.get("productName") or item.get("product_name") or "").strip(),
+                            float(item.get("quantity") or 0),
+                            float(item.get("unitPrice") or item.get("unit_price") or 0),
+                            str(item.get("note") or "").strip(),
+                            index,
+                        ),
+                    )
+            return
+
+        if state_key == "purchases":
+            connection.execute("DELETE FROM purchase_items")
+            connection.execute("DELETE FROM purchases")
+            for record in records:
+                purchase_id = str(record.get("id") or f"purchase_{secrets.token_hex(6)}")
+                connection.execute(
+                    """
+                    INSERT INTO purchases(
+                        id, supplier_id, supplier_name, note, status, created_at, updated_at, received_at, paid_at, receipt_code
+                    )
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        purchase_id,
+                        str(record.get("supplierId") or "").strip(),
+                        str(record.get("supplierName") or "").strip(),
+                        str(record.get("note") or "").strip(),
+                        str(record.get("status") or "draft"),
+                        str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
+                        str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
+                        record.get("receivedAt") or record.get("received_at"),
+                        record.get("paidAt") or record.get("paid_at"),
+                        str(record.get("receiptCode") or record.get("receipt_code") or ""),
+                    ),
+                )
+                for index, item in enumerate(record.get("items") or []):
+                    connection.execute(
+                        """
+                        INSERT INTO purchase_items(id, purchase_id, product_id, product_name, quantity, unit_cost, sort_order)
+                        VALUES(?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),
+                            purchase_id,
+                            int(item.get("productId") or item.get("product_id") or 0),
+                            str(item.get("productName") or item.get("product_name") or "").strip(),
+                            float(item.get("quantity") or 0),
+                            float(item.get("unitCost") or item.get("unit_cost") or 0),
+                            index,
+                        ),
+                    )
+            return
+
+        raise ValueError("Collection đồng bộ không hợp lệ.")
+
+    def _insert_inventory_receipt(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        receipt_code: str,
+        receipt_type: str,
+        customer_id: str = "",
+        customer_name: str = "",
+        supplier_id: str = "",
+        supplier_name: str = "",
+        actor: str = "",
+        reason: str = "",
+        note: str = "",
+        created_at: str,
+    ) -> int:
+        cursor = connection.execute(
+            """
+            INSERT OR IGNORE INTO inventory_receipts(
+                receipt_code, receipt_type, customer_id, customer_name, supplier_id, supplier_name,
+                actor, reason, note, created_at
+            )
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                receipt_code,
+                receipt_type,
+                customer_id,
+                customer_name,
+                supplier_id,
+                supplier_name,
+                actor,
+                reason,
+                note,
+                created_at,
+            ),
+        )
+        if cursor.lastrowid:
+            return int(cursor.lastrowid)
+        row = connection.execute(
+            "SELECT id FROM inventory_receipts WHERE receipt_code = ?",
+            (receipt_code,),
+        ).fetchone()
+        return int(row["id"])
+
+    def _insert_inventory_receipt_item(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        receipt_id: int,
+        product_id: int,
+        product_name: str,
+        unit: str,
+        transaction_type: str,
+        quantity: float,
+        unit_amount: float | None,
+        line_total: float | None,
+        stock_after: float | None,
+        transaction_id: int | None,
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO inventory_receipt_items(
+                receipt_id, product_id, product_name, unit, transaction_type, quantity,
+                unit_amount, line_total, stock_after, transaction_id
+            )
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                receipt_id,
+                product_id,
+                product_name,
+                unit,
+                transaction_type,
+                quantity,
+                unit_amount,
+                line_total,
+                stock_after,
+                transaction_id,
+            ),
+        )
 
     def _get_product_or_raise(
         self,
@@ -916,6 +1569,14 @@ class InventoryStore:
             transactions = []
             total_amount = Decimal("0")
             total_quantity = Decimal("0")
+            receipt_id = self._insert_inventory_receipt(
+                connection,
+                receipt_code=receipt_code,
+                receipt_type="purchase",
+                supplier_name=clean_supplier_name,
+                note=clean_note,
+                created_at=now,
+            )
 
             for product_id, item in grouped_items.items():
                 product = self._get_product_or_raise(connection, product_id)
@@ -956,6 +1617,19 @@ class InventoryStore:
                         "current_stock": round(float(current_stock), 2),
                     }
                 )
+                self._insert_inventory_receipt_item(
+                    connection,
+                    receipt_id=receipt_id,
+                    product_id=product_id,
+                    product_name=product["name"],
+                    unit=product["unit"],
+                    transaction_type="in",
+                    quantity=round(float(item["quantity"]), 2),
+                    unit_amount=round(float(item["unit_cost"]), 2),
+                    line_total=round(float(line_total), 2),
+                    stock_after=round(float(current_stock), 2),
+                    transaction_id=cursor.lastrowid,
+                )
 
         return {
             "receipt_code": receipt_code,
@@ -989,6 +1663,15 @@ class InventoryStore:
             transactions = []
             total_in = Decimal("0")
             total_out = Decimal("0")
+            receipt_id = self._insert_inventory_receipt(
+                connection,
+                receipt_code=receipt_code,
+                receipt_type="inventory_adjustment",
+                actor=clean_actor,
+                reason=clean_reason,
+                note=clean_note,
+                created_at=now,
+            )
 
             for raw_item in items:
                 product_id = int(raw_item.get("product_id", 0))
@@ -1032,6 +1715,19 @@ class InventoryStore:
                         "quantity": float(quantity),
                         "current_stock": round(float(current_after), 2),
                     }
+                )
+                self._insert_inventory_receipt_item(
+                    connection,
+                    receipt_id=receipt_id,
+                    product_id=product_id,
+                    product_name=product["name"],
+                    unit=product["unit"],
+                    transaction_type=direction,
+                    quantity=round(float(quantity), 2),
+                    unit_amount=None,
+                    line_total=None,
+                    stock_after=round(float(current_after), 2),
+                    transaction_id=cursor.lastrowid,
                 )
 
             self._record_audit(
@@ -1092,6 +1788,14 @@ class InventoryStore:
             transactions = []
             total_amount = Decimal("0")
             total_quantity = Decimal("0")
+            receipt_id = self._insert_inventory_receipt(
+                connection,
+                receipt_code=receipt_code,
+                receipt_type="customer_return",
+                customer_name=clean_customer_name,
+                note=clean_note,
+                created_at=now,
+            )
 
             for product_id, item in grouped_items.items():
                 product = self._get_product_or_raise(connection, product_id)
@@ -1124,6 +1828,19 @@ class InventoryStore:
                         "line_total": round(float(line_total), 2),
                         "current_stock": round(float(current_stock), 2),
                     }
+                )
+                self._insert_inventory_receipt_item(
+                    connection,
+                    receipt_id=receipt_id,
+                    product_id=product_id,
+                    product_name=product["name"],
+                    unit=product["unit"],
+                    transaction_type="in",
+                    quantity=round(float(item["quantity"]), 2),
+                    unit_amount=round(float(item["unit_refund"]), 2),
+                    line_total=round(float(line_total), 2),
+                    stock_after=round(float(current_stock), 2),
+                    transaction_id=cursor.lastrowid,
                 )
             self._record_audit(
                 connection,
@@ -1194,6 +1911,14 @@ class InventoryStore:
             transactions = []
             total_amount = Decimal("0")
             total_quantity = Decimal("0")
+            receipt_id = self._insert_inventory_receipt(
+                connection,
+                receipt_code=receipt_code,
+                receipt_type="supplier_return",
+                supplier_name=clean_supplier_name,
+                note=clean_note,
+                created_at=now,
+            )
             for product_id, item in grouped_items.items():
                 product = products_by_id[product_id]
                 line_total = item["quantity"] * item["unit_cost"]
@@ -1223,6 +1948,19 @@ class InventoryStore:
                         "line_total": round(float(line_total), 2),
                         "remaining_stock": round(float(remaining_stock), 2),
                     }
+                )
+                self._insert_inventory_receipt_item(
+                    connection,
+                    receipt_id=receipt_id,
+                    product_id=product_id,
+                    product_name=product["name"],
+                    unit=product["unit"],
+                    transaction_type="out",
+                    quantity=round(float(item["quantity"]), 2),
+                    unit_amount=round(float(item["unit_cost"]), 2),
+                    line_total=round(float(line_total), 2),
+                    stock_after=round(float(remaining_stock), 2),
+                    transaction_id=cursor.lastrowid,
                 )
             self._record_audit(
                 connection,
@@ -1292,25 +2030,20 @@ class InventoryStore:
 
     def get_sync_state(self) -> dict:
         with self._connect() as connection:
-            rows = connection.execute(
+            version_rows = connection.execute(
                 """
-                SELECT state_key, state_value, updated_at
+                SELECT state_key, updated_at
                 FROM app_state
                 WHERE state_key IN (?, ?, ?, ?)
                 """,
                 self.SYNC_COLLECTION_KEYS,
             ).fetchall()
+            collections: dict[str, list] = {
+                key: self._load_sync_collection_from_tables(connection, key)
+                for key in self.SYNC_COLLECTION_KEYS
+            }
 
-        collections: dict[str, list] = {key: [] for key in self.SYNC_COLLECTION_KEYS}
-        updated_at: dict[str, str] = {}
-
-        for row in rows:
-            try:
-                decoded = json.loads(row["state_value"] or "[]")
-            except json.JSONDecodeError:
-                decoded = []
-            collections[row["state_key"]] = decoded if isinstance(decoded, list) else []
-            updated_at[row["state_key"]] = row["updated_at"]
+        updated_at = {row["state_key"]: row["updated_at"] for row in version_rows}
 
         collections["updated_at"] = updated_at
         return collections
@@ -1333,18 +2066,16 @@ class InventoryStore:
 
         now = utc_now_iso()
         with self._connect() as connection:
-            existing_collections = {}
+            existing_collections = {
+                key: self._load_sync_collection_from_tables(connection, key)
+                for key in to_update
+            }
             current_updated_at = {}
             for key in to_update:
                 row = connection.execute(
-                    "SELECT state_value, updated_at FROM app_state WHERE state_key = ?",
+                    "SELECT updated_at FROM app_state WHERE state_key = ?",
                     (key,),
                 ).fetchone()
-                try:
-                    decoded = json.loads((row["state_value"] if row else "[]") or "[]")
-                except json.JSONDecodeError:
-                    decoded = []
-                existing_collections[key] = decoded if isinstance(decoded, list) else []
                 current_updated_at[key] = str((row["updated_at"] if row else "") or "")
 
             for key in to_update:
@@ -1382,13 +2113,15 @@ class InventoryStore:
             for key, value in to_update.items():
                 if not isinstance(value, list):
                     raise ValueError(f"Dữ liệu {key} phải là một danh sách.")
+                self._replace_sync_collection_records(connection, key, value)
+                canonical = self._load_sync_collection_from_tables(connection, key)
                 connection.execute(
                     """
                     UPDATE app_state
                     SET state_value = ?, updated_at = ?
                     WHERE state_key = ?
                     """,
-                    (json.dumps(value, ensure_ascii=False), now, key),
+                    (json.dumps(canonical, ensure_ascii=False), now, key),
                 )
 
         return self.get_sync_state()
@@ -1613,18 +2346,7 @@ class InventoryStore:
 
     def _get_sync_collection(self, state_key: str) -> list[dict]:
         with self._connect() as connection:
-            row = connection.execute(
-                "SELECT state_value FROM app_state WHERE state_key = ?",
-                (state_key,),
-            ).fetchone()
-
-        if not row:
-            return []
-        try:
-            decoded = json.loads(row["state_value"] or "[]")
-        except json.JSONDecodeError:
-            return []
-        return decoded if isinstance(decoded, list) else []
+            return self._load_sync_collection_from_tables(connection, state_key)
 
     def export_master_data(self, entity_type: str) -> dict:
         if entity_type == "products":

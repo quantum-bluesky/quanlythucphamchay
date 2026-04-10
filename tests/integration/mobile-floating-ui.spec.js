@@ -5,7 +5,7 @@ const {
   expectScreenTitle,
 } = require("./support/ui");
 
-test("mobile floating clusters auto-hide to screen edges and reveal without firing actions", async ({ page }) => {
+test("IT-MOB-01 mobile floating clusters auto-hide to screen edges and reveal without firing actions", async ({ page }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.goto("/");
@@ -52,7 +52,7 @@ test("mobile floating clusters auto-hide to screen edges and reveal without firi
   expectNoRuntimeErrors(runtime);
 });
 
-test("screen header stays visible on tablet and version button still opens about", async ({ page }) => {
+test("IT-MOB-02 screen header stays visible on tablet and version button still opens about", async ({ page }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.setViewportSize({ width: 820, height: 1180 });

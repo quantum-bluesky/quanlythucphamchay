@@ -6,6 +6,7 @@
   "scripts": {
     "setup:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-windows.ps1",
     "setup:windows:check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -CheckOnly",
+    "test:cases": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-test-cases.ps1",
     "test:integration": "playwright test",
     "test:acceptance": "playwright test tests/integration/acceptance-checklist.spec.js tests/integration/acceptance-sales-phase-b.spec.js tests/integration/core-workflows.spec.js tests/integration/management-screens.spec.js tests/integration/admin.spec.js tests/integration/cross-client-sync.spec.js tests/integration/workflow-phase-a.spec.js tests/integration/workflow-phase-c.spec.js",
     "test:integration:headed": "playwright test --headed",

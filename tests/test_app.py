@@ -1,4 +1,6 @@
 import gc
+import json
+import sqlite3
 import tempfile
 import time
 import unittest
@@ -30,7 +32,7 @@ class InventoryStoreTests(unittest.TestCase):
         if last_error is not None:
             raise last_error
 
-    def test_create_product_and_stock_summary(self) -> None:
+    def test_ut_db_01_create_product_and_stock_summary(self) -> None:
         product = self.store.create_product(
             name="Chả lụa chay",
             category="Đồ chay đông lạnh",
@@ -48,7 +50,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(summary["product_count"], 1)
         self.assertEqual(summary["total_stock"], 6.0)
 
-    def test_stock_out_cannot_exceed_inventory(self) -> None:
+    def test_ut_db_02_stock_out_cannot_exceed_inventory(self) -> None:
         product = self.store.create_product(
             name="Xúc xích chay",
             category="Đồ chay đông lạnh",
@@ -60,7 +62,7 @@ class InventoryStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lớn hơn tồn kho"):
             self.store.create_transaction(product["id"], "out", 3)
 
-    def test_inventory_adjustment_receipt_updates_stock_with_reason(self) -> None:
+    def test_ut_db_03_inventory_adjustment_receipt_updates_stock_with_reason(self) -> None:
         product = self.store.create_product(
             name="Tàu hũ ky",
             category="Đồ khô",
@@ -80,7 +82,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(receipt["total_out_quantity"], 2.0)
         self.assertEqual(refreshed["current_stock"], 3.0)
 
-    def test_customer_return_receipt_increases_stock(self) -> None:
+    def test_ut_db_04_customer_return_receipt_increases_stock(self) -> None:
         product = self.store.create_product(
             name="Nem chay",
             category="Đồ chay đông lạnh",
@@ -100,7 +102,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(receipt["total_quantity"], 2.0)
         self.assertEqual(refreshed["current_stock"], 3.0)
 
-    def test_supplier_return_receipt_reduces_stock(self) -> None:
+    def test_ut_db_05_supplier_return_receipt_reduces_stock(self) -> None:
         product = self.store.create_product(
             name="Đậu hũ non",
             category="Đồ tươi",
@@ -120,7 +122,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(receipt["total_quantity"], 2.0)
         self.assertEqual(refreshed["current_stock"], 5.0)
 
-    def test_inventory_adjustment_requires_reason(self) -> None:
+    def test_ut_db_06_inventory_adjustment_requires_reason(self) -> None:
         product = self.store.create_product(
             name="Mì căn",
             category="Đồ khô",
@@ -133,7 +135,7 @@ class InventoryStoreTests(unittest.TestCase):
                 reason="",
             )
 
-    def test_save_sync_state_accepts_matching_expected_updated_at(self) -> None:
+    def test_ut_sync_01_save_sync_state_accepts_matching_expected_updated_at(self) -> None:
         initial = self.store.get_sync_state()
         expected = initial["updated_at"]["carts"]
 
@@ -145,7 +147,7 @@ class InventoryStoreTests(unittest.TestCase):
 
         self.assertEqual(result["carts"][0]["id"], "cart-1")
 
-    def test_save_sync_state_rejects_stale_expected_updated_at(self) -> None:
+    def test_ut_sync_02_save_sync_state_rejects_stale_expected_updated_at(self) -> None:
         self.store.save_sync_state({"carts": [{"id": "cart-a", "status": "draft", "items": []}]})
 
         with self.assertRaises(SyncConflictError):
@@ -156,7 +158,7 @@ class InventoryStoreTests(unittest.TestCase):
                 }
             )
 
-    def test_save_sync_state_logs_status_changes_with_actor(self) -> None:
+    def test_ut_aud_01_save_sync_state_logs_cart_status_changes_with_actor(self) -> None:
         self.store.save_sync_state(
             {
                 "carts": [{"id": "cart-1", "orderCode": "DH-01", "status": "draft", "items": []}],
@@ -192,7 +194,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertIn("draft", log["message"])
         self.assertIn("completed", log["message"])
 
-    def test_save_sync_state_logs_purchase_status_changes_with_actor(self) -> None:
+    def test_ut_aud_02_save_sync_state_logs_purchase_status_changes_with_actor(self) -> None:
         self.store.save_sync_state(
             {
                 "purchases": [{"id": "purchase-1", "receiptCode": "PN-01", "status": "draft", "items": []}],
@@ -225,7 +227,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertIn("draft", log["message"])
         self.assertIn("ordered", log["message"])
 
-    def test_product_history_supports_actor_filter(self) -> None:
+    def test_ut_his_01_product_history_supports_actor_filter(self) -> None:
         product = self.store.create_product(
             name="Đậu gà viên",
             category="Đông lạnh",
@@ -242,7 +244,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertFalse(any(entry["action"] == "update-sale-price" for entry in actor_a_logs))
         self.assertTrue(any(entry["action"] == "update-sale-price" for entry in actor_b_logs))
 
-    def test_product_history_supports_date_range_filter(self) -> None:
+    def test_ut_his_02_product_history_supports_date_range_filter(self) -> None:
         product = self.store.create_product(
             name="Nấm đùi gà sốt",
             category="Đông lạnh",
@@ -272,6 +274,196 @@ class InventoryStoreTests(unittest.TestCase):
 
         self.assertTrue(any(entry["id"] == log_entry["id"] for entry in included_logs))
         self.assertFalse(any(entry["id"] == log_entry["id"] for entry in excluded_logs))
+
+    def test_ut_norm_01_save_sync_state_persists_relational_tables(self) -> None:
+        payload = {
+            "customers": [
+                {
+                    "id": "customer-1",
+                    "name": "Khách A",
+                    "phone": "0909",
+                    "address": "HN",
+                    "zaloUrl": "https://zalo.me/a",
+                    "createdAt": "2026-01-01T00:00:00+00:00",
+                    "updatedAt": "2026-01-02T00:00:00+00:00",
+                }
+            ],
+            "suppliers": [
+                {
+                    "id": "supplier-1",
+                    "name": "NCC A",
+                    "phone": "0911",
+                    "address": "HCM",
+                    "note": "Ghi chú",
+                    "createdAt": "2026-01-01T00:00:00+00:00",
+                    "updatedAt": "2026-01-02T00:00:00+00:00",
+                }
+            ],
+            "carts": [
+                {
+                    "id": "cart-1",
+                    "customerId": "customer-1",
+                    "customerName": "Khách A",
+                    "status": "draft",
+                    "paymentStatus": "unpaid",
+                    "createdAt": "2026-01-01T00:00:00+00:00",
+                    "updatedAt": "2026-01-02T00:00:00+00:00",
+                    "orderCode": "",
+                    "items": [
+                        {
+                            "id": "cart-item-1",
+                            "productId": 0,
+                            "productName": "SP A",
+                            "quantity": 2,
+                            "unitPrice": 30000,
+                            "note": "",
+                        }
+                    ],
+                }
+            ],
+            "purchases": [
+                {
+                    "id": "purchase-1",
+                    "supplierId": "supplier-1",
+                    "supplierName": "NCC A",
+                    "status": "draft",
+                    "note": "Phiếu nháp",
+                    "createdAt": "2026-01-01T00:00:00+00:00",
+                    "updatedAt": "2026-01-02T00:00:00+00:00",
+                    "receiptCode": "",
+                    "items": [
+                        {
+                            "id": "purchase-item-1",
+                            "productId": 0,
+                            "productName": "SP B",
+                            "quantity": 3,
+                            "unitCost": 15000,
+                        }
+                    ],
+                }
+            ],
+        }
+
+        result = self.store.save_sync_state(payload)
+        self.assertEqual(result["customers"][0]["name"], "Khách A")
+        self.assertEqual(result["purchases"][0]["items"][0]["unitCost"], 15000.0)
+
+        with self.store._connect() as connection:
+            customer_count = connection.execute("SELECT COUNT(*) AS total FROM customers").fetchone()["total"]
+            supplier_count = connection.execute("SELECT COUNT(*) AS total FROM suppliers").fetchone()["total"]
+            cart_count = connection.execute("SELECT COUNT(*) AS total FROM carts").fetchone()["total"]
+            cart_item_count = connection.execute("SELECT COUNT(*) AS total FROM cart_items").fetchone()["total"]
+            purchase_count = connection.execute("SELECT COUNT(*) AS total FROM purchases").fetchone()["total"]
+            purchase_item_count = connection.execute("SELECT COUNT(*) AS total FROM purchase_items").fetchone()["total"]
+
+        self.assertEqual(customer_count, 1)
+        self.assertEqual(supplier_count, 1)
+        self.assertEqual(cart_count, 1)
+        self.assertEqual(cart_item_count, 1)
+        self.assertEqual(purchase_count, 1)
+        self.assertEqual(purchase_item_count, 1)
+
+    def test_ut_norm_02_receipt_creation_persists_normalized_receipt_tables(self) -> None:
+        product = self.store.create_product(
+            name="Đậu hũ Nhật",
+            category="Đồ tươi",
+            unit="hộp",
+            low_stock_threshold=2,
+        )
+        self.store.create_transaction(product["id"], "in", 10, "Tồn đầu")
+
+        purchase_receipt = self.store.create_purchase_receipt(
+            items=[{"product_id": product["id"], "quantity": 2, "unit_cost": 11000}],
+            supplier_name="NCC Test",
+            note="Nhập hàng thường",
+        )
+        adjustment_receipt = self.store.create_inventory_adjustment_receipt(
+            items=[{"product_id": product["id"], "quantity_delta": -1}],
+            reason="Kiểm kho lệch",
+            actor="masteradmin",
+        )
+
+        with self.store._connect() as connection:
+            receipt_types = connection.execute(
+                "SELECT receipt_type, receipt_code FROM inventory_receipts ORDER BY id"
+            ).fetchall()
+            receipt_items = connection.execute(
+                "SELECT COUNT(*) AS total FROM inventory_receipt_items"
+            ).fetchone()
+
+        self.assertTrue(any(row["receipt_code"] == purchase_receipt["receipt_code"] and row["receipt_type"] == "purchase" for row in receipt_types))
+        self.assertTrue(any(row["receipt_code"] == adjustment_receipt["receipt_code"] and row["receipt_type"] == "inventory_adjustment" for row in receipt_types))
+        self.assertEqual(receipt_items["total"], 2)
+
+    def test_ut_norm_03_legacy_app_state_is_migrated_to_normalized_tables_on_bootstrap(self) -> None:
+        legacy_db = Path(self.temp_dir.name) / "legacy.db"
+        now = "2026-01-02T00:00:00+00:00"
+        with sqlite3.connect(str(legacy_db)) as connection:
+            connection.executescript(
+                """
+                CREATE TABLE products (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                    category TEXT NOT NULL,
+                    unit TEXT NOT NULL,
+                    price REAL NOT NULL DEFAULT 0,
+                    sale_price REAL NOT NULL DEFAULT 0,
+                    low_stock_threshold REAL NOT NULL DEFAULT 5,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    deleted_at TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE transactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    product_id INTEGER NOT NULL,
+                    transaction_type TEXT NOT NULL,
+                    quantity REAL NOT NULL,
+                    note TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE app_state (
+                    state_key TEXT PRIMARY KEY,
+                    state_value TEXT NOT NULL DEFAULT '[]',
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE audit_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    entity_name TEXT NOT NULL DEFAULT '',
+                    action TEXT NOT NULL,
+                    actor TEXT NOT NULL DEFAULT '',
+                    message TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+                """
+            )
+            connection.execute(
+                "INSERT INTO app_state(state_key, state_value, updated_at) VALUES(?, ?, ?)",
+                ("customers", json.dumps([{"id": "legacy-customer", "name": "Khách legacy", "createdAt": now, "updatedAt": now}], ensure_ascii=False), now),
+            )
+            connection.execute(
+                "INSERT INTO app_state(state_key, state_value, updated_at) VALUES(?, ?, ?)",
+                ("suppliers", json.dumps([{"id": "legacy-supplier", "name": "NCC legacy", "createdAt": now, "updatedAt": now}], ensure_ascii=False), now),
+            )
+            connection.execute(
+                "INSERT INTO app_state(state_key, state_value, updated_at) VALUES(?, ?, ?)",
+                ("carts", json.dumps([{"id": "legacy-cart", "customerId": "legacy-customer", "customerName": "Khách legacy", "status": "draft", "items": []}], ensure_ascii=False), now),
+            )
+            connection.execute(
+                "INSERT INTO app_state(state_key, state_value, updated_at) VALUES(?, ?, ?)",
+                ("purchases", json.dumps([{"id": "legacy-purchase", "supplierName": "NCC legacy", "status": "draft", "items": []}], ensure_ascii=False), now),
+            )
+
+        migrated_store = InventoryStore(legacy_db)
+        state = migrated_store.get_sync_state()
+
+        self.assertTrue(any(entry["id"] == "legacy-customer" for entry in state["customers"]))
+        self.assertTrue(any(entry["id"] == "legacy-supplier" for entry in state["suppliers"]))
+        self.assertTrue(any(entry["id"] == "legacy-cart" for entry in state["carts"]))
+        self.assertTrue(any(entry["id"] == "legacy-purchase" for entry in state["purchases"]))
+        del migrated_store
 
 
 if __name__ == "__main__":

@@ -403,13 +403,14 @@ Màn này có 2 nhóm chức năng:
   - mặt hàng
   - khách hàng
   - nhà cung cấp
+  - định dạng hỗ trợ: `JSON` hoặc `CSV`
 - backup / restore database toàn hệ thống
 
 ### Khi nào dùng export / import master
 
 - chuyển danh mục sang máy khác
 - chuẩn hóa lại danh sách mặt hàng / khách hàng / nhà cung cấp
-- nhập dữ liệu chuẩn bị sẵn từ file JSON
+- nhập dữ liệu chuẩn bị sẵn từ file `JSON` hoặc `CSV`
 
 ### Khi nào dùng backup / restore
 

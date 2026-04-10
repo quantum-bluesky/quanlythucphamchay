@@ -10,7 +10,7 @@ const {
   switchMenu,
 } = require("./support/ui");
 
-test("master admin login, export, import, backup and restore work on fixture DB", async ({ page }, testInfo) => {
+test("ACC-ADM-01 / ACC-ADM-02 master admin login, export, import, backup and restore work on fixture DB", async ({ page }, testInfo) => {
   test.setTimeout(120000);
   const runtime = attachRuntimeTracking(page);
   const downloadsDir = testInfo.outputPath("downloads");
@@ -39,9 +39,11 @@ test("master admin login, export, import, backup and restore work on fixture DB"
   await expectScreenTitle(page, "Master Admin");
   await expect(page.locator("#adminModulePanel")).toBeVisible();
 
+  await page.locator("#adminMasterFormatCustomers").selectOption("csv");
   const exportDownloadPromise = page.waitForEvent("download");
   await page.locator('[data-admin-export="customers"]').click();
   const exportDownload = await exportDownloadPromise;
+  expect(exportDownload.suggestedFilename()).toMatch(/\.csv$/i);
   const exportFile = path.join(downloadsDir, exportDownload.suggestedFilename());
   await exportDownload.saveAs(exportFile);
   expect(fs.existsSync(exportFile)).toBeTruthy();

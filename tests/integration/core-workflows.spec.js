@@ -8,7 +8,7 @@ const {
   switchMenu,
 } = require("./support/ui");
 
-test("inventory, purchases, sales and products stay healthy across navigation", async ({ page }) => {
+test("ACC-INV-02 / ACC-PROD-01 inventory, purchases, sales and products stay healthy across navigation", async ({ page }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.goto("/");

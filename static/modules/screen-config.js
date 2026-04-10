@@ -160,7 +160,7 @@ export const SCREEN_HELP = {
     overview: "Dành cho tài khoản admin để xuất nhập master data, backup và restore toàn hệ thống.",
     steps: [
       "Đăng nhập bằng tài khoản admin đã cấu hình trong file hệ thống.",
-      "Dùng export/import để quản trị dữ liệu master của sản phẩm, khách hàng và nhà cung cấp.",
+      "Dùng export/import để quản trị dữ liệu master của sản phẩm, khách hàng và nhà cung cấp (hỗ trợ cả JSON và CSV).",
       "Chỉ restore database khi đã hiểu rõ rằng dữ liệu hiện tại sẽ bị ghi đè bằng bản phục hồi.",
       MOBILE_FLOATING_HINT,
     ],

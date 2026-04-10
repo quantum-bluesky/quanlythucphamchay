@@ -7,7 +7,7 @@ const {
   switchMenu,
 } = require("./support/ui");
 
-test("purchases screen can create a new supplier and apply it back to the draft flow", async ({ page, request }) => {
+test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back to the draft flow", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const supplierName = `NCC Flow ${Date.now()}`;
 
@@ -60,7 +60,7 @@ test("purchases screen can create a new supplier and apply it back to the draft 
   expectNoRuntimeErrors(runtime);
 });
 
-test("suppliers screen can edit supplier without rewriting paid purchase history", async ({ page, request }) => {
+test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid purchase history", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const supplierName = `NCC Locked ${Date.now()}`;
   const renamedSupplier = `${supplierName} Updated`;

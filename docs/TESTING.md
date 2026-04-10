@@ -43,6 +43,19 @@ Chạy:
 python -m unittest discover -s tests
 ```
 
+Quy ước mã case unit:
+
+- `UT-DB-*`: case dữ liệu / DB / receipt ledger
+- `UT-NORM-*`: case migration / bảng quan hệ chuẩn hóa
+- `UT-SYNC-*`: case sync state / conflict
+- `UT-AUD-*`: case audit
+- `UT-HIS-*`: case history filter
+
+Tên method đã được chuẩn hóa theo mã case ở đầu, ví dụ:
+
+- `test_ut_db_01_create_product_and_stock_summary`
+- `test_ut_sync_02_save_sync_state_rejects_stale_expected_updated_at`
+
 Phù hợp khi sửa:
 
 - logic `InventoryStore`
@@ -66,6 +79,13 @@ npx playwright install chromium
 npm run test:integration
 ```
 
+Quy ước mã case integration/acceptance:
+
+- `ACC-*`: acceptance case hoặc regression đang map trực tiếp với checklist bàn giao
+- `IT-*`: integration regression bổ sung ngoài checklist chính
+
+Tên test Playwright đã được chuẩn hóa với mã ở đầu title để có thể lọc bằng `--grep`/`--grep-invert`.
+
 ### Chạy acceptance automation theo checklist
 
 ```powershell
@@ -84,6 +104,74 @@ npm run test:acceptance:headed
 npm run test:integration:headed
 ```
 
+## 2.1. Chạy theo mã test case
+
+### Chạy 1 case Playwright
+
+```powershell
+npm run test:integration -- --grep "ACC-SALE-01"
+```
+
+### Chạy nhiều case Playwright
+
+```powershell
+npm run test:integration -- --grep "ACC-SALE-01|ACC-PUR-01|ACC-SYNC-01"
+```
+
+### Loại trừ một nhóm case Playwright
+
+Ví dụ bỏ toàn bộ case Phase D:
+
+```powershell
+npm run test:integration -- --grep-invert "IT-PHD-"
+```
+
+### Chạy 1 unit case cụ thể
+
+```powershell
+python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_01_create_product_and_stock_summary
+```
+
+## 2.2. Script chuẩn để include / exclude theo mã
+
+Repo có thêm script:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-test-cases.ps1
+```
+
+Hoặc gọi qua npm:
+
+```powershell
+npm run test:cases -- -Target all
+```
+
+Ví dụ:
+
+### Chỉ chạy nhóm sync
+
+```powershell
+npm run test:cases -- -Target all -IncludeCode UT-SYNC,ACC-SYNC
+```
+
+### Chạy integration nhưng loại trừ Phase D
+
+```powershell
+npm run test:cases -- -Target integration -ExcludeCode IT-PHD
+```
+
+### Chạy unit nhưng loại trừ toàn bộ case DB
+
+```powershell
+npm run test:cases -- -Target unit -ExcludeCode UT-DB
+```
+
+### Chạy toàn bộ trừ nhóm DB
+
+```powershell
+npm run test:cases -- -Target all -ExcludeCode UT-DB
+```
+
 ## Integration suite đang kiểm tra gì
 
 Suite hiện tại chạy trên `fixture DB` tạm, không đụng vào `data\inventory.db` thật.
@@ -95,7 +183,7 @@ Các nhóm kiểm tra chính:
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
 - `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa
-- `Master Admin`: login, export, import, backup, restore
+- `Master Admin`: login, export/import file master (`JSON` + `CSV`), backup, restore
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
 - `UI mobile floating`: menu nổi, tìm kiếm nhanh và cụm nút điều hướng auto-hide vào mép màn hình rồi mở lại an toàn
 
@@ -129,4 +217,5 @@ Ngoài click thao tác, suite còn kiểm tra:
 - `Node.js` và `Playwright` chỉ cần cho bộ test integration
 - Nếu sửa workflow, label, selector hoặc menu, hãy cập nhật test tương ứng
 - Nếu thêm hoặc đổi workflow nghiệp vụ, hãy cập nhật luôn checklist acceptance để người test và agent dùng chung một chuẩn
+- Nếu thêm test mới, hãy đặt mã case ở đầu tên test hoặc method name để có thể lọc theo mã
 - Nếu cần điều tra lỗi sync nhiều máy, có thể bật `debug.sync_state=true` trong `data/system_config.json` để xem log `/api/state` ở console server và browser
