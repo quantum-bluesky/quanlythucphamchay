@@ -7,6 +7,7 @@ const {
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
+  gotoWithRetry,
   switchMenu,
 } = require("./support/ui");
 
@@ -285,8 +286,7 @@ test("ACC-ADM-03 direct stock adjustment requires admin login and a reason", asy
   });
   expect(anonymousResponse.status()).toBe(401);
 
-  await page.goto("/");
-  await page.waitForLoadState("networkidle");
+  await gotoWithRetry(page, "/", { waitUntil: "networkidle" });
   await autoLoginAdmin(page, request);
   await page.reload({ waitUntil: "networkidle" });
 

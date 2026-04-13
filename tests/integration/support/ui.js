@@ -74,6 +74,25 @@ async function reloadHealthy(page, runtime, label, expectedTitle) {
   await collectToast(page, runtime, label);
 }
 
+async function gotoWithRetry(page, url = "/", { waitUntil = "load", retries = 3, retryDelayMs = 1000 } = {}) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    try {
+      await page.goto(url, { waitUntil });
+      return;
+    } catch (error) {
+      lastError = error;
+      const message = String(error?.message || "");
+      const isRetriable = /ERR_NAME_NOT_RESOLVED|ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_CONNECTION_CLOSED/i.test(message);
+      if (!isRetriable || attempt === retries) {
+        throw error;
+      }
+      await page.waitForTimeout(retryDelayMs * attempt);
+    }
+  }
+  throw lastError || new Error(`Unable to open ${url}`);
+}
+
 function parseSetCookieHeader(setCookieHeader) {
   const [cookiePair = ""] = String(setCookieHeader || "").split(";");
   const [name = "", ...valueParts] = cookiePair.split("=");
@@ -191,6 +210,7 @@ module.exports = {
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
+  gotoWithRetry,
   reloadHealthy,
   switchMenu,
 };
