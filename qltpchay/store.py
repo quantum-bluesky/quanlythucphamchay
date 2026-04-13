@@ -1295,10 +1295,44 @@ class InventoryStore:
 
     def reset_all_data(self) -> None:
         with self._connect() as connection:
-            connection.execute("DELETE FROM transactions")
-            connection.execute("DELETE FROM audit_logs")
-            connection.execute("DELETE FROM products")
-            connection.execute("DELETE FROM sqlite_sequence WHERE name IN ('products', 'transactions', 'audit_logs')")
+            existing_tables = {
+                row["name"]
+                for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                ).fetchall()
+            }
+
+            # Xóa theo thứ tự từ bảng con -> bảng cha để tránh lỗi FOREIGN KEY.
+            reset_order = [
+                "inventory_receipt_items",
+                "inventory_receipts",
+                "cart_items",
+                "purchase_items",
+                "transactions",
+                "carts",
+                "purchases",
+                "audit_logs",
+                "customers",
+                "suppliers",
+                "products",
+                "app_state",
+            ]
+            for table_name in reset_order:
+                if table_name in existing_tables:
+                    connection.execute(f"DELETE FROM {table_name}")
+
+            if "sqlite_sequence" in existing_tables:
+                sequence_tables = tuple(
+                    table_name
+                    for table_name in ("products", "transactions", "audit_logs", "inventory_receipts", "inventory_receipt_items")
+                    if table_name in existing_tables
+                )
+                if sequence_tables:
+                    placeholders = ",".join("?" for _ in sequence_tables)
+                    connection.execute(
+                        f"DELETE FROM sqlite_sequence WHERE name IN ({placeholders})",
+                        sequence_tables,
+                    )
 
     def get_product_by_id(self, product_id: int) -> dict:
         with self._connect() as connection:
