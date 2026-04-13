@@ -8,11 +8,12 @@ test("ACC-SYNC-02 state sync rejects stale carts updates with conflict metadata"
   const statePayload = await stateResponse.json();
   const expectedCartsVersion = statePayload.updated_at?.carts || "";
   const existingCarts = Array.isArray(statePayload.carts) ? statePayload.carts : [];
+  const cartId = `phase-c-cart-1-${Date.now()}`;
 
   const firstSaveResponse = await request.put("/api/state", {
     headers: { Cookie: userCookie },
     data: {
-      carts: [...existingCarts, { id: "phase-c-cart-1", status: "draft", items: [] }],
+      carts: [...existingCarts, { id: cartId, status: "draft", items: [] }],
       expected_updated_at: { carts: expectedCartsVersion },
     },
   });
@@ -37,11 +38,12 @@ test("ACC-SYNC-03 state sync rejects stale purchases updates with conflict metad
   const statePayload = await stateResponse.json();
   const expectedPurchasesVersion = statePayload.updated_at?.purchases || "";
   const existingPurchases = Array.isArray(statePayload.purchases) ? statePayload.purchases : [];
+  const purchaseId = `phase-c-purchase-1-${Date.now()}`;
 
   const firstSaveResponse = await request.put("/api/state", {
     headers: { Cookie: userCookie },
     data: {
-      purchases: [...existingPurchases, { id: "phase-c-purchase-1", status: "draft", items: [] }],
+      purchases: [...existingPurchases, { id: purchaseId, status: "draft", items: [] }],
       expected_updated_at: { purchases: expectedPurchasesVersion },
     },
   });
