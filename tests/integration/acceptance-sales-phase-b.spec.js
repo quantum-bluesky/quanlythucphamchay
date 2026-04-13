@@ -1,6 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginUser,
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
@@ -19,18 +20,22 @@ async function loginAdminApi(request) {
     data: ADMIN_CREDENTIALS,
   });
   expect(response.ok()).toBeTruthy();
+  return response.headers()["set-cookie"]?.split(";")[0] || "";
 }
 
 async function createBackupSnapshot(request) {
-  await loginAdminApi(request);
-  const response = await request.get("/api/admin/backup");
+  const adminCookie = await loginAdminApi(request);
+  const response = await request.get("/api/admin/backup", {
+    headers: { Cookie: adminCookie },
+  });
   expect(response.ok()).toBeTruthy();
   return response.body();
 }
 
 async function restoreBackupSnapshot(request, snapshot) {
-  await loginAdminApi(request);
+  const adminCookie = await loginAdminApi(request);
   const response = await request.post("/api/admin/restore", {
+    headers: { Cookie: adminCookie },
     data: {
       content_base64: snapshot.toString("base64"),
     },
@@ -38,22 +43,22 @@ async function restoreBackupSnapshot(request, snapshot) {
   expect(response.ok()).toBeTruthy();
 }
 
-async function fetchProducts(request) {
-  const response = await request.get("/api/products");
+async function fetchProducts(request, cookie) {
+  const response = await request.get("/api/products", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.products || [];
 }
 
-async function fetchTransactions(request, limit = 10) {
-  const response = await request.get(`/api/transactions?limit=${limit}`);
+async function fetchTransactions(request, cookie, limit = 10) {
+  const response = await request.get(`/api/transactions?limit=${limit}`, { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.transactions || [];
 }
 
-async function fetchSyncState(request) {
-  const response = await request.get("/api/state?transaction_limit=16");
+async function fetchSyncState(request, cookie) {
+  const response = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   return response.json();
 }
@@ -68,14 +73,17 @@ test("ACC-SALE-01 complete checkout updates stock and order history", async ({ p
   const snapshot = await createBackupSnapshot(request);
   const runtime = attachRuntimeTracking(page);
   const customerName = `ACC Sale 01 ${Date.now()}`;
+  const adminCookie = await loginAdminApi(request);
 
   try {
-    const beforeProducts = await fetchProducts(request);
+    const beforeProducts = await fetchProducts(request, adminCookie);
     const boKho = getProductByName(beforeProducts, "Bò kho");
     const chaQueChay = getProductByName(beforeProducts, "Chả quế chay");
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
     await switchMenu(page, "create-order");
     await expectScreenTitle(page, "Tạo đơn xuất hàng");
 
@@ -103,13 +111,13 @@ test("ACC-SALE-01 complete checkout updates stock and order history", async ({ p
     const completedOrderCard = page.locator(".cart-queue-item", { hasText: customerName }).first();
     await expect(completedOrderCard).toContainText("Đã xong");
 
-    const afterProducts = await fetchProducts(request);
+    const afterProducts = await fetchProducts(request, adminCookie);
     const afterBoKho = getProductByName(afterProducts, "Bò kho");
     const afterChaQueChay = getProductByName(afterProducts, "Chả quế chay");
     expect(Number(afterBoKho.current_stock)).toBe(Number(boKho.current_stock) - 2);
     expect(Number(afterChaQueChay.current_stock)).toBe(Number(chaQueChay.current_stock) - 1);
 
-    const syncState = await fetchSyncState(request);
+    const syncState = await fetchSyncState(request, adminCookie);
     const completedCart = (syncState.carts || []).find((cart) => cart.customerName === customerName);
     expect(completedCart).toBeTruthy();
     expect(completedCart.status).toBe("completed");
@@ -126,14 +134,17 @@ test("ACC-SALE-02 shortage checkout for normal user creates purchase suggestion 
   const snapshot = await createBackupSnapshot(request);
   const runtime = attachRuntimeTracking(page);
   const customerName = `ACC Sale 02 ${Date.now()}`;
+  const adminCookie = await loginAdminApi(request);
 
   try {
-    const beforeProducts = await fetchProducts(request);
+    const beforeProducts = await fetchProducts(request, adminCookie);
     const boLatXao = getProductByName(beforeProducts, "Bò lát xào");
     expect(Number(boLatXao.current_stock)).toBe(0);
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
     await switchMenu(page, "create-order");
     await expectScreenTitle(page, "Tạo đơn xuất hàng");
 
@@ -153,7 +164,7 @@ test("ACC-SALE-02 shortage checkout for normal user creates purchase suggestion 
     expect(shortageToast).toContain("Đã tạo sẵn phiếu nhập dự kiến");
     await expect(page.locator("#purchaseNoteInput")).toHaveValue(`Thiếu hàng cho đơn ${customerName}`);
 
-    const syncState = await fetchSyncState(request);
+    const syncState = await fetchSyncState(request, adminCookie);
     const draftPurchase = (syncState.purchases || []).find((purchase) => purchase.note === `Thiếu hàng cho đơn ${customerName}`);
     expect(draftPurchase).toBeTruthy();
     expect(draftPurchase.status).toBe("draft");
@@ -173,11 +184,12 @@ test("ACC-PHB-01 inventory adjustment receipt updates stock and audit trail", as
   const snapshot = await createBackupSnapshot(request);
 
   try {
-    await loginAdminApi(request);
-    const beforeProducts = await fetchProducts(request);
+    const adminCookie = await loginAdminApi(request);
+    const beforeProducts = await fetchProducts(request, adminCookie);
     const chaQueChay = getProductByName(beforeProducts, "Chả quế chay");
 
     const response = await request.post("/api/adjustments/inventory", {
+      headers: { Cookie: adminCookie },
       data: {
         reason: "ACC Phase B kiểm kho lệch",
         note: "ACC-PHB-01",
@@ -196,11 +208,11 @@ test("ACC-PHB-01 inventory adjustment receipt updates stock and audit trail", as
     expect(payload.receipt.receipt_code).toContain("DC-");
     expect(payload.receipt.actor).toBe("masteradmin");
 
-    const afterProducts = await fetchProducts(request);
+    const afterProducts = await fetchProducts(request, adminCookie);
     const updatedProduct = getProductByName(afterProducts, "Chả quế chay");
     expect(Number(updatedProduct.current_stock)).toBe(Number(chaQueChay.current_stock) - 1);
 
-    const transactions = await fetchTransactions(request, 6);
+    const transactions = await fetchTransactions(request, adminCookie, 6);
     expect(transactions[0].note).toContain(payload.receipt.receipt_code);
     expect(transactions[0].note).toContain("Lý do: ACC Phase B kiểm kho lệch");
     expect(transactions[0].note).toContain("Người chỉnh: masteradmin");
@@ -213,10 +225,12 @@ test("ACC-PHB-02 customer return receipt adds stock and writes transaction note"
   const snapshot = await createBackupSnapshot(request);
 
   try {
-    const beforeProducts = await fetchProducts(request);
+    const adminCookie = await loginAdminApi(request);
+    const beforeProducts = await fetchProducts(request, adminCookie);
     const boKho = getProductByName(beforeProducts, "Bò kho");
 
     const response = await request.post("/api/returns/customers", {
+      headers: { Cookie: adminCookie },
       data: {
         customer_name: "Khách ACC Phase B",
         note: "Khách đổi sang lô khác",
@@ -235,11 +249,11 @@ test("ACC-PHB-02 customer return receipt adds stock and writes transaction note"
     expect(payload.message).toContain("phiếu trả hàng khách");
     expect(payload.receipt.receipt_code).toContain("THK-");
 
-    const afterProducts = await fetchProducts(request);
+    const afterProducts = await fetchProducts(request, adminCookie);
     const updatedProduct = getProductByName(afterProducts, "Bò kho");
     expect(Number(updatedProduct.current_stock)).toBe(Number(boKho.current_stock) + 1);
 
-    const transactions = await fetchTransactions(request, 6);
+    const transactions = await fetchTransactions(request, adminCookie, 6);
     expect(transactions[0].note).toContain(payload.receipt.receipt_code);
     expect(transactions[0].note).toContain("Khách: Khách ACC Phase B");
     expect(transactions[0].note).toContain("Khách đổi sang lô khác");
@@ -252,10 +266,12 @@ test("ACC-PHB-03 supplier return receipt reduces stock and writes transaction no
   const snapshot = await createBackupSnapshot(request);
 
   try {
-    const beforeProducts = await fetchProducts(request);
+    const adminCookie = await loginAdminApi(request);
+    const beforeProducts = await fetchProducts(request, adminCookie);
     const ruocNam = getProductByName(beforeProducts, "Ruốc nấm");
 
     const response = await request.post("/api/returns/suppliers", {
+      headers: { Cookie: adminCookie },
       data: {
         supplier_name: "NCC ACC Phase B",
         note: "Trả lại hàng lỗi bao bì",
@@ -274,11 +290,11 @@ test("ACC-PHB-03 supplier return receipt reduces stock and writes transaction no
     expect(payload.message).toContain("phiếu trả nhà cung cấp");
     expect(payload.receipt.receipt_code).toContain("TNCC-");
 
-    const afterProducts = await fetchProducts(request);
+    const afterProducts = await fetchProducts(request, adminCookie);
     const updatedProduct = getProductByName(afterProducts, "Ruốc nấm");
     expect(Number(updatedProduct.current_stock)).toBe(Number(ruocNam.current_stock) - 1);
 
-    const transactions = await fetchTransactions(request, 6);
+    const transactions = await fetchTransactions(request, adminCookie, 6);
     expect(transactions[0].note).toContain(payload.receipt.receipt_code);
     expect(transactions[0].note).toContain("NCC: NCC ACC Phase B");
     expect(transactions[0].note).toContain("Trả lại hàng lỗi bao bì");

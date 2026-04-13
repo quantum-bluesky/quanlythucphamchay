@@ -154,6 +154,22 @@ async function autoLoginUser(page, request) {
   await tryAutoLogin(page, request, candidates);
 }
 
+async function autoLoginUserRequest(request) {
+  const candidates = [
+    { username: "user", password: "user12345" },
+    { username: "staff", password: "staff12345" },
+  ];
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      return await autoLoginRequest(request, candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("Unable to auto login request context as normal user.");
+}
+
 function expectNoRuntimeErrors(runtime) {
   expect(runtime.errors, runtime.errors.join("\n")).toEqual([]);
 }
@@ -164,6 +180,7 @@ module.exports = {
   autoLoginAdmin,
   autoLoginAdminRequest,
   autoLoginUser,
+  autoLoginUserRequest,
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,

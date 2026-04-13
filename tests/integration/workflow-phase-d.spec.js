@@ -1,19 +1,23 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginUser,
+  autoLoginUserRequest,
   expectNoRuntimeErrors,
   expectScreenTitle,
   switchMenu,
 } = require("./support/ui");
 
 test("IT-PHD-01 product history supports actor filter for default price updates", async ({ request }) => {
-  const productsResponse = await request.get("/api/products");
+  const userCookie = await autoLoginUserRequest(request);
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
   expect(product).toBeTruthy();
 
   const updateResponse = await request.put(`/api/products/${product.id}/price`, {
+    headers: { Cookie: userCookie },
     data: {
       price: Number(product.price || 0) + 1000,
       actor: "phase-d-tester",
@@ -21,7 +25,7 @@ test("IT-PHD-01 product history supports actor filter for default price updates"
   });
   expect(updateResponse.ok()).toBeTruthy();
 
-  const historyResponse = await request.get("/api/products/history?limit=20&actor=phase-d-tester");
+  const historyResponse = await request.get("/api/products/history?limit=20&actor=phase-d-tester", { headers: { Cookie: userCookie } });
   expect(historyResponse.ok()).toBeTruthy();
   const historyPayload = await historyResponse.json();
   expect(Array.isArray(historyPayload.history)).toBeTruthy();
@@ -30,7 +34,8 @@ test("IT-PHD-01 product history supports actor filter for default price updates"
 });
 
 test("IT-PHD-02 state sync stores actor when cart status changes", async ({ request }) => {
-  const stateResponse = await request.get("/api/state?transaction_limit=16");
+  const userCookie = await autoLoginUserRequest(request);
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const statePayload = await stateResponse.json();
   const expectedVersion = statePayload.updated_at?.carts || "";
@@ -38,6 +43,7 @@ test("IT-PHD-02 state sync stores actor when cart status changes", async ({ requ
   const cartId = "phase-d-cart-actor";
 
   const seedResponse = await request.put("/api/state", {
+    headers: { Cookie: userCookie },
     data: {
       carts: [...carts.filter((cart) => cart.id !== cartId), { id: cartId, orderCode: "DH-D-01", status: "draft", items: [] }],
       expected_updated_at: { carts: expectedVersion },
@@ -48,6 +54,7 @@ test("IT-PHD-02 state sync stores actor when cart status changes", async ({ requ
   const seededPayload = await seedResponse.json();
 
   const completeResponse = await request.put("/api/state", {
+    headers: { Cookie: userCookie },
     data: {
       carts: seededPayload.carts.map((cart) => (
         cart.id === cartId ? { ...cart, status: "completed" } : cart
@@ -61,7 +68,8 @@ test("IT-PHD-02 state sync stores actor when cart status changes", async ({ requ
 
 test("IT-PHD-03 product history filter form applies actor and date filters in UI", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
-  const productsResponse = await request.get("/api/products");
+  const userCookie = await autoLoginUserRequest(request);
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -69,6 +77,7 @@ test("IT-PHD-03 product history filter form applies actor and date filters in UI
 
   const actor = "phase-d-ui";
   const updateResponse = await request.put(`/api/products/${product.id}/sale-price`, {
+    headers: { Cookie: userCookie },
     data: {
       sale_price: Number(product.sale_price || 0) + 2000,
       actor,
@@ -78,6 +87,8 @@ test("IT-PHD-03 product history filter form applies actor and date filters in UI
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
   await switchMenu(page, "products");
   await expectScreenTitle(page, "Sản phẩm");
 

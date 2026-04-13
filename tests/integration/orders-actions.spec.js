@@ -1,17 +1,20 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginUser,
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
   switchMenu,
 } = require("./support/ui");
 
-test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draft carts", async ({ page }) => {
+test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draft carts", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
 
   await switchMenu(page, "orders");
   await expectScreenTitle(page, "Đơn hàng");
