@@ -1,6 +1,8 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginUser,
+  autoLoginUserRequest,
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
@@ -10,13 +12,16 @@ const {
 
 test("ACC-ABOUT-01 version button opens about screen with backend app version", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
 
-  const versionResponse = await request.get("/api/runtime-version");
+  const versionResponse = await request.get("/api/runtime-version", { headers: { Cookie: userCookie } });
   expect(versionResponse.ok()).toBeTruthy();
   const versionPayload = await versionResponse.json();
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
   await page.locator("#appVersionButton").click();
 
   await expectScreenTitle(page, "About ứng dụng");
@@ -30,11 +35,13 @@ test("ACC-ABOUT-01 version button opens about screen with backend app version", 
   expectNoRuntimeErrors(runtime);
 });
 
-test("ACC-INV-01 inventory shortcuts open import and sales workflows", async ({ page }) => {
+test("ACC-INV-01 inventory shortcuts open import and sales workflows", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
   await expectScreenTitle(page, "Kiểm tra tồn kho");
 
   await page.locator('[data-inventory-flow="in"]').first().click();
@@ -49,11 +56,13 @@ test("ACC-INV-01 inventory shortcuts open import and sales workflows", async ({ 
   expectNoRuntimeErrors(runtime);
 });
 
-test("ACC-REP-01 and ACC-HIS-01 reports refresh and history screen render healthy", async ({ page }) => {
+test("ACC-REP-01 and ACC-HIS-01 reports refresh and history screen render healthy", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
 
   await switchMenu(page, "reports");
   await expectScreenTitle(page, "Báo cáo");
@@ -79,8 +88,9 @@ test("ACC-SUP-02 suppliers create stays healthy with legacy paid purchases using
   const runtime = attachRuntimeTracking(page);
   const now = new Date().toISOString();
   const supplierName = `NCC Legacy ${Date.now()}`;
+  const userCookie = await autoLoginUserRequest(request);
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16");
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
 
@@ -99,6 +109,7 @@ test("ACC-SUP-02 suppliers create stays healthy with legacy paid purchases using
 
   try {
     const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
       data: {
         purchases: [...(originalState.purchases || []), legacyPaidPurchase],
       },
@@ -107,6 +118,8 @@ test("ACC-SUP-02 suppliers create stays healthy with legacy paid purchases using
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
 
     await switchMenu(page, "suppliers");
     await expectScreenTitle(page, "Nhà cung cấp");
@@ -123,12 +136,13 @@ test("ACC-SUP-02 suppliers create stays healthy with legacy paid purchases using
     });
     expect(toastText).toContain("Đã lưu nhà cung cấp");
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16");
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     expect((latestState.suppliers || []).some((supplier) => supplier.name === supplierName)).toBeTruthy();
   } finally {
     await request.put("/api/state", {
+      headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
         suppliers: originalState.suppliers,

@@ -1,15 +1,18 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginUser,
   expectNoRuntimeErrors,
   expectScreenTitle,
 } = require("./support/ui");
 
-test("IT-MOB-01 mobile floating clusters auto-hide to screen edges and reveal without firing actions", async ({ page }) => {
+test("IT-MOB-01 mobile floating clusters auto-hide to screen edges and reveal without firing actions", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
   await expectScreenTitle(page, "Kiểm tra tồn kho");
 
   const menuPanel = page.locator("#menuPanel");
@@ -52,12 +55,14 @@ test("IT-MOB-01 mobile floating clusters auto-hide to screen edges and reveal wi
   expectNoRuntimeErrors(runtime);
 });
 
-test("IT-MOB-02 screen header stays visible on tablet and version button still opens about", async ({ page }) => {
+test("IT-MOB-02 screen header stays visible on tablet and version button still opens about", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.setViewportSize({ width: 820, height: 1180 });
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
   await expectScreenTitle(page, "Kiểm tra tồn kho");
 
   const screenHeaderBar = page.locator("#screenHeaderBar");

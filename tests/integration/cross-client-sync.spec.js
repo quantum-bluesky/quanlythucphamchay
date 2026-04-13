@@ -1,6 +1,8 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginAdminRequest,
+  autoLoginUser,
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
@@ -12,6 +14,8 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
   await switchMenu(page, "create-order");
   await expectScreenTitle(page, "Tạo đơn xuất hàng");
 
@@ -25,21 +29,17 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
   await expect(productRow).toContainText("Tồn 0 gói");
   await expect(productRow).toContainText("Giá nhập 35.000");
 
-  const productsResponse = await request.get("/api/products");
+  const adminCookie = await autoLoginAdminRequest(request);
+  expect(adminCookie).toBeTruthy();
+  const productsResponse = await request.get("/api/products", {
+    headers: {
+      Cookie: adminCookie,
+    },
+  });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = (productsPayload.products || []).find((entry) => entry.name === "Bò lát xào");
   expect(product).toBeTruthy();
-
-  const adminLoginResponse = await request.post("/api/admin/login", {
-    data: {
-      username: "masteradmin",
-      password: "admin12345",
-    },
-  });
-  expect(adminLoginResponse.ok()).toBeTruthy();
-  const adminCookie = adminLoginResponse.headers()["set-cookie"]?.split(";")[0] || "";
-  expect(adminCookie).toBeTruthy();
 
   const stockResponse = await request.post("/api/transactions", {
     headers: {
@@ -55,6 +55,9 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
   expect(stockResponse.ok()).toBeTruthy();
 
   const priceResponse = await request.put(`/api/products/${product.id}/price`, {
+    headers: {
+      Cookie: adminCookie,
+    },
     data: {
       price: 39000,
     },

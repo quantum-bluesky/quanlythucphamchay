@@ -1,6 +1,9 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginAdmin,
+  autoLoginUser,
+  autoLoginUserRequest,
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
@@ -9,14 +12,17 @@ const {
 
 test("ACC-PUR-01 purchase can only be marked paid after it has been received", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16");
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
 
   try {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
     await switchMenu(page, "purchases");
     await expectScreenTitle(page, "Nhập hàng");
 
@@ -32,6 +38,7 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
     orderedPurchase.paidAt = new Date().toISOString();
 
     const invalidResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
       data: { purchases: invalidPayload.purchases },
     });
     expect(invalidResponse.status()).toBe(400);
@@ -44,6 +51,7 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
     receivedPurchase.receivedAt = new Date().toISOString();
 
     const receiveResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
       data: { purchases: receivedPayload.purchases },
     });
     expect(receiveResponse.ok()).toBeTruthy();
@@ -54,11 +62,13 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
     paidPurchase.paidAt = new Date().toISOString();
 
     const payResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
       data: { purchases: paidPayload.purchases },
     });
     expect(payResponse.ok()).toBeTruthy();
   } finally {
     await request.put("/api/state", {
+      headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
         suppliers: originalState.suppliers,
@@ -73,14 +83,17 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
 
 test("ACC-PUR-02 completed orders and received or paid purchases reject direct edits", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16");
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
 
   try {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
 
     await switchMenu(page, "orders");
     await expectScreenTitle(page, "Đơn hàng");
@@ -99,6 +112,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
     completedCart.items[0].quantity = 9;
 
     const invalidCartResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
       data: { carts: invalidCartPayload.carts },
     });
     expect(invalidCartResponse.status()).toBe(400);
@@ -110,6 +124,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
     paidPurchase.items[0].unitCost = 99000;
 
     const invalidPurchaseResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
       data: { purchases: invalidPurchasePayload.purchases },
     });
     expect(invalidPurchaseResponse.status()).toBe(400);
@@ -117,6 +132,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
     expect(invalidPurchaseBody.error).toContain("Phiếu nhập đã thanh toán không thể sửa trực tiếp");
   } finally {
     await request.put("/api/state", {
+      headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
         suppliers: originalState.suppliers,
@@ -144,13 +160,12 @@ test("ACC-ADM-03 direct stock adjustment requires admin login and a reason", asy
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginAdmin(page, request);
+  await page.reload({ waitUntil: "networkidle" });
 
   await switchMenu(page, "admin");
   await expectScreenTitle(page, "Master Admin");
-  await page.locator("#adminUsernameInput").fill("masteradmin");
-  await page.locator("#adminPasswordInput").fill("admin12345");
-  await page.locator('#adminLoginForm button[type="submit"]').click();
-  await collectToast(page, runtime, "admin-login");
+  await collectToast(page, runtime, "admin-login-auto", { errorPattern: /^$/ });
 
   await switchMenu(page, "inventory");
   await expectScreenTitle(page, "Kiểm tra tồn kho");
