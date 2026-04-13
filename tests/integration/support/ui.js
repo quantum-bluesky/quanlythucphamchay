@@ -83,6 +83,14 @@ function parseSetCookieHeader(setCookieHeader) {
   };
 }
 
+function resolveCookieUrl(page) {
+  const currentUrl = String(page.url() || "").trim();
+  if (!currentUrl || currentUrl === "about:blank") {
+    throw new Error("autoLogin requires page.goto() before adding session cookies.");
+  }
+  return new URL("/", currentUrl).toString();
+}
+
 async function autoLogin(page, request, { username, password, route = "/api/session/login" }) {
   const loginResponse = await request.post(route, {
     data: { username, password },
@@ -98,8 +106,7 @@ async function autoLogin(page, request, { username, password, route = "/api/sess
     {
       name: cookie.name,
       value: cookie.value,
-      domain: "127.0.0.1",
-      path: "/",
+      url: resolveCookieUrl(page),
       httpOnly: true,
     },
   ]);
