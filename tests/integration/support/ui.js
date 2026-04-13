@@ -74,15 +74,143 @@ async function reloadHealthy(page, runtime, label, expectedTitle) {
   await collectToast(page, runtime, label);
 }
 
+async function gotoWithRetry(page, url = "/", { waitUntil = "load", retries = 3, retryDelayMs = 1000 } = {}) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    try {
+      await page.goto(url, { waitUntil });
+      return;
+    } catch (error) {
+      lastError = error;
+      const message = String(error?.message || "");
+      const isRetriable = /ERR_NAME_NOT_RESOLVED|ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_CONNECTION_CLOSED/i.test(message);
+      if (!isRetriable || attempt === retries) {
+        throw error;
+      }
+      await page.waitForTimeout(retryDelayMs * attempt);
+    }
+  }
+  throw lastError || new Error(`Unable to open ${url}`);
+}
+
+function parseSetCookieHeader(setCookieHeader) {
+  const [cookiePair = ""] = String(setCookieHeader || "").split(";");
+  const [name = "", ...valueParts] = cookiePair.split("=");
+  return {
+    name: name.trim(),
+    value: valueParts.join("=").trim(),
+  };
+}
+
+function resolveCookieUrl(page) {
+  const currentUrl = String(page.url() || "").trim();
+  if (!currentUrl || currentUrl === "about:blank") {
+    throw new Error("autoLogin requires page.goto() before adding session cookies.");
+  }
+  return new URL("/", currentUrl).toString();
+}
+
+async function autoLogin(page, request, { username, password, route = "/api/session/login" }) {
+  const loginResponse = await request.post(route, {
+    data: { username, password },
+  });
+  expect(loginResponse.ok()).toBeTruthy();
+
+  const setCookieHeader = loginResponse.headers()["set-cookie"] || "";
+  const cookie = parseSetCookieHeader(setCookieHeader);
+  expect(cookie.name).toBeTruthy();
+  expect(cookie.value).toBeTruthy();
+
+  await page.context().addCookies([
+    {
+      name: cookie.name,
+      value: cookie.value,
+      url: resolveCookieUrl(page),
+      httpOnly: true,
+    },
+  ]);
+}
+
+async function autoLoginRequest(request, { username, password, route = "/api/session/login" }) {
+  const loginResponse = await request.post(route, {
+    data: { username, password },
+  });
+  expect(loginResponse.ok()).toBeTruthy();
+  const setCookieHeader = loginResponse.headers()["set-cookie"] || "";
+  const cookie = parseSetCookieHeader(setCookieHeader);
+  expect(cookie.name).toBeTruthy();
+  expect(cookie.value).toBeTruthy();
+  return `${cookie.name}=${cookie.value}`;
+}
+
+async function tryAutoLogin(page, request, candidates) {
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      await autoLogin(page, request, candidate);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("Unable to auto login with provided credentials.");
+}
+
+async function autoLoginAdmin(page, request) {
+  await autoLogin(page, request, {
+    username: "masteradmin",
+    password: "admin12345",
+    route: "/api/admin/login",
+  });
+}
+
+async function autoLoginAdminRequest(request) {
+  return autoLoginRequest(request, {
+    username: "masteradmin",
+    password: "admin12345",
+    route: "/api/admin/login",
+  });
+}
+
+async function autoLoginUser(page, request) {
+  const candidates = [
+    { username: "user", password: "user12345" },
+    { username: "staff", password: "staff12345" },
+  ];
+  await tryAutoLogin(page, request, candidates);
+}
+
+async function autoLoginUserRequest(request) {
+  const candidates = [
+    { username: "user", password: "user12345" },
+    { username: "staff", password: "staff12345" },
+  ];
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      return await autoLoginRequest(request, candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("Unable to auto login request context as normal user.");
+}
+
 function expectNoRuntimeErrors(runtime) {
   expect(runtime.errors, runtime.errors.join("\n")).toEqual([]);
 }
 
 module.exports = {
   attachRuntimeTracking,
+  autoLogin,
+  autoLoginAdmin,
+  autoLoginAdminRequest,
+  autoLoginUser,
+  autoLoginUserRequest,
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
+  gotoWithRetry,
   reloadHealthy,
   switchMenu,
 };

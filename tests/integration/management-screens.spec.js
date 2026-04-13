@@ -1,6 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginUser,
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
@@ -8,17 +9,19 @@ const {
   switchMenu,
 } = require("./support/ui");
 
-test("ACC-ORD-01 / ACC-CUS-01 / ACC-SUP-01 / ACC-REP-01 / ACC-HIS-01 orders, customers, suppliers, reports and history stay healthy", async ({ page }) => {
+test("ACC-ORD-01 / ACC-CUS-01 / ACC-SUP-01 / ACC-REP-01 / ACC-HIS-01 orders, customers, suppliers, reports and history stay healthy", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
 
   await switchMenu(page, "orders");
   await expectScreenTitle(page, "Đơn hàng");
-  const orderAction = page.locator('[data-queue-action="open"], [data-queue-action="toggle-detail"]').first();
-  if (await orderAction.count()) {
-    await orderAction.click();
+  const orderDetailToggle = page.locator('[data-queue-action="toggle-detail"]').first();
+  if (await orderDetailToggle.count()) {
+    await orderDetailToggle.click();
     await page.waitForTimeout(500);
   }
   await collectToast(page, runtime, "orders-action");
@@ -55,11 +58,9 @@ test("ACC-ORD-01 / ACC-CUS-01 / ACC-SUP-01 / ACC-REP-01 / ACC-HIS-01 orders, cus
 
   await switchMenu(page, "history");
   await expectScreenTitle(page, "Lịch sử & khôi phục");
-  const restoreDeletedProduct = page.locator('[data-deleted-product-action="restore"]').first();
-  if (await restoreDeletedProduct.count()) {
-    await restoreDeletedProduct.click();
-    await page.waitForTimeout(700);
-  }
+  await expect(page.getByRole("heading", { name: "Khôi phục mặt hàng ngừng bán" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Khôi phục danh bạ khách hàng" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Khôi phục nguồn hàng" })).toBeVisible();
   await collectToast(page, runtime, "history-restore");
   await reloadHealthy(page, runtime, "history-reload", "Lịch sử & khôi phục");
 

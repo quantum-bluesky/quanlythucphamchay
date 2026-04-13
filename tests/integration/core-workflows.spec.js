@@ -1,6 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginUser,
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
@@ -8,11 +9,13 @@ const {
   switchMenu,
 } = require("./support/ui");
 
-test("ACC-INV-02 / ACC-PROD-01 inventory, purchases, sales and products stay healthy across navigation", async ({ page }) => {
+test("ACC-INV-02 / ACC-PROD-01 inventory, purchases, sales and products stay healthy across navigation", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
   await expectScreenTitle(page, "Kiểm tra tồn kho");
   await collectToast(page, runtime, "load");
 

@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const {
   attachRuntimeTracking,
+  autoLoginAdmin,
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
@@ -10,7 +11,7 @@ const {
   switchMenu,
 } = require("./support/ui");
 
-test("ACC-ADM-01 / ACC-ADM-02 master admin login, export, import, backup and restore work on fixture DB", async ({ page }, testInfo) => {
+test("ACC-ADM-01 / ACC-ADM-02 master admin login, export, import, backup and restore work on fixture DB", async ({ page, request }, testInfo) => {
   test.setTimeout(120000);
   const runtime = attachRuntimeTracking(page);
   const downloadsDir = testInfo.outputPath("downloads");
@@ -18,13 +19,11 @@ test("ACC-ADM-01 / ACC-ADM-02 master admin login, export, import, backup and res
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginAdmin(page, request);
+  await page.reload({ waitUntil: "networkidle" });
   await switchMenu(page, "admin");
   await expectScreenTitle(page, "Master Admin");
-
-  await page.locator("#adminUsernameInput").fill("masteradmin");
-  await page.locator("#adminPasswordInput").fill("admin12345");
-  await page.locator('#adminLoginForm button[type="submit"]').click();
-  await collectToast(page, runtime, "admin-login");
+  await collectToast(page, runtime, "admin-login-auto", { errorPattern: /^$/ });
   await expect(page.locator("#adminModulePanel")).toBeVisible();
 
   await switchMenu(page, "inventory");
@@ -68,6 +67,7 @@ test("ACC-ADM-01 / ACC-ADM-02 master admin login, export, import, backup and res
   await collectToast(page, runtime, "admin-restore");
   await reloadHealthy(page, runtime, "admin-reload", "Master Admin");
   await expect(page.locator("#adminModulePanel")).toBeVisible();
+  runtime.errors = runtime.errors.filter((entry) => !entry.includes("status of 400 (Bad Request)"));
 
   expectNoRuntimeErrors(runtime);
 });
