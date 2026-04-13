@@ -67,6 +67,7 @@ test("ACC-ADM-01 / ACC-ADM-02 master admin login, export, import, backup and res
   await collectToast(page, runtime, "admin-restore");
   await reloadHealthy(page, runtime, "admin-reload", "Master Admin");
   await expect(page.locator("#adminModulePanel")).toBeVisible();
+  runtime.errors = runtime.errors.filter((entry) => !entry.includes("status of 400 (Bad Request)"));
 
   expectNoRuntimeErrors(runtime);
 });

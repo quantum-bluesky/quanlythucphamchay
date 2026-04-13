@@ -76,9 +76,9 @@ test("ACC-REP-01 and ACC-HIS-01 reports refresh and history screen render health
 
   await switchMenu(page, "history");
   await expectScreenTitle(page, "Lịch sử & khôi phục");
-  await expect(page.locator("#deletedProductList")).toContainText("Hàng đã xóa");
-  await expect(page.locator("#deletedCustomerList")).toContainText("Khách đã xóa");
-  await expect(page.locator("#deletedSupplierList")).toContainText("NCC Đã Xóa");
+  await expect(page.getByRole("heading", { name: "Khôi phục mặt hàng ngừng bán" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Khôi phục danh bạ khách hàng" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Khôi phục nguồn hàng" })).toBeVisible();
   await collectToast(page, runtime, "acc-history-screen");
 
   expectNoRuntimeErrors(runtime);
@@ -87,7 +87,9 @@ test("ACC-REP-01 and ACC-HIS-01 reports refresh and history screen render health
 test("ACC-SUP-02 suppliers create stays healthy with legacy paid purchases using received_at", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const now = new Date().toISOString();
+  const timestamp = Date.now();
   const supplierName = `NCC Legacy ${Date.now()}`;
+  const supplierPhone = `09${String(timestamp).slice(-8)}`;
   const userCookie = await autoLoginUserRequest(request);
 
   const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
@@ -127,7 +129,7 @@ test("ACC-SUP-02 suppliers create stays healthy with legacy paid purchases using
     await expect(page.locator("#supplierFormSection")).not.toHaveClass(/is-collapsed/);
 
     await page.locator("#supplierNameInput").fill(supplierName);
-    await page.locator("#supplierPhoneInput").fill("0909000098");
+    await page.locator("#supplierPhoneInput").fill(supplierPhone);
     await page.locator("#supplierAddressInput").fill("Dia chi NCC legacy");
     await page.locator("#supplierForm button[type=\"submit\"]").click();
 

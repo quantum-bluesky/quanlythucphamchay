@@ -9,9 +9,22 @@ const {
   switchMenu,
 } = require("./support/ui");
 
+async function setFloatingSearch(page, term) {
+  const toggle = page.locator("#floatingSearchToggle");
+  const input = page.locator("#floatingSearchInput");
+  if (!await input.isVisible()) {
+    await toggle.click();
+  }
+  await expect(input).toBeVisible();
+  await input.fill(term);
+  await page.waitForTimeout(250);
+}
+
 test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back to the draft flow", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
-  const supplierName = `NCC Flow ${Date.now()}`;
+  const timestamp = Date.now();
+  const supplierName = `NCC Flow ${timestamp}`;
+  const supplierPhone = `09${String(timestamp).slice(-8)}`;
   const userCookie = await autoLoginUserRequest(request);
 
   const stateResponseAuthed = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
@@ -34,7 +47,7 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
     await expect(page.locator("#supplierFormSection")).not.toHaveClass(/is-collapsed/);
     await expect(page.locator("#supplierNameInput")).toHaveValue(supplierName);
 
-    await page.locator("#supplierPhoneInput").fill("0909000038");
+    await page.locator("#supplierPhoneInput").fill(supplierPhone);
     await page.locator("#supplierAddressInput").fill("Dia chi test issue 38");
     await page.locator("#supplierNoteInput").fill("Tao moi tu man hinh nhap hang");
     await page.locator("#supplierForm button[type=\"submit\"]").click();
@@ -68,8 +81,10 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
 
 test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid purchase history", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
-  const supplierName = `NCC Locked ${Date.now()}`;
+  const timestamp = Date.now();
+  const supplierName = `NCC Locked ${timestamp}`;
   const renamedSupplier = `${supplierName} Updated`;
+  const supplierPhone = `09${String(timestamp).slice(-8)}`;
   const now = new Date().toISOString();
   const userCookie = await autoLoginUserRequest(request);
 
@@ -78,23 +93,23 @@ test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid pur
   const originalState = await stateResponse.json();
 
   const injectedSupplier = {
-    id: `supplier_locked_${Date.now()}`,
+    id: `supplier_locked_${timestamp}`,
     name: supplierName,
-    phone: "0909000099",
+    phone: supplierPhone,
     address: "Dia chi NCC khoa lich su",
     note: "Supplier test paid purchase history",
     createdAt: now,
     updatedAt: now,
   };
   const paidPurchase = {
-    id: `purchase_paid_${Date.now()}`,
+    id: `purchase_paid_${timestamp}`,
     supplierName,
     note: "Phieu da thanh toan de chan sua nguoc",
     status: "paid",
     createdAt: now,
     updatedAt: now,
     receivedAt: now,
-    receiptCode: `PN-LOCKED-${Date.now()}`,
+    receiptCode: `PN-LOCKED-${timestamp}`,
     items: [],
   };
 
@@ -103,9 +118,9 @@ test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid pur
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
-        suppliers: [...(originalState.suppliers || []), injectedSupplier],
+        suppliers: [injectedSupplier, ...(originalState.suppliers || [])],
         carts: originalState.carts,
-        purchases: [...(originalState.purchases || []), paidPurchase],
+        purchases: [paidPurchase, ...(originalState.purchases || [])],
       },
     });
     expect(seedResponse.ok()).toBeTruthy();
@@ -117,7 +132,7 @@ test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid pur
 
     await switchMenu(page, "suppliers");
     await expectScreenTitle(page, "Nhà cung cấp");
-
+    await setFloatingSearch(page, supplierName);
     await page.locator(`[data-supplier-action="edit"][data-supplier-id="${injectedSupplier.id}"]`).click();
     await expect(page.locator("#supplierNameInput")).toHaveValue(supplierName);
 

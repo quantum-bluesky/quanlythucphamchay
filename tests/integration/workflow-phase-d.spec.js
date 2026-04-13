@@ -40,12 +40,13 @@ test("IT-PHD-02 state sync stores actor when cart status changes", async ({ requ
   const statePayload = await stateResponse.json();
   const expectedVersion = statePayload.updated_at?.carts || "";
   const carts = Array.isArray(statePayload.carts) ? statePayload.carts : [];
-  const cartId = "phase-d-cart-actor";
+  const timestamp = Date.now();
+  const cartId = `phase-d-cart-actor-${timestamp}`;
 
   const seedResponse = await request.put("/api/state", {
     headers: { Cookie: userCookie },
     data: {
-      carts: [...carts.filter((cart) => cart.id !== cartId), { id: cartId, orderCode: "DH-D-01", status: "draft", items: [] }],
+      carts: [...carts.filter((cart) => cart.id !== cartId), { id: cartId, orderCode: `DH-D-${timestamp}`, status: "draft", items: [] }],
       expected_updated_at: { carts: expectedVersion },
       actor: "phase-d-user",
     },
