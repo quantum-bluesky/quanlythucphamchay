@@ -1,6 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginAdmin,
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
@@ -144,13 +145,12 @@ test("ACC-ADM-03 direct stock adjustment requires admin login and a reason", asy
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await autoLoginAdmin(page, request);
+  await page.reload({ waitUntil: "networkidle" });
 
   await switchMenu(page, "admin");
   await expectScreenTitle(page, "Master Admin");
-  await page.locator("#adminUsernameInput").fill("masteradmin");
-  await page.locator("#adminPasswordInput").fill("admin12345");
-  await page.locator('#adminLoginForm button[type="submit"]').click();
-  await collectToast(page, runtime, "admin-login");
+  await collectToast(page, runtime, "admin-login-auto", { errorPattern: /^$/ });
 
   await switchMenu(page, "inventory");
   await expectScreenTitle(page, "Kiểm tra tồn kho");
