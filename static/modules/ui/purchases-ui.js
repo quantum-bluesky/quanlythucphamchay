@@ -95,6 +95,7 @@ export function createPurchasesUi(deps) {
           ${purchaseEditable ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>` : ""}
           ${purchaseEditable ? `<button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>` : ""}
           ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
+          ${["received", "paid"].includes(purchase.status) ? `<button type="button" class="ghost-button" data-purchase-action="supplier-return">Trả NCC</button>` : ""}
           ${purchaseEditable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
           ${canDeletePurchase(purchase) ? `<button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>` : ""}
         </div>
