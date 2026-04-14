@@ -35,6 +35,11 @@ Mục tiêu:
 | `ACC-PHB-01` | `tests/integration/acceptance-sales-phase-b.spec.js` | `npx playwright test tests/integration/acceptance-sales-phase-b.spec.js --grep "ACC-PHB-01"` |
 | `ACC-PHB-02` | `tests/integration/acceptance-sales-phase-b.spec.js` | `npx playwright test tests/integration/acceptance-sales-phase-b.spec.js --grep "ACC-PHB-02"` |
 | `ACC-PHB-03` | `tests/integration/acceptance-sales-phase-b.spec.js` | `npx playwright test tests/integration/acceptance-sales-phase-b.spec.js --grep "ACC-PHB-03"` |
+| `IT-PHB-01` | `tests/integration/workflow-phase-b.spec.js` | `npx playwright test tests/integration/workflow-phase-b.spec.js --grep "IT-PHB-01"` |
+| `IT-PHB-02` | `tests/integration/workflow-phase-b.spec.js` | `npx playwright test tests/integration/workflow-phase-b.spec.js --grep "IT-PHB-02"` |
+| `IT-PHB-03` | `tests/integration/workflow-phase-b.spec.js` | `npx playwright test tests/integration/workflow-phase-b.spec.js --grep "IT-PHB-03"` |
+| `IT-PHB-04` | `tests/integration/workflow-phase-b.spec.js` | `npx playwright test tests/integration/workflow-phase-b.spec.js --grep "IT-PHB-04"` |
+| `IT-PHB-05` | `tests/integration/workflow-phase-b.spec.js` | `npx playwright test tests/integration/workflow-phase-b.spec.js --grep "IT-PHB-05"` |
 | `ACC-SUP-01` | `tests/integration/management-screens.spec.js` | `npx playwright test tests/integration/management-screens.spec.js --grep "ACC-SUP-01"` |
 | `ACC-SUP-02` | `tests/integration/acceptance-checklist.spec.js` | `npx playwright test tests/integration/acceptance-checklist.spec.js --grep "ACC-SUP-02"` |
 | `ACC-REP-01` | `tests/integration/acceptance-checklist.spec.js` / `tests/integration/management-screens.spec.js` | `npx playwright test tests/integration/acceptance-checklist.spec.js tests/integration/management-screens.spec.js --grep "ACC-REP-01"` |

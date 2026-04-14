@@ -150,6 +150,7 @@ Lưu ý:
 
 - đơn đã `Đã xong` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng hay giá
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
+- kể cả `Master Admin` cũng không được xóa hoặc hủy ngược đơn đã chốt
 
 ## 6. Luồng quản lý khách hàng
 
@@ -245,6 +246,7 @@ Lưu ý:
 
 - chỉ `Nháp` và `Đã đặt` mới được sửa trực tiếp dòng hàng
 - phiếu đã `Đã nhập kho`, `Đã thanh toán` hoặc `Đã hủy` sẽ chuyển sang chế độ chỉ xem để giữ lịch sử đúng workflow
+- kể cả `Master Admin` cũng không được xóa hoặc hủy ngược các phiếu đã khóa
 
 ## 9. Luồng quản lý nhà cung cấp
 
@@ -302,6 +304,34 @@ Lưu ý:
 - `Phiếu điều chỉnh tồn` nên dùng bởi `Master Admin` khi cần xử lý chênh lệch gấp
 - Mỗi phiếu đều lưu thành giao dịch kho mới để giữ lịch sử và audit
 - Các chứng từ cũ vẫn giữ nguyên, không bị sửa đè
+
+### Cách tạo từng loại phiếu trên màn hình
+
+#### Phiếu điều chỉnh tồn
+
+1. Vào `Kiểm tra nhập xuất hàng tồn`
+2. Nếu cần điều chỉnh từ đúng một mặt hàng đang thấy trên card, bấm `Phiếu DC`
+3. Hoặc mở khối `Phiếu điều chỉnh tồn` và gõ tên sản phẩm bằng tay
+4. Nhập số lượng tăng/giảm bằng số dương hoặc âm
+5. Nhập `Lý do điều chỉnh`
+6. Bấm `Thêm dòng`
+7. Kiểm tra lại danh sách rồi bấm `Tạo phiếu điều chỉnh`
+
+#### Phiếu trả hàng khách
+
+1. Vào `Quản lý đơn hàng`
+2. Nếu có đơn nguồn, tìm đơn đã chốt rồi bấm `Trả hàng`
+3. App sẽ tạo sẵn danh sách dòng hàng theo đơn đó; có thể sửa số lượng trả, giá hoàn hoặc bỏ bớt dòng
+4. Nếu không có đơn nguồn, mở khối `Phiếu trả hàng khách`, nhập `Khách hàng`, `Sản phẩm`, `SL trả`, `Giá hoàn` rồi bấm `Thêm dòng`
+5. Bấm `Tạo phiếu trả khách`
+
+#### Phiếu trả NCC
+
+1. Vào `Quản lý nhập hàng`
+2. Nếu có phiếu nguồn, mở phiếu đã `Đã nhập kho` hoặc `Đã thanh toán` rồi bấm `Trả NCC`
+3. App sẽ tạo sẵn danh sách dòng hàng theo phiếu đó; có thể sửa số lượng trả, giá trả NCC hoặc bỏ bớt dòng
+4. Nếu không có phiếu nguồn, mở khối `Phiếu trả NCC`, nhập `Nhà cung cấp`, `Sản phẩm`, `SL trả`, `Giá trả NCC` rồi bấm `Thêm dòng`
+5. Bấm `Tạo phiếu trả NCC`
 
 1. Chọn `Tháng xem chính`
 2. Chọn `Số tháng gần nhất`

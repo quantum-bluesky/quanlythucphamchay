@@ -294,6 +294,15 @@ export function registerSalesControllerEvents(contract) {
       actions.printCart(cart.id);
       return;
     }
+    if (action === "customer-return") {
+      try {
+        actions.openCustomerReturnDraftFromCart(cart.id);
+        renderers.renderCustomerReturnSection();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (action === "paid" || action === "mark-paid") {
       cart.paymentStatus = "paid";
       actions.saveAndRenderAll(["carts"]);
@@ -308,6 +317,83 @@ export function registerSalesControllerEvents(contract) {
       state.carts = state.carts.filter((entry) => entry.id !== cart.id);
       if (state.activeCartId === cart.id) state.activeCartId = null;
       actions.saveAndRenderAll(["carts"]);
+    }
+  });
+
+  dom.customerReturnToggleButton?.addEventListener("click", () => {
+    state.customerReturnDraft.collapsed = !state.customerReturnDraft.collapsed;
+    renderers.renderCustomerReturnSection();
+  });
+
+  dom.customerReturnCustomerInput?.addEventListener("input", (event) => {
+    state.customerReturnDraft.customerName = event.target.value;
+  });
+
+  dom.customerReturnNoteInput?.addEventListener("input", (event) => {
+    state.customerReturnDraft.note = event.target.value;
+  });
+
+  dom.customerReturnProductInput?.addEventListener("input", (event) => {
+    state.customerReturnDraft.productText = event.target.value;
+  });
+
+  dom.customerReturnQuantityInput?.addEventListener("input", (event) => {
+    state.customerReturnDraft.quantity = event.target.value;
+  });
+
+  dom.customerReturnPriceInput?.addEventListener("input", (event) => {
+    state.customerReturnDraft.unitRefund = event.target.value;
+  });
+
+  dom.customerReturnAddButton?.addEventListener("click", () => {
+    try {
+      actions.addCustomerReturnDraftItem(
+        dom.customerReturnProductInput.value,
+        dom.customerReturnQuantityInput.value,
+        dom.customerReturnPriceInput.value
+      );
+      renderers.renderCustomerReturnSection();
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
+
+  dom.customerReturnItems?.addEventListener("input", (event) => {
+    const qtyInput = event.target.closest("[data-customer-return-qty]");
+    const priceInput = event.target.closest("[data-customer-return-price]");
+    const itemId = qtyInput?.dataset.customerReturnQty || priceInput?.dataset.customerReturnPrice;
+    if (!itemId) return;
+    state.customerReturnDraft.items = state.customerReturnDraft.items.map((item) => {
+      if (item.id !== itemId) return item;
+      const quantity = qtyInput ? Number(qtyInput.value) : Number(item.quantity);
+      const unitRefund = priceInput ? Number(priceInput.value) : Number(item.unitRefund);
+      return {
+        ...item,
+        quantity: Number.isFinite(quantity) ? quantity : item.quantity,
+        unitRefund: Number.isFinite(unitRefund) ? unitRefund : item.unitRefund,
+      };
+    });
+  });
+
+  dom.customerReturnItems?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-customer-return-action]");
+    if (!button) return;
+    if (button.dataset.customerReturnAction === "remove") {
+      state.customerReturnDraft.items = state.customerReturnDraft.items.filter((item) => item.id !== button.dataset.itemId);
+      renderers.renderCustomerReturnSection();
+    }
+  });
+
+  dom.customerReturnClearButton?.addEventListener("click", () => {
+    actions.resetCustomerReturnDraft({ keepCollapsed: false });
+    renderers.renderCustomerReturnSection();
+  });
+
+  dom.customerReturnSubmitButton?.addEventListener("click", async () => {
+    try {
+      await actions.submitCustomerReturnDraft();
+    } catch (error) {
+      actions.showToast(error.message, true);
     }
   });
 }
