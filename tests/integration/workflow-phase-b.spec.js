@@ -74,6 +74,17 @@ function getProduct(products, predicate, message) {
   return product;
 }
 
+async function setFloatingSearch(page, term) {
+  const toggle = page.locator("#floatingSearchToggle");
+  const input = page.locator("#floatingSearchInput");
+  if (!await input.isVisible()) {
+    await toggle.click();
+  }
+  await expect(input).toBeVisible();
+  await input.fill(term);
+  await page.waitForTimeout(250);
+}
+
 async function openHomeWithLogin(page, request, loginFn) {
   await gotoWithRetry(page, "/", { waitUntil: "networkidle" });
   await loginFn(page, request);
@@ -186,6 +197,7 @@ test("IT-PHB-02 customer return receipt UI creates from completed order", async 
     await openHomeWithLogin(page, request, autoLoginAdmin);
     await switchMenu(page, "orders");
     await page.locator("#showArchivedCarts").check();
+    await setFloatingSearch(page, customerName);
     const orderCard = page.locator(".cart-queue-item").filter({ hasText: customerName }).first();
     await expect(orderCard).toBeVisible();
     const detailButton = orderCard.locator('[data-queue-action="toggle-detail"]');
