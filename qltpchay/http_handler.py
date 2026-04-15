@@ -145,6 +145,25 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 )
                 return
 
+            if route == "/api/receipts/history":
+                query = parse_qs(parsed.query)
+                limit = query.get("limit", ["40"])[0]
+                receipt_type = query.get("receipt_type", [""])[0]
+                start_date = query.get("start_date", [None])[0]
+                end_date = query.get("end_date", [None])[0]
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "history": store.get_receipt_history(
+                            limit=int(limit),
+                            receipt_type=receipt_type,
+                            start_date=start_date,
+                            end_date=end_date,
+                        )
+                    },
+                )
+                return
+
             if route == "/api/transactions":
                 query = parse_qs(parsed.query)
                 limit = query.get("limit", ["20"])[0]
@@ -485,6 +504,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         customer_name=payload.get("customer_name", ""),
                         items=payload.get("items", []),
                         note=payload.get("note", ""),
+                        source_type=payload.get("source_type", ""),
+                        source_code=payload.get("source_code", ""),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -501,6 +522,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         supplier_name=payload.get("supplier_name", ""),
                         items=payload.get("items", []),
                         note=payload.get("note", ""),
+                        source_type=payload.get("source_type", ""),
+                        source_code=payload.get("source_code", ""),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,

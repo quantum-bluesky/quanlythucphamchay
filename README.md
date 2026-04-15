@@ -104,7 +104,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Phiếu nhập chỉ được chuyển sang `Đã thanh toán` sau khi đã `Nhập kho`, để tránh trả tiền khi hàng chưa được nhận vào tồn
 - Có API chứng từ điều chỉnh cho Phase B gồm: `phiếu điều chỉnh tồn`, `phiếu trả hàng khách`, `phiếu trả NCC` để không sửa ngược chứng từ cũ
 - Có audit log Phase D cho thay đổi trạng thái đơn/phiếu, thay đổi giá chung và lưu người thao tác để truy vết
-- Báo cáo nhập xuất theo tháng, xem xu hướng gần đây và dự báo mặt hàng nên nhập thêm
+- Báo cáo nhập xuất theo tháng, tách riêng `hoàn khách`, `trả NCC`, `điều chỉnh tồn`, có thêm khối audit chứng từ để tra cứu ngay trong màn `Báo cáo`
 - Quản lý khách hàng có thêm số liên lạc, địa chỉ ship và link Zalo
 - Màn Khách hàng và Nhà cung cấp ưu tiên hiển thị danh sách; form tạo/sửa được thu gọn và chỉ mở khi bấm `Thêm mới` hoặc `Sửa`
 - Màn Sản phẩm cũng ưu tiên hiển thị danh sách; phần `Thêm sản phẩm` và `Lịch sử sản phẩm` được thu gọn sẵn và chỉ mở khi cần
@@ -315,12 +315,22 @@ UI tương ứng:
 - màn `Tồn kho`: `Phiếu DC` hoặc khối `Phiếu điều chỉnh tồn`
 - màn `Đơn hàng`: khối `Phiếu trả hàng khách`, có thể mở sẵn từ nút `Trả hàng` trên đơn đã chốt hoặc nhập tay độc lập
 - màn `Nhập hàng`: khối `Phiếu trả NCC`, có thể mở sẵn từ nút `Trả NCC` trên phiếu đã nhập kho / đã thanh toán hoặc nhập tay độc lập
+- màn `Báo cáo`: thẻ tổng hợp, xu hướng tháng, chi tiết sản phẩm và khối `Audit chứng từ` để tra cứu 3 loại phiếu Phase B
 
 Quy tắc workflow vẫn giữ nguyên:
 
 - không sửa ngược đơn đã chốt
 - không sửa ngược phiếu đã nhập kho / đã thanh toán
 - không mở quyền `Master Admin` để xóa hoặc hủy ngược các chứng từ đã khóa
+
+API tra cứu audit chứng từ Phase B:
+
+- `GET /api/receipts/history`
+  - query hỗ trợ:
+    - `limit`: số dòng lịch sử (mặc định 40, tối đa 200)
+    - `receipt_type`: lọc theo `inventory_adjustment`, `customer_return`, `supplier_return`
+    - `start_date`: lọc từ mốc thời gian ISO (`YYYY-MM-DDTHH:MM:SS`)
+    - `end_date`: lọc đến mốc thời gian ISO (`YYYY-MM-DDTHH:MM:SS`)
 
 ## API audit lịch sử sản phẩm (Phase D)
 

@@ -12,6 +12,7 @@ from tempfile import NamedTemporaryFile
 
 from .constants import BACKUP_DIR, DATA_DIR
 from .helpers import (
+    extract_labeled_price,
     extract_cost_from_note,
     extract_price_from_note,
     month_key,
@@ -23,6 +24,30 @@ from .helpers import (
     shift_month,
     utc_now_iso,
 )
+
+PHASE_B_RECEIPT_TYPES = (
+    "inventory_adjustment",
+    "customer_return",
+    "supplier_return",
+)
+
+
+def detect_report_transaction_kind(receipt_type: str | None, note: str) -> str:
+    normalized_receipt_type = str(receipt_type or "").strip()
+    if normalized_receipt_type:
+        return normalized_receipt_type
+    clean_note = str(note or "").strip()
+    if clean_note.startswith("Phiếu trả khách"):
+        return "customer_return"
+    if clean_note.startswith("Phiếu trả NCC"):
+        return "supplier_return"
+    if clean_note.startswith("Phiếu điều chỉnh") or clean_note.startswith("Điều chỉnh trực tiếp bởi"):
+        return "inventory_adjustment"
+    if clean_note.startswith("Phiếu nhập"):
+        return "purchase"
+    if clean_note.startswith("Đơn "):
+        return "sale"
+    return ""
 
 
 class SyncConflictError(ValueError):
@@ -219,6 +244,8 @@ class InventoryStore:
                     customer_name TEXT NOT NULL DEFAULT '',
                     supplier_id TEXT NOT NULL DEFAULT '',
                     supplier_name TEXT NOT NULL DEFAULT '',
+                    source_type TEXT NOT NULL DEFAULT '',
+                    source_code TEXT NOT NULL DEFAULT '',
                     actor TEXT NOT NULL DEFAULT '',
                     reason TEXT NOT NULL DEFAULT '',
                     note TEXT NOT NULL DEFAULT '',
@@ -277,6 +304,17 @@ class InventoryStore:
             if "actor" not in audit_columns:
                 connection.execute(
                     "ALTER TABLE audit_logs ADD COLUMN actor TEXT NOT NULL DEFAULT ''"
+                )
+            receipt_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(inventory_receipts)").fetchall()
+            }
+            if "source_type" not in receipt_columns:
+                connection.execute(
+                    "ALTER TABLE inventory_receipts ADD COLUMN source_type TEXT NOT NULL DEFAULT ''"
+                )
+            if "source_code" not in receipt_columns:
+                connection.execute(
+                    "ALTER TABLE inventory_receipts ADD COLUMN source_code TEXT NOT NULL DEFAULT ''"
                 )
             for key in self.SYNC_COLLECTION_KEYS:
                 connection.execute(
@@ -742,6 +780,8 @@ class InventoryStore:
         customer_name: str = "",
         supplier_id: str = "",
         supplier_name: str = "",
+        source_type: str = "",
+        source_code: str = "",
         actor: str = "",
         reason: str = "",
         note: str = "",
@@ -751,9 +791,9 @@ class InventoryStore:
             """
             INSERT OR IGNORE INTO inventory_receipts(
                 receipt_code, receipt_type, customer_id, customer_name, supplier_id, supplier_name,
-                actor, reason, note, created_at
+                source_type, source_code, actor, reason, note, created_at
             )
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 receipt_code,
@@ -762,6 +802,8 @@ class InventoryStore:
                 customer_name,
                 supplier_id,
                 supplier_name,
+                source_type,
+                source_code,
                 actor,
                 reason,
                 note,
@@ -1293,6 +1335,79 @@ class InventoryStore:
             for row in rows
         ]
 
+    def get_receipt_history(
+        self,
+        limit: int = 40,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        receipt_type: str = "",
+    ) -> list[dict]:
+        safe_limit = max(1, min(int(limit), 200))
+        clean_receipt_type = (receipt_type or "").strip()
+        clauses = [f"ir.receipt_type IN ({','.join('?' for _ in PHASE_B_RECEIPT_TYPES)})"]
+        params: list = list(PHASE_B_RECEIPT_TYPES)
+        if clean_receipt_type in PHASE_B_RECEIPT_TYPES:
+            clauses.append("ir.receipt_type = ?")
+            params.append(clean_receipt_type)
+        if start_date:
+            clauses.append("ir.created_at >= ?")
+            params.append(str(start_date))
+        if end_date:
+            clauses.append("ir.created_at <= ?")
+            params.append(str(end_date))
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    ir.receipt_code,
+                    ir.receipt_type,
+                    ir.customer_name,
+                    ir.supplier_name,
+                    ir.actor,
+                    ir.reason,
+                    ir.note,
+                    ir.source_type,
+                    ir.source_code,
+                    ir.created_at,
+                    al.message AS audit_message,
+                    COUNT(iri.id) AS item_count,
+                    COALESCE(SUM(iri.quantity), 0) AS total_quantity,
+                    COALESCE(SUM(iri.line_total), 0) AS total_amount
+                FROM inventory_receipts ir
+                LEFT JOIN inventory_receipt_items iri ON iri.receipt_id = ir.id
+                LEFT JOIN audit_logs al
+                  ON al.entity_id = ir.receipt_code
+                 AND al.entity_type = ir.receipt_type
+                 AND al.action = 'create'
+                WHERE {where_clause}
+                GROUP BY
+                    ir.receipt_code, ir.receipt_type, ir.customer_name, ir.supplier_name, ir.actor,
+                    ir.reason, ir.note, ir.source_type, ir.source_code, ir.created_at, al.message
+                ORDER BY ir.created_at DESC, ir.id DESC
+                LIMIT ?
+                """.format(where_clause=" AND ".join(clauses)),
+                (*params, safe_limit),
+            ).fetchall()
+        return [
+            {
+                "receipt_code": row["receipt_code"],
+                "receipt_type": row["receipt_type"],
+                "customer_name": row["customer_name"] or "",
+                "supplier_name": row["supplier_name"] or "",
+                "actor": row["actor"] or "",
+                "reason": row["reason"] or "",
+                "note": row["note"] or "",
+                "source_type": row["source_type"] or "",
+                "source_code": row["source_code"] or "",
+                "created_at": row["created_at"],
+                "audit_message": row["audit_message"] or "",
+                "item_count": int(row["item_count"] or 0),
+                "total_quantity": round(float(row["total_quantity"] or 0), 2),
+                "total_amount": round(float(row["total_amount"] or 0), 2),
+            }
+            for row in rows
+        ]
+
     def reset_all_data(self) -> None:
         with self._connect() as connection:
             existing_tables = {
@@ -1770,7 +1885,11 @@ class InventoryStore:
                 entity_id=receipt_code,
                 entity_name="Phiếu điều chỉnh tồn",
                 action="create",
-                message=f"{clean_actor} tạo phiếu điều chỉnh | Lý do: {clean_reason}",
+                actor=clean_actor,
+                message=(
+                    f"Tạo phiếu điều chỉnh tồn {receipt_code} | Lý do: {clean_reason} | "
+                    f"Tăng {round(float(total_in), 2):g} | Giảm {round(float(total_out), 2):g}"
+                ),
             )
 
         return {
@@ -1789,9 +1908,13 @@ class InventoryStore:
         customer_name: str,
         items: list[dict],
         note: str = "",
+        source_type: str = "",
+        source_code: str = "",
     ) -> dict:
         clean_customer_name = (customer_name or "").strip()
         clean_note = (note or "").strip()
+        clean_source_type = (source_type or "").strip()
+        clean_source_code = (source_code or "").strip()
         if not clean_customer_name:
             raise ValueError("Khách hàng là bắt buộc.")
         if not items:
@@ -1827,6 +1950,8 @@ class InventoryStore:
                 receipt_code=receipt_code,
                 receipt_type="customer_return",
                 customer_name=clean_customer_name,
+                source_type=clean_source_type,
+                source_code=clean_source_code,
                 note=clean_note,
                 created_at=now,
             )
@@ -1882,12 +2007,18 @@ class InventoryStore:
                 entity_id=receipt_code,
                 entity_name=clean_customer_name,
                 action="create",
-                message=f"Tạo phiếu trả hàng khách {receipt_code}",
+                message=(
+                    f"Tạo phiếu trả hàng khách {receipt_code} | Khách: {clean_customer_name} | "
+                    f"Tổng SL: {round(float(total_quantity), 2):g} | Tổng hoàn: {round(float(total_amount), 2):.0f}"
+                    + (f" | Nguồn: {clean_source_code}" if clean_source_code else "")
+                ),
             )
 
         return {
             "receipt_code": receipt_code,
             "customer_name": clean_customer_name,
+            "source_type": clean_source_type,
+            "source_code": clean_source_code,
             "note": clean_note,
             "created_at": now,
             "transactions": transactions,
@@ -1900,9 +2031,13 @@ class InventoryStore:
         supplier_name: str,
         items: list[dict],
         note: str = "",
+        source_type: str = "",
+        source_code: str = "",
     ) -> dict:
         clean_supplier_name = (supplier_name or "").strip()
         clean_note = (note or "").strip()
+        clean_source_type = (source_type or "").strip()
+        clean_source_code = (source_code or "").strip()
         if not clean_supplier_name:
             raise ValueError("Nhà cung cấp là bắt buộc.")
         if not items:
@@ -1950,6 +2085,8 @@ class InventoryStore:
                 receipt_code=receipt_code,
                 receipt_type="supplier_return",
                 supplier_name=clean_supplier_name,
+                source_type=clean_source_type,
+                source_code=clean_source_code,
                 note=clean_note,
                 created_at=now,
             )
@@ -2002,12 +2139,18 @@ class InventoryStore:
                 entity_id=receipt_code,
                 entity_name=clean_supplier_name,
                 action="create",
-                message=f"Tạo phiếu trả NCC {receipt_code}",
+                message=(
+                    f"Tạo phiếu trả NCC {receipt_code} | NCC: {clean_supplier_name} | "
+                    f"Tổng SL: {round(float(total_quantity), 2):g} | Tổng trả: {round(float(total_amount), 2):.0f}"
+                    + (f" | Nguồn: {clean_source_code}" if clean_source_code else "")
+                ),
             )
 
         return {
             "receipt_code": receipt_code,
             "supplier_name": clean_supplier_name,
+            "source_type": clean_source_type,
+            "source_code": clean_source_code,
             "note": clean_note,
             "created_at": now,
             "transactions": transactions,
@@ -2592,9 +2735,15 @@ class InventoryStore:
                     t.quantity,
                     t.note,
                     t.created_at,
-                    substr(t.created_at, 1, 7) AS month_key
+                    substr(t.created_at, 1, 7) AS month_key,
+                    ir.receipt_type,
+                    ir.receipt_code,
+                    iri.unit_amount AS receipt_unit_amount,
+                    iri.line_total AS receipt_line_total
                 FROM transactions t
                 INNER JOIN products p ON p.id = t.product_id
+                LEFT JOIN inventory_receipt_items iri ON iri.transaction_id = t.id
+                LEFT JOIN inventory_receipts ir ON ir.id = iri.receipt_id
                 WHERE {where_clause}
                 ORDER BY t.created_at DESC, t.id DESC
                 """,
@@ -2610,6 +2759,12 @@ class InventoryStore:
                 "revenue_value": 0.0,
                 "cogs_value": 0.0,
                 "gross_profit_value": 0.0,
+                "adjustment_in_quantity": 0.0,
+                "adjustment_out_quantity": 0.0,
+                "customer_return_quantity": 0.0,
+                "customer_return_value": 0.0,
+                "supplier_return_quantity": 0.0,
+                "supplier_return_value": 0.0,
                 "in_value": 0.0,
                 "out_value": 0.0,
                 "net_value": 0.0,
@@ -2628,10 +2783,27 @@ class InventoryStore:
             fallback_price = float(row["price"])
             fallback_sale_price = float(row["sale_price"])
             note = row["note"] or ""
+            transaction_kind = detect_report_transaction_kind(row["receipt_type"], note)
+            receipt_unit_amount = (
+                float(row["receipt_unit_amount"])
+                if row["receipt_unit_amount"] is not None
+                else None
+            )
+            receipt_line_total = (
+                float(row["receipt_line_total"])
+                if row["receipt_line_total"] is not None
+                else None
+            )
 
             purchase_unit_cost = extract_price_from_note(note, "in")
             sale_unit_price = extract_price_from_note(note, "out")
             sale_unit_cost = extract_cost_from_note(note)
+            if transaction_kind == "purchase" and receipt_unit_amount is not None:
+                purchase_unit_cost = receipt_unit_amount
+            if transaction_kind == "customer_return" and receipt_unit_amount is None:
+                receipt_unit_amount = extract_labeled_price(note, "Giá hoàn")
+            if transaction_kind == "supplier_return" and receipt_unit_amount is None:
+                receipt_unit_amount = extract_labeled_price(note, "Giá trả")
             if purchase_unit_cost is None:
                 purchase_unit_cost = fallback_price
             if sale_unit_price is None:
@@ -2639,13 +2811,59 @@ class InventoryStore:
             if sale_unit_cost is None:
                 sale_unit_cost = fallback_price
 
-            purchase_amount = round(quantity * purchase_unit_cost, 2)
+            purchase_amount = round(
+                receipt_line_total if transaction_kind == "purchase" and receipt_line_total is not None else quantity * purchase_unit_cost,
+                2,
+            )
             revenue_amount = round(quantity * sale_unit_price, 2)
             cogs_amount = round(quantity * sale_unit_cost, 2)
             gross_profit_amount = round(revenue_amount - cogs_amount, 2)
+            customer_return_amount = round(
+                receipt_line_total
+                if transaction_kind == "customer_return" and receipt_line_total is not None
+                else quantity * float(receipt_unit_amount or 0),
+                2,
+            )
+            supplier_return_amount = round(
+                receipt_line_total
+                if transaction_kind == "supplier_return" and receipt_line_total is not None
+                else quantity * float(receipt_unit_amount or 0),
+                2,
+            )
 
             bucket = monthly_totals[row_month]
-            if row["transaction_type"] == "in":
+            if transaction_kind == "purchase":
+                bucket["in_quantity"] += quantity
+                bucket["purchase_value"] += purchase_amount
+                bucket["in_value"] += purchase_amount
+            elif transaction_kind == "sale":
+                bucket["out_quantity"] += quantity
+                bucket["revenue_value"] += revenue_amount
+                bucket["cogs_value"] += cogs_amount
+                bucket["gross_profit_value"] += gross_profit_amount
+                bucket["out_value"] += revenue_amount
+                bucket["net_value"] += gross_profit_amount
+                if row_month in monthly_out_by_product:
+                    current = monthly_out_by_product[row_month].get(row["product_id"], 0.0)
+                    monthly_out_by_product[row_month][row["product_id"]] = current + quantity
+            elif transaction_kind == "customer_return":
+                bucket["in_quantity"] += quantity
+                bucket["customer_return_quantity"] += quantity
+                bucket["customer_return_value"] += customer_return_amount
+                bucket["in_value"] += customer_return_amount
+            elif transaction_kind == "supplier_return":
+                bucket["out_quantity"] += quantity
+                bucket["supplier_return_quantity"] += quantity
+                bucket["supplier_return_value"] += supplier_return_amount
+                bucket["out_value"] += supplier_return_amount
+            elif transaction_kind == "inventory_adjustment":
+                if row["transaction_type"] == "in":
+                    bucket["in_quantity"] += quantity
+                    bucket["adjustment_in_quantity"] += quantity
+                else:
+                    bucket["out_quantity"] += quantity
+                    bucket["adjustment_out_quantity"] += quantity
+            elif row["transaction_type"] == "in":
                 bucket["in_quantity"] += quantity
                 bucket["purchase_value"] += purchase_amount
                 bucket["in_value"] += purchase_amount
@@ -2676,12 +2894,46 @@ class InventoryStore:
                         "revenue_value": 0.0,
                         "cogs_value": 0.0,
                         "gross_profit_value": 0.0,
+                        "adjustment_in_quantity": 0.0,
+                        "adjustment_out_quantity": 0.0,
+                        "customer_return_quantity": 0.0,
+                        "customer_return_value": 0.0,
+                        "supplier_return_quantity": 0.0,
+                        "supplier_return_value": 0.0,
                         "in_value": 0.0,
                         "out_value": 0.0,
                         "net_value": 0.0,
                     },
                 )
-                if row["transaction_type"] == "in":
+                if transaction_kind == "purchase":
+                    product_entry["in_quantity"] += quantity
+                    product_entry["purchase_value"] += purchase_amount
+                    product_entry["in_value"] += purchase_amount
+                elif transaction_kind == "sale":
+                    product_entry["out_quantity"] += quantity
+                    product_entry["revenue_value"] += revenue_amount
+                    product_entry["cogs_value"] += cogs_amount
+                    product_entry["gross_profit_value"] += gross_profit_amount
+                    product_entry["out_value"] += revenue_amount
+                    product_entry["net_value"] += gross_profit_amount
+                elif transaction_kind == "customer_return":
+                    product_entry["in_quantity"] += quantity
+                    product_entry["customer_return_quantity"] += quantity
+                    product_entry["customer_return_value"] += customer_return_amount
+                    product_entry["in_value"] += customer_return_amount
+                elif transaction_kind == "supplier_return":
+                    product_entry["out_quantity"] += quantity
+                    product_entry["supplier_return_quantity"] += quantity
+                    product_entry["supplier_return_value"] += supplier_return_amount
+                    product_entry["out_value"] += supplier_return_amount
+                elif transaction_kind == "inventory_adjustment":
+                    if row["transaction_type"] == "in":
+                        product_entry["in_quantity"] += quantity
+                        product_entry["adjustment_in_quantity"] += quantity
+                    else:
+                        product_entry["out_quantity"] += quantity
+                        product_entry["adjustment_out_quantity"] += quantity
+                elif row["transaction_type"] == "in":
                     product_entry["in_quantity"] += quantity
                     product_entry["purchase_value"] += purchase_amount
                     product_entry["in_value"] += purchase_amount
@@ -2789,10 +3041,19 @@ class InventoryStore:
             bucket["revenue_value"] = round(bucket["revenue_value"], 2)
             bucket["cogs_value"] = round(bucket["cogs_value"], 2)
             bucket["gross_profit_value"] = round(bucket["gross_profit_value"], 2)
+            bucket["adjustment_in_quantity"] = round(bucket["adjustment_in_quantity"], 2)
+            bucket["adjustment_out_quantity"] = round(bucket["adjustment_out_quantity"], 2)
+            bucket["customer_return_quantity"] = round(bucket["customer_return_quantity"], 2)
+            bucket["customer_return_value"] = round(bucket["customer_return_value"], 2)
+            bucket["supplier_return_quantity"] = round(bucket["supplier_return_quantity"], 2)
+            bucket["supplier_return_value"] = round(bucket["supplier_return_value"], 2)
             bucket["in_value"] = round(bucket["in_value"], 2)
             bucket["out_value"] = round(bucket["out_value"], 2)
             bucket["net_quantity"] = round(bucket["in_quantity"] - bucket["out_quantity"], 2)
-            bucket["net_value"] = round(bucket["net_value"], 2)
+            bucket["net_value"] = round(
+                bucket["gross_profit_value"] - bucket["customer_return_value"] + bucket["supplier_return_value"],
+                2,
+            )
             months_payload.append(bucket)
 
         def build_summary_from_buckets(buckets: list[dict], month_value: str | None = None) -> dict:
@@ -2804,10 +3065,19 @@ class InventoryStore:
             summary["revenue_value"] = round(sum(bucket["revenue_value"] for bucket in buckets), 2)
             summary["cogs_value"] = round(sum(bucket["cogs_value"] for bucket in buckets), 2)
             summary["gross_profit_value"] = round(sum(bucket["gross_profit_value"] for bucket in buckets), 2)
-            summary["in_value"] = summary["purchase_value"]
-            summary["out_value"] = summary["revenue_value"]
+            summary["adjustment_in_quantity"] = round(sum(bucket["adjustment_in_quantity"] for bucket in buckets), 2)
+            summary["adjustment_out_quantity"] = round(sum(bucket["adjustment_out_quantity"] for bucket in buckets), 2)
+            summary["customer_return_quantity"] = round(sum(bucket["customer_return_quantity"] for bucket in buckets), 2)
+            summary["customer_return_value"] = round(sum(bucket["customer_return_value"] for bucket in buckets), 2)
+            summary["supplier_return_quantity"] = round(sum(bucket["supplier_return_quantity"] for bucket in buckets), 2)
+            summary["supplier_return_value"] = round(sum(bucket["supplier_return_value"] for bucket in buckets), 2)
+            summary["in_value"] = round(sum(bucket["in_value"] for bucket in buckets), 2)
+            summary["out_value"] = round(sum(bucket["out_value"] for bucket in buckets), 2)
             summary["net_quantity"] = round(summary["in_quantity"] - summary["out_quantity"], 2)
-            summary["net_value"] = summary["gross_profit_value"]
+            summary["net_value"] = round(
+                summary["gross_profit_value"] - summary["customer_return_value"] + summary["supplier_return_value"],
+                2,
+            )
             if month_value:
                 summary["month"] = month_value
             return summary
@@ -2834,9 +3104,18 @@ class InventoryStore:
             item["revenue_value"] = round(float(item["revenue_value"]), 2)
             item["cogs_value"] = round(float(item["cogs_value"]), 2)
             item["gross_profit_value"] = round(float(item["gross_profit_value"]), 2)
+            item["adjustment_in_quantity"] = round(float(item["adjustment_in_quantity"]), 2)
+            item["adjustment_out_quantity"] = round(float(item["adjustment_out_quantity"]), 2)
+            item["customer_return_quantity"] = round(float(item["customer_return_quantity"]), 2)
+            item["customer_return_value"] = round(float(item["customer_return_value"]), 2)
+            item["supplier_return_quantity"] = round(float(item["supplier_return_quantity"]), 2)
+            item["supplier_return_value"] = round(float(item["supplier_return_value"]), 2)
             item["in_value"] = round(float(item["in_value"]), 2)
             item["out_value"] = round(float(item["out_value"]), 2)
-            item["net_value"] = round(float(item["net_value"]), 2)
+            item["net_value"] = round(
+                float(item["gross_profit_value"]) - float(item["customer_return_value"]) + float(item["supplier_return_value"]),
+                2,
+            )
 
         return {
             "focus_month": focus_key,

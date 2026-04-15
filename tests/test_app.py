@@ -135,6 +135,118 @@ class InventoryStoreTests(unittest.TestCase):
                 reason="",
             )
 
+    def test_ut_rep_01_monthly_report_separates_phase_b_receipts_from_sales_and_purchases(self) -> None:
+        product = self.store.create_product(
+            name="Bò lát chay",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=2,
+        )
+        self.store.create_purchase_receipt(
+            supplier_name="NCC Phase B",
+            items=[{"product_id": product["id"], "quantity": 5, "unit_cost": 12000}],
+            note="Nhập test report",
+        )
+        self.store.create_checkout_order(
+            customer_name="Khách report",
+            items=[{"product_id": product["id"], "quantity": 2, "unit_price": 18000}],
+            note="Bán test report",
+        )
+        self.store.create_customer_return_receipt(
+            customer_name="Khách report",
+            source_type="order",
+            source_code="DH-UT-REP-01",
+            items=[{"product_id": product["id"], "quantity": 1, "unit_refund": 17000}],
+            note="Khách đổi lại 1 gói",
+        )
+        self.store.create_supplier_return_receipt(
+            supplier_name="NCC Phase B",
+            source_type="purchase",
+            source_code="PN-UT-REP-01",
+            items=[{"product_id": product["id"], "quantity": 1, "unit_cost": 12000}],
+            note="Trả NCC 1 gói lỗi",
+        )
+        self.store.create_inventory_adjustment_receipt(
+            items=[
+                {"product_id": product["id"], "quantity_delta": 2},
+                {"product_id": product["id"], "quantity_delta": -1},
+            ],
+            reason="Kiểm kho chênh lệch",
+            actor="masteradmin",
+            note="ACC-UT-REP-01",
+        )
+
+        report = self.store.get_monthly_report(
+            months=3,
+            focus_month=datetime.now().strftime("%Y-%m"),
+        )
+        focus = report["focus_summary"]
+        product_activity = next(
+            entry for entry in report["product_activity"] if entry["product_id"] == product["id"]
+        )
+
+        self.assertEqual(focus["purchase_value"], 60000.0)
+        self.assertEqual(focus["revenue_value"], 36000.0)
+        self.assertEqual(focus["cogs_value"], 24000.0)
+        self.assertEqual(focus["gross_profit_value"], 12000.0)
+        self.assertEqual(focus["customer_return_quantity"], 1.0)
+        self.assertEqual(focus["customer_return_value"], 17000.0)
+        self.assertEqual(focus["supplier_return_quantity"], 1.0)
+        self.assertEqual(focus["supplier_return_value"], 12000.0)
+        self.assertEqual(focus["adjustment_in_quantity"], 2.0)
+        self.assertEqual(focus["adjustment_out_quantity"], 1.0)
+        self.assertEqual(product_activity["customer_return_value"], 17000.0)
+        self.assertEqual(product_activity["supplier_return_value"], 12000.0)
+        self.assertEqual(product_activity["adjustment_in_quantity"], 2.0)
+        self.assertEqual(product_activity["adjustment_out_quantity"], 1.0)
+
+    def test_ut_aud_03_receipt_history_lists_phase_b_receipts_with_source_context(self) -> None:
+        product = self.store.create_product(
+            name="Cá viên chay",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        self.store.create_transaction(product["id"], "in", 4, "Tồn đầu test audit")
+
+        adjustment = self.store.create_inventory_adjustment_receipt(
+            items=[{"product_id": product["id"], "quantity_delta": -1}],
+            reason="Kiểm kho",
+            actor="masteradmin",
+            note="UT-AUD-03",
+        )
+        customer_return = self.store.create_customer_return_receipt(
+            customer_name="Khách audit",
+            source_type="order",
+            source_code="DH-AUD-03",
+            items=[{"product_id": product["id"], "quantity": 1, "unit_refund": 25000}],
+            note="Khách đổi hàng",
+        )
+        supplier_return = self.store.create_supplier_return_receipt(
+            supplier_name="NCC audit",
+            source_type="purchase",
+            source_code="PN-AUD-03",
+            items=[{"product_id": product["id"], "quantity": 1, "unit_cost": 15000}],
+            note="NCC thu hồi",
+        )
+
+        history = self.store.get_receipt_history(limit=10)
+        by_code = {entry["receipt_code"]: entry for entry in history}
+
+        self.assertIn(adjustment["receipt_code"], by_code)
+        self.assertIn(customer_return["receipt_code"], by_code)
+        self.assertIn(supplier_return["receipt_code"], by_code)
+        self.assertEqual(by_code[customer_return["receipt_code"]]["source_type"], "order")
+        self.assertEqual(by_code[customer_return["receipt_code"]]["source_code"], "DH-AUD-03")
+        self.assertIn("Tạo phiếu trả hàng khách", by_code[customer_return["receipt_code"]]["audit_message"])
+        self.assertEqual(by_code[supplier_return["receipt_code"]]["source_type"], "purchase")
+        self.assertEqual(by_code[supplier_return["receipt_code"]]["source_code"], "PN-AUD-03")
+        self.assertIn("Tạo phiếu trả NCC", by_code[supplier_return["receipt_code"]]["audit_message"])
+        self.assertEqual(by_code[adjustment["receipt_code"]]["reason"], "Kiểm kho")
+        self.assertIn("Tạo phiếu điều chỉnh tồn", by_code[adjustment["receipt_code"]]["audit_message"])
+
     def test_ut_sync_01_save_sync_state_accepts_matching_expected_updated_at(self) -> None:
         initial = self.store.get_sync_state()
         expected = initial["updated_at"]["carts"]

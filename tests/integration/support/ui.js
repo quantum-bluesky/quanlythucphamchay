@@ -28,7 +28,13 @@ async function expectScreenTitle(page, title) {
   await expect(page.locator("#activeScreenBarTitle")).toHaveText(title);
 }
 
+async function waitForAppReady(page) {
+  await expect(page.locator("#appVersionButton")).not.toContainText("Đang tải", { timeout: 10000 });
+  await page.waitForTimeout(200);
+}
+
 async function switchMenu(page, menu) {
+  await waitForAppReady(page);
   const toggle = page.locator("#menuToggleButton");
   const menuPanel = page.locator("#menuPanel");
   if (await menuPanel.evaluate((node) => node.classList.contains("is-edge-hidden"))) {
@@ -213,4 +219,5 @@ module.exports = {
   gotoWithRetry,
   reloadHealthy,
   switchMenu,
+  waitForAppReady,
 };

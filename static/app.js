@@ -130,6 +130,7 @@ import {
   reportMonthTrend,
   forecastList,
   reportProductActivity,
+  reportReceiptHistorySection,
   reportsSection,
   reportFiltersSection,
   reportFiltersWrap,
@@ -231,6 +232,7 @@ let purchasesUi = null;
 let entitiesUi = null;
 let reportsAdminUi = null;
 let adminSessionReminderTimer = null;
+window.__QLTPCHAY_APP_READY = false;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
 const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
 function attachSearchClearButton(input, container) {
@@ -659,6 +661,8 @@ function getReportsAdminUi() {
         reportMonthTrend,
         forecastList,
         reportProductActivity,
+        reportReceiptHistorySection,
+        reportReceiptHistoryList,
         adminLoginPanel,
         adminModulePanel,
         adminSessionHeader,
@@ -784,6 +788,7 @@ function focusReportSection(kind) {
     summary: reportSummaryCards,
     trend: reportTrendSection,
     forecast: reportForecastSection,
+    audit: reportReceiptHistorySection,
   };
   const target = targets[kind] || reportSummaryCards;
   window.setTimeout(() => {
@@ -811,6 +816,39 @@ function hasCompleteReportDateFilter() {
   return Boolean(state.reportStartDate && state.reportEndDate);
 }
 
+function getReportReceiptHistoryWindow() {
+  if (hasCompleteReportDateFilter()) {
+    return {
+      startDateTime: `${state.reportStartDate}T00:00:00`,
+      endDateTime: `${state.reportEndDate}T23:59:59`,
+    };
+  }
+  const focusMonth = String(state.reportFocusMonth || new Date().toISOString().slice(0, 7)).trim();
+  const match = focusMonth.match(/^(\d{4})-(\d{2})$/);
+  if (!match) {
+    return { startDateTime: "", endDateTime: "" };
+  }
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]);
+  const lastDay = new Date(year, monthIndex, 0).getDate();
+  return {
+    startDateTime: `${focusMonth}-01T00:00:00`,
+    endDateTime: `${focusMonth}-${String(lastDay).padStart(2, "0")}T23:59:59`,
+  };
+}
+
+function buildReceiptHistoryParams() {
+  const receiptHistoryParams = new URLSearchParams({ limit: "40" });
+  const receiptHistoryWindow = getReportReceiptHistoryWindow();
+  if (receiptHistoryWindow.startDateTime) {
+    receiptHistoryParams.set("start_date", receiptHistoryWindow.startDateTime);
+  }
+  if (receiptHistoryWindow.endDateTime) {
+    receiptHistoryParams.set("end_date", receiptHistoryWindow.endDateTime);
+  }
+  return receiptHistoryParams;
+}
+
 function getSearchTermForKey(key) {
   const value = {
     inventory: state.searchTerm,
@@ -823,6 +861,7 @@ function getSearchTermForKey(key) {
     suppliers: state.supplierSearchTerm,
     reportProducts: "",
     reportForecast: "",
+    reportReceipts: "",
   }[key];
   return String(value || "").trim();
 }
@@ -843,6 +882,7 @@ function getPageSize(key) {
     suppliers: 4,
     reportProducts: 4,
     reportForecast: 4,
+    reportReceipts: 4,
   };
   const desktopSizes = {
     inventory: 9,
@@ -855,6 +895,7 @@ function getPageSize(key) {
     suppliers: 6,
     reportProducts: 9,
     reportForecast: 6,
+    reportReceipts: 6,
   };
   return mobileQuery.matches ? (mobileSizes[key] || 6) : (desktopSizes[key] || 9);
 }
@@ -1217,7 +1258,18 @@ function switchMenu(menu, { recordHistory = true } = {}) {
     showToast("Cần login trước khi dùng hệ thống.", true);
     menu = "login";
   }
-  return getNavigationRuntimeHelpers().switchMenu(menu, { recordHistory });
+  const result = getNavigationRuntimeHelpers().switchMenu(menu, { recordHistory });
+  if (menu === "reports") {
+    window.setTimeout(async () => {
+      try {
+        await refreshReportData();
+        renderReports();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    }, 0);
+  }
+  return result;
 }
 
 function navigateMenuHistory(direction) {
@@ -1800,6 +1852,7 @@ function clearProtectedSessionData() {
   state.products = [];
   state.deletedProducts = [];
   state.productHistory = [];
+  state.receiptHistory = [];
   state.transactions = [];
   state.summary = null;
   state.reports = null;
@@ -2067,6 +2120,12 @@ async function refreshReportData() {
   }
   state.reports = await apiRequest(`/api/reports/monthly?${params.toString()}`);
   state.reportFocusMonth = state.reports?.focus_month || focusMonth;
+  const shouldLoadReceiptHistory = state.activeMenu === "reports";
+  if (shouldLoadReceiptHistory) {
+    const receiptHistoryPayload = await apiRequest(`/api/receipts/history?${buildReceiptHistoryParams().toString()}`);
+    state.receiptHistory = receiptHistoryPayload.history || [];
+  }
+  return state.reports;
 }
 
 async function refreshData({ sessionAlreadyLoaded = false } = {}) {
@@ -2741,6 +2800,7 @@ function renderAll() {
   renderScreenToolbox();
   renderFloatingSearchDock();
   refreshSearchClearButtons();
+  window.__QLTPCHAY_APP_READY = true;
 }
 
 function buildPrintMarkup(cart) {
@@ -2919,6 +2979,8 @@ async function submitCustomerReturnDraft() {
     body: JSON.stringify({
       customer_name: customerName,
       note: finalNote,
+      source_type: sourceCart?.orderCode ? "order" : "",
+      source_code: sourceCart?.orderCode || "",
       items: draft.items.map((item) => ({
         product_id: item.productId,
         quantity: item.quantity,
@@ -2951,6 +3013,8 @@ async function submitSupplierReturnDraft() {
     body: JSON.stringify({
       supplier_name: supplierName,
       note: finalNote,
+      source_type: sourcePurchase?.receiptCode ? "purchase" : "",
+      source_code: sourcePurchase?.receiptCode || "",
       items: draft.items.map((item) => ({
         product_id: item.productId,
         quantity: item.quantity,
@@ -3389,6 +3453,7 @@ registerReportsAdminControllerEvents({
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
+  window.__QLTPCHAY_APP_READY = false;
   setupSearchClearButtons();
   loadSalesState();
   setHelpOpen(false);
@@ -3401,8 +3466,10 @@ window.addEventListener("DOMContentLoaded", async () => {
       state.activeMenu = "login";
       state.menuHistory = ["login"];
       state.menuHistoryIndex = 0;
+      renderAll();
+      startAutoRefreshLoop();
+      return;
     }
-    renderAll();
     const payload = await refreshData({ sessionAlreadyLoaded: true });
     const migrated = await migrateLegacyCollectionsIfNeeded(payload);
     if (!readStorage(STORAGE_KEYS.migratedSyncState, false) && hasAnySyncedData(payload)) {
