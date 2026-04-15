@@ -6,6 +6,7 @@
 
 - Deploy Windows: [docs/DEPLOY_WINDOWS.md](docs/DEPLOY_WINDOWS.md)
 - Hướng dẫn sử dụng: [docs/HUONG_DAN_SU_DUNG.md](docs/HUONG_DAN_SU_DUNG.md)
+- Bảng thuật ngữ Anh - Việt: [docs/TERM_GLOSSARY.md](docs/TERM_GLOSSARY.md)
 - Hướng dẫn test: [docs/TESTING.md](docs/TESTING.md)
 - Acceptance checklist: [docs/ACCEPTANCE_CHECKLIST.md](docs/ACCEPTANCE_CHECKLIST.md)
 - Phân tích workflow: [docs/WORKFLOW_REVIEW.md](docs/WORKFLOW_REVIEW.md)

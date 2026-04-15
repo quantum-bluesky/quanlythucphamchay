@@ -11,6 +11,8 @@ Ngoài ra có thêm `acceptance checklist` để kiểm soát case bàn giao:
 
 - checklist: `docs/ACCEPTANCE_CHECKLIST.md`
 - automation bundle: `npm run test:acceptance`
+- mapping mã test: `docs/TEST_CASE_INDEX.md`
+- mô tả ngắn test case: `docs/TEST_CASE_DESCRIPTIONS.md`
 
 ## 0. Setup tool trước khi test
 
@@ -229,4 +231,5 @@ Case mới cho Phase B.4:
 - Nếu sửa workflow, label, selector hoặc menu, hãy cập nhật test tương ứng
 - Nếu thêm hoặc đổi workflow nghiệp vụ, hãy cập nhật luôn checklist acceptance để người test và agent dùng chung một chuẩn
 - Nếu thêm test mới, hãy đặt mã case ở đầu tên test hoặc method name để có thể lọc theo mã
+- Nếu thêm/sửa/xóa mã test, hãy cập nhật đồng thời `docs/TEST_CASE_INDEX.md` và `docs/TEST_CASE_DESCRIPTIONS.md`
 - Nếu cần điều tra lỗi sync nhiều máy, có thể bật `debug.sync_state=true` trong `data/system_config.json` để xem log `/api/state` ở console server và browser
