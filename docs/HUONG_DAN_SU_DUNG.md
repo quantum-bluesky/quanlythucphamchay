@@ -2,6 +2,8 @@
 
 Tài liệu này dành cho người trực tiếp dùng ứng dụng hằng ngày.
 
+Nếu gặp các trạng thái hoặc thuật ngữ tiếng Anh như `draft`, `ordered`, `received`, `paid`, xem thêm bảng tra cứu tại [docs/TERM_GLOSSARY.md](/D:/Quan/quanlythucphamchay/docs/TERM_GLOSSARY.md).
+
 ## 1. Mục tiêu sử dụng
 
 Ứng dụng dùng để:
