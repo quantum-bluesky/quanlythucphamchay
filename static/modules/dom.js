@@ -128,6 +128,8 @@ export const reportSummaryCards = document.getElementById("reportSummaryCards");
 export const reportMonthTrend = document.getElementById("reportMonthTrend");
 export const forecastList = document.getElementById("forecastList");
 export const reportProductActivity = document.getElementById("reportProductActivity");
+export const reportReceiptHistorySection = document.getElementById("reportReceiptHistorySection");
+export const reportReceiptHistoryList = document.getElementById("reportReceiptHistoryList");
 export const reportsSection = document.querySelector('[data-menu-section="reports"]');
 export const reportFiltersSection = document.getElementById("reportFiltersSection");
 export const reportFiltersWrap = document.getElementById("reportFiltersWrap");

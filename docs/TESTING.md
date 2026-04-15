@@ -187,6 +187,7 @@ Các nhóm kiểm tra chính:
 - `Master Admin`: login admin, export/import file master (`JSON` + `CSV`), backup, restore
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
 - `Phase B UI`: tạo phiếu điều chỉnh trên màn tồn kho, tạo phiếu trả khách từ đơn cũ hoặc nhập tay, tạo phiếu trả NCC từ phiếu nhập cũ hoặc nhập tay
+- `Phase B.4 report/audit`: báo cáo tháng tách riêng hoàn khách, trả NCC, điều chỉnh tồn và API tra cứu lịch sử chứng từ
 - `UI mobile floating`: menu nổi, tìm kiếm nhanh và cụm nút điều hướng auto-hide vào mép màn hình rồi mở lại an toàn
 
 Ngoài click thao tác, suite còn kiểm tra:
@@ -214,6 +215,12 @@ Ngoài click thao tác, suite còn kiểm tra:
   - `tests/integration/cross-client-sync.spec.js`
   - `tests/integration/workflow-phase-a.spec.js`
   - `tests/integration/workflow-phase-c.spec.js`
+
+Case mới cho Phase B.4:
+
+- `ACC-PHB-04`: báo cáo tháng và audit chứng từ phản ánh đúng `phiếu trả khách`, `phiếu trả NCC`, `phiếu điều chỉnh tồn`
+- `UT-REP-01`: backend report tách riêng sale/purchase với customer return / supplier return / adjustment
+- `UT-AUD-03`: receipt history trả về source link và audit message cho 3 loại phiếu Phase B
 
 ## Lưu ý
 

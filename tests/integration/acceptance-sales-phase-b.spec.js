@@ -58,6 +58,28 @@ async function fetchTransactions(request, cookie, limit = 10) {
   return payload.transactions || [];
 }
 
+async function fetchMonthlyReport(request, cookie, focusMonth) {
+  const response = await request.get(`/api/reports/monthly?months=3&focus_month=${focusMonth}`, {
+    headers: { Cookie: cookie },
+  });
+  expect(response.ok()).toBeTruthy();
+  return response.json();
+}
+
+async function fetchReceiptHistory(request, cookie, startDateTime, endDateTime) {
+  const params = new URLSearchParams({
+    limit: "20",
+    start_date: startDateTime,
+    end_date: endDateTime,
+  });
+  const response = await request.get(`/api/receipts/history?${params.toString()}`, {
+    headers: { Cookie: cookie },
+  });
+  expect(response.ok()).toBeTruthy();
+  const payload = await response.json();
+  return payload.history || [];
+}
+
 async function fetchSyncState(request, cookie) {
   const response = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
@@ -365,6 +387,153 @@ test("ACC-PHB-03 supplier return receipt reduces stock and writes transaction no
     expect(transactions[0].note).toContain(payload.receipt.receipt_code);
     expect(transactions[0].note).toContain("NCC: NCC ACC Phase B");
     expect(transactions[0].note).toContain("Trả lại hàng lỗi bao bì");
+  } finally {
+    await restoreBackupSnapshot(request, snapshot);
+  }
+});
+
+test("ACC-PHB-04 reports and receipt audit track phase B receipts separately", async ({ request }) => {
+  const snapshot = await createBackupSnapshot(request);
+
+  try {
+    const adminCookie = await loginAdminApi(request);
+    const focusMonth = new Date().toISOString().slice(0, 7);
+    const reportBefore = await fetchMonthlyReport(request, adminCookie, focusMonth);
+    const beforeFocus = reportBefore.focus_summary || {};
+    const beforeProductActivity = reportBefore.product_activity || [];
+    const beforeHistory = await fetchReceiptHistory(
+      request,
+      adminCookie,
+      `${focusMonth}-01T00:00:00`,
+      `${focusMonth}-31T23:59:59`
+    );
+
+    const beforeProducts = await fetchProducts(request, adminCookie);
+    const product = getProduct(
+      beforeProducts,
+      () => true,
+      "Không tìm thấy sản phẩm để kiểm thử báo cáo Phase B."
+    );
+
+    const purchaseResponse = await request.post("/api/purchases/receive", {
+      headers: { Cookie: adminCookie },
+      data: {
+        supplier_name: "NCC ACC PHB 04",
+        note: "ACC-PHB-04 purchase",
+        items: [
+          {
+            product_id: product.id,
+            quantity: 5,
+            unit_cost: 12000,
+          },
+        ],
+      },
+    });
+    expect(purchaseResponse.status()).toBe(201);
+    const purchasePayload = await purchaseResponse.json();
+
+    const checkoutResponse = await request.post("/api/orders/checkout", {
+      headers: { Cookie: adminCookie },
+      data: {
+        customer_name: "Khách ACC PHB 04",
+        note: "ACC-PHB-04 sale",
+        items: [
+          {
+            product_id: product.id,
+            quantity: 2,
+            unit_price: 18000,
+          },
+        ],
+      },
+    });
+    expect(checkoutResponse.status()).toBe(201);
+    const checkoutPayload = await checkoutResponse.json();
+
+    const customerReturnResponse = await request.post("/api/returns/customers", {
+      headers: { Cookie: adminCookie },
+      data: {
+        customer_name: "Khách ACC PHB 04",
+        source_type: "order",
+        source_code: checkoutPayload.order.order_code,
+        note: "ACC-PHB-04 customer-return",
+        items: [
+          {
+            product_id: product.id,
+            quantity: 1,
+            unit_refund: 17000,
+          },
+        ],
+      },
+    });
+    expect(customerReturnResponse.status()).toBe(201);
+    const customerReturnPayload = await customerReturnResponse.json();
+
+    const supplierReturnResponse = await request.post("/api/returns/suppliers", {
+      headers: { Cookie: adminCookie },
+      data: {
+        supplier_name: "NCC ACC PHB 04",
+        source_type: "purchase",
+        source_code: purchasePayload.receipt.receipt_code,
+        note: "ACC-PHB-04 supplier-return",
+        items: [
+          {
+            product_id: product.id,
+            quantity: 1,
+            unit_cost: 12000,
+          },
+        ],
+      },
+    });
+    expect(supplierReturnResponse.status()).toBe(201);
+    const supplierReturnPayload = await supplierReturnResponse.json();
+
+    const adjustmentResponse = await request.post("/api/adjustments/inventory", {
+      headers: { Cookie: adminCookie },
+      data: {
+        reason: "ACC-PHB-04 adjustment",
+        note: "ACC-PHB-04 adjustment",
+        items: [
+          { product_id: product.id, quantity_delta: 2 },
+          { product_id: product.id, quantity_delta: -1 },
+        ],
+      },
+    });
+    expect(adjustmentResponse.status()).toBe(201);
+    const adjustmentPayload = await adjustmentResponse.json();
+
+    const reportAfter = await fetchMonthlyReport(request, adminCookie, focusMonth);
+    const afterFocus = reportAfter.focus_summary || {};
+    const productAfter = (reportAfter.product_activity || []).find((entry) => entry.product_id === product.id);
+    const productBefore = beforeProductActivity.find((entry) => entry.product_id === product.id) || {
+      customer_return_value: 0,
+      supplier_return_value: 0,
+      adjustment_in_quantity: 0,
+      adjustment_out_quantity: 0,
+    };
+
+    expect(Number(afterFocus.purchase_value) - Number(beforeFocus.purchase_value || 0)).toBeCloseTo(60000, 2);
+    expect(Number(afterFocus.revenue_value) - Number(beforeFocus.revenue_value || 0)).toBeCloseTo(36000, 2);
+    expect(Number(afterFocus.customer_return_value) - Number(beforeFocus.customer_return_value || 0)).toBeCloseTo(17000, 2);
+    expect(Number(afterFocus.supplier_return_value) - Number(beforeFocus.supplier_return_value || 0)).toBeCloseTo(12000, 2);
+    expect(Number(afterFocus.adjustment_in_quantity) - Number(beforeFocus.adjustment_in_quantity || 0)).toBeCloseTo(2, 2);
+    expect(Number(afterFocus.adjustment_out_quantity) - Number(beforeFocus.adjustment_out_quantity || 0)).toBeCloseTo(1, 2);
+    expect(Number(productAfter.customer_return_value) - Number(productBefore.customer_return_value || 0)).toBeCloseTo(17000, 2);
+    expect(Number(productAfter.supplier_return_value) - Number(productBefore.supplier_return_value || 0)).toBeCloseTo(12000, 2);
+    expect(Number(productAfter.adjustment_in_quantity) - Number(productBefore.adjustment_in_quantity || 0)).toBeCloseTo(2, 2);
+    expect(Number(productAfter.adjustment_out_quantity) - Number(productBefore.adjustment_out_quantity || 0)).toBeCloseTo(1, 2);
+
+    const historyAfter = await fetchReceiptHistory(
+      request,
+      adminCookie,
+      `${focusMonth}-01T00:00:00`,
+      `${focusMonth}-31T23:59:59`
+    );
+    expect(historyAfter.length).toBeGreaterThanOrEqual(beforeHistory.length + 3);
+
+    const byCode = Object.fromEntries(historyAfter.map((entry) => [entry.receipt_code, entry]));
+    expect(byCode[customerReturnPayload.receipt.receipt_code]?.source_code).toBe(checkoutPayload.order.order_code);
+    expect(byCode[supplierReturnPayload.receipt.receipt_code]?.source_code).toBe(purchasePayload.receipt.receipt_code);
+    expect(byCode[adjustmentPayload.receipt.receipt_code]?.receipt_type).toBe("inventory_adjustment");
   } finally {
     await restoreBackupSnapshot(request, snapshot);
   }

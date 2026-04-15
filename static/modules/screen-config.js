@@ -129,11 +129,12 @@ export const SCREEN_HELP = {
   },
   reports: {
     title: "Báo cáo và lợi nhuận",
-    overview: "Theo dõi nhập xuất, doanh thu, giá vốn, lãi gộp và danh sách mặt hàng cần nhập thêm.",
+    overview: "Theo dõi nhập xuất, doanh thu, giá vốn, lãi gộp, chứng từ trả hàng/điều chỉnh và danh sách mặt hàng cần nhập thêm.",
     steps: [
       "Chọn tháng xem chính hoặc dùng bộ lọc Từ ngày - Đến ngày để xem một khoảng cụ thể.",
-      "Đọc các thẻ tổng hợp để tách riêng chi nhập hàng, doanh thu, giá vốn và lãi gộp.",
+      "Đọc các thẻ tổng hợp để tách riêng nhập hàng, bán hàng, hoàn tiền khách, trả NCC và điều chỉnh tồn.",
       "Xem tiếp xu hướng theo tháng, đề xuất nhập thêm và chi tiết từng sản phẩm bên dưới.",
+      "Kéo xuống phần Audit chứng từ để tra cứu nhanh phiếu điều chỉnh tồn, phiếu trả hàng khách và phiếu trả NCC trong kỳ đang xem.",
       MOBILE_FLOATING_HINT,
     ],
     related: [

@@ -333,12 +333,14 @@ Lưu ý:
 4. Nếu không có phiếu nguồn, mở khối `Phiếu trả NCC`, nhập `Nhà cung cấp`, `Sản phẩm`, `SL trả`, `Giá trả NCC` rồi bấm `Thêm dòng`
 5. Bấm `Tạo phiếu trả NCC`
 
-1. Chọn `Tháng xem chính`
-2. Chọn `Số tháng gần nhất`
-3. Xem 4 thẻ tổng quan ở trên
-4. Xem `Xu hướng tháng`
-5. Xem `Dự báo nhập`
-6. Xem `Chi tiết tháng`
+#### Báo cáo và audit chứng từ Phase B
+
+1. Vào `Báo cáo`
+2. Chọn `Tháng xem chính` hoặc dùng `Từ ngày` - `Đến ngày`
+3. Xem các thẻ tổng hợp `Hoàn khách`, `Trả NCC`, `Điều chỉnh tồn` để biết chứng từ Phase B phát sinh trong kỳ
+4. Xem `Xu hướng tháng` để đối chiếu từng tháng gần đây
+5. Xem `Chi tiết tháng` để biết từng sản phẩm bị ảnh hưởng bởi trả hàng hay điều chỉnh tồn
+6. Kéo xuống `Audit chứng từ` để xem mã phiếu, đối tượng, tổng SL, tổng tiền và liên kết `Đơn nguồn` / `Phiếu nguồn` nếu có
 
 ### Ý nghĩa phần dự báo
 
