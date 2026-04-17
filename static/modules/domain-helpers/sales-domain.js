@@ -13,6 +13,7 @@ export function createSalesDomainHelpers(deps) {
     renderProducts,
     renderSalesProductList,
     focusCreateOrderSelection,
+    focusActiveCartPanel,
     focusPurchaseOrders,
     switchMenu,
     showToast,
@@ -129,7 +130,7 @@ export function createSalesDomainHelpers(deps) {
     customerLookupInput.value = customer.name;
     saveAndRenderAll(["customers", "carts"]);
     switchMenu("create-order");
-    focusCreateOrderSelection();
+    focusActiveCartPanel();
     showToast(cart.itemCount ? "Đã mở lại giỏ hàng đang chờ." : "Đã tạo giỏ hàng mới.");
   }
 
@@ -227,7 +228,7 @@ export function createSalesDomainHelpers(deps) {
       salesSearchInput.value = product.name;
       state.pagination.salesProducts = 1;
       switchMenu("create-order");
-      focusCreateOrderSelection();
+      focusActiveCartPanel();
       showToast("Đã mở đơn chờ xuất liên quan.");
       return;
     }

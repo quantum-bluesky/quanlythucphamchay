@@ -235,6 +235,9 @@ export function registerSalesControllerEvents(contract) {
     if (button.dataset.cartAction === "toggle-panel") {
       state.activeCartPanelCollapsed = !state.activeCartPanelCollapsed;
       renderers.renderActiveCartPanel();
+      if (!state.activeCartPanelCollapsed) {
+        actions.focusActiveCartPanel();
+      }
       return;
     }
     if (button.dataset.cartAction === "close") {
@@ -278,8 +281,12 @@ export function registerSalesControllerEvents(contract) {
     if (!button) return;
     const action = button.dataset.cartListAction || button.dataset.queueAction;
     if (action === "toggle-detail") {
-      state.expandedOrderId = state.expandedOrderId === button.dataset.cartId ? null : button.dataset.cartId;
+      const shouldExpand = state.expandedOrderId !== button.dataset.cartId;
+      state.expandedOrderId = shouldExpand ? button.dataset.cartId : null;
       renderers.renderCartQueue();
+      if (shouldExpand) {
+        actions.focusOrderQueueItem(button.dataset.cartId);
+      }
       return;
     }
     const cart = queries.getCartById(button.dataset.cartId);
@@ -288,6 +295,11 @@ export function registerSalesControllerEvents(contract) {
       state.activeCartId = cart.id;
       state.activeMenu = cart.status === "draft" ? "create-order" : "orders";
       actions.saveAndRenderAll(["carts"]);
+      if (cart.status === "draft") {
+        actions.focusActiveCartPanel();
+      } else {
+        actions.focusOrderQueueItem(cart.id);
+      }
       return;
     }
     if (action === "print") {
@@ -298,6 +310,7 @@ export function registerSalesControllerEvents(contract) {
       try {
         actions.openCustomerReturnDraftFromCart(cart.id);
         renderers.renderCustomerReturnSection();
+        actions.focusCustomerReturnSection();
       } catch (error) {
         actions.showToast(error.message, true);
       }
@@ -323,6 +336,9 @@ export function registerSalesControllerEvents(contract) {
   dom.customerReturnToggleButton?.addEventListener("click", () => {
     state.customerReturnDraft.collapsed = !state.customerReturnDraft.collapsed;
     renderers.renderCustomerReturnSection();
+    if (!state.customerReturnDraft.collapsed) {
+      actions.focusCustomerReturnSection();
+    }
   });
 
   dom.customerReturnCustomerInput?.addEventListener("input", (event) => {

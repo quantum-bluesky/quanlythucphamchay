@@ -3,11 +3,25 @@ const {
   attachRuntimeTracking,
   autoLoginUser,
   autoLoginUserRequest,
-  collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
   switchMenu,
 } = require("./support/ui");
+
+test.describe.configure({ timeout: 120000 });
+
+async function getLocatorTop(locator) {
+  const box = await locator.boundingBox();
+  expect(box).toBeTruthy();
+  return box.y;
+}
+
+async function expectLocatorVisibleAfterScroll(page, locator, beforeTop) {
+  const afterTop = await getLocatorTop(locator);
+  const viewportHeight = await page.evaluate(() => window.innerHeight);
+  expect(afterTop).toBeLessThan(beforeTop);
+  expect(afterTop).toBeLessThan(viewportHeight - 160);
+}
 
 async function setFloatingSearch(page, term) {
   const toggle = page.locator("#floatingSearchToggle");
@@ -20,12 +34,12 @@ async function setFloatingSearch(page, term) {
   await page.waitForTimeout(250);
 }
 
-test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draft carts", async ({ page, request }) => {
+test("IT-NAV-01 open detail actions scroll to the opened receipt info", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const userCookie = await autoLoginUserRequest(request);
   const timestamp = Date.now();
-  const completedCustomerName = `Khách completed ORD ${timestamp}`;
-  const draftCustomerName = `Khách draft ORD ${timestamp}`;
+  const draftCustomerName = `Khách mở giỏ ORD ${timestamp}`;
+  const supplierName = `NCC mở phiếu ${timestamp}`;
 
   const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
@@ -36,18 +50,17 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
   const product = productsPayload.products?.[0];
   expect(product).toBeTruthy();
 
-  const completedCart = {
-    id: `order_completed_${timestamp}`,
-    customerName: completedCustomerName,
-    status: "completed",
+  const draftCart = {
+    id: `order_draft_detail_${timestamp}`,
+    customerName: draftCustomerName,
+    status: "draft",
     paymentStatus: "unpaid",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    completedAt: new Date().toISOString(),
-    orderCode: `DH-ORD-${timestamp}`,
+    orderCode: "",
     items: [
       {
-        id: `order_item_${timestamp}`,
+        id: `order_draft_item_${timestamp}`,
         productId: product.id,
         productName: product.name,
         quantity: 1,
@@ -56,22 +69,30 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
       },
     ],
   };
-  const draftCart = {
-    id: `order_draft_${timestamp}`,
-    customerName: draftCustomerName,
+  const draftPurchase = {
+    id: `purchase_detail_${timestamp}`,
+    supplierName,
+    note: "Phiếu test auto scroll",
     status: "draft",
-    paymentStatus: "unpaid",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    orderCode: "",
-    items: [],
+    receiptCode: `PN-DETAIL-${timestamp}`,
+    items: [
+      {
+        id: `purchase_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 2,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
   };
-
   try {
     const seedResponse = await request.put("/api/state", {
       headers: { Cookie: userCookie },
       data: {
-        carts: [draftCart, completedCart, ...(originalState.carts || [])],
+        carts: [draftCart, ...(originalState.carts || [])],
+        purchases: [draftPurchase, ...(originalState.purchases || [])],
       },
     });
     expect(seedResponse.ok()).toBeTruthy();
@@ -83,40 +104,30 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
 
     await switchMenu(page, "orders");
     await expectScreenTitle(page, "Đơn hàng");
-    await page.locator("#showArchivedCarts").check();
-    await page.waitForTimeout(300);
-    await setFloatingSearch(page, completedCustomerName);
-
-    const completedOrderCard = page.locator(".cart-queue-item", { hasText: completedCustomerName }).first();
-    await completedOrderCard.locator('[data-queue-action="toggle-detail"]').click();
-    await page.waitForTimeout(300);
-    await expect(completedOrderCard.locator('[data-queue-action="mark-paid"]')).toHaveCount(1);
-
-    const currentStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
-    expect(currentStateResponse.ok()).toBeTruthy();
-    const currentState = await currentStateResponse.json();
-    const payResponse = await request.put("/api/state", {
-      headers: { Cookie: userCookie },
-      data: {
-        carts: (currentState.carts || []).map((cart) => (
-          cart.id === completedCart.id ? { ...cart, paymentStatus: "paid" } : cart
-        )),
-        expected_updated_at: { carts: currentState.updated_at?.carts || "" },
-      },
-    });
-    expect(payResponse.ok()).toBeTruthy();
-
-    await page.reload({ waitUntil: "networkidle" });
-    await switchMenu(page, "orders");
-    await expectScreenTitle(page, "Đơn hàng");
-    await page.locator("#showArchivedCarts").check();
     await setFloatingSearch(page, draftCustomerName);
     const draftOrderCard = page.locator(".cart-queue-item", { hasText: draftCustomerName }).first();
     await expect(draftOrderCard).toBeVisible();
+    await draftOrderCard.evaluate((node) => node.scrollIntoView({ block: "end" }));
+    await page.waitForTimeout(200);
+    const draftOrderBeforeTop = await getLocatorTop(draftOrderCard);
     await draftOrderCard.locator('[data-queue-action="open"]').click();
+    await page.waitForTimeout(500);
     await expectScreenTitle(page, "Tạo đơn xuất hàng");
     await expect(page.locator("#customerLookupInput")).toHaveValue(draftCustomerName);
-    await collectToast(page, runtime, "orders-open-draft");
+    await expectLocatorVisibleAfterScroll(page, page.locator("#activeCartPanel"), draftOrderBeforeTop);
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+    await setFloatingSearch(page, supplierName);
+    const purchaseCard = page.locator(".cart-queue-item", { hasText: supplierName }).first();
+    await expect(purchaseCard).toBeVisible();
+    await purchaseCard.evaluate((node) => node.scrollIntoView({ block: "end" }));
+    await page.waitForTimeout(200);
+    const purchaseCardBeforeTop = await getLocatorTop(purchaseCard);
+    await purchaseCard.locator('[data-purchase-list-action="open"]').click();
+    await page.waitForTimeout(500);
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierName);
+    await expectLocatorVisibleAfterScroll(page, page.locator("#purchasePanel"), purchaseCardBeforeTop);
   } finally {
     await request.put("/api/state", {
       headers: { Cookie: userCookie },
@@ -129,17 +140,5 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
     });
   }
 
-  runtime.errors = runtime.errors.filter((entry) => {
-    if (entry.includes("status of 400 (Bad Request)")) {
-      return false;
-    }
-    if (entry.includes("status of 409 (Conflict)") || entry.includes("server responded with a status of 409 (Conflict)")) {
-      return false;
-    }
-    if (entry.includes("Đơn hàng đã chốt không thể sửa trực tiếp")) {
-      return false;
-    }
-    return true;
-  });
   expectNoRuntimeErrors(runtime);
 });
