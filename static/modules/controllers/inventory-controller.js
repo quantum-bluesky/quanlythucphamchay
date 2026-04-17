@@ -61,6 +61,7 @@ export function registerInventoryControllerEvents(contract) {
         if (!requireAdmin()) return;
         actions.openInventoryReceiptDraft(productId);
         renderers.renderInventoryReceiptSection();
+        actions.focusInventoryReceiptSection();
         return;
       }
     }
@@ -86,7 +87,7 @@ export function registerInventoryControllerEvents(contract) {
     if (relatedCartButton) {
       actions.setActiveCart(relatedCartButton.dataset.openRelatedCart);
       actions.switchMenu("create-order");
-      actions.focusCreateOrderSelection();
+      actions.focusActiveCartPanel();
       actions.showToast("Đã mở đơn chờ xuất.");
       return;
     }
@@ -95,7 +96,7 @@ export function registerInventoryControllerEvents(contract) {
     if (relatedPurchaseButton) {
       actions.setActivePurchase(relatedPurchaseButton.dataset.openRelatedPurchase);
       actions.switchMenu("purchases");
-      actions.focusPurchaseOrders();
+      actions.focusPurchasePanel();
       actions.showToast("Đã mở phiếu nhập chờ.");
       return;
     }
@@ -243,6 +244,9 @@ export function registerInventoryControllerEvents(contract) {
   dom.inventoryReceiptToggleButton?.addEventListener("click", () => {
     state.inventoryReceiptDraft.collapsed = !state.inventoryReceiptDraft.collapsed;
     renderers.renderInventoryReceiptSection();
+    if (!state.inventoryReceiptDraft.collapsed) {
+      actions.focusInventoryReceiptSection();
+    }
   });
 
   dom.inventoryReceiptAddButton?.addEventListener("click", () => {

@@ -275,6 +275,35 @@ function refreshSearchClearButtons() {
   searchClearRefreshers.forEach((refresh) => refresh());
 }
 
+function scrollElementIntoView(target, { behavior = mobileQuery.matches ? "auto" : "smooth", topMargin = 16 } = {}) {
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const screenHeaderBar = document.getElementById("screenHeaderBar");
+  const headerOffset = (screenHeaderBar?.offsetHeight || 0) + topMargin;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const documentHeight = Math.max(
+    document.body?.scrollHeight || 0,
+    document.documentElement?.scrollHeight || 0
+  );
+  const targetTop = Math.max(window.scrollY + target.getBoundingClientRect().top - headerOffset, 0);
+  const maxScrollTop = Math.max(documentHeight - viewportHeight, 0);
+  window.scrollTo({
+    top: Math.min(targetTop, maxScrollTop),
+    behavior,
+  });
+}
+
+function scheduleScrollToTarget(targetOrResolver, options = {}) {
+  const { delayMs = 30, ...scrollOptions } = options;
+  window.setTimeout(() => {
+    const target = typeof targetOrResolver === "function"
+      ? targetOrResolver()
+      : targetOrResolver;
+    scrollElementIntoView(target, scrollOptions);
+  }, delayMs);
+}
+
 function renderCreateOrderEntryState() {
   getSalesUi().renderCreateOrderEntryState();
 }
@@ -304,6 +333,13 @@ function focusCreateOrderSelection() {
   }, 40);
 }
 
+function focusActiveCartPanel() {
+  if (state.activeMenu !== "create-order") {
+    switchMenu("create-order");
+  }
+  scheduleScrollToTarget(activeCartPanel, { delayMs: 40 });
+}
+
 function renderPurchaseEntryState() {
   getPurchasesUi().renderPurchaseEntryState();
 }
@@ -330,6 +366,43 @@ function focusPurchaseOrders() {
   window.setTimeout(() => {
     purchaseOrdersCard?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, 40);
+}
+
+function focusPurchasePanel() {
+  if (state.activeMenu !== "purchases") {
+    switchMenu("purchases");
+  }
+  scheduleScrollToTarget(purchasePanel, { delayMs: 40 });
+}
+
+function focusInventoryReceiptSection() {
+  if (state.activeMenu !== "inventory") {
+    switchMenu("inventory");
+  }
+  scheduleScrollToTarget(inventoryReceiptSection);
+}
+
+function focusCustomerReturnSection() {
+  if (state.activeMenu !== "orders") {
+    switchMenu("orders");
+  }
+  scheduleScrollToTarget(customerReturnSection);
+}
+
+function focusSupplierReturnSection() {
+  if (state.activeMenu !== "purchases") {
+    switchMenu("purchases");
+  }
+  scheduleScrollToTarget(supplierReturnSection);
+}
+
+function focusOrderQueueItem(cartId) {
+  if (state.activeMenu !== "orders") {
+    switchMenu("orders");
+  }
+  scheduleScrollToTarget(() => Array.from(cartQueueList?.querySelectorAll(".cart-queue-item") || []).find((item) => (
+    Array.from(item.querySelectorAll("[data-cart-id]")).some((button) => button.dataset.cartId === String(cartId))
+  )));
 }
 
 function getProductsUi() {
@@ -408,6 +481,7 @@ function getSalesDomainHelpers() {
       renderProducts,
       renderSalesProductList,
       focusCreateOrderSelection,
+      focusActiveCartPanel,
       focusPurchaseOrders,
       switchMenu,
       showToast,
@@ -433,6 +507,7 @@ function getPurchasesDomainHelpers() {
       createId,
       getProductById,
       renderProducts,
+      focusPurchasePanel,
       focusPurchaseOrders,
       switchMenu,
       showToast,
@@ -3216,13 +3291,15 @@ registerInventoryControllerEvents({
     updateProductPrice,
     prefillProduct,
     focusCreateOrderSelection,
-    focusPurchaseOrders,
+    focusActiveCartPanel,
+    focusPurchasePanel,
     setInventoryAdjustmentReason,
     openInventoryReceiptDraft: (productId) => {
       state.inventoryReceiptDraft.collapsed = false;
       state.inventoryReceiptDraft.productText = getProductById(productId)?.name || "";
       state.inventoryReceiptDraft.quantityDelta = "";
     },
+    focusInventoryReceiptSection,
     addInventoryReceiptDraftItem,
     resetInventoryReceiptDraft,
     submitInventoryReceiptDraft,
@@ -3273,7 +3350,10 @@ registerSalesControllerEvents({
     checkoutActiveCart,
     printCart,
     updateProductSalePrice,
+    focusActiveCartPanel,
+    focusOrderQueueItem,
     openCustomerReturnDraftFromCart,
+    focusCustomerReturnSection,
     addCustomerReturnDraftItem,
     resetCustomerReturnDraft,
     submitCustomerReturnDraft,
@@ -3332,6 +3412,7 @@ registerEntitiesControllerEvents({
     clearPendingPurchaseSupplierFlow,
     createPurchaseDraftIfMissing,
     updatePurchase,
+    focusPurchasePanel,
     switchMenu,
     showToast,
     saveAndRenderAll,
@@ -3385,6 +3466,7 @@ registerPurchasesControllerEvents({
     createPurchaseDraftIfMissing,
     saveAndRenderAll,
     focusPurchaseSuggestions,
+    focusPurchasePanel,
     showToast,
     updatePurchase,
     apiRequest,
@@ -3394,6 +3476,7 @@ registerPurchasesControllerEvents({
     beginSupplierCreateFromPurchase,
     setSkipNextPurchaseSupplierChangePersist: (value) => { skipNextPurchaseSupplierChangePersist = value; },
     focusPurchaseOrders,
+    focusSupplierReturnSection,
     switchMenu,
     addSuggestionToPurchase,
     openSupplierReturnDraftFromPurchase,

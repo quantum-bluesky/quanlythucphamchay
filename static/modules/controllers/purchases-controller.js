@@ -18,6 +18,9 @@ export function registerPurchasesControllerEvents(contract) {
   dom.togglePurchasePanelButton.addEventListener("click", () => {
     state.purchasePanelCollapsed = !state.purchasePanelCollapsed;
     renderers.renderPurchasePanel();
+    if (!state.purchasePanelCollapsed) {
+      actions.focusPurchasePanel();
+    }
   });
 
   dom.purchaseSupplierInput.addEventListener("change", () => {
@@ -93,6 +96,7 @@ export function registerPurchasesControllerEvents(contract) {
       if (panelButton.dataset.purchasePanelAction === "open") {
         state.purchasePanelCollapsed = false;
         renderers.renderPurchasePanel();
+        actions.focusPurchasePanel();
         return;
       }
       if (panelButton.dataset.purchasePanelAction === "create") {
@@ -225,6 +229,7 @@ export function registerPurchasesControllerEvents(contract) {
       try {
         actions.openSupplierReturnDraftFromPurchase(purchase.id);
         renderers.renderSupplierReturnSection();
+        actions.focusSupplierReturnSection();
       } catch (error) {
         actions.showToast(error.message, true);
       }
@@ -274,12 +279,16 @@ export function registerPurchasesControllerEvents(contract) {
       state.activePurchaseId = button.dataset.purchaseId;
       state.purchasePanelCollapsed = false;
       actions.saveAndRenderAll();
+      actions.focusPurchasePanel();
     }
   });
 
   dom.supplierReturnToggleButton?.addEventListener("click", () => {
     state.supplierReturnDraft.collapsed = !state.supplierReturnDraft.collapsed;
     renderers.renderSupplierReturnSection();
+    if (!state.supplierReturnDraft.collapsed) {
+      actions.focusSupplierReturnSection();
+    }
   });
 
   dom.supplierReturnSupplierInput?.addEventListener("input", (event) => {

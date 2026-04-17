@@ -186,6 +186,7 @@ Các nhóm kiểm tra chính:
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
 - `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa
 - `Báo cáo`: nút shortcut `Audit` phải tự cuộn xuống khung `Audit chứng từ` để xem ngay lịch sử chứng từ
+- `Điều hướng mở phiếu/detail`: khi mở giỏ nháp hoặc phiếu nhập từ danh sách, viewport phải tự cuộn lên khối thông tin của phiếu vừa mở
 - `Đăng nhập hệ thống`: header `Login/Logout`, user thường, admin, timeout session, role-based access
 - `Master Admin`: login admin, export/import file master (`JSON` + `CSV`), backup, restore
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
@@ -208,6 +209,7 @@ Ngoài click thao tác, suite còn kiểm tra:
 - Spec chính:
   - `tests/integration/core-workflows.spec.js`
   - `tests/integration/management-screens.spec.js`
+  - `tests/integration/detail-scroll.spec.js`
   - `tests/integration/reports-shortcuts.spec.js`
   - `tests/integration/purchase-supplier-flow.spec.js`
   - `tests/integration/login.spec.js`
@@ -229,6 +231,10 @@ Case mới cho Phase B.4:
 Case regression UI báo cáo:
 
 - `IT-REP-01`: click shortcut `Audit` ở màn `Báo cáo` phải scroll xuống đúng khối `Audit chứng từ`
+
+Case regression điều hướng/detail:
+
+- `IT-NAV-01`: mở giỏ nháp hoặc phiếu nhập từ list phải tự scroll đến khối thông tin của phiếu vừa mở
 
 ## Lưu ý
 
