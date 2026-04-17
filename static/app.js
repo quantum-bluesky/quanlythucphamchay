@@ -792,7 +792,16 @@ function focusReportSection(kind) {
   };
   const target = targets[kind] || reportSummaryCards;
   window.setTimeout(() => {
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!target) {
+      return;
+    }
+    const screenHeaderBar = document.getElementById("screenHeaderBar");
+    const headerOffset = (screenHeaderBar?.offsetHeight || 0) + 16;
+    const nextTop = Math.max(window.scrollY + target.getBoundingClientRect().top - headerOffset, 0);
+    window.scrollTo({
+      top: nextTop,
+      behavior: mobileQuery.matches ? "auto" : "smooth",
+    });
   }, 30);
 }
 

@@ -54,20 +54,21 @@ Lưu ý:
 | 35 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
 | 36 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
 | 37 | `IT-ORD-01` | Kiểm tra màn đơn hàng hỗ trợ mở rộng chi tiết, đánh dấu đã thanh toán và mở lại giỏ nháp. |
-| 38 | `UT-DB-01` | Kiểm tra tạo sản phẩm, nhập xuất kho và tổng hợp tồn kho cơ bản ở backend. |
-| 39 | `UT-DB-02` | Kiểm tra backend chặn xuất kho vượt quá tồn hiện tại. |
-| 40 | `UT-DB-03` | Kiểm tra phiếu điều chỉnh tồn backend cập nhật tồn kho và yêu cầu lý do đúng. |
-| 41 | `UT-DB-04` | Kiểm tra phiếu trả hàng khách backend làm tăng tồn kho đúng. |
-| 42 | `UT-DB-05` | Kiểm tra phiếu trả NCC backend làm giảm tồn kho đúng. |
-| 43 | `UT-DB-06` | Kiểm tra backend không cho tạo phiếu điều chỉnh tồn nếu thiếu lý do. |
-| 44 | `UT-NORM-01` | Kiểm tra `save_sync_state` persist đúng dữ liệu sang các bảng quan hệ chuẩn hóa. |
-| 45 | `UT-NORM-02` | Kiểm tra các loại receipt được persist đúng vào cấu trúc bảng chuẩn hóa mới. |
-| 46 | `UT-NORM-03` | Kiểm tra app state legacy được migrate sang cấu trúc bảng quan hệ khi khởi động. |
-| 47 | `UT-SYNC-01` | Kiểm tra sync state chấp nhận cập nhật khi `expected_updated_at` khớp. |
-| 48 | `UT-SYNC-02` | Kiểm tra sync state từ chối cập nhật khi `expected_updated_at` bị stale. |
-| 49 | `UT-AUD-01` | Kiểm tra thay đổi trạng thái đơn hàng được ghi audit kèm actor. |
-| 50 | `UT-AUD-02` | Kiểm tra thay đổi trạng thái phiếu nhập được ghi audit kèm actor. |
-| 51 | `UT-AUD-03` | Kiểm tra receipt history trả đúng source link và audit message cho các phiếu Phase B. |
-| 52 | `UT-HIS-01` | Kiểm tra product history hỗ trợ lọc theo actor ở backend. |
-| 53 | `UT-HIS-02` | Kiểm tra product history hỗ trợ lọc theo khoảng ngày ở backend. |
-| 54 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |
+| 38 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
+| 39 | `UT-DB-01` | Kiểm tra tạo sản phẩm, nhập xuất kho và tổng hợp tồn kho cơ bản ở backend. |
+| 40 | `UT-DB-02` | Kiểm tra backend chặn xuất kho vượt quá tồn hiện tại. |
+| 41 | `UT-DB-03` | Kiểm tra phiếu điều chỉnh tồn backend cập nhật tồn kho và yêu cầu lý do đúng. |
+| 42 | `UT-DB-04` | Kiểm tra phiếu trả hàng khách backend làm tăng tồn kho đúng. |
+| 43 | `UT-DB-05` | Kiểm tra phiếu trả NCC backend làm giảm tồn kho đúng. |
+| 44 | `UT-DB-06` | Kiểm tra backend không cho tạo phiếu điều chỉnh tồn nếu thiếu lý do. |
+| 45 | `UT-NORM-01` | Kiểm tra `save_sync_state` persist đúng dữ liệu sang các bảng quan hệ chuẩn hóa. |
+| 46 | `UT-NORM-02` | Kiểm tra các loại receipt được persist đúng vào cấu trúc bảng chuẩn hóa mới. |
+| 47 | `UT-NORM-03` | Kiểm tra app state legacy được migrate sang cấu trúc bảng quan hệ khi khởi động. |
+| 48 | `UT-SYNC-01` | Kiểm tra sync state chấp nhận cập nhật khi `expected_updated_at` khớp. |
+| 49 | `UT-SYNC-02` | Kiểm tra sync state từ chối cập nhật khi `expected_updated_at` bị stale. |
+| 50 | `UT-AUD-01` | Kiểm tra thay đổi trạng thái đơn hàng được ghi audit kèm actor. |
+| 51 | `UT-AUD-02` | Kiểm tra thay đổi trạng thái phiếu nhập được ghi audit kèm actor. |
+| 52 | `UT-AUD-03` | Kiểm tra receipt history trả đúng source link và audit message cho các phiếu Phase B. |
+| 53 | `UT-HIS-01` | Kiểm tra product history hỗ trợ lọc theo actor ở backend. |
+| 54 | `UT-HIS-02` | Kiểm tra product history hỗ trợ lọc theo khoảng ngày ở backend. |
+| 55 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |
