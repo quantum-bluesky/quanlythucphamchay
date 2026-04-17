@@ -86,16 +86,9 @@ export function registerReportsAdminControllerEvents(contract) {
   document.addEventListener("click", (event) => {
     const shortcutButton = event.target.closest("[data-report-shortcut]");
     if (!shortcutButton) return;
-    if (shortcutButton.dataset.reportShortcut === "summary") {
-      actions.focusReportSection("summary");
-      return;
-    }
-    if (shortcutButton.dataset.reportShortcut === "trend") {
-      actions.focusReportSection("trend");
-      return;
-    }
-    if (shortcutButton.dataset.reportShortcut === "forecast") {
-      actions.focusReportSection("forecast");
+    const shortcut = shortcutButton.dataset.reportShortcut;
+    if (["summary", "trend", "forecast", "audit"].includes(shortcut)) {
+      actions.focusReportSection(shortcut);
     }
   });
 

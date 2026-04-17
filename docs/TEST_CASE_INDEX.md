@@ -60,23 +60,24 @@ Mục tiêu:
 | 35 | `IT-MOB-01` | `tests/integration/mobile-floating-ui.spec.js` | `npx playwright test tests/integration/mobile-floating-ui.spec.js --grep "IT-MOB-01"` |
 | 36 | `IT-MOB-02` | `tests/integration/mobile-floating-ui.spec.js` | `npx playwright test tests/integration/mobile-floating-ui.spec.js --grep "IT-MOB-02"` |
 | 37 | `IT-ORD-01` | `tests/integration/orders-actions.spec.js` | `npx playwright test tests/integration/orders-actions.spec.js --grep "IT-ORD-01"` |
-| 38 | `UT-DB-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_01_create_product_and_stock_summary` |
-| 39 | `UT-DB-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_02_stock_out_cannot_exceed_inventory` |
-| 40 | `UT-DB-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_03_inventory_adjustment_receipt_updates_stock_with_reason` |
-| 41 | `UT-DB-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_04_customer_return_receipt_increases_stock` |
-| 42 | `UT-DB-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_05_supplier_return_receipt_reduces_stock` |
-| 43 | `UT-DB-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_06_inventory_adjustment_requires_reason` |
-| 44 | `UT-NORM-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_norm_01_save_sync_state_persists_relational_tables` |
-| 45 | `UT-NORM-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_norm_02_receipt_creation_persists_normalized_receipt_tables` |
-| 46 | `UT-NORM-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_norm_03_legacy_app_state_is_migrated_to_normalized_tables_on_bootstrap` |
-| 47 | `UT-SYNC-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_01_save_sync_state_accepts_matching_expected_updated_at` |
-| 48 | `UT-SYNC-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_02_save_sync_state_rejects_stale_expected_updated_at` |
-| 49 | `UT-AUD-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_aud_01_save_sync_state_logs_cart_status_changes_with_actor` |
-| 50 | `UT-AUD-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_aud_02_save_sync_state_logs_purchase_status_changes_with_actor` |
-| 51 | `UT-AUD-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_aud_03_receipt_history_lists_phase_b_receipts_with_source_context` |
-| 52 | `UT-HIS-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_his_01_product_history_supports_actor_filter` |
-| 53 | `UT-HIS-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_his_02_product_history_supports_date_range_filter` |
-| 54 | `UT-REP-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_rep_01_monthly_report_separates_phase_b_receipts_from_sales_and_purchases` |
+| 38 | `IT-REP-01` | `tests/integration/reports-shortcuts.spec.js` | `npx playwright test tests/integration/reports-shortcuts.spec.js --grep "IT-REP-01"` |
+| 39 | `UT-DB-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_01_create_product_and_stock_summary` |
+| 40 | `UT-DB-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_02_stock_out_cannot_exceed_inventory` |
+| 41 | `UT-DB-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_03_inventory_adjustment_receipt_updates_stock_with_reason` |
+| 42 | `UT-DB-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_04_customer_return_receipt_increases_stock` |
+| 43 | `UT-DB-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_05_supplier_return_receipt_reduces_stock` |
+| 44 | `UT-DB-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_06_inventory_adjustment_requires_reason` |
+| 45 | `UT-NORM-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_norm_01_save_sync_state_persists_relational_tables` |
+| 46 | `UT-NORM-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_norm_02_receipt_creation_persists_normalized_receipt_tables` |
+| 47 | `UT-NORM-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_norm_03_legacy_app_state_is_migrated_to_normalized_tables_on_bootstrap` |
+| 48 | `UT-SYNC-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_01_save_sync_state_accepts_matching_expected_updated_at` |
+| 49 | `UT-SYNC-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_02_save_sync_state_rejects_stale_expected_updated_at` |
+| 50 | `UT-AUD-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_aud_01_save_sync_state_logs_cart_status_changes_with_actor` |
+| 51 | `UT-AUD-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_aud_02_save_sync_state_logs_purchase_status_changes_with_actor` |
+| 52 | `UT-AUD-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_aud_03_receipt_history_lists_phase_b_receipts_with_source_context` |
+| 53 | `UT-HIS-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_his_01_product_history_supports_actor_filter` |
+| 54 | `UT-HIS-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_his_02_product_history_supports_date_range_filter` |
+| 55 | `UT-REP-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_rep_01_monthly_report_separates_phase_b_receipts_from_sales_and_purchases` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

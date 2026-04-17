@@ -185,6 +185,7 @@ Các nhóm kiểm tra chính:
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
 - `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa
+- `Báo cáo`: nút shortcut `Audit` phải tự cuộn xuống khung `Audit chứng từ` để xem ngay lịch sử chứng từ
 - `Đăng nhập hệ thống`: header `Login/Logout`, user thường, admin, timeout session, role-based access
 - `Master Admin`: login admin, export/import file master (`JSON` + `CSV`), backup, restore
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
@@ -207,7 +208,8 @@ Ngoài click thao tác, suite còn kiểm tra:
 - Spec chính:
   - `tests/integration/core-workflows.spec.js`
   - `tests/integration/management-screens.spec.js`
-- `tests/integration/purchase-supplier-flow.spec.js`
+  - `tests/integration/reports-shortcuts.spec.js`
+  - `tests/integration/purchase-supplier-flow.spec.js`
   - `tests/integration/login.spec.js`
   - `tests/integration/mobile-floating-ui.spec.js`
   - `tests/integration/admin.spec.js`
@@ -224,6 +226,10 @@ Case mới cho Phase B.4:
 - `UT-REP-01`: backend report tách riêng sale/purchase với customer return / supplier return / adjustment
 - `UT-AUD-03`: receipt history trả về source link và audit message cho 3 loại phiếu Phase B
 
+Case regression UI báo cáo:
+
+- `IT-REP-01`: click shortcut `Audit` ở màn `Báo cáo` phải scroll xuống đúng khối `Audit chứng từ`
+
 ## Lưu ý
 
 - App runtime thật vẫn chỉ cần `Python stdlib + SQLite`
@@ -232,4 +238,5 @@ Case mới cho Phase B.4:
 - Nếu thêm hoặc đổi workflow nghiệp vụ, hãy cập nhật luôn checklist acceptance để người test và agent dùng chung một chuẩn
 - Nếu thêm test mới, hãy đặt mã case ở đầu tên test hoặc method name để có thể lọc theo mã
 - Nếu thêm/sửa/xóa mã test, hãy cập nhật đồng thời `docs/TEST_CASE_INDEX.md` và `docs/TEST_CASE_DESCRIPTIONS.md`
+- Việc bổ sung tài liệu test phải được ghi trực tiếp vào repo để dùng lại cho mọi máy và mọi session, không chỉ nhắc tạm trong một lần làm việc
 - Nếu cần điều tra lỗi sync nhiều máy, có thể bật `debug.sync_state=true` trong `data/system_config.json` để xem log `/api/state` ở console server và browser

@@ -163,6 +163,7 @@ Mặc định nên:
 3. sửa code
 4. chạy kiểm tra cú pháp tối thiểu
 5. cập nhật help/docs nếu workflow hoặc label thay đổi
+6. nếu thêm/sửa test case hoặc test spec, cập nhật ngay tài liệu test trong repo gồm `docs/TESTING.md`, `docs/TEST_CASE_INDEX.md`, `docs/TEST_CASE_DESCRIPTIONS.md` để quy ước được giữ ở mức global, không chỉ trong session hiện tại
 
 ## Quy ước bổ sung cho tooling/setup
 
