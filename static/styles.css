@@ -19,6 +19,10 @@
   --screen-header-bar-height: 62px;
   --screen-header-bar-gap: 12px;
   --screen-header-bar-offset: calc(var(--screen-header-bar-height) + var(--screen-header-bar-gap));
+  --list-toolbar-gap: 12px;
+  --list-toolbar-top: calc(var(--screen-header-bar-top) + var(--screen-header-bar-offset) + 72px);
+  --list-pagination-top: calc(var(--list-toolbar-top) + 60px);
+  --desktop-menu-button-min-width: 104px;
 }
 
 * {
@@ -2424,17 +2428,13 @@ button:disabled {
     font-size: 0.92rem;
   }
 
-  .menu-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .menu-button {
-    min-height: 44px;
-    padding: 0 14px;
-  }
-
   .quick-panel {
     top: calc(78px + var(--screen-header-bar-offset));
+  }
+
+  [data-menu-section="purchases"] .sales-product-list,
+  [data-menu-section="purchases"] .cart-queue-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .sticky-toolbar {
@@ -2477,6 +2477,67 @@ button:disabled {
 }
 
 @media (min-width: 760px) {
+  .menu-panel {
+    width: fit-content;
+    max-width: 100%;
+    padding: 14px 16px;
+  }
+
+  .menu-panel-head {
+    justify-content: flex-start;
+    width: fit-content;
+    gap: 8px;
+  }
+
+  .menu-panel.is-collapsed {
+    padding: 12px;
+  }
+
+  .menu-panel.is-collapsed .menu-panel-head {
+    margin-bottom: 0;
+  }
+
+  .menu-panel.is-collapsed .menu-panel-head strong {
+    display: none;
+  }
+
+  .menu-toggle-button {
+    min-width: 112px;
+    justify-content: center;
+  }
+
+  .menu-grid {
+    width: fit-content;
+    max-width: 100%;
+    grid-template-columns: repeat(5, minmax(var(--desktop-menu-button-min-width), max-content));
+    justify-content: start;
+    gap: 8px;
+  }
+
+  .menu-button {
+    width: auto;
+    min-width: var(--desktop-menu-button-min-width);
+    min-height: 42px;
+    padding: 0 12px;
+    text-align: center;
+  }
+
+  [data-menu-section="inventory"] .inventory-panel,
+  [data-menu-section="orders"] .orders-panel,
+  [data-menu-section="customers"] .customers-panel,
+  [data-menu-section="create-order"] .sales-panel,
+  [data-menu-section="purchases"] .purchases-panel,
+  [data-menu-section="purchases"] .sales-card,
+  [data-menu-section="products"] > .panel,
+  [data-menu-section="suppliers"] .suppliers-panel {
+    overflow: visible;
+  }
+
+  .list-search-toolbar {
+    top: var(--list-toolbar-top);
+    z-index: 26;
+  }
+
   .hero-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -2492,6 +2553,10 @@ button:disabled {
 
   .sales-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  [data-menu-section="purchases"] .sales-columns {
+    grid-template-columns: 1fr;
   }
 
   .reports-filter-grid {
@@ -2546,5 +2611,11 @@ button:disabled {
   .product-form-actions {
     grid-column: 1 / -1;
     justify-content: start;
+  }
+}
+
+@media (min-width: 760px) and (max-width: 1100px) {
+  .menu-grid {
+    grid-template-columns: repeat(4, minmax(var(--desktop-menu-button-min-width), max-content));
   }
 }

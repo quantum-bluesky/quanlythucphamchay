@@ -178,6 +178,9 @@ export function createInventoryUi(deps) {
                   <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
                     ${isExpanded ? "Thu" : "Admin"}
                   </button>
+                  <button type="button" class="ghost-button compact-button" data-product-action="create-receipt" data-product-id="${product.id}">
+                    Phiếu DC
+                  </button>
                   <button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">
                     ${isEditingPrice ? "Hủy giá" : "Giá"}
                   </button>

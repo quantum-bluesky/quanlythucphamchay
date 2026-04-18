@@ -41,6 +41,21 @@ export function createNavigationRuntimeHelpers(deps) {
     return sourceInput.closest(".sticky-toolbar") || sourceInput.closest("label") || null;
   }
 
+  function setMenuCollapsed(nextValue, { persist = true } = {}) {
+    const normalizedValue = Boolean(nextValue);
+    if (state.menuCollapsed === normalizedValue) {
+      if (persist) {
+        writeStorage(storageKeys.menuCollapsed, state.menuCollapsed);
+      }
+      return;
+    }
+    state.menuCollapsed = normalizedValue;
+    if (persist) {
+      writeStorage(storageKeys.menuCollapsed, state.menuCollapsed);
+    }
+    renderMenu();
+  }
+
   function switchMenu(menu, { recordHistory = true } = {}) {
     if (!menu) return;
     if (menu !== "suppliers") {
@@ -58,10 +73,9 @@ export function createNavigationRuntimeHelpers(deps) {
     state.floatingSearchExpanded = false;
     state.floatingSearchAutoHidden = false;
     if (dom.mobileQuery.matches) {
-      state.menuCollapsed = true;
+      setMenuCollapsed(true);
     }
     writeStorage(storageKeys.activeMenu, state.activeMenu);
-    writeStorage(storageKeys.menuCollapsed, state.menuCollapsed);
     renderMenu();
     renderViewSections();
     renderScreenHeader();
@@ -235,6 +249,7 @@ export function createNavigationRuntimeHelpers(deps) {
     getFloatingSearchConfig,
     getFloatingSearchSourceInput,
     getFloatingSearchSourceShell,
+    setMenuCollapsed,
     switchMenu,
     navigateMenuHistory,
     setHelpOpen,

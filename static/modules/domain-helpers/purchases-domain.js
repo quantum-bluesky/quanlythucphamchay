@@ -11,6 +11,7 @@ export function createPurchasesDomainHelpers(deps) {
     createId,
     getProductById,
     renderProducts,
+    focusPurchasePanel,
     focusPurchaseOrders,
     switchMenu,
     showToast,
@@ -134,7 +135,7 @@ export function createPurchasesDomainHelpers(deps) {
       state.pagination.purchaseSuggestions = 1;
       state.pagination.purchaseOrders = 1;
       switchMenu("purchases");
-      focusPurchaseOrders();
+      focusPurchasePanel();
       showToast("Đã mở phiếu nhập chờ liên quan.");
       return;
     }
@@ -150,7 +151,7 @@ export function createPurchasesDomainHelpers(deps) {
     state.pagination.purchaseSuggestions = 1;
     state.pagination.purchaseOrders = 1;
     switchMenu("purchases");
-    focusPurchaseOrders();
+    focusPurchasePanel();
     showToast("Đã tạo phiếu nhập nháp mới cho mặt hàng này.");
   }
 

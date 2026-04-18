@@ -202,6 +202,7 @@ export function registerEntitiesControllerEvents(contract) {
       if (purchase) {
         actions.updatePurchase(purchase.id, () => ({ supplierName: supplier.name, note: dom.purchaseNoteInput.value.trim() }));
         actions.saveAndRenderAll(["purchases"]);
+        actions.focusPurchasePanel();
       }
       actions.showToast("Đã chọn nhà cung cấp cho phiếu nhập.");
       return;

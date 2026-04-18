@@ -11,6 +11,8 @@ Ngoài ra có thêm `acceptance checklist` để kiểm soát case bàn giao:
 
 - checklist: `docs/ACCEPTANCE_CHECKLIST.md`
 - automation bundle: `npm run test:acceptance`
+- mapping mã test: `docs/TEST_CASE_INDEX.md`
+- mô tả ngắn test case: `docs/TEST_CASE_DESCRIPTIONS.md`
 
 ## 0. Setup tool trước khi test
 
@@ -183,9 +185,14 @@ Các nhóm kiểm tra chính:
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
 - `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa
+- `Báo cáo`: nút shortcut `Audit` phải tự cuộn xuống khung `Audit chứng từ` để xem ngay lịch sử chứng từ
+- `Điều hướng mở phiếu/detail`: khi mở giỏ nháp hoặc phiếu nhập từ danh sách, viewport phải tự cuộn lên khối thông tin của phiếu vừa mở
+- `Menu PC/tablet`: nút `Mở menu` phải bung menu, menu tự thu gọn khi rê chuột hoặc bấm ra ngoài, và chiều rộng menu không bị bung quá rộng
 - `Đăng nhập hệ thống`: header `Login/Logout`, user thường, admin, timeout session, role-based access
 - `Master Admin`: login admin, export/import file master (`JSON` + `CSV`), backup, restore
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
+- `Phase B UI`: tạo phiếu điều chỉnh trên màn tồn kho, tạo phiếu trả khách từ đơn cũ hoặc nhập tay, tạo phiếu trả NCC từ phiếu nhập cũ hoặc nhập tay
+- `Phase B.4 report/audit`: báo cáo tháng tách riêng hoàn khách, trả NCC, điều chỉnh tồn và API tra cứu lịch sử chứng từ
 - `UI mobile floating`: menu nổi, tìm kiếm nhanh và cụm nút điều hướng auto-hide vào mép màn hình rồi mở lại an toàn
 
 Ngoài click thao tác, suite còn kiểm tra:
@@ -203,15 +210,32 @@ Ngoài click thao tác, suite còn kiểm tra:
 - Spec chính:
   - `tests/integration/core-workflows.spec.js`
   - `tests/integration/management-screens.spec.js`
-- `tests/integration/purchase-supplier-flow.spec.js`
+  - `tests/integration/detail-scroll.spec.js`
+  - `tests/integration/reports-shortcuts.spec.js`
+  - `tests/integration/purchase-supplier-flow.spec.js`
   - `tests/integration/login.spec.js`
   - `tests/integration/mobile-floating-ui.spec.js`
   - `tests/integration/admin.spec.js`
   - `tests/integration/acceptance-checklist.spec.js`
   - `tests/integration/acceptance-sales-phase-b.spec.js`
+  - `tests/integration/workflow-phase-b.spec.js`
   - `tests/integration/cross-client-sync.spec.js`
   - `tests/integration/workflow-phase-a.spec.js`
   - `tests/integration/workflow-phase-c.spec.js`
+
+Case mới cho Phase B.4:
+
+- `ACC-PHB-04`: báo cáo tháng và audit chứng từ phản ánh đúng `phiếu trả khách`, `phiếu trả NCC`, `phiếu điều chỉnh tồn`
+- `UT-REP-01`: backend report tách riêng sale/purchase với customer return / supplier return / adjustment
+- `UT-AUD-03`: receipt history trả về source link và audit message cho 3 loại phiếu Phase B
+
+Case regression UI báo cáo:
+
+- `IT-REP-01`: click shortcut `Audit` ở màn `Báo cáo` phải scroll xuống đúng khối `Audit chứng từ`
+
+Case regression điều hướng/detail:
+
+- `IT-NAV-01`: mở giỏ nháp hoặc phiếu nhập từ list phải tự scroll đến khối thông tin của phiếu vừa mở
 
 ## Lưu ý
 
@@ -220,4 +244,6 @@ Ngoài click thao tác, suite còn kiểm tra:
 - Nếu sửa workflow, label, selector hoặc menu, hãy cập nhật test tương ứng
 - Nếu thêm hoặc đổi workflow nghiệp vụ, hãy cập nhật luôn checklist acceptance để người test và agent dùng chung một chuẩn
 - Nếu thêm test mới, hãy đặt mã case ở đầu tên test hoặc method name để có thể lọc theo mã
+- Nếu thêm/sửa/xóa mã test, hãy cập nhật đồng thời `docs/TEST_CASE_INDEX.md` và `docs/TEST_CASE_DESCRIPTIONS.md`
+- Việc bổ sung tài liệu test phải được ghi trực tiếp vào repo để dùng lại cho mọi máy và mọi session, không chỉ nhắc tạm trong một lần làm việc
 - Nếu cần điều tra lỗi sync nhiều máy, có thể bật `debug.sync_state=true` trong `data/system_config.json` để xem log `/api/state` ở console server và browser

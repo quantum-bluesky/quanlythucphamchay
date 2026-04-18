@@ -57,6 +57,13 @@ export function registerInventoryControllerEvents(contract) {
         renderers.renderProducts();
         return;
       }
+      if (actionButton.dataset.productAction === "create-receipt") {
+        if (!requireAdmin()) return;
+        actions.openInventoryReceiptDraft(productId);
+        renderers.renderInventoryReceiptSection();
+        actions.focusInventoryReceiptSection();
+        return;
+      }
     }
 
     const inventoryFlowButton = event.target.closest("[data-inventory-flow]");
@@ -80,7 +87,7 @@ export function registerInventoryControllerEvents(contract) {
     if (relatedCartButton) {
       actions.setActiveCart(relatedCartButton.dataset.openRelatedCart);
       actions.switchMenu("create-order");
-      actions.focusCreateOrderSelection();
+      actions.focusActiveCartPanel();
       actions.showToast("Đã mở đơn chờ xuất.");
       return;
     }
@@ -89,7 +96,7 @@ export function registerInventoryControllerEvents(contract) {
     if (relatedPurchaseButton) {
       actions.setActivePurchase(relatedPurchaseButton.dataset.openRelatedPurchase);
       actions.switchMenu("purchases");
-      actions.focusPurchaseOrders();
+      actions.focusPurchasePanel();
       actions.showToast("Đã mở phiếu nhập chờ.");
       return;
     }
@@ -232,5 +239,64 @@ export function registerInventoryControllerEvents(contract) {
     state.searchTerm = event.target.value;
     state.pagination.inventory = 1;
     renderers.renderProducts();
+  });
+
+  dom.inventoryReceiptToggleButton?.addEventListener("click", () => {
+    state.inventoryReceiptDraft.collapsed = !state.inventoryReceiptDraft.collapsed;
+    renderers.renderInventoryReceiptSection();
+    if (!state.inventoryReceiptDraft.collapsed) {
+      actions.focusInventoryReceiptSection();
+    }
+  });
+
+  dom.inventoryReceiptAddButton?.addEventListener("click", () => {
+    if (!requireAdmin()) return;
+    try {
+      actions.addInventoryReceiptDraftItem(dom.inventoryReceiptProductInput.value, dom.inventoryReceiptDeltaInput.value);
+      renderers.renderInventoryReceiptSection();
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
+
+  dom.inventoryReceiptReasonInput?.addEventListener("input", (event) => {
+    state.inventoryReceiptDraft.reason = event.target.value;
+  });
+
+  dom.inventoryReceiptNoteInput?.addEventListener("input", (event) => {
+    state.inventoryReceiptDraft.note = event.target.value;
+  });
+
+  dom.inventoryReceiptProductInput?.addEventListener("input", (event) => {
+    state.inventoryReceiptDraft.productText = event.target.value;
+  });
+
+  dom.inventoryReceiptDeltaInput?.addEventListener("input", (event) => {
+    state.inventoryReceiptDraft.quantityDelta = event.target.value;
+  });
+
+  dom.inventoryReceiptItems?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-inventory-receipt-action]");
+    if (!button) return;
+    if (button.dataset.inventoryReceiptAction === "remove") {
+      state.inventoryReceiptDraft.items = state.inventoryReceiptDraft.items.filter(
+        (item) => Number(item.productId) !== Number(button.dataset.productId)
+      );
+      renderers.renderInventoryReceiptSection();
+    }
+  });
+
+  dom.inventoryReceiptClearButton?.addEventListener("click", () => {
+    actions.resetInventoryReceiptDraft({ keepCollapsed: false });
+    renderers.renderInventoryReceiptSection();
+  });
+
+  dom.inventoryReceiptSubmitButton?.addEventListener("click", async () => {
+    if (!requireAdmin()) return;
+    try {
+      await actions.submitInventoryReceiptDraft();
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
   });
 }

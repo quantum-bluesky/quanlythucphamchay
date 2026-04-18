@@ -18,6 +18,9 @@ export function registerPurchasesControllerEvents(contract) {
   dom.togglePurchasePanelButton.addEventListener("click", () => {
     state.purchasePanelCollapsed = !state.purchasePanelCollapsed;
     renderers.renderPurchasePanel();
+    if (!state.purchasePanelCollapsed) {
+      actions.focusPurchasePanel();
+    }
   });
 
   dom.purchaseSupplierInput.addEventListener("change", () => {
@@ -93,6 +96,7 @@ export function registerPurchasesControllerEvents(contract) {
       if (panelButton.dataset.purchasePanelAction === "open") {
         state.purchasePanelCollapsed = false;
         renderers.renderPurchasePanel();
+        actions.focusPurchasePanel();
         return;
       }
       if (panelButton.dataset.purchasePanelAction === "create") {
@@ -221,6 +225,16 @@ export function registerPurchasesControllerEvents(contract) {
       actions.showToast("Đã cập nhật phiếu nhập là đã thanh toán.");
       return;
     }
+    if (actionButton.dataset.purchaseAction === "supplier-return") {
+      try {
+        actions.openSupplierReturnDraftFromPurchase(purchase.id);
+        renderers.renderSupplierReturnSection();
+        actions.focusSupplierReturnSection();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "receive") {
       if (!queries.canEditPurchase(purchase)) {
         actions.showToast("Phiếu nhập đã khóa, không thể nhập kho lại.", true);
@@ -265,6 +279,87 @@ export function registerPurchasesControllerEvents(contract) {
       state.activePurchaseId = button.dataset.purchaseId;
       state.purchasePanelCollapsed = false;
       actions.saveAndRenderAll();
+      actions.focusPurchasePanel();
+    }
+  });
+
+  dom.supplierReturnToggleButton?.addEventListener("click", () => {
+    state.supplierReturnDraft.collapsed = !state.supplierReturnDraft.collapsed;
+    renderers.renderSupplierReturnSection();
+    if (!state.supplierReturnDraft.collapsed) {
+      actions.focusSupplierReturnSection();
+    }
+  });
+
+  dom.supplierReturnSupplierInput?.addEventListener("input", (event) => {
+    state.supplierReturnDraft.supplierName = event.target.value;
+  });
+
+  dom.supplierReturnNoteInput?.addEventListener("input", (event) => {
+    state.supplierReturnDraft.note = event.target.value;
+  });
+
+  dom.supplierReturnProductInput?.addEventListener("input", (event) => {
+    state.supplierReturnDraft.productText = event.target.value;
+  });
+
+  dom.supplierReturnQuantityInput?.addEventListener("input", (event) => {
+    state.supplierReturnDraft.quantity = event.target.value;
+  });
+
+  dom.supplierReturnPriceInput?.addEventListener("input", (event) => {
+    state.supplierReturnDraft.unitCost = event.target.value;
+  });
+
+  dom.supplierReturnAddButton?.addEventListener("click", () => {
+    try {
+      actions.addSupplierReturnDraftItem(
+        dom.supplierReturnProductInput.value,
+        dom.supplierReturnQuantityInput.value,
+        dom.supplierReturnPriceInput.value
+      );
+      renderers.renderSupplierReturnSection();
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
+
+  dom.supplierReturnItems?.addEventListener("input", (event) => {
+    const qtyInput = event.target.closest("[data-supplier-return-qty]");
+    const priceInput = event.target.closest("[data-supplier-return-price]");
+    const itemId = qtyInput?.dataset.supplierReturnQty || priceInput?.dataset.supplierReturnPrice;
+    if (!itemId) return;
+    state.supplierReturnDraft.items = state.supplierReturnDraft.items.map((item) => {
+      if (item.id !== itemId) return item;
+      const quantity = qtyInput ? Number(qtyInput.value) : Number(item.quantity);
+      const unitCost = priceInput ? Number(priceInput.value) : Number(item.unitCost);
+      return {
+        ...item,
+        quantity: Number.isFinite(quantity) ? quantity : item.quantity,
+        unitCost: Number.isFinite(unitCost) ? unitCost : item.unitCost,
+      };
+    });
+  });
+
+  dom.supplierReturnItems?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-supplier-return-action]");
+    if (!button) return;
+    if (button.dataset.supplierReturnAction === "remove") {
+      state.supplierReturnDraft.items = state.supplierReturnDraft.items.filter((item) => item.id !== button.dataset.itemId);
+      renderers.renderSupplierReturnSection();
+    }
+  });
+
+  dom.supplierReturnClearButton?.addEventListener("click", () => {
+    actions.resetSupplierReturnDraft({ keepCollapsed: false });
+    renderers.renderSupplierReturnSection();
+  });
+
+  dom.supplierReturnSubmitButton?.addEventListener("click", async () => {
+    try {
+      await actions.submitSupplierReturnDraft();
+    } catch (error) {
+      actions.showToast(error.message, true);
     }
   });
 

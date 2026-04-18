@@ -10,6 +10,16 @@ export function registerCoreControllerEvents(contract) {
     utils,
   } = contract;
 
+  const isDesktopMenuMode = () => !queries.isMobileFloatingClusterMode();
+  const expandDesktopMenu = () => {
+    if (!isDesktopMenuMode()) return;
+    actions.setMenuCollapsed(false);
+  };
+  const collapseDesktopMenu = () => {
+    if (!isDesktopMenuMode()) return;
+    actions.setMenuCollapsed(true);
+  };
+
   dom.quickPanelToggle.addEventListener("click", () => {
     const collapsed = dom.quickPanel.classList.contains("is-collapsed");
     actions.setQuickPanelCollapsed(!collapsed);
@@ -57,6 +67,18 @@ export function registerCoreControllerEvents(contract) {
     actions.interceptEdgeHiddenClusterReveal(event, "toolbox", dom.screenToolbox);
   }, true);
 
+  dom.menuToggleButton.addEventListener("pointerenter", () => {
+    expandDesktopMenu();
+  });
+
+  dom.menuToggleButton.addEventListener("focus", () => {
+    expandDesktopMenu();
+  });
+
+  dom.menuPanel.addEventListener("pointerleave", () => {
+    collapseDesktopMenu();
+  });
+
   dom.floatingSearchToggle.addEventListener("click", () => {
     actions.revealFloatingCluster("search");
     if (state.floatingSearchExpanded) {
@@ -94,15 +116,18 @@ export function registerCoreControllerEvents(contract) {
   dom.menuPanel.addEventListener("click", (event) => {
     actions.revealFloatingCluster("menu");
     if (event.target.closest("#menuToggleButton")) {
-      state.menuCollapsed = !state.menuCollapsed;
-      actions.writeStorage(utils.storageKeys.menuCollapsed, state.menuCollapsed);
-      renderers.renderMenu();
+      if (dom.mobileQuery.matches) {
+        actions.setMenuCollapsed(!state.menuCollapsed);
+      } else {
+        expandDesktopMenu();
+      }
       return;
     }
 
     const menuButton = event.target.closest("[data-menu]");
     if (menuButton) {
       actions.switchMenu(menuButton.dataset.menu);
+      collapseDesktopMenu();
     }
   });
 
@@ -114,6 +139,8 @@ export function registerCoreControllerEvents(contract) {
       if (dom.screenToolbox && !dom.screenToolbox.contains(event.target)) {
         actions.setFloatingClusterAutoHidden("toolbox", true);
       }
+    } else if (!dom.menuPanel.contains(event.target)) {
+      collapseDesktopMenu();
     }
 
     if (
@@ -149,8 +176,11 @@ export function registerCoreControllerEvents(contract) {
 
     if (dom.menuPanel.contains(event.target)) {
       actions.revealFloatingCluster("menu");
+      expandDesktopMenu();
     } else if (queries.isMobileFloatingClusterMode()) {
       actions.setFloatingClusterAutoHidden("menu", true);
+    } else {
+      collapseDesktopMenu();
     }
 
     if (dom.screenToolbox?.contains(event.target)) {

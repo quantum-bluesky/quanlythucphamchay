@@ -109,7 +109,7 @@
         </div>
       </section>
 
-      <section class="panel inventory-panel">
+        <section class="panel inventory-panel">
         <div class="panel-heading inventory-heading">
           <div>
             <p class="panel-kicker">Tồn kho</p>
@@ -118,17 +118,55 @@
           <div class="hero-stats" id="summaryCards"></div>
         </div>
 
-        <div class="sticky-toolbar">
+        <div class="sticky-toolbar list-search-toolbar">
           <label class="search-box">
             <span class="sr-only">Tìm sản phẩm</span>
             <input id="searchInput" type="search" placeholder="Tìm sản phẩm...">
           </label>
         </div>
 
-        <div id="productGrid" class="product-list"></div>
-      </section>
+          <div id="productGrid" class="product-list"></div>
+        </section>
 
-      <section class="panel">
+        <section id="inventoryReceiptSection" class="panel product-collapse-card is-collapsed">
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Phiếu điều chỉnh tồn</p>
+              <h3>Tạo chứng từ điều chỉnh theo kiểm kho</h3>
+            </div>
+            <button type="button" id="inventoryReceiptToggleButton" class="ghost-button compact-button">Mở phiếu</button>
+          </div>
+          <div id="inventoryReceiptWrap" class="product-collapse-body" hidden>
+            <form id="inventoryReceiptEntryForm" class="quick-form">
+              <label>
+                <span>Sản phẩm</span>
+                <input id="inventoryReceiptProductInput" type="text" list="productOptions" placeholder="Gõ tên sản phẩm...">
+              </label>
+              <label>
+                <span>SL điều chỉnh (+/-)</span>
+                <input id="inventoryReceiptDeltaInput" type="number" step="0.01" placeholder="Ví dụ: -2 hoặc 3">
+              </label>
+              <div class="action-row">
+                <button type="button" id="inventoryReceiptAddButton" class="ghost-button">Thêm dòng</button>
+              </div>
+            </form>
+            <label class="price-field">
+              <span>Lý do điều chỉnh</span>
+              <input id="inventoryReceiptReasonInput" type="text" maxlength="160" placeholder="Bắt buộc">
+            </label>
+            <label class="price-field">
+              <span>Ghi chú</span>
+              <input id="inventoryReceiptNoteInput" type="text" maxlength="160" placeholder="Tùy chọn">
+            </label>
+            <div id="inventoryReceiptItems" class="cart-items-list"></div>
+            <div class="customer-form-actions">
+              <button type="button" id="inventoryReceiptSubmitButton" class="primary-button">Tạo phiếu điều chỉnh</button>
+              <button type="button" id="inventoryReceiptClearButton" class="ghost-button">Làm mới phiếu</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
         <div class="panel-heading">
           <div>
             <p class="panel-kicker">Lịch sử gần đây</p>
@@ -194,7 +232,7 @@
                 <h3>Danh sách để thêm vào giỏ</h3>
               </div>
             </div>
-            <div class="sticky-toolbar">
+            <div class="sticky-toolbar list-search-toolbar">
               <label class="search-box">
                 <span class="sr-only">Tìm hàng để thêm vào giỏ</span>
                 <input id="salesSearchInput" type="search" placeholder="Tìm hàng để thêm vào giỏ...">
@@ -224,12 +262,53 @@
             </label>
           </div>
         </div>
-        <div class="sticky-toolbar order-toolbar">
+        <div class="sticky-toolbar order-toolbar list-search-toolbar">
           <label class="search-box">
             <span class="sr-only">Tìm đơn hàng</span>
             <input id="orderSearchInput" type="search" placeholder="Tìm theo khách hàng, mã đơn, mặt hàng...">
           </label>
         </div>
+        <section id="customerReturnSection" class="sales-card product-collapse-card is-collapsed">
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Phiếu trả hàng khách</p>
+              <h3>Tạo chứng từ hoàn hàng sau đơn đã chốt</h3>
+            </div>
+            <button type="button" id="customerReturnToggleButton" class="ghost-button compact-button">Mở phiếu</button>
+          </div>
+          <div id="customerReturnWrap" class="product-collapse-body" hidden>
+            <label class="price-field">
+              <span>Khách hàng</span>
+              <input id="customerReturnCustomerInput" type="text" maxlength="120" placeholder="Tên khách hàng">
+            </label>
+            <label class="price-field">
+              <span>Ghi chú</span>
+              <input id="customerReturnNoteInput" type="text" maxlength="160" placeholder="Lý do trả hàng / ghi chú">
+            </label>
+            <div class="purchase-inline-grid">
+              <label class="price-field">
+                <span>Sản phẩm</span>
+                <input id="customerReturnProductInput" type="text" list="productOptions" maxlength="120" placeholder="Gõ tên sản phẩm hoặc mở từ đơn cũ">
+              </label>
+              <label class="price-field">
+                <span>SL trả</span>
+                <input id="customerReturnQuantityInput" type="number" min="0.01" step="0.01" placeholder="0">
+              </label>
+              <label class="price-field">
+                <span>Giá hoàn</span>
+                <input id="customerReturnPriceInput" type="number" min="0" step="1000" placeholder="0">
+              </label>
+            </div>
+            <div class="customer-form-actions">
+              <button type="button" id="customerReturnAddButton" class="ghost-button">Thêm dòng</button>
+            </div>
+            <div id="customerReturnItems" class="cart-items-list"></div>
+            <div class="customer-form-actions">
+              <button type="button" id="customerReturnSubmitButton" class="primary-button">Tạo phiếu trả khách</button>
+              <button type="button" id="customerReturnClearButton" class="ghost-button">Làm mới phiếu</button>
+            </div>
+          </div>
+        </section>
         <div id="cartQueueList" class="cart-queue-list"></div>
       </section>
     </section>
@@ -276,7 +355,7 @@
             </form>
           </div>
         </section>
-        <div class="sticky-toolbar customer-toolbar">
+        <div class="sticky-toolbar customer-toolbar list-search-toolbar">
           <label class="search-box">
             <span class="sr-only">Tìm khách hàng</span>
             <input id="customerSearchInput" type="search" placeholder="Tìm khách hàng...">
@@ -295,7 +374,7 @@
           </div>
           <p class="panel-note">Tìm, sửa, xóa hoặc thêm mới sản phẩm mà không lẫn với màn tồn kho.</p>
         </div>
-        <div class="sticky-toolbar">
+        <div class="sticky-toolbar list-search-toolbar">
           <label class="search-box">
             <span class="sr-only">Tìm sản phẩm ở màn quản lý</span>
             <input id="productManageSearchInput" type="search" placeholder="Tìm sản phẩm để sửa...">
@@ -408,9 +487,50 @@
           </div>
         </article>
 
-        <section id="purchasePanel" class="active-cart-panel"></section>
+          <section id="purchasePanel" class="active-cart-panel"></section>
+          <section id="supplierReturnSection" class="sales-card product-collapse-card is-collapsed">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Phiếu trả NCC</p>
+                <h3>Tạo chứng từ trả hàng về nhà cung cấp</h3>
+              </div>
+              <button type="button" id="supplierReturnToggleButton" class="ghost-button compact-button">Mở phiếu</button>
+            </div>
+            <div id="supplierReturnWrap" class="product-collapse-body" hidden>
+              <label class="price-field">
+                <span>Nhà cung cấp</span>
+                <input id="supplierReturnSupplierInput" type="text" maxlength="120" placeholder="Tên nhà cung cấp">
+              </label>
+              <label class="price-field">
+                <span>Ghi chú</span>
+                <input id="supplierReturnNoteInput" type="text" maxlength="160" placeholder="Lý do trả NCC / ghi chú">
+              </label>
+              <div class="purchase-inline-grid">
+                <label class="price-field">
+                  <span>Sản phẩm</span>
+                  <input id="supplierReturnProductInput" type="text" list="productOptions" maxlength="120" placeholder="Gõ tên sản phẩm hoặc mở từ phiếu cũ">
+                </label>
+                <label class="price-field">
+                  <span>SL trả</span>
+                  <input id="supplierReturnQuantityInput" type="number" min="0.01" step="0.01" placeholder="0">
+                </label>
+                <label class="price-field">
+                  <span>Giá trả NCC</span>
+                  <input id="supplierReturnPriceInput" type="number" min="0" step="1000" placeholder="0">
+                </label>
+              </div>
+              <div class="customer-form-actions">
+                <button type="button" id="supplierReturnAddButton" class="ghost-button">Thêm dòng</button>
+              </div>
+              <div id="supplierReturnItems" class="cart-items-list"></div>
+              <div class="customer-form-actions">
+                <button type="button" id="supplierReturnSubmitButton" class="primary-button">Tạo phiếu trả NCC</button>
+                <button type="button" id="supplierReturnClearButton" class="ghost-button">Làm mới phiếu</button>
+              </div>
+            </div>
+          </section>
 
-        <div class="sales-columns">
+          <div class="sales-columns">
           <section class="sales-card">
             <div class="subheading">
               <div>
@@ -418,7 +538,7 @@
                 <h3>Sản phẩm đang thiếu hoặc sắp thiếu</h3>
               </div>
             </div>
-            <div class="sticky-toolbar">
+            <div class="sticky-toolbar list-search-toolbar">
               <label class="search-box">
                 <span class="sr-only">Tìm sản phẩm cần nhập</span>
                 <input id="purchaseSearchInput" type="search" placeholder="Tìm sản phẩm cần nhập...">
@@ -486,7 +606,7 @@
             </form>
           </div>
         </section>
-        <div class="sticky-toolbar customer-toolbar">
+        <div class="sticky-toolbar customer-toolbar list-search-toolbar">
           <label class="search-box">
             <span class="sr-only">Tìm nhà cung cấp</span>
             <input id="supplierSearchInput" type="search" placeholder="Tìm nhà cung cấp...">
@@ -550,6 +670,7 @@
           <button type="button" class="ghost-button compact-button" data-report-shortcut="summary">Số liệu</button>
           <button type="button" class="ghost-button compact-button" data-report-shortcut="trend">Xu hướng</button>
           <button type="button" class="ghost-button compact-button" data-report-shortcut="forecast">Dự báo</button>
+          <button type="button" class="ghost-button compact-button" data-report-shortcut="audit">Audit</button>
         </div>
 
         <div id="reportSummaryCards" class="hero-stats report-summary-grid"></div>
@@ -584,6 +705,16 @@
             </div>
           </div>
           <div id="reportProductActivity" class="product-list"></div>
+        </section>
+
+        <section id="reportReceiptHistorySection" class="sales-card">
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Audit chứng từ</p>
+              <h3>Lịch sử điều chỉnh và trả hàng</h3>
+            </div>
+          </div>
+          <div id="reportReceiptHistoryList" class="report-list"></div>
         </section>
       </section>
     </section>

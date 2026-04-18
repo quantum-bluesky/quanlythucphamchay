@@ -2,6 +2,8 @@
 
 Tài liệu này dành cho người trực tiếp dùng ứng dụng hằng ngày.
 
+Nếu gặp các trạng thái hoặc thuật ngữ tiếng Anh như `draft`, `ordered`, `received`, `paid`, xem thêm bảng tra cứu tại [docs/TERM_GLOSSARY.md](/D:/Quan/quanlythucphamchay/docs/TERM_GLOSSARY.md).
+
 ## 1. Mục tiêu sử dụng
 
 Ứng dụng dùng để:
@@ -21,6 +23,7 @@ Tài liệu này dành cho người trực tiếp dùng ứng dụng hằng ngà
 - Có thể bấm `Version` ở đầu ứng dụng để mở màn `About` và kiểm tra phiên bản app đang chạy
 - Trên điện thoại, nếu cần xem danh sách dài thì dùng `Thu gọn` hoặc nút chuyển trang `Trước / Sau`
 - Trên điện thoại, menu nổi, tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi bạn chạm ra ngoài; chạm lại vào phần mép còn lộ ra để mở đúng cụm cần dùng
+- Trên PC/tablet, menu nghiệp vụ mặc định ở dạng gọn; hover hoặc bấm `Mở menu` để bung ra nhanh, rồi rê chuột hoặc bấm ra ngoài để menu tự thu lại
 - Nếu có máy khác vừa cập nhật dữ liệu, app sẽ tự nạp lại khi bạn không còn gõ dở ở ô nhập hiện tại
 - Khi đổi màn hình bằng menu, app vẫn giữ lịch sử `Quay lại / Tiến tới`, nên có thể nhảy qua lại giữa các màn đang xử lý mà không cần tìm lại từ đầu
 - Ô `Tìm kiếm nhanh` nổi sẽ tự bám theo màn hiện tại; khi đổi màn, app sẽ tự nối lại đúng ô tìm kiếm của màn đó
@@ -150,6 +153,7 @@ Lưu ý:
 
 - đơn đã `Đã xong` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng hay giá
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
+- kể cả `Master Admin` cũng không được xóa hoặc hủy ngược đơn đã chốt
 
 ## 6. Luồng quản lý khách hàng
 
@@ -245,6 +249,7 @@ Lưu ý:
 
 - chỉ `Nháp` và `Đã đặt` mới được sửa trực tiếp dòng hàng
 - phiếu đã `Đã nhập kho`, `Đã thanh toán` hoặc `Đã hủy` sẽ chuyển sang chế độ chỉ xem để giữ lịch sử đúng workflow
+- kể cả `Master Admin` cũng không được xóa hoặc hủy ngược các phiếu đã khóa
 
 ## 9. Luồng quản lý nhà cung cấp
 
@@ -303,12 +308,42 @@ Lưu ý:
 - Mỗi phiếu đều lưu thành giao dịch kho mới để giữ lịch sử và audit
 - Các chứng từ cũ vẫn giữ nguyên, không bị sửa đè
 
-1. Chọn `Tháng xem chính`
-2. Chọn `Số tháng gần nhất`
-3. Xem 4 thẻ tổng quan ở trên
-4. Xem `Xu hướng tháng`
-5. Xem `Dự báo nhập`
-6. Xem `Chi tiết tháng`
+### Cách tạo từng loại phiếu trên màn hình
+
+#### Phiếu điều chỉnh tồn
+
+1. Vào `Kiểm tra nhập xuất hàng tồn`
+2. Nếu cần điều chỉnh từ đúng một mặt hàng đang thấy trên card, bấm `Phiếu DC`
+3. Hoặc mở khối `Phiếu điều chỉnh tồn` và gõ tên sản phẩm bằng tay
+4. Nhập số lượng tăng/giảm bằng số dương hoặc âm
+5. Nhập `Lý do điều chỉnh`
+6. Bấm `Thêm dòng`
+7. Kiểm tra lại danh sách rồi bấm `Tạo phiếu điều chỉnh`
+
+#### Phiếu trả hàng khách
+
+1. Vào `Quản lý đơn hàng`
+2. Nếu có đơn nguồn, tìm đơn đã chốt rồi bấm `Trả hàng`
+3. App sẽ tạo sẵn danh sách dòng hàng theo đơn đó; có thể sửa số lượng trả, giá hoàn hoặc bỏ bớt dòng
+4. Nếu không có đơn nguồn, mở khối `Phiếu trả hàng khách`, nhập `Khách hàng`, `Sản phẩm`, `SL trả`, `Giá hoàn` rồi bấm `Thêm dòng`
+5. Bấm `Tạo phiếu trả khách`
+
+#### Phiếu trả NCC
+
+1. Vào `Quản lý nhập hàng`
+2. Nếu có phiếu nguồn, mở phiếu đã `Đã nhập kho` hoặc `Đã thanh toán` rồi bấm `Trả NCC`
+3. App sẽ tạo sẵn danh sách dòng hàng theo phiếu đó; có thể sửa số lượng trả, giá trả NCC hoặc bỏ bớt dòng
+4. Nếu không có phiếu nguồn, mở khối `Phiếu trả NCC`, nhập `Nhà cung cấp`, `Sản phẩm`, `SL trả`, `Giá trả NCC` rồi bấm `Thêm dòng`
+5. Bấm `Tạo phiếu trả NCC`
+
+#### Báo cáo và audit chứng từ Phase B
+
+1. Vào `Báo cáo`
+2. Chọn `Tháng xem chính` hoặc dùng `Từ ngày` - `Đến ngày`
+3. Xem các thẻ tổng hợp `Hoàn khách`, `Trả NCC`, `Điều chỉnh tồn` để biết chứng từ Phase B phát sinh trong kỳ
+4. Xem `Xu hướng tháng` để đối chiếu từng tháng gần đây
+5. Xem `Chi tiết tháng` để biết từng sản phẩm bị ảnh hưởng bởi trả hàng hay điều chỉnh tồn
+6. Kéo xuống `Audit chứng từ` để xem mã phiếu, đối tượng, tổng SL, tổng tiền và liên kết `Đơn nguồn` / `Phiếu nguồn` nếu có
 
 ### Ý nghĩa phần dự báo
 

@@ -3,6 +3,18 @@ import {
   summaryCards,
   productGrid,
   transactionList,
+  inventoryReceiptSection,
+  inventoryReceiptWrap,
+  inventoryReceiptToggleButton,
+  inventoryReceiptEntryForm,
+  inventoryReceiptProductInput,
+  inventoryReceiptDeltaInput,
+  inventoryReceiptAddButton,
+  inventoryReceiptReasonInput,
+  inventoryReceiptNoteInput,
+  inventoryReceiptItems,
+  inventoryReceiptSubmitButton,
+  inventoryReceiptClearButton,
   productLookupInput,
   productOptions,
   quickTransactionForm,
@@ -32,6 +44,18 @@ import {
   showPaidOrders,
   orderSearchInput,
   cartQueueList,
+  customerReturnSection,
+  customerReturnWrap,
+  customerReturnToggleButton,
+  customerReturnCustomerInput,
+  customerReturnNoteInput,
+  customerReturnProductInput,
+  customerReturnQuantityInput,
+  customerReturnPriceInput,
+  customerReturnAddButton,
+  customerReturnItems,
+  customerReturnSubmitButton,
+  customerReturnClearButton,
   customerForm,
   customerNameInput,
   customerPhoneInput,
@@ -62,6 +86,18 @@ import {
   createPurchaseDraftButton,
   togglePurchasePanelButton,
   purchasePanel,
+  supplierReturnSection,
+  supplierReturnWrap,
+  supplierReturnToggleButton,
+  supplierReturnSupplierInput,
+  supplierReturnNoteInput,
+  supplierReturnProductInput,
+  supplierReturnQuantityInput,
+  supplierReturnPriceInput,
+  supplierReturnAddButton,
+  supplierReturnItems,
+  supplierReturnSubmitButton,
+  supplierReturnClearButton,
   purchaseSupplierMenuButton,
   purchaseSearchInput,
   purchaseSuggestionList,
@@ -94,6 +130,7 @@ import {
   reportMonthTrend,
   forecastList,
   reportProductActivity,
+  reportReceiptHistorySection,
   reportsSection,
   reportFiltersSection,
   reportFiltersWrap,
@@ -195,6 +232,9 @@ let purchasesUi = null;
 let entitiesUi = null;
 let reportsAdminUi = null;
 let adminSessionReminderTimer = null;
+let stickyLayoutUpdateFrame = 0;
+let stickyLayoutResizeObserver = null;
+window.__QLTPCHAY_APP_READY = false;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
 const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
 function attachSearchClearButton(input, container) {
@@ -237,6 +277,109 @@ function refreshSearchClearButtons() {
   searchClearRefreshers.forEach((refresh) => refresh());
 }
 
+function parsePixelValue(value) {
+  const parsed = Number.parseFloat(String(value || ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getStickyTargetBottom(node) {
+  if (!(node instanceof HTMLElement) || node.hidden) {
+    return 0;
+  }
+  const computedStyle = window.getComputedStyle(node);
+  if (computedStyle.display === "none") {
+    return 0;
+  }
+  return parsePixelValue(computedStyle.top) + node.offsetHeight;
+}
+
+function updateStickyLayoutMetrics() {
+  const rootStyle = document.documentElement?.style;
+  if (!rootStyle) {
+    return;
+  }
+
+  if (mobileQuery.matches) {
+    rootStyle.removeProperty("--list-toolbar-top");
+    rootStyle.removeProperty("--list-pagination-top");
+    return;
+  }
+
+  const screenHeaderBar = document.getElementById("screenHeaderBar");
+  const activeSection = document.querySelector(`[data-menu-section="${state.activeMenu}"]`);
+  const activeToolbar = activeSection?.querySelector(".list-search-toolbar");
+  const headerBottom = getStickyTargetBottom(screenHeaderBar);
+  let stickyTop = headerBottom + parsePixelValue(getComputedStyle(document.documentElement).getPropertyValue("--list-toolbar-gap"));
+
+  stickyTop = Math.max(stickyTop, getStickyTargetBottom(menuPanel) + 12);
+  if (state.activeMenu === "inventory" && quickPanel && !quickPanel.hidden) {
+    stickyTop = Math.max(stickyTop, getStickyTargetBottom(quickPanel) + 12);
+  }
+
+  const toolbarHeight = activeToolbar instanceof HTMLElement ? activeToolbar.offsetHeight : 0;
+  rootStyle.setProperty("--list-toolbar-top", `${Math.round(stickyTop)}px`);
+  rootStyle.setProperty("--list-pagination-top", `${Math.round(stickyTop + toolbarHeight + 8)}px`);
+}
+
+function scheduleStickyLayoutMetricsUpdate() {
+  if (stickyLayoutUpdateFrame) {
+    window.cancelAnimationFrame(stickyLayoutUpdateFrame);
+  }
+  stickyLayoutUpdateFrame = window.requestAnimationFrame(() => {
+    stickyLayoutUpdateFrame = 0;
+    updateStickyLayoutMetrics();
+  });
+}
+
+function setupStickyLayoutMetricsObserver() {
+  window.addEventListener("resize", scheduleStickyLayoutMetricsUpdate, { passive: true });
+  if (typeof ResizeObserver !== "function" || stickyLayoutResizeObserver) {
+    return;
+  }
+
+  stickyLayoutResizeObserver = new ResizeObserver(() => {
+    scheduleStickyLayoutMetricsUpdate();
+  });
+
+  [
+    document.getElementById("screenHeaderBar"),
+    menuPanel,
+    quickPanel,
+    ...document.querySelectorAll(".list-search-toolbar"),
+  ]
+    .filter((node) => node instanceof HTMLElement)
+    .forEach((node) => stickyLayoutResizeObserver.observe(node));
+}
+
+function scrollElementIntoView(target, { behavior = mobileQuery.matches ? "auto" : "smooth", topMargin = 16 } = {}) {
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const screenHeaderBar = document.getElementById("screenHeaderBar");
+  const headerOffset = (screenHeaderBar?.offsetHeight || 0) + topMargin;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const documentHeight = Math.max(
+    document.body?.scrollHeight || 0,
+    document.documentElement?.scrollHeight || 0
+  );
+  const targetTop = Math.max(window.scrollY + target.getBoundingClientRect().top - headerOffset, 0);
+  const maxScrollTop = Math.max(documentHeight - viewportHeight, 0);
+  window.scrollTo({
+    top: Math.min(targetTop, maxScrollTop),
+    behavior,
+  });
+}
+
+function scheduleScrollToTarget(targetOrResolver, options = {}) {
+  const { delayMs = 30, ...scrollOptions } = options;
+  window.setTimeout(() => {
+    const target = typeof targetOrResolver === "function"
+      ? targetOrResolver()
+      : targetOrResolver;
+    scrollElementIntoView(target, scrollOptions);
+  }, delayMs);
+}
+
 function renderCreateOrderEntryState() {
   getSalesUi().renderCreateOrderEntryState();
 }
@@ -266,6 +409,13 @@ function focusCreateOrderSelection() {
   }, 40);
 }
 
+function focusActiveCartPanel() {
+  if (state.activeMenu !== "create-order") {
+    switchMenu("create-order");
+  }
+  scheduleScrollToTarget(activeCartPanel, { delayMs: 40 });
+}
+
 function renderPurchaseEntryState() {
   getPurchasesUi().renderPurchaseEntryState();
 }
@@ -292,6 +442,43 @@ function focusPurchaseOrders() {
   window.setTimeout(() => {
     purchaseOrdersCard?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, 40);
+}
+
+function focusPurchasePanel() {
+  if (state.activeMenu !== "purchases") {
+    switchMenu("purchases");
+  }
+  scheduleScrollToTarget(purchasePanel, { delayMs: 40 });
+}
+
+function focusInventoryReceiptSection() {
+  if (state.activeMenu !== "inventory") {
+    switchMenu("inventory");
+  }
+  scheduleScrollToTarget(inventoryReceiptSection);
+}
+
+function focusCustomerReturnSection() {
+  if (state.activeMenu !== "orders") {
+    switchMenu("orders");
+  }
+  scheduleScrollToTarget(customerReturnSection);
+}
+
+function focusSupplierReturnSection() {
+  if (state.activeMenu !== "purchases") {
+    switchMenu("purchases");
+  }
+  scheduleScrollToTarget(supplierReturnSection);
+}
+
+function focusOrderQueueItem(cartId) {
+  if (state.activeMenu !== "orders") {
+    switchMenu("orders");
+  }
+  scheduleScrollToTarget(() => Array.from(cartQueueList?.querySelectorAll(".cart-queue-item") || []).find((item) => (
+    Array.from(item.querySelectorAll("[data-cart-id]")).some((button) => button.dataset.cartId === String(cartId))
+  )));
 }
 
 function getProductsUi() {
@@ -370,6 +557,7 @@ function getSalesDomainHelpers() {
       renderProducts,
       renderSalesProductList,
       focusCreateOrderSelection,
+      focusActiveCartPanel,
       focusPurchaseOrders,
       switchMenu,
       showToast,
@@ -395,6 +583,7 @@ function getPurchasesDomainHelpers() {
       createId,
       getProductById,
       renderProducts,
+      focusPurchasePanel,
       focusPurchaseOrders,
       switchMenu,
       showToast,
@@ -623,6 +812,8 @@ function getReportsAdminUi() {
         reportMonthTrend,
         forecastList,
         reportProductActivity,
+        reportReceiptHistorySection,
+        reportReceiptHistoryList,
         adminLoginPanel,
         adminModulePanel,
         adminSessionHeader,
@@ -748,10 +939,20 @@ function focusReportSection(kind) {
     summary: reportSummaryCards,
     trend: reportTrendSection,
     forecast: reportForecastSection,
+    audit: reportReceiptHistorySection,
   };
   const target = targets[kind] || reportSummaryCards;
   window.setTimeout(() => {
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!target) {
+      return;
+    }
+    const screenHeaderBar = document.getElementById("screenHeaderBar");
+    const headerOffset = (screenHeaderBar?.offsetHeight || 0) + 16;
+    const nextTop = Math.max(window.scrollY + target.getBoundingClientRect().top - headerOffset, 0);
+    window.scrollTo({
+      top: nextTop,
+      behavior: mobileQuery.matches ? "auto" : "smooth",
+    });
   }, 30);
 }
 
@@ -775,6 +976,39 @@ function hasCompleteReportDateFilter() {
   return Boolean(state.reportStartDate && state.reportEndDate);
 }
 
+function getReportReceiptHistoryWindow() {
+  if (hasCompleteReportDateFilter()) {
+    return {
+      startDateTime: `${state.reportStartDate}T00:00:00`,
+      endDateTime: `${state.reportEndDate}T23:59:59`,
+    };
+  }
+  const focusMonth = String(state.reportFocusMonth || new Date().toISOString().slice(0, 7)).trim();
+  const match = focusMonth.match(/^(\d{4})-(\d{2})$/);
+  if (!match) {
+    return { startDateTime: "", endDateTime: "" };
+  }
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]);
+  const lastDay = new Date(year, monthIndex, 0).getDate();
+  return {
+    startDateTime: `${focusMonth}-01T00:00:00`,
+    endDateTime: `${focusMonth}-${String(lastDay).padStart(2, "0")}T23:59:59`,
+  };
+}
+
+function buildReceiptHistoryParams() {
+  const receiptHistoryParams = new URLSearchParams({ limit: "40" });
+  const receiptHistoryWindow = getReportReceiptHistoryWindow();
+  if (receiptHistoryWindow.startDateTime) {
+    receiptHistoryParams.set("start_date", receiptHistoryWindow.startDateTime);
+  }
+  if (receiptHistoryWindow.endDateTime) {
+    receiptHistoryParams.set("end_date", receiptHistoryWindow.endDateTime);
+  }
+  return receiptHistoryParams;
+}
+
 function getSearchTermForKey(key) {
   const value = {
     inventory: state.searchTerm,
@@ -787,6 +1021,7 @@ function getSearchTermForKey(key) {
     suppliers: state.supplierSearchTerm,
     reportProducts: "",
     reportForecast: "",
+    reportReceipts: "",
   }[key];
   return String(value || "").trim();
 }
@@ -807,6 +1042,7 @@ function getPageSize(key) {
     suppliers: 4,
     reportProducts: 4,
     reportForecast: 4,
+    reportReceipts: 4,
   };
   const desktopSizes = {
     inventory: 9,
@@ -819,6 +1055,7 @@ function getPageSize(key) {
     suppliers: 6,
     reportProducts: 9,
     reportForecast: 6,
+    reportReceipts: 6,
   };
   return mobileQuery.matches ? (mobileSizes[key] || 6) : (desktopSizes[key] || 9);
 }
@@ -1181,11 +1418,26 @@ function switchMenu(menu, { recordHistory = true } = {}) {
     showToast("Cần login trước khi dùng hệ thống.", true);
     menu = "login";
   }
-  return getNavigationRuntimeHelpers().switchMenu(menu, { recordHistory });
+  const result = getNavigationRuntimeHelpers().switchMenu(menu, { recordHistory });
+  if (menu === "reports") {
+    window.setTimeout(async () => {
+      try {
+        await refreshReportData();
+        renderReports();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    }, 0);
+  }
+  return result;
 }
 
 function navigateMenuHistory(direction) {
   return getNavigationRuntimeHelpers().navigateMenuHistory(direction);
+}
+
+function setMenuCollapsed(collapsed, options) {
+  return getNavigationRuntimeHelpers().setMenuCollapsed(collapsed, options);
 }
 
 function getCoreUi() {
@@ -1674,6 +1926,7 @@ function renderInventoryDirectEditAccess() {
 }
 
 function applyMobileCollapsedDefaults() {
+  state.menuCollapsed = true;
   if (!mobileQuery.matches) {
     state.activeCartPanelCollapsed = false;
     state.purchasePanelCollapsed = false;
@@ -1764,6 +2017,7 @@ function clearProtectedSessionData() {
   state.products = [];
   state.deletedProducts = [];
   state.productHistory = [];
+  state.receiptHistory = [];
   state.transactions = [];
   state.summary = null;
   state.reports = null;
@@ -1773,6 +2027,28 @@ function clearProtectedSessionData() {
   state.purchases = [];
   state.activeCartId = null;
   state.activePurchaseId = null;
+  state.inventoryReceiptDraft = {
+    collapsed: true,
+    productText: "",
+    quantityDelta: "",
+    reason: "",
+    note: "",
+    items: [],
+  };
+  state.customerReturnDraft = {
+    collapsed: true,
+    sourceCartId: "",
+    customerName: "",
+    note: "",
+    items: [],
+  };
+  state.supplierReturnDraft = {
+    collapsed: true,
+    sourcePurchaseId: "",
+    supplierName: "",
+    note: "",
+    items: [],
+  };
 }
 
 function getLoginReturnMenu() {
@@ -2009,6 +2285,12 @@ async function refreshReportData() {
   }
   state.reports = await apiRequest(`/api/reports/monthly?${params.toString()}`);
   state.reportFocusMonth = state.reports?.focus_month || focusMonth;
+  const shouldLoadReceiptHistory = state.activeMenu === "reports";
+  if (shouldLoadReceiptHistory) {
+    const receiptHistoryPayload = await apiRequest(`/api/receipts/history?${buildReceiptHistoryParams().toString()}`);
+    state.receiptHistory = receiptHistoryPayload.history || [];
+  }
+  return state.reports;
 }
 
 async function refreshData({ sessionAlreadyLoaded = false } = {}) {
@@ -2086,6 +2368,309 @@ function renderProducts() {
 
 function renderTransactions() {
   getInventoryUi().renderTransactions();
+}
+
+function resetInventoryReceiptDraft({ keepCollapsed = false } = {}) {
+  state.inventoryReceiptDraft = {
+    collapsed: keepCollapsed ? state.inventoryReceiptDraft?.collapsed ?? true : true,
+    productText: "",
+    quantityDelta: "",
+    reason: "",
+    note: "",
+    items: [],
+  };
+}
+
+function addInventoryReceiptDraftItem(productText, quantityDelta) {
+  const product = resolveProductFromText(productText);
+  const delta = Number(quantityDelta);
+  if (!Number.isFinite(delta) || delta === 0) {
+    throw new Error("SL điều chỉnh phải khác 0.");
+  }
+  const roundedDelta = Number(delta.toFixed(2));
+  const existing = state.inventoryReceiptDraft.items.find((item) => Number(item.productId) === Number(product.id));
+  if (existing) {
+    existing.quantityDelta = Number((Number(existing.quantityDelta) + roundedDelta).toFixed(2));
+    if (existing.quantityDelta === 0) {
+      state.inventoryReceiptDraft.items = state.inventoryReceiptDraft.items.filter((item) => Number(item.productId) !== Number(product.id));
+    }
+  } else {
+    state.inventoryReceiptDraft.items.push({
+      id: createId("inventory_receipt_item"),
+      productId: product.id,
+      productName: product.name,
+      unit: product.unit,
+      quantityDelta: roundedDelta,
+    });
+  }
+  state.inventoryReceiptDraft.productText = "";
+  state.inventoryReceiptDraft.quantityDelta = "";
+}
+
+function renderInventoryReceiptSection() {
+  if (!inventoryReceiptSection || !inventoryReceiptWrap || !inventoryReceiptToggleButton) {
+    return;
+  }
+  const isAdmin = Boolean(state.admin?.isAdmin);
+  inventoryReceiptSection.hidden = !isAdmin;
+  if (!isAdmin) {
+    return;
+  }
+  const draft = state.inventoryReceiptDraft;
+  inventoryReceiptSection.classList.toggle("is-collapsed", draft.collapsed);
+  inventoryReceiptWrap.hidden = draft.collapsed;
+  inventoryReceiptToggleButton.textContent = draft.collapsed ? "Mở phiếu" : "Thu gọn";
+  if (inventoryReceiptProductInput) inventoryReceiptProductInput.value = draft.productText || "";
+  if (inventoryReceiptDeltaInput) inventoryReceiptDeltaInput.value = draft.quantityDelta || "";
+  if (inventoryReceiptReasonInput) inventoryReceiptReasonInput.value = draft.reason || "";
+  if (inventoryReceiptNoteInput) inventoryReceiptNoteInput.value = draft.note || "";
+  if (!inventoryReceiptItems) {
+    return;
+  }
+  if (!draft.items.length) {
+    inventoryReceiptItems.innerHTML = '<div class="empty-state">Chưa có dòng điều chỉnh. Hãy thêm sản phẩm cần tăng hoặc giảm tồn.</div>';
+    return;
+  }
+  inventoryReceiptItems.innerHTML = draft.items.map((item) => `
+    <article class="cart-item">
+      <div class="cart-item-header">
+        <div>
+          <strong>${escapeHtml(item.productName)}</strong>
+          <div class="cart-line-note">${Number(item.quantityDelta) > 0 ? "Tăng" : "Giảm"} ${escapeHtml(formatQuantity(Math.abs(item.quantityDelta)))} ${escapeHtml(item.unit)}</div>
+        </div>
+        <strong>${Number(item.quantityDelta) > 0 ? "+" : ""}${escapeHtml(formatQuantity(item.quantityDelta))}</strong>
+      </div>
+      <div class="line-actions">
+        <button type="button" class="danger-button compact-button" data-inventory-receipt-action="remove" data-product-id="${item.productId}">Bỏ dòng</button>
+      </div>
+    </article>
+  `).join("");
+}
+
+function resetCustomerReturnDraft({ keepCollapsed = false } = {}) {
+  state.customerReturnDraft = {
+    collapsed: keepCollapsed ? state.customerReturnDraft?.collapsed ?? true : true,
+    sourceCartId: "",
+    customerName: "",
+    note: "",
+    productText: "",
+    quantity: "",
+    unitRefund: "",
+    items: [],
+  };
+}
+
+function addCustomerReturnDraftItem(productText, quantity, unitRefund) {
+  const product = resolveProductFromText(productText);
+  const parsedQuantity = Number(quantity);
+  const parsedUnitRefund = Number(unitRefund);
+  if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+    throw new Error("Số lượng trả phải lớn hơn 0.");
+  }
+  if (!Number.isFinite(parsedUnitRefund) || parsedUnitRefund < 0) {
+    throw new Error("Giá hoàn không hợp lệ.");
+  }
+  const roundedQuantity = Number(parsedQuantity.toFixed(2));
+  const roundedUnitRefund = Number(parsedUnitRefund.toFixed(2));
+  const existing = state.customerReturnDraft.items.find((item) => Number(item.productId) === Number(product.id));
+  if (existing) {
+    existing.quantity = Number((Number(existing.quantity) + roundedQuantity).toFixed(2));
+    existing.unitRefund = roundedUnitRefund;
+  } else {
+    state.customerReturnDraft.items.push({
+      id: createId("customer_return_item"),
+      productId: product.id,
+      productName: product.name,
+      unit: product.unit,
+      quantity: roundedQuantity,
+      unitRefund: roundedUnitRefund,
+    });
+  }
+  state.customerReturnDraft.productText = "";
+  state.customerReturnDraft.quantity = "";
+  state.customerReturnDraft.unitRefund = "";
+}
+
+function openCustomerReturnDraftFromCart(cartId) {
+  const cart = getCartById(cartId);
+  if (!cart || cart.status !== "completed") {
+    throw new Error("Chỉ tạo phiếu trả hàng từ đơn đã chốt.");
+  }
+  state.customerReturnDraft = {
+    collapsed: false,
+    sourceCartId: cart.id,
+    customerName: cart.customerName || "",
+    note: cart.orderCode ? `Điều chỉnh sau đơn ${cart.orderCode}` : "",
+    productText: "",
+    quantity: "",
+    unitRefund: "",
+    items: (cart.items || []).map((item) => ({
+      id: createId("customer_return_item"),
+      productId: item.productId,
+      productName: item.productName,
+      unit: item.unit,
+      quantity: Number(item.quantity || 0),
+      unitRefund: Number(item.unitPrice || 0),
+    })),
+  };
+}
+
+function renderCustomerReturnSection() {
+  if (!customerReturnSection || !customerReturnWrap || !customerReturnToggleButton) {
+    return;
+  }
+  const draft = state.customerReturnDraft;
+  customerReturnSection.classList.toggle("is-collapsed", draft.collapsed);
+  customerReturnWrap.hidden = draft.collapsed;
+  customerReturnToggleButton.textContent = draft.collapsed ? "Mở phiếu" : "Thu gọn";
+  if (customerReturnCustomerInput) customerReturnCustomerInput.value = draft.customerName || "";
+  if (customerReturnNoteInput) customerReturnNoteInput.value = draft.note || "";
+  if (customerReturnProductInput) customerReturnProductInput.value = draft.productText || "";
+  if (customerReturnQuantityInput) customerReturnQuantityInput.value = draft.quantity || "";
+  if (customerReturnPriceInput) customerReturnPriceInput.value = draft.unitRefund || "";
+  if (!customerReturnItems) {
+    return;
+  }
+  if (!draft.items.length) {
+    customerReturnItems.innerHTML = '<div class="empty-state">Chọn một đơn đã chốt để tạo sẵn phiếu, hoặc nhập sản phẩm và bấm Thêm dòng để lập phiếu độc lập.</div>';
+    return;
+  }
+  const sourceCart = draft.sourceCartId ? getCartById(draft.sourceCartId) : null;
+  const sourceLabel = sourceCart?.orderCode ? `Đơn nguồn: ${sourceCart.orderCode}` : "";
+  customerReturnItems.innerHTML = `
+    ${sourceLabel ? `<article class="inline-alert">${escapeHtml(sourceLabel)}</article>` : ""}
+    ${draft.items.map((item) => `
+      <article class="cart-item">
+        <div class="cart-item-header">
+          <div>
+            <strong>${escapeHtml(item.productName)}</strong>
+            <div class="cart-line-note">${escapeHtml(item.unit)}</div>
+          </div>
+          <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitRefund || 0)))}</strong>
+        </div>
+        <div class="purchase-inline-grid">
+          <label class="price-field"><span>SL trả</span><input type="number" min="0.01" step="0.01" value="${item.quantity}" data-customer-return-qty="${item.id}"></label>
+          <label class="price-field"><span>Giá hoàn</span><input type="number" min="0" step="1000" value="${item.unitRefund}" data-customer-return-price="${item.id}"></label>
+        </div>
+        <div class="line-actions">
+          <button type="button" class="danger-button compact-button" data-customer-return-action="remove" data-item-id="${item.id}">Bỏ dòng</button>
+        </div>
+      </article>
+    `).join("")}
+  `;
+}
+
+function resetSupplierReturnDraft({ keepCollapsed = false } = {}) {
+  state.supplierReturnDraft = {
+    collapsed: keepCollapsed ? state.supplierReturnDraft?.collapsed ?? true : true,
+    sourcePurchaseId: "",
+    supplierName: "",
+    note: "",
+    productText: "",
+    quantity: "",
+    unitCost: "",
+    items: [],
+  };
+}
+
+function addSupplierReturnDraftItem(productText, quantity, unitCost) {
+  const product = resolveProductFromText(productText);
+  const parsedQuantity = Number(quantity);
+  const parsedUnitCost = Number(unitCost);
+  if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+    throw new Error("Số lượng trả NCC phải lớn hơn 0.");
+  }
+  if (!Number.isFinite(parsedUnitCost) || parsedUnitCost < 0) {
+    throw new Error("Giá trả NCC không hợp lệ.");
+  }
+  const roundedQuantity = Number(parsedQuantity.toFixed(2));
+  const roundedUnitCost = Number(parsedUnitCost.toFixed(2));
+  const existing = state.supplierReturnDraft.items.find((item) => Number(item.productId) === Number(product.id));
+  if (existing) {
+    existing.quantity = Number((Number(existing.quantity) + roundedQuantity).toFixed(2));
+    existing.unitCost = roundedUnitCost;
+  } else {
+    state.supplierReturnDraft.items.push({
+      id: createId("supplier_return_item"),
+      productId: product.id,
+      productName: product.name,
+      unit: product.unit,
+      quantity: roundedQuantity,
+      unitCost: roundedUnitCost,
+    });
+  }
+  state.supplierReturnDraft.productText = "";
+  state.supplierReturnDraft.quantity = "";
+  state.supplierReturnDraft.unitCost = "";
+}
+
+function openSupplierReturnDraftFromPurchase(purchaseId) {
+  const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
+  if (!purchase || !["received", "paid"].includes(purchase.status)) {
+    throw new Error("Chỉ tạo phiếu trả NCC từ phiếu đã nhập kho hoặc đã thanh toán.");
+  }
+  state.supplierReturnDraft = {
+    collapsed: false,
+    sourcePurchaseId: purchase.id,
+    supplierName: purchase.supplierName || "",
+    note: purchase.receiptCode ? `Điều chỉnh sau phiếu ${purchase.receiptCode}` : "",
+    productText: "",
+    quantity: "",
+    unitCost: "",
+    items: (purchase.items || []).map((item) => ({
+      id: createId("supplier_return_item"),
+      productId: item.productId,
+      productName: item.productName,
+      unit: item.unit,
+      quantity: Number(item.quantity || 0),
+      unitCost: Number(item.unitCost || 0),
+    })),
+  };
+}
+
+function renderSupplierReturnSection() {
+  if (!supplierReturnSection || !supplierReturnWrap || !supplierReturnToggleButton) {
+    return;
+  }
+  const draft = state.supplierReturnDraft;
+  supplierReturnSection.classList.toggle("is-collapsed", draft.collapsed);
+  supplierReturnWrap.hidden = draft.collapsed;
+  supplierReturnToggleButton.textContent = draft.collapsed ? "Mở phiếu" : "Thu gọn";
+  if (supplierReturnSupplierInput) supplierReturnSupplierInput.value = draft.supplierName || "";
+  if (supplierReturnNoteInput) supplierReturnNoteInput.value = draft.note || "";
+  if (supplierReturnProductInput) supplierReturnProductInput.value = draft.productText || "";
+  if (supplierReturnQuantityInput) supplierReturnQuantityInput.value = draft.quantity || "";
+  if (supplierReturnPriceInput) supplierReturnPriceInput.value = draft.unitCost || "";
+  if (!supplierReturnItems) {
+    return;
+  }
+  if (!draft.items.length) {
+    supplierReturnItems.innerHTML = '<div class="empty-state">Mở một phiếu đã nhập kho để tạo sẵn phiếu, hoặc nhập sản phẩm và bấm Thêm dòng để lập phiếu trả NCC độc lập.</div>';
+    return;
+  }
+  const sourcePurchase = draft.sourcePurchaseId ? state.purchases.find((entry) => entry.id === draft.sourcePurchaseId) : null;
+  const sourceLabel = sourcePurchase?.receiptCode ? `Phiếu nguồn: ${sourcePurchase.receiptCode}` : "";
+  supplierReturnItems.innerHTML = `
+    ${sourceLabel ? `<article class="inline-alert">${escapeHtml(sourceLabel)}</article>` : ""}
+    ${draft.items.map((item) => `
+      <article class="cart-item">
+        <div class="cart-item-header">
+          <div>
+            <strong>${escapeHtml(item.productName)}</strong>
+            <div class="cart-line-note">${escapeHtml(item.unit)}</div>
+          </div>
+          <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitCost || 0)))}</strong>
+        </div>
+        <div class="purchase-inline-grid">
+          <label class="price-field"><span>SL trả</span><input type="number" min="0.01" step="0.01" value="${item.quantity}" data-supplier-return-qty="${item.id}"></label>
+          <label class="price-field"><span>Giá trả NCC</span><input type="number" min="0" step="1000" value="${item.unitCost}" data-supplier-return-price="${item.id}"></label>
+        </div>
+        <div class="line-actions">
+          <button type="button" class="danger-button compact-button" data-supplier-return-action="remove" data-item-id="${item.id}">Bỏ dòng</button>
+        </div>
+      </article>
+    `).join("")}
+  `;
 }
 
 function renderActiveCartPanel() {
@@ -2172,6 +2757,7 @@ function renderCartQueue() {
               ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">...</button>`
               : `
                 <button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>
+                ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
                 ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
                 ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
                 ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
@@ -2182,6 +2768,7 @@ function renderCartQueue() {
               <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
               <div class="queue-actions queue-actions-expanded">
                 ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
+                ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả</button>` : ""}
                 ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">TT</button>` : ""}
                 ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
                 ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
@@ -2348,6 +2935,7 @@ function renderAll() {
   renderProductOptions();
   renderCustomerOptions();
   renderSupplierOptions();
+  renderInventoryReceiptSection();
   renderProducts();
   renderProductManageList();
   renderProductHistory();
@@ -2356,9 +2944,11 @@ function renderAll() {
   renderActiveCartPanel();
   renderSalesProductList();
   renderCartItems();
+  renderCustomerReturnSection();
   renderCartQueue();
   renderCustomers();
   renderPurchasePanel();
+  renderSupplierReturnSection();
   renderPurchaseSuggestions();
   renderPurchaseOrders();
   renderSuppliers();
@@ -2375,6 +2965,8 @@ function renderAll() {
   renderScreenToolbox();
   renderFloatingSearchDock();
   refreshSearchClearButtons();
+  scheduleStickyLayoutMetricsUpdate();
+  window.__QLTPCHAY_APP_READY = true;
 }
 
 function buildPrintMarkup(cart) {
@@ -2509,6 +3101,98 @@ async function updateProductSalePrice(productId, salePrice) {
   showToast(data.message);
 }
 
+async function submitInventoryReceiptDraft() {
+  const draft = state.inventoryReceiptDraft;
+  if (!draft.items.length) {
+    throw new Error("Phiếu điều chỉnh đang trống.");
+  }
+  if (!String(draft.reason || "").trim()) {
+    throw new Error("Lý do điều chỉnh là bắt buộc.");
+  }
+  const data = await apiRequest("/api/adjustments/inventory", {
+    method: "POST",
+    body: JSON.stringify({
+      reason: draft.reason.trim(),
+      note: String(draft.note || "").trim(),
+      items: draft.items.map((item) => ({
+        product_id: item.productId,
+        quantity_delta: item.quantityDelta,
+      })),
+    }),
+  });
+  resetInventoryReceiptDraft();
+  await refreshData();
+  showToast(`${data.message} ${data.receipt?.receipt_code || ""}`.trim());
+}
+
+async function submitCustomerReturnDraft() {
+  const draft = state.customerReturnDraft;
+  if (!draft.items.length) {
+    throw new Error("Phiếu trả hàng khách đang trống.");
+  }
+  const customerName = String(draft.customerName || "").trim();
+  if (!customerName) {
+    throw new Error("Khách hàng là bắt buộc.");
+  }
+  const sourceCart = draft.sourceCartId ? getCartById(draft.sourceCartId) : null;
+  const sourceReference = sourceCart?.orderCode ? `Đơn nguồn ${sourceCart.orderCode}` : "";
+  const note = String(draft.note || "").trim();
+  const finalNote = sourceReference && !note.includes(sourceReference)
+    ? (note ? `${note} | ${sourceReference}` : sourceReference)
+    : note;
+  const data = await apiRequest("/api/returns/customers", {
+    method: "POST",
+    body: JSON.stringify({
+      customer_name: customerName,
+      note: finalNote,
+      source_type: sourceCart?.orderCode ? "order" : "",
+      source_code: sourceCart?.orderCode || "",
+      items: draft.items.map((item) => ({
+        product_id: item.productId,
+        quantity: item.quantity,
+        unit_refund: item.unitRefund,
+      })),
+    }),
+  });
+  resetCustomerReturnDraft();
+  await refreshData();
+  showToast(`${data.message} ${data.receipt?.receipt_code || ""}`.trim());
+}
+
+async function submitSupplierReturnDraft() {
+  const draft = state.supplierReturnDraft;
+  if (!draft.items.length) {
+    throw new Error("Phiếu trả NCC đang trống.");
+  }
+  const supplierName = String(draft.supplierName || "").trim();
+  if (!supplierName) {
+    throw new Error("Nhà cung cấp là bắt buộc.");
+  }
+  const sourcePurchase = draft.sourcePurchaseId ? state.purchases.find((entry) => entry.id === draft.sourcePurchaseId) : null;
+  const sourceReference = sourcePurchase?.receiptCode ? `Phiếu nguồn ${sourcePurchase.receiptCode}` : "";
+  const note = String(draft.note || "").trim();
+  const finalNote = sourceReference && !note.includes(sourceReference)
+    ? (note ? `${note} | ${sourceReference}` : sourceReference)
+    : note;
+  const data = await apiRequest("/api/returns/suppliers", {
+    method: "POST",
+    body: JSON.stringify({
+      supplier_name: supplierName,
+      note: finalNote,
+      source_type: sourcePurchase?.receiptCode ? "purchase" : "",
+      source_code: sourcePurchase?.receiptCode || "",
+      items: draft.items.map((item) => ({
+        product_id: item.productId,
+        quantity: item.quantity,
+        unit_cost: item.unitCost,
+      })),
+    }),
+  });
+  resetSupplierReturnDraft();
+  await refreshData();
+  showToast(`${data.message} ${data.receipt?.receipt_code || ""}`.trim());
+}
+
 async function checkoutActiveCart() {
   const cart = getActiveCart();
   if (!cart) {
@@ -2573,6 +3257,7 @@ registerCoreControllerEvents({
     quickPanel,
     quickPanelToggle,
     menuPanel,
+    menuToggleButton,
     floatingSearchDock,
     screenToolbox,
     floatingSearchToggle,
@@ -2588,6 +3273,7 @@ registerCoreControllerEvents({
   },
   actions: {
     setQuickPanelCollapsed,
+    setMenuCollapsed,
     scrollPageTo,
     navigateMenuHistory,
     setHelpOpen,
@@ -2668,6 +3354,15 @@ registerInventoryControllerEvents({
     searchInput,
     orderSearchInput,
     purchaseSearchInput,
+    inventoryReceiptToggleButton,
+    inventoryReceiptProductInput,
+    inventoryReceiptDeltaInput,
+    inventoryReceiptAddButton,
+    inventoryReceiptReasonInput,
+    inventoryReceiptNoteInput,
+    inventoryReceiptItems,
+    inventoryReceiptClearButton,
+    inventoryReceiptSubmitButton,
   },
   actions: {
     submitTransaction,
@@ -2680,14 +3375,25 @@ registerInventoryControllerEvents({
     updateProductPrice,
     prefillProduct,
     focusCreateOrderSelection,
-    focusPurchaseOrders,
+    focusActiveCartPanel,
+    focusPurchasePanel,
     setInventoryAdjustmentReason,
+    openInventoryReceiptDraft: (productId) => {
+      state.inventoryReceiptDraft.collapsed = false;
+      state.inventoryReceiptDraft.productText = getProductById(productId)?.name || "";
+      state.inventoryReceiptDraft.quantityDelta = "";
+    },
+    focusInventoryReceiptSection,
+    addInventoryReceiptDraftItem,
+    resetInventoryReceiptDraft,
+    submitInventoryReceiptDraft,
   },
   renderers: {
     renderProducts,
     renderCartQueue,
     renderPurchaseSuggestions,
     renderPurchaseOrders,
+    renderInventoryReceiptSection,
   },
   queries: {
     getProductById,
@@ -2707,6 +3413,16 @@ registerSalesControllerEvents({
     activeCartPanel,
     selectedCartToggleButton,
     cartQueueList,
+    customerReturnToggleButton,
+    customerReturnCustomerInput,
+    customerReturnNoteInput,
+    customerReturnProductInput,
+    customerReturnQuantityInput,
+    customerReturnPriceInput,
+    customerReturnAddButton,
+    customerReturnItems,
+    customerReturnClearButton,
+    customerReturnSubmitButton,
   },
   actions: {
     showToast,
@@ -2718,6 +3434,13 @@ registerSalesControllerEvents({
     checkoutActiveCart,
     printCart,
     updateProductSalePrice,
+    focusActiveCartPanel,
+    focusOrderQueueItem,
+    openCustomerReturnDraftFromCart,
+    focusCustomerReturnSection,
+    addCustomerReturnDraftItem,
+    resetCustomerReturnDraft,
+    submitCustomerReturnDraft,
   },
   renderers: {
     renderSalesProductList,
@@ -2725,6 +3448,7 @@ registerSalesControllerEvents({
     renderActiveCartPanel,
     renderCartQueue,
     renderCreateOrderEntryState,
+    renderCustomerReturnSection,
   },
   queries: {
     getActiveCart,
@@ -2772,6 +3496,7 @@ registerEntitiesControllerEvents({
     clearPendingPurchaseSupplierFlow,
     createPurchaseDraftIfMissing,
     updatePurchase,
+    focusPurchasePanel,
     switchMenu,
     showToast,
     saveAndRenderAll,
@@ -2810,11 +3535,22 @@ registerPurchasesControllerEvents({
     purchasePanel,
     purchaseOrderList,
     mobileQuery,
+    supplierReturnToggleButton,
+    supplierReturnSupplierInput,
+    supplierReturnNoteInput,
+    supplierReturnProductInput,
+    supplierReturnQuantityInput,
+    supplierReturnPriceInput,
+    supplierReturnAddButton,
+    supplierReturnItems,
+    supplierReturnClearButton,
+    supplierReturnSubmitButton,
   },
   actions: {
     createPurchaseDraftIfMissing,
     saveAndRenderAll,
     focusPurchaseSuggestions,
+    focusPurchasePanel,
     showToast,
     updatePurchase,
     apiRequest,
@@ -2824,13 +3560,19 @@ registerPurchasesControllerEvents({
     beginSupplierCreateFromPurchase,
     setSkipNextPurchaseSupplierChangePersist: (value) => { skipNextPurchaseSupplierChangePersist = value; },
     focusPurchaseOrders,
+    focusSupplierReturnSection,
     switchMenu,
     addSuggestionToPurchase,
+    openSupplierReturnDraftFromPurchase,
+    addSupplierReturnDraftItem,
+    resetSupplierReturnDraft,
+    submitSupplierReturnDraft,
   },
   renderers: {
     renderPurchasePanel,
     renderPurchaseSuggestions,
     renderPurchaseOrders,
+    renderSupplierReturnSection,
   },
   queries: {
     getActivePurchase,
@@ -2887,7 +3629,9 @@ registerReportsAdminControllerEvents({
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
+  window.__QLTPCHAY_APP_READY = false;
   setupSearchClearButtons();
+  setupStickyLayoutMetricsObserver();
   loadSalesState();
   setHelpOpen(false);
   applyMobileCollapsedDefaults();
@@ -2899,8 +3643,10 @@ window.addEventListener("DOMContentLoaded", async () => {
       state.activeMenu = "login";
       state.menuHistory = ["login"];
       state.menuHistoryIndex = 0;
+      renderAll();
+      startAutoRefreshLoop();
+      return;
     }
-    renderAll();
     const payload = await refreshData({ sessionAlreadyLoaded: true });
     const migrated = await migrateLegacyCollectionsIfNeeded(payload);
     if (!readStorage(STORAGE_KEYS.migratedSyncState, false) && hasAnySyncedData(payload)) {

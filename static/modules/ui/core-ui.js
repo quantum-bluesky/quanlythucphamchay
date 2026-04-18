@@ -33,7 +33,10 @@ export function createCoreUi(deps) {
     dom.menuToggleButton.setAttribute("aria-expanded", state.menuCollapsed ? "false" : "true");
     dom.menuToggleButton.textContent = dom.mobileQuery.matches
       ? (state.menuCollapsed ? "☰" : "Đóng")
-      : (state.menuCollapsed ? "Mở menu" : "Thu gọn menu");
+      : (state.menuCollapsed ? "Mở menu" : "Menu đang mở");
+    dom.menuToggleButton.title = dom.mobileQuery.matches
+      ? (state.menuCollapsed ? "Mở menu nghiệp vụ" : "Đóng menu nghiệp vụ")
+      : (state.menuCollapsed ? "Hover hoặc bấm để mở menu nghiệp vụ" : "Rê chuột ra ngoài để menu tự thu gọn");
     dom.menuPanel.querySelectorAll("[data-menu]").forEach((button) => {
       button.classList.toggle("is-active", button.dataset.menu === state.activeMenu);
       button.disabled = loginLocked && button.dataset.menu !== "admin";
