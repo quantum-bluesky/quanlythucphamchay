@@ -26,12 +26,26 @@ export function createPurchasesDomainHelpers(deps) {
     return Boolean(purchase && purchase.status === "received");
   }
 
+  function isRepairableInvalidPurchase(purchase) {
+    if (!purchase || purchase.status !== "paid") return false;
+    if (purchase.isRepairableInvalid === true || purchase.repairableInvalid === true) {
+      return true;
+    }
+    const receivedAt = String(purchase.receivedAt || purchase.received_at || "").trim();
+    const receiptCode = String(purchase.receiptCode || purchase.receipt_code || "").trim();
+    return !receivedAt || !receiptCode;
+  }
+
   function canEditPurchase(purchase) {
     return Boolean(purchase && ["draft", "ordered"].includes(purchase.status));
   }
 
   function canDeletePurchase(purchase) {
-    return Boolean(purchase && purchase.status === "draft");
+    return Boolean(purchase && (purchase.status === "draft" || isRepairableInvalidPurchase(purchase)));
+  }
+
+  function canCancelPurchase(purchase) {
+    return Boolean(purchase && (["draft", "ordered"].includes(purchase.status) || isRepairableInvalidPurchase(purchase)));
   }
 
   function isLockedPurchase(purchase) {
@@ -158,8 +172,10 @@ export function createPurchasesDomainHelpers(deps) {
   return {
     getActivePurchase,
     canMarkPurchasePaid,
+    isRepairableInvalidPurchase,
     canEditPurchase,
     canDeletePurchase,
+    canCancelPurchase,
     isLockedPurchase,
     updatePurchase,
     getIncomingPurchaseByProductId,

@@ -498,6 +498,23 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
+                if self.path == "/api/purchases/repair":
+                    result = store.repair_purchase_document(
+                        payload.get("purchase_id", ""),
+                        action=payload.get("action", ""),
+                        actor=self._get_current_username() or "",
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": result["message"],
+                            "purchases": result["purchases"],
+                            "detached_receipt_codes": result["detached_receipt_codes"],
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
                 if self.path == "/api/adjustments/inventory":
                     if not self._require_admin():
                         return

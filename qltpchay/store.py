@@ -589,6 +589,17 @@ class InventoryStore:
                 ORDER BY datetime(updated_at) DESC, id
                 """
             ).fetchall()
+            purchase_receipt_codes = {
+                str(row["receipt_code"] or "").strip()
+                for row in connection.execute(
+                    """
+                    SELECT receipt_code
+                    FROM inventory_receipts
+                    WHERE receipt_type = 'purchase'
+                    """
+                ).fetchall()
+                if str(row["receipt_code"] or "").strip()
+            }
             item_rows = connection.execute(
                 """
                 SELECT id, purchase_id, product_id, product_name, quantity, unit_cost, sort_order
@@ -603,6 +614,11 @@ class InventoryStore:
             for row in purchase_rows:
                 received_at = row["received_at"]
                 paid_at = row["paid_at"]
+                receipt_code = row["receipt_code"] or ""
+                is_repairable_invalid = (
+                    (row["status"] or "draft") == "paid"
+                    and str(receipt_code).strip() not in purchase_receipt_codes
+                )
                 purchases.append(
                     {
                         "id": row["id"],
@@ -616,8 +632,10 @@ class InventoryStore:
                         "received_at": received_at,
                         "paidAt": paid_at,
                         "paid_at": paid_at,
-                        "receiptCode": row["receipt_code"] or "",
-                        "receipt_code": row["receipt_code"] or "",
+                        "receiptCode": receipt_code,
+                        "receipt_code": receipt_code,
+                        "isRepairableInvalid": is_repairable_invalid,
+                        "repairableInvalid": is_repairable_invalid,
                         "items": items_by_purchase.get(str(row["id"]), []),
                     }
                 )
@@ -1787,6 +1805,180 @@ class InventoryStore:
             "transactions": transactions,
             "total_quantity": round(float(total_quantity), 2),
             "total_amount": round(float(total_amount), 2),
+        }
+
+    def _get_inventory_receipt_by_code(
+        self,
+        connection: sqlite3.Connection,
+        receipt_code: str,
+        *,
+        receipt_type: str = "",
+    ) -> sqlite3.Row | None:
+        clean_receipt_code = str(receipt_code or "").strip()
+        if not clean_receipt_code:
+            return None
+        if receipt_type:
+            return connection.execute(
+                """
+                SELECT id, receipt_code, receipt_type, source_type, source_code
+                FROM inventory_receipts
+                WHERE receipt_code = ? AND receipt_type = ?
+                """,
+                (clean_receipt_code, receipt_type),
+            ).fetchone()
+        return connection.execute(
+            """
+            SELECT id, receipt_code, receipt_type, source_type, source_code
+            FROM inventory_receipts
+            WHERE receipt_code = ?
+            """,
+            (clean_receipt_code,),
+        ).fetchone()
+
+    def _is_repairable_invalid_purchase(
+        self,
+        connection: sqlite3.Connection,
+        purchase: dict,
+    ) -> bool:
+        if str(purchase.get("status") or "draft") != "paid":
+            return False
+        receipt_code = str(purchase.get("receiptCode") or purchase.get("receipt_code") or "").strip()
+        receipt_row = self._get_inventory_receipt_by_code(
+            connection,
+            receipt_code,
+            receipt_type="purchase",
+        )
+        return receipt_row is None
+
+    def _clear_inventory_receipt_source_links(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        source_type: str,
+        source_code: str,
+    ) -> list[str]:
+        clean_source_type = str(source_type or "").strip()
+        clean_source_code = str(source_code or "").strip()
+        if not clean_source_type or not clean_source_code:
+            return []
+        related_rows = connection.execute(
+            """
+            SELECT receipt_code
+            FROM inventory_receipts
+            WHERE source_type = ? AND source_code = ?
+            ORDER BY id
+            """,
+            (clean_source_type, clean_source_code),
+        ).fetchall()
+        if not related_rows:
+            return []
+        connection.execute(
+            """
+            UPDATE inventory_receipts
+            SET source_type = '', source_code = ''
+            WHERE source_type = ? AND source_code = ?
+            """,
+            (clean_source_type, clean_source_code),
+        )
+        return [str(row["receipt_code"] or "").strip() for row in related_rows if row["receipt_code"]]
+
+    def repair_purchase_document(
+        self,
+        purchase_id: str,
+        *,
+        action: str,
+        actor: str = "",
+    ) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        clean_action = str(action or "").strip().lower()
+        if not clean_purchase_id:
+            raise ValueError("Thiếu mã phiếu nhập cần xử lý.")
+        if clean_action not in {"delete", "cancel"}:
+            raise ValueError("Thao tác xử lý phiếu nhập không hợp lệ.")
+
+        now = utc_now_iso()
+        with self._connect() as connection:
+            purchases = self._load_sync_collection_from_tables(connection, "purchases")
+            target = next(
+                (purchase for purchase in purchases if str(purchase.get("id") or "") == clean_purchase_id),
+                None,
+            )
+            if not target:
+                raise ValueError("Không tìm thấy phiếu nhập cần xử lý.")
+
+            current_status = str(target.get("status") or "draft")
+            is_invalid_paid = self._is_repairable_invalid_purchase(connection, target)
+            if current_status != "draft" and not is_invalid_paid:
+                raise ValueError(
+                    "Chỉ được xóa/hủy phiếu nhập nháp hoặc phiếu lỗi đã thanh toán nhưng chưa nhập kho."
+                )
+
+            source_receipt_code = str(
+                target.get("receiptCode") or target.get("receipt_code") or ""
+            ).strip()
+            detached_receipts = self._clear_inventory_receipt_source_links(
+                connection,
+                source_type="purchase",
+                source_code=source_receipt_code,
+            )
+
+            if clean_action == "delete":
+                next_purchases = [
+                    purchase
+                    for purchase in purchases
+                    if str(purchase.get("id") or "") != clean_purchase_id
+                ]
+            else:
+                next_purchases = []
+                for purchase in purchases:
+                    if str(purchase.get("id") or "") != clean_purchase_id:
+                        next_purchases.append(purchase)
+                        continue
+                    updated_purchase = {
+                        **purchase,
+                        "status": "cancelled",
+                        "updatedAt": now,
+                    }
+                    if is_invalid_paid:
+                        updated_purchase["paidAt"] = None
+                        updated_purchase["paid_at"] = None
+                        updated_purchase["receivedAt"] = None
+                        updated_purchase["received_at"] = None
+                        updated_purchase["receiptCode"] = ""
+                        updated_purchase["receipt_code"] = ""
+                    next_purchases.append(updated_purchase)
+
+            self._replace_sync_collection_records(connection, "purchases", next_purchases)
+            canonical = self._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            )
+
+            repaired_label = (
+                "phiếu lỗi đã thanh toán nhưng chưa nhập kho"
+                if is_invalid_paid
+                else "phiếu nháp"
+            )
+            action_label = "xóa" if clean_action == "delete" else "hủy"
+            message = f"Đã {action_label} {repaired_label}."
+            if detached_receipts:
+                message += f" Đồng thời đã gỡ liên kết nguồn ở {len(detached_receipts)} phiếu liên quan."
+
+            self._record_audit(
+                connection,
+                entity_type="purchase",
+                entity_id=clean_purchase_id,
+                entity_name=source_receipt_code or clean_purchase_id,
+                action=f"repair-{clean_action}",
+                actor=actor,
+                message=message,
+            )
+
+        return {
+            "message": message,
+            "purchases": canonical,
+            "detached_receipt_codes": detached_receipts,
         }
 
     def create_inventory_adjustment_receipt(

@@ -186,7 +186,26 @@ export function registerPurchasesControllerEvents(contract) {
     }
     if (actionButton.dataset.purchaseAction === "delete") {
       if (!queries.canDeletePurchase(purchase)) {
-        actions.showToast("Chỉ được xóa hẳn phiếu nhập nháp.", true);
+        actions.showToast("Chỉ được xóa hẳn phiếu nhập nháp hoặc phiếu lỗi chưa nhập kho.", true);
+        return;
+      }
+      if (queries.isRepairableInvalidPurchase(purchase)) {
+        if (!window.confirm("Phiếu này đang ở trạng thái lỗi dữ liệu. Xóa phiếu sẽ dọn luôn trạng thái thanh toán lỗi và không khôi phục lại phiếu nháp.\n\nBạn có chắc muốn xóa phiếu này?")) {
+          return;
+        }
+        try {
+          const data = await actions.apiRequest("/api/purchases/repair", {
+            method: "POST",
+            body: JSON.stringify({
+              purchase_id: purchase.id,
+              action: "delete",
+            }),
+          });
+          await actions.refreshData();
+          actions.showToast(data.message);
+        } catch (error) {
+          actions.showToast(error.message, true);
+        }
         return;
       }
       state.purchases = state.purchases.filter((entry) => entry.id !== purchase.id);
@@ -206,8 +225,27 @@ export function registerPurchasesControllerEvents(contract) {
       return;
     }
     if (actionButton.dataset.purchaseAction === "cancel") {
-      if (!queries.canEditPurchase(purchase)) {
+      if (!queries.canCancelPurchase(purchase)) {
         actions.showToast("Phiếu nhập đã khóa, không thể hủy trực tiếp.", true);
+        return;
+      }
+      if (queries.isRepairableInvalidPurchase(purchase)) {
+        if (!window.confirm("Phiếu này đang ở trạng thái lỗi dữ liệu. Hủy phiếu sẽ bỏ trạng thái thanh toán lỗi và giữ phiếu ở dạng đã hủy, không quay lại nháp.\n\nBạn có chắc muốn hủy phiếu này?")) {
+          return;
+        }
+        try {
+          const data = await actions.apiRequest("/api/purchases/repair", {
+            method: "POST",
+            body: JSON.stringify({
+              purchase_id: purchase.id,
+              action: "cancel",
+            }),
+          });
+          await actions.refreshData();
+          actions.showToast(data.message);
+        } catch (error) {
+          actions.showToast(error.message, true);
+        }
         return;
       }
       actions.updatePurchase(purchase.id, () => ({ status: "cancelled", supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));

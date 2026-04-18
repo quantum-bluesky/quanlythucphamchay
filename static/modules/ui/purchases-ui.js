@@ -10,8 +10,10 @@ export function createPurchasesUi(deps) {
     getActivePurchase,
     canEditPurchase,
     canDeletePurchase,
+    canCancelPurchase,
     canMarkPurchasePaid,
     isLockedPurchase,
+    isRepairableInvalidPurchase,
     getPurchaseSuggestions,
     isSearchResultMode,
     paginateItems,
@@ -38,7 +40,9 @@ export function createPurchasesUi(deps) {
       : (state.purchasePanelCollapsed ? "Mở phiếu nhập" : "Thu gọn phiếu nhập");
     const purchase = getActivePurchase();
     const purchaseEditable = canEditPurchase(purchase);
+    const purchaseCancellable = canCancelPurchase(purchase);
     const purchaseLocked = isLockedPurchase(purchase);
+    const repairableInvalidPurchase = isRepairableInvalidPurchase(purchase);
     if (state.purchasePanelCollapsed) {
       dom.purchasePanel.innerHTML = `<article class="empty-state">Phiếu nhập đang được thu gọn.</article>`;
       return;
@@ -79,7 +83,8 @@ export function createPurchasesUi(deps) {
           <div class="stat-chip"><span>Tổng SL</span><strong>${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))}</strong></div>
           <div class="stat-chip"><span>Tổng tiền</span><strong>${formatCurrency(totalAmount)}</strong></div>
         </div>
-        ${purchaseLocked ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
+        ${repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đang ở trạng thái lỗi dữ liệu: đã thanh toán nhưng chưa có mốc nhập kho hợp lệ. Có thể hủy hoặc xóa để dọn dữ liệu lỗi, app sẽ không khôi phục lại thành nháp.</article>` : ""}
+        ${purchaseLocked && !repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
         <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">
           <div class="subheading selected-items-heading">
             <div>
@@ -95,8 +100,8 @@ export function createPurchasesUi(deps) {
           ${purchaseEditable ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>` : ""}
           ${purchaseEditable ? `<button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>` : ""}
           ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
-          ${["received", "paid"].includes(purchase.status) ? `<button type="button" class="ghost-button" data-purchase-action="supplier-return">Trả NCC</button>` : ""}
-          ${purchaseEditable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
+          ${["received", "paid"].includes(purchase.status) && !repairableInvalidPurchase ? `<button type="button" class="ghost-button" data-purchase-action="supplier-return">Trả NCC</button>` : ""}
+          ${purchaseCancellable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
           ${canDeletePurchase(purchase) ? `<button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>` : ""}
         </div>
       </article>
