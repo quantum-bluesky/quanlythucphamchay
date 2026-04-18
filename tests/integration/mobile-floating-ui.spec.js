@@ -204,3 +204,28 @@ test("IT-NAV-04 tablet touch can open menu and navigate right after login", asyn
     await context.close();
   }
 });
+
+test("IT-TAB-01 tablet input keeps focus when viewport height changes", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
+  await expectScreenTitle(page, "Kiểm tra tồn kho");
+
+  const inventorySearchInput = page.locator("#searchInput");
+  await inventorySearchInput.click();
+  await expect(inventorySearchInput).toBeFocused();
+
+  await page.setViewportSize({ width: 820, height: 900 });
+  await page.waitForTimeout(300);
+  await expect(inventorySearchInput).toBeFocused();
+
+  await page.keyboard.type("bo");
+  await expect(inventorySearchInput).toHaveValue("bo");
+
+  expectNoRuntimeErrors(runtime);
+});
