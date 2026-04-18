@@ -236,6 +236,10 @@ let adminSessionReminderTimer = null;
 let stickyLayoutUpdateFrame = 0;
 let stickyLayoutResizeObserver = null;
 let paginationResizeFrame = 0;
+let lastResponsiveViewportWidth = window.innerWidth;
+let lastResponsiveViewportHeight = window.innerHeight;
+let deferredResponsivePaginationRender = false;
+let deferredResponsivePaginationRenderTimer = 0;
 window.__QLTPCHAY_APP_READY = false;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
 const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
@@ -351,6 +355,21 @@ function scheduleStickyLayoutMetricsUpdate() {
 }
 
 function scheduleResponsivePaginationRender() {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const widthChanged = Math.abs(viewportWidth - lastResponsiveViewportWidth) >= 1;
+  const heightChanged = Math.abs(viewportHeight - lastResponsiveViewportHeight) >= 1;
+  if (!widthChanged && !heightChanged) {
+    return;
+  }
+  if (!widthChanged && hasInteractiveInputFocus()) {
+    lastResponsiveViewportHeight = viewportHeight;
+    deferredResponsivePaginationRender = true;
+    return;
+  }
+  lastResponsiveViewportWidth = viewportWidth;
+  lastResponsiveViewportHeight = viewportHeight;
+  deferredResponsivePaginationRender = false;
   if (paginationResizeFrame) {
     window.cancelAnimationFrame(paginationResizeFrame);
   }
@@ -362,9 +381,31 @@ function scheduleResponsivePaginationRender() {
   });
 }
 
+function flushDeferredResponsivePaginationRender() {
+  if (!deferredResponsivePaginationRender) {
+    return;
+  }
+  if (deferredResponsivePaginationRenderTimer) {
+    window.clearTimeout(deferredResponsivePaginationRenderTimer);
+  }
+  deferredResponsivePaginationRenderTimer = window.setTimeout(() => {
+    deferredResponsivePaginationRenderTimer = 0;
+    if (!deferredResponsivePaginationRender || hasInteractiveInputFocus()) {
+      return;
+    }
+    deferredResponsivePaginationRender = false;
+    lastResponsiveViewportWidth = window.innerWidth;
+    lastResponsiveViewportHeight = window.innerHeight;
+    if (window.__QLTPCHAY_APP_READY) {
+      renderAll();
+    }
+  }, 0);
+}
+
 function setupStickyLayoutMetricsObserver() {
   window.addEventListener("resize", scheduleStickyLayoutMetricsUpdate, { passive: true });
   window.addEventListener("resize", scheduleResponsivePaginationRender, { passive: true });
+  document.addEventListener("focusout", flushDeferredResponsivePaginationRender, true);
   if (typeof ResizeObserver !== "function" || stickyLayoutResizeObserver) {
     return;
   }
