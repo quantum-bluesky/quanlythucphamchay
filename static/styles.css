@@ -2432,6 +2432,11 @@ button:disabled {
     top: calc(78px + var(--screen-header-bar-offset));
   }
 
+  [data-menu-section="purchases"] .sales-product-list,
+  [data-menu-section="purchases"] .cart-queue-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .sticky-toolbar {
     top: calc(152px + var(--screen-header-bar-offset));
   }
@@ -2564,11 +2569,6 @@ button:disabled {
   .cart-queue-list,
   .customer-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  [data-menu-section="purchases"] .sales-product-list,
-  [data-menu-section="purchases"] .cart-queue-list {
-    grid-template-columns: 1fr;
   }
 
   .report-list {
