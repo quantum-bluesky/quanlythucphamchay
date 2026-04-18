@@ -171,3 +171,36 @@ test("IT-NAV-03 rotating portrait and landscape keeps menu navigation working", 
 
   expectNoRuntimeErrors(runtime);
 });
+
+test("IT-NAV-04 tablet touch can open menu and navigate right after login", async ({ browser, request }) => {
+  const context = await browser.newContext({
+    viewport: { width: 820, height: 1180 },
+    hasTouch: true,
+    isMobile: false,
+  });
+  const page = await context.newPage();
+  const runtime = attachRuntimeTracking(page);
+
+  try {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+    await waitForAppReady(page);
+    await expectScreenTitle(page, "Kiểm tra tồn kho");
+
+    await page.locator("#menuToggleButton").tap();
+    await page.waitForTimeout(250);
+    await page.locator('[data-menu="reports"]').tap();
+    await expectScreenTitle(page, "Báo cáo");
+
+    await page.locator("#menuToggleButton").tap();
+    await page.waitForTimeout(250);
+    await page.locator('[data-menu="customers"]').tap();
+    await expectScreenTitle(page, "Khách hàng");
+
+    expectNoRuntimeErrors(runtime);
+  } finally {
+    await context.close();
+  }
+});
