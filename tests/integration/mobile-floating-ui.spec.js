@@ -138,3 +138,36 @@ test("IT-NAV-02 desktop menu auto-collapses outside and expands from the menu bu
 
   expectNoRuntimeErrors(runtime);
 });
+
+test("IT-NAV-03 rotating portrait and landscape keeps menu navigation working", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+
+  await page.setViewportSize({ width: 480, height: 900 });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
+  await expectScreenTitle(page, "Kiểm tra tồn kho");
+
+  await page.locator("#menuToggleButton").click();
+  await page.waitForTimeout(250);
+  await page.locator('[data-menu="reports"]').click();
+  await expectScreenTitle(page, "Báo cáo");
+
+  await page.setViewportSize({ width: 900, height: 480 });
+  await page.waitForTimeout(1000);
+  await page.locator("#menuToggleButton").click();
+  await page.waitForTimeout(250);
+  await page.locator('[data-menu="customers"]').click();
+  await expectScreenTitle(page, "Khách hàng");
+
+  await page.setViewportSize({ width: 480, height: 900 });
+  await page.waitForTimeout(1000);
+  await page.locator("#menuToggleButton").click();
+  await page.waitForTimeout(250);
+  await page.locator('[data-menu="products"]').click();
+  await expectScreenTitle(page, "Sản phẩm");
+
+  expectNoRuntimeErrors(runtime);
+});
