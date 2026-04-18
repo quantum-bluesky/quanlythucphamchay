@@ -18,6 +18,7 @@ from .store import SyncConflictError
 
 def create_handler(store, admin_sessions, system_config: dict | None = None):
     debug_config = (system_config or {}).get("debug", {})
+    pagination_config = (system_config or {}).get("pagination", {})
     auth_enabled = bool((system_config or {}).get("EnableLogin"))
     app_version = str((system_config or {}).get("version") or "").strip() or "2.3.1"
     try:
@@ -35,6 +36,21 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             return {
                 "name": APP_NAME,
                 "version": app_version,
+            }
+
+        @staticmethod
+        def _get_pagination_info() -> dict:
+            try:
+                items_per_page = max(1, int(pagination_config.get("items_per_page", 10)))
+            except (TypeError, ValueError):
+                items_per_page = 10
+            try:
+                documents_per_page = max(1, int(pagination_config.get("documents_per_page", 10)))
+            except (TypeError, ValueError):
+                documents_per_page = 10
+            return {
+                "items_per_page": items_per_page,
+                "documents_per_page": documents_per_page,
             }
 
         @staticmethod
@@ -181,6 +197,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     {
                         "app": self._get_app_info(),
                         "debug": self._get_debug_info(),
+                        "pagination": self._get_pagination_info(),
                         "products": store.get_products(),
                         "summary": store.get_summary(),
                         "transactions": store.get_transactions(limit=int(limit)),
@@ -197,6 +214,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         **store.get_runtime_version(),
                         "app": self._get_app_info(),
                         "debug": self._get_debug_info(),
+                        "pagination": self._get_pagination_info(),
                     },
                 )
                 return
@@ -555,6 +573,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "message": "Đã lưu dữ liệu đồng bộ.",
                             "app": self._get_app_info(),
                             "debug": self._get_debug_info(),
+                            "pagination": self._get_pagination_info(),
                             "runtime_version": store.get_runtime_version(),
                             **sync_state,
                         },
@@ -856,6 +875,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 "enable_login": auth_enabled,
                 "session_started_at": str(session.get("started_at") or "") if session else "",
                 "timeout_minutes": admin_session_timeout_minutes if role == "admin" else session_timeout_minutes,
+                "app": self._get_app_info(),
+                "debug": self._get_debug_info(),
+                "pagination": self._get_pagination_info(),
             }
 
         def _require_authenticated_session(self) -> bool:

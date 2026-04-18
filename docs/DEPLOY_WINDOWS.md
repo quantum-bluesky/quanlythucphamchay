@@ -133,11 +133,21 @@ Ví dụ:
   "admin": {
     "username": "masteradmin",
     "password": "admin12345"
+  },
+  "pagination": {
+    "items_per_page": 10,
+    "documents_per_page": 10
   }
 }
 ```
 
-Nếu muốn đổi tài khoản admin hoặc host/port mặc định, sửa trực tiếp file này rồi chạy lại app.
+Nếu muốn đổi tài khoản admin, host/port mặc định hoặc base phân trang, sửa trực tiếp file này rồi chạy lại app.
+
+Ý nghĩa nhanh:
+
+- `pagination.items_per_page`: base cho list item/card
+- `pagination.documents_per_page`: base cho list phiếu/đơn
+- app sẽ tự scale base này theo thiết bị khi render lần đầu; trên `PC/Tablet` người dùng còn có thể đổi nhanh bằng combobox `25/50/100`
 
 Có thể xem config hiện tại bằng:
 
