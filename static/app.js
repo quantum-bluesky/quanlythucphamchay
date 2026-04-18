@@ -1436,6 +1436,10 @@ function navigateMenuHistory(direction) {
   return getNavigationRuntimeHelpers().navigateMenuHistory(direction);
 }
 
+function setMenuCollapsed(collapsed, options) {
+  return getNavigationRuntimeHelpers().setMenuCollapsed(collapsed, options);
+}
+
 function getCoreUi() {
   if (!coreUi) {
     coreUi = createCoreUi({
@@ -1922,6 +1926,7 @@ function renderInventoryDirectEditAccess() {
 }
 
 function applyMobileCollapsedDefaults() {
+  state.menuCollapsed = true;
   if (!mobileQuery.matches) {
     state.activeCartPanelCollapsed = false;
     state.purchasePanelCollapsed = false;
@@ -3252,6 +3257,7 @@ registerCoreControllerEvents({
     quickPanel,
     quickPanelToggle,
     menuPanel,
+    menuToggleButton,
     floatingSearchDock,
     screenToolbox,
     floatingSearchToggle,
@@ -3267,6 +3273,7 @@ registerCoreControllerEvents({
   },
   actions: {
     setQuickPanelCollapsed,
+    setMenuCollapsed,
     scrollPageTo,
     navigateMenuHistory,
     setHelpOpen,

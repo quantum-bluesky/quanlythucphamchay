@@ -4,6 +4,8 @@ const {
   autoLoginUser,
   expectNoRuntimeErrors,
   expectScreenTitle,
+  switchMenu,
+  waitForAppReady,
 } = require("./support/ui");
 
 test("IT-MOB-01 mobile floating clusters auto-hide to screen edges and reveal without firing actions", async ({ page, request }) => {
@@ -13,6 +15,7 @@ test("IT-MOB-01 mobile floating clusters auto-hide to screen edges and reveal wi
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
   await expectScreenTitle(page, "Kiểm tra tồn kho");
 
   const menuPanel = page.locator("#menuPanel");
@@ -63,6 +66,7 @@ test("IT-MOB-02 screen header stays visible on tablet and version button still o
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
   await expectScreenTitle(page, "Kiểm tra tồn kho");
 
   const screenHeaderBar = page.locator("#screenHeaderBar");
@@ -76,12 +80,61 @@ test("IT-MOB-02 screen header stays visible on tablet and version button still o
   expect(headerBox).toBeTruthy();
   expect(headerBox.y).toBeLessThan(20);
 
-  await page.locator('[data-menu="reports"]').click();
+  await switchMenu(page, "reports");
   await expectScreenTitle(page, "Báo cáo");
 
   await versionButton.click();
   await expectScreenTitle(page, "About ứng dụng");
   await expect(page.locator("#aboutSection")).toHaveClass(/is-active/);
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-NAV-02 desktop menu auto-collapses outside and expands from the menu button", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
+  await expectScreenTitle(page, "Kiểm tra tồn kho");
+
+  const menuPanel = page.locator("#menuPanel");
+  const menuToggleButton = page.locator("#menuToggleButton");
+  const inventoryMenuButton = page.locator('[data-menu="inventory"]');
+  const reportsMenuButton = page.locator('[data-menu="reports"]');
+
+  await expect(menuPanel).toHaveClass(/is-collapsed/);
+  await expect(menuToggleButton).toHaveAttribute("aria-expanded", "false");
+
+  await menuToggleButton.hover();
+  await expect(menuPanel).not.toHaveClass(/is-collapsed/);
+  await expect(menuToggleButton).toHaveAttribute("aria-expanded", "true");
+
+  const expandedPanelBox = await menuPanel.boundingBox();
+  const expandedButtonBox = await inventoryMenuButton.boundingBox();
+  expect(expandedPanelBox).toBeTruthy();
+  expect(expandedButtonBox).toBeTruthy();
+  expect(expandedPanelBox.width).toBeLessThan(720);
+  expect(expandedButtonBox.width).toBeGreaterThan(90);
+  expect(expandedButtonBox.width).toBeLessThan(160);
+
+  await page.mouse.move(1180, 260);
+  await expect(menuPanel).toHaveClass(/is-collapsed/);
+  await expect(menuToggleButton).toHaveAttribute("aria-expanded", "false");
+
+  await menuToggleButton.click();
+  await expect(menuPanel).not.toHaveClass(/is-collapsed/);
+  await reportsMenuButton.click();
+  await expectScreenTitle(page, "Báo cáo");
+  await expect(menuPanel).toHaveClass(/is-collapsed/);
+
+  await menuToggleButton.click();
+  await expect(menuPanel).not.toHaveClass(/is-collapsed/);
+  await page.locator("body").click({ position: { x: 1180, y: 260 } });
+  await expect(menuPanel).toHaveClass(/is-collapsed/);
 
   expectNoRuntimeErrors(runtime);
 });
