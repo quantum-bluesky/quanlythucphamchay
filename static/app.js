@@ -3574,6 +3574,7 @@ registerSalesControllerEvents({
   },
   actions: {
     showToast,
+    switchMenu,
     openCartForCustomer,
     toggleProductInActiveCart,
     updateCartItem,

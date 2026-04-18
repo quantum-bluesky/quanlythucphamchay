@@ -293,8 +293,8 @@ export function registerSalesControllerEvents(contract) {
     if (!cart) return;
     if (action === "open") {
       state.activeCartId = cart.id;
-      state.activeMenu = cart.status === "draft" ? "create-order" : "orders";
-      actions.saveAndRenderAll(["carts"]);
+      actions.switchMenu(cart.status === "draft" ? "create-order" : "orders");
+      actions.saveAndRenderAll();
       if (cart.status === "draft") {
         actions.focusActiveCartPanel();
       } else {
