@@ -14,6 +14,8 @@ TRUTHY_VALUES = {"1", "true", "yes", "on"}
 DEFAULT_APP_VERSION = "2.3.1"
 DEFAULT_SYSTEM_SESSION_TIMEOUT_MINUTES = 360
 DEFAULT_ADMIN_SESSION_TIMEOUT_MINUTES = 30
+DEFAULT_ITEMS_PER_PAGE = 10
+DEFAULT_DOCUMENTS_PER_PAGE = 10
 DEFAULT_NORMAL_USERS = [
     {
         "username": "staff",
@@ -30,6 +32,13 @@ def _parse_env_flag(name: str, default: bool) -> bool:
 
 
 def _normalize_timeout_minutes(value, fallback: int) -> int:
+    try:
+        return max(1, int(value))
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _normalize_page_size(value, fallback: int) -> int:
     try:
         return max(1, int(value))
     except (TypeError, ValueError):
@@ -73,6 +82,10 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
         "users": [dict(user) for user in DEFAULT_NORMAL_USERS],
         "debug": {
             "sync_state": False,
+        },
+        "pagination": {
+            "items_per_page": DEFAULT_ITEMS_PER_PAGE,
+            "documents_per_page": DEFAULT_DOCUMENTS_PER_PAGE,
         },
     }
     if use_env_seed:
@@ -138,6 +151,16 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         "users": _normalize_users(raw_config.get("users", defaults["users"])),
         "debug": {
             "sync_state": bool(raw_config.get("debug", {}).get("sync_state", defaults["debug"]["sync_state"])),
+        },
+        "pagination": {
+            "items_per_page": _normalize_page_size(
+                raw_config.get("pagination", {}).get("items_per_page", defaults["pagination"]["items_per_page"]),
+                defaults["pagination"]["items_per_page"],
+            ),
+            "documents_per_page": _normalize_page_size(
+                raw_config.get("pagination", {}).get("documents_per_page", defaults["pagination"]["documents_per_page"]),
+                defaults["pagination"]["documents_per_page"],
+            ),
         },
     }
 

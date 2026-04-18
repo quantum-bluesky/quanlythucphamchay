@@ -131,6 +131,7 @@ import {
   forecastList,
   reportProductActivity,
   reportReceiptHistorySection,
+  reportReceiptHistoryList,
   reportsSection,
   reportFiltersSection,
   reportFiltersWrap,
@@ -234,9 +235,27 @@ let reportsAdminUi = null;
 let adminSessionReminderTimer = null;
 let stickyLayoutUpdateFrame = 0;
 let stickyLayoutResizeObserver = null;
+let paginationResizeFrame = 0;
 window.__QLTPCHAY_APP_READY = false;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
 const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
+const PAGINATION_PAGE_SIZE_OPTIONS = [25, 50, 100];
+const PAGINATION_GROUP_MAP = {
+  inventory: "items",
+  productManage: "items",
+  salesProducts: "items",
+  customers: "items",
+  purchaseSuggestions: "items",
+  suppliers: "items",
+  reportProducts: "items",
+  reportForecast: "items",
+  deletedProducts: "items",
+  deletedCustomers: "items",
+  deletedSuppliers: "items",
+  orders: "documents",
+  purchaseOrders: "documents",
+  reportReceipts: "documents",
+};
 function attachSearchClearButton(input, container) {
   if (!input || !container || container.querySelector(".search-clear-button")) {
     return;
@@ -331,8 +350,21 @@ function scheduleStickyLayoutMetricsUpdate() {
   });
 }
 
+function scheduleResponsivePaginationRender() {
+  if (paginationResizeFrame) {
+    window.cancelAnimationFrame(paginationResizeFrame);
+  }
+  paginationResizeFrame = window.requestAnimationFrame(() => {
+    paginationResizeFrame = 0;
+    if (window.__QLTPCHAY_APP_READY) {
+      renderAll();
+    }
+  });
+}
+
 function setupStickyLayoutMetricsObserver() {
   window.addEventListener("resize", scheduleStickyLayoutMetricsUpdate, { passive: true });
+  window.addEventListener("resize", scheduleResponsivePaginationRender, { passive: true });
   if (typeof ResizeObserver !== "function" || stickyLayoutResizeObserver) {
     return;
   }
@@ -1030,34 +1062,96 @@ function isSearchResultMode(key) {
   return mobileQuery.matches && Boolean(getSearchTermForKey(key));
 }
 
+function normalizePositiveInteger(value, fallback = 10) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.round(parsed);
+}
+
+function getPaginationGroup(key) {
+  return PAGINATION_GROUP_MAP[key] || "items";
+}
+
+function getPaginationContainer(key) {
+  return {
+    inventory: productGrid,
+    productManage: productManageList,
+    salesProducts: salesProductList,
+    orders: cartQueueList,
+    customers: customerList,
+    purchaseSuggestions: purchaseSuggestionList,
+    purchaseOrders: purchaseOrderList,
+    suppliers: supplierList,
+    reportProducts: reportProductActivity,
+    reportForecast: forecastList,
+    reportReceipts: reportReceiptHistoryList,
+    deletedProducts: deletedProductList,
+    deletedCustomers: deletedCustomerList,
+    deletedSuppliers: deletedSupplierList,
+  }[key] || null;
+}
+
+function getPaginationBaseSize(group) {
+  if (group === "documents") {
+    return normalizePositiveInteger(state.paginationConfig.documentsPerPage, 10);
+  }
+  return normalizePositiveInteger(state.paginationConfig.itemsPerPage, 10);
+}
+
+function getPaginationContainerArea(key) {
+  const rect = getPaginationContainer(key)?.getBoundingClientRect?.();
+  const width = Number(rect?.width || 0);
+  const height = Number(rect?.height || 0);
+  if (width > 0 && height > 0) {
+    return width * height;
+  }
+  return Math.max(1, Number(window.innerWidth || 0)) * Math.max(1, Number(window.innerHeight || 0));
+}
+
+function getPaginationDeviceBucket(key) {
+  if (mobileQuery.matches) {
+    return "mobile";
+  }
+  const viewportWidth = Number(window.innerWidth || 0);
+  const containerArea = getPaginationContainerArea(key);
+  if (viewportWidth >= 1101 || (viewportWidth >= 980 && containerArea >= 950000)) {
+    return "desktop";
+  }
+  return "tablet";
+}
+
+function snapPaginationSizeOption(value) {
+  const normalized = normalizePositiveInteger(value, PAGINATION_PAGE_SIZE_OPTIONS[0]);
+  return PAGINATION_PAGE_SIZE_OPTIONS.reduce((closest, option) => (
+    Math.abs(option - normalized) < Math.abs(closest - normalized) ? option : closest
+  ), PAGINATION_PAGE_SIZE_OPTIONS[0]);
+}
+
+function getResponsiveDefaultPageSize(key) {
+  const group = getPaginationGroup(key);
+  const baseSize = getPaginationBaseSize(group);
+  const deviceBucket = getPaginationDeviceBucket(key);
+  if (deviceBucket === "mobile") {
+    return baseSize;
+  }
+  const multiplier = deviceBucket === "desktop" ? 10 : 2.5;
+  return snapPaginationSizeOption(baseSize * multiplier);
+}
+
+function getPageSizeOverride(group) {
+  const override = normalizePositiveInteger(state.paginationOverrides[group], 0);
+  if (!PAGINATION_PAGE_SIZE_OPTIONS.includes(override)) {
+    return null;
+  }
+  return override;
+}
+
 function getPageSize(key) {
-  const mobileSizes = {
-    inventory: 6,
-    productManage: 6,
-    salesProducts: 6,
-    orders: 4,
-    customers: 4,
-    purchaseSuggestions: 4,
-    purchaseOrders: 4,
-    suppliers: 4,
-    reportProducts: 4,
-    reportForecast: 4,
-    reportReceipts: 4,
-  };
-  const desktopSizes = {
-    inventory: 9,
-    productManage: 9,
-    salesProducts: 9,
-    orders: 6,
-    customers: 6,
-    purchaseSuggestions: 6,
-    purchaseOrders: 6,
-    suppliers: 6,
-    reportProducts: 9,
-    reportForecast: 6,
-    reportReceipts: 6,
-  };
-  return mobileQuery.matches ? (mobileSizes[key] || 6) : (desktopSizes[key] || 9);
+  const group = getPaginationGroup(key);
+  const override = mobileQuery.matches ? null : getPageSizeOverride(group);
+  return override || getResponsiveDefaultPageSize(key);
 }
 
 function paginateItems(items, key) {
@@ -1074,16 +1168,35 @@ function paginateItems(items, key) {
   };
 }
 
+function shouldShowPaginationSizePicker(key) {
+  return !mobileQuery.matches && Boolean(PAGINATION_GROUP_MAP[key]);
+}
+
 function renderPagination(key, pageData) {
-  if (pageData.totalItems <= getPageSize(key)) {
+  const pageSize = getPageSize(key);
+  const showPageSizePicker = shouldShowPaginationSizePicker(key);
+  if (pageData.totalItems <= pageSize && (!showPageSizePicker || pageData.totalItems <= PAGINATION_PAGE_SIZE_OPTIONS[0])) {
     return "";
   }
 
+  const group = getPaginationGroup(key);
+  const pageSizePicker = showPageSizePicker ? `
+      <label class="pagination-size-picker">
+        <span>Hiện</span>
+        <select data-page-size-group="${group}" aria-label="Số mục mỗi trang">
+          ${PAGINATION_PAGE_SIZE_OPTIONS.map((option) => `<option value="${option}" ${pageSize === option ? "selected" : ""}>${option}</option>`).join("")}
+        </select>
+        <span>/ trang</span>
+      </label>
+    ` : "";
   return `
     <div class="pagination-bar ${isSearchResultMode(key) ? "is-search-pagination" : ""}">
-      <button type="button" class="ghost-button compact-button" data-page-key="${key}" data-page-action="prev" ${pageData.page <= 1 ? "disabled" : ""}>← Trước</button>
-      <span class="pagination-status">Trang ${pageData.page}/${pageData.totalPages} • ${pageData.totalItems} mục</span>
-      <button type="button" class="ghost-button compact-button" data-page-key="${key}" data-page-action="next" ${pageData.page >= pageData.totalPages ? "disabled" : ""}>Sau →</button>
+      <div class="pagination-nav">
+        <button type="button" class="ghost-button compact-button" data-page-key="${key}" data-page-action="prev" ${pageData.page <= 1 ? "disabled" : ""}>← Trước</button>
+        <span class="pagination-status">Trang ${pageData.page}/${pageData.totalPages} • ${pageData.totalItems} mục</span>
+        <button type="button" class="ghost-button compact-button" data-page-key="${key}" data-page-action="next" ${pageData.page >= pageData.totalPages ? "disabled" : ""}>Sau →</button>
+      </div>
+      ${pageSizePicker}
     </div>
   `;
 }
@@ -1095,6 +1208,23 @@ function updatePagination(key, action) {
   } else if (action === "next") {
     state.pagination[key] = current + 1;
   }
+  renderAll();
+}
+
+function resetPaginationForGroup(group) {
+  Object.entries(PAGINATION_GROUP_MAP).forEach(([key, value]) => {
+    if (value === group) {
+      state.pagination[key] = 1;
+    }
+  });
+}
+
+function updatePaginationPageSize(group, nextValue) {
+  if (!PAGINATION_PAGE_SIZE_OPTIONS.includes(nextValue)) {
+    return;
+  }
+  state.paginationOverrides[group] = nextValue;
+  resetPaginationForGroup(group);
   renderAll();
 }
 
@@ -1335,11 +1465,23 @@ function normalizeAppInfo(payload = {}) {
   };
 }
 
+function normalizePaginationConfig(payload = {}) {
+  const pagination = payload.pagination || payload;
+  return {
+    itemsPerPage: normalizePositiveInteger(pagination.items_per_page ?? pagination.itemsPerPage, 10),
+    documentsPerPage: normalizePositiveInteger(pagination.documents_per_page ?? pagination.documentsPerPage, 10),
+  };
+}
+
 function normalizeDebugConfig(payload = {}) {
   const debug = payload.debug || payload;
   return {
     syncState: Boolean(debug.sync_state ?? debug.syncState),
   };
+}
+
+function updatePaginationConfig(payload = {}) {
+  state.paginationConfig = normalizePaginationConfig(payload);
 }
 
 function updateDebugConfig(payload = {}) {
@@ -1989,6 +2131,9 @@ async function apiRequest(path, options = {}) {
 
 async function refreshSessionStatus() {
   const payload = await apiRequest("/api/session/status");
+  updateAppInfo(payload);
+  updateDebugConfig(payload);
+  updatePaginationConfig(payload);
   updateAdminSessionState(payload);
 }
 
@@ -2321,6 +2466,8 @@ async function refreshData({ sessionAlreadyLoaded = false } = {}) {
       refreshReportData(),
     ]);
     latestSyncUpdatedAt = payload.updated_at || {};
+    updateAppInfo(payload);
+    updatePaginationConfig(payload);
     updateDebugConfig(payload);
     updateRuntimeVersion(payload);
     state.products = payload.products || [];
@@ -3287,6 +3434,7 @@ registerCoreControllerEvents({
     writeStorage,
     setFloatingClusterAutoHidden,
     updatePagination,
+    updatePaginationPageSize,
     applyMobileCollapsedDefaults,
     resetFloatingClusterAutoHide,
     checkForRemoteUpdates,
@@ -3426,6 +3574,7 @@ registerSalesControllerEvents({
   },
   actions: {
     showToast,
+    switchMenu,
     openCartForCustomer,
     toggleProductInActiveCart,
     updateCartItem,

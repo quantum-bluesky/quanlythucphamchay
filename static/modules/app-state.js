@@ -40,6 +40,14 @@ export const state = {
   debug: {
     syncState: false,
   },
+  paginationConfig: {
+    itemsPerPage: 10,
+    documentsPerPage: 10,
+  },
+  paginationOverrides: {
+    items: null,
+    documents: null,
+  },
   searchTerm: "",
   salesSearchTerm: "",
   orderSearchTerm: "",
