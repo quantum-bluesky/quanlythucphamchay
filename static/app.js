@@ -823,8 +823,10 @@ function getPurchasesUi() {
       getActivePurchase,
       canEditPurchase,
       canDeletePurchase,
+      canCancelPurchase,
       canMarkPurchasePaid,
       isLockedPurchase,
+      isRepairableInvalidPurchase,
       getPurchaseSuggestions,
       isSearchResultMode,
       paginateItems,
@@ -1338,6 +1340,10 @@ function canMarkPurchasePaid(purchase) {
   return getPurchasesDomainHelpers().canMarkPurchasePaid(purchase);
 }
 
+function isRepairableInvalidPurchase(purchase) {
+  return getPurchasesDomainHelpers().isRepairableInvalidPurchase(purchase);
+}
+
 function isDraftCart(cart) {
   return Boolean(cart && cart.status === "draft");
 }
@@ -1352,6 +1358,10 @@ function canEditPurchase(purchase) {
 
 function canDeletePurchase(purchase) {
   return getPurchasesDomainHelpers().canDeletePurchase(purchase);
+}
+
+function canCancelPurchase(purchase) {
+  return getPurchasesDomainHelpers().canCancelPurchase(purchase);
 }
 
 function isLockedPurchase(purchase) {
@@ -1414,6 +1424,8 @@ function syncSalesState() {
       receivedAt: purchase.receivedAt || purchase.received_at || null,
       paidAt: purchase.paidAt || purchase.paid_at || null,
       receiptCode: purchase.receiptCode || purchase.receipt_code || "",
+      isRepairableInvalid: Boolean(purchase.isRepairableInvalid ?? purchase.repairableInvalid),
+      repairableInvalid: Boolean(purchase.repairableInvalid ?? purchase.isRepairableInvalid),
       items: Array.isArray(purchase.items)
         ? purchase.items
             .map((item) => {
@@ -3768,8 +3780,10 @@ registerPurchasesControllerEvents({
     getActivePurchase,
     getProductById,
     canEditPurchase,
+    canCancelPurchase,
     canDeletePurchase,
     canMarkPurchasePaid,
+    isRepairableInvalidPurchase,
     getSkipNextPurchaseSupplierChangePersist: () => skipNextPurchaseSupplierChangePersist,
   },
   utils: {

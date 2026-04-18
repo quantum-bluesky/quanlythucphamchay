@@ -67,14 +67,16 @@ Lưu ý:
 | 48 | `UT-DB-04` | Kiểm tra phiếu trả hàng khách backend làm tăng tồn kho đúng. |
 | 49 | `UT-DB-05` | Kiểm tra phiếu trả NCC backend làm giảm tồn kho đúng. |
 | 50 | `UT-DB-06` | Kiểm tra backend không cho tạo phiếu điều chỉnh tồn nếu thiếu lý do. |
-| 51 | `UT-NORM-01` | Kiểm tra `save_sync_state` persist đúng dữ liệu sang các bảng quan hệ chuẩn hóa. |
-| 52 | `UT-NORM-02` | Kiểm tra các loại receipt được persist đúng vào cấu trúc bảng chuẩn hóa mới. |
-| 53 | `UT-NORM-03` | Kiểm tra app state legacy được migrate sang cấu trúc bảng quan hệ khi khởi động. |
-| 54 | `UT-SYNC-01` | Kiểm tra sync state chấp nhận cập nhật khi `expected_updated_at` khớp. |
-| 55 | `UT-SYNC-02` | Kiểm tra sync state từ chối cập nhật khi `expected_updated_at` bị stale. |
-| 54 | `UT-AUD-01` | Kiểm tra thay đổi trạng thái đơn hàng được ghi audit kèm actor. |
-| 55 | `UT-AUD-02` | Kiểm tra thay đổi trạng thái phiếu nhập được ghi audit kèm actor. |
-| 56 | `UT-AUD-03` | Kiểm tra receipt history trả đúng source link và audit message cho các phiếu Phase B. |
-| 57 | `UT-HIS-01` | Kiểm tra product history hỗ trợ lọc theo actor ở backend. |
-| 58 | `UT-HIS-02` | Kiểm tra product history hỗ trợ lọc theo khoảng ngày ở backend. |
-| 59 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |
+| 51 | `UT-DB-07` | Kiểm tra backend cho phép xóa phiếu nhập lỗi `paid` nhưng chưa có receipt nhập kho thật, đồng thời gỡ các liên kết source tham chiếu tới mã phiếu lỗi đó. |
+| 52 | `UT-DB-08` | Kiểm tra backend vẫn chặn repair/xóa đối với phiếu `paid` hợp lệ đã có receipt nhập kho thật. |
+| 53 | `UT-NORM-01` | Kiểm tra `save_sync_state` persist đúng dữ liệu sang các bảng quan hệ chuẩn hóa. |
+| 54 | `UT-NORM-02` | Kiểm tra các loại receipt được persist đúng vào cấu trúc bảng chuẩn hóa mới. |
+| 55 | `UT-NORM-03` | Kiểm tra app state legacy được migrate sang cấu trúc bảng quan hệ khi khởi động. |
+| 56 | `UT-SYNC-01` | Kiểm tra sync state chấp nhận cập nhật khi `expected_updated_at` khớp. |
+| 57 | `UT-SYNC-02` | Kiểm tra sync state từ chối cập nhật khi `expected_updated_at` bị stale. |
+| 58 | `UT-AUD-01` | Kiểm tra thay đổi trạng thái đơn hàng được ghi audit kèm actor. |
+| 59 | `UT-AUD-02` | Kiểm tra thay đổi trạng thái phiếu nhập được ghi audit kèm actor. |
+| 60 | `UT-AUD-03` | Kiểm tra receipt history trả đúng source link và audit message cho các phiếu Phase B. |
+| 61 | `UT-HIS-01` | Kiểm tra product history hỗ trợ lọc theo actor ở backend. |
+| 62 | `UT-HIS-02` | Kiểm tra product history hỗ trợ lọc theo khoảng ngày ở backend. |
+| 63 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |

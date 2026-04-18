@@ -236,6 +236,7 @@ Màn này có 2 phần:
 11. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
 12. Khi hàng về thực tế, bấm `Nhập kho`
 13. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
+14. Nếu gặp phiếu cũ đang là `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
 
 ### Ý nghĩa trạng thái phiếu nhập
 
@@ -249,7 +250,7 @@ Lưu ý:
 
 - chỉ `Nháp` và `Đã đặt` mới được sửa trực tiếp dòng hàng
 - phiếu đã `Đã nhập kho`, `Đã thanh toán` hoặc `Đã hủy` sẽ chuyển sang chế độ chỉ xem để giữ lịch sử đúng workflow
-- kể cả `Master Admin` cũng không được xóa hoặc hủy ngược các phiếu đã khóa
+- kể cả `Master Admin` cũng không được xóa hoặc hủy ngược các phiếu đã khóa, trừ ngoại lệ phiếu lỗi dữ liệu `Đã thanh toán` nhưng chưa nhập kho nói ở trên
 
 ## 9. Luồng quản lý nhà cung cấp
 

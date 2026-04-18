@@ -135,6 +135,143 @@ class InventoryStoreTests(unittest.TestCase):
                 reason="",
             )
 
+    def test_ut_db_07_repair_purchase_document_deletes_invalid_paid_purchase_and_detaches_links(self) -> None:
+        product = self.store.create_product(
+            name="Chả cá chay lỗi phiếu",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        self.store.create_transaction(product["id"], "in", 5, "Tồn đầu repair purchase")
+        self.store.create_supplier_return_receipt(
+            supplier_name="NCC Repair",
+            source_type="purchase",
+            source_code="PN-BROKEN-01",
+            items=[{"product_id": product["id"], "quantity": 1, "unit_cost": 12000}],
+            note="Phiếu trả đang tham chiếu mã lỗi",
+        )
+
+        now = "2026-04-19T09:10:00+07:00"
+        with self.store._connect() as connection:
+            self.store._replace_sync_collection_records(
+                connection,
+                "purchases",
+                [
+                    {
+                        "id": "purchase-broken-01",
+                        "supplierName": "NCC Repair",
+                        "status": "paid",
+                        "note": "Phiếu lỗi chưa nhập kho",
+                        "createdAt": "2026-04-19T09:00:00+07:00",
+                        "updatedAt": now,
+                        "paidAt": now,
+                        "receiptCode": "PN-BROKEN-01",
+                        "items": [
+                            {
+                                "id": "purchase-item-broken-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 12000,
+                            }
+                        ],
+                    }
+                ],
+            )
+            canonical = self.store._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            )
+
+        result = self.store.repair_purchase_document(
+            "purchase-broken-01",
+            action="delete",
+            actor="masteradmin",
+        )
+
+        self.assertEqual(result["purchases"], [])
+        self.assertEqual(len(result["detached_receipt_codes"]), 1)
+        self.assertIn("gỡ liên kết nguồn", result["message"])
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 4.0)
+
+        with self.store._connect() as connection:
+            detached_source = connection.execute(
+                """
+                SELECT source_type, source_code
+                FROM inventory_receipts
+                WHERE receipt_type = 'supplier_return'
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            purchase_count = connection.execute(
+                "SELECT COUNT(*) AS total FROM purchases"
+            ).fetchone()["total"]
+            audit_row = connection.execute(
+                """
+                SELECT action, actor, message
+                FROM audit_logs
+                WHERE entity_type = 'purchase' AND entity_id = 'purchase-broken-01'
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+        self.assertEqual(detached_source["source_type"], "")
+        self.assertEqual(detached_source["source_code"], "")
+        self.assertEqual(purchase_count, 0)
+        self.assertEqual(audit_row["action"], "repair-delete")
+        self.assertEqual(audit_row["actor"], "masteradmin")
+
+    def test_ut_db_08_repair_purchase_document_rejects_valid_paid_purchase_with_receipt(self) -> None:
+        product = self.store.create_product(
+            name="Đậu viên chay đã nhập kho",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        receipt = self.store.create_purchase_receipt(
+            supplier_name="NCC Valid",
+            items=[{"product_id": product["id"], "quantity": 2, "unit_cost": 15000}],
+            note="Phiếu hợp lệ",
+        )
+
+        sync_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-valid-01",
+                        "supplierName": "NCC Valid",
+                        "status": "paid",
+                        "note": "Phiếu hợp lệ đã nhập kho",
+                        "createdAt": "2026-04-19T09:00:00+07:00",
+                        "updatedAt": "2026-04-19T09:10:00+07:00",
+                        "receivedAt": "2026-04-19T09:05:00+07:00",
+                        "paidAt": "2026-04-19T09:10:00+07:00",
+                        "receiptCode": receipt["receipt_code"],
+                        "items": [
+                            {
+                                "id": "purchase-item-valid-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 15000,
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
+            }
+        )
+
+        with self.assertRaisesRegex(ValueError, "Chỉ được xóa/hủy phiếu nhập nháp hoặc phiếu lỗi"):
+            self.store.repair_purchase_document(
+                "purchase-valid-01",
+                action="delete",
+                actor="masteradmin",
+            )
+
     def test_ut_rep_01_monthly_report_separates_phase_b_receipts_from_sales_and_purchases(self) -> None:
         product = self.store.create_product(
             name="Bò lát chay",
