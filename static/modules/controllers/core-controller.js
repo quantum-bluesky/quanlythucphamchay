@@ -164,6 +164,12 @@ export function registerCoreControllerEvents(contract) {
     actions.updatePagination(button.dataset.pageKey, button.dataset.pageAction);
   });
 
+  document.addEventListener("change", (event) => {
+    const pageSizeSelect = event.target.closest("[data-page-size-group]");
+    if (!pageSizeSelect) return;
+    actions.updatePaginationPageSize(pageSizeSelect.dataset.pageSizeGroup, Number(pageSizeSelect.value));
+  });
+
   document.addEventListener("focusin", (event) => {
     const sourceInput = queries.getFloatingSearchSourceInput();
     const sourceShell = queries.getFloatingSearchSourceShell();

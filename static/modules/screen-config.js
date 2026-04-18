@@ -2,6 +2,8 @@ const MOBILE_FLOATING_HINT =
   "Trên điện thoại, menu nổi, tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi bạn chạm ra ngoài; chạm lại vào phần mép còn lộ ra để mở đúng cụm cần dùng.";
 const DESKTOP_MENU_HINT =
   "Trên PC/tablet, menu nghiệp vụ sẽ tự thu gọn khi bạn rê chuột hoặc bấm ra ngoài khung menu; hover hoặc bấm nút Mở menu để bung lại nhanh.";
+const DESKTOP_PAGINATION_HINT =
+  "Trên PC/tablet, danh sách sẽ tự tính số mục mỗi trang theo khung hiển thị; nếu cần xem ít hoặc nhiều hơn, dùng combobox 25/50/100 ngay trên thanh phân trang.";
 
 export const SCREEN_HELP = {
   inventory: {
@@ -15,6 +17,7 @@ export const SCREEN_HELP = {
       "Chỉ Master Admin mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho và bắt buộc nhập lý do điều chỉnh.",
       "Nếu cần xử lý sai lệch sau khi chứng từ đã xử lý, dùng nút Phiếu DC hoặc mở khối Phiếu điều chỉnh tồn để lập chứng từ tăng/giảm mới thay vì sửa ngược đơn/phiếu cũ.",
       "Kéo xuống phần Lịch sử gần đây để kiểm tra các giao dịch mới nhất trước khi tiếp tục thao tác khác.",
+      DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
     ],
@@ -35,6 +38,7 @@ export const SCREEN_HELP = {
       "Nếu có 2 máy cùng sửa một giỏ nháp, app sẽ chặn ghi đè và báo xung đột để bạn tải lại dữ liệu mới nhất trước khi lưu tiếp.",
       "Khi mở detail của dòng hàng, bạn có thể đổi giá bán cho riêng đơn này hoặc bấm Giá chung để cập nhật giá bán mặc định của sản phẩm sau khi xác nhận.",
       "Nếu thiếu hàng, hệ thống sẽ chuyển sang luồng nhập hàng; chỉ Master Admin mới có quyền chỉnh tồn trực tiếp.",
+      DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
     ],
@@ -53,6 +57,7 @@ export const SCREEN_HELP = {
       "Đơn đã chốt chỉ còn các thao tác xem/in và cập nhật thanh toán; app sẽ khóa sửa trực tiếp để giữ lịch sử đúng workflow.",
       "Nếu phát hiện sai sau khi đã chốt đơn, bấm Trả hàng trên đúng đơn để tạo sẵn phiếu trả khách, hoặc mở khối Phiếu trả hàng khách để nhập tay từng dòng độc lập.",
       "Master Admin cũng không được xóa hoặc hủy ngược đơn đã chốt; các đơn đó phải được điều chỉnh bằng phiếu mới để giữ audit.",
+      DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
     ],
@@ -69,6 +74,7 @@ export const SCREEN_HELP = {
       "Mở vào màn là thấy ngay danh sách khách hàng hiện hành.",
       "Form tạo/sửa được thu gọn sẵn để ưu tiên phần danh sách; bấm Thêm mới hoặc Sửa để mở đúng lúc cần nhập liệu.",
       "Tìm nhanh bằng tên, số điện thoại hoặc địa chỉ để tránh nhập trùng.",
+      DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
     ],
@@ -87,6 +93,7 @@ export const SCREEN_HELP = {
       "Nếu cần thêm mới, dùng form phía dưới danh sách.",
       "Xem phần Lịch sử sản phẩm bên dưới để biết thay đổi gần đây trước khi chỉnh tiếp.",
       "Có thể lọc lịch sử theo người thao tác, từ ngày và đến ngày để đối chiếu audit nhanh.",
+      DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
     ],
@@ -111,6 +118,7 @@ export const SCREEN_HELP = {
       "Phiếu đã nhập kho, đã thanh toán hoặc đã hủy sẽ chuyển sang chế độ chỉ xem; nếu sai sót thì bấm Trả NCC trên phiếu cũ hoặc mở khối Phiếu trả NCC để lập phiếu độc lập.",
       "Master Admin cũng không được xóa hoặc hủy ngược phiếu đã khóa; chỉ phiếu nháp mới được xóa hẳn.",
       "Ẩn các phiếu đã thanh toán để giữ màn hình gọn; bật lại khi cần đối chiếu lịch sử.",
+      DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
     ],
@@ -128,6 +136,7 @@ export const SCREEN_HELP = {
       "Form tạo/sửa được thu gọn sẵn để ưu tiên phần danh sách; bấm Thêm mới hoặc Sửa để mở đúng lúc cần nhập liệu.",
       "Nếu đi từ màn Nhập hàng sang bằng nút NCC, form sẽ mở sẵn với tên nhà cung cấp đang gõ; nếu NCC đã tồn tại thì app chuyển thẳng sang chế độ sửa để cập nhật nhanh rồi quay lại phiếu nhập.",
       "Tìm theo tên, số điện thoại hoặc địa chỉ trước khi thêm để tránh trùng lặp.",
+      DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
     ],
@@ -144,6 +153,7 @@ export const SCREEN_HELP = {
       "Đọc các thẻ tổng hợp để tách riêng nhập hàng, bán hàng, hoàn tiền khách, trả NCC và điều chỉnh tồn.",
       "Xem tiếp xu hướng theo tháng, đề xuất nhập thêm và chi tiết từng sản phẩm bên dưới.",
       "Kéo xuống phần Audit chứng từ để tra cứu nhanh phiếu điều chỉnh tồn, phiếu trả hàng khách và phiếu trả NCC trong kỳ đang xem.",
+      DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
     ],
@@ -160,6 +170,7 @@ export const SCREEN_HELP = {
       "Chọn đúng nhóm đối tượng đã xóa cần xem: sản phẩm, khách hàng hoặc nhà cung cấp.",
       "Đọc cảnh báo ràng buộc trước khi khôi phục để biết đối tượng nào đang trùng hoặc đang bị khóa logic.",
       "Khôi phục xong thì quay lại màn nghiệp vụ tương ứng để tiếp tục thao tác.",
+      DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
     ],

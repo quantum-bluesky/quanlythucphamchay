@@ -1095,12 +1095,20 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 12px;
   padding: 12px 14px;
   border-radius: var(--radius-md);
   border: 1px dashed var(--line);
   background: rgba(255, 255, 255, 0.72);
+}
+
+.pagination-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .pagination-bar.is-search-pagination {
@@ -1111,6 +1119,26 @@ button:disabled {
   color: var(--muted);
   font-size: 0.92rem;
   font-weight: 600;
+}
+
+.pagination-size-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.pagination-size-picker select {
+  min-width: 84px;
+  padding: 8px 34px 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--text);
+  font: inherit;
 }
 
 .report-summary-grid {
@@ -1431,6 +1459,7 @@ button:disabled {
   .report-card-meta,
   .report-card-row,
   .report-metric-row,
+  .pagination-nav,
   .pagination-bar {
     display: grid;
     grid-template-columns: 1fr;
@@ -1452,6 +1481,11 @@ button:disabled {
   .pagination-bar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+  }
+
+  .pagination-nav {
+    display: flex;
     justify-content: space-between;
   }
 

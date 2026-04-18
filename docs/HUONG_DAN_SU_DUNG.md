@@ -456,6 +456,17 @@ Lưu ý timeout phiên:
 - chọn `OK`: logout ngay
 - chọn `Cancel`: vẫn giữ phiên hiện tại và hẹn nhắc lại sau đúng chu kỳ timeout tương ứng
 
+Lưu ý cấu hình phân trang trong `system_config.json`:
+
+- `pagination.items_per_page`: base cho các list item/card như mặt hàng, khách hàng, nhà cung cấp
+- `pagination.documents_per_page`: base cho các list phiếu/đơn/chứng từ
+- khi mở app, hệ thống tự scale từ base này theo thiết bị:
+  - `Mobile`: mặc định giữ base config, chuẩn là `10`
+  - `Tablet`: mặc định scale lên mức chuẩn `25`
+  - `PC`: mặc định scale lên mức chuẩn `100`
+- trên `PC/Tablet`, thanh phân trang có combobox `25/50/100` để đổi nhanh số mục hiển thị trên mỗi trang
+- mobile không hiện combobox này, vẫn giữ phân trang gọn theo màn hình nhỏ
+
 ### Khi nào dùng export / import master
 
 - chuyển danh mục sang máy khác

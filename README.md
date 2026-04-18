@@ -167,11 +167,25 @@ Ví dụ:
   ],
   "debug": {
     "sync_state": false
+  },
+  "pagination": {
+    "items_per_page": 10,
+    "documents_per_page": 10
   }
 }
 ```
 
-Muốn đổi tài khoản user/admin, bật `EnableLogin`, hoặc đổi timeout phiên thì sửa trực tiếp `system_config.json`. App không tự ghi đè lại các giá trị timeout này trong lúc đang chạy.
+Muốn đổi tài khoản user/admin, bật `EnableLogin`, đổi timeout phiên, hoặc đổi base phân trang thì sửa trực tiếp `system_config.json`. App không tự ghi đè lại các giá trị này trong lúc đang chạy.
+
+Ý nghĩa cấu hình phân trang:
+
+- `pagination.items_per_page`: base cho các danh sách item/card như mặt hàng, khách hàng, nhà cung cấp.
+- `pagination.documents_per_page`: base cho các danh sách phiếu/đơn/chứng từ.
+- Khi mở app, frontend tự suy ra số mục mặc định theo thiết bị hiện hành từ base này:
+  - `Mobile`: giữ nguyên base config, mặc định là `10`
+  - `Tablet`: scale lên mức chuẩn khoảng `25`
+  - `PC`: scale lên mức chuẩn khoảng `100`
+- Trên `PC/Tablet`, thanh phân trang có thêm combobox `25/50/100` để đổi nhanh số mục hiển thị trên mỗi trang.
 
 Nếu cần điều tra lỗi đồng bộ nhiều máy như `PUT /api/state 400`, bật:
 
