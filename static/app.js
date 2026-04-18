@@ -232,6 +232,8 @@ let purchasesUi = null;
 let entitiesUi = null;
 let reportsAdminUi = null;
 let adminSessionReminderTimer = null;
+let stickyLayoutUpdateFrame = 0;
+let stickyLayoutResizeObserver = null;
 window.__QLTPCHAY_APP_READY = false;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
 const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
@@ -273,6 +275,80 @@ function setupSearchClearButtons() {
 
 function refreshSearchClearButtons() {
   searchClearRefreshers.forEach((refresh) => refresh());
+}
+
+function parsePixelValue(value) {
+  const parsed = Number.parseFloat(String(value || ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getStickyTargetBottom(node) {
+  if (!(node instanceof HTMLElement) || node.hidden) {
+    return 0;
+  }
+  const computedStyle = window.getComputedStyle(node);
+  if (computedStyle.display === "none") {
+    return 0;
+  }
+  return parsePixelValue(computedStyle.top) + node.offsetHeight;
+}
+
+function updateStickyLayoutMetrics() {
+  const rootStyle = document.documentElement?.style;
+  if (!rootStyle) {
+    return;
+  }
+
+  if (mobileQuery.matches) {
+    rootStyle.removeProperty("--list-toolbar-top");
+    rootStyle.removeProperty("--list-pagination-top");
+    return;
+  }
+
+  const screenHeaderBar = document.getElementById("screenHeaderBar");
+  const activeSection = document.querySelector(`[data-menu-section="${state.activeMenu}"]`);
+  const activeToolbar = activeSection?.querySelector(".list-search-toolbar");
+  const headerBottom = getStickyTargetBottom(screenHeaderBar);
+  let stickyTop = headerBottom + parsePixelValue(getComputedStyle(document.documentElement).getPropertyValue("--list-toolbar-gap"));
+
+  stickyTop = Math.max(stickyTop, getStickyTargetBottom(menuPanel) + 12);
+  if (state.activeMenu === "inventory" && quickPanel && !quickPanel.hidden) {
+    stickyTop = Math.max(stickyTop, getStickyTargetBottom(quickPanel) + 12);
+  }
+
+  const toolbarHeight = activeToolbar instanceof HTMLElement ? activeToolbar.offsetHeight : 0;
+  rootStyle.setProperty("--list-toolbar-top", `${Math.round(stickyTop)}px`);
+  rootStyle.setProperty("--list-pagination-top", `${Math.round(stickyTop + toolbarHeight + 8)}px`);
+}
+
+function scheduleStickyLayoutMetricsUpdate() {
+  if (stickyLayoutUpdateFrame) {
+    window.cancelAnimationFrame(stickyLayoutUpdateFrame);
+  }
+  stickyLayoutUpdateFrame = window.requestAnimationFrame(() => {
+    stickyLayoutUpdateFrame = 0;
+    updateStickyLayoutMetrics();
+  });
+}
+
+function setupStickyLayoutMetricsObserver() {
+  window.addEventListener("resize", scheduleStickyLayoutMetricsUpdate, { passive: true });
+  if (typeof ResizeObserver !== "function" || stickyLayoutResizeObserver) {
+    return;
+  }
+
+  stickyLayoutResizeObserver = new ResizeObserver(() => {
+    scheduleStickyLayoutMetricsUpdate();
+  });
+
+  [
+    document.getElementById("screenHeaderBar"),
+    menuPanel,
+    quickPanel,
+    ...document.querySelectorAll(".list-search-toolbar"),
+  ]
+    .filter((node) => node instanceof HTMLElement)
+    .forEach((node) => stickyLayoutResizeObserver.observe(node));
 }
 
 function scrollElementIntoView(target, { behavior = mobileQuery.matches ? "auto" : "smooth", topMargin = 16 } = {}) {
@@ -2884,6 +2960,7 @@ function renderAll() {
   renderScreenToolbox();
   renderFloatingSearchDock();
   refreshSearchClearButtons();
+  scheduleStickyLayoutMetricsUpdate();
   window.__QLTPCHAY_APP_READY = true;
 }
 
@@ -3547,6 +3624,7 @@ registerReportsAdminControllerEvents({
 window.addEventListener("DOMContentLoaded", async () => {
   window.__QLTPCHAY_APP_READY = false;
   setupSearchClearButtons();
+  setupStickyLayoutMetricsObserver();
   loadSalesState();
   setHelpOpen(false);
   applyMobileCollapsedDefaults();
