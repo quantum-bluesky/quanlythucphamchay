@@ -189,6 +189,7 @@ Các nhóm kiểm tra chính:
 - `Điều hướng mở phiếu/detail`: khi mở giỏ nháp hoặc phiếu nhập từ danh sách, viewport phải tự cuộn lên khối thông tin của phiếu vừa mở
 - `Menu PC/tablet`: nút `Mở menu` phải bung menu, menu tự thu gọn khi rê chuột hoặc bấm ra ngoài, và chiều rộng menu không bị bung quá rộng
 - `Điều hướng sau khi xoay màn hình`: đổi giữa dọc/ngang vẫn phải bấm được menu nghiệp vụ để sang màn khác
+- `Tablet touch sau login`: vừa đăng nhập xong vẫn phải tap được nút `Mở menu` và item menu nghiệp vụ, không bị header menu chặn touch
 - `Phân trang PC/tablet`: list tự lấy số mục mặc định theo thiết bị và cho đổi nhanh `25/50/100` trên thanh phân trang
 - `Đăng nhập hệ thống`: header `Login/Logout`, user thường, admin, timeout session, role-based access
 - `Master Admin`: login admin, export/import file master (`JSON` + `CSV`), backup, restore

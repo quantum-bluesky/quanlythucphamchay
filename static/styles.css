@@ -221,8 +221,14 @@ h3 {
   justify-content: space-between;
 }
 
+.menu-panel-head {
+  position: relative;
+}
+
 .menu-toggle-button {
   white-space: nowrap;
+  position: relative;
+  z-index: 1;
 }
 
 .menu-button {
@@ -1522,6 +1528,7 @@ button:disabled {
 
   .menu-panel-head strong {
     display: none;
+    pointer-events: none;
   }
 
   .menu-toggle-button {

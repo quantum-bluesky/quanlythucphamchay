@@ -11,6 +11,7 @@ export function registerCoreControllerEvents(contract) {
   } = contract;
 
   const isDesktopMenuMode = () => !queries.isMobileFloatingClusterMode();
+  const isHoverMenuPointer = (event) => event?.pointerType !== "touch";
   const expandDesktopMenu = () => {
     if (!isDesktopMenuMode()) return;
     actions.setMenuCollapsed(false);
@@ -67,7 +68,8 @@ export function registerCoreControllerEvents(contract) {
     actions.interceptEdgeHiddenClusterReveal(event, "toolbox", dom.screenToolbox);
   }, true);
 
-  dom.menuToggleButton.addEventListener("pointerenter", () => {
+  dom.menuToggleButton.addEventListener("pointerenter", (event) => {
+    if (!isHoverMenuPointer(event)) return;
     expandDesktopMenu();
   });
 
@@ -75,7 +77,8 @@ export function registerCoreControllerEvents(contract) {
     expandDesktopMenu();
   });
 
-  dom.menuPanel.addEventListener("pointerleave", () => {
+  dom.menuPanel.addEventListener("pointerleave", (event) => {
+    if (!isHoverMenuPointer(event)) return;
     collapseDesktopMenu();
   });
 
