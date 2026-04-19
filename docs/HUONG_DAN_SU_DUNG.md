@@ -237,6 +237,7 @@ Màn này có 2 phần:
 12. Khi hàng về thực tế, bấm `Nhập kho`
 13. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 14. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
+15. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`
 
 ### Ý nghĩa trạng thái phiếu nhập
 
@@ -345,6 +346,7 @@ Lưu ý:
 4. Xem `Xu hướng tháng` để đối chiếu từng tháng gần đây
 5. Xem `Chi tiết tháng` để biết từng sản phẩm bị ảnh hưởng bởi trả hàng hay điều chỉnh tồn
 6. Kéo xuống `Audit chứng từ` để xem mã phiếu, đối tượng, tổng SL, tổng tiền và liên kết `Đơn nguồn` / `Phiếu nguồn` nếu có
+7. Dùng ô tìm kiếm ở khối `Audit chứng từ` để gõ hoặc chọn nhanh `mã phiếu` / `mã tham chiếu nguồn` cần tra cứu
 
 ### Ý nghĩa phần dự báo
 

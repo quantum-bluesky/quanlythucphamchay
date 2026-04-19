@@ -189,7 +189,7 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Chỉ được xóa hẳn phiếu nhập nháp hoặc phiếu lỗi chưa nhập kho.", true);
         return;
       }
-      if (queries.isRepairableInvalidPurchase(purchase) && !window.confirm("Phiếu này đang ở trạng thái lỗi dữ liệu. Xóa phiếu sẽ dọn luôn trạng thái thanh toán lỗi và không khôi phục lại phiếu nháp.\n\nBạn có chắc muốn xóa phiếu này?")) {
+      if (queries.isRepairableInvalidPurchase(purchase) && !window.confirm("Phiếu này đang ở trạng thái lỗi dữ liệu. Xóa phiếu sẽ dọn các marker xử lý bị lệch và không khôi phục lại phiếu nháp.\n\nBạn có chắc muốn xóa phiếu này?")) {
         return;
       }
       try {
@@ -223,7 +223,7 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       const confirmMessage = queries.isRepairableInvalidPurchase(purchase)
-        ? "Phiếu này đang ở trạng thái lỗi dữ liệu. Hủy phiếu sẽ bỏ trạng thái thanh toán lỗi và giữ phiếu ở dạng đã hủy, không quay lại nháp.\n\nBạn có chắc muốn hủy phiếu này?"
+        ? "Phiếu này đang ở trạng thái lỗi dữ liệu. Hủy phiếu sẽ bỏ các marker xử lý bị lệch và giữ phiếu ở dạng đã hủy, không quay lại nháp.\n\nBạn có chắc muốn hủy phiếu này?"
         : "Hủy phiếu này sẽ giữ lại lịch sử ở trạng thái đã hủy.\n\nBạn có chắc muốn tiếp tục?";
       if (!window.confirm(confirmMessage)) {
         return;

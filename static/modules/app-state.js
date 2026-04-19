@@ -59,6 +59,7 @@ export const state = {
   reportRangeMonths: 6,
   reportStartDate: "",
   reportEndDate: "",
+  reportReceiptSearchTerm: "",
   reportFiltersCollapsed: false,
   customers: [],
   suppliers: [],

@@ -131,6 +131,8 @@ import {
   forecastList,
   reportProductActivity,
   reportReceiptHistorySection,
+  reportReceiptSearchInput,
+  reportReceiptReferenceOptions,
   reportReceiptHistoryList,
   reportsSection,
   reportFiltersSection,
@@ -888,6 +890,8 @@ function getReportsAdminUi() {
         forecastList,
         reportProductActivity,
         reportReceiptHistorySection,
+        reportReceiptSearchInput,
+        reportReceiptReferenceOptions,
         reportReceiptHistoryList,
         adminLoginPanel,
         adminModulePanel,
@@ -899,6 +903,7 @@ function getReportsAdminUi() {
       escapeHtml,
       formatCurrency,
       formatQuantity,
+      formatDate,
       formatMonthLabel,
       formatDateOnly,
       paginateItems,
@@ -1073,7 +1078,7 @@ function getReportReceiptHistoryWindow() {
 }
 
 function buildReceiptHistoryParams() {
-  const receiptHistoryParams = new URLSearchParams({ limit: "40" });
+  const receiptHistoryParams = new URLSearchParams({ limit: "200" });
   const receiptHistoryWindow = getReportReceiptHistoryWindow();
   if (receiptHistoryWindow.startDateTime) {
     receiptHistoryParams.set("start_date", receiptHistoryWindow.startDateTime);
@@ -3799,6 +3804,7 @@ registerReportsAdminControllerEvents({
     reportRangeSelect,
     reportStartDateInput,
     reportEndDateInput,
+    reportReceiptSearchInput,
     refreshReportsButton,
     clearReportDateFilterButton,
     reportFiltersToggleButton,
