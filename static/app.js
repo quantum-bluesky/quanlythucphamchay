@@ -1958,6 +1958,69 @@ function deleteCart(cartId) {
   saveAndRenderAll(["customers", "carts"]);
 }
 
+async function checkoutCart(cartId) {
+  const cart = getCartById(cartId);
+  if (!cart) {
+    throw new Error("Không tìm thấy giỏ hàng.");
+  }
+  if (cart.status !== "draft") {
+    throw new Error("Chỉ xuất được giỏ hàng nháp.");
+  }
+  if (!cart.items.length) {
+    throw new Error("Giỏ hàng đang trống.");
+  }
+
+  const shortages = getCartShortages(cart).filter((entry) => entry.shortage > 0);
+  if (shortages.length) {
+    const shortageNames = shortages.map((entry) => `${entry.product?.name || entry.item.productName} thiếu ${formatQuantity(entry.shortage)}`).join(", ");
+  if (state.admin?.isAdmin) {
+      const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng: ${shortageNames}.\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel để tạo phiếu nhập hàng dự kiến.`);
+      if (shouldAdjustStock) {
+        switchMenu("inventory");
+        prefillProduct(shortages[0].product?.id || shortages[0].item.productId);
+        throw new Error("Hãy điều chỉnh lại tồn kho rồi chốt đơn lại.");
+      }
+    }
+
+    createPurchaseSuggestionFromCart(cart);
+    switchMenu("purchases");
+    throw new Error("Đã tạo sẵn phiếu nhập dự kiến để bù thiếu cho đơn này.");
+  }
+
+  const data = await apiRequest("/api/orders/checkout", {
+    method: "POST",
+    body: JSON.stringify({
+      customer_name: cart.customerName,
+      items: cart.items.map((item) => ({
+        product_id: item.productId,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+      })),
+    }),
+  });
+
+  const completedAt = data.order?.created_at || nowIso();
+  const orderCode = data.order?.order_code || "";
+
+  updateCart(cart.id, (currentCart) => ({
+    ...currentCart,
+    status: "completed",
+    paymentStatus: "unpaid",
+    completedAt,
+    updatedAt: completedAt,
+    orderCode,
+  }));
+
+  if (state.activeCartId === cart.id) {
+    state.activeCartId = getDraftCarts().find((entry) => entry.id !== cart.id)?.id || null;
+  }
+  saveAndRenderAll();
+  await persistCollections(["carts"]);
+  await refreshData();
+  printCart(cart.id);
+  showToast(data.message);
+}
+
 function renameCustomer(customerId, newName) {
   return getEntityProductMutationHelpers().renameCustomer(customerId, newName);
 }
@@ -2933,6 +2996,9 @@ function renderCartQueue() {
       const expanded = state.expandedOrderId === cart.id;
       const itemPreview = cart.items.slice(0, 3).map((item) => item.productName).join(", ");
       const compactMeta = `${formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • ${formatCurrency(cart.totalAmount)}`;
+      const checkoutButton = cart.status === "draft"
+        ? `<button type="button" class="secondary-button compact-button" data-queue-action="checkout" data-cart-id="${cart.id}">${compact ? "Xuất" : "Xuất hàng"}</button>`
+        : "";
       return `
         <article class="cart-queue-item ${expanded ? "is-expanded" : ""}">
           <div class="queue-header">
@@ -2958,20 +3024,19 @@ function renderCartQueue() {
           `}
           <div class="queue-actions">
             ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục bán"}</button>` : `<button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>`}
-            ${compact
-              ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">...</button>`
-              : `
-                <button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>
-                ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
-                ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
-                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
-                ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
-              `}
+            ${compact ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">...</button>` : checkoutButton}
+            ${compact ? "" : `
+              ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
+              ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
+              ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
+              ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
+            `}
           </div>
           ${compact && expanded ? `
             <div class="queue-detail-block">
               <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
               <div class="queue-actions queue-actions-expanded">
+                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="checkout" data-cart-id="${cart.id}">Xuất</button>` : ""}
                 ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
                 ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả</button>` : ""}
                 ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">TT</button>` : ""}
@@ -3403,57 +3468,7 @@ async function checkoutActiveCart() {
   if (!cart) {
     throw new Error("Chưa có giỏ hàng nào đang mở.");
   }
-  if (!cart.items.length) {
-    throw new Error("Giỏ hàng đang trống.");
-  }
-
-  const shortages = getCartShortages(cart).filter((entry) => entry.shortage > 0);
-  if (shortages.length) {
-    const shortageNames = shortages.map((entry) => `${entry.product?.name || entry.item.productName} thiếu ${formatQuantity(entry.shortage)}`).join(", ");
-  if (state.admin?.isAdmin) {
-      const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng: ${shortageNames}.\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel để tạo phiếu nhập hàng dự kiến.`);
-      if (shouldAdjustStock) {
-        switchMenu("inventory");
-        prefillProduct(shortages[0].product?.id || shortages[0].item.productId);
-        throw new Error("Hãy điều chỉnh lại tồn kho rồi chốt đơn lại.");
-      }
-    }
-
-    createPurchaseSuggestionFromCart(cart);
-    switchMenu("purchases");
-    throw new Error("Đã tạo sẵn phiếu nhập dự kiến để bù thiếu cho đơn này.");
-  }
-
-  const data = await apiRequest("/api/orders/checkout", {
-    method: "POST",
-    body: JSON.stringify({
-      customer_name: cart.customerName,
-      items: cart.items.map((item) => ({
-        product_id: item.productId,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-      })),
-    }),
-  });
-
-  const completedAt = data.order?.created_at || nowIso();
-  const orderCode = data.order?.order_code || "";
-
-  updateCart(cart.id, (currentCart) => ({
-    ...currentCart,
-    status: "completed",
-    paymentStatus: "unpaid",
-    completedAt,
-    updatedAt: completedAt,
-    orderCode,
-  }));
-
-  state.activeCartId = getDraftCarts().find((entry) => entry.id !== cart.id)?.id || null;
-  saveAndRenderAll();
-  await persistCollections(["carts"]);
-  await refreshData();
-  printCart(cart.id);
-  showToast(data.message);
+  await checkoutCart(cart.id);
 }
 
 registerCoreControllerEvents({
@@ -3638,6 +3653,7 @@ registerSalesControllerEvents({
     updateCartItem,
     removeCartItem,
     saveAndRenderAll,
+    checkoutCart,
     checkoutActiveCart,
     printCart,
     updateProductSalePrice,

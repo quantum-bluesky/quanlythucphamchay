@@ -54,6 +54,7 @@ export const SCREEN_HELP = {
     steps: [
       "Dùng ô tìm kiếm để lọc theo khách hàng, mã đơn hoặc tên mặt hàng.",
       "Bật hoặc tắt các tùy chọn hiện đơn đã xong và đã thanh toán để thu gọn danh sách.",
+      "Với giỏ nháp đang chờ xuất, bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile nút này nằm trong menu `...` nếu card đang gọn.",
       "Đơn đã chốt chỉ còn các thao tác xem/in và cập nhật thanh toán; app sẽ khóa sửa trực tiếp để giữ lịch sử đúng workflow.",
       "Nếu phát hiện sai sau khi đã chốt đơn, bấm Trả hàng trên đúng đơn để tạo sẵn phiếu trả khách, hoặc mở khối Phiếu trả hàng khách để nhập tay từng dòng độc lập.",
       "Master Admin cũng không được xóa hoặc hủy ngược đơn đã chốt; các đơn đó phải được điều chỉnh bằng phiếu mới để giữ audit.",

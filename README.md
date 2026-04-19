@@ -117,7 +117,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Quản lý khách hàng có thêm số liên lạc, địa chỉ ship và link Zalo
 - Màn Khách hàng và Nhà cung cấp ưu tiên hiển thị danh sách; form tạo/sửa được thu gọn và chỉ mở khi bấm `Thêm mới` hoặc `Sửa`
 - Màn Sản phẩm cũng ưu tiên hiển thị danh sách; phần `Thêm sản phẩm` và `Lịch sử sản phẩm` được thu gọn sẵn và chỉ mở khi cần
-- Quản lý đơn hàng có trạng thái thanh toán
+- Quản lý đơn hàng có trạng thái thanh toán và nút `Xuất` nhanh từ card giỏ nháp
 - Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, giá nhập, giá bán mặc định và ngưỡng cảnh báo
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần
 - Có lịch sử quản lý sản phẩm và màn quản lý các đối tượng đã xóa để khôi phục an toàn

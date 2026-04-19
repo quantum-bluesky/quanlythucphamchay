@@ -306,6 +306,14 @@ export function registerSalesControllerEvents(contract) {
       actions.printCart(cart.id);
       return;
     }
+    if (action === "checkout") {
+      try {
+        await actions.checkoutCart(cart.id);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (action === "customer-return") {
       try {
         actions.openCustomerReturnDraftFromCart(cart.id);

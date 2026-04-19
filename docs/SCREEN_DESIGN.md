@@ -76,6 +76,9 @@ Liên kết detail hiện có:
   - search đơn hàng
   - filter hiện đơn đã xong / đã thanh toán
   - danh sách order card
+- nguyên tắc UI:
+  - giỏ nháp đang chờ xuất có nút `Xuất` nhanh ngay trên card trên tablet/PC
+  - trên mobile, `Xuất` nằm trong menu `...` để tránh quá tải nút trực tiếp nhưng vẫn thao tác nhanh được
 
 ### `customers` - Quản lý khách hàng
 

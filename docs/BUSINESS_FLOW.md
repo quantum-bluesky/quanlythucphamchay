@@ -67,6 +67,7 @@ Nếu cần can thiệp đặc biệt
 
 - màn `orders`
 - chỉ xem/in/thanh toán/hủy theo rule
+- giỏ nháp đang chờ xuất có thể bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile nút này nằm trong `...`
 - đơn đã `completed` không sửa trực tiếp
 
 ## 4. Luồng nhập hàng

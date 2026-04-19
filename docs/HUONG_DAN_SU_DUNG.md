@@ -136,6 +136,7 @@ Vào menu:
 Dùng màn này để:
 
 - mở lại giỏ hàng đang chờ
+- xuất nhanh giỏ nháp ra đơn
 - in lại đơn
 - đánh dấu `Đã thanh toán`
 - hủy đơn
@@ -144,6 +145,7 @@ Dùng màn này để:
 ### Khi nào dùng từng nút
 
 - `Tiếp tục bán`: mở lại giỏ hàng nháp để sửa tiếp
+- `Xuất`: chốt nhanh giỏ nháp thành đơn mà không cần mở lại giỏ; trên mobile nút này nằm trong menu `...` của card
 - `In`: in hoặc gửi lại danh sách hàng cho khách
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền
 - `Hủy`: dùng khi khách không lấy nữa
