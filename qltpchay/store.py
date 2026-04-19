@@ -2675,7 +2675,35 @@ class InventoryStore:
             previous = existing_by_id.get(purchase_id)
             previous_status = str(previous.get("status") or "draft") if previous else None
 
+            if previous_status in {"received", "paid"}:
+                if next_status != previous_status:
+                    if previous_status == "received":
+                        raise ValueError("Phiếu nhập đã nhập kho không thể hạ trạng thái hoặc mở lại nháp.")
+                    raise ValueError("Phiếu nhập đã thanh toán không thể hạ trạng thái hoặc mở lại nháp.")
+                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
+                    if previous_status == "received":
+                        raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
+                    raise ValueError("Phiếu nhập đã thanh toán không thể sửa trực tiếp.")
+                continue
+
+            if previous_status == "cancelled":
+                if next_status != "cancelled":
+                    raise ValueError("Phiếu nhập đã hủy không thể mở lại hoặc sửa trực tiếp.")
+                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
+                    raise ValueError("Phiếu nhập đã hủy không thể sửa trực tiếp.")
+                continue
+
+            if next_status == "received":
+                received_at = purchase.get("receivedAt") or purchase.get("received_at")
+                if not received_at:
+                    raise ValueError("Phiếu nhập phải có thời điểm nhập kho khi chuyển sang đã nhập kho.")
+                if previous_status == "draft":
+                    raise ValueError("Phiếu nhập phải được đặt hàng trước khi nhập kho.")
+                continue
+
             if next_status != "paid":
+                if previous_status == "ordered" and next_status == "draft":
+                    raise ValueError("Phiếu nhập đã đặt hàng không thể quay lại nháp.")
                 continue
 
             received_at = purchase.get("receivedAt") or purchase.get("received_at")
@@ -2687,26 +2715,6 @@ class InventoryStore:
 
             if previous_status not in {"received", "paid"}:
                 raise ValueError("Phiếu nhập chỉ được chuyển sang đã thanh toán sau khi đã nhập kho.")
-
-            if previous_status == "received":
-                if next_status not in {"received", "paid"}:
-                    raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
-                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
-                    raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
-                continue
-
-            if previous_status == "paid":
-                if next_status != "paid":
-                    raise ValueError("Phiếu nhập đã thanh toán không thể sửa ngược trạng thái.")
-                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
-                    raise ValueError("Phiếu nhập đã thanh toán không thể sửa trực tiếp.")
-                continue
-
-            if previous_status == "cancelled":
-                if next_status != "cancelled":
-                    raise ValueError("Phiếu nhập đã hủy không thể mở lại hoặc sửa trực tiếp.")
-                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
-                    raise ValueError("Phiếu nhập đã hủy không thể sửa trực tiếp.")
 
     def _snapshot_cart_for_lock(self, cart: dict) -> dict:
         return {
@@ -2731,10 +2739,30 @@ class InventoryStore:
 
     def _snapshot_purchase_for_lock(self, purchase: dict) -> dict:
         return {
+            "supplierId": str(purchase.get("supplierId") or ""),
             "supplierName": str(purchase.get("supplierName") or ""),
             "note": str(purchase.get("note") or ""),
             "receiptCode": str(purchase.get("receiptCode") or ""),
             "receivedAt": purchase.get("receivedAt") or purchase.get("received_at") or "",
+            "items": sorted(
+                [
+                    {
+                        "id": str(item.get("id") or ""),
+                        "productId": int(item.get("productId") or 0),
+                        "quantity": round(float(item.get("quantity") or 0), 2),
+                        "unitCost": round(float(item.get("unitCost") or 0), 2),
+                    }
+                    for item in (purchase.get("items") or [])
+                ],
+                key=lambda item: (item["id"], item["productId"]),
+            ),
+        }
+
+    def _snapshot_purchase_for_receive_lock(self, purchase: dict) -> dict:
+        return {
+            "supplierId": str(purchase.get("supplierId") or ""),
+            "supplierName": str(purchase.get("supplierName") or ""),
+            "note": str(purchase.get("note") or ""),
             "items": sorted(
                 [
                     {

@@ -1,3 +1,4 @@
+import copy
 import gc
 import json
 import os
@@ -359,6 +360,103 @@ class InventoryStoreTests(unittest.TestCase):
         sync_state = self.store.get_sync_state()
         purchase = next(entry for entry in sync_state["purchases"] if entry["id"] == "purchase-received-legacy-01")
         self.assertEqual(purchase["receivedAt"], updated_at)
+
+    def test_ut_db_11_purchase_must_be_ordered_before_receive_and_ordered_remains_editable(self) -> None:
+        product = self.store.create_product(
+            name="Phiếu nhập ordered flow",
+            category="Đồ khô",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        now = "2026-04-19T12:15:00+07:00"
+        draft_purchase = {
+            "id": "purchase-ordered-flow-01",
+            "supplierName": "NCC Ordered Flow",
+            "note": "Phiếu flow test",
+            "status": "draft",
+            "createdAt": now,
+            "updatedAt": now,
+            "receiptCode": "",
+            "items": [
+                {
+                    "id": "purchase-item-ordered-flow-01",
+                    "productId": product["id"],
+                    "productName": product["name"],
+                    "quantity": 1,
+                    "unitCost": 18000,
+                }
+            ],
+        }
+        sync_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "purchases": [draft_purchase],
+                "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
+            }
+        )
+
+        draft_state = self.store.get_sync_state()
+        invalid_receive_payload = copy.deepcopy(draft_state["purchases"])
+        invalid_receive_purchase = invalid_receive_payload[0]
+        invalid_receive_purchase["status"] = "received"
+        invalid_receive_purchase["receivedAt"] = now
+        invalid_receive_purchase["receiptCode"] = "PN-INVALID-01"
+
+        with self.assertRaisesRegex(ValueError, "đặt hàng trước khi nhập kho"):
+            self.store.save_sync_state(
+                {
+                    "purchases": invalid_receive_payload,
+                    "expected_updated_at": {"purchases": draft_state["updated_at"]["purchases"]},
+                }
+            )
+
+        ordered_payload = copy.deepcopy(draft_state["purchases"])
+        ordered_purchase = ordered_payload[0]
+        ordered_purchase["status"] = "ordered"
+        ordered_purchase["note"] = "Đã đặt hàng, còn chỉnh được"
+        ordered_purchase["items"][0]["quantity"] = 2
+        ordered_purchase["items"][0]["unitCost"] = 19000
+
+        self.store.save_sync_state(
+            {
+                "purchases": ordered_payload,
+                "expected_updated_at": {"purchases": draft_state["updated_at"]["purchases"]},
+            }
+        )
+
+        ordered_state = self.store.get_sync_state()
+        editable_ordered_payload = copy.deepcopy(ordered_state["purchases"])
+        editable_ordered_purchase = editable_ordered_payload[0]
+        editable_ordered_purchase["note"] = "Đã đặt hàng, chỉnh tiếp dòng"
+        editable_ordered_purchase["items"][0]["quantity"] = 3
+        editable_ordered_purchase["items"][0]["unitCost"] = 20000
+
+        self.store.save_sync_state(
+            {
+                "purchases": editable_ordered_payload,
+                "expected_updated_at": {"purchases": ordered_state["updated_at"]["purchases"]},
+            }
+        )
+
+        edited_ordered_state = self.store.get_sync_state()
+        received_payload = copy.deepcopy(edited_ordered_state["purchases"])
+        received_purchase = received_payload[0]
+        received_purchase["status"] = "received"
+        received_purchase["receivedAt"] = "2026-04-19T12:20:00+07:00"
+        received_purchase["receiptCode"] = "PN-ORDERED-FLOW-01"
+
+        self.store.save_sync_state(
+            {
+                "purchases": received_payload,
+                "expected_updated_at": {"purchases": edited_ordered_state["updated_at"]["purchases"]},
+            }
+        )
+
+        final_state = self.store.get_sync_state()
+        purchase = next(entry for entry in final_state["purchases"] if entry["id"] == "purchase-ordered-flow-01")
+        self.assertEqual(purchase["status"], "received")
+        self.assertEqual(purchase["receivedAt"], "2026-04-19T12:20:00+07:00")
+        self.assertEqual(purchase["receiptCode"], "PN-ORDERED-FLOW-01")
 
     def test_ut_rep_01_monthly_report_separates_phase_b_receipts_from_sales_and_purchases(self) -> None:
         product = self.store.create_product(

@@ -76,6 +76,9 @@ Liên kết detail hiện có:
   - search đơn hàng
   - filter hiện đơn đã xong / đã thanh toán
   - danh sách order card
+- nguyên tắc UI:
+  - giỏ nháp đang chờ xuất có nút `Xuất` nhanh ngay trên card trên tablet/PC
+  - trên mobile, `Xuất` nằm trong menu `...` để tránh quá tải nút trực tiếp nhưng vẫn thao tác nhanh được
 
 ### `customers` - Quản lý khách hàng
 
@@ -114,6 +117,7 @@ Liên kết detail hiện có:
 - nguyên tắc UI:
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
+  - nút `Nhập kho` chỉ hiện khi phiếu đã ở trạng thái `Đã đặt`; phiếu `Nháp` vẫn còn chỉnh sửa được nhưng chưa cho nhập kho
 - tài liệu detail:
   - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 

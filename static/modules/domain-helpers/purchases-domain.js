@@ -26,6 +26,10 @@ export function createPurchasesDomainHelpers(deps) {
     return Boolean(purchase && purchase.status === "received");
   }
 
+  function canReceivePurchase(purchase) {
+    return Boolean(purchase && purchase.status === "ordered");
+  }
+
   function isRepairableInvalidPurchase(purchase) {
     if (!purchase) return false;
     if (purchase.isRepairableInvalid === true || purchase.repairableInvalid === true) {
@@ -180,6 +184,7 @@ export function createPurchasesDomainHelpers(deps) {
   return {
     getActivePurchase,
     canMarkPurchasePaid,
+    canReceivePurchase,
     isRepairableInvalidPurchase,
     canEditPurchase,
     canDeletePurchase,

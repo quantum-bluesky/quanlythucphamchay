@@ -54,6 +54,7 @@ export const SCREEN_HELP = {
     steps: [
       "Dùng ô tìm kiếm để lọc theo khách hàng, mã đơn hoặc tên mặt hàng.",
       "Bật hoặc tắt các tùy chọn hiện đơn đã xong và đã thanh toán để thu gọn danh sách.",
+      "Với giỏ nháp đang chờ xuất, bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile nút này nằm trong menu `...` nếu card đang gọn.",
       "Đơn đã chốt chỉ còn các thao tác xem/in và cập nhật thanh toán; app sẽ khóa sửa trực tiếp để giữ lịch sử đúng workflow.",
       "Nếu phát hiện sai sau khi đã chốt đơn, bấm Trả hàng trên đúng đơn để tạo sẵn phiếu trả khách, hoặc mở khối Phiếu trả hàng khách để nhập tay từng dòng độc lập.",
       "Master Admin cũng không được xóa hoặc hủy ngược đơn đã chốt; các đơn đó phải được điều chỉnh bằng phiếu mới để giữ audit.",
@@ -108,8 +109,9 @@ export const SCREEN_HELP = {
     overview: "Màn này quản lý phiếu nhập nháp, đơn đã đặt, hàng đã về và trạng thái thanh toán nhập hàng.",
     steps: [
       "Xem ngay danh sách phiếu nhập hiện hành khi mở màn.",
-      "Tạo hoặc mở phiếu nhập, thêm sản phẩm cần mua rồi cập nhật trạng thái theo tiến trình.",
+      "Tạo hoặc mở phiếu nhập, thêm sản phẩm cần mua rồi cập nhật trạng thái theo tiến trình `Nháp -> Đã đặt hàng -> Nhập kho -> Đã thanh toán`.",
       "Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; phiếu trống chỉ là trạng thái mở tạm trên giao diện.",
+      "Phiếu đang ở trạng thái `Nháp` hoặc `Đã đặt` vẫn có thể chỉnh sửa số lượng, giá và thêm bớt dòng; nút `Nhập kho` chỉ xuất hiện khi phiếu đã `Đã đặt`.",
       "Các mặt hàng đã thêm vào phiếu sẽ được gom vào phần tóm tắt phiếu phía trên và tự ẩn khỏi danh sách gợi ý phía dưới để màn hình gọn hơn.",
       "Nếu có máy khác vừa tạo hoặc sửa phiếu nhập, màn hình sẽ tự làm mới khi bạn không còn nhập dở ở ô hiện tại.",
       "Nếu 2 máy cùng lưu trên một phiếu nháp, app sẽ báo xung đột đồng bộ và tự tải lại để tránh ghi đè dữ liệu của nhau.",

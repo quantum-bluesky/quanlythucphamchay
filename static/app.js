@@ -824,6 +824,7 @@ function getPurchasesUi() {
       mobileQuery,
       getActivePurchase,
       canEditPurchase,
+      canReceivePurchase,
       canDeletePurchase,
       canCancelPurchase,
       canMarkPurchasePaid,
@@ -1343,6 +1344,10 @@ function getActivePurchase() {
 
 function canMarkPurchasePaid(purchase) {
   return getPurchasesDomainHelpers().canMarkPurchasePaid(purchase);
+}
+
+function canReceivePurchase(purchase) {
+  return getPurchasesDomainHelpers().canReceivePurchase(purchase);
 }
 
 function isRepairableInvalidPurchase(purchase) {
@@ -1956,6 +1961,17 @@ function deleteCart(cartId) {
     state.activeCartId = getDraftCarts()[0]?.id || null;
   }
   saveAndRenderAll(["customers", "carts"]);
+}
+
+async function checkoutCart(cartId) {
+  const previousActiveCartId = state.activeCartId;
+  state.activeCartId = cartId;
+  try {
+    return await checkoutActiveCart();
+  } catch (error) {
+    state.activeCartId = previousActiveCartId;
+    throw error;
+  }
 }
 
 function renameCustomer(customerId, newName) {
@@ -2933,6 +2949,9 @@ function renderCartQueue() {
       const expanded = state.expandedOrderId === cart.id;
       const itemPreview = cart.items.slice(0, 3).map((item) => item.productName).join(", ");
       const compactMeta = `${formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • ${formatCurrency(cart.totalAmount)}`;
+      const checkoutButton = cart.status === "draft"
+        ? `<button type="button" class="secondary-button compact-button" data-queue-action="checkout" data-cart-id="${cart.id}">${compact ? "Xuất" : "Xuất hàng"}</button>`
+        : "";
       return `
         <article class="cart-queue-item ${expanded ? "is-expanded" : ""}">
           <div class="queue-header">
@@ -2958,20 +2977,19 @@ function renderCartQueue() {
           `}
           <div class="queue-actions">
             ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục bán"}</button>` : `<button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>`}
-            ${compact
-              ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">...</button>`
-              : `
-                <button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>
-                ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
-                ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
-                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
-                ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
-              `}
+            ${compact ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">...</button>` : checkoutButton}
+            ${compact ? "" : `
+              ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
+              ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
+              ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
+              ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
+            `}
           </div>
           ${compact && expanded ? `
             <div class="queue-detail-block">
               <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
               <div class="queue-actions queue-actions-expanded">
+                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="checkout" data-cart-id="${cart.id}">Xuất</button>` : ""}
                 ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
                 ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả</button>` : ""}
                 ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">TT</button>` : ""}
@@ -3119,8 +3137,10 @@ function renderAll() {
   }
   const activePurchase = getActivePurchase();
   if (activePurchase) {
-    purchaseSupplierInput.value = activePurchase.supplierName || "";
+    purchaseSupplierInput.value = activePurchase.supplierName || state.pendingPurchaseSupplierName || "";
     purchaseNoteInput.value = activePurchase.note || "";
+  } else if (state.pendingPurchaseSupplierName) {
+    purchaseSupplierInput.value = state.pendingPurchaseSupplierName;
   }
   if (productHistoryActorInput) {
     productHistoryActorInput.value = state.productHistoryActorFilter || "";
@@ -3410,7 +3430,7 @@ async function checkoutActiveCart() {
   const shortages = getCartShortages(cart).filter((entry) => entry.shortage > 0);
   if (shortages.length) {
     const shortageNames = shortages.map((entry) => `${entry.product?.name || entry.item.productName} thiếu ${formatQuantity(entry.shortage)}`).join(", ");
-  if (state.admin?.isAdmin) {
+    if (state.admin?.isAdmin) {
       const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng: ${shortageNames}.\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel để tạo phiếu nhập hàng dự kiến.`);
       if (shouldAdjustStock) {
         switchMenu("inventory");
@@ -3448,7 +3468,9 @@ async function checkoutActiveCart() {
     orderCode,
   }));
 
-  state.activeCartId = getDraftCarts().find((entry) => entry.id !== cart.id)?.id || null;
+  if (state.activeCartId === cart.id) {
+    state.activeCartId = getDraftCarts().find((entry) => entry.id !== cart.id)?.id || null;
+  }
   saveAndRenderAll();
   await persistCollections(["carts"]);
   await refreshData();
@@ -3638,6 +3660,7 @@ registerSalesControllerEvents({
     updateCartItem,
     removeCartItem,
     saveAndRenderAll,
+    checkoutCart,
     checkoutActiveCart,
     printCart,
     updateProductSalePrice,
@@ -3785,6 +3808,7 @@ registerPurchasesControllerEvents({
     getActivePurchase,
     getProductById,
     canEditPurchase,
+    canReceivePurchase,
     canCancelPurchase,
     canDeletePurchase,
     canMarkPurchasePaid,

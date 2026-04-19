@@ -133,6 +133,93 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
   expectNoRuntimeErrors(runtime);
 });
 
+test("ACC-PUR-03 purchase draft must be ordered before receive and stays editable while ordered", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const supplierName = `NCC Draft Flow ${timestamp}`;
+  const purchaseId = `purchase_draft_flow_${timestamp}`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const draftPurchase = {
+    id: purchaseId,
+    supplierName,
+    note: "ACC-PUR-03 draft purchase",
+    status: "draft",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    receiptCode: "",
+    items: [
+      {
+        id: `purchase_item_draft_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        purchases: [...(originalState.purchases || []), draftPurchase],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    const draftPurchaseCard = page.locator(".cart-queue-item", { hasText: supplierName }).first();
+    await draftPurchaseCard.locator('[data-purchase-list-action="open"]').click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('[data-purchase-action="receive"]')).toHaveCount(0);
+    await expect(page.locator('[data-purchase-action="mark-ordered"]')).toBeVisible();
+
+    await page.locator('[data-purchase-action="mark-ordered"]').click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('[data-purchase-action="receive"]')).toBeVisible();
+
+    await page.locator('[data-purchase-selected-action="toggle"]').click();
+    await page.waitForTimeout(300);
+    const qtyInput = page.locator('[data-purchase-qty-input]').first();
+    await expect(qtyInput).toBeEnabled();
+    await qtyInput.fill("2");
+    await page.locator('[data-purchase-item-action="save"]').first().click();
+
+    await page.locator('[data-purchase-action="receive"]').click();
+    const receiveToast = await collectToast(page, runtime, "acc-pur-03-receive", { errorPattern: /^$/ });
+    expect(receiveToast).toContain("Đã nhập hàng vào kho");
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("ACC-PUR-02 completed orders and received or paid purchases reject direct edits", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const userCookie = await autoLoginUserRequest(request);

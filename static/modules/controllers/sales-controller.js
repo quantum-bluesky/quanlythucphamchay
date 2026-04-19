@@ -276,7 +276,7 @@ export function registerSalesControllerEvents(contract) {
     renderers.renderCartItems();
   });
 
-  dom.cartQueueList.addEventListener("click", (event) => {
+  dom.cartQueueList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-cart-list-action], [data-queue-action]");
     if (!button) return;
     const action = button.dataset.cartListAction || button.dataset.queueAction;
@@ -304,6 +304,14 @@ export function registerSalesControllerEvents(contract) {
     }
     if (action === "print") {
       actions.printCart(cart.id);
+      return;
+    }
+    if (action === "checkout") {
+      try {
+        await actions.checkoutCart(cart.id);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
       return;
     }
     if (action === "customer-return") {

@@ -136,6 +136,7 @@ Vào menu:
 Dùng màn này để:
 
 - mở lại giỏ hàng đang chờ
+- xuất nhanh giỏ nháp ra đơn
 - in lại đơn
 - đánh dấu `Đã thanh toán`
 - hủy đơn
@@ -144,6 +145,7 @@ Dùng màn này để:
 ### Khi nào dùng từng nút
 
 - `Tiếp tục bán`: mở lại giỏ hàng nháp để sửa tiếp
+- `Xuất`: chốt nhanh giỏ nháp thành đơn mà không cần mở lại giỏ; trên mobile nút này nằm trong menu `...` của card
 - `In`: in hoặc gửi lại danh sách hàng cho khách
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền
 - `Hủy`: dùng khi khách không lấy nữa
@@ -234,8 +236,8 @@ Màn này có 2 phần:
 9. Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; nếu phiếu đang trống thì app chỉ giữ trạng thái mở tạm trên màn hình
 10. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, bấm `NCC` để mở form nhà cung cấp với tên đang nhập; nếu tên đó đã tồn tại thì app sẽ mở thẳng chế độ sửa NCC
 11. Lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
-12. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
-13. Khi hàng về thực tế, bấm `Nhập kho`
+12. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`; từ lúc này phiếu vẫn còn chỉnh được nếu nhà cung cấp yêu cầu đổi số lượng hoặc giá
+13. Khi hàng về thực tế và phiếu đã là `Đã đặt`, bấm `Nhập kho`
 14. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 15. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
 16. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`

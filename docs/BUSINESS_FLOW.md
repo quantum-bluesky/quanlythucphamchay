@@ -53,6 +53,7 @@ Nếu cần can thiệp đặc biệt
 - sửa số lượng
 - sửa giá bán riêng cho đơn
 - nếu cần, cập nhật luôn giá bán mặc định
+- trong lúc phiếu còn `Nháp` hoặc `Đã đặt`, vẫn có thể thêm bớt dòng và chỉnh số lượng/giá; chỉ sau `Đã nhập kho` mới khóa nội dung
 
 ### Bước 4: Chốt đơn
 
@@ -67,6 +68,7 @@ Nếu cần can thiệp đặc biệt
 
 - màn `orders`
 - chỉ xem/in/thanh toán/hủy theo rule
+- giỏ nháp đang chờ xuất có thể bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile nút này nằm trong `...`
 - đơn đã `completed` không sửa trực tiếp
 
 ## 4. Luồng nhập hàng
@@ -87,6 +89,7 @@ Nếu cần can thiệp đặc biệt
 - gán nhà cung cấp
 - sửa số lượng, giá nhập
 - có thể đổi giá nhập mặc định
+- nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB
 
 ### Bước 4: Chạy trạng thái workflow
 
@@ -98,7 +101,8 @@ ordered -> cancelled
 
 ### Rule chính
 
-- chỉ `draft` và `ordered` được sửa trực tiếp
+- `draft` chỉ là trạng thái chuẩn bị, chưa cho nhập kho
+- `ordered` mới được nhập kho và vẫn cho sửa trực tiếp để thêm bớt theo biến động thực tế
 - chỉ `received` mới được `paid`
 - `received` / `paid` / `cancelled` chuyển sang chỉ xem
 
