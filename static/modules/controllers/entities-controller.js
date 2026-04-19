@@ -132,6 +132,14 @@ export function registerEntitiesControllerEvents(contract) {
             supplierName: savedSupplierName,
             note: dom.purchaseNoteInput.value.trim(),
           }));
+        } else {
+          const purchase = actions.createPurchaseDraftIfMissing();
+          if (purchase) {
+            actions.updatePurchase(purchase.id, () => ({
+              supplierName: savedSupplierName,
+              note: dom.purchaseNoteInput.value.trim(),
+            }));
+          }
         }
       }
       actions.upsertSupplier({

@@ -90,6 +90,7 @@ Nếu cần can thiệp đặc biệt
 - sửa số lượng, giá nhập
 - có thể đổi giá nhập mặc định
 - nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB
+- nhà cung cấp chỉ được đổi khi phiếu còn `draft`; từ `ordered` trở đi phải giữ nguyên NCC đã chốt
 
 ### Bước 4: Chạy trạng thái workflow
 
@@ -103,6 +104,7 @@ ordered -> cancelled
 
 - `draft` chỉ là trạng thái chuẩn bị, chưa cho nhập kho
 - `ordered` mới được nhập kho và vẫn cho sửa trực tiếp để thêm bớt theo biến động thực tế
+- từ `ordered` trở đi không được đổi `supplierName`; UI phải khóa ô NCC và nút `NCC` trên mọi thiết bị
 - chỉ `received` mới được `paid`
 - `received` / `paid` / `cancelled` chuyển sang chỉ xem
 

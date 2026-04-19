@@ -40,6 +40,8 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
     await switchMenu(page, "purchases");
     await expectScreenTitle(page, "Nhập hàng");
 
+    await page.locator("#createPurchaseDraftButton").click();
+    await page.waitForTimeout(300);
     await page.locator("#purchaseSupplierInput").fill(supplierName);
     await page.locator(".purchases-panel [data-go-menu=\"suppliers\"]").click();
 

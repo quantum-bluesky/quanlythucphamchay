@@ -14,7 +14,7 @@ export function registerPurchasesControllerEvents(contract) {
       actions.saveAndRenderAll(["purchases"]);
       actions.showToast("Đã lưu phiếu nhập nháp.");
     } else {
-      renderers.renderPurchasePanel();
+      actions.saveAndRenderAll();
       actions.showToast("Đã mở phiếu nhập nháp tạm. Thêm mặt hàng để lưu.");
     }
     actions.focusPurchaseSuggestions();
@@ -35,6 +35,11 @@ export function registerPurchasesControllerEvents(contract) {
     }
     const purchase = queries.getActivePurchase();
     if (!purchase) return;
+    if (!queries.canEditPurchaseSupplier(purchase)) {
+      actions.showToast("Chỉ phiếu nháp mới được đổi nhà cung cấp.", true);
+      renderers.renderPurchasePanel();
+      return;
+    }
     actions.updatePurchase(purchase.id, () => ({
       supplierName: dom.purchaseSupplierInput.value.trim(),
       note: dom.purchaseNoteInput.value.trim(),
@@ -60,6 +65,12 @@ export function registerPurchasesControllerEvents(contract) {
     event.preventDefault();
     event.stopPropagation();
     actions.setSkipNextPurchaseSupplierChangePersist(false);
+    const purchase = queries.getActivePurchase();
+    if (purchase && !queries.canEditPurchaseSupplier(purchase)) {
+      actions.showToast("Chỉ phiếu nháp mới được đổi nhà cung cấp.", true);
+      renderers.renderPurchasePanel();
+      return;
+    }
     actions.beginSupplierCreateFromPurchase();
   });
 
@@ -110,7 +121,7 @@ export function registerPurchasesControllerEvents(contract) {
           actions.saveAndRenderAll(["purchases"]);
           actions.showToast("Đã lưu phiếu nhập nháp.");
         } else {
-          renderers.renderPurchasePanel();
+          actions.saveAndRenderAll();
           actions.showToast("Đã mở phiếu nhập nháp tạm. Thêm mặt hàng để lưu.");
         }
         actions.focusPurchaseSuggestions();

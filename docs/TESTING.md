@@ -178,6 +178,7 @@ npm run test:cases -- -Target all -ExcludeCode UT-DB
 ## Integration suite đang kiểm tra gì
 
 Suite hiện tại chạy trên `fixture DB` tạm, không đụng vào `data\inventory.db` thật.
+Mỗi lần chạy Playwright sẽ tự khởi động lại test server fixture mới; không tái dùng server cũ để tránh state tạm từ lượt fail trước làm bẩn kết quả.
 
 Các nhóm kiểm tra chính:
 

@@ -71,7 +71,10 @@ export function createSyncRuntimeHelpers(deps) {
     const expectedUpdatedAt = {};
     const latestSyncUpdatedAt = getLatestSyncUpdatedAt();
     selectedKeys.forEach((key) => {
-      expectedUpdatedAt[key] = String(latestSyncUpdatedAt?.[key] || "");
+      const version = String(latestSyncUpdatedAt?.[key] || "");
+      if (version) {
+        expectedUpdatedAt[key] = version;
+      }
     });
     payload.expected_updated_at = expectedUpdatedAt;
     payload.actor = state.admin?.authenticated ? (state.admin.username || "Master Admin") : "Nhân viên";

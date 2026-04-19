@@ -25,7 +25,7 @@ Lưu ý:
 | 6 | `ACC-ORD-01` | Kiểm tra màn đơn hàng render ổn định và các thao tác chính không làm vỡ màn quản lý. |
 | 7 | `ACC-CUS-01` | Kiểm tra màn khách hàng render ổn định và các thao tác cơ bản hoạt động bình thường. |
 | 8 | `ACC-PROD-01` | Kiểm tra màn sản phẩm và luồng sửa nhanh hoạt động ổn định cùng các màn nghiệp vụ liên quan. |
-| 9 | `ACC-PUR-01` | Kiểm tra phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho. |
+| 9 | `ACC-PUR-01` | Kiểm tra phiếu `ordered` không được thanh toán sớm, còn phiếu `received` mới được chuyển sang `paid`. |
 | 10 | `ACC-PUR-02` | Kiểm tra đơn đã chốt và phiếu nhập đã nhận/đã thanh toán không cho sửa trực tiếp. |
 | 11 | `ACC-PHB-01` | Kiểm tra API phiếu điều chỉnh tồn cập nhật tồn kho và ghi audit trail đúng. |
 | 12 | `ACC-PHB-02` | Kiểm tra API phiếu trả hàng khách cộng tồn kho và ghi note giao dịch đúng. |
@@ -49,7 +49,7 @@ Lưu ý:
 | 30 | `IT-PHD-01` | Kiểm tra product history hỗ trợ lọc theo người thao tác cho thay đổi giá mặc định. |
 | 31 | `IT-PHD-02` | Kiểm tra sync state lưu `actor` khi trạng thái giỏ hàng thay đổi. |
 | 32 | `IT-PHD-03` | Kiểm tra form lọc product history theo actor và ngày hoạt động đúng trên UI. |
-| 33 | `IT-PURSUP-01` | Kiểm tra màn nhập hàng có thể tạo nhà cung cấp mới, quay lại phiếu nhập và giữ giá trị NCC trên UI tạm thời dù phiếu nháp rỗng không còn persist. |
+| 33 | `IT-PURSUP-01` | Kiểm tra màn nhập hàng có thể mở phiếu tạm, tạo nhà cung cấp mới rồi quay lại giữ giá trị NCC trên UI dù phiếu nháp rỗng không còn persist xuống DB. |
 | 34 | `IT-PURSUP-02` | Kiểm tra màn nhà cung cấp sửa thông tin NCC mà không ghi đè lịch sử phiếu đã thanh toán. |
 | 35 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
 | 36 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
@@ -83,5 +83,5 @@ Lưu ý:
 | 64 | `UT-HIS-01` | Kiểm tra product history hỗ trợ lọc theo actor ở backend. |
 | 65 | `UT-HIS-02` | Kiểm tra product history hỗ trợ lọc theo khoảng ngày ở backend. |
 | 66 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |
-| 67 | `ACC-PUR-03` | Kiểm tra phiếu nhập nháp phải được chuyển sang `Đã đặt hàng` trước khi `Nhập kho`, đồng thời phiếu `Đã đặt hàng` vẫn chỉnh sửa được trước khi nhận hàng. |
+| 67 | `ACC-PUR-03` | Kiểm tra phiếu nhập nháp phải được chuyển sang `Đã đặt hàng` trước khi `Nhập kho`, phiếu `Đã đặt hàng` vẫn chỉnh sửa được nhưng NCC đã bị khóa. |
 | 68 | `UT-DB-11` | Kiểm tra backend chặn `draft -> received`, cho phép `ordered` tiếp tục chỉnh sửa, rồi mới chuyển sang `received` hợp lệ. |
