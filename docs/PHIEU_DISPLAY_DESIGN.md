@@ -1,5 +1,9 @@
 # Design Hiển Thị Các Phiếu
 
+Tài liệu common liên quan:
+
+- [SCREEN_DESIGN.md](SCREEN_DESIGN.md)
+
 ## 1. Bối cảnh
 
 Project đang có nhiều loại chứng từ/phiếu hiển thị trên UI:

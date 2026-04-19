@@ -6,6 +6,23 @@ Nguồn tổng hợp:
 - `static/app.js`
 - `README.md`
 - `docs/HUONG_DAN_SU_DUNG.md`
+- `docs/DB_DESIGN.md`
+- `docs/BUSINESS_FLOW.md`
+
+## 0. Sơ đồ tài liệu design
+
+`SCREEN_DESIGN.md` là tài liệu common design để base khi sửa UI/workflow.
+
+Khi thay đổi ở mức tổng quát, cập nhật ngay file này. Khi thay đổi sâu theo domain, cập nhật thêm tài liệu detail liên quan.
+
+Tài liệu common liên quan:
+
+- [DB_DESIGN.md](DB_DESIGN.md)
+- [BUSINESS_FLOW.md](BUSINESS_FLOW.md)
+
+Liên kết detail hiện có:
+
+- Hiển thị các phiếu/chứng từ: [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 
 ## 1. Nguyên tắc UI chung
 
@@ -97,6 +114,8 @@ Nguồn tổng hợp:
 - nguyên tắc UI:
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
+- tài liệu detail:
+  - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 
 ### `suppliers` - Quản lý nhà cung cấp
 
@@ -119,6 +138,9 @@ Nguồn tổng hợp:
   - trend chart/list
   - forecast list
   - chi tiết hoạt động sản phẩm
+  - audit chứng từ
+- tài liệu detail:
+  - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 
 ### `history` - Lịch sử & khôi phục
 
@@ -179,3 +201,9 @@ Các cặp điều hướng chính:
 - các list dài dùng phân trang `Trước / Sau`
 - action phụ nên gom vào `...` khi cần
 - form quản trị đối tượng không nên che mất phần danh sách
+
+## 6. Quy ước cập nhật tài liệu
+
+- đổi common layout, điều hướng, field hiển thị dùng lại nhiều màn: cập nhật `SCREEN_DESIGN.md`
+- đổi detail theo domain: cập nhật file design detail tương ứng và giữ liên kết từ file common sang file detail
+- khi thêm tài liệu design detail mới, bổ sung link ngay trong mục `Sơ đồ tài liệu design`
