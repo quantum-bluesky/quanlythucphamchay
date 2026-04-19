@@ -47,12 +47,15 @@ Nếu cần can thiệp đặc biệt
 - tick sản phẩm để đưa vào giỏ
 - hàng đã chọn được gom lên trên
 - hàng đã chọn ẩn khỏi danh sách dưới
+- riêng dòng mà user chủ động bấm `...` thì vẫn được giữ lại ở danh sách dưới trong lúc thao tác
 
 ### Bước 3: Chỉnh dòng hàng
 
+- trong `Giỏ hiện hành`, mỗi dòng hiển thị dưới dạng card gọn 2 dòng; bấm `...` để mở detail
 - sửa số lượng
 - sửa giá bán riêng cho đơn
 - nếu cần, cập nhật luôn giá bán mặc định
+- trong lúc phiếu còn `Nháp` hoặc `Đã đặt`, vẫn có thể thêm bớt dòng và chỉnh số lượng/giá; chỉ sau `Đã nhập kho` mới khóa nội dung
 
 ### Bước 4: Chốt đơn
 
@@ -67,6 +70,7 @@ Nếu cần can thiệp đặc biệt
 
 - màn `orders`
 - chỉ xem/in/thanh toán/hủy theo rule
+- giỏ nháp đang chờ xuất có thể bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile nút này nằm trong `...`
 - đơn đã `completed` không sửa trực tiếp
 
 ## 4. Luồng nhập hàng
@@ -75,6 +79,7 @@ Nếu cần can thiệp đặc biệt
 
 - từ màn `purchases`
 - có thể đi từ shortage flow của bán hàng
+- phiếu nháp chỉ được lưu thật khi đã có ít nhất một mặt hàng; phiếu trống chỉ là trạng thái mở tạm trên giao diện
 
 ### Bước 2: Chọn hàng cần nhập
 
@@ -86,6 +91,8 @@ Nếu cần can thiệp đặc biệt
 - gán nhà cung cấp
 - sửa số lượng, giá nhập
 - có thể đổi giá nhập mặc định
+- nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB
+- nhà cung cấp chỉ được đổi khi phiếu còn `draft`; từ `ordered` trở đi phải giữ nguyên NCC đã chốt
 
 ### Bước 4: Chạy trạng thái workflow
 
@@ -97,7 +104,9 @@ ordered -> cancelled
 
 ### Rule chính
 
-- chỉ `draft` và `ordered` được sửa trực tiếp
+- `draft` chỉ là trạng thái chuẩn bị, chưa cho nhập kho
+- `ordered` mới được nhập kho và vẫn cho sửa trực tiếp để thêm bớt theo biến động thực tế
+- từ `ordered` trở đi không được đổi `supplierName`; UI phải khóa ô NCC và nút `NCC` trên mọi thiết bị
 - chỉ `received` mới được `paid`
 - `received` / `paid` / `cancelled` chuyển sang chỉ xem
 

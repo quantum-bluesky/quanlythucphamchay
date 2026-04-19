@@ -515,6 +515,21 @@ class InventoryStore:
             "unit_cost": round(float(row["unit_cost"] or 0), 2),
         }
 
+    @staticmethod
+    def _purchase_has_items(purchase: dict) -> bool:
+        items = purchase.get("items")
+        return isinstance(items, list) and bool(items)
+
+    @classmethod
+    def _normalize_purchases_for_storage(cls, purchases: list[dict]) -> list[dict]:
+        normalized: list[dict] = []
+        for purchase in purchases:
+            status = str(purchase.get("status") or "draft")
+            if status == "draft" and not cls._purchase_has_items(purchase):
+                continue
+            normalized.append(purchase)
+        return normalized
+
     def _load_sync_collection_from_tables(
         self,
         connection: sqlite3.Connection,
@@ -589,6 +604,18 @@ class InventoryStore:
                 ORDER BY datetime(updated_at) DESC, id
                 """
             ).fetchall()
+            purchase_receipts_by_code = {
+                str(row["receipt_code"] or "").strip(): row["created_at"]
+                for row in connection.execute(
+                    """
+                    SELECT receipt_code, created_at
+                    FROM inventory_receipts
+                    WHERE receipt_type = 'purchase'
+                    """
+                ).fetchall()
+                if str(row["receipt_code"] or "").strip()
+            }
+            purchase_receipt_codes = set(purchase_receipts_by_code.keys())
             item_rows = connection.execute(
                 """
                 SELECT id, purchase_id, product_id, product_name, quantity, unit_cost, sort_order
@@ -601,27 +628,40 @@ class InventoryStore:
                 items_by_purchase.setdefault(str(row["purchase_id"]), []).append(self._serialize_purchase_item_row(row))
             purchases = []
             for row in purchase_rows:
-                received_at = row["received_at"]
-                paid_at = row["paid_at"]
+                raw_status = row["status"] or "draft"
+                receipt_code = row["receipt_code"] or ""
+                matched_receipt_created_at = purchase_receipts_by_code.get(str(receipt_code).strip(), "")
+                received_at = (
+                    row["received_at"]
+                    or (matched_receipt_created_at if raw_status in {"received", "paid"} else None)
+                    or (row["updated_at"] if raw_status in {"received", "paid"} else None)
+                )
+                paid_at = row["paid_at"] or (row["updated_at"] if raw_status == "paid" else None)
+                is_repairable_invalid = (
+                    raw_status == "paid"
+                    and str(receipt_code).strip() not in purchase_receipt_codes
+                )
                 purchases.append(
                     {
                         "id": row["id"],
                         "supplierId": row["supplier_id"] or "",
                         "supplierName": row["supplier_name"] or "",
                         "note": row["note"] or "",
-                        "status": row["status"] or "draft",
+                        "status": raw_status,
                         "createdAt": row["created_at"],
                         "updatedAt": row["updated_at"],
                         "receivedAt": received_at,
                         "received_at": received_at,
                         "paidAt": paid_at,
                         "paid_at": paid_at,
-                        "receiptCode": row["receipt_code"] or "",
-                        "receipt_code": row["receipt_code"] or "",
+                        "receiptCode": receipt_code,
+                        "receipt_code": receipt_code,
+                        "isRepairableInvalid": is_repairable_invalid,
+                        "repairableInvalid": is_repairable_invalid,
                         "items": items_by_purchase.get(str(row["id"]), []),
                     }
                 )
-            return purchases
+            return self._normalize_purchases_for_storage(purchases)
 
         raise ValueError("Collection đồng bộ không hợp lệ.")
 
@@ -728,7 +768,7 @@ class InventoryStore:
         if state_key == "purchases":
             connection.execute("DELETE FROM purchase_items")
             connection.execute("DELETE FROM purchases")
-            for record in records:
+            for record in self._normalize_purchases_for_storage(records):
                 purchase_id = str(record.get("id") or f"purchase_{secrets.token_hex(6)}")
                 connection.execute(
                     """
@@ -1789,6 +1829,194 @@ class InventoryStore:
             "total_amount": round(float(total_amount), 2),
         }
 
+    def _get_inventory_receipt_by_code(
+        self,
+        connection: sqlite3.Connection,
+        receipt_code: str,
+        *,
+        receipt_type: str = "",
+    ) -> sqlite3.Row | None:
+        clean_receipt_code = str(receipt_code or "").strip()
+        if not clean_receipt_code:
+            return None
+        if receipt_type:
+            return connection.execute(
+                """
+                SELECT id, receipt_code, receipt_type, source_type, source_code
+                FROM inventory_receipts
+                WHERE receipt_code = ? AND receipt_type = ?
+                """,
+                (clean_receipt_code, receipt_type),
+            ).fetchone()
+        return connection.execute(
+            """
+            SELECT id, receipt_code, receipt_type, source_type, source_code
+            FROM inventory_receipts
+            WHERE receipt_code = ?
+            """,
+            (clean_receipt_code,),
+        ).fetchone()
+
+    def _is_repairable_invalid_purchase(
+        self,
+        connection: sqlite3.Connection,
+        purchase: dict,
+    ) -> bool:
+        status = str(purchase.get("status") or "draft")
+        receipt_code = str(purchase.get("receiptCode") or purchase.get("receipt_code") or "").strip()
+        receipt_row = self._get_inventory_receipt_by_code(
+            connection,
+            receipt_code,
+            receipt_type="purchase",
+        )
+        if receipt_row is not None:
+            return False
+        has_received_at = bool(purchase.get("receivedAt") or purchase.get("received_at"))
+        has_paid_at = bool(purchase.get("paidAt") or purchase.get("paid_at"))
+        has_receipt_code = bool(receipt_code)
+        if status == "paid":
+            return True
+        if status in {"draft", "ordered"} and (has_received_at or has_paid_at or has_receipt_code):
+            return True
+        return False
+
+    def _clear_inventory_receipt_source_links(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        source_type: str,
+        source_code: str,
+    ) -> list[str]:
+        clean_source_type = str(source_type or "").strip()
+        clean_source_code = str(source_code or "").strip()
+        if not clean_source_type or not clean_source_code:
+            return []
+        related_rows = connection.execute(
+            """
+            SELECT receipt_code
+            FROM inventory_receipts
+            WHERE source_type = ? AND source_code = ?
+            ORDER BY id
+            """,
+            (clean_source_type, clean_source_code),
+        ).fetchall()
+        if not related_rows:
+            return []
+        connection.execute(
+            """
+            UPDATE inventory_receipts
+            SET source_type = '', source_code = ''
+            WHERE source_type = ? AND source_code = ?
+            """,
+            (clean_source_type, clean_source_code),
+        )
+        return [str(row["receipt_code"] or "").strip() for row in related_rows if row["receipt_code"]]
+
+    def repair_purchase_document(
+        self,
+        purchase_id: str,
+        *,
+        action: str,
+        actor: str = "",
+    ) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        clean_action = str(action or "").strip().lower()
+        if not clean_purchase_id:
+            raise ValueError("Thiếu mã phiếu nhập cần xử lý.")
+        if clean_action not in {"delete", "cancel"}:
+            raise ValueError("Thao tác xử lý phiếu nhập không hợp lệ.")
+
+        now = utc_now_iso()
+        with self._connect() as connection:
+            purchases = self._load_sync_collection_from_tables(connection, "purchases")
+            target = next(
+                (purchase for purchase in purchases if str(purchase.get("id") or "") == clean_purchase_id),
+                None,
+            )
+            if not target:
+                raise ValueError("Không tìm thấy phiếu nhập cần xử lý.")
+
+            current_status = str(target.get("status") or "draft")
+            is_invalid_paid = self._is_repairable_invalid_purchase(connection, target)
+            is_regular_delete_allowed = current_status == "draft"
+            is_regular_cancel_allowed = current_status in {"draft", "ordered"}
+            if clean_action == "delete":
+                action_allowed = is_regular_delete_allowed or is_invalid_paid
+            else:
+                action_allowed = is_regular_cancel_allowed or is_invalid_paid
+            if not action_allowed:
+                raise ValueError(
+                    "Chỉ được xóa/hủy phiếu nhập nháp, hủy phiếu đã đặt, hoặc xử lý phiếu lỗi chưa có nhập kho thật."
+                )
+
+            source_receipt_code = str(
+                target.get("receiptCode") or target.get("receipt_code") or ""
+            ).strip()
+            detached_receipts = self._clear_inventory_receipt_source_links(
+                connection,
+                source_type="purchase",
+                source_code=source_receipt_code,
+            )
+
+            if clean_action == "delete":
+                next_purchases = [
+                    purchase
+                    for purchase in purchases
+                    if str(purchase.get("id") or "") != clean_purchase_id
+                ]
+            else:
+                next_purchases = []
+                for purchase in purchases:
+                    if str(purchase.get("id") or "") != clean_purchase_id:
+                        next_purchases.append(purchase)
+                        continue
+                    updated_purchase = {
+                        **purchase,
+                        "status": "cancelled",
+                        "updatedAt": now,
+                    }
+                    if is_invalid_paid:
+                        updated_purchase["paidAt"] = None
+                        updated_purchase["paid_at"] = None
+                        updated_purchase["receivedAt"] = None
+                        updated_purchase["received_at"] = None
+                        updated_purchase["receiptCode"] = ""
+                        updated_purchase["receipt_code"] = ""
+                    next_purchases.append(updated_purchase)
+
+            self._replace_sync_collection_records(connection, "purchases", next_purchases)
+            canonical = self._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            )
+
+            repaired_label = (
+                "phiếu lỗi chưa có nhập kho thật"
+                if is_invalid_paid
+                else ("phiếu nháp" if current_status == "draft" else "phiếu đã đặt")
+            )
+            action_label = "xóa" if clean_action == "delete" else "hủy"
+            message = f"Đã {action_label} {repaired_label}."
+            if detached_receipts:
+                message += f" Đồng thời đã gỡ liên kết nguồn ở {len(detached_receipts)} phiếu liên quan."
+
+            self._record_audit(
+                connection,
+                entity_type="purchase",
+                entity_id=clean_purchase_id,
+                entity_name=source_receipt_code or clean_purchase_id,
+                action=f"repair-{clean_action}",
+                actor=actor,
+                message=message,
+            )
+
+        return {
+            "message": message,
+            "purchases": canonical,
+            "detached_receipt_codes": detached_receipts,
+        }
+
     def create_inventory_adjustment_receipt(
         self,
         items: list[dict],
@@ -2447,7 +2675,39 @@ class InventoryStore:
             previous = existing_by_id.get(purchase_id)
             previous_status = str(previous.get("status") or "draft") if previous else None
 
+            if previous_status == "received":
+                if next_status not in {"received", "paid"}:
+                    raise ValueError("Phiếu nhập đã nhập kho không thể hạ trạng thái hoặc mở lại nháp.")
+                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
+                    raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
+                if next_status == "received":
+                    continue
+
+            if previous_status == "paid":
+                if next_status != "paid":
+                    raise ValueError("Phiếu nhập đã thanh toán không thể hạ trạng thái hoặc mở lại nháp.")
+                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
+                    raise ValueError("Phiếu nhập đã thanh toán không thể sửa trực tiếp.")
+                continue
+
+            if previous_status == "cancelled":
+                if next_status != "cancelled":
+                    raise ValueError("Phiếu nhập đã hủy không thể mở lại hoặc sửa trực tiếp.")
+                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
+                    raise ValueError("Phiếu nhập đã hủy không thể sửa trực tiếp.")
+                continue
+
+            if next_status == "received":
+                received_at = purchase.get("receivedAt") or purchase.get("received_at")
+                if not received_at:
+                    raise ValueError("Phiếu nhập phải có thời điểm nhập kho khi chuyển sang đã nhập kho.")
+                if previous_status == "draft":
+                    raise ValueError("Phiếu nhập phải được đặt hàng trước khi nhập kho.")
+                continue
+
             if next_status != "paid":
+                if previous_status == "ordered" and next_status == "draft":
+                    raise ValueError("Phiếu nhập đã đặt hàng không thể quay lại nháp.")
                 continue
 
             received_at = purchase.get("receivedAt") or purchase.get("received_at")
@@ -2459,26 +2719,6 @@ class InventoryStore:
 
             if previous_status not in {"received", "paid"}:
                 raise ValueError("Phiếu nhập chỉ được chuyển sang đã thanh toán sau khi đã nhập kho.")
-
-            if previous_status == "received":
-                if next_status not in {"received", "paid"}:
-                    raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
-                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
-                    raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
-                continue
-
-            if previous_status == "paid":
-                if next_status != "paid":
-                    raise ValueError("Phiếu nhập đã thanh toán không thể sửa ngược trạng thái.")
-                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
-                    raise ValueError("Phiếu nhập đã thanh toán không thể sửa trực tiếp.")
-                continue
-
-            if previous_status == "cancelled":
-                if next_status != "cancelled":
-                    raise ValueError("Phiếu nhập đã hủy không thể mở lại hoặc sửa trực tiếp.")
-                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
-                    raise ValueError("Phiếu nhập đã hủy không thể sửa trực tiếp.")
 
     def _snapshot_cart_for_lock(self, cart: dict) -> dict:
         return {
@@ -2503,10 +2743,30 @@ class InventoryStore:
 
     def _snapshot_purchase_for_lock(self, purchase: dict) -> dict:
         return {
+            "supplierId": str(purchase.get("supplierId") or ""),
             "supplierName": str(purchase.get("supplierName") or ""),
             "note": str(purchase.get("note") or ""),
             "receiptCode": str(purchase.get("receiptCode") or ""),
             "receivedAt": purchase.get("receivedAt") or purchase.get("received_at") or "",
+            "items": sorted(
+                [
+                    {
+                        "id": str(item.get("id") or ""),
+                        "productId": int(item.get("productId") or 0),
+                        "quantity": round(float(item.get("quantity") or 0), 2),
+                        "unitCost": round(float(item.get("unitCost") or 0), 2),
+                    }
+                    for item in (purchase.get("items") or [])
+                ],
+                key=lambda item: (item["id"], item["productId"]),
+            ),
+        }
+
+    def _snapshot_purchase_for_receive_lock(self, purchase: dict) -> dict:
+        return {
+            "supplierId": str(purchase.get("supplierId") or ""),
+            "supplierName": str(purchase.get("supplierName") or ""),
+            "note": str(purchase.get("note") or ""),
             "items": sorted(
                 [
                     {

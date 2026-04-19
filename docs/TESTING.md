@@ -63,6 +63,7 @@ Phù hợp khi sửa:
 - logic `InventoryStore`
 - validate dữ liệu
 - tính tồn kho / báo cáo
+- sync state `purchases`, đặc biệt rule không lưu phiếu nhập nháp nếu chưa có mặt hàng
 
 ## 2. Integration test
 
@@ -117,7 +118,7 @@ npm run test:integration -- --grep "ACC-SALE-01"
 ### Chạy nhiều case Playwright
 
 ```powershell
-npm run test:integration -- --grep "ACC-SALE-01|ACC-PUR-01|ACC-SYNC-01"
+npm run test:integration -- --grep "ACC-SALE-01|ACC-PUR-01|ACC-PUR-03|ACC-SYNC-01"
 ```
 
 ### Loại trừ một nhóm case Playwright
@@ -177,6 +178,7 @@ npm run test:cases -- -Target all -ExcludeCode UT-DB
 ## Integration suite đang kiểm tra gì
 
 Suite hiện tại chạy trên `fixture DB` tạm, không đụng vào `data\inventory.db` thật.
+Mỗi lần chạy Playwright sẽ tự khởi động lại test server fixture mới; không tái dùng server cũ để tránh state tạm từ lượt fail trước làm bẩn kết quả.
 
 Các nhóm kiểm tra chính:
 
@@ -185,7 +187,9 @@ Các nhóm kiểm tra chính:
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
 - `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa
+- `Phiếu nhập legacy`: purchase `received/paid` thiếu timestamp vẫn phải hiển thị được ngày xử lý fallback để không kẹt flow thanh toán
 - `Báo cáo`: nút shortcut `Audit` phải tự cuộn xuống khung `Audit chứng từ` để xem ngay lịch sử chứng từ
+- `Audit chứng từ`: phải tra cứu được theo mã phiếu và mã tham chiếu nguồn trong kỳ đang xem
 - `Điều hướng mở phiếu/detail`: khi mở giỏ nháp hoặc phiếu nhập từ danh sách, viewport phải tự cuộn lên khối thông tin của phiếu vừa mở
 - `Menu PC/tablet`: nút `Mở menu` phải bung menu, menu tự thu gọn khi rê chuột hoặc bấm ra ngoài, và chiều rộng menu không bị bung quá rộng
 - `Điều hướng sau khi xoay màn hình`: đổi giữa dọc/ngang vẫn phải bấm được menu nghiệp vụ để sang màn khác
@@ -228,11 +232,18 @@ Ngoài click thao tác, suite còn kiểm tra:
   - `tests/integration/workflow-phase-a.spec.js`
   - `tests/integration/workflow-phase-c.spec.js`
 
+Case mới cho Phase A:
+
+- `ACC-PUR-03`: phiếu nhập nháp phải được đặt hàng trước khi nhập kho, và phiếu đã đặt hàng vẫn còn chỉnh sửa được trước khi nhận hàng
+- `IT-PURSUP-01`: tạo nhà cung cấp từ màn nhập hàng rồi quay lại phiếu nhập vẫn giữ được giá trị NCC trên UI, nhưng phiếu nháp rỗng không còn persist
+- `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp rồi mới chuyển sang `received`
+
 Case mới cho Phase B.4:
 
 - `ACC-PHB-04`: báo cáo tháng và audit chứng từ phản ánh đúng `phiếu trả khách`, `phiếu trả NCC`, `phiếu điều chỉnh tồn`
 - `UT-REP-01`: backend report tách riêng sale/purchase với customer return / supplier return / adjustment
 - `UT-AUD-03`: receipt history trả về source link và audit message cho 3 loại phiếu Phase B
+- `UT-NORM-04`: sync state không persist phiếu nhập nháp rỗng, chỉ lưu draft khi đã có ít nhất một mặt hàng
 
 Case regression UI báo cáo:
 

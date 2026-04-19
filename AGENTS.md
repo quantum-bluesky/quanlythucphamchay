@@ -20,6 +20,7 @@ Mục tiêu khi làm việc trong repo này:
 - DB: `data/inventory.db`
 - Config hệ thống runtime: `data/system_config.json`
 - Tài liệu người dùng: `README.md`, `docs/HUONG_DAN_SU_DUNG.md`, `docs/DEPLOY_WINDOWS.md`
+- Tài liệu design: `docs/SCREEN_DESIGN.md`, `docs/DB_DESIGN.md`, `docs/BUSINESS_FLOW.md`, các tài liệu detail `docs/*_DESIGN.md`
 - Tài liệu test: `docs/TESTING.md`
 - Dữ liệu seed: `data/List.txt`, `data/List_price.txt`
 - Test unit + integration: `tests/`
@@ -49,9 +50,13 @@ Khi cần hiểu logic hiện tại, đọc theo thứ tự:
 
 1. `README.md`
 2. `docs/HUONG_DAN_SU_DUNG.md`
-3. `qltpchay/store.py`
-4. `app.py`
-5. `static/app.js`
+3. `docs/SCREEN_DESIGN.md`
+4. `docs/DB_DESIGN.md`
+5. `docs/BUSINESS_FLOW.md`
+6. tài liệu design detail liên quan, ví dụ `docs/PHIEU_DISPLAY_DESIGN.md`
+7. `qltpchay/store.py`
+8. `app.py`
+9. `static/app.js`
 
 Không giả định từ trí nhớ cũ nếu code hiện tại nói khác.
 
@@ -66,6 +71,10 @@ Không giả định từ trí nhớ cũ nếu code hiện tại nói khác.
   - help trong app ở `SCREEN_HELP` trong `static/app.js`
   - `README.md`
   - `docs/HUONG_DAN_SU_DUNG.md`
+  - `docs/SCREEN_DESIGN.md` nếu thay đổi common design / layout / field hiển thị / điều hướng giữa màn
+  - `docs/DB_DESIGN.md` nếu thay đổi schema, migration, ledger, state sync, audit hoặc cách tính tồn
+  - `docs/BUSINESS_FLOW.md` nếu thay đổi workflow nghiệp vụ, trạng thái chứng từ hoặc rule xử lý
+  - tài liệu design detail liên quan như `docs/PHIEU_DISPLAY_DESIGN.md` nếu thay đổi chi tiết theo domain
   - nếu có thay đổi deploy/config, cập nhật thêm `docs/DEPLOY_WINDOWS.md`
 
 ## Cách chạy
@@ -132,6 +141,7 @@ Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối
 - không revert thay đổi của user nếu không được yêu cầu
 - ưu tiên mobile UX vì app được dùng nhiều trên điện thoại
 - khi thêm button/action mới trên mobile, cân nhắc thu gọn, sticky, overflow `...` và tránh che nội dung
+- nếu yêu cầu mới làm lệch workflow/UI đã được định nghĩa trong tài liệu design hoặc business flow, phải confirm rõ lại với user trước khi sửa; không tự đổi ngầm hành vi đã được document
 
 ## Quy ước UI/UX cho repo này
 
@@ -159,11 +169,12 @@ Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối
 Mặc định nên:
 
 1. đọc file liên quan
-2. xác định ảnh hưởng tới backend/frontend/docs
-3. sửa code
-4. chạy kiểm tra cú pháp tối thiểu
-5. cập nhật help/docs nếu workflow hoặc label thay đổi
-6. nếu thêm/sửa test case hoặc test spec, cập nhật ngay tài liệu test trong repo gồm `docs/TESTING.md`, `docs/TEST_CASE_INDEX.md`, `docs/TEST_CASE_DESCRIPTIONS.md` để quy ước được giữ ở mức global, không chỉ trong session hiện tại
+2. đọc `docs/SCREEN_DESIGN.md`, `docs/DB_DESIGN.md`, `docs/BUSINESS_FLOW.md` và tài liệu design detail liên quan nếu task đụng UI / workflow / hiển thị / dữ liệu
+3. xác định ảnh hưởng tới backend/frontend/docs
+4. sửa code
+5. chạy kiểm tra cú pháp tối thiểu
+6. cập nhật help/docs nếu workflow, label hoặc design thay đổi
+7. nếu thêm/sửa test case hoặc test spec, cập nhật ngay tài liệu test trong repo gồm `docs/TESTING.md`, `docs/TEST_CASE_INDEX.md`, `docs/TEST_CASE_DESCRIPTIONS.md` để quy ước được giữ ở mức global, không chỉ trong session hiện tại
 
 ## Quy ước bổ sung cho tooling/setup
 
@@ -175,7 +186,7 @@ Mặc định nên:
 ## Prompt khởi động tốt cho Codex ở repo này
 
 ```text
-Read AGENTS.md, README.md, docs/HUONG_DAN_SU_DUNG.md, and .codex/config.toml first.
+Read AGENTS.md, README.md, docs/HUONG_DAN_SU_DUNG.md, docs/SCREEN_DESIGN.md, and .codex/config.toml first.
 Then inspect app.py and static/app.js for the affected workflow before editing.
 Keep changes minimal, preserve mobile UX, and run node --check static/app.js plus python -m py_compile app.py before finishing.
 ```

@@ -56,6 +56,12 @@ export function registerReportsAdminControllerEvents(contract) {
     await onReportDateFilterChange();
   });
 
+  dom.reportReceiptSearchInput?.addEventListener("input", (event) => {
+    state.reportReceiptSearchTerm = event.target.value || "";
+    state.pagination.reportReceipts = 1;
+    renderers.renderReports();
+  });
+
   dom.refreshReportsButton.addEventListener("click", async () => {
     if ((state.reportStartDate && !state.reportEndDate) || (!state.reportStartDate && state.reportEndDate)) {
       actions.showToast("Cần chọn đủ Từ ngày và Đến ngày để lọc theo khoảng ngày.", true);

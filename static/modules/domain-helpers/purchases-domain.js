@@ -26,12 +26,42 @@ export function createPurchasesDomainHelpers(deps) {
     return Boolean(purchase && purchase.status === "received");
   }
 
+  function canReceivePurchase(purchase) {
+    return Boolean(purchase && purchase.status === "ordered");
+  }
+
+  function isRepairableInvalidPurchase(purchase) {
+    if (!purchase) return false;
+    if (purchase.isRepairableInvalid === true || purchase.repairableInvalid === true) {
+      return true;
+    }
+    const status = String(purchase.status || "draft").trim();
+    const receivedAt = String(purchase.receivedAt || purchase.received_at || "").trim();
+    const paidAt = String(purchase.paidAt || purchase.paid_at || "").trim();
+    const receiptCode = String(purchase.receiptCode || purchase.receipt_code || "").trim();
+    if (status === "paid") {
+      return !receivedAt || !receiptCode;
+    }
+    if (["draft", "ordered"].includes(status)) {
+      return Boolean(receivedAt || paidAt || receiptCode);
+    }
+    return false;
+  }
+
   function canEditPurchase(purchase) {
     return Boolean(purchase && ["draft", "ordered"].includes(purchase.status));
   }
 
-  function canDeletePurchase(purchase) {
+  function canEditPurchaseSupplier(purchase) {
     return Boolean(purchase && purchase.status === "draft");
+  }
+
+  function canDeletePurchase(purchase) {
+    return Boolean(purchase && (purchase.status === "draft" || isRepairableInvalidPurchase(purchase)));
+  }
+
+  function canCancelPurchase(purchase) {
+    return Boolean(purchase && (["draft", "ordered"].includes(purchase.status) || isRepairableInvalidPurchase(purchase)));
   }
 
   function isLockedPurchase(purchase) {
@@ -158,8 +188,12 @@ export function createPurchasesDomainHelpers(deps) {
   return {
     getActivePurchase,
     canMarkPurchasePaid,
+    canReceivePurchase,
+    isRepairableInvalidPurchase,
     canEditPurchase,
+    canEditPurchaseSupplier,
     canDeletePurchase,
+    canCancelPurchase,
     isLockedPurchase,
     updatePurchase,
     getIncomingPurchaseByProductId,

@@ -9,10 +9,15 @@ export function registerPurchasesControllerEvents(contract) {
   } = contract;
 
   dom.createPurchaseDraftButton.addEventListener("click", () => {
-    actions.createPurchaseDraftIfMissing();
-    actions.saveAndRenderAll(["purchases"]);
+    const purchase = actions.createPurchaseDraftIfMissing();
+    if (purchase.items.length > 0) {
+      actions.saveAndRenderAll(["purchases"]);
+      actions.showToast("Đã lưu phiếu nhập nháp.");
+    } else {
+      actions.saveAndRenderAll();
+      actions.showToast("Đã mở phiếu nhập nháp tạm. Thêm mặt hàng để lưu.");
+    }
     actions.focusPurchaseSuggestions();
-    actions.showToast("Đã tạo phiếu nhập nháp.");
   });
 
   dom.togglePurchasePanelButton.addEventListener("click", () => {
@@ -24,12 +29,17 @@ export function registerPurchasesControllerEvents(contract) {
   });
 
   dom.purchaseSupplierInput.addEventListener("change", () => {
-    if (queries.getSkipNextPurchaseSupplierChangePersist()) {
+    if (queries.getSkipNextPurchaseSupplierChangePersist() || state.pendingPurchaseSupplierFlow) {
       actions.setSkipNextPurchaseSupplierChangePersist(false);
       return;
     }
     const purchase = queries.getActivePurchase();
     if (!purchase) return;
+    if (!queries.canEditPurchaseSupplier(purchase)) {
+      actions.showToast("Chỉ phiếu nháp mới được đổi nhà cung cấp.", true);
+      renderers.renderPurchasePanel();
+      return;
+    }
     actions.updatePurchase(purchase.id, () => ({
       supplierName: dom.purchaseSupplierInput.value.trim(),
       note: dom.purchaseNoteInput.value.trim(),
@@ -55,6 +65,12 @@ export function registerPurchasesControllerEvents(contract) {
     event.preventDefault();
     event.stopPropagation();
     actions.setSkipNextPurchaseSupplierChangePersist(false);
+    const purchase = queries.getActivePurchase();
+    if (purchase && !queries.canEditPurchaseSupplier(purchase)) {
+      actions.showToast("Chỉ phiếu nháp mới được đổi nhà cung cấp.", true);
+      renderers.renderPurchasePanel();
+      return;
+    }
     actions.beginSupplierCreateFromPurchase();
   });
 
@@ -100,8 +116,14 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       if (panelButton.dataset.purchasePanelAction === "create") {
-        actions.createPurchaseDraftIfMissing();
-        actions.saveAndRenderAll(["purchases"]);
+        const purchase = actions.createPurchaseDraftIfMissing();
+        if (purchase.items.length > 0) {
+          actions.saveAndRenderAll(["purchases"]);
+          actions.showToast("Đã lưu phiếu nhập nháp.");
+        } else {
+          actions.saveAndRenderAll();
+          actions.showToast("Đã mở phiếu nhập nháp tạm. Thêm mặt hàng để lưu.");
+        }
         actions.focusPurchaseSuggestions();
       }
       return;
@@ -186,13 +208,25 @@ export function registerPurchasesControllerEvents(contract) {
     }
     if (actionButton.dataset.purchaseAction === "delete") {
       if (!queries.canDeletePurchase(purchase)) {
-        actions.showToast("Chỉ được xóa hẳn phiếu nhập nháp.", true);
+        actions.showToast("Chỉ được xóa hẳn phiếu nhập nháp hoặc phiếu lỗi chưa nhập kho.", true);
         return;
       }
-      state.purchases = state.purchases.filter((entry) => entry.id !== purchase.id);
-      state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
-      actions.saveAndRenderAll(["purchases"]);
-      actions.showToast("Đã xóa phiếu nhập.");
+      if (queries.isRepairableInvalidPurchase(purchase) && !window.confirm("Phiếu này đang ở trạng thái lỗi dữ liệu. Xóa phiếu sẽ dọn các marker xử lý bị lệch và không khôi phục lại phiếu nháp.\n\nBạn có chắc muốn xóa phiếu này?")) {
+        return;
+      }
+      try {
+        const data = await actions.apiRequest("/api/purchases/repair", {
+          method: "POST",
+          body: JSON.stringify({
+            purchase_id: purchase.id,
+            action: "delete",
+          }),
+        });
+        await actions.refreshData();
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
       return;
     }
     if (actionButton.dataset.purchaseAction === "mark-ordered") {
@@ -206,13 +240,29 @@ export function registerPurchasesControllerEvents(contract) {
       return;
     }
     if (actionButton.dataset.purchaseAction === "cancel") {
-      if (!queries.canEditPurchase(purchase)) {
+      if (!queries.canCancelPurchase(purchase)) {
         actions.showToast("Phiếu nhập đã khóa, không thể hủy trực tiếp.", true);
         return;
       }
-      actions.updatePurchase(purchase.id, () => ({ status: "cancelled", supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
-      actions.saveAndRenderAll(["purchases"]);
-      actions.showToast("Đã hủy phiếu nhập.");
+      const confirmMessage = queries.isRepairableInvalidPurchase(purchase)
+        ? "Phiếu này đang ở trạng thái lỗi dữ liệu. Hủy phiếu sẽ bỏ các marker xử lý bị lệch và giữ phiếu ở dạng đã hủy, không quay lại nháp.\n\nBạn có chắc muốn hủy phiếu này?"
+        : "Hủy phiếu này sẽ giữ lại lịch sử ở trạng thái đã hủy.\n\nBạn có chắc muốn tiếp tục?";
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+      try {
+        const data = await actions.apiRequest("/api/purchases/repair", {
+          method: "POST",
+          body: JSON.stringify({
+            purchase_id: purchase.id,
+            action: "cancel",
+          }),
+        });
+        await actions.refreshData();
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
       return;
     }
     if (actionButton.dataset.purchaseAction === "mark-paid") {
@@ -236,8 +286,8 @@ export function registerPurchasesControllerEvents(contract) {
       return;
     }
     if (actionButton.dataset.purchaseAction === "receive") {
-      if (!queries.canEditPurchase(purchase)) {
-        actions.showToast("Phiếu nhập đã khóa, không thể nhập kho lại.", true);
+      if (!queries.canReceivePurchase(purchase)) {
+        actions.showToast("Chỉ phiếu đã đặt hàng mới được nhập kho.", true);
         return;
       }
       try {

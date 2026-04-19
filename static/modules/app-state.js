@@ -59,6 +59,7 @@ export const state = {
   reportRangeMonths: 6,
   reportStartDate: "",
   reportEndDate: "",
+  reportReceiptSearchTerm: "",
   reportFiltersCollapsed: false,
   customers: [],
   suppliers: [],
@@ -77,6 +78,8 @@ export const state = {
   showPaidPurchases: false,
   expandedProductId: null,
   expandedSalesProductId: null,
+  visibleSelectedSalesProductId: null,
+  expandedSelectedCartItemId: null,
   expandedOrderId: null,
   inventoryAdjustmentReasons: {},
   inventoryReceiptDraft: {

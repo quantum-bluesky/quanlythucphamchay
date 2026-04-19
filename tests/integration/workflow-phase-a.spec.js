@@ -26,8 +26,10 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
   const runtime = attachRuntimeTracking(page);
   const userCookie = await autoLoginUserRequest(request);
   const timestamp = Date.now();
-  const supplierName = `NCC Test Ordered ${timestamp}`;
+  const orderedSupplierName = `NCC Ordered ${timestamp}`;
+  const receivedSupplierName = `NCC Received ${timestamp}`;
   const purchaseId = `purchase_ordered_test_${timestamp}`;
+  const receivedPurchaseId = `purchase_received_test_${timestamp}`;
 
   const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
@@ -40,7 +42,7 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
 
   const orderedPurchase = {
     id: purchaseId,
-    supplierName,
+    supplierName: orderedSupplierName,
     note: "ACC-PUR-01 ordered purchase",
     status: "ordered",
     createdAt: new Date().toISOString(),
@@ -57,11 +59,31 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
     ],
   };
 
+  const receivedPurchase = {
+    id: receivedPurchaseId,
+    supplierName: receivedSupplierName,
+    note: "ACC-PUR-01 received purchase",
+    status: "received",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    receivedAt: new Date().toISOString(),
+    receiptCode: `PN-RECEIVED-${timestamp}`,
+    items: [
+      {
+        id: `purchase_item_received_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+
   try {
     const seedResponse = await request.put("/api/state", {
       headers: { Cookie: userCookie },
       data: {
-        purchases: [...(originalState.purchases || []), orderedPurchase],
+        purchases: [...(originalState.purchases || []), orderedPurchase, receivedPurchase],
       },
     });
     expect(seedResponse.ok()).toBeTruthy();
@@ -74,7 +96,7 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
     await switchMenu(page, "purchases");
     await expectScreenTitle(page, "Nhập hàng");
 
-    const orderedPurchaseCard = page.locator(".cart-queue-item", { hasText: supplierName }).first();
+    const orderedPurchaseCard = page.locator(".cart-queue-item", { hasText: orderedSupplierName }).first();
     await orderedPurchaseCard.locator('[data-purchase-list-action="open"]').click();
     await page.waitForTimeout(400);
     await expect(page.locator('[data-purchase-action="mark-paid"]')).toBeDisabled();
@@ -94,21 +116,8 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
     const invalidBody = await invalidResponse.json();
     expect(invalidBody.error).toContain("đã thanh toán sau khi đã nhập kho");
 
-    const receivedPayload = structuredClone(seededState.purchases || []);
-    const receivedPurchase = receivedPayload.find((purchase) => purchase.id === purchaseId);
-    expect(receivedPurchase).toBeTruthy();
-    receivedPurchase.status = "received";
-    receivedPurchase.receivedAt = new Date().toISOString();
-
-    const receiveResponse = await request.put("/api/state", {
-      headers: { Cookie: userCookie },
-      data: { purchases: receivedPayload },
-    });
-    expect(receiveResponse.ok()).toBeTruthy();
-    const receivedState = await receiveResponse.json();
-
-    const paidPayload = structuredClone(receivedState.purchases || []);
-    const paidPurchase = paidPayload.find((purchase) => purchase.id === purchaseId);
+    const paidPayload = structuredClone(seededState.purchases || []);
+    const paidPurchase = paidPayload.find((purchase) => purchase.id === receivedPurchaseId);
     expect(paidPurchase).toBeTruthy();
     paidPurchase.status = "paid";
     paidPurchase.paidAt = new Date().toISOString();
@@ -117,7 +126,97 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
       headers: { Cookie: userCookie },
       data: { purchases: paidPayload },
     });
-    expect(payResponse.ok()).toBeTruthy();
+    const payBody = await payResponse.json();
+    expect(payResponse.ok(), JSON.stringify(payBody)).toBeTruthy();
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("ACC-PUR-03 purchase draft must be ordered before receive and stays editable while ordered", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const supplierName = `NCC Draft Flow ${timestamp}`;
+  const purchaseId = `purchase_draft_flow_${timestamp}`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const draftPurchase = {
+    id: purchaseId,
+    supplierName,
+    note: "ACC-PUR-03 draft purchase",
+    status: "draft",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    receiptCode: "",
+    items: [
+      {
+        id: `purchase_item_draft_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        purchases: [...(originalState.purchases || []), draftPurchase],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    const draftPurchaseCard = page.locator(".cart-queue-item", { hasText: supplierName }).first();
+    await draftPurchaseCard.locator('[data-purchase-list-action="open"]').click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('[data-purchase-action="receive"]')).toHaveCount(0);
+    await expect(page.locator('[data-purchase-action="mark-ordered"]')).toBeVisible();
+
+    await page.locator('[data-purchase-action="mark-ordered"]').click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('[data-purchase-action="receive"]')).toBeVisible();
+    await expect(page.locator("#purchaseSupplierInput")).toBeDisabled();
+    await expect(page.locator('.purchases-panel [data-go-menu="suppliers"]')).toBeDisabled();
+
+    await page.locator('[data-purchase-selected-action="toggle"]').click();
+    await page.waitForTimeout(300);
+    const qtyInput = page.locator('[data-purchase-qty-input]').first();
+    await expect(qtyInput).toBeEnabled();
+    await qtyInput.fill("2");
+    await page.locator('[data-purchase-item-action="save"]').first().click();
+
+    await page.locator('[data-purchase-action="receive"]').click();
+    const receiveToast = await collectToast(page, runtime, "acc-pur-03-receive", { errorPattern: /^$/ });
+    expect(receiveToast).toContain("Đã nhập hàng vào kho");
   } finally {
     await request.put("/api/state", {
       headers: { Cookie: userCookie },

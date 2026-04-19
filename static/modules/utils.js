@@ -42,7 +42,8 @@ export function formatDateOnly(value) {
   if (!value) {
     return "";
   }
-  return new Date(`${value}T00:00:00`).toLocaleDateString("vi-VN");
+  const normalizedValue = String(value).includes("T") ? String(value) : `${value}T00:00:00`;
+  return new Date(normalizedValue).toLocaleDateString("vi-VN");
 }
 
 export function escapeHtml(value) {

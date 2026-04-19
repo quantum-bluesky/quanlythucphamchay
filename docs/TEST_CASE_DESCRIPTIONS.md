@@ -25,7 +25,7 @@ Lưu ý:
 | 6 | `ACC-ORD-01` | Kiểm tra màn đơn hàng render ổn định và các thao tác chính không làm vỡ màn quản lý. |
 | 7 | `ACC-CUS-01` | Kiểm tra màn khách hàng render ổn định và các thao tác cơ bản hoạt động bình thường. |
 | 8 | `ACC-PROD-01` | Kiểm tra màn sản phẩm và luồng sửa nhanh hoạt động ổn định cùng các màn nghiệp vụ liên quan. |
-| 9 | `ACC-PUR-01` | Kiểm tra phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho. |
+| 9 | `ACC-PUR-01` | Kiểm tra phiếu `ordered` không được thanh toán sớm, còn phiếu `received` mới được chuyển sang `paid`. |
 | 10 | `ACC-PUR-02` | Kiểm tra đơn đã chốt và phiếu nhập đã nhận/đã thanh toán không cho sửa trực tiếp. |
 | 11 | `ACC-PHB-01` | Kiểm tra API phiếu điều chỉnh tồn cập nhật tồn kho và ghi audit trail đúng. |
 | 12 | `ACC-PHB-02` | Kiểm tra API phiếu trả hàng khách cộng tồn kho và ghi note giao dịch đúng. |
@@ -49,7 +49,7 @@ Lưu ý:
 | 30 | `IT-PHD-01` | Kiểm tra product history hỗ trợ lọc theo người thao tác cho thay đổi giá mặc định. |
 | 31 | `IT-PHD-02` | Kiểm tra sync state lưu `actor` khi trạng thái giỏ hàng thay đổi. |
 | 32 | `IT-PHD-03` | Kiểm tra form lọc product history theo actor và ngày hoạt động đúng trên UI. |
-| 33 | `IT-PURSUP-01` | Kiểm tra màn nhập hàng có thể tạo nhà cung cấp mới và áp lại ngay vào draft flow. |
+| 33 | `IT-PURSUP-01` | Kiểm tra màn nhập hàng có thể mở phiếu tạm, tạo nhà cung cấp mới rồi quay lại giữ giá trị NCC trên UI dù phiếu nháp rỗng không còn persist xuống DB. |
 | 34 | `IT-PURSUP-02` | Kiểm tra màn nhà cung cấp sửa thông tin NCC mà không ghi đè lịch sử phiếu đã thanh toán. |
 | 35 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
 | 36 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
@@ -67,14 +67,21 @@ Lưu ý:
 | 48 | `UT-DB-04` | Kiểm tra phiếu trả hàng khách backend làm tăng tồn kho đúng. |
 | 49 | `UT-DB-05` | Kiểm tra phiếu trả NCC backend làm giảm tồn kho đúng. |
 | 50 | `UT-DB-06` | Kiểm tra backend không cho tạo phiếu điều chỉnh tồn nếu thiếu lý do. |
-| 51 | `UT-NORM-01` | Kiểm tra `save_sync_state` persist đúng dữ liệu sang các bảng quan hệ chuẩn hóa. |
-| 52 | `UT-NORM-02` | Kiểm tra các loại receipt được persist đúng vào cấu trúc bảng chuẩn hóa mới. |
-| 53 | `UT-NORM-03` | Kiểm tra app state legacy được migrate sang cấu trúc bảng quan hệ khi khởi động. |
-| 54 | `UT-SYNC-01` | Kiểm tra sync state chấp nhận cập nhật khi `expected_updated_at` khớp. |
-| 55 | `UT-SYNC-02` | Kiểm tra sync state từ chối cập nhật khi `expected_updated_at` bị stale. |
-| 54 | `UT-AUD-01` | Kiểm tra thay đổi trạng thái đơn hàng được ghi audit kèm actor. |
-| 55 | `UT-AUD-02` | Kiểm tra thay đổi trạng thái phiếu nhập được ghi audit kèm actor. |
-| 56 | `UT-AUD-03` | Kiểm tra receipt history trả đúng source link và audit message cho các phiếu Phase B. |
-| 57 | `UT-HIS-01` | Kiểm tra product history hỗ trợ lọc theo actor ở backend. |
-| 58 | `UT-HIS-02` | Kiểm tra product history hỗ trợ lọc theo khoảng ngày ở backend. |
-| 59 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |
+| 51 | `UT-DB-07` | Kiểm tra backend cho phép xóa phiếu nhập lỗi `paid` nhưng chưa có receipt nhập kho thật, đồng thời gỡ các liên kết source tham chiếu tới mã phiếu lỗi đó. |
+| 52 | `UT-DB-08` | Kiểm tra backend vẫn chặn repair/xóa đối với phiếu `paid` hợp lệ đã có receipt nhập kho thật. |
+| 53 | `UT-DB-09` | Kiểm tra backend cho phép hủy phiếu đang hiện là `draft` nhưng còn sót marker `paid/receiptCode` do lệch dữ liệu, và dọn sạch các marker này. |
+| 54 | `UT-DB-10` | Kiểm tra purchase legacy ở trạng thái `received` nhưng thiếu `received_at` vẫn được backfill từ `updated_at` để không bị kẹt luồng thanh toán. |
+| 55 | `UT-NORM-01` | Kiểm tra `save_sync_state` persist đúng dữ liệu sang các bảng quan hệ chuẩn hóa. |
+| 56 | `UT-NORM-02` | Kiểm tra các loại receipt được persist đúng vào cấu trúc bảng chuẩn hóa mới. |
+| 57 | `UT-NORM-03` | Kiểm tra app state legacy được migrate sang cấu trúc bảng quan hệ khi khởi động, đồng thời bỏ qua phiếu nhập nháp rỗng. |
+| 58 | `UT-NORM-04` | Kiểm tra sync state không persist phiếu nhập nháp rỗng nhưng vẫn lưu phiếu nháp có ít nhất một mặt hàng. |
+| 59 | `UT-SYNC-01` | Kiểm tra sync state chấp nhận cập nhật khi `expected_updated_at` khớp. |
+| 60 | `UT-SYNC-02` | Kiểm tra sync state từ chối cập nhật khi `expected_updated_at` bị stale. |
+| 61 | `UT-AUD-01` | Kiểm tra thay đổi trạng thái đơn hàng được ghi audit kèm actor. |
+| 62 | `UT-AUD-02` | Kiểm tra thay đổi trạng thái phiếu nhập được ghi audit kèm actor. |
+| 63 | `UT-AUD-03` | Kiểm tra receipt history trả đúng source link và audit message cho các phiếu Phase B. |
+| 64 | `UT-HIS-01` | Kiểm tra product history hỗ trợ lọc theo actor ở backend. |
+| 65 | `UT-HIS-02` | Kiểm tra product history hỗ trợ lọc theo khoảng ngày ở backend. |
+| 66 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |
+| 67 | `ACC-PUR-03` | Kiểm tra phiếu nhập nháp phải được chuyển sang `Đã đặt hàng` trước khi `Nhập kho`, phiếu `Đã đặt hàng` vẫn chỉnh sửa được nhưng NCC đã bị khóa. |
+| 68 | `UT-DB-11` | Kiểm tra backend chặn `draft -> received`, cho phép `ordered` tiếp tục chỉnh sửa, rồi mới chuyển sang `received` hợp lệ. |

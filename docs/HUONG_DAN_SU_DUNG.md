@@ -87,6 +87,7 @@ Vào menu:
 1. Ở cột `Danh sách để thêm vào giỏ`
 2. Tìm sản phẩm theo tên
 3. Tick chọn sản phẩm cần bán
+4. Nút `...` trên card sản phẩm luôn hiện để bung / thu gọn detail
 
 Lưu ý:
 
@@ -94,17 +95,21 @@ Lưu ý:
 
 Khi chọn, sản phẩm sẽ xuất hiện ở `Giỏ hiện hành`.
 
-Các mặt hàng đã chọn sẽ tự ẩn khỏi danh sách chọn phía dưới và được gom vào khối `Giỏ hiện hành` bên trên. Nếu cần xem hoặc sửa nhanh nhiều dòng đã chọn, bấm nút `...` để sổ phần danh sách đó ra.
+Các mặt hàng đã chọn sẽ được gom vào khối `Giỏ hiện hành` bên trên và mặc định ẩn khỏi danh sách phía dưới để tránh sót dòng đã chọn.
+
+Nếu đang cần thao tác ngay trên card sản phẩm ở danh sách phía dưới, bấm `...` trên đúng dòng đang sửa; app sẽ giữ lại card đó thay vì tự ẩn mất.
 
 ### Bước 3: Sửa số lượng và giá bán
 
 Trong `Giỏ hiện hành`:
 
-1. Tăng giảm số lượng bằng nút nhanh
-2. Hoặc gõ trực tiếp số lượng
-3. Gõ giá bán cho khách
-4. Bấm `Lưu dòng`
-5. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung` và xác nhận
+1. Mỗi mặt hàng đã chọn hiển thị dưới dạng card gọn 2 dòng
+2. Bấm `...` trên card để mở detail chỉnh sửa
+3. Gõ trực tiếp số lượng
+4. Gõ giá bán cho khách
+5. Bấm `Lưu dòng`
+6. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung` và xác nhận
+7. Nếu không cần dòng hàng đó nữa, bấm `Bỏ khỏi giỏ`
 
 ### Bước 4: Chốt đơn
 
@@ -136,6 +141,7 @@ Vào menu:
 Dùng màn này để:
 
 - mở lại giỏ hàng đang chờ
+- xuất nhanh giỏ nháp ra đơn
 - in lại đơn
 - đánh dấu `Đã thanh toán`
 - hủy đơn
@@ -144,6 +150,7 @@ Dùng màn này để:
 ### Khi nào dùng từng nút
 
 - `Tiếp tục bán`: mở lại giỏ hàng nháp để sửa tiếp
+- `Xuất`: chốt nhanh giỏ nháp thành đơn mà không cần mở lại giỏ; trên mobile nút này nằm trong menu `...` của card
 - `In`: in hoặc gửi lại danh sách hàng cho khách
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền
 - `Hủy`: dùng khi khách không lấy nữa
@@ -231,11 +238,14 @@ Màn này có 2 phần:
 6. Sửa trực tiếp số lượng và giá nhập từng dòng
 7. Bấm `Lưu dòng` nếu có chỉnh
 8. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
-9. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, bấm `NCC` để mở form nhà cung cấp với tên đang nhập; nếu tên đó đã tồn tại thì app sẽ mở thẳng chế độ sửa NCC
-10. Lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
-11. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`
-12. Khi hàng về thực tế, bấm `Nhập kho`
-13. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
+9. Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; nếu phiếu đang trống thì app chỉ giữ trạng thái mở tạm trên màn hình
+10. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, chỉ khi phiếu còn `Nháp` mới bấm được `NCC` để mở form nhà cung cấp với tên đang nhập; nếu tên đó đã tồn tại thì app sẽ mở thẳng chế độ sửa NCC
+11. Lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
+12. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`; từ lúc này phiếu vẫn còn chỉnh được nếu nhà cung cấp yêu cầu đổi số lượng hoặc giá, nhưng không còn được đổi NCC
+13. Khi hàng về thực tế và phiếu đã là `Đã đặt`, bấm `Nhập kho`
+14. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
+15. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
+16. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`
 
 ### Ý nghĩa trạng thái phiếu nhập
 
@@ -248,8 +258,9 @@ Màn này có 2 phần:
 Lưu ý:
 
 - chỉ `Nháp` và `Đã đặt` mới được sửa trực tiếp dòng hàng
+- chỉ `Nháp` mới được đổi nhà cung cấp; từ `Đã đặt` trở đi ô NCC và nút `NCC` sẽ bị khóa
 - phiếu đã `Đã nhập kho`, `Đã thanh toán` hoặc `Đã hủy` sẽ chuyển sang chế độ chỉ xem để giữ lịch sử đúng workflow
-- kể cả `Master Admin` cũng không được xóa hoặc hủy ngược các phiếu đã khóa
+- kể cả `Master Admin` cũng không được xóa hoặc hủy ngược các phiếu đã khóa, trừ ngoại lệ phiếu lỗi dữ liệu bị lệch marker/trạng thái nói ở trên
 
 ## 9. Luồng quản lý nhà cung cấp
 
@@ -272,7 +283,7 @@ Nên lưu:
 2. Khi cần tạo mới, bấm `Thêm mới` để mở form
 3. Lưu nhà cung cấp rồi dùng lại trong phiếu nhập
 4. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
-5. Nếu đi từ màn `NH` sang bằng nút `NCC`, app sẽ mở sẵn form theo tên đang gõ; nếu NCC đã tồn tại thì app chuyển luôn sang chế độ sửa
+5. Nếu đi từ màn `NH` sang bằng nút `NCC`, app sẽ mở sẵn form theo tên đang gõ; thao tác này chỉ dùng được khi phiếu nhập còn là `Nháp`
 6. Có thể bấm `Dùng cho phiếu nhập` để chuyển nhanh sang màn nhập hàng
 
 ## 10. Luồng báo cáo tháng
@@ -344,6 +355,7 @@ Lưu ý:
 4. Xem `Xu hướng tháng` để đối chiếu từng tháng gần đây
 5. Xem `Chi tiết tháng` để biết từng sản phẩm bị ảnh hưởng bởi trả hàng hay điều chỉnh tồn
 6. Kéo xuống `Audit chứng từ` để xem mã phiếu, đối tượng, tổng SL, tổng tiền và liên kết `Đơn nguồn` / `Phiếu nguồn` nếu có
+7. Dùng ô tìm kiếm ở khối `Audit chứng từ` để gõ hoặc chọn nhanh `mã phiếu` / `mã tham chiếu nguồn` cần tra cứu
 
 ### Ý nghĩa phần dự báo
 

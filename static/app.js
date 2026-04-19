@@ -131,6 +131,8 @@ import {
   forecastList,
   reportProductActivity,
   reportReceiptHistorySection,
+  reportReceiptSearchInput,
+  reportReceiptReferenceOptions,
   reportReceiptHistoryList,
   reportsSection,
   reportFiltersSection,
@@ -822,9 +824,13 @@ function getPurchasesUi() {
       mobileQuery,
       getActivePurchase,
       canEditPurchase,
+      canEditPurchaseSupplier,
+      canReceivePurchase,
       canDeletePurchase,
+      canCancelPurchase,
       canMarkPurchasePaid,
       isLockedPurchase,
+      isRepairableInvalidPurchase,
       getPurchaseSuggestions,
       isSearchResultMode,
       paginateItems,
@@ -886,6 +892,8 @@ function getReportsAdminUi() {
         forecastList,
         reportProductActivity,
         reportReceiptHistorySection,
+        reportReceiptSearchInput,
+        reportReceiptReferenceOptions,
         reportReceiptHistoryList,
         adminLoginPanel,
         adminModulePanel,
@@ -897,6 +905,7 @@ function getReportsAdminUi() {
       escapeHtml,
       formatCurrency,
       formatQuantity,
+      formatDate,
       formatMonthLabel,
       formatDateOnly,
       paginateItems,
@@ -1071,7 +1080,7 @@ function getReportReceiptHistoryWindow() {
 }
 
 function buildReceiptHistoryParams() {
-  const receiptHistoryParams = new URLSearchParams({ limit: "40" });
+  const receiptHistoryParams = new URLSearchParams({ limit: "200" });
   const receiptHistoryWindow = getReportReceiptHistoryWindow();
   if (receiptHistoryWindow.startDateTime) {
     receiptHistoryParams.set("start_date", receiptHistoryWindow.startDateTime);
@@ -1338,6 +1347,14 @@ function canMarkPurchasePaid(purchase) {
   return getPurchasesDomainHelpers().canMarkPurchasePaid(purchase);
 }
 
+function canReceivePurchase(purchase) {
+  return getPurchasesDomainHelpers().canReceivePurchase(purchase);
+}
+
+function isRepairableInvalidPurchase(purchase) {
+  return getPurchasesDomainHelpers().isRepairableInvalidPurchase(purchase);
+}
+
 function isDraftCart(cart) {
   return Boolean(cart && cart.status === "draft");
 }
@@ -1350,8 +1367,16 @@ function canEditPurchase(purchase) {
   return getPurchasesDomainHelpers().canEditPurchase(purchase);
 }
 
+function canEditPurchaseSupplier(purchase) {
+  return getPurchasesDomainHelpers().canEditPurchaseSupplier(purchase);
+}
+
 function canDeletePurchase(purchase) {
   return getPurchasesDomainHelpers().canDeletePurchase(purchase);
+}
+
+function canCancelPurchase(purchase) {
+  return getPurchasesDomainHelpers().canCancelPurchase(purchase);
 }
 
 function isLockedPurchase(purchase) {
@@ -1414,6 +1439,8 @@ function syncSalesState() {
       receivedAt: purchase.receivedAt || purchase.received_at || null,
       paidAt: purchase.paidAt || purchase.paid_at || null,
       receiptCode: purchase.receiptCode || purchase.receipt_code || "",
+      isRepairableInvalid: Boolean(purchase.isRepairableInvalid ?? purchase.repairableInvalid),
+      repairableInvalid: Boolean(purchase.repairableInvalid ?? purchase.isRepairableInvalid),
       items: Array.isArray(purchase.items)
         ? purchase.items
             .map((item) => {
@@ -1939,6 +1966,17 @@ function deleteCart(cartId) {
     state.activeCartId = getDraftCarts()[0]?.id || null;
   }
   saveAndRenderAll(["customers", "carts"]);
+}
+
+async function checkoutCart(cartId) {
+  const previousActiveCartId = state.activeCartId;
+  state.activeCartId = cartId;
+  try {
+    return await checkoutActiveCart();
+  } catch (error) {
+    state.activeCartId = previousActiveCartId;
+    throw error;
+  }
 }
 
 function renameCustomer(customerId, newName) {
@@ -2916,6 +2954,9 @@ function renderCartQueue() {
       const expanded = state.expandedOrderId === cart.id;
       const itemPreview = cart.items.slice(0, 3).map((item) => item.productName).join(", ");
       const compactMeta = `${formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • ${formatCurrency(cart.totalAmount)}`;
+      const checkoutButton = cart.status === "draft"
+        ? `<button type="button" class="secondary-button compact-button" data-queue-action="checkout" data-cart-id="${cart.id}">${compact ? "Xuất" : "Xuất hàng"}</button>`
+        : "";
       return `
         <article class="cart-queue-item ${expanded ? "is-expanded" : ""}">
           <div class="queue-header">
@@ -2941,20 +2982,19 @@ function renderCartQueue() {
           `}
           <div class="queue-actions">
             ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục bán"}</button>` : `<button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>`}
-            ${compact
-              ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">...</button>`
-              : `
-                <button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>
-                ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
-                ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
-                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
-                ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
-              `}
+            ${compact ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">...</button>` : checkoutButton}
+            ${compact ? "" : `
+              ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
+              ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
+              ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
+              ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
+            `}
           </div>
           ${compact && expanded ? `
             <div class="queue-detail-block">
               <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
               <div class="queue-actions queue-actions-expanded">
+                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-queue-action="checkout" data-cart-id="${cart.id}">Xuất</button>` : ""}
                 ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
                 ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả</button>` : ""}
                 ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-queue-action="mark-paid" data-cart-id="${cart.id}">TT</button>` : ""}
@@ -3101,9 +3141,22 @@ function renderAll() {
     customerLookupInput.value = activeCart.customerName;
   }
   const activePurchase = getActivePurchase();
+  const supplierEditable = canEditPurchaseSupplier(activePurchase);
   if (activePurchase) {
-    purchaseSupplierInput.value = activePurchase.supplierName || "";
+    purchaseSupplierInput.value = activePurchase.supplierName || (supplierEditable ? state.pendingPurchaseSupplierName : "") || "";
     purchaseNoteInput.value = activePurchase.note || "";
+  } else {
+    purchaseSupplierInput.value = state.pendingPurchaseSupplierName || "";
+    purchaseNoteInput.value = "";
+  }
+  if (purchaseSupplierInput) {
+    purchaseSupplierInput.disabled = Boolean(activePurchase) && !supplierEditable;
+  }
+  if (purchaseSupplierMenuButton) {
+    purchaseSupplierMenuButton.disabled = Boolean(activePurchase) && !supplierEditable;
+    purchaseSupplierMenuButton.title = activePurchase && !supplierEditable
+      ? "Chỉ phiếu nháp mới được đổi nhà cung cấp."
+      : "";
   }
   if (productHistoryActorInput) {
     productHistoryActorInput.value = state.productHistoryActorFilter || "";
@@ -3393,7 +3446,7 @@ async function checkoutActiveCart() {
   const shortages = getCartShortages(cart).filter((entry) => entry.shortage > 0);
   if (shortages.length) {
     const shortageNames = shortages.map((entry) => `${entry.product?.name || entry.item.productName} thiếu ${formatQuantity(entry.shortage)}`).join(", ");
-  if (state.admin?.isAdmin) {
+    if (state.admin?.isAdmin) {
       const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng: ${shortageNames}.\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel để tạo phiếu nhập hàng dự kiến.`);
       if (shouldAdjustStock) {
         switchMenu("inventory");
@@ -3431,7 +3484,9 @@ async function checkoutActiveCart() {
     orderCode,
   }));
 
-  state.activeCartId = getDraftCarts().find((entry) => entry.id !== cart.id)?.id || null;
+  if (state.activeCartId === cart.id) {
+    state.activeCartId = getDraftCarts().find((entry) => entry.id !== cart.id)?.id || null;
+  }
   saveAndRenderAll();
   await persistCollections(["carts"]);
   await refreshData();
@@ -3621,6 +3676,7 @@ registerSalesControllerEvents({
     updateCartItem,
     removeCartItem,
     saveAndRenderAll,
+    checkoutCart,
     checkoutActiveCart,
     printCart,
     updateProductSalePrice,
@@ -3768,8 +3824,12 @@ registerPurchasesControllerEvents({
     getActivePurchase,
     getProductById,
     canEditPurchase,
+    canEditPurchaseSupplier,
+    canReceivePurchase,
+    canCancelPurchase,
     canDeletePurchase,
     canMarkPurchasePaid,
+    isRepairableInvalidPurchase,
     getSkipNextPurchaseSupplierChangePersist: () => skipNextPurchaseSupplierChangePersist,
   },
   utils: {
@@ -3785,6 +3845,7 @@ registerReportsAdminControllerEvents({
     reportRangeSelect,
     reportStartDateInput,
     reportEndDateInput,
+    reportReceiptSearchInput,
     refreshReportsButton,
     clearReportDateFilterButton,
     reportFiltersToggleButton,

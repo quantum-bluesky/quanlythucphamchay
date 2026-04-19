@@ -1,5 +1,7 @@
+import copy
 import gc
 import json
+import os
 import sqlite3
 import tempfile
 import time
@@ -13,24 +15,16 @@ from qltpchay.store import SyncConflictError
 
 class InventoryStoreTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.db_path = Path(self.temp_dir.name) / "inventory-test.db"
+        fd, db_file = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        self.db_path = Path(db_file)
         self.store = InventoryStore(self.db_path)
 
     def tearDown(self) -> None:
         del self.store
         gc.collect()
-        last_error = None
-        for _ in range(5):
-            try:
-                self.temp_dir.cleanup()
-                last_error = None
-                break
-            except PermissionError as error:
-                last_error = error
-                time.sleep(0.1)
-        if last_error is not None:
-            raise last_error
+        for suffix in ("", "-wal", "-shm"):
+            self.db_path.with_name(self.db_path.name + suffix).unlink(missing_ok=True)
 
     def test_ut_db_01_create_product_and_stock_summary(self) -> None:
         product = self.store.create_product(
@@ -134,6 +128,335 @@ class InventoryStoreTests(unittest.TestCase):
                 items=[{"product_id": product["id"], "quantity_delta": 1}],
                 reason="",
             )
+
+    def test_ut_db_07_repair_purchase_document_deletes_invalid_paid_purchase_and_detaches_links(self) -> None:
+        product = self.store.create_product(
+            name="Chả cá chay lỗi phiếu",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        self.store.create_transaction(product["id"], "in", 5, "Tồn đầu repair purchase")
+        self.store.create_supplier_return_receipt(
+            supplier_name="NCC Repair",
+            source_type="purchase",
+            source_code="PN-BROKEN-01",
+            items=[{"product_id": product["id"], "quantity": 1, "unit_cost": 12000}],
+            note="Phiếu trả đang tham chiếu mã lỗi",
+        )
+
+        now = "2026-04-19T09:10:00+07:00"
+        with self.store._connect() as connection:
+            self.store._replace_sync_collection_records(
+                connection,
+                "purchases",
+                [
+                    {
+                        "id": "purchase-broken-01",
+                        "supplierName": "NCC Repair",
+                        "status": "paid",
+                        "note": "Phiếu lỗi chưa nhập kho",
+                        "createdAt": "2026-04-19T09:00:00+07:00",
+                        "updatedAt": now,
+                        "paidAt": now,
+                        "receiptCode": "PN-BROKEN-01",
+                        "items": [
+                            {
+                                "id": "purchase-item-broken-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 12000,
+                            }
+                        ],
+                    }
+                ],
+            )
+            canonical = self.store._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            )
+
+        result = self.store.repair_purchase_document(
+            "purchase-broken-01",
+            action="delete",
+            actor="masteradmin",
+        )
+
+        self.assertEqual(result["purchases"], [])
+        self.assertEqual(len(result["detached_receipt_codes"]), 1)
+        self.assertIn("gỡ liên kết nguồn", result["message"])
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 4.0)
+
+        with self.store._connect() as connection:
+            detached_source = connection.execute(
+                """
+                SELECT source_type, source_code
+                FROM inventory_receipts
+                WHERE receipt_type = 'supplier_return'
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            purchase_count = connection.execute(
+                "SELECT COUNT(*) AS total FROM purchases"
+            ).fetchone()["total"]
+            audit_row = connection.execute(
+                """
+                SELECT action, actor, message
+                FROM audit_logs
+                WHERE entity_type = 'purchase' AND entity_id = 'purchase-broken-01'
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+        self.assertEqual(detached_source["source_type"], "")
+        self.assertEqual(detached_source["source_code"], "")
+        self.assertEqual(purchase_count, 0)
+        self.assertEqual(audit_row["action"], "repair-delete")
+        self.assertEqual(audit_row["actor"], "masteradmin")
+
+    def test_ut_db_08_repair_purchase_document_rejects_valid_paid_purchase_with_receipt(self) -> None:
+        product = self.store.create_product(
+            name="Đậu viên chay đã nhập kho",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        receipt = self.store.create_purchase_receipt(
+            supplier_name="NCC Valid",
+            items=[{"product_id": product["id"], "quantity": 2, "unit_cost": 15000}],
+            note="Phiếu hợp lệ",
+        )
+
+        sync_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-valid-01",
+                        "supplierName": "NCC Valid",
+                        "status": "paid",
+                        "note": "Phiếu hợp lệ đã nhập kho",
+                        "createdAt": "2026-04-19T09:00:00+07:00",
+                        "updatedAt": "2026-04-19T09:10:00+07:00",
+                        "receivedAt": "2026-04-19T09:05:00+07:00",
+                        "paidAt": "2026-04-19T09:10:00+07:00",
+                        "receiptCode": receipt["receipt_code"],
+                        "items": [
+                            {
+                                "id": "purchase-item-valid-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 15000,
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
+            }
+        )
+
+        with self.assertRaisesRegex(ValueError, "xử lý phiếu lỗi chưa có nhập kho thật"):
+            self.store.repair_purchase_document(
+                "purchase-valid-01",
+                action="delete",
+                actor="masteradmin",
+            )
+
+    def test_ut_db_09_repair_purchase_document_cancels_draft_with_paid_markers(self) -> None:
+        product = self.store.create_product(
+            name="Phiếu nháp lệch marker",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        now = "2026-04-19T10:10:00+07:00"
+        with self.store._connect() as connection:
+            self.store._replace_sync_collection_records(
+                connection,
+                "purchases",
+                [
+                    {
+                        "id": "purchase-draft-broken-01",
+                        "supplierName": "NCC Draft Broken",
+                        "status": "draft",
+                        "note": "Nháp nhưng còn marker thanh toán",
+                        "createdAt": "2026-04-19T10:00:00+07:00",
+                        "updatedAt": now,
+                        "paidAt": now,
+                        "receiptCode": "PN-DRAFT-BROKEN-01",
+                        "items": [
+                            {
+                                "id": "purchase-item-draft-broken-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 1,
+                                "unitCost": 18000,
+                            }
+                        ],
+                    }
+                ],
+            )
+            canonical = self.store._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            )
+
+        result = self.store.repair_purchase_document(
+            "purchase-draft-broken-01",
+            action="cancel",
+            actor="masteradmin",
+        )
+        repaired = result["purchases"][0]
+        self.assertEqual(repaired["status"], "cancelled")
+        self.assertEqual(repaired["paidAt"], None)
+        self.assertEqual(repaired["receivedAt"], None)
+        self.assertEqual(repaired["receiptCode"], "")
+        self.assertIn("phiếu lỗi", result["message"])
+
+    def test_ut_db_10_legacy_received_purchase_backfills_received_at_from_updated_at(self) -> None:
+        product = self.store.create_product(
+            name="Phiếu nhập legacy thiếu ngày nhận",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        updated_at = "2026-04-19T11:45:00+07:00"
+        with self.store._connect() as connection:
+            self.store._replace_sync_collection_records(
+                connection,
+                "purchases",
+                [
+                    {
+                        "id": "purchase-received-legacy-01",
+                        "supplierName": "NCC Legacy Received",
+                        "status": "received",
+                        "note": "Phiếu cũ thiếu received_at",
+                        "createdAt": "2026-04-19T11:00:00+07:00",
+                        "updatedAt": updated_at,
+                        "receiptCode": "",
+                        "items": [
+                            {
+                                "id": "purchase-item-received-legacy-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 21000,
+                            }
+                        ],
+                    }
+                ],
+            )
+            canonical = self.store._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), updated_at, "purchases"),
+            )
+
+        sync_state = self.store.get_sync_state()
+        purchase = next(entry for entry in sync_state["purchases"] if entry["id"] == "purchase-received-legacy-01")
+        self.assertEqual(purchase["receivedAt"], updated_at)
+
+    def test_ut_db_11_purchase_must_be_ordered_before_receive_and_ordered_remains_editable(self) -> None:
+        product = self.store.create_product(
+            name="Phiếu nhập ordered flow",
+            category="Đồ khô",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        now = "2026-04-19T12:15:00+07:00"
+        draft_purchase = {
+            "id": "purchase-ordered-flow-01",
+            "supplierName": "NCC Ordered Flow",
+            "note": "Phiếu flow test",
+            "status": "draft",
+            "createdAt": now,
+            "updatedAt": now,
+            "receiptCode": "",
+            "items": [
+                {
+                    "id": "purchase-item-ordered-flow-01",
+                    "productId": product["id"],
+                    "productName": product["name"],
+                    "quantity": 1,
+                    "unitCost": 18000,
+                }
+            ],
+        }
+        sync_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "purchases": [draft_purchase],
+                "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
+            }
+        )
+
+        draft_state = self.store.get_sync_state()
+        invalid_receive_payload = copy.deepcopy(draft_state["purchases"])
+        invalid_receive_purchase = invalid_receive_payload[0]
+        invalid_receive_purchase["status"] = "received"
+        invalid_receive_purchase["receivedAt"] = now
+        invalid_receive_purchase["receiptCode"] = "PN-INVALID-01"
+
+        with self.assertRaisesRegex(ValueError, "đặt hàng trước khi nhập kho"):
+            self.store.save_sync_state(
+                {
+                    "purchases": invalid_receive_payload,
+                    "expected_updated_at": {"purchases": draft_state["updated_at"]["purchases"]},
+                }
+            )
+
+        ordered_payload = copy.deepcopy(draft_state["purchases"])
+        ordered_purchase = ordered_payload[0]
+        ordered_purchase["status"] = "ordered"
+        ordered_purchase["note"] = "Đã đặt hàng, còn chỉnh được"
+        ordered_purchase["items"][0]["quantity"] = 2
+        ordered_purchase["items"][0]["unitCost"] = 19000
+
+        self.store.save_sync_state(
+            {
+                "purchases": ordered_payload,
+                "expected_updated_at": {"purchases": draft_state["updated_at"]["purchases"]},
+            }
+        )
+
+        ordered_state = self.store.get_sync_state()
+        editable_ordered_payload = copy.deepcopy(ordered_state["purchases"])
+        editable_ordered_purchase = editable_ordered_payload[0]
+        editable_ordered_purchase["note"] = "Đã đặt hàng, chỉnh tiếp dòng"
+        editable_ordered_purchase["items"][0]["quantity"] = 3
+        editable_ordered_purchase["items"][0]["unitCost"] = 20000
+
+        self.store.save_sync_state(
+            {
+                "purchases": editable_ordered_payload,
+                "expected_updated_at": {"purchases": ordered_state["updated_at"]["purchases"]},
+            }
+        )
+
+        edited_ordered_state = self.store.get_sync_state()
+        received_payload = copy.deepcopy(edited_ordered_state["purchases"])
+        received_purchase = received_payload[0]
+        received_purchase["status"] = "received"
+        received_purchase["receivedAt"] = "2026-04-19T12:20:00+07:00"
+        received_purchase["receiptCode"] = "PN-ORDERED-FLOW-01"
+
+        self.store.save_sync_state(
+            {
+                "purchases": received_payload,
+                "expected_updated_at": {"purchases": edited_ordered_state["updated_at"]["purchases"]},
+            }
+        )
+
+        final_state = self.store.get_sync_state()
+        purchase = next(entry for entry in final_state["purchases"] if entry["id"] == "purchase-ordered-flow-01")
+        self.assertEqual(purchase["status"], "received")
+        self.assertEqual(purchase["receivedAt"], "2026-04-19T12:20:00+07:00")
+        self.assertEqual(purchase["receiptCode"], "PN-ORDERED-FLOW-01")
 
     def test_ut_rep_01_monthly_report_separates_phase_b_receipts_from_sales_and_purchases(self) -> None:
         product = self.store.create_product(
@@ -307,9 +630,31 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertIn("completed", log["message"])
 
     def test_ut_aud_02_save_sync_state_logs_purchase_status_changes_with_actor(self) -> None:
+        product = self.store.create_product(
+            name="Đậu hũ audit",
+            category="Đồ tươi",
+            unit="hộp",
+            low_stock_threshold=2,
+        )
         self.store.save_sync_state(
             {
-                "purchases": [{"id": "purchase-1", "receiptCode": "PN-01", "status": "draft", "items": []}],
+                "purchases": [
+                    {
+                        "id": "purchase-1",
+                        "receiptCode": "PN-01",
+                        "status": "draft",
+                        "items": [
+                            {
+                                "id": "purchase-item-1",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "unit": product["unit"],
+                                "quantity": 1,
+                                "unitCost": 12000,
+                            }
+                        ],
+                    }
+                ],
                 "expected_updated_at": {"purchases": self.store.get_sync_state()["updated_at"]["purchases"]},
                 "actor": "thu-ngan-b",
             }
@@ -317,7 +662,23 @@ class InventoryStoreTests(unittest.TestCase):
         sync_state = self.store.get_sync_state()
         self.store.save_sync_state(
             {
-                "purchases": [{"id": "purchase-1", "receiptCode": "PN-01", "status": "ordered", "items": []}],
+                "purchases": [
+                    {
+                        "id": "purchase-1",
+                        "receiptCode": "PN-01",
+                        "status": "ordered",
+                        "items": [
+                            {
+                                "id": "purchase-item-1",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "unit": product["unit"],
+                                "quantity": 1,
+                                "unitCost": 12000,
+                            }
+                        ],
+                    }
+                ],
                 "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
                 "actor": "thu-ngan-b",
             }
@@ -508,7 +869,9 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(receipt_items["total"], 2)
 
     def test_ut_norm_03_legacy_app_state_is_migrated_to_normalized_tables_on_bootstrap(self) -> None:
-        legacy_db = Path(self.temp_dir.name) / "legacy.db"
+        fd, legacy_file = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        legacy_db = Path(legacy_file)
         now = "2026-01-02T00:00:00+00:00"
         with sqlite3.connect(str(legacy_db)) as connection:
             connection.executescript(
@@ -574,8 +937,67 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertTrue(any(entry["id"] == "legacy-customer" for entry in state["customers"]))
         self.assertTrue(any(entry["id"] == "legacy-supplier" for entry in state["suppliers"]))
         self.assertTrue(any(entry["id"] == "legacy-cart" for entry in state["carts"]))
-        self.assertTrue(any(entry["id"] == "legacy-purchase" for entry in state["purchases"]))
+        self.assertFalse(any(entry["id"] == "legacy-purchase" for entry in state["purchases"]))
         del migrated_store
+        gc.collect()
+
+    def test_ut_norm_04_empty_purchase_drafts_are_not_persisted(self) -> None:
+        product = self.store.create_product(
+            name="Đậu hũ non",
+            category="Đồ tươi",
+            unit="hộp",
+            low_stock_threshold=2,
+        )
+        now = "2026-04-19T12:00:00+07:00"
+        sync_state = self.store.get_sync_state()
+        result = self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-empty-01",
+                        "supplierName": "NCC Rỗng",
+                        "status": "draft",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "items": [],
+                    },
+                    {
+                        "id": "purchase-filled-01",
+                        "supplierName": "NCC Có Hàng",
+                        "status": "draft",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "items": [
+                            {
+                                "id": "purchase-item-filled-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "unit": product["unit"],
+                                "quantity": 2,
+                                "unitCost": 15000,
+                            }
+                        ],
+                    },
+                ],
+                "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
+            }
+        )
+
+        saved_ids = [entry["id"] for entry in result["purchases"]]
+
+        with self.store._connect() as connection:
+            purchase_count = connection.execute(
+                "SELECT COUNT(*) AS total FROM purchases"
+            ).fetchone()["total"]
+            purchase_item_count = connection.execute(
+                "SELECT COUNT(*) AS total FROM purchase_items"
+            ).fetchone()["total"]
+
+        self.assertNotIn("purchase-empty-01", saved_ids)
+        self.assertIn("purchase-filled-01", saved_ids)
+        self.assertEqual(purchase_count, 1)
+        self.assertEqual(purchase_item_count, 1)
+
 
 
 if __name__ == "__main__":

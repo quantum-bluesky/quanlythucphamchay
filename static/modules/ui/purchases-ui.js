@@ -9,9 +9,13 @@ export function createPurchasesUi(deps) {
     mobileQuery,
     getActivePurchase,
     canEditPurchase,
+    canEditPurchaseSupplier,
     canDeletePurchase,
+    canCancelPurchase,
     canMarkPurchasePaid,
+    canReceivePurchase,
     isLockedPurchase,
+    isRepairableInvalidPurchase,
     getPurchaseSuggestions,
     isSearchResultMode,
     paginateItems,
@@ -30,15 +34,22 @@ export function createPurchasesUi(deps) {
 
   function renderPurchasePanel() {
     dom.createPurchaseDraftButton.textContent = mobileQuery.matches ? "Tạo phiếu" : "Tạo phiếu nháp";
+    const purchase = getActivePurchase();
+    const purchaseSupplierEditable = canEditPurchaseSupplier(purchase);
     if (dom.purchaseSupplierMenuButton) {
       dom.purchaseSupplierMenuButton.textContent = mobileQuery.matches ? "NCC" : "Nhà cung cấp";
+      dom.purchaseSupplierMenuButton.disabled = Boolean(purchase) && !purchaseSupplierEditable;
+      dom.purchaseSupplierMenuButton.title = purchase && !purchaseSupplierEditable
+        ? "Chỉ phiếu nháp mới được đổi nhà cung cấp."
+        : "";
     }
     dom.togglePurchasePanelButton.textContent = mobileQuery.matches
       ? (state.purchasePanelCollapsed ? "Mở phiếu" : "Thu gọn")
       : (state.purchasePanelCollapsed ? "Mở phiếu nhập" : "Thu gọn phiếu nhập");
-    const purchase = getActivePurchase();
     const purchaseEditable = canEditPurchase(purchase);
+    const purchaseCancellable = canCancelPurchase(purchase);
     const purchaseLocked = isLockedPurchase(purchase);
+    const repairableInvalidPurchase = isRepairableInvalidPurchase(purchase);
     if (state.purchasePanelCollapsed) {
       dom.purchasePanel.innerHTML = `<article class="empty-state">Phiếu nhập đang được thu gọn.</article>`;
       return;
@@ -48,6 +59,13 @@ export function createPurchasesUi(deps) {
       return;
     }
     const totalAmount = purchase.items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const detailRows = [
+      { label: "Mã phiếu", value: purchase.receiptCode || "Chưa có" },
+      { label: "Ngày tạo", value: formatDate(purchase.createdAt) || "Chưa có" },
+      { label: "Nhập kho", value: formatDate(purchase.receivedAt) || "Chưa có" },
+      { label: "Thanh toán", value: formatDate(purchase.paidAt) || "Chưa có" },
+      { label: "Cập nhật cuối", value: formatDate(purchase.updatedAt) || "Chưa có" },
+    ];
     const selectedItemsMarkup = purchase.items.length ? purchase.items.map((item) => `
       <article class="cart-item">
         <div class="cart-item-header">
@@ -79,7 +97,17 @@ export function createPurchasesUi(deps) {
           <div class="stat-chip"><span>Tổng SL</span><strong>${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))}</strong></div>
           <div class="stat-chip"><span>Tổng tiền</span><strong>${formatCurrency(totalAmount)}</strong></div>
         </div>
-        ${purchaseLocked ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
+        <div class="report-list">
+          <article class="report-card">
+            <div class="report-card-head">
+              <strong>Ngày xử lý và mã phiếu</strong>
+              <span class="status-pill draft">Detail</span>
+            </div>
+            ${detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
+          </article>
+        </div>
+        ${repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đang ở trạng thái lỗi dữ liệu: marker xử lý và trạng thái hiện tại không còn khớp nhau. Có thể hủy hoặc xóa để dọn dữ liệu lỗi, app sẽ không khôi phục lại thành nháp.</article>` : ""}
+        ${purchaseLocked && !repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
         <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">
           <div class="subheading selected-items-heading">
             <div>
@@ -92,11 +120,11 @@ export function createPurchasesUi(deps) {
           <div class="cart-items-list selected-items-body" ${state.selectedPurchaseItemsCollapsed ? "hidden" : ""}>${selectedItemsMarkup}</div>
         </section>
         <div class="cart-toolbar">
-          ${purchaseEditable ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>` : ""}
-          ${purchaseEditable ? `<button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>` : ""}
+          ${purchase.status === "draft" ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>` : ""}
+          ${canReceivePurchase(purchase) ? `<button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>` : ""}
           ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
-          ${["received", "paid"].includes(purchase.status) ? `<button type="button" class="ghost-button" data-purchase-action="supplier-return">Trả NCC</button>` : ""}
-          ${purchaseEditable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
+          ${["received", "paid"].includes(purchase.status) && !repairableInvalidPurchase ? `<button type="button" class="ghost-button" data-purchase-action="supplier-return">Trả NCC</button>` : ""}
+          ${purchaseCancellable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
           ${canDeletePurchase(purchase) ? `<button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>` : ""}
         </div>
       </article>

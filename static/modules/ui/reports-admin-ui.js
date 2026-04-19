@@ -5,6 +5,7 @@ export function createReportsAdminUi(deps) {
     escapeHtml,
     formatCurrency,
     formatQuantity,
+    formatDate,
     formatMonthLabel,
     formatDateOnly,
     paginateItems,
@@ -29,6 +30,7 @@ export function createReportsAdminUi(deps) {
     if (dom.reportStartDateInput) dom.reportStartDateInput.value = state.reportStartDate || "";
     if (dom.reportEndDateInput) dom.reportEndDateInput.value = state.reportEndDate || "";
     if (dom.reportRangeSelect) dom.reportRangeSelect.value = String(state.reportRangeMonths);
+    if (dom.reportReceiptSearchInput) dom.reportReceiptSearchInput.value = state.reportReceiptSearchTerm || "";
 
     if (!state.reports) {
       dom.reportSummaryCards.innerHTML = "";
@@ -36,6 +38,7 @@ export function createReportsAdminUi(deps) {
       dom.forecastList.innerHTML = '<div class="empty-state">Chưa có dữ liệu dự báo.</div>';
       dom.reportProductActivity.innerHTML = '<div class="empty-state">Chưa có dữ liệu sản phẩm theo tháng.</div>';
       dom.reportReceiptHistoryList.innerHTML = '<div class="empty-state">Chưa có dữ liệu audit chứng từ.</div>';
+      if (dom.reportReceiptReferenceOptions) dom.reportReceiptReferenceOptions.innerHTML = "";
       return;
     }
 
@@ -87,10 +90,39 @@ export function createReportsAdminUi(deps) {
       supplier_return: { label: "Trả NCC", statusClass: "cancelled" },
     };
     const receiptHistory = Array.isArray(state.receiptHistory) ? state.receiptHistory : [];
-    if (!receiptHistory.length) {
+    const referenceOptions = Array.from(
+      new Set(
+        receiptHistory.flatMap((entry) => [entry.receipt_code || "", entry.source_code || ""]).filter(Boolean)
+      )
+    ).sort((left, right) => left.localeCompare(right, "vi"));
+    if (dom.reportReceiptReferenceOptions) {
+      dom.reportReceiptReferenceOptions.innerHTML = referenceOptions
+        .map((code) => `<option value="${escapeHtml(code)}"></option>`)
+        .join("");
+    }
+    const receiptSearchTerm = String(state.reportReceiptSearchTerm || "").trim().toLowerCase();
+    const visibleReceiptHistory = receiptHistory.filter((entry) => {
+      if (!receiptSearchTerm) {
+        return true;
+      }
+      const counterpart = entry.customer_name || entry.supplier_name || entry.actor || "";
+      const haystack = [
+        entry.receipt_code,
+        entry.source_code,
+        entry.note,
+        entry.reason,
+        entry.audit_message,
+        counterpart,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(receiptSearchTerm);
+    });
+    if (!visibleReceiptHistory.length) {
       dom.reportReceiptHistoryList.innerHTML = '<div class="empty-state">Chưa có phiếu điều chỉnh hoặc trả hàng trong kỳ đang xem.</div>';
     } else {
-      const pageData = paginateItems(receiptHistory, "reportReceipts");
+      const pageData = paginateItems(visibleReceiptHistory, "reportReceipts");
       dom.reportReceiptHistoryList.innerHTML = pageData.items.map((entry) => {
         const meta = receiptTypeMeta[entry.receipt_type] || { label: entry.receipt_type || "Chứng từ", statusClass: "draft" };
         const counterpart = entry.customer_name || entry.supplier_name || entry.actor || "Không có đối tượng";
@@ -98,7 +130,7 @@ export function createReportsAdminUi(deps) {
           ? `Nguồn: ${entry.source_type === "order" ? "Đơn" : entry.source_type === "purchase" ? "Phiếu nhập" : "Chứng từ"} ${entry.source_code}`
           : "";
         const note = entry.audit_message || entry.note || entry.reason || "";
-        return `<article class="report-card"><div class="report-card-head"><strong>${escapeHtml(entry.receipt_code)}</strong><span class="status-pill ${escapeHtml(meta.statusClass)}">${escapeHtml(meta.label)}</span></div><div class="report-card-meta"><span>${escapeHtml(formatDateOnly(entry.created_at))}</span><span>${escapeHtml(counterpart)}</span></div><div class="report-card-row"><span>Số dòng / Tổng SL</span><span>${escapeHtml(String(entry.item_count || 0))} / ${escapeHtml(formatQuantity(entry.total_quantity || 0))}</span></div><div class="report-card-row"><span>Tổng tiền</span><span>${escapeHtml(formatCurrency(entry.total_amount || 0))}</span></div>${sourceLabel ? `<div class="report-card-row"><span>Liên kết nguồn</span><span>${escapeHtml(sourceLabel)}</span></div>` : ""}<div class="cart-line-note">${escapeHtml(note || "Không có ghi chú audit.")}</div></article>`;
+        return `<article class="report-card"><div class="report-card-head"><strong>${escapeHtml(entry.receipt_code)}</strong><span class="status-pill ${escapeHtml(meta.statusClass)}">${escapeHtml(meta.label)}</span></div><div class="report-card-meta"><span>${escapeHtml(formatDateOnly(entry.created_at))}</span><span>${escapeHtml(counterpart)}</span></div><div class="report-card-row"><span>Ngày xử lý</span><span>${escapeHtml(formatDate(entry.created_at))}</span></div><div class="report-card-row"><span>Số dòng / Tổng SL</span><span>${escapeHtml(String(entry.item_count || 0))} / ${escapeHtml(formatQuantity(entry.total_quantity || 0))}</span></div><div class="report-card-row"><span>Tổng tiền</span><span>${escapeHtml(formatCurrency(entry.total_amount || 0))}</span></div>${sourceLabel ? `<div class="report-card-row"><span>Liên kết nguồn</span><span>${escapeHtml(sourceLabel)}</span></div>` : ""}<div class="cart-line-note">${escapeHtml(note || "Không có ghi chú audit.")}</div></article>`;
       }).join("") + renderPagination("reportReceipts", pageData);
     }
   }

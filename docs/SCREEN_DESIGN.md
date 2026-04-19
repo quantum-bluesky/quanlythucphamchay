@@ -6,6 +6,23 @@ Nguồn tổng hợp:
 - `static/app.js`
 - `README.md`
 - `docs/HUONG_DAN_SU_DUNG.md`
+- `docs/DB_DESIGN.md`
+- `docs/BUSINESS_FLOW.md`
+
+## 0. Sơ đồ tài liệu design
+
+`SCREEN_DESIGN.md` là tài liệu common design để base khi sửa UI/workflow.
+
+Khi thay đổi ở mức tổng quát, cập nhật ngay file này. Khi thay đổi sâu theo domain, cập nhật thêm tài liệu detail liên quan.
+
+Tài liệu common liên quan:
+
+- [DB_DESIGN.md](DB_DESIGN.md)
+- [BUSINESS_FLOW.md](BUSINESS_FLOW.md)
+
+Liên kết detail hiện có:
+
+- Hiển thị các phiếu/chứng từ: [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 
 ## 1. Nguyên tắc UI chung
 
@@ -46,8 +63,11 @@ Nguồn tổng hợp:
   - giỏ hiện hành
   - search sản phẩm trong bán hàng
 - nguyên tắc UI:
-  - hàng đã chọn được gom lên trên
-  - hàng đã chọn ẩn khỏi danh sách dưới
+  - nút `...` luôn hiện trên card sản phẩm để toggle detail
+  - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
+  - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
+  - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
+  - không dùng cụm nút tăng giảm nhanh trong `Giỏ hiện hành` để tránh rối trên mobile
 
 ### `orders` - Quản lý đơn hàng
 
@@ -59,6 +79,9 @@ Nguồn tổng hợp:
   - search đơn hàng
   - filter hiện đơn đã xong / đã thanh toán
   - danh sách order card
+- nguyên tắc UI:
+  - giỏ nháp đang chờ xuất có nút `Xuất` nhanh ngay trên card trên tablet/PC
+  - trên mobile, `Xuất` nằm trong menu `...` để tránh quá tải nút trực tiếp nhưng vẫn thao tác nhanh được
 
 ### `customers` - Quản lý khách hàng
 
@@ -97,6 +120,10 @@ Nguồn tổng hợp:
 - nguyên tắc UI:
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
+  - nút `Nhập kho` chỉ hiện khi phiếu đã ở trạng thái `Đã đặt`; phiếu `Nháp` vẫn còn chỉnh sửa được nhưng chưa cho nhập kho
+  - ô NCC và nút `NCC` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
+- tài liệu detail:
+  - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 
 ### `suppliers` - Quản lý nhà cung cấp
 
@@ -119,6 +146,9 @@ Nguồn tổng hợp:
   - trend chart/list
   - forecast list
   - chi tiết hoạt động sản phẩm
+  - audit chứng từ
+- tài liệu detail:
+  - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 
 ### `history` - Lịch sử & khôi phục
 
@@ -179,3 +209,9 @@ Các cặp điều hướng chính:
 - các list dài dùng phân trang `Trước / Sau`
 - action phụ nên gom vào `...` khi cần
 - form quản trị đối tượng không nên che mất phần danh sách
+
+## 6. Quy ước cập nhật tài liệu
+
+- đổi common layout, điều hướng, field hiển thị dùng lại nhiều màn: cập nhật `SCREEN_DESIGN.md`
+- đổi detail theo domain: cập nhật file design detail tương ứng và giữ liên kết từ file common sang file detail
+- khi thêm tài liệu design detail mới, bổ sung link ngay trong mục `Sơ đồ tài liệu design`

@@ -122,14 +122,24 @@ export function registerEntitiesControllerEvents(contract) {
       const editingSupplierId = state.editingSupplierFormId;
       const isPurchaseSupplierFlow = state.pendingPurchaseSupplierFlow;
       const savedSupplierName = dom.supplierNameInput.value.trim();
+      const activePurchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
+      const activePurchaseHasItems = Boolean(activePurchase && Array.isArray(activePurchase.items) && activePurchase.items.length);
       if (isPurchaseSupplierFlow) {
         dom.purchaseSupplierInput.value = savedSupplierName;
-        const purchase = actions.createPurchaseDraftIfMissing();
-        if (purchase) {
-          actions.updatePurchase(purchase.id, () => ({
+        state.pendingPurchaseSupplierName = savedSupplierName;
+        if (activePurchaseHasItems) {
+          actions.updatePurchase(activePurchase.id, () => ({
             supplierName: savedSupplierName,
             note: dom.purchaseNoteInput.value.trim(),
           }));
+        } else {
+          const purchase = actions.createPurchaseDraftIfMissing();
+          if (purchase) {
+            actions.updatePurchase(purchase.id, () => ({
+              supplierName: savedSupplierName,
+              note: dom.purchaseNoteInput.value.trim(),
+            }));
+          }
         }
       }
       actions.upsertSupplier({
@@ -138,14 +148,14 @@ export function registerEntitiesControllerEvents(contract) {
         address: dom.supplierAddressInput.value,
         note: dom.supplierNoteInput.value,
       }, editingSupplierId, {
-        extraCollections: isPurchaseSupplierFlow ? ["purchases"] : [],
+        extraCollections: isPurchaseSupplierFlow && activePurchaseHasItems ? ["purchases"] : [],
       });
       dom.supplierForm.reset();
       state.editingSupplierFormId = null;
       state.supplierFormCollapsed = true;
       renderers.renderEntityForms();
       if (isPurchaseSupplierFlow) {
-        actions.clearPendingPurchaseSupplierFlow();
+        state.pendingPurchaseSupplierFlow = false;
         actions.switchMenu("purchases");
         window.setTimeout(() => {
           dom.purchaseSupplierInput?.focus();
@@ -196,10 +206,11 @@ export function registerEntitiesControllerEvents(contract) {
     }
     if (button.dataset.supplierAction === "use") {
       dom.purchaseSupplierInput.value = supplier.name;
+      state.pendingPurchaseSupplierName = supplier.name;
       actions.switchMenu("purchases");
-      actions.createPurchaseDraftIfMissing();
-      const purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId);
-      if (purchase) {
+      const purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
+      const purchaseHasItems = Boolean(purchase && Array.isArray(purchase.items) && purchase.items.length);
+      if (purchaseHasItems) {
         actions.updatePurchase(purchase.id, () => ({ supplierName: supplier.name, note: dom.purchaseNoteInput.value.trim() }));
         actions.saveAndRenderAll(["purchases"]);
         actions.focusPurchasePanel();
