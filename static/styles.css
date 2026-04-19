@@ -737,6 +737,14 @@ button:disabled {
   font-size: 0.92rem;
 }
 
+.sales-product-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
 .product-row-body {
   display: grid;
   gap: 12px;
@@ -939,10 +947,9 @@ button:disabled {
 
 .sales-inline-editor {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   align-items: end;
-  margin-top: 10px;
 }
 
 .sales-inline-qty {
@@ -995,11 +1002,46 @@ button:disabled {
 .cart-item {
   display: grid;
   gap: 12px;
+  border-color: rgba(228, 184, 149, 0.72);
+  background: linear-gradient(180deg, rgba(255, 252, 247, 0.98) 0%, rgba(255, 247, 240, 0.9) 100%);
 }
 
 .cart-item-controls {
   display: grid;
   gap: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(34, 49, 39, 0.16);
+}
+
+.cart-item-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cart-item-header-compact {
+  align-items: flex-start;
+}
+
+.cart-item-primary {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cart-item-name {
+  line-height: 1.2;
+}
+
+.cart-item-summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cart-item-collapsed-meta {
+  min-height: 1.2em;
 }
 
 .qty-control {
@@ -1782,6 +1824,10 @@ button:disabled {
     font-size: 0.84rem;
   }
 
+  [data-menu-section="create-order"] .sales-product-meta-row {
+    align-items: flex-start;
+  }
+
   [data-menu-section="create-order"] .sales-product-list .status-pill {
     min-height: 28px;
     padding: 4px 10px;
@@ -1789,7 +1835,6 @@ button:disabled {
   }
 
   [data-menu-section="create-order"] .sales-inline-editor {
-    margin-top: 6px;
     gap: 8px;
   }
 
@@ -1808,6 +1853,11 @@ button:disabled {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
+  }
+
+  [data-menu-section="create-order"] .cart-item-edit-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   [data-menu-section="orders"] .panel-heading .panel-note {

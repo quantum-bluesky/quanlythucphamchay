@@ -82,21 +82,32 @@ export function registerSalesControllerEvents(contract) {
   dom.salesProductList.addEventListener("click", async (event) => {
     const actionButton = event.target.closest("[data-sales-inline-action]");
     if (!actionButton) return;
-    const activeCart = queries.getActiveCart();
-    if (!activeCart) {
-      actions.showToast("Hãy mở giỏ hàng trước.", true);
-      return;
-    }
 
     if (actionButton.dataset.salesInlineAction === "toggle-detail") {
       const productId = Number(actionButton.dataset.productId);
-      state.expandedSalesProductId = state.expandedSalesProductId === productId ? null : productId;
+      const activeCart = queries.getActiveCart();
+      const selectedItem = activeCart?.items.find((item) => Number(item.productId) === productId);
+      const isExpanded = state.expandedSalesProductId === productId;
+      if (isExpanded) {
+        state.expandedSalesProductId = null;
+        if (selectedItem) {
+          state.visibleSelectedSalesProductId = productId;
+        }
+      } else {
+        state.expandedSalesProductId = productId;
+        state.visibleSelectedSalesProductId = selectedItem ? productId : null;
+      }
       renderers.renderSalesProductList();
       return;
     }
     if (actionButton.dataset.salesInlineAction === "collapse") {
       state.expandedSalesProductId = null;
       renderers.renderSalesProductList();
+      return;
+    }
+    const activeCart = queries.getActiveCart();
+    if (!activeCart) {
+      actions.showToast("Hãy mở giỏ hàng trước.", true);
       return;
     }
     if (actionButton.dataset.salesInlineAction === "remove") {
@@ -157,26 +168,15 @@ export function registerSalesControllerEvents(contract) {
   });
 
   dom.cartItemsList.addEventListener("click", async (event) => {
-    const deltaButton = event.target.closest("[data-qty-delta]");
-    if (deltaButton) {
-      const cart = queries.getActiveCart();
-      const item = cart?.items.find((entry) => entry.id === deltaButton.dataset.itemId);
-      if (!item) return;
-      const nextQuantity = Number((Number(item.quantity) + Number(deltaButton.dataset.qtyDelta)).toFixed(2));
-      if (nextQuantity <= 0) {
-        actions.removeCartItem(item.id);
-      } else {
-        actions.updateCartItem(item.id, { quantity: nextQuantity });
-      }
-      renderers.renderCartItems();
-      renderers.renderSalesProductList();
-      renderers.renderActiveCartPanel();
-      return;
-    }
-
     const lineButton = event.target.closest("[data-line-action], [data-cart-item-action]");
     if (!lineButton) return;
     const lineAction = lineButton.dataset.lineAction || lineButton.dataset.cartItemAction;
+    if (lineAction === "toggle-detail") {
+      const itemId = lineButton.dataset.itemId;
+      state.expandedSelectedCartItemId = state.expandedSelectedCartItemId === itemId ? null : itemId;
+      renderers.renderCartItems();
+      return;
+    }
     if (lineAction === "remove") {
       actions.removeCartItem(lineButton.dataset.itemId);
       renderers.renderCartItems();
