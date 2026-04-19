@@ -2675,14 +2675,18 @@ class InventoryStore:
             previous = existing_by_id.get(purchase_id)
             previous_status = str(previous.get("status") or "draft") if previous else None
 
-            if previous_status in {"received", "paid"}:
-                if next_status != previous_status:
-                    if previous_status == "received":
-                        raise ValueError("Phiếu nhập đã nhập kho không thể hạ trạng thái hoặc mở lại nháp.")
+            if previous_status == "received":
+                if next_status not in {"received", "paid"}:
+                    raise ValueError("Phiếu nhập đã nhập kho không thể hạ trạng thái hoặc mở lại nháp.")
+                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
+                    raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
+                if next_status == "received":
+                    continue
+
+            if previous_status == "paid":
+                if next_status != "paid":
                     raise ValueError("Phiếu nhập đã thanh toán không thể hạ trạng thái hoặc mở lại nháp.")
                 if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
-                    if previous_status == "received":
-                        raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
                     raise ValueError("Phiếu nhập đã thanh toán không thể sửa trực tiếp.")
                 continue
 

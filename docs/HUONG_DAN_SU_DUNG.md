@@ -234,9 +234,9 @@ Màn này có 2 phần:
 7. Bấm `Lưu dòng` nếu có chỉnh
 8. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
 9. Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; nếu phiếu đang trống thì app chỉ giữ trạng thái mở tạm trên màn hình
-10. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, bấm `NCC` để mở form nhà cung cấp với tên đang nhập; nếu tên đó đã tồn tại thì app sẽ mở thẳng chế độ sửa NCC
+10. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, chỉ khi phiếu còn `Nháp` mới bấm được `NCC` để mở form nhà cung cấp với tên đang nhập; nếu tên đó đã tồn tại thì app sẽ mở thẳng chế độ sửa NCC
 11. Lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
-12. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`; từ lúc này phiếu vẫn còn chỉnh được nếu nhà cung cấp yêu cầu đổi số lượng hoặc giá
+12. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`; từ lúc này phiếu vẫn còn chỉnh được nếu nhà cung cấp yêu cầu đổi số lượng hoặc giá, nhưng không còn được đổi NCC
 13. Khi hàng về thực tế và phiếu đã là `Đã đặt`, bấm `Nhập kho`
 14. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 15. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
@@ -253,6 +253,7 @@ Màn này có 2 phần:
 Lưu ý:
 
 - chỉ `Nháp` và `Đã đặt` mới được sửa trực tiếp dòng hàng
+- chỉ `Nháp` mới được đổi nhà cung cấp; từ `Đã đặt` trở đi ô NCC và nút `NCC` sẽ bị khóa
 - phiếu đã `Đã nhập kho`, `Đã thanh toán` hoặc `Đã hủy` sẽ chuyển sang chế độ chỉ xem để giữ lịch sử đúng workflow
 - kể cả `Master Admin` cũng không được xóa hoặc hủy ngược các phiếu đã khóa, trừ ngoại lệ phiếu lỗi dữ liệu bị lệch marker/trạng thái nói ở trên
 
@@ -277,7 +278,7 @@ Nên lưu:
 2. Khi cần tạo mới, bấm `Thêm mới` để mở form
 3. Lưu nhà cung cấp rồi dùng lại trong phiếu nhập
 4. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
-5. Nếu đi từ màn `NH` sang bằng nút `NCC`, app sẽ mở sẵn form theo tên đang gõ; nếu NCC đã tồn tại thì app chuyển luôn sang chế độ sửa
+5. Nếu đi từ màn `NH` sang bằng nút `NCC`, app sẽ mở sẵn form theo tên đang gõ; thao tác này chỉ dùng được khi phiếu nhập còn là `Nháp`
 6. Có thể bấm `Dùng cho phiếu nhập` để chuyển nhanh sang màn nhập hàng
 
 ## 10. Luồng báo cáo tháng

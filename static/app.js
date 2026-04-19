@@ -824,6 +824,7 @@ function getPurchasesUi() {
       mobileQuery,
       getActivePurchase,
       canEditPurchase,
+      canEditPurchaseSupplier,
       canReceivePurchase,
       canDeletePurchase,
       canCancelPurchase,
@@ -1364,6 +1365,10 @@ function canDeleteCart(cart) {
 
 function canEditPurchase(purchase) {
   return getPurchasesDomainHelpers().canEditPurchase(purchase);
+}
+
+function canEditPurchaseSupplier(purchase) {
+  return getPurchasesDomainHelpers().canEditPurchaseSupplier(purchase);
 }
 
 function canDeletePurchase(purchase) {
@@ -3136,11 +3141,22 @@ function renderAll() {
     customerLookupInput.value = activeCart.customerName;
   }
   const activePurchase = getActivePurchase();
+  const supplierEditable = canEditPurchaseSupplier(activePurchase);
   if (activePurchase) {
-    purchaseSupplierInput.value = activePurchase.supplierName || state.pendingPurchaseSupplierName || "";
+    purchaseSupplierInput.value = activePurchase.supplierName || (supplierEditable ? state.pendingPurchaseSupplierName : "") || "";
     purchaseNoteInput.value = activePurchase.note || "";
-  } else if (state.pendingPurchaseSupplierName) {
-    purchaseSupplierInput.value = state.pendingPurchaseSupplierName;
+  } else {
+    purchaseSupplierInput.value = state.pendingPurchaseSupplierName || "";
+    purchaseNoteInput.value = "";
+  }
+  if (purchaseSupplierInput) {
+    purchaseSupplierInput.disabled = Boolean(activePurchase) && !supplierEditable;
+  }
+  if (purchaseSupplierMenuButton) {
+    purchaseSupplierMenuButton.disabled = Boolean(activePurchase) && !supplierEditable;
+    purchaseSupplierMenuButton.title = activePurchase && !supplierEditable
+      ? "Chỉ phiếu nháp mới được đổi nhà cung cấp."
+      : "";
   }
   if (productHistoryActorInput) {
     productHistoryActorInput.value = state.productHistoryActorFilter || "";
@@ -3808,6 +3824,7 @@ registerPurchasesControllerEvents({
     getActivePurchase,
     getProductById,
     canEditPurchase,
+    canEditPurchaseSupplier,
     canReceivePurchase,
     canCancelPurchase,
     canDeletePurchase,

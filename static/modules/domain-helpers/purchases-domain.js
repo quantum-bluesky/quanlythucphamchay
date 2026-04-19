@@ -52,6 +52,10 @@ export function createPurchasesDomainHelpers(deps) {
     return Boolean(purchase && ["draft", "ordered"].includes(purchase.status));
   }
 
+  function canEditPurchaseSupplier(purchase) {
+    return Boolean(purchase && purchase.status === "draft");
+  }
+
   function canDeletePurchase(purchase) {
     return Boolean(purchase && (purchase.status === "draft" || isRepairableInvalidPurchase(purchase)));
   }
@@ -187,6 +191,7 @@ export function createPurchasesDomainHelpers(deps) {
     canReceivePurchase,
     isRepairableInvalidPurchase,
     canEditPurchase,
+    canEditPurchaseSupplier,
     canDeletePurchase,
     canCancelPurchase,
     isLockedPurchase,

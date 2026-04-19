@@ -9,6 +9,7 @@ export function createPurchasesUi(deps) {
     mobileQuery,
     getActivePurchase,
     canEditPurchase,
+    canEditPurchaseSupplier,
     canDeletePurchase,
     canCancelPurchase,
     canMarkPurchasePaid,
@@ -33,13 +34,18 @@ export function createPurchasesUi(deps) {
 
   function renderPurchasePanel() {
     dom.createPurchaseDraftButton.textContent = mobileQuery.matches ? "Tạo phiếu" : "Tạo phiếu nháp";
+    const purchase = getActivePurchase();
+    const purchaseSupplierEditable = canEditPurchaseSupplier(purchase);
     if (dom.purchaseSupplierMenuButton) {
       dom.purchaseSupplierMenuButton.textContent = mobileQuery.matches ? "NCC" : "Nhà cung cấp";
+      dom.purchaseSupplierMenuButton.disabled = Boolean(purchase) && !purchaseSupplierEditable;
+      dom.purchaseSupplierMenuButton.title = purchase && !purchaseSupplierEditable
+        ? "Chỉ phiếu nháp mới được đổi nhà cung cấp."
+        : "";
     }
     dom.togglePurchasePanelButton.textContent = mobileQuery.matches
       ? (state.purchasePanelCollapsed ? "Mở phiếu" : "Thu gọn")
       : (state.purchasePanelCollapsed ? "Mở phiếu nhập" : "Thu gọn phiếu nhập");
-    const purchase = getActivePurchase();
     const purchaseEditable = canEditPurchase(purchase);
     const purchaseCancellable = canCancelPurchase(purchase);
     const purchaseLocked = isLockedPurchase(purchase);
