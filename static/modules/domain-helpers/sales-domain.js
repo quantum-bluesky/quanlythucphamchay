@@ -168,7 +168,15 @@ export function createSalesDomainHelpers(deps) {
       return { ...currentCart, items: nextItems, updatedAt: nowIso() };
     });
 
-    state.expandedSalesProductId = checked ? product.id : (state.expandedSalesProductId === product.id ? null : state.expandedSalesProductId);
+    if (checked && state.expandedSalesProductId === product.id) {
+      state.visibleSelectedSalesProductId = product.id;
+    }
+    if (!checked && state.expandedSalesProductId === product.id) {
+      state.expandedSalesProductId = null;
+    }
+    if (!checked && state.visibleSelectedSalesProductId === product.id) {
+      state.visibleSelectedSalesProductId = null;
+    }
     saveAndRenderAll(["carts"]);
   }
 
@@ -191,6 +199,16 @@ export function createSalesDomainHelpers(deps) {
       items: currentCart.items.filter((item) => item.id !== itemId),
       updatedAt: nowIso(),
     }));
+    const removedItem = cart.items.find((item) => item.id === itemId);
+    if (state.expandedSelectedCartItemId === itemId) {
+      state.expandedSelectedCartItemId = null;
+    }
+    if (removedItem && state.visibleSelectedSalesProductId === removedItem.productId) {
+      state.visibleSelectedSalesProductId = null;
+    }
+    if (removedItem && state.expandedSalesProductId === removedItem.productId) {
+      state.expandedSalesProductId = null;
+    }
     saveAndRenderAll(["carts"]);
   }
 

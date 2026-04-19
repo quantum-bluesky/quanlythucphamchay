@@ -141,6 +141,7 @@ Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối
 - không revert thay đổi của user nếu không được yêu cầu
 - ưu tiên mobile UX vì app được dùng nhiều trên điện thoại
 - khi thêm button/action mới trên mobile, cân nhắc thu gọn, sticky, overflow `...` và tránh che nội dung
+- nếu yêu cầu mới làm lệch workflow/UI đã được định nghĩa trong tài liệu design hoặc business flow, phải confirm rõ lại với user trước khi sửa; không tự đổi ngầm hành vi đã được document
 
 ## Quy ước UI/UX cho repo này
 

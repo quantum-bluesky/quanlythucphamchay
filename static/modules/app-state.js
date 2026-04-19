@@ -78,6 +78,8 @@ export const state = {
   showPaidPurchases: false,
   expandedProductId: null,
   expandedSalesProductId: null,
+  visibleSelectedSalesProductId: null,
+  expandedSelectedCartItemId: null,
   expandedOrderId: null,
   inventoryAdjustmentReasons: {},
   inventoryReceiptDraft: {

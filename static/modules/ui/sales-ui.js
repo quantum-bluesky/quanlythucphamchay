@@ -83,11 +83,12 @@ export function createSalesUi(deps) {
   function renderSalesProductList() {
     const activeCart = getActiveCart();
     const selectedProductIds = new Set((activeCart?.items || []).map((item) => Number(item.productId)));
-    const compact = mobileQuery.matches;
     const filtered = state.products.filter((product) => {
       const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
-      const isExpandedSelected = selectedProductIds.has(Number(product.id)) && state.expandedSalesProductId === Number(product.id);
-      return text.includes(state.salesSearchTerm.toLowerCase()) && (!selectedProductIds.has(Number(product.id)) || isExpandedSelected);
+      const isSelected = selectedProductIds.has(Number(product.id));
+      const isExpandedSelected = isSelected && state.expandedSalesProductId === Number(product.id);
+      const keepVisibleSelected = isSelected && state.visibleSelectedSalesProductId === Number(product.id);
+      return text.includes(state.salesSearchTerm.toLowerCase()) && (!isSelected || isExpandedSelected || keepVisibleSelected);
     });
     dom.salesProductList.classList.toggle("is-compact-search", isSearchResultMode("salesProducts"));
 
@@ -95,7 +96,7 @@ export function createSalesUi(deps) {
       ? '<article class="inline-alert warning">Chưa mở giỏ hàng. Hãy chọn khách và bấm "Mở giỏ hàng" trước khi chọn sản phẩm.</article>'
       : "";
     if (!filtered.length) {
-      dom.salesProductList.innerHTML = `${notice}<div class="empty-state">${activeCart?.items?.length ? "Các mặt hàng đang khớp đã được chuyển lên phần giỏ hiện hành phía trên." : "Không có mặt hàng phù hợp."}</div>`;
+      dom.salesProductList.innerHTML = `${notice}<div class="empty-state">${activeCart?.items?.length ? "Các mặt hàng đang khớp đã được chuyển lên phần giỏ hiện hành phía trên; chỉ dòng đang thao tác bằng nút ... mới được giữ lại ở danh sách dưới." : "Không có mặt hàng phù hợp."}</div>`;
       return;
     }
 
@@ -119,8 +120,14 @@ export function createSalesUi(deps) {
               </label>
               <span class="status-pill ${(isOutOfStock || product.is_low_stock) ? "cancelled" : "draft"}">${availabilityLabel}</span>
             </div>
-            <div class="sales-product-meta">Tồn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)} | Giá nhập ${formatCurrency(product.price)}</div>
-            ${inCart ? `<div class="sales-inline-editor"><label class="sales-inline-qty"><span>SL</span><input type="number" min="0.01" step="0.01" value="${cartItem.quantity}" data-sales-inline-qty="${cartItem.id}"></label><button type="button" class="ghost-button compact-button" data-sales-inline-action="toggle-detail" data-product-id="${product.id}">...</button></div>${expandedInline ? `<div class="sales-inline-detail"><label class="price-field"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${cartItem.unitPrice}" data-sales-inline-price="${cartItem.id}"></label><div class="line-actions"><button type="button" class="ghost-button compact-button" data-sales-inline-action="save" data-item-id="${cartItem.id}">Lưu</button><button type="button" class="ghost-button compact-button" data-sales-inline-action="update-default-price" data-product-id="${product.id}" data-item-id="${cartItem.id}">Giá chung</button><button type="button" class="danger-button compact-button" data-sales-inline-action="remove" data-item-id="${cartItem.id}" data-product-id="${product.id}">Bỏ</button>${compact ? "" : `<button type="button" class="ghost-button compact-button" data-sales-inline-action="collapse" data-product-id="${product.id}">Thu gọn</button>`}</div></div>` : ""}` : ""}
+            <div class="sales-product-meta-row">
+              <div class="sales-product-meta">Tồn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)} | Giá nhập ${formatCurrency(product.price)}</div>
+              <button type="button" class="ghost-button compact-button" data-sales-inline-action="toggle-detail" data-product-id="${product.id}">...</button>
+            </div>
+            ${expandedInline ? (inCart
+              ? `<div class="sales-inline-detail"><div class="sales-inline-editor"><label class="sales-inline-qty"><span>SL</span><input type="number" min="0.01" step="0.01" value="${cartItem.quantity}" data-sales-inline-qty="${cartItem.id}"></label></div><label class="price-field"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${cartItem.unitPrice}" data-sales-inline-price="${cartItem.id}"></label><div class="line-actions"><button type="button" class="ghost-button compact-button" data-sales-inline-action="save" data-item-id="${cartItem.id}">Lưu</button><button type="button" class="ghost-button compact-button" data-sales-inline-action="update-default-price" data-product-id="${product.id}" data-item-id="${cartItem.id}">Giá chung</button></div></div>`
+              : `<div class="sales-inline-detail"><div class="cart-line-note">Tick chọn sản phẩm để đưa vào giỏ, sau đó nhập số lượng và giá bán chi tiết tại đây.</div></div>`)
+            : ""}
           </article>
         `;
       })
@@ -146,32 +153,33 @@ export function createSalesUi(deps) {
     dom.cartItemsList.innerHTML = cart.items
       .map((item) => {
         const product = getProductById(item.productId);
+        const expandedItem = state.expandedSelectedCartItemId === item.id;
         return `
-          <article class="cart-item">
-            <div class="cart-item-header">
-              <div>
-                <strong>${escapeHtml(item.productName)}</strong>
-                <div class="cart-line-note">Tồn kho hiện tại ${formatQuantity(product?.current_stock || 0)} ${escapeHtml(item.unit)}</div>
+          <article class="cart-item ${expandedItem ? "is-expanded" : "is-collapsed"}">
+            <div class="cart-item-header cart-item-header-compact">
+              <div class="cart-item-primary">
+                <strong class="cart-item-name">${escapeHtml(item.productName)}</strong>
+                <div class="cart-line-note">SL ${formatQuantity(item.quantity)} ${escapeHtml(item.unit)} | Giá bán ${formatCurrency(item.unitPrice)}</div>
               </div>
-              <strong>${escapeHtml(formatCurrency(item.lineTotal))}</strong>
+              <div class="cart-item-summary">
+                <strong>${escapeHtml(formatCurrency(item.lineTotal))}</strong>
+                <button type="button" class="ghost-button compact-button" data-cart-item-action="toggle-detail" data-item-id="${item.id}">...</button>
+              </div>
             </div>
-            <div class="cart-item-controls">
-              <div class="qty-control">
-                <button type="button" class="ghost-button compact-button" data-qty-delta="-1" data-item-id="${item.id}">-1</button>
-                <button type="button" class="ghost-button compact-button" data-qty-delta="-0.5" data-item-id="${item.id}">-0.5</button>
-                <input class="qty-input" type="number" min="0.01" step="0.01" value="${item.quantity}" data-qty-input="${item.id}">
-                <button type="button" class="ghost-button compact-button" data-qty-delta="0.5" data-item-id="${item.id}">+0.5</button>
-                <button type="button" class="ghost-button compact-button" data-qty-delta="1" data-item-id="${item.id}">+1</button>
+            <div class="cart-line-note cart-item-collapsed-meta">Tồn kho hiện tại ${formatQuantity(product?.current_stock || 0)} ${escapeHtml(item.unit)}</div>
+            ${expandedItem ? `<div class="cart-item-controls">
+              <div class="cart-item-edit-grid">
+                <label class="price-field"><span>Số lượng</span><input class="qty-input" type="number" min="0.01" step="0.01" value="${item.quantity}" data-qty-input="${item.id}"></label>
+                <label class="price-field"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${item.unitPrice}" data-price-input="${item.id}"></label>
               </div>
               <div class="cart-line-pricing">
-                <label class="price-field"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${item.unitPrice}" data-price-input="${item.id}"></label>
                 <div class="line-actions">
                   <button type="button" class="ghost-button compact-button" data-cart-item-action="save" data-item-id="${item.id}">Lưu dòng</button>
                   <button type="button" class="ghost-button compact-button" data-cart-item-action="update-default-price" data-product-id="${item.productId}" data-item-id="${item.id}">Giá chung</button>
                   <button type="button" class="danger-button compact-button" data-cart-item-action="remove" data-item-id="${item.id}">Bỏ khỏi giỏ</button>
                 </div>
               </div>
-            </div>
+            </div>` : ""}
           </article>
         `;
       })

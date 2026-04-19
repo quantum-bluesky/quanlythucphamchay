@@ -47,9 +47,11 @@ Nếu cần can thiệp đặc biệt
 - tick sản phẩm để đưa vào giỏ
 - hàng đã chọn được gom lên trên
 - hàng đã chọn ẩn khỏi danh sách dưới
+- riêng dòng mà user chủ động bấm `...` thì vẫn được giữ lại ở danh sách dưới trong lúc thao tác
 
 ### Bước 3: Chỉnh dòng hàng
 
+- trong `Giỏ hiện hành`, mỗi dòng hiển thị dưới dạng card gọn 2 dòng; bấm `...` để mở detail
 - sửa số lượng
 - sửa giá bán riêng cho đơn
 - nếu cần, cập nhật luôn giá bán mặc định

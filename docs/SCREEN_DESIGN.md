@@ -63,8 +63,11 @@ Liên kết detail hiện có:
   - giỏ hiện hành
   - search sản phẩm trong bán hàng
 - nguyên tắc UI:
-  - hàng đã chọn được gom lên trên
-  - hàng đã chọn ẩn khỏi danh sách dưới
+  - nút `...` luôn hiện trên card sản phẩm để toggle detail
+  - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
+  - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
+  - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
+  - không dùng cụm nút tăng giảm nhanh trong `Giỏ hiện hành` để tránh rối trên mobile
 
 ### `orders` - Quản lý đơn hàng
 

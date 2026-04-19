@@ -33,10 +33,11 @@ export const SCREEN_HELP = {
     steps: [
       "Chọn khách hàng có sẵn hoặc gõ tên để mở giỏ hàng cho khách hiện hành.",
       "Tìm mặt hàng ở danh sách chọn hàng, tick để thêm vào giỏ. Giá bán mặc định sẽ lấy theo giá bán chung của sản phẩm.",
-      "Các mặt hàng đã chọn sẽ được gom lên khối giỏ hiện hành phía trên và tự ẩn khỏi danh sách chọn phía dưới để tránh nhìn sót hoặc chọn trùng.",
+      "Nút `...` trên từng card sản phẩm dùng để bung hoặc thu gọn detail; nút này luôn hiện kể cả trước và sau khi chọn hàng.",
+      "Các mặt hàng đã chọn sẽ được gom lên khối giỏ hiện hành phía trên và mặc định ẩn khỏi danh sách dưới để tránh sót dòng; riêng card mà bạn chủ động bấm `...` thì vẫn được giữ lại để thao tác.",
       "Nếu máy khác vừa nhập thêm hàng hoặc đổi giá nhập mặc định, danh sách chọn hàng sẽ tự cập nhật khi bạn không còn focus ở ô đang gõ.",
       "Nếu có 2 máy cùng sửa một giỏ nháp, app sẽ chặn ghi đè và báo xung đột để bạn tải lại dữ liệu mới nhất trước khi lưu tiếp.",
-      "Khi mở detail của dòng hàng, bạn có thể đổi giá bán cho riêng đơn này hoặc bấm Giá chung để cập nhật giá bán mặc định của sản phẩm sau khi xác nhận.",
+      "Trong Giỏ hiện hành, mỗi dòng đã chọn hiển thị dưới dạng card gọn 2 dòng; bấm `...` để mở detail rồi đổi số lượng, giá bán cho riêng đơn này hoặc bấm Giá chung để cập nhật giá bán mặc định của sản phẩm sau khi xác nhận.",
       "Nếu thiếu hàng, hệ thống sẽ chuyển sang luồng nhập hàng; chỉ Master Admin mới có quyền chỉnh tồn trực tiếp.",
       DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,

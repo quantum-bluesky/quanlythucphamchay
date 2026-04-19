@@ -87,6 +87,7 @@ Vào menu:
 1. Ở cột `Danh sách để thêm vào giỏ`
 2. Tìm sản phẩm theo tên
 3. Tick chọn sản phẩm cần bán
+4. Nút `...` trên card sản phẩm luôn hiện để bung / thu gọn detail
 
 Lưu ý:
 
@@ -94,17 +95,21 @@ Lưu ý:
 
 Khi chọn, sản phẩm sẽ xuất hiện ở `Giỏ hiện hành`.
 
-Các mặt hàng đã chọn sẽ tự ẩn khỏi danh sách chọn phía dưới và được gom vào khối `Giỏ hiện hành` bên trên. Nếu cần xem hoặc sửa nhanh nhiều dòng đã chọn, bấm nút `...` để sổ phần danh sách đó ra.
+Các mặt hàng đã chọn sẽ được gom vào khối `Giỏ hiện hành` bên trên và mặc định ẩn khỏi danh sách phía dưới để tránh sót dòng đã chọn.
+
+Nếu đang cần thao tác ngay trên card sản phẩm ở danh sách phía dưới, bấm `...` trên đúng dòng đang sửa; app sẽ giữ lại card đó thay vì tự ẩn mất.
 
 ### Bước 3: Sửa số lượng và giá bán
 
 Trong `Giỏ hiện hành`:
 
-1. Tăng giảm số lượng bằng nút nhanh
-2. Hoặc gõ trực tiếp số lượng
-3. Gõ giá bán cho khách
-4. Bấm `Lưu dòng`
-5. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung` và xác nhận
+1. Mỗi mặt hàng đã chọn hiển thị dưới dạng card gọn 2 dòng
+2. Bấm `...` trên card để mở detail chỉnh sửa
+3. Gõ trực tiếp số lượng
+4. Gõ giá bán cho khách
+5. Bấm `Lưu dòng`
+6. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung` và xác nhận
+7. Nếu không cần dòng hàng đó nữa, bấm `Bỏ khỏi giỏ`
 
 ### Bước 4: Chốt đơn
 
