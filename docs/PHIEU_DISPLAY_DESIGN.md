@@ -8,6 +8,7 @@ Tài liệu common liên quan:
 
 Project đang có nhiều loại chứng từ/phiếu hiển thị trên UI:
 
+- `Phiếu xuất hàng` / `Đơn hàng`
 - `Phiếu nhập`
 - `Phiếu điều chỉnh tồn`
 - `Phiếu trả hàng khách`
@@ -24,6 +25,7 @@ Mục tiêu của design này là chuẩn hóa cách hiển thị phiếu để 
 ## 2. Mục tiêu
 
 - Giữ list phiếu gọn, thao tác nhanh trên mobile.
+- Mỗi loại phiếu đều có metadata riêng nhưng cùng một khung hiển thị chung để user không phải học lại cách đọc.
 - Trong detail phiếu phải hiện đủ mốc thời gian xử lý để đối chiếu.
 - Audit chứng từ phải lọc được theo `mã phiếu` và `mã tham chiếu nguồn`.
 - Data cũ bị thiếu timestamp không được làm kẹt flow hiện hành nếu có thể suy ra an toàn.
@@ -57,7 +59,110 @@ Nếu thiếu dữ liệu thật thì hiện:
 - `Chưa có` nếu hoàn toàn không suy ra được
 - giá trị suy ra từ DB nếu đó là fallback an toàn
 
-### 3.3. Audit chứng từ
+### 3.3. Các nhóm phiếu chính
+
+#### Phiếu xuất hàng / Đơn hàng
+
+Nguồn màn hình:
+
+- `create-order`
+- `orders`
+
+Mục đích:
+
+- tạo và theo dõi phiếu xuất hàng theo khách
+- cho user xem lại trạng thái đặt hàng, chốt đơn và thanh toán
+
+Thông tin nên hiện trong detail:
+
+- mã đơn / mã phiếu
+- khách hàng
+- trạng thái xử lý
+- ngày tạo
+- ngày chốt hoặc ngày thanh toán nếu có
+- cập nhật cuối
+
+#### Phiếu nhập
+
+Nguồn màn hình:
+
+- `purchases`
+
+Mục đích:
+
+- lập phiếu nhập theo nhà cung cấp
+- theo dõi đặt hàng, nhập kho và thanh toán
+
+Thông tin nên hiện trong detail:
+
+- mã phiếu
+- nhà cung cấp
+- trạng thái xử lý
+- ngày tạo
+- ngày nhập kho
+- ngày thanh toán
+- cập nhật cuối
+
+#### Phiếu điều chỉnh tồn
+
+Nguồn màn hình:
+
+- `inventory`
+
+Mục đích:
+
+- sửa chênh lệch tồn do kiểm kho hoặc xử lý đặc biệt
+
+Thông tin nên hiện trong detail:
+
+- mã phiếu
+- người tạo
+- lý do điều chỉnh
+- danh sách dòng tăng/giảm
+- ngày xử lý
+- cập nhật cuối
+
+#### Phiếu trả hàng khách
+
+Nguồn màn hình:
+
+- `orders`
+- `reports`
+
+Mục đích:
+
+- ghi nhận khách trả hàng và cộng lại tồn
+
+Thông tin nên hiện trong detail:
+
+- mã phiếu
+- khách hàng
+- mã đơn / mã nguồn nếu có
+- lý do trả
+- ngày xử lý
+- cập nhật cuối
+
+#### Phiếu trả NCC
+
+Nguồn màn hình:
+
+- `purchases`
+- `reports`
+
+Mục đích:
+
+- ghi nhận hàng trả ngược về nhà cung cấp và trừ tồn
+
+Thông tin nên hiện trong detail:
+
+- mã phiếu
+- nhà cung cấp
+- mã phiếu nhập / mã nguồn nếu có
+- lý do trả
+- ngày xử lý
+- cập nhật cuối
+
+### 3.4. Audit chứng từ
 
 Khối audit chứng từ ở màn `Báo cáo` phải hiển thị:
 
