@@ -118,7 +118,7 @@ npm run test:integration -- --grep "ACC-SALE-01"
 ### Chạy nhiều case Playwright
 
 ```powershell
-npm run test:integration -- --grep "ACC-SALE-01|ACC-PUR-01|ACC-SYNC-01"
+npm run test:integration -- --grep "ACC-SALE-01|ACC-PUR-01|ACC-PUR-03|ACC-SYNC-01"
 ```
 
 ### Loại trừ một nhóm case Playwright
@@ -230,6 +230,12 @@ Ngoài click thao tác, suite còn kiểm tra:
   - `tests/integration/cross-client-sync.spec.js`
   - `tests/integration/workflow-phase-a.spec.js`
   - `tests/integration/workflow-phase-c.spec.js`
+
+Case mới cho Phase A:
+
+- `ACC-PUR-03`: phiếu nhập nháp phải được đặt hàng trước khi nhập kho, và phiếu đã đặt hàng vẫn còn chỉnh sửa được trước khi nhận hàng
+- `IT-PURSUP-01`: tạo nhà cung cấp từ màn nhập hàng rồi quay lại phiếu nhập vẫn giữ được giá trị NCC trên UI, nhưng phiếu nháp rỗng không còn persist
+- `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp rồi mới chuyển sang `received`
 
 Case mới cho Phase B.4:
 

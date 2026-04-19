@@ -29,7 +29,7 @@ export function registerPurchasesControllerEvents(contract) {
   });
 
   dom.purchaseSupplierInput.addEventListener("change", () => {
-    if (queries.getSkipNextPurchaseSupplierChangePersist()) {
+    if (queries.getSkipNextPurchaseSupplierChangePersist() || state.pendingPurchaseSupplierFlow) {
       actions.setSkipNextPurchaseSupplierChangePersist(false);
       return;
     }
@@ -275,8 +275,8 @@ export function registerPurchasesControllerEvents(contract) {
       return;
     }
     if (actionButton.dataset.purchaseAction === "receive") {
-      if (!queries.canEditPurchase(purchase)) {
-        actions.showToast("Phiếu nhập đã khóa, không thể nhập kho lại.", true);
+      if (!queries.canReceivePurchase(purchase)) {
+        actions.showToast("Chỉ phiếu đã đặt hàng mới được nhập kho.", true);
         return;
       }
       try {

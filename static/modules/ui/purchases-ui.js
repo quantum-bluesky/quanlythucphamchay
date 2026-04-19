@@ -12,6 +12,7 @@ export function createPurchasesUi(deps) {
     canDeletePurchase,
     canCancelPurchase,
     canMarkPurchasePaid,
+    canReceivePurchase,
     isLockedPurchase,
     isRepairableInvalidPurchase,
     getPurchaseSuggestions,
@@ -113,8 +114,8 @@ export function createPurchasesUi(deps) {
           <div class="cart-items-list selected-items-body" ${state.selectedPurchaseItemsCollapsed ? "hidden" : ""}>${selectedItemsMarkup}</div>
         </section>
         <div class="cart-toolbar">
-          ${purchaseEditable ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>` : ""}
-          ${purchaseEditable ? `<button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>` : ""}
+          ${purchase.status === "draft" ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>` : ""}
+          ${canReceivePurchase(purchase) ? `<button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>` : ""}
           ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
           ${["received", "paid"].includes(purchase.status) && !repairableInvalidPurchase ? `<button type="button" class="ghost-button" data-purchase-action="supplier-return">Trả NCC</button>` : ""}
           ${purchaseCancellable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}

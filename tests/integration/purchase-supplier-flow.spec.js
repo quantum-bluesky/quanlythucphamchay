@@ -53,6 +53,7 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
     await page.locator("#supplierForm button[type=\"submit\"]").click();
 
     await expectScreenTitle(page, "Nhập hàng");
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierName);
 
     const toastText = await collectToast(page, runtime, "purchase-supplier-create", {
       errorPattern: /^$/,
@@ -63,7 +64,11 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     expect((latestState.suppliers || []).some((supplier) => supplier.name === supplierName)).toBeTruthy();
-    expect((latestState.purchases || []).some((purchase) => purchase.status === "draft" && purchase.supplierName === supplierName)).toBeTruthy();
+    expect((latestState.purchases || []).some((purchase) =>
+      purchase.status === "draft" &&
+      purchase.supplierName === supplierName &&
+      (!Array.isArray(purchase.items) || purchase.items.length === 0)
+    )).toBeFalsy();
   } finally {
     await request.put("/api/state", {
       headers: { Cookie: userCookie },

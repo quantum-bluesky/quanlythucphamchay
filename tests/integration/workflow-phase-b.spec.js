@@ -315,6 +315,9 @@ test("IT-PHB-04 supplier return receipt UI creates from received purchase", asyn
         await page.locator("#togglePurchasePanelButton").click();
       }
     }
+    await expect(page.locator('[data-purchase-action="mark-ordered"]')).toBeVisible();
+    await expect(page.locator('[data-purchase-action="receive"]')).toHaveCount(0);
+    await page.locator('[data-purchase-action="mark-ordered"]').click();
     await expect(page.locator('[data-purchase-action="receive"]')).toBeVisible();
     await page.locator('[data-purchase-action="receive"]').click();
     const receiveToast = await collectToast(page, runtime, "it-phb-04-receive", { errorPattern: /^$/ });

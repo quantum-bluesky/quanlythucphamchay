@@ -824,6 +824,7 @@ function getPurchasesUi() {
       mobileQuery,
       getActivePurchase,
       canEditPurchase,
+      canReceivePurchase,
       canDeletePurchase,
       canCancelPurchase,
       canMarkPurchasePaid,
@@ -1343,6 +1344,10 @@ function getActivePurchase() {
 
 function canMarkPurchasePaid(purchase) {
   return getPurchasesDomainHelpers().canMarkPurchasePaid(purchase);
+}
+
+function canReceivePurchase(purchase) {
+  return getPurchasesDomainHelpers().canReceivePurchase(purchase);
 }
 
 function isRepairableInvalidPurchase(purchase) {
@@ -3132,8 +3137,10 @@ function renderAll() {
   }
   const activePurchase = getActivePurchase();
   if (activePurchase) {
-    purchaseSupplierInput.value = activePurchase.supplierName || "";
+    purchaseSupplierInput.value = activePurchase.supplierName || state.pendingPurchaseSupplierName || "";
     purchaseNoteInput.value = activePurchase.note || "";
+  } else if (state.pendingPurchaseSupplierName) {
+    purchaseSupplierInput.value = state.pendingPurchaseSupplierName;
   }
   if (productHistoryActorInput) {
     productHistoryActorInput.value = state.productHistoryActorFilter || "";
@@ -3801,6 +3808,7 @@ registerPurchasesControllerEvents({
     getActivePurchase,
     getProductById,
     canEditPurchase,
+    canReceivePurchase,
     canCancelPurchase,
     canDeletePurchase,
     canMarkPurchasePaid,
