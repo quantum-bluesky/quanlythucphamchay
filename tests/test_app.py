@@ -1,5 +1,6 @@
 import gc
 import json
+import os
 import sqlite3
 import tempfile
 import time
@@ -13,24 +14,16 @@ from qltpchay.store import SyncConflictError
 
 class InventoryStoreTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.db_path = Path(self.temp_dir.name) / "inventory-test.db"
+        fd, db_file = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        self.db_path = Path(db_file)
         self.store = InventoryStore(self.db_path)
 
     def tearDown(self) -> None:
         del self.store
         gc.collect()
-        last_error = None
-        for _ in range(5):
-            try:
-                self.temp_dir.cleanup()
-                last_error = None
-                break
-            except PermissionError as error:
-                last_error = error
-                time.sleep(0.1)
-        if last_error is not None:
-            raise last_error
+        for suffix in ("", "-wal", "-shm"):
+            self.db_path.with_name(self.db_path.name + suffix).unlink(missing_ok=True)
 
     def test_ut_db_01_create_product_and_stock_summary(self) -> None:
         product = self.store.create_product(
@@ -539,9 +532,31 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertIn("completed", log["message"])
 
     def test_ut_aud_02_save_sync_state_logs_purchase_status_changes_with_actor(self) -> None:
+        product = self.store.create_product(
+            name="Đậu hũ audit",
+            category="Đồ tươi",
+            unit="hộp",
+            low_stock_threshold=2,
+        )
         self.store.save_sync_state(
             {
-                "purchases": [{"id": "purchase-1", "receiptCode": "PN-01", "status": "draft", "items": []}],
+                "purchases": [
+                    {
+                        "id": "purchase-1",
+                        "receiptCode": "PN-01",
+                        "status": "draft",
+                        "items": [
+                            {
+                                "id": "purchase-item-1",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "unit": product["unit"],
+                                "quantity": 1,
+                                "unitCost": 12000,
+                            }
+                        ],
+                    }
+                ],
                 "expected_updated_at": {"purchases": self.store.get_sync_state()["updated_at"]["purchases"]},
                 "actor": "thu-ngan-b",
             }
@@ -549,7 +564,23 @@ class InventoryStoreTests(unittest.TestCase):
         sync_state = self.store.get_sync_state()
         self.store.save_sync_state(
             {
-                "purchases": [{"id": "purchase-1", "receiptCode": "PN-01", "status": "ordered", "items": []}],
+                "purchases": [
+                    {
+                        "id": "purchase-1",
+                        "receiptCode": "PN-01",
+                        "status": "ordered",
+                        "items": [
+                            {
+                                "id": "purchase-item-1",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "unit": product["unit"],
+                                "quantity": 1,
+                                "unitCost": 12000,
+                            }
+                        ],
+                    }
+                ],
                 "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
                 "actor": "thu-ngan-b",
             }
@@ -740,7 +771,9 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(receipt_items["total"], 2)
 
     def test_ut_norm_03_legacy_app_state_is_migrated_to_normalized_tables_on_bootstrap(self) -> None:
-        legacy_db = Path(self.temp_dir.name) / "legacy.db"
+        fd, legacy_file = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        legacy_db = Path(legacy_file)
         now = "2026-01-02T00:00:00+00:00"
         with sqlite3.connect(str(legacy_db)) as connection:
             connection.executescript(
@@ -806,8 +839,67 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertTrue(any(entry["id"] == "legacy-customer" for entry in state["customers"]))
         self.assertTrue(any(entry["id"] == "legacy-supplier" for entry in state["suppliers"]))
         self.assertTrue(any(entry["id"] == "legacy-cart" for entry in state["carts"]))
-        self.assertTrue(any(entry["id"] == "legacy-purchase" for entry in state["purchases"]))
+        self.assertFalse(any(entry["id"] == "legacy-purchase" for entry in state["purchases"]))
         del migrated_store
+        gc.collect()
+
+    def test_ut_norm_04_empty_purchase_drafts_are_not_persisted(self) -> None:
+        product = self.store.create_product(
+            name="Đậu hũ non",
+            category="Đồ tươi",
+            unit="hộp",
+            low_stock_threshold=2,
+        )
+        now = "2026-04-19T12:00:00+07:00"
+        sync_state = self.store.get_sync_state()
+        result = self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-empty-01",
+                        "supplierName": "NCC Rỗng",
+                        "status": "draft",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "items": [],
+                    },
+                    {
+                        "id": "purchase-filled-01",
+                        "supplierName": "NCC Có Hàng",
+                        "status": "draft",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "items": [
+                            {
+                                "id": "purchase-item-filled-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "unit": product["unit"],
+                                "quantity": 2,
+                                "unitCost": 15000,
+                            }
+                        ],
+                    },
+                ],
+                "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
+            }
+        )
+
+        saved_ids = [entry["id"] for entry in result["purchases"]]
+
+        with self.store._connect() as connection:
+            purchase_count = connection.execute(
+                "SELECT COUNT(*) AS total FROM purchases"
+            ).fetchone()["total"]
+            purchase_item_count = connection.execute(
+                "SELECT COUNT(*) AS total FROM purchase_items"
+            ).fetchone()["total"]
+
+        self.assertNotIn("purchase-empty-01", saved_ids)
+        self.assertIn("purchase-filled-01", saved_ids)
+        self.assertEqual(purchase_count, 1)
+        self.assertEqual(purchase_item_count, 1)
+
 
 
 if __name__ == "__main__":

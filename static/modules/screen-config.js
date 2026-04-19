@@ -109,6 +109,7 @@ export const SCREEN_HELP = {
     steps: [
       "Xem ngay danh sách phiếu nhập hiện hành khi mở màn.",
       "Tạo hoặc mở phiếu nhập, thêm sản phẩm cần mua rồi cập nhật trạng thái theo tiến trình.",
+      "Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; phiếu trống chỉ là trạng thái mở tạm trên giao diện.",
       "Các mặt hàng đã thêm vào phiếu sẽ được gom vào phần tóm tắt phiếu phía trên và tự ẩn khỏi danh sách gợi ý phía dưới để màn hình gọn hơn.",
       "Nếu có máy khác vừa tạo hoặc sửa phiếu nhập, màn hình sẽ tự làm mới khi bạn không còn nhập dở ở ô hiện tại.",
       "Nếu 2 máy cùng lưu trên một phiếu nháp, app sẽ báo xung đột đồng bộ và tự tải lại để tránh ghi đè dữ liệu của nhau.",

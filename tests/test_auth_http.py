@@ -1,6 +1,8 @@
 import gc
+import gc
 import http.client
 import json
+import os
 import tempfile
 import threading
 import time
@@ -15,8 +17,9 @@ from qltpchay.store import InventoryStore
 
 class AuthHttpTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.db_path = Path(self.temp_dir.name) / "inventory-test.db"
+        fd, db_file = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        self.db_path = Path(db_file)
         self.store = InventoryStore(self.db_path)
         self.server = None
         self.server_thread = None
@@ -29,7 +32,8 @@ class AuthHttpTests(unittest.TestCase):
             self.server_thread.join(timeout=5)
         del self.store
         gc.collect()
-        self.temp_dir.cleanup()
+        for suffix in ("", "-wal", "-shm"):
+            self.db_path.with_name(self.db_path.name + suffix).unlink(missing_ok=True)
 
     def _start_server(self, system_config: dict) -> None:
         session_manager = SessionManager(

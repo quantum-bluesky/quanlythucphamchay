@@ -73,12 +73,13 @@ Lưu ý:
 | 54 | `UT-DB-10` | Kiểm tra purchase legacy ở trạng thái `received` nhưng thiếu `received_at` vẫn được backfill từ `updated_at` để không bị kẹt luồng thanh toán. |
 | 55 | `UT-NORM-01` | Kiểm tra `save_sync_state` persist đúng dữ liệu sang các bảng quan hệ chuẩn hóa. |
 | 56 | `UT-NORM-02` | Kiểm tra các loại receipt được persist đúng vào cấu trúc bảng chuẩn hóa mới. |
-| 57 | `UT-NORM-03` | Kiểm tra app state legacy được migrate sang cấu trúc bảng quan hệ khi khởi động. |
-| 58 | `UT-SYNC-01` | Kiểm tra sync state chấp nhận cập nhật khi `expected_updated_at` khớp. |
-| 59 | `UT-SYNC-02` | Kiểm tra sync state từ chối cập nhật khi `expected_updated_at` bị stale. |
-| 60 | `UT-AUD-01` | Kiểm tra thay đổi trạng thái đơn hàng được ghi audit kèm actor. |
-| 61 | `UT-AUD-02` | Kiểm tra thay đổi trạng thái phiếu nhập được ghi audit kèm actor. |
-| 62 | `UT-AUD-03` | Kiểm tra receipt history trả đúng source link và audit message cho các phiếu Phase B. |
-| 63 | `UT-HIS-01` | Kiểm tra product history hỗ trợ lọc theo actor ở backend. |
-| 64 | `UT-HIS-02` | Kiểm tra product history hỗ trợ lọc theo khoảng ngày ở backend. |
-| 65 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |
+| 57 | `UT-NORM-03` | Kiểm tra app state legacy được migrate sang cấu trúc bảng quan hệ khi khởi động, đồng thời bỏ qua phiếu nhập nháp rỗng. |
+| 58 | `UT-NORM-04` | Kiểm tra sync state không persist phiếu nhập nháp rỗng nhưng vẫn lưu phiếu nháp có ít nhất một mặt hàng. |
+| 59 | `UT-SYNC-01` | Kiểm tra sync state chấp nhận cập nhật khi `expected_updated_at` khớp. |
+| 60 | `UT-SYNC-02` | Kiểm tra sync state từ chối cập nhật khi `expected_updated_at` bị stale. |
+| 61 | `UT-AUD-01` | Kiểm tra thay đổi trạng thái đơn hàng được ghi audit kèm actor. |
+| 62 | `UT-AUD-02` | Kiểm tra thay đổi trạng thái phiếu nhập được ghi audit kèm actor. |
+| 63 | `UT-AUD-03` | Kiểm tra receipt history trả đúng source link và audit message cho các phiếu Phase B. |
+| 64 | `UT-HIS-01` | Kiểm tra product history hỗ trợ lọc theo actor ở backend. |
+| 65 | `UT-HIS-02` | Kiểm tra product history hỗ trợ lọc theo khoảng ngày ở backend. |
+| 66 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |

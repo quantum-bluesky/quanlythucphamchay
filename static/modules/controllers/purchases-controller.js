@@ -9,10 +9,15 @@ export function registerPurchasesControllerEvents(contract) {
   } = contract;
 
   dom.createPurchaseDraftButton.addEventListener("click", () => {
-    actions.createPurchaseDraftIfMissing();
-    actions.saveAndRenderAll(["purchases"]);
+    const purchase = actions.createPurchaseDraftIfMissing();
+    if (purchase.items.length > 0) {
+      actions.saveAndRenderAll(["purchases"]);
+      actions.showToast("Đã lưu phiếu nhập nháp.");
+    } else {
+      renderers.renderPurchasePanel();
+      actions.showToast("Đã mở phiếu nhập nháp tạm. Thêm mặt hàng để lưu.");
+    }
     actions.focusPurchaseSuggestions();
-    actions.showToast("Đã tạo phiếu nhập nháp.");
   });
 
   dom.togglePurchasePanelButton.addEventListener("click", () => {
@@ -100,8 +105,14 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       if (panelButton.dataset.purchasePanelAction === "create") {
-        actions.createPurchaseDraftIfMissing();
-        actions.saveAndRenderAll(["purchases"]);
+        const purchase = actions.createPurchaseDraftIfMissing();
+        if (purchase.items.length > 0) {
+          actions.saveAndRenderAll(["purchases"]);
+          actions.showToast("Đã lưu phiếu nhập nháp.");
+        } else {
+          renderers.renderPurchasePanel();
+          actions.showToast("Đã mở phiếu nhập nháp tạm. Thêm mặt hàng để lưu.");
+        }
         actions.focusPurchaseSuggestions();
       }
       return;
