@@ -1959,66 +1959,14 @@ function deleteCart(cartId) {
 }
 
 async function checkoutCart(cartId) {
-  const cart = getCartById(cartId);
-  if (!cart) {
-    throw new Error("Không tìm thấy giỏ hàng.");
+  const previousActiveCartId = state.activeCartId;
+  state.activeCartId = cartId;
+  try {
+    return await checkoutActiveCart();
+  } catch (error) {
+    state.activeCartId = previousActiveCartId;
+    throw error;
   }
-  if (cart.status !== "draft") {
-    throw new Error("Chỉ xuất được giỏ hàng nháp.");
-  }
-  if (!cart.items.length) {
-    throw new Error("Giỏ hàng đang trống.");
-  }
-
-  const shortages = getCartShortages(cart).filter((entry) => entry.shortage > 0);
-  if (shortages.length) {
-    const shortageNames = shortages.map((entry) => `${entry.product?.name || entry.item.productName} thiếu ${formatQuantity(entry.shortage)}`).join(", ");
-  if (state.admin?.isAdmin) {
-      const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng: ${shortageNames}.\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel để tạo phiếu nhập hàng dự kiến.`);
-      if (shouldAdjustStock) {
-        switchMenu("inventory");
-        prefillProduct(shortages[0].product?.id || shortages[0].item.productId);
-        throw new Error("Hãy điều chỉnh lại tồn kho rồi chốt đơn lại.");
-      }
-    }
-
-    createPurchaseSuggestionFromCart(cart);
-    switchMenu("purchases");
-    throw new Error("Đã tạo sẵn phiếu nhập dự kiến để bù thiếu cho đơn này.");
-  }
-
-  const data = await apiRequest("/api/orders/checkout", {
-    method: "POST",
-    body: JSON.stringify({
-      customer_name: cart.customerName,
-      items: cart.items.map((item) => ({
-        product_id: item.productId,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-      })),
-    }),
-  });
-
-  const completedAt = data.order?.created_at || nowIso();
-  const orderCode = data.order?.order_code || "";
-
-  updateCart(cart.id, (currentCart) => ({
-    ...currentCart,
-    status: "completed",
-    paymentStatus: "unpaid",
-    completedAt,
-    updatedAt: completedAt,
-    orderCode,
-  }));
-
-  if (state.activeCartId === cart.id) {
-    state.activeCartId = getDraftCarts().find((entry) => entry.id !== cart.id)?.id || null;
-  }
-  saveAndRenderAll();
-  await persistCollections(["carts"]);
-  await refreshData();
-  printCart(cart.id);
-  showToast(data.message);
 }
 
 function renameCustomer(customerId, newName) {
@@ -3468,7 +3416,59 @@ async function checkoutActiveCart() {
   if (!cart) {
     throw new Error("Chưa có giỏ hàng nào đang mở.");
   }
-  await checkoutCart(cart.id);
+  if (!cart.items.length) {
+    throw new Error("Giỏ hàng đang trống.");
+  }
+
+  const shortages = getCartShortages(cart).filter((entry) => entry.shortage > 0);
+  if (shortages.length) {
+    const shortageNames = shortages.map((entry) => `${entry.product?.name || entry.item.productName} thiếu ${formatQuantity(entry.shortage)}`).join(", ");
+    if (state.admin?.isAdmin) {
+      const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng: ${shortageNames}.\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel để tạo phiếu nhập hàng dự kiến.`);
+      if (shouldAdjustStock) {
+        switchMenu("inventory");
+        prefillProduct(shortages[0].product?.id || shortages[0].item.productId);
+        throw new Error("Hãy điều chỉnh lại tồn kho rồi chốt đơn lại.");
+      }
+    }
+
+    createPurchaseSuggestionFromCart(cart);
+    switchMenu("purchases");
+    throw new Error("Đã tạo sẵn phiếu nhập dự kiến để bù thiếu cho đơn này.");
+  }
+
+  const data = await apiRequest("/api/orders/checkout", {
+    method: "POST",
+    body: JSON.stringify({
+      customer_name: cart.customerName,
+      items: cart.items.map((item) => ({
+        product_id: item.productId,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+      })),
+    }),
+  });
+
+  const completedAt = data.order?.created_at || nowIso();
+  const orderCode = data.order?.order_code || "";
+
+  updateCart(cart.id, (currentCart) => ({
+    ...currentCart,
+    status: "completed",
+    paymentStatus: "unpaid",
+    completedAt,
+    updatedAt: completedAt,
+    orderCode,
+  }));
+
+  if (state.activeCartId === cart.id) {
+    state.activeCartId = getDraftCarts().find((entry) => entry.id !== cart.id)?.id || null;
+  }
+  saveAndRenderAll();
+  await persistCollections(["carts"]);
+  await refreshData();
+  printCart(cart.id);
+  showToast(data.message);
 }
 
 registerCoreControllerEvents({
