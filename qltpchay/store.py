@@ -1840,15 +1840,23 @@ class InventoryStore:
         connection: sqlite3.Connection,
         purchase: dict,
     ) -> bool:
-        if str(purchase.get("status") or "draft") != "paid":
-            return False
+        status = str(purchase.get("status") or "draft")
         receipt_code = str(purchase.get("receiptCode") or purchase.get("receipt_code") or "").strip()
         receipt_row = self._get_inventory_receipt_by_code(
             connection,
             receipt_code,
             receipt_type="purchase",
         )
-        return receipt_row is None
+        if receipt_row is not None:
+            return False
+        has_received_at = bool(purchase.get("receivedAt") or purchase.get("received_at"))
+        has_paid_at = bool(purchase.get("paidAt") or purchase.get("paid_at"))
+        has_receipt_code = bool(receipt_code)
+        if status == "paid":
+            return True
+        if status in {"draft", "ordered"} and (has_received_at or has_paid_at or has_receipt_code):
+            return True
+        return False
 
     def _clear_inventory_receipt_source_links(
         self,
@@ -1908,9 +1916,15 @@ class InventoryStore:
 
             current_status = str(target.get("status") or "draft")
             is_invalid_paid = self._is_repairable_invalid_purchase(connection, target)
-            if current_status != "draft" and not is_invalid_paid:
+            is_regular_delete_allowed = current_status == "draft"
+            is_regular_cancel_allowed = current_status in {"draft", "ordered"}
+            if clean_action == "delete":
+                action_allowed = is_regular_delete_allowed or is_invalid_paid
+            else:
+                action_allowed = is_regular_cancel_allowed or is_invalid_paid
+            if not action_allowed:
                 raise ValueError(
-                    "Chỉ được xóa/hủy phiếu nhập nháp hoặc phiếu lỗi đã thanh toán nhưng chưa nhập kho."
+                    "Chỉ được xóa/hủy phiếu nhập nháp, hủy phiếu đã đặt, hoặc xử lý phiếu lỗi chưa có nhập kho thật."
                 )
 
             source_receipt_code = str(
@@ -1956,9 +1970,9 @@ class InventoryStore:
             )
 
             repaired_label = (
-                "phiếu lỗi đã thanh toán nhưng chưa nhập kho"
+                "phiếu lỗi chưa có nhập kho thật"
                 if is_invalid_paid
-                else "phiếu nháp"
+                else ("phiếu nháp" if current_status == "draft" else "phiếu đã đặt")
             )
             action_label = "xóa" if clean_action == "delete" else "hủy"
             message = f"Đã {action_label} {repaired_label}."
