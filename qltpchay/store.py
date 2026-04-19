@@ -515,6 +515,21 @@ class InventoryStore:
             "unit_cost": round(float(row["unit_cost"] or 0), 2),
         }
 
+    @staticmethod
+    def _purchase_has_items(purchase: dict) -> bool:
+        items = purchase.get("items")
+        return isinstance(items, list) and bool(items)
+
+    @classmethod
+    def _normalize_purchases_for_storage(cls, purchases: list[dict]) -> list[dict]:
+        normalized: list[dict] = []
+        for purchase in purchases:
+            status = str(purchase.get("status") or "draft")
+            if status == "draft" and not cls._purchase_has_items(purchase):
+                continue
+            normalized.append(purchase)
+        return normalized
+
     def _load_sync_collection_from_tables(
         self,
         connection: sqlite3.Connection,
@@ -646,7 +661,7 @@ class InventoryStore:
                         "items": items_by_purchase.get(str(row["id"]), []),
                     }
                 )
-            return purchases
+            return self._normalize_purchases_for_storage(purchases)
 
         raise ValueError("Collection đồng bộ không hợp lệ.")
 
@@ -753,7 +768,7 @@ class InventoryStore:
         if state_key == "purchases":
             connection.execute("DELETE FROM purchase_items")
             connection.execute("DELETE FROM purchases")
-            for record in records:
+            for record in self._normalize_purchases_for_storage(records):
                 purchase_id = str(record.get("id") or f"purchase_{secrets.token_hex(6)}")
                 connection.execute(
                     """

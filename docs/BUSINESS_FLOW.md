@@ -75,6 +75,7 @@ Nếu cần can thiệp đặc biệt
 
 - từ màn `purchases`
 - có thể đi từ shortage flow của bán hàng
+- phiếu nháp chỉ được lưu thật khi đã có ít nhất một mặt hàng; phiếu trống chỉ là trạng thái mở tạm trên giao diện
 
 ### Bước 2: Chọn hàng cần nhập
 

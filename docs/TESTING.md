@@ -63,6 +63,7 @@ Phù hợp khi sửa:
 - logic `InventoryStore`
 - validate dữ liệu
 - tính tồn kho / báo cáo
+- sync state `purchases`, đặc biệt rule không lưu phiếu nhập nháp nếu chưa có mặt hàng
 
 ## 2. Integration test
 
@@ -235,6 +236,7 @@ Case mới cho Phase B.4:
 - `ACC-PHB-04`: báo cáo tháng và audit chứng từ phản ánh đúng `phiếu trả khách`, `phiếu trả NCC`, `phiếu điều chỉnh tồn`
 - `UT-REP-01`: backend report tách riêng sale/purchase với customer return / supplier return / adjustment
 - `UT-AUD-03`: receipt history trả về source link và audit message cho 3 loại phiếu Phase B
+- `UT-NORM-04`: sync state không persist phiếu nhập nháp rỗng, chỉ lưu draft khi đã có ít nhất một mặt hàng
 
 Case regression UI báo cáo:
 
