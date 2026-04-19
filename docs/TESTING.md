@@ -185,7 +185,9 @@ Các nhóm kiểm tra chính:
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
 - `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa
+- `Phiếu nhập legacy`: purchase `received/paid` thiếu timestamp vẫn phải hiển thị được ngày xử lý fallback để không kẹt flow thanh toán
 - `Báo cáo`: nút shortcut `Audit` phải tự cuộn xuống khung `Audit chứng từ` để xem ngay lịch sử chứng từ
+- `Audit chứng từ`: phải tra cứu được theo mã phiếu và mã tham chiếu nguồn trong kỳ đang xem
 - `Điều hướng mở phiếu/detail`: khi mở giỏ nháp hoặc phiếu nhập từ danh sách, viewport phải tự cuộn lên khối thông tin của phiếu vừa mở
 - `Menu PC/tablet`: nút `Mở menu` phải bung menu, menu tự thu gọn khi rê chuột hoặc bấm ra ngoài, và chiều rộng menu không bị bung quá rộng
 - `Điều hướng sau khi xoay màn hình`: đổi giữa dọc/ngang vẫn phải bấm được menu nghiệp vụ để sang màn khác

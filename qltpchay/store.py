@@ -589,17 +589,18 @@ class InventoryStore:
                 ORDER BY datetime(updated_at) DESC, id
                 """
             ).fetchall()
-            purchase_receipt_codes = {
-                str(row["receipt_code"] or "").strip()
+            purchase_receipts_by_code = {
+                str(row["receipt_code"] or "").strip(): row["created_at"]
                 for row in connection.execute(
                     """
-                    SELECT receipt_code
+                    SELECT receipt_code, created_at
                     FROM inventory_receipts
                     WHERE receipt_type = 'purchase'
                     """
                 ).fetchall()
                 if str(row["receipt_code"] or "").strip()
             }
+            purchase_receipt_codes = set(purchase_receipts_by_code.keys())
             item_rows = connection.execute(
                 """
                 SELECT id, purchase_id, product_id, product_name, quantity, unit_cost, sort_order
@@ -612,11 +613,17 @@ class InventoryStore:
                 items_by_purchase.setdefault(str(row["purchase_id"]), []).append(self._serialize_purchase_item_row(row))
             purchases = []
             for row in purchase_rows:
-                received_at = row["received_at"]
-                paid_at = row["paid_at"]
+                raw_status = row["status"] or "draft"
                 receipt_code = row["receipt_code"] or ""
+                matched_receipt_created_at = purchase_receipts_by_code.get(str(receipt_code).strip(), "")
+                received_at = (
+                    row["received_at"]
+                    or (matched_receipt_created_at if raw_status in {"received", "paid"} else None)
+                    or (row["updated_at"] if raw_status in {"received", "paid"} else None)
+                )
+                paid_at = row["paid_at"] or (row["updated_at"] if raw_status == "paid" else None)
                 is_repairable_invalid = (
-                    (row["status"] or "draft") == "paid"
+                    raw_status == "paid"
                     and str(receipt_code).strip() not in purchase_receipt_codes
                 )
                 purchases.append(
@@ -625,7 +632,7 @@ class InventoryStore:
                         "supplierId": row["supplier_id"] or "",
                         "supplierName": row["supplier_name"] or "",
                         "note": row["note"] or "",
-                        "status": row["status"] or "draft",
+                        "status": raw_status,
                         "createdAt": row["created_at"],
                         "updatedAt": row["updated_at"],
                         "receivedAt": received_at,

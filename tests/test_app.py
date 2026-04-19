@@ -324,6 +324,49 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(repaired["receiptCode"], "")
         self.assertIn("phiếu lỗi", result["message"])
 
+    def test_ut_db_10_legacy_received_purchase_backfills_received_at_from_updated_at(self) -> None:
+        product = self.store.create_product(
+            name="Phiếu nhập legacy thiếu ngày nhận",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        updated_at = "2026-04-19T11:45:00+07:00"
+        with self.store._connect() as connection:
+            self.store._replace_sync_collection_records(
+                connection,
+                "purchases",
+                [
+                    {
+                        "id": "purchase-received-legacy-01",
+                        "supplierName": "NCC Legacy Received",
+                        "status": "received",
+                        "note": "Phiếu cũ thiếu received_at",
+                        "createdAt": "2026-04-19T11:00:00+07:00",
+                        "updatedAt": updated_at,
+                        "receiptCode": "",
+                        "items": [
+                            {
+                                "id": "purchase-item-received-legacy-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 21000,
+                            }
+                        ],
+                    }
+                ],
+            )
+            canonical = self.store._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), updated_at, "purchases"),
+            )
+
+        sync_state = self.store.get_sync_state()
+        purchase = next(entry for entry in sync_state["purchases"] if entry["id"] == "purchase-received-legacy-01")
+        self.assertEqual(purchase["receivedAt"], updated_at)
+
     def test_ut_rep_01_monthly_report_separates_phase_b_receipts_from_sales_and_purchases(self) -> None:
         product = self.store.create_product(
             name="Bò lát chay",

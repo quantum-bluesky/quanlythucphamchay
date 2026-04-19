@@ -7,6 +7,7 @@
 - Deploy Windows: [docs/DEPLOY_WINDOWS.md](docs/DEPLOY_WINDOWS.md)
 - Hướng dẫn sử dụng: [docs/HUONG_DAN_SU_DUNG.md](docs/HUONG_DAN_SU_DUNG.md)
 - Bảng thuật ngữ Anh - Việt: [docs/TERM_GLOSSARY.md](docs/TERM_GLOSSARY.md)
+- Design hiển thị phiếu: [docs/PHIEU_DISPLAY_DESIGN.md](docs/PHIEU_DISPLAY_DESIGN.md)
 - Hướng dẫn test: [docs/TESTING.md](docs/TESTING.md)
 - Acceptance checklist: [docs/ACCEPTANCE_CHECKLIST.md](docs/ACCEPTANCE_CHECKLIST.md)
 - Phân tích workflow: [docs/WORKFLOW_REVIEW.md](docs/WORKFLOW_REVIEW.md)
@@ -102,12 +103,14 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Giao diện theo menu nghiệp vụ riêng cho tồn kho, tạo đơn, đơn hàng, khách hàng và sản phẩm
 - Các màn chọn đối tượng đều có ô tìm kiếm/gõ tên để thao tác nhanh trên điện thoại
 - Quản lý nhập hàng với phiếu nhập nháp, trạng thái đặt hàng/nhập kho và gợi ý sản phẩm cần nhập
+- Detail phiếu nhập hiển thị thêm mã phiếu và các mốc ngày xử lý để đối chiếu dữ liệu legacy/restore dễ hơn
 - Có nút `NCC` ở màn nhập hàng để mở nhanh form tạo/sửa nhà cung cấp với tên đang gõ; nếu NCC đã tồn tại app sẽ mở thẳng chế độ sửa rồi quay lại áp ngay vào phiếu nhập
 - Phiếu nhập chỉ được chuyển sang `Đã thanh toán` sau khi đã `Nhập kho`, để tránh trả tiền khi hàng chưa được nhận vào tồn
 - Nếu dữ liệu cũ làm phiếu bị lệch trạng thái, ví dụ đang dính marker `Đã thanh toán` nhưng chưa có `Nhập kho` thật hoặc ngoài màn hình lại đang hiện như `Nháp`, app sẽ hiện cảnh báo và cho phép `Hủy phiếu` hoặc `Xóa phiếu` để dọn dữ liệu lỗi mà không khôi phục lại thành nháp
 - Có API chứng từ điều chỉnh cho Phase B gồm: `phiếu điều chỉnh tồn`, `phiếu trả hàng khách`, `phiếu trả NCC` để không sửa ngược chứng từ cũ
 - Có audit log Phase D cho thay đổi trạng thái đơn/phiếu, thay đổi giá chung và lưu người thao tác để truy vết
 - Báo cáo nhập xuất theo tháng, tách riêng `hoàn khách`, `trả NCC`, `điều chỉnh tồn`, có thêm khối audit chứng từ để tra cứu ngay trong màn `Báo cáo`
+- Khối audit chứng từ ở màn `Báo cáo` hỗ trợ tìm theo mã phiếu và mã tham chiếu nguồn để đối chiếu nhanh
 - Quản lý khách hàng có thêm số liên lạc, địa chỉ ship và link Zalo
 - Màn Khách hàng và Nhà cung cấp ưu tiên hiển thị danh sách; form tạo/sửa được thu gọn và chỉ mở khi bấm `Thêm mới` hoặc `Sửa`
 - Màn Sản phẩm cũng ưu tiên hiển thị danh sách; phần `Thêm sản phẩm` và `Lịch sử sản phẩm` được thu gọn sẵn và chỉ mở khi cần

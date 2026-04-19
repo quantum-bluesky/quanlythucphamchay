@@ -52,6 +52,13 @@ export function createPurchasesUi(deps) {
       return;
     }
     const totalAmount = purchase.items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const detailRows = [
+      { label: "Mã phiếu", value: purchase.receiptCode || "Chưa có" },
+      { label: "Ngày tạo", value: formatDate(purchase.createdAt) || "Chưa có" },
+      { label: "Nhập kho", value: formatDate(purchase.receivedAt) || "Chưa có" },
+      { label: "Thanh toán", value: formatDate(purchase.paidAt) || "Chưa có" },
+      { label: "Cập nhật cuối", value: formatDate(purchase.updatedAt) || "Chưa có" },
+    ];
     const selectedItemsMarkup = purchase.items.length ? purchase.items.map((item) => `
       <article class="cart-item">
         <div class="cart-item-header">
@@ -83,7 +90,16 @@ export function createPurchasesUi(deps) {
           <div class="stat-chip"><span>Tổng SL</span><strong>${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))}</strong></div>
           <div class="stat-chip"><span>Tổng tiền</span><strong>${formatCurrency(totalAmount)}</strong></div>
         </div>
-        ${repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đang ở trạng thái lỗi dữ liệu: đã thanh toán nhưng chưa có mốc nhập kho hợp lệ. Có thể hủy hoặc xóa để dọn dữ liệu lỗi, app sẽ không khôi phục lại thành nháp.</article>` : ""}
+        <div class="report-list">
+          <article class="report-card">
+            <div class="report-card-head">
+              <strong>Ngày xử lý và mã phiếu</strong>
+              <span class="status-pill draft">Detail</span>
+            </div>
+            ${detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
+          </article>
+        </div>
+        ${repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đang ở trạng thái lỗi dữ liệu: marker xử lý và trạng thái hiện tại không còn khớp nhau. Có thể hủy hoặc xóa để dọn dữ liệu lỗi, app sẽ không khôi phục lại thành nháp.</article>` : ""}
         ${purchaseLocked && !repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
         <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">
           <div class="subheading selected-items-heading">
