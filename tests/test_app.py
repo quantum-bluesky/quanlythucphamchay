@@ -265,12 +265,64 @@ class InventoryStoreTests(unittest.TestCase):
             }
         )
 
-        with self.assertRaisesRegex(ValueError, "Chỉ được xóa/hủy phiếu nhập nháp hoặc phiếu lỗi"):
+        with self.assertRaisesRegex(ValueError, "xử lý phiếu lỗi chưa có nhập kho thật"):
             self.store.repair_purchase_document(
                 "purchase-valid-01",
                 action="delete",
                 actor="masteradmin",
             )
+
+    def test_ut_db_09_repair_purchase_document_cancels_draft_with_paid_markers(self) -> None:
+        product = self.store.create_product(
+            name="Phiếu nháp lệch marker",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        now = "2026-04-19T10:10:00+07:00"
+        with self.store._connect() as connection:
+            self.store._replace_sync_collection_records(
+                connection,
+                "purchases",
+                [
+                    {
+                        "id": "purchase-draft-broken-01",
+                        "supplierName": "NCC Draft Broken",
+                        "status": "draft",
+                        "note": "Nháp nhưng còn marker thanh toán",
+                        "createdAt": "2026-04-19T10:00:00+07:00",
+                        "updatedAt": now,
+                        "paidAt": now,
+                        "receiptCode": "PN-DRAFT-BROKEN-01",
+                        "items": [
+                            {
+                                "id": "purchase-item-draft-broken-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 1,
+                                "unitCost": 18000,
+                            }
+                        ],
+                    }
+                ],
+            )
+            canonical = self.store._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            )
+
+        result = self.store.repair_purchase_document(
+            "purchase-draft-broken-01",
+            action="cancel",
+            actor="masteradmin",
+        )
+        repaired = result["purchases"][0]
+        self.assertEqual(repaired["status"], "cancelled")
+        self.assertEqual(repaired["paidAt"], None)
+        self.assertEqual(repaired["receivedAt"], None)
+        self.assertEqual(repaired["receiptCode"], "")
+        self.assertIn("phiếu lỗi", result["message"])
 
     def test_ut_rep_01_monthly_report_separates_phase_b_receipts_from_sales_and_purchases(self) -> None:
         product = self.store.create_product(

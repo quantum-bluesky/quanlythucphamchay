@@ -27,13 +27,21 @@ export function createPurchasesDomainHelpers(deps) {
   }
 
   function isRepairableInvalidPurchase(purchase) {
-    if (!purchase || purchase.status !== "paid") return false;
+    if (!purchase) return false;
     if (purchase.isRepairableInvalid === true || purchase.repairableInvalid === true) {
       return true;
     }
+    const status = String(purchase.status || "draft").trim();
     const receivedAt = String(purchase.receivedAt || purchase.received_at || "").trim();
+    const paidAt = String(purchase.paidAt || purchase.paid_at || "").trim();
     const receiptCode = String(purchase.receiptCode || purchase.receipt_code || "").trim();
-    return !receivedAt || !receiptCode;
+    if (status === "paid") {
+      return !receivedAt || !receiptCode;
+    }
+    if (["draft", "ordered"].includes(status)) {
+      return Boolean(receivedAt || paidAt || receiptCode);
+    }
+    return false;
   }
 
   function canEditPurchase(purchase) {

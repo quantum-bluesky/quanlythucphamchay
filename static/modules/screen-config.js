@@ -115,7 +115,7 @@ export const SCREEN_HELP = {
       "Trong detail từng dòng nhập, bạn có thể sửa số lượng, giá nhập và bấm Giá chung để cập nhật giá nhập mặc định của sản phẩm sau khi xác nhận.",
       "Nếu đang gõ tên NCC mới chưa có sẵn, bấm nút NCC để mở thẳng form nhà cung cấp với tên đang nhập; nếu tên đó đã có, app sẽ mở luôn chế độ sửa NCC rồi quay lại phiếu nhập sau khi lưu.",
       "Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho; app sẽ khóa thao tác trả tiền sớm hơn bước này.",
-      "Nếu gặp dữ liệu lỗi cũ kiểu phiếu đang là Đã thanh toán nhưng chưa có mốc Nhập kho hợp lệ, app sẽ hiện cảnh báo và cho phép Hủy/Xóa để dọn trạng thái lỗi mà không khôi phục lại thành nháp.",
+      "Nếu gặp dữ liệu lỗi cũ kiểu phiếu bị lệch marker/trạng thái, như dính Đã thanh toán nhưng chưa có Nhập kho thật hoặc đang hiện thành Nháp sai, app sẽ hiện cảnh báo và cho phép Hủy/Xóa để dọn trạng thái lỗi mà không khôi phục lại thành nháp.",
       "Phiếu đã nhập kho, đã thanh toán hoặc đã hủy sẽ chuyển sang chế độ chỉ xem; nếu sai sót thì bấm Trả NCC trên phiếu cũ hoặc mở khối Phiếu trả NCC để lập phiếu độc lập.",
       "Master Admin cũng không được xóa hoặc hủy ngược phiếu đã khóa, trừ ngoại lệ phiếu lỗi dữ liệu nói trên; ngoài ngoại lệ đó thì chỉ phiếu nháp mới được xóa hẳn.",
       "Ẩn các phiếu đã thanh toán để giữ màn hình gọn; bật lại khi cần đối chiếu lịch sử.",
