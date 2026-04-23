@@ -48,7 +48,8 @@ Lưu ý:
 | 29 | `ACC-SYNC-03` | Kiểm tra sync state từ chối cập nhật phiếu nhập stale và trả metadata conflict đúng. |
 | 30 | `IT-PHD-01` | Kiểm tra product history hỗ trợ lọc theo người thao tác cho thay đổi giá mặc định. |
 | 31 | `IT-PHD-02` | Kiểm tra sync state lưu `actor` khi trạng thái giỏ hàng thay đổi. |
-| 32 | `ACC-SCR-CAP-01` | Kiểm tra chụp ảnh tất cả các màn hình chính (tồn kho, sản phẩm, khách hàng, nhà cung cấp, đơn chờ xuất, phiếu chờ nhập, báo cáo, lịch sử, admin) và lưu vào thư mục `test-results/capture/${current_date}/`. |
+| 32 | `ACC-SCR-CAP-01` | Kiểm tra chụp ảnh tất cả các màn hình chính trên mobile (tồn kho, xuất hàng, đơn hàng, khách hàng, sản phẩm, nhập hàng, nhà cung cấp, báo cáo, lịch sử, admin) và lưu vào thư mục `test-results/capture/${yyyymmdd}/`. |
+| 33 | `ACC-SCR-CAP-02` | Kiểm tra chụp ảnh tất cả các màn hình chính trên tablet (768x1024) và lưu vào thư mục `test-results/capture/${yyyymmdd}/tablet/`. |
 | 33 | `IT-PHD-03` | Kiểm tra form lọc product history theo actor và ngày hoạt động đúng trên UI. |
 | 34 | `IT-PURSUP-01` | Kiểm tra màn nhập hàng có thể mở phiếu tạm, tạo nhà cung cấp mới rồi quay lại giữ giá trị NCC trên UI dù phiếu nháp rỗng không còn persist xuống DB. |
 | 35 | `IT-PURSUP-02` | Kiểm tra màn nhà cung cấp sửa thông tin NCC mà không ghi đè lịch sử phiếu đã thanh toán. |
