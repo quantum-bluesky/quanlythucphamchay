@@ -67,6 +67,7 @@ Liên kết detail hiện có:
   - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
   - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
   - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
+  - khối `Giỏ hiện hành` có thêm button `Detail` để bung metadata phiếu xuất mà không chuyển màn
   - không dùng cụm nút tăng giảm nhanh trong `Giỏ hiện hành` để tránh rối trên mobile
 
 ### `orders` - Quản lý đơn hàng
@@ -81,7 +82,8 @@ Liên kết detail hiện có:
   - danh sách order card
 - nguyên tắc UI:
   - giỏ nháp đang chờ xuất có nút `Xuất` nhanh ngay trên card trên tablet/PC
-  - trên mobile, `Xuất` nằm trong menu `...` để tránh quá tải nút trực tiếp nhưng vẫn thao tác nhanh được
+  - card đơn có button `Detail` để bung metadata và danh sách dòng hàng ngay trong list
+  - trên mobile, `Xuất` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
 
 ### `customers` - Quản lý khách hàng
 
@@ -120,6 +122,7 @@ Liên kết detail hiện có:
 - nguyên tắc UI:
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
+  - metadata phiếu nhập được bung/thu gọn bằng button `Detail` thay vì badge tĩnh để phần đầu phiếu gọn hơn
   - nút `Nhập kho` chỉ hiện khi phiếu đã ở trạng thái `Đã đặt`; phiếu `Nháp` vẫn còn chỉnh sửa được nhưng chưa cho nhập kho
   - ô NCC và nút `NCC` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
 - tài liệu detail:

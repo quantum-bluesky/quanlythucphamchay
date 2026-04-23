@@ -106,6 +106,7 @@ export function createSalesDomainHelpers(deps) {
     if (!cart || cart.status !== "draft") return;
     state.activeCartId = cart.id;
     state.activeCartPanelCollapsed = mobileQuery.matches;
+    state.activeCartDetailExpanded = false;
     customerLookupInput.value = cart.customerName;
     saveAndRenderAll();
   }
@@ -127,6 +128,7 @@ export function createSalesDomainHelpers(deps) {
     }
     state.activeCartId = cart.id;
     state.activeCartPanelCollapsed = mobileQuery.matches;
+    state.activeCartDetailExpanded = false;
     customerLookupInput.value = customer.name;
     saveAndRenderAll(["customers", "carts"]);
     switchMenu("create-order");

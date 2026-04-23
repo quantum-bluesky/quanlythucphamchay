@@ -46,7 +46,7 @@ Không nhồi nhiều mốc thời gian vào list để giữ UI gọn trên mob
 
 ### 3.2. Detail phiếu
 
-Khi mở detail phiếu, phải có khối metadata riêng hiển thị:
+Khi bấm button `Detail`, phải có khối metadata riêng hiển thị:
 
 - `Mã phiếu`
 - `Ngày tạo`
@@ -58,6 +58,8 @@ Nếu thiếu dữ liệu thật thì hiện:
 
 - `Chưa có` nếu hoàn toàn không suy ra được
 - giá trị suy ra từ DB nếu đó là fallback an toàn
+
+Button `Detail` phải cho phép expand/collapse ngay trong card hoặc panel hiện tại để giữ list phiếu gọn trên mobile.
 
 ### 3.3. Các nhóm phiếu chính
 

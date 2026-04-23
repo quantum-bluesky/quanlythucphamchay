@@ -129,6 +129,7 @@ Nếu thiếu hàng:
 
 - với user thường, hệ thống sẽ chuyển sang `Quản lý nhập hàng` để tạo phiếu nhập dự kiến
 - với `Master Admin`, hệ thống mới cho phép chọn sang màn tồn kho để chỉnh trực tiếp nếu thực sự cần
+- nếu cần đối chiếu nhanh metadata phiếu xuất hiện hành, bấm `Detail` trong khối `Giỏ hiện hành`
 
 ## 5. Luồng xem lại và hoàn tất đơn hàng
 
@@ -150,7 +151,8 @@ Dùng màn này để:
 ### Khi nào dùng từng nút
 
 - `Tiếp tục bán`: mở lại giỏ hàng nháp để sửa tiếp
-- `Xuất`: chốt nhanh giỏ nháp thành đơn mà không cần mở lại giỏ; trên mobile nút này nằm trong menu `...` của card
+- `Xuất`: chốt nhanh giỏ nháp thành đơn mà không cần mở lại giỏ; trên mobile mở `Detail` để hiện cụm action của card
+- `Detail`: bung nhanh mã đơn, trạng thái, ngày tạo, mốc xử lý và danh sách dòng hàng của phiếu
 - `In`: in hoặc gửi lại danh sách hàng cho khách
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền
 - `Hủy`: dùng khi khách không lấy nữa
@@ -161,6 +163,7 @@ Lưu ý:
 - đơn đã `Đã xong` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng hay giá
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
 - kể cả `Master Admin` cũng không được xóa hoặc hủy ngược đơn đã chốt
+- trên mobile hoặc tablet, có thể dùng `Detail` để bung rồi thu gọn nhanh nội dung phiếu ngay trong danh sách
 
 ## 6. Luồng quản lý khách hàng
 

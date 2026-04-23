@@ -117,6 +117,7 @@ export function createPurchasesDomainHelpers(deps) {
     if (!purchase || !["draft", "ordered"].includes(purchase.status)) return;
     state.activePurchaseId = purchase.id;
     state.purchasePanelCollapsed = false;
+    state.purchaseDetailExpanded = false;
     purchaseSupplierInput.value = purchase.supplierName || "";
     purchaseNoteInput.value = purchase.note || "";
     saveAndRenderAll();
@@ -151,6 +152,7 @@ export function createPurchasesDomainHelpers(deps) {
       return { items, supplierName: currentPurchase.supplierName || "", note: currentPurchase.note || "" };
     });
     state.purchasePanelCollapsed = false;
+    state.purchaseDetailExpanded = false;
     saveAndRenderAll(["purchases"]);
   }
 

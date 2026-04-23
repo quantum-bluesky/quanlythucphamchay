@@ -231,7 +231,6 @@ export function registerSalesControllerEvents(contract) {
   dom.activeCartPanel.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-cart-action]");
     if (!button) return;
-    const cart = queries.getActiveCart();
     if (button.dataset.cartAction === "toggle-panel") {
       state.activeCartPanelCollapsed = !state.activeCartPanelCollapsed;
       renderers.renderActiveCartPanel();
@@ -240,12 +239,19 @@ export function registerSalesControllerEvents(contract) {
       }
       return;
     }
+    if (button.dataset.cartAction === "toggle-detail") {
+      state.activeCartDetailExpanded = !state.activeCartDetailExpanded;
+      renderers.renderActiveCartPanel();
+      return;
+    }
     if (button.dataset.cartAction === "close") {
       state.activeCartId = null;
+      state.activeCartDetailExpanded = false;
       actions.saveAndRenderAll(["carts"]);
       renderers.renderCreateOrderEntryState();
       return;
     }
+    const cart = queries.getActiveCart();
     if (!cart) return;
     if (button.dataset.cartAction === "print") {
       actions.printCart(cart.id);
@@ -293,6 +299,7 @@ export function registerSalesControllerEvents(contract) {
     if (!cart) return;
     if (action === "open") {
       state.activeCartId = cart.id;
+      state.activeCartDetailExpanded = false;
       actions.switchMenu(cart.status === "draft" ? "create-order" : "orders");
       actions.saveAndRenderAll();
       if (cart.status === "draft") {
