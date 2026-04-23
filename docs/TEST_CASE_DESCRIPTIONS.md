@@ -48,15 +48,16 @@ Lưu ý:
 | 29 | `ACC-SYNC-03` | Kiểm tra sync state từ chối cập nhật phiếu nhập stale và trả metadata conflict đúng. |
 | 30 | `IT-PHD-01` | Kiểm tra product history hỗ trợ lọc theo người thao tác cho thay đổi giá mặc định. |
 | 31 | `IT-PHD-02` | Kiểm tra sync state lưu `actor` khi trạng thái giỏ hàng thay đổi. |
-| 32 | `IT-PHD-03` | Kiểm tra form lọc product history theo actor và ngày hoạt động đúng trên UI. |
-| 33 | `IT-PURSUP-01` | Kiểm tra màn nhập hàng có thể mở phiếu tạm, tạo nhà cung cấp mới rồi quay lại giữ giá trị NCC trên UI dù phiếu nháp rỗng không còn persist xuống DB. |
-| 34 | `IT-PURSUP-02` | Kiểm tra màn nhà cung cấp sửa thông tin NCC mà không ghi đè lịch sử phiếu đã thanh toán. |
-| 35 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
-| 36 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
-| 37 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |
-| 38 | `IT-ORD-01` | Kiểm tra màn đơn hàng hỗ trợ mở rộng chi tiết, đánh dấu đã thanh toán và mở lại giỏ nháp. |
-| 39 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
-| 40 | `IT-NAV-02` | Kiểm tra menu trên PC/tablet bung ra từ nút `Mở menu`, tự thu gọn khi rê chuột hoặc bấm ra ngoài, đồng thời giữ chiều rộng menu gọn. |
+| 32 | `ACC-SCR-CAP-01` | Kiểm tra chụp ảnh tất cả các màn hình chính (tồn kho, sản phẩm, khách hàng, nhà cung cấp, đơn chờ xuất, phiếu chờ nhập, báo cáo, lịch sử, admin) và lưu vào thư mục `test-results/capture/${current_date}/`. |
+| 33 | `IT-PHD-03` | Kiểm tra form lọc product history theo actor và ngày hoạt động đúng trên UI. |
+| 34 | `IT-PURSUP-01` | Kiểm tra màn nhập hàng có thể mở phiếu tạm, tạo nhà cung cấp mới rồi quay lại giữ giá trị NCC trên UI dù phiếu nháp rỗng không còn persist xuống DB. |
+| 35 | `IT-PURSUP-02` | Kiểm tra màn nhà cung cấp sửa thông tin NCC mà không ghi đè lịch sử phiếu đã thanh toán. |
+| 36 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
+| 37 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
+| 38 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |
+| 39 | `IT-ORD-01` | Kiểm tra màn đơn hàng hỗ trợ mở rộng chi tiết, đánh dấu đã thanh toán và mở lại giỏ nháp. |
+| 40 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
+| 41 | `IT-NAV-02` | Kiểm tra menu trên PC/tablet bung ra từ nút `Mở menu`, tự thu gọn khi rê chuột hoặc bấm ra ngoài, đồng thời giữ chiều rộng menu gọn. |
 | 41 | `IT-NAV-03` | Kiểm tra sau khi xoay giữa màn hình dọc và ngang thì vẫn bấm được các item trong menu nghiệp vụ để chuyển màn bình thường. |
 | 42 | `IT-NAV-04` | Kiểm tra trên Tablet touch thật vừa login xong vẫn tap được nút `Mở menu` và chuyển màn bằng item menu bình thường, không bị header menu chặn touch. |
 | 43 | `IT-TAB-01` | Kiểm tra trên Tablet khi viewport chỉ đổi chiều cao như lúc bàn phím ảo bật lên thì ô input đang nhập vẫn giữ focus và gõ tiếp được, không bị render lại làm tắt bàn phím. |
