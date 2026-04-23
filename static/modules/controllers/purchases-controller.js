@@ -9,6 +9,7 @@ export function registerPurchasesControllerEvents(contract) {
   } = contract;
 
   dom.createPurchaseDraftButton.addEventListener("click", () => {
+    state.purchaseDetailExpanded = false;
     const purchase = actions.createPurchaseDraftIfMissing();
     if (purchase.items.length > 0) {
       actions.saveAndRenderAll(["purchases"]);
@@ -116,6 +117,7 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       if (panelButton.dataset.purchasePanelAction === "create") {
+        state.purchaseDetailExpanded = false;
         const purchase = actions.createPurchaseDraftIfMissing();
         if (purchase.items.length > 0) {
           actions.saveAndRenderAll(["purchases"]);
@@ -199,6 +201,11 @@ export function registerPurchasesControllerEvents(contract) {
     const purchase = queries.getActivePurchase();
     if (!purchase) {
       actions.showToast("Không có phiếu nhập đang mở.", true);
+      return;
+    }
+    if (actionButton.dataset.purchaseAction === "toggle-detail") {
+      state.purchaseDetailExpanded = !state.purchaseDetailExpanded;
+      renderers.renderPurchasePanel();
       return;
     }
     if (actionButton.dataset.purchaseAction === "collapse") {
@@ -328,6 +335,7 @@ export function registerPurchasesControllerEvents(contract) {
     if (button.dataset.purchaseListAction === "open") {
       state.activePurchaseId = button.dataset.purchaseId;
       state.purchasePanelCollapsed = false;
+      state.purchaseDetailExpanded = false;
       actions.saveAndRenderAll();
       actions.focusPurchasePanel();
     }

@@ -1078,6 +1078,39 @@ button:disabled {
   border-top: 1px dashed rgba(34, 49, 39, 0.16);
 }
 
+.document-detail-block,
+.document-detail-list,
+.document-detail-items {
+  display: grid;
+  gap: 10px;
+}
+
+.document-detail-toggle-row {
+  margin-top: 12px;
+}
+
+.document-detail-item {
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid var(--line);
+}
+
+.document-detail-item-head,
+.document-detail-item-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.document-detail-item-meta {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .orders-top-pagination .pagination-bar,
 .orders-bottom-pagination .pagination-bar {
   margin-top: 0;
