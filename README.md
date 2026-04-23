@@ -98,6 +98,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Ở màn xuất hàng và nhập hàng, các mặt hàng đã chọn sẽ được gom lên phần tóm tắt đơn/phiếu phía trên để thao tác nhanh
 - Riêng màn xuất hàng giữ nút `...` luôn hiện trên card sản phẩm để mở/thu gọn detail; hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót, nhưng nếu user chủ động bấm `...` thì app vẫn giữ lại đúng card đang thao tác
 - Khối `Giỏ hiện hành` ở màn xuất hàng hiển thị từng dòng đã chọn dưới dạng card gọn 2 dòng; bấm `...` trên từng card để mở detail sửa số lượng, giá bán hoặc bỏ khỏi giỏ
+- Nút `Detail` ở `Giỏ hiện hành` và `Đơn hàng` cho phép bung nhanh metadata phiếu xuất và danh sách dòng hàng mà không phải mở sang chỗ chỉnh sửa
 - Đơn đã chốt và phiếu đã nhập kho/đã thanh toán được khóa sửa trực tiếp để tránh thay đổi ngược lịch sử
 - Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server
 - Tự nạp lại dữ liệu mới từ máy khác ở các màn chính khi màn hình đang rảnh thao tác, giúp thấy tồn kho và giá mới hơn mà không cần `F5`
@@ -108,7 +109,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Giao diện theo menu nghiệp vụ riêng cho tồn kho, tạo đơn, đơn hàng, khách hàng và sản phẩm
 - Các màn chọn đối tượng đều có ô tìm kiếm/gõ tên để thao tác nhanh trên điện thoại
 - Quản lý nhập hàng với phiếu nhập nháp, trạng thái đặt hàng/nhập kho và gợi ý sản phẩm cần nhập
-- Detail phiếu nhập hiển thị thêm mã phiếu và các mốc ngày xử lý để đối chiếu dữ liệu legacy/restore dễ hơn
+- Phiếu nhập có nút `Detail` để bung/thu gọn metadata gồm mã phiếu, nhà cung cấp, trạng thái và các mốc ngày xử lý nhằm đối chiếu dữ liệu legacy/restore dễ hơn
 - Có nút `NCC` ở màn nhập hàng để mở nhanh form tạo/sửa nhà cung cấp với tên đang gõ khi phiếu còn `Nháp`; từ `Đã đặt` trở đi app khóa đổi NCC để giữ đúng workflow
 - Phiếu nhập chỉ được chuyển sang `Đã thanh toán` sau khi đã `Nhập kho`, để tránh trả tiền khi hàng chưa được nhận vào tồn
 - Nếu dữ liệu cũ làm phiếu bị lệch trạng thái, ví dụ đang dính marker `Đã thanh toán` nhưng chưa có `Nhập kho` thật hoặc ngoài màn hình lại đang hiện như `Nháp`, app sẽ hiện cảnh báo và cho phép `Hủy phiếu` hoặc `Xóa phiếu` để dọn dữ liệu lỗi mà không khôi phục lại thành nháp

@@ -22,6 +22,22 @@ export function createPurchasesUi(deps) {
     renderPagination,
   } = deps;
 
+  function getPurchaseStatusMeta(purchase) {
+    if (purchase.status === "paid") {
+      return { label: "Đã thanh toán", statusClass: "completed" };
+    }
+    if (purchase.status === "received") {
+      return { label: "Đã nhập kho", statusClass: "completed" };
+    }
+    if (purchase.status === "ordered") {
+      return { label: "Đã đặt", statusClass: "draft" };
+    }
+    if (purchase.status === "cancelled") {
+      return { label: "Đã hủy", statusClass: "cancelled" };
+    }
+    return { label: "Nháp", statusClass: "draft" };
+  }
+
   function renderPurchaseEntryState() {
     const activePurchase = getActivePurchase();
     const compactActive = mobileQuery.matches && Boolean(activePurchase);
@@ -59,8 +75,11 @@ export function createPurchasesUi(deps) {
       return;
     }
     const totalAmount = purchase.items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const purchaseStatusMeta = getPurchaseStatusMeta(purchase);
     const detailRows = [
       { label: "Mã phiếu", value: purchase.receiptCode || "Chưa có" },
+      { label: "Nhà cung cấp", value: purchase.supplierName || "Chưa có" },
+      { label: "Trạng thái", value: purchaseStatusMeta.label },
       { label: "Ngày tạo", value: formatDate(purchase.createdAt) || "Chưa có" },
       { label: "Nhập kho", value: formatDate(purchase.receivedAt) || "Chưa có" },
       { label: "Thanh toán", value: formatDate(purchase.paidAt) || "Chưa có" },
@@ -90,22 +109,27 @@ export function createPurchasesUi(deps) {
             <h3>${escapeHtml(purchase.supplierName || "Chưa có nhà cung cấp")}</h3>
             <p class="panel-note">${escapeHtml(purchase.note || "Chưa có ghi chú")}</p>
           </div>
-          <span class="status-pill ${escapeHtml(purchase.status === "received" || purchase.status === "paid" ? "completed" : purchase.status === "cancelled" ? "cancelled" : "draft")}">${purchase.status === "paid" ? "Đã thanh toán" : purchase.status === "received" ? "Đã nhập kho" : purchase.status === "ordered" ? "Đã đặt" : purchase.status === "cancelled" ? "Đã hủy" : "Nháp"}</span>
+          <span class="status-pill ${escapeHtml(purchaseStatusMeta.statusClass)}">${escapeHtml(purchaseStatusMeta.label)}</span>
         </div>
         <div class="active-cart-stats">
           <div class="stat-chip"><span>Số dòng</span><strong>${purchase.items.length}</strong></div>
           <div class="stat-chip"><span>Tổng SL</span><strong>${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))}</strong></div>
           <div class="stat-chip"><span>Tổng tiền</span><strong>${formatCurrency(totalAmount)}</strong></div>
         </div>
-        <div class="report-list">
-          <article class="report-card">
-            <div class="report-card-head">
-              <strong>Ngày xử lý và mã phiếu</strong>
-              <span class="status-pill draft">Detail</span>
-            </div>
-            ${detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
-          </article>
+        <div class="document-detail-toggle-row">
+          <button type="button" class="ghost-button compact-button" data-purchase-action="toggle-detail">${state.purchaseDetailExpanded ? "Ẩn detail" : "Detail"}</button>
         </div>
+        ${state.purchaseDetailExpanded ? `
+          <div class="report-list document-detail-list">
+            <article class="report-card">
+              <div class="report-card-head">
+                <strong>Ngày xử lý và mã phiếu</strong>
+                <span class="status-pill ${escapeHtml(purchaseStatusMeta.statusClass)}">${escapeHtml(purchaseStatusMeta.label)}</span>
+              </div>
+              ${detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
+            </article>
+          </div>
+        ` : ""}
         ${repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đang ở trạng thái lỗi dữ liệu: marker xử lý và trạng thái hiện tại không còn khớp nhau. Có thể hủy hoặc xóa để dọn dữ liệu lỗi, app sẽ không khôi phục lại thành nháp.</article>` : ""}
         ${purchaseLocked && !repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
         <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">
@@ -184,7 +208,7 @@ export function createPurchasesUi(deps) {
       <article class="cart-queue-item">
         <div class="queue-header">
           <strong>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
-          <span class="status-pill ${purchase.status === "received" || purchase.status === "paid" ? "completed" : purchase.status === "cancelled" ? "cancelled" : "draft"}">${purchase.status === "paid" ? "Đã thanh toán" : purchase.status === "received" ? "Đã nhập kho" : purchase.status === "ordered" ? "Đã đặt" : purchase.status === "cancelled" ? "Đã hủy" : "Nháp"}</span>
+          <span class="status-pill ${getPurchaseStatusMeta(purchase).statusClass}">${getPurchaseStatusMeta(purchase).label}</span>
         </div>
         <div class="queue-meta">
           <span>${escapeHtml(purchase.receiptCode || formatDate(purchase.updatedAt))}</span>

@@ -15,6 +15,72 @@ export function createSalesUi(deps) {
     renderPagination,
   } = deps;
 
+  function getCartStatusMeta(cart) {
+    if (cart.paymentStatus === "paid") {
+      return { label: "Đã thanh toán", statusClass: "completed" };
+    }
+    if (cart.status === "cancelled") {
+      return { label: "Đã hủy", statusClass: "cancelled" };
+    }
+    if (cart.status === "completed") {
+      return { label: "Đã xong", statusClass: "completed" };
+    }
+    return { label: "Nháp", statusClass: "draft" };
+  }
+
+  function getCartDetailRows(cart) {
+    const statusMeta = getCartStatusMeta(cart);
+    const processedLabel = cart.paymentStatus === "paid"
+      ? "Ngày thanh toán"
+      : cart.status === "cancelled"
+        ? "Ngày hủy"
+        : "Ngày chốt";
+    return [
+      { label: "Mã đơn", value: cart.orderCode || "Chưa có" },
+      { label: "Khách hàng", value: cart.customerName || "Chưa có" },
+      { label: "Trạng thái", value: statusMeta.label },
+      { label: "Ngày tạo", value: formatDate(cart.createdAt) || "Chưa có" },
+      { label: processedLabel, value: formatDate(cart.paidAt || cart.completedAt || cart.cancelledAt) || "Chưa có" },
+      { label: "Cập nhật cuối", value: formatDate(cart.updatedAt) || "Chưa có" },
+    ];
+  }
+
+  function renderCartDocumentDetail(cart, options = {}) {
+    const { includeItems = false } = options;
+    const statusMeta = getCartStatusMeta(cart);
+    const detailRows = getCartDetailRows(cart);
+    const itemsMarkup = includeItems
+      ? (cart.items.length
+        ? `<div class="document-detail-items">${cart.items.map((item) => `
+            <article class="document-detail-item">
+              <div class="document-detail-item-head">
+                <strong>${escapeHtml(item.productName)}</strong>
+                <strong>${escapeHtml(formatCurrency(item.lineTotal))}</strong>
+              </div>
+              <div class="document-detail-item-meta">
+                <span>SL ${escapeHtml(formatQuantity(item.quantity))} ${escapeHtml(item.unit)}</span>
+                <span>Giá bán ${escapeHtml(formatCurrency(item.unitPrice))}</span>
+              </div>
+            </article>
+          `).join("")}</div>`
+        : '<div class="empty-state">Phiếu xuất này chưa có dòng hàng.</div>')
+      : "";
+    return `
+      <div class="document-detail-block">
+        <div class="report-list document-detail-list">
+          <article class="report-card">
+            <div class="report-card-head">
+              <strong>Detail phiếu xuất</strong>
+              <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}</span>
+            </div>
+            ${detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
+          </article>
+        </div>
+        ${itemsMarkup}
+      </div>
+    `;
+  }
+
   function renderCreateOrderEntryState() {
     const activeCart = getActiveCart();
     const compactActive = mobileQuery.matches && Boolean(activeCart);
@@ -51,6 +117,7 @@ export function createSalesUi(deps) {
       return;
     }
 
+    const detailButtonLabel = state.activeCartDetailExpanded ? (compact ? "Ẩn detail" : "Thu gọn detail") : "Detail";
     dom.activeCartPanel.innerHTML = `
       <article class="active-cart-card">
         <div class="active-cart-header">
@@ -70,7 +137,9 @@ export function createSalesUi(deps) {
           <div class="stat-chip"><span>Tổng số lượng</span><strong>${escapeHtml(formatQuantity(cart.totalQuantity))}</strong></div>
           <div class="stat-chip"><span>Tổng tiền bán</span><strong>${escapeHtml(formatCurrency(cart.totalAmount))}</strong></div>
         </div>
+        ${state.activeCartDetailExpanded ? renderCartDocumentDetail(cart) : ""}
         <div class="cart-toolbar">
+          <button type="button" class="ghost-button" data-cart-action="toggle-detail">${detailButtonLabel}</button>
           <button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In / gửi khách"}</button>
           <button type="button" class="primary-button" data-cart-action="checkout" ${cart.itemCount ? "" : "disabled"}>${compact ? "Xuất" : "Chốt xuất kho"}</button>
           <button type="button" class="secondary-button" data-cart-action="cancel">${compact ? "Hủy" : "Hủy giỏ"}</button>
@@ -213,14 +282,14 @@ export function createSalesUi(deps) {
     const bottomPagination = paginationMarkup ? `<div class="orders-bottom-pagination">${paginationMarkup}</div>` : "";
     dom.cartQueueList.innerHTML = topPagination + pageData.items
       .map((cart) => {
-        const expanded = state.expandedOrderId === cart.id;
-        const itemPreview = cart.items.slice(0, 3).map((item) => item.productName).join(", ");
+        const expanded = String(state.expandedOrderId) === String(cart.id);
         const compactMeta = `${formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • ${formatCurrency(cart.totalAmount)}`;
+        const detailButtonLabel = expanded ? "Ẩn detail" : "Detail";
         return `
         <article class="cart-queue-item ${expanded ? "is-expanded" : ""}">
           <div class="queue-header">
             <strong>${escapeHtml(cart.customerName)}</strong>
-            <span class="status-pill ${cart.status === "draft" ? "draft" : "completed"}">${cart.status === "draft" ? "Nháp" : cart.status === "cancelled" ? "Đã hủy" : "Đã xong"}</span>
+            <span class="status-pill ${getCartStatusMeta(cart).statusClass}">${getCartStatusMeta(cart).label}</span>
           </div>
           <div class="queue-meta">
             <span>${escapeHtml(cart.orderCode || `Cập nhật ${formatDate(cart.updatedAt)}`)}</span>
@@ -233,32 +302,28 @@ export function createSalesUi(deps) {
                 <span>${escapeHtml(cart.itemCount)} dòng | ${escapeHtml(formatQuantity(cart.totalQuantity))} số lượng | ${cart.paymentStatus === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}</span>
                 <span>${escapeHtml(formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt))}</span>
               </div>
-              <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
             `}
           <div class="queue-actions">
             ${cart.status === "draft"
               ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="open" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục bán"}</button>`
               : `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>`}
-            ${compact
-              ? `<button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">...</button>`
-              : `
-                <button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>
-                ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="customer-return" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
-                ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
-                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
-                ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
-              `}
+            <button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">${detailButtonLabel}</button>
+            ${!compact && cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="customer-return" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
+            ${!compact && cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
+            ${!compact && cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
+            ${!compact && canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
           </div>
-          ${compact && expanded ? `
+          ${expanded ? `
             <div class="queue-detail-block">
-              <div class="cart-line-note">${escapeHtml(itemPreview || "Chưa có dòng hàng.")}</div>
-              <div class="queue-actions queue-actions-expanded">
+              ${renderCartDocumentDetail(cart, { includeItems: true })}
+              ${compact ? `<div class="queue-actions queue-actions-expanded">
                 ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
+                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="checkout" data-queue-action="checkout" data-cart-id="${cart.id}">Xuất</button>` : ""}
                 ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="customer-return" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả</button>` : ""}
                 ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">TT</button>` : ""}
                 ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
                 ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
-              </div>
+              </div>` : ""}
             </div>
           ` : ""}
         </article>
