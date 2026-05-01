@@ -8,6 +8,24 @@ export function registerPurchasesControllerEvents(contract) {
     utils,
   } = contract;
 
+  function getPurchaseDisplayName(purchase) {
+    return purchase.receiptCode || purchase.supplierName || "phiếu nhập này";
+  }
+
+  function confirmPurchaseStatusAction(purchase, action) {
+    const label = getPurchaseDisplayName(purchase);
+    const messages = {
+      "mark-ordered": `Chuyển "${label}" sang Đã đặt hàng?\n\nSau bước này phiếu vẫn còn sửa được nhưng sẽ không còn đổi nhà cung cấp.`,
+      receive: `Nhập kho cho "${label}"?\n\nApp sẽ cộng tồn kho ngay theo các dòng hiện tại và chuyển phiếu sang Đã nhập kho.`,
+      "mark-paid": `Đánh dấu "${label}" là đã thanh toán?\n\nPhiếu sẽ được ghi nhận là đã trả tiền và giữ nguyên lịch sử nhập kho.`,
+    };
+    const message = messages[action];
+    if (!message) {
+      return true;
+    }
+    return window.confirm(message);
+  }
+
   dom.createPurchaseDraftButton.addEventListener("click", () => {
     state.purchaseDetailExpanded = false;
     const purchase = actions.createPurchaseDraftIfMissing();
@@ -241,6 +259,9 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
         return;
       }
+      if (!confirmPurchaseStatusAction(purchase, "mark-ordered")) {
+        return;
+      }
       actions.updatePurchase(purchase.id, () => ({ status: "ordered", supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
       actions.saveAndRenderAll(["purchases"]);
       actions.showToast("Đã cập nhật trạng thái đặt hàng.");
@@ -252,8 +273,8 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       const confirmMessage = queries.isRepairableInvalidPurchase(purchase)
-        ? "Phiếu này đang ở trạng thái lỗi dữ liệu. Hủy phiếu sẽ bỏ các marker xử lý bị lệch và giữ phiếu ở dạng đã hủy, không quay lại nháp.\n\nBạn có chắc muốn hủy phiếu này?"
-        : "Hủy phiếu này sẽ giữ lại lịch sử ở trạng thái đã hủy.\n\nBạn có chắc muốn tiếp tục?";
+        ? `"${getPurchaseDisplayName(purchase)}" đang ở trạng thái lỗi dữ liệu. Hủy phiếu sẽ bỏ các marker xử lý bị lệch và giữ phiếu ở dạng đã hủy, không quay lại nháp.\n\nBạn có chắc muốn hủy phiếu này?`
+        : `Hủy "${getPurchaseDisplayName(purchase)}"?\n\nPhiếu sẽ chuyển sang trạng thái Đã hủy và vẫn được giữ lại trong lịch sử.`;
       if (!window.confirm(confirmMessage)) {
         return;
       }
@@ -277,6 +298,9 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho.", true);
         return;
       }
+      if (!confirmPurchaseStatusAction(purchase, "mark-paid")) {
+        return;
+      }
       actions.updatePurchase(purchase.id, () => ({ status: "paid", paidAt: utils.nowIso(), supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
       actions.saveAndRenderAll(["purchases"]);
       actions.showToast("Đã cập nhật phiếu nhập là đã thanh toán.");
@@ -295,6 +319,9 @@ export function registerPurchasesControllerEvents(contract) {
     if (actionButton.dataset.purchaseAction === "receive") {
       if (!queries.canReceivePurchase(purchase)) {
         actions.showToast("Chỉ phiếu đã đặt hàng mới được nhập kho.", true);
+        return;
+      }
+      if (!confirmPurchaseStatusAction(purchase, "receive")) {
         return;
       }
       try {
