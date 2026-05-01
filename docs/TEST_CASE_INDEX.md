@@ -90,7 +90,10 @@ Mục tiêu:
 | 65 | `UT-HIS-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_his_02_product_history_supports_date_range_filter` |
 | 66 | `UT-REP-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_rep_01_monthly_report_separates_phase_b_receipts_from_sales_and_purchases` |
 | 67 | `ACC-PUR-03` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "ACC-PUR-03"` |
-| 68 | `UT-DB-11` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_11_purchase_must_be_ordered_before_receive_and_ordered_remains_editable` |
+| 68 | `ACC-SCR-CAP-01` | `tests/integration/capture-screens.spec.js` | `npx playwright test tests/integration/capture-screens.spec.js --grep "ACC-SCR-CAP-01"` |
+| 69 | `ACC-SCR-CAP-02` | `tests/integration/capture-screens.spec.js` | `npx playwright test tests/integration/capture-screens.spec.js --grep "ACC-SCR-CAP-02"` |
+| 70 | `UT-DB-11` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_11_purchase_must_be_ordered_before_receive_and_ordered_remains_editable` |
+| 71 | `IT-STS-01` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "IT-STS-01"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 
