@@ -22,6 +22,13 @@ async function setFloatingSearch(page, term) {
   await page.waitForTimeout(250);
 }
 
+async function captureDialogMessage(page, trigger) {
+  const dialogPromise = page.waitForEvent("dialog");
+  await trigger();
+  const dialog = await dialogPromise;
+  return dialog.message();
+}
+
 test("ACC-PUR-01 purchase can only be marked paid after it has been received", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const userCookie = await autoLoginUserRequest(request);
@@ -217,6 +224,163 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
     await page.locator('[data-purchase-action="receive"]').click();
     const receiveToast = await collectToast(page, runtime, "acc-pur-03-receive", { errorPattern: /^$/ });
     expect(receiveToast).toContain("Đã nhập hàng vào kho");
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-STS-01 status-changing order and purchase actions show confirm dialogs before applying", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const draftCustomerName = `Khách confirm ${timestamp}`;
+  const draftSupplierName = `NCC confirm ${timestamp}`;
+  const draftCartId = `cart_confirm_${timestamp}`;
+  const draftPurchaseId = `purchase_confirm_${timestamp}`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.find((entry) => Number(entry.current_stock || 0) >= 2) || productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const draftCart = {
+    id: draftCartId,
+    customerName: draftCustomerName,
+    status: "draft",
+    paymentStatus: "unpaid",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    orderCode: "",
+    items: [
+      {
+        id: `cart_item_confirm_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        unitPrice: Number(product.sale_price || product.price || 0) || 1000,
+        note: "",
+      },
+    ],
+  };
+  const draftPurchase = {
+    id: draftPurchaseId,
+    supplierName: draftSupplierName,
+    note: "IT-STS-01 draft purchase",
+    status: "draft",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    receiptCode: "",
+    items: [
+      {
+        id: `purchase_item_confirm_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        carts: [...(originalState.carts || []), draftCart],
+        purchases: [...(originalState.purchases || []), draftPurchase],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "orders");
+    await expectScreenTitle(page, "Đơn hàng");
+    await setFloatingSearch(page, draftCustomerName);
+    const draftOrderCard = page.locator(".cart-queue-item", { hasText: draftCustomerName }).first();
+    await draftOrderCard.locator('[data-queue-action="open"]').click();
+    await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    if (!await page.locator('[data-cart-action="checkout"]').isVisible().catch(() => false)) {
+      await page.locator('[data-cart-action="toggle-panel"]').click();
+      await expect(page.locator('[data-cart-action="checkout"]')).toBeVisible();
+    }
+
+    const checkoutDialog = await captureDialogMessage(page, async () => {
+      await page.locator('[data-cart-action="checkout"]').click();
+    });
+    expect(checkoutDialog).toContain("Đã xong");
+    const checkoutToast = await collectToast(page, runtime, "it-sts-01-checkout", { errorPattern: /^$/ });
+    expect(checkoutToast).toContain("Đã chốt giỏ hàng");
+
+    await switchMenu(page, "orders");
+    await expectScreenTitle(page, "Đơn hàng");
+    await page.locator("#showArchivedCarts").check();
+    await page.waitForTimeout(300);
+    await setFloatingSearch(page, draftCustomerName);
+    const completedOrderCard = page.locator(".cart-queue-item", { hasText: draftCustomerName }).first();
+    await completedOrderCard.locator('[data-queue-action="toggle-detail"]').click();
+    const markPaidDialog = await captureDialogMessage(page, async () => {
+      await completedOrderCard.locator('[data-queue-action="mark-paid"]').click();
+    });
+    expect(markPaidDialog).toContain("đã thanh toán");
+    await page.waitForTimeout(700);
+
+    const paidOrderStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(paidOrderStateResponse.ok()).toBeTruthy();
+    const paidOrderState = await paidOrderStateResponse.json();
+    expect((paidOrderState.carts || []).some((cart) => cart.id === draftCartId && cart.paymentStatus === "paid")).toBeTruthy();
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+    await setFloatingSearch(page, draftSupplierName);
+    const draftPurchaseCard = page.locator(".cart-queue-item", { hasText: draftSupplierName }).first();
+    await draftPurchaseCard.locator('[data-purchase-list-action="open"]').click();
+
+    const markOrderedDialog = await captureDialogMessage(page, async () => {
+      await page.locator('[data-purchase-action="mark-ordered"]').click();
+    });
+    expect(markOrderedDialog).toContain("Đã đặt hàng");
+    const orderedToast = await collectToast(page, runtime, "it-sts-01-ordered", { errorPattern: /^$/ });
+    expect(orderedToast).toContain("Đã cập nhật trạng thái đặt hàng");
+
+    const receiveDialog = await captureDialogMessage(page, async () => {
+      await page.locator('[data-purchase-action="receive"]').click();
+    });
+    expect(receiveDialog).toContain("Đã nhập kho");
+    const receiveToast = await collectToast(page, runtime, "it-sts-01-receive", { errorPattern: /^$/ });
+    expect(receiveToast).toContain("Đã nhập hàng vào kho");
+
+    await setFloatingSearch(page, draftSupplierName);
+    const receivedPurchaseCard = page.locator(".cart-queue-item", { hasText: draftSupplierName }).first();
+    await receivedPurchaseCard.locator('[data-purchase-list-action="open"]').click();
+
+    const markPurchasePaidDialog = await captureDialogMessage(page, async () => {
+      await page.locator('[data-purchase-action="mark-paid"]').click();
+    });
+    expect(markPurchasePaidDialog).toContain("đã thanh toán");
+    const purchasePaidToast = await collectToast(page, runtime, "it-sts-01-paid", { errorPattern: /^$/ });
+    expect(purchasePaidToast).toContain("Đã cập nhật phiếu nhập là đã thanh toán");
+
+    const paidPurchaseStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(paidPurchaseStateResponse.ok()).toBeTruthy();
+    const paidPurchaseState = await paidPurchaseStateResponse.json();
+    expect((paidPurchaseState.purchases || []).some((purchase) => purchase.id === draftPurchaseId && purchase.status === "paid")).toBeTruthy();
   } finally {
     await request.put("/api/state", {
       headers: { Cookie: userCookie },

@@ -1,5 +1,5 @@
 {
-  "version": "2.8.5",
+  "version": "2.8.8",
   "server": {
     "host": "0.0.0.0",
     "port": 4000

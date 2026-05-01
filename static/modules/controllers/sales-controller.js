@@ -8,6 +8,24 @@ export function registerSalesControllerEvents(contract) {
     utils,
   } = contract;
 
+  function getCartDisplayName(cart) {
+    return cart.orderCode || cart.customerName || "giỏ hàng này";
+  }
+
+  function confirmCartStatusAction(cart, action) {
+    const label = getCartDisplayName(cart);
+    const messages = {
+      checkout: `Chốt xuất kho cho "${label}"?\n\nĐơn sẽ chuyển sang Đã xong và tồn kho sẽ bị trừ ngay theo các dòng hiện tại.`,
+      "mark-paid": `Đánh dấu "${label}" là đã thanh toán?\n\nApp sẽ ghi nhận đơn này đã thu tiền.`,
+      cancel: `Hủy "${label}"?\n\nGiỏ sẽ chuyển sang trạng thái Đã hủy và giữ lại trong lịch sử.`,
+    };
+    const message = messages[action];
+    if (!message) {
+      return true;
+    }
+    return window.confirm(message);
+  }
+
   dom.salesSearchInput.addEventListener("input", (event) => {
     state.salesSearchTerm = event.target.value;
     state.pagination.salesProducts = 1;
@@ -258,6 +276,9 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     if (button.dataset.cartAction === "checkout") {
+      if (!confirmCartStatusAction(cart, "checkout")) {
+        return;
+      }
       try {
         await actions.checkoutActiveCart();
       } catch (error) {
@@ -266,6 +287,9 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     if (button.dataset.cartAction === "cancel") {
+      if (!confirmCartStatusAction(cart, "cancel")) {
+        return;
+      }
       cart.status = "cancelled";
       actions.saveAndRenderAll(["carts"]);
       return;
@@ -314,6 +338,9 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     if (action === "checkout") {
+      if (!confirmCartStatusAction(cart, "checkout")) {
+        return;
+      }
       try {
         await actions.checkoutCart(cart.id);
       } catch (error) {
@@ -332,11 +359,17 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     if (action === "paid" || action === "mark-paid") {
+      if (!confirmCartStatusAction(cart, "mark-paid")) {
+        return;
+      }
       cart.paymentStatus = "paid";
       actions.saveAndRenderAll(["carts"]);
       return;
     }
     if (action === "cancel") {
+      if (!confirmCartStatusAction(cart, "cancel")) {
+        return;
+      }
       cart.status = "cancelled";
       actions.saveAndRenderAll(["carts"]);
       return;
