@@ -157,6 +157,51 @@ python app.py config
 
 Nên đổi mật khẩu admin trước khi đưa vào sử dụng thật.
 
+## 7.2. Version client JS khi deploy
+
+Hệ thống dùng `version` chính trong:
+
+```text
+data\system_config.json
+```
+
+và manifest cache-busting cho từng file client JS ở:
+
+```text
+data\js_asset_versions.json
+```
+
+Khi server chạy, app sẽ quét các file `.js` trong `static\` và tự gắn URL dạng:
+
+```text
+/static/app.js?v=2.8.8.1
+/static/modules/controllers/sales-controller.js?v=2.8.8.3
+```
+
+Quy tắc deploy:
+
+- Nếu không đổi `version` chính, mỗi file `.js` có nội dung thay đổi sẽ tự tăng `N` thêm `1`; sau `N` lần thay đổi nội dung của cùng file trong cùng version chính, URL của file đó sẽ là `version-chính.N`.
+- Nếu đổi `version` chính trong `data\system_config.json`, toàn bộ counter của file `.js` reset về `1`; lần chạy server đầu tiên sau deploy sẽ ghi lại manifest theo version mới.
+- Chỉ file `.js` thật sự đổi nội dung mới tăng counter; file không đổi giữ nguyên counter trong cùng version chính.
+- Khi deploy code mới, restart server để server đọc lại `system_config.json` và refresh manifest.
+- Sau deploy, người dùng chỉ cần reload trang bình thường; không cần `Ctrl+F5` vì URL `.js` đã đổi theo `?v=...`.
+
+Ví dụ:
+
+- Version chính đang là `2.8.8`, `app.js` đã ở `2.8.8.1`.
+- Deploy lần 2 có sửa `app.js` nhưng vẫn giữ `version` chính `2.8.8`, URL mới sẽ thành `2.8.8.2`.
+- Deploy lần 3 có sửa tiếp `app.js`, URL mới sẽ thành `2.8.8.3`.
+- Khi nâng `version` chính lên `2.8.9`, `app.js` reset về `2.8.9.1`.
+
+Kiểm tra nhanh sau deploy:
+
+```powershell
+python app.py config
+Get-Content .\data\js_asset_versions.json
+```
+
+Trong trình duyệt có thể mở Developer Tools, tab Network, reload trang và kiểm tra các request `.js` có query `?v=version-chính.N`.
+
 ## 8. Cho phép qua Windows Firewall
 
 Nếu máy khác không vào được, mở port trên Windows Firewall.
