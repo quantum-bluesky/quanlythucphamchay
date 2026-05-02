@@ -98,7 +98,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Ở màn xuất hàng và nhập hàng, các mặt hàng đã chọn sẽ được gom lên phần tóm tắt đơn/phiếu phía trên để thao tác nhanh
 - Riêng màn xuất hàng giữ nút `...` luôn hiện trên card sản phẩm để mở/thu gọn detail; hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót, nhưng nếu user chủ động bấm `...` thì app vẫn giữ lại đúng card đang thao tác
 - Khối `Giỏ hiện hành` ở màn xuất hàng hiển thị từng dòng đã chọn dưới dạng card gọn 2 dòng; bấm `...` trên từng card để mở detail sửa số lượng, giá bán hoặc bỏ khỏi giỏ
-- Trước các thao tác đổi trạng thái chứng từ như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, app sẽ hiện message confirm để tránh bấm nhầm
+- Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm
 - Nút `Detail` ở `Giỏ hiện hành` và `Đơn hàng` cho phép bung nhanh metadata phiếu xuất và danh sách dòng hàng mà không phải mở sang chỗ chỉnh sửa
 - Đơn đã chốt và phiếu đã nhập kho/đã thanh toán được khóa sửa trực tiếp để tránh thay đổi ngược lịch sử
 - Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server

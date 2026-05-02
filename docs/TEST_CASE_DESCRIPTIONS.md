@@ -87,4 +87,4 @@ Lưu ý:
 | 66 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |
 | 67 | `ACC-PUR-03` | Kiểm tra phiếu nhập nháp phải được chuyển sang `Đã đặt hàng` trước khi `Nhập kho`, phiếu `Đã đặt hàng` vẫn chỉnh sửa được nhưng NCC đã bị khóa. |
 | 68 | `UT-DB-11` | Kiểm tra backend chặn `draft -> received`, cho phép `ordered` tiếp tục chỉnh sửa, rồi mới chuyển sang `received` hợp lệ. |
-| 69 | `IT-STS-01` | Kiểm tra các action đổi trạng thái ở đơn hàng và phiếu nhập đều hiện dialog confirm trước khi app áp dụng thay đổi. |
+| 69 | `IT-STS-01` | Kiểm tra các action đổi trạng thái và xóa phiếu ở đơn hàng và phiếu nhập đều hiện dialog confirm trước khi app áp dụng thay đổi. |
