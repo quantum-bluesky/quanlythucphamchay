@@ -166,7 +166,7 @@ Lưu ý:
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
 - kể cả `Master Admin` cũng không được xóa hoặc hủy ngược đơn đã chốt
 - trên mobile hoặc tablet, có thể dùng `Detail` để bung rồi thu gọn nhanh nội dung phiếu ngay trong danh sách
-- trước khi `Xuất`, `Đã thanh toán` hoặc `Hủy`, app sẽ hiện message confirm để tránh đổi trạng thái nhầm
+- trước khi `Xuất`, `Đã thanh toán`, `Hủy` hoặc `Xóa`, app sẽ hiện message confirm để tránh đổi trạng thái hoặc xóa nhầm
 
 ## 6. Luồng quản lý khách hàng
 
@@ -252,7 +252,7 @@ Màn này có 2 phần:
 14. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 15. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
 16. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`
-17. Trước khi đổi trạng thái `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán` hoặc `Hủy phiếu`, app sẽ hiện message confirm để tránh thao tác nhầm
+17. Trước khi đổi trạng thái `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu` hoặc `Xóa phiếu`, app sẽ hiện message confirm để tránh thao tác nhầm
 
 ### Ý nghĩa trạng thái phiếu nhập
 
@@ -268,7 +268,7 @@ Lưu ý:
 - chỉ `Nháp` mới được đổi nhà cung cấp; từ `Đã đặt` trở đi ô NCC và nút `NCC` sẽ bị khóa
 - phiếu đã `Đã nhập kho`, `Đã thanh toán` hoặc `Đã hủy` sẽ chuyển sang chế độ chỉ xem để giữ lịch sử đúng workflow
 - kể cả `Master Admin` cũng không được xóa hoặc hủy ngược các phiếu đã khóa, trừ ngoại lệ phiếu lỗi dữ liệu bị lệch marker/trạng thái nói ở trên
-- các nút đổi trạng thái luôn có thêm bước confirm trước khi app ghi nhận thay đổi
+- các nút đổi trạng thái và xóa phiếu đều có thêm bước confirm trước khi app ghi nhận thay đổi
 
 ## 9. Luồng quản lý nhà cung cấp
 

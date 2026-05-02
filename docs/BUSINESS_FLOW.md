@@ -109,7 +109,7 @@ ordered -> cancelled
 - từ `ordered` trở đi không được đổi `supplierName`; UI phải khóa ô NCC và nút `NCC` trên mọi thiết bị
 - chỉ `received` mới được `paid`
 - `received` / `paid` / `cancelled` chuyển sang chỉ xem
-- trước mọi thao tác đổi trạng thái chứng từ như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, hoặc chuyển sang `cancelled`, UI phải hiện message confirm trước khi ghi nhận
+- trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
 
 ## 5. Luồng sửa sai sau khi đã xử lý chứng từ
 

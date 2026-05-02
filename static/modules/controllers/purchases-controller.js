@@ -18,6 +18,7 @@ export function registerPurchasesControllerEvents(contract) {
       "mark-ordered": `Chuyển "${label}" sang Đã đặt hàng?\n\nSau bước này phiếu vẫn còn sửa được nhưng sẽ không còn đổi nhà cung cấp.`,
       receive: `Nhập kho cho "${label}"?\n\nApp sẽ cộng tồn kho ngay theo các dòng hiện tại và chuyển phiếu sang Đã nhập kho.`,
       "mark-paid": `Đánh dấu "${label}" là đã thanh toán?\n\nPhiếu sẽ được ghi nhận là đã trả tiền và giữ nguyên lịch sử nhập kho.`,
+      delete: `Xóa "${label}"?\n\nChỉ phiếu nhập nháp hoặc phiếu lỗi chưa nhập kho mới được xóa hẳn. Sau khi xác nhận, phiếu sẽ biến mất khỏi danh sách.`,
     };
     const message = messages[action];
     if (!message) {
@@ -236,7 +237,10 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Chỉ được xóa hẳn phiếu nhập nháp hoặc phiếu lỗi chưa nhập kho.", true);
         return;
       }
-      if (queries.isRepairableInvalidPurchase(purchase) && !window.confirm("Phiếu này đang ở trạng thái lỗi dữ liệu. Xóa phiếu sẽ dọn các marker xử lý bị lệch và không khôi phục lại phiếu nháp.\n\nBạn có chắc muốn xóa phiếu này?")) {
+      const confirmMessage = queries.isRepairableInvalidPurchase(purchase)
+        ? `"${getPurchaseDisplayName(purchase)}" đang ở trạng thái lỗi dữ liệu. Xóa phiếu sẽ dọn các marker xử lý bị lệch và không khôi phục lại phiếu nháp.\n\nBạn có chắc muốn xóa phiếu này?`
+        : null;
+      if (!(confirmMessage ? window.confirm(confirmMessage) : confirmPurchaseStatusAction(purchase, "delete"))) {
         return;
       }
       try {

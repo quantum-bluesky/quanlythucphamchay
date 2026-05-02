@@ -84,7 +84,7 @@ Liên kết detail hiện có:
   - giỏ nháp đang chờ xuất có nút `Xuất` nhanh ngay trên card trên tablet/PC
   - card đơn có button `Detail` để bung metadata và danh sách dòng hàng ngay trong list
   - trên mobile, `Xuất` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
-  - các nút đổi trạng thái như `Xuất`, `Đã thanh toán`, `Hủy` phải hiện message confirm trước khi app cập nhật
+  - các nút đổi trạng thái hoặc xóa phiếu như `Xuất`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
 
 ### `customers` - Quản lý khách hàng
 
@@ -126,7 +126,7 @@ Liên kết detail hiện có:
   - metadata phiếu nhập được bung/thu gọn bằng button `Detail` thay vì badge tĩnh để phần đầu phiếu gọn hơn
   - nút `Nhập kho` chỉ hiện khi phiếu đã ở trạng thái `Đã đặt`; phiếu `Nháp` vẫn còn chỉnh sửa được nhưng chưa cho nhập kho
   - ô NCC và nút `NCC` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
-  - các nút đổi trạng thái như `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu` phải hiện message confirm trước khi app cập nhật
+  - các nút đổi trạng thái hoặc xóa phiếu như `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu`, `Xóa phiếu` phải hiện message confirm trước khi app cập nhật
 - tài liệu detail:
   - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 

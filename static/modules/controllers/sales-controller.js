@@ -18,6 +18,7 @@ export function registerSalesControllerEvents(contract) {
       checkout: `Chốt xuất kho cho "${label}"?\n\nĐơn sẽ chuyển sang Đã xong và tồn kho sẽ bị trừ ngay theo các dòng hiện tại.`,
       "mark-paid": `Đánh dấu "${label}" là đã thanh toán?\n\nApp sẽ ghi nhận đơn này đã thu tiền.`,
       cancel: `Hủy "${label}"?\n\nGiỏ sẽ chuyển sang trạng thái Đã hủy và giữ lại trong lịch sử.`,
+      delete: `Xóa "${label}"?\n\nChỉ giỏ nháp tạo nhầm mới được xóa hẳn. Sau khi xác nhận, phiếu sẽ biến mất khỏi danh sách.`,
     };
     const message = messages[action];
     if (!message) {
@@ -295,6 +296,9 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     if (button.dataset.cartAction === "delete") {
+      if (!confirmCartStatusAction(cart, "delete")) {
+        return;
+      }
       state.carts = state.carts.filter((entry) => entry.id !== cart.id);
       state.activeCartId = null;
       actions.saveAndRenderAll(["carts"]);
@@ -375,6 +379,9 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     if (action === "delete") {
+      if (!confirmCartStatusAction(cart, "delete")) {
+        return;
+      }
       state.carts = state.carts.filter((entry) => entry.id !== cart.id);
       if (state.activeCartId === cart.id) state.activeCartId = null;
       actions.saveAndRenderAll(["carts"]);
