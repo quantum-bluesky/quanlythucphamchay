@@ -270,6 +270,16 @@ Lưu ý:
 - kể cả `Master Admin` cũng không được xóa hoặc hủy ngược các phiếu đã khóa, trừ ngoại lệ phiếu lỗi dữ liệu bị lệch marker/trạng thái nói ở trên
 - các nút đổi trạng thái và xóa phiếu đều có thêm bước confirm trước khi app ghi nhận thay đổi
 
+## Version file JS phía client
+
+- App dùng `version` chính trong [data/system_config.json](/D:/QUAN/Program/QuanLyThucPhamChay/data/system_config.json) làm tiền tố cho cache-busting client.
+- Mỗi file `.js` ở frontend có version riêng theo dạng `version-chính.N`, ví dụ `2.8.8.3`.
+- Khi nội dung một file `.js` đổi trong cùng version chính, `N` của đúng file đó sẽ tự tăng thêm `1`; sau `N` lần thay đổi nội dung của cùng file trong cùng version chính, URL của file đó sẽ là `version-chính.N`.
+- Khi `version` chính đổi, counter `N` của các file `.js` sẽ tự reset về `1` cho version mới.
+- Khi deploy code mới, restart server để app đọc lại `system_config.json` và refresh manifest trước khi client reload trang.
+- Manifest được lưu ở [data/js_asset_versions.json](/D:/QUAN/Program/QuanLyThucPhamChay/data/js_asset_versions.json).
+- Vì các URL module được gắn version tự động, sau khi cập nhật code client chỉ cần reload trang bình thường, không cần `Ctrl+F5`.
+
 ## 9. Luồng quản lý nhà cung cấp
 
 Vào menu:

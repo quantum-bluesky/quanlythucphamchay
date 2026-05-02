@@ -10,6 +10,7 @@ Mục tiêu khi làm việc trong repo này:
 - ưu tiên luồng nghiệp vụ thật cho cửa hàng nhỏ trên mobile
 - thay đổi nhỏ, đúng chỗ, tránh phá dữ liệu đang dùng
 - luôn giữ đồng bộ giữa code, help trong app và tài liệu người dùng
+- khi sửa file client `.js`, phải giữ cơ chế version cache-busting hoạt động: mỗi file dùng version dạng `version-chính.N`, `N` tự tăng theo lần đổi nội dung trong cùng version chính và reset về `1` khi version chính đổi
 
 ## Stack và cấu trúc chính
 
@@ -19,6 +20,7 @@ Mục tiêu khi làm việc trong repo này:
 - Frontend shared modules: `static/modules/`
 - DB: `data/inventory.db`
 - Config hệ thống runtime: `data/system_config.json`
+- Manifest version client JS: `data/js_asset_versions.json`
 - Tài liệu người dùng: `README.md`, `docs/HUONG_DAN_SU_DUNG.md`, `docs/DEPLOY_WINDOWS.md`
 - Tài liệu design: `docs/SCREEN_DESIGN.md`, `docs/DB_DESIGN.md`, `docs/BUSINESS_FLOW.md`, các tài liệu detail `docs/*_DESIGN.md`
 - Tài liệu test: `docs/TESTING.md`
@@ -138,6 +140,7 @@ Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối
 - không đổi schema DB mà bỏ quên migration trong `_initialize_schema()`
 - không phá dữ liệu cũ; mọi cột mới phải có hướng tương thích ngược
 - giữ patch nhỏ, sửa đúng nguồn gốc thay vì workaround ở UI
+- không bỏ quên cơ chế cache-busting client JS; nếu thay đổi file `.js`, phải chắc rằng version của file đó vẫn được tăng/ghi nhận đúng theo manifest
 - không revert thay đổi của user nếu không được yêu cầu
 - ưu tiên mobile UX vì app được dùng nhiều trên điện thoại
 - khi thêm button/action mới trên mobile, cân nhắc thu gọn, sticky, overflow `...` và tránh che nội dung

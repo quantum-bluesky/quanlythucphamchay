@@ -12,7 +12,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .auth import parse_cookie_header
-from .constants import ADMIN_SESSION_COOKIE, APP_NAME, STATIC_DIR
+from .constants import ADMIN_SESSION_COOKIE, APP_NAME, JS_ASSET_VERSIONS_PATH, STATIC_DIR
+from .js_asset_versions import JavaScriptAssetVersionManager
 from .store import SyncConflictError
 
 
@@ -21,6 +22,13 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
     pagination_config = (system_config or {}).get("pagination", {})
     auth_enabled = bool((system_config or {}).get("EnableLogin"))
     app_version = str((system_config or {}).get("version") or "").strip() or "2.3.1"
+    asset_versions_path = Path((system_config or {}).get("asset_versions_path") or JS_ASSET_VERSIONS_PATH)
+    js_asset_versions = JavaScriptAssetVersionManager(
+        static_root=STATIC_DIR,
+        manifest_path=asset_versions_path,
+        app_version=app_version,
+    )
+    js_asset_versions.refresh_all()
     try:
         session_timeout_minutes = max(1, int((system_config or {}).get("session_timeout_minutes", 360)))
     except (TypeError, ValueError):
@@ -853,8 +861,21 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
             content_type, _ = mimetypes.guess_type(safe_path.name)
             payload = safe_path.read_bytes()
+            cache_control = "public, max-age=3600"
+            if safe_path.suffix == ".html":
+                html_text = payload.decode("utf-8")
+                payload = js_asset_versions.inject_index_versions(html_text).encode("utf-8")
+                content_type = "text/html; charset=utf-8"
+                cache_control = "no-cache, must-revalidate"
+            elif safe_path.suffix == ".js":
+                source_text = payload.decode("utf-8")
+                relative_js_path = safe_path.relative_to(static_root).as_posix()
+                payload = js_asset_versions.rewrite_module_imports(relative_js_path, source_text).encode("utf-8")
+                content_type = "application/javascript; charset=utf-8"
+                cache_control = "no-cache, must-revalidate"
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", content_type or "application/octet-stream")
+            self.send_header("Cache-Control", cache_control)
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)
