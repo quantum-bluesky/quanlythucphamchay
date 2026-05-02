@@ -181,6 +181,7 @@ Khi server chạy, app sẽ quét các file `.js` trong `static\` và tự gắn
 Quy tắc deploy:
 
 - Nếu không đổi `version` chính, mỗi file `.js` có nội dung thay đổi sẽ tự tăng `N` thêm `1`; sau `N` lần thay đổi nội dung của cùng file trong cùng version chính, URL của file đó sẽ là `version-chính.N`.
+- Nếu `git pull` hoặc copy source giữa Windows/Linux chỉ làm đổi line ending `CRLF <-> LF`, manifest không tăng `N`; client sẽ không bị ép tải lại chỉ vì khác môi trường.
 - Nếu đổi `version` chính trong `data\system_config.json`, toàn bộ counter của file `.js` reset về `1`; lần chạy server đầu tiên sau deploy sẽ ghi lại manifest theo version mới.
 - Chỉ file `.js` thật sự đổi nội dung mới tăng counter; file không đổi giữ nguyên counter trong cùng version chính.
 - Khi deploy code mới, restart server để server đọc lại `system_config.json` và refresh manifest.

@@ -185,7 +185,7 @@ Các nhóm kiểm tra chính:
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, thiếu hàng của user thường
 - `Confirm đổi trạng thái/xóa chứng từ`: trước khi `Xuất`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Xóa` app phải hiện dialog confirm
-- `Version cache-busting client JS`: HTML entrypoint và các module import phải được serve kèm query `?v=version-chính.N`, đồng thời counter phải tăng đúng khi file `.js` đổi nội dung
+- `Version cache-busting client JS`: HTML entrypoint và các module import phải được serve kèm query `?v=version-chính.N`, counter phải tăng đúng khi file `.js` đổi nội dung và không tăng nếu chỉ đổi line ending `CRLF/LF`
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
 - `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa

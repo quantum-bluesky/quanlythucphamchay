@@ -98,6 +98,8 @@ Mục tiêu:
 | 73 | `UT-JSVER-01` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_01_versions_increment_per_changed_file_and_reset_when_main_version_changes` |
 | 74 | `UT-JSVER-02` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_02_index_and_module_imports_receive_version_query` |
 | 75 | `UT-JSVER-03` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_03_manifest_version_matches_system_config_version` |
+| 76 | `UT-JSVER-04` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_04_line_ending_only_changes_do_not_increment_file_counter` |
+| 77 | `UT-JSVER-05` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_05_legacy_raw_crlf_hash_migrates_without_incrementing_counter` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

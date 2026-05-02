@@ -92,3 +92,5 @@ Lưu ý:
 | 71 | `UT-JSVER-01` | Kiểm tra manifest version của từng file `.js` tăng đúng theo lần đổi nội dung và tự reset về `1` khi version chính đổi. |
 | 72 | `UT-JSVER-02` | Kiểm tra entrypoint HTML và các import module con đều được rewrite sang URL có query `?v=version-chính.N`. |
 | 73 | `UT-JSVER-03` | Kiểm tra manifest client JS đang dùng đúng `version` chính lấy từ `data/system_config.json`. |
+| 74 | `UT-JSVER-04` | Kiểm tra thay đổi line ending `LF <-> CRLF` không làm tăng counter version của file `.js`. |
+| 75 | `UT-JSVER-05` | Kiểm tra manifest cũ lưu raw hash `CRLF` được migrate sang hash chuẩn hóa line ending mà vẫn giữ nguyên counter. |

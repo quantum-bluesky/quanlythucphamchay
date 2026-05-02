@@ -19,6 +19,20 @@ INDEX_MODULE_SCRIPT_RE = re.compile(
 )
 
 
+def hash_line_ending_normalized_bytes(content: bytes) -> str:
+    normalized = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(normalized).hexdigest()
+
+
+def build_legacy_line_ending_digest_candidates(content: bytes) -> set[str]:
+    normalized = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return {
+        hashlib.sha256(content).hexdigest(),
+        hashlib.sha256(normalized).hexdigest(),
+        hashlib.sha256(normalized.replace(b"\n", b"\r\n")).hexdigest(),
+    }
+
+
 class JavaScriptAssetVersionManager:
     def __init__(self, *, static_root: Path, manifest_path: Path, app_version: str) -> None:
         self.static_root = Path(static_root).resolve()
@@ -156,10 +170,16 @@ class JavaScriptAssetVersionManager:
         absolute_path = (self.static_root / normalized).resolve()
         if not absolute_path.is_file():
             return False
-        digest = hashlib.sha256(absolute_path.read_bytes()).hexdigest()
+        file_content = absolute_path.read_bytes()
+        digest = hash_line_ending_normalized_bytes(file_content)
         record = manifest["files"].get(normalized)
-        if isinstance(record, dict) and record.get("sha256") == digest:
-            return False
+        if isinstance(record, dict):
+            current_digest = record.get("sha256")
+            if current_digest == digest:
+                return False
+            if current_digest in build_legacy_line_ending_digest_candidates(file_content):
+                record["sha256"] = digest
+                return True
         next_counter = 1
         if isinstance(record, dict):
             try:
