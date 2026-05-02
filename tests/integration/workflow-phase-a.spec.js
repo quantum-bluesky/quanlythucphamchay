@@ -244,9 +244,13 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
   const userCookie = await autoLoginUserRequest(request);
   const timestamp = Date.now();
   const draftCustomerName = `Khách confirm ${timestamp}`;
+  const deleteDraftCustomerName = `Khách xóa confirm ${timestamp}`;
   const draftSupplierName = `NCC confirm ${timestamp}`;
+  const deleteDraftSupplierName = `NCC xóa confirm ${timestamp}`;
   const draftCartId = `cart_confirm_${timestamp}`;
+  const deleteDraftCartId = `cart_delete_confirm_${timestamp}`;
   const draftPurchaseId = `purchase_confirm_${timestamp}`;
+  const deleteDraftPurchaseId = `purchase_delete_confirm_${timestamp}`;
 
   const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
@@ -294,13 +298,50 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
       },
     ],
   };
+  const deleteDraftCart = {
+    id: deleteDraftCartId,
+    customerName: deleteDraftCustomerName,
+    status: "draft",
+    paymentStatus: "unpaid",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    orderCode: "",
+    items: [
+      {
+        id: `cart_item_delete_confirm_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        unitPrice: Number(product.sale_price || product.price || 0) || 1000,
+        note: "",
+      },
+    ],
+  };
+  const deleteDraftPurchase = {
+    id: deleteDraftPurchaseId,
+    supplierName: deleteDraftSupplierName,
+    note: "IT-STS-01 delete draft purchase",
+    status: "draft",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    receiptCode: "",
+    items: [
+      {
+        id: `purchase_item_delete_confirm_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
 
   try {
     const seedResponse = await request.put("/api/state", {
       headers: { Cookie: userCookie },
       data: {
-        carts: [...(originalState.carts || []), draftCart],
-        purchases: [...(originalState.purchases || []), draftPurchase],
+        carts: [...(originalState.carts || []), draftCart, deleteDraftCart],
+        purchases: [...(originalState.purchases || []), draftPurchase, deleteDraftPurchase],
       },
     });
     expect(seedResponse.ok()).toBeTruthy();
@@ -381,6 +422,40 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     expect(paidPurchaseStateResponse.ok()).toBeTruthy();
     const paidPurchaseState = await paidPurchaseStateResponse.json();
     expect((paidPurchaseState.purchases || []).some((purchase) => purchase.id === draftPurchaseId && purchase.status === "paid")).toBeTruthy();
+
+    await switchMenu(page, "orders");
+    await expectScreenTitle(page, "Đơn hàng");
+    await setFloatingSearch(page, deleteDraftCustomerName);
+    const deleteDraftOrderCard = page.locator(".cart-queue-item", { hasText: deleteDraftCustomerName }).first();
+    await deleteDraftOrderCard.locator('[data-queue-action="toggle-detail"]').click();
+    const deleteCartDialog = await captureDialogMessage(page, async () => {
+      await deleteDraftOrderCard.locator('[data-queue-action="delete"]').click();
+    });
+    expect(deleteCartDialog).toContain("Xóa");
+    await page.waitForTimeout(700);
+
+    const deletedCartStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(deletedCartStateResponse.ok()).toBeTruthy();
+    const deletedCartState = await deletedCartStateResponse.json();
+    expect((deletedCartState.carts || []).some((cart) => cart.id === deleteDraftCartId)).toBeFalsy();
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+    await setFloatingSearch(page, deleteDraftSupplierName);
+    const deleteDraftPurchaseCard = page.locator(".cart-queue-item", { hasText: deleteDraftSupplierName }).first();
+    await deleteDraftPurchaseCard.locator('[data-purchase-list-action="open"]').click();
+
+    const deletePurchaseDialog = await captureDialogMessage(page, async () => {
+      await page.locator('[data-purchase-action="delete"]').click();
+    });
+    expect(deletePurchaseDialog).toContain("Xóa");
+    const deletePurchaseToast = await collectToast(page, runtime, "it-sts-01-delete-purchase", { errorPattern: /^$/ });
+    expect(deletePurchaseToast).toContain("Đã xóa");
+
+    const deletedPurchaseStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(deletedPurchaseStateResponse.ok()).toBeTruthy();
+    const deletedPurchaseState = await deletedPurchaseStateResponse.json();
+    expect((deletedPurchaseState.purchases || []).some((purchase) => purchase.id === deleteDraftPurchaseId)).toBeFalsy();
   } finally {
     await request.put("/api/state", {
       headers: { Cookie: userCookie },
