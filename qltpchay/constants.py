@@ -8,6 +8,7 @@ DATA_DIR = BASE_DIR / "data"
 BACKUP_DIR = DATA_DIR / "backups"
 DB_PATH = DATA_DIR / "inventory.db"
 CONFIG_PATH = DATA_DIR / "system_config.json"
+JS_ASSET_VERSIONS_PATH = DATA_DIR / "js_asset_versions.json"
 DEFAULT_INIT_FILE = DATA_DIR / "List_price.txt"
 DEFAULT_HOST = "192.168.1.18"
 DEFAULT_PORT = 8000

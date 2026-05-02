@@ -11,6 +11,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from qltpchay.auth import SessionManager
+from qltpchay.config import load_system_config
 from qltpchay.http_handler import create_handler
 from qltpchay.store import InventoryStore
 
@@ -20,6 +21,10 @@ class AuthHttpTests(unittest.TestCase):
         fd, db_file = tempfile.mkstemp(suffix=".db")
         os.close(fd)
         self.db_path = Path(db_file)
+        manifest_fd, manifest_file = tempfile.mkstemp(suffix=".json")
+        os.close(manifest_fd)
+        Path(manifest_file).unlink(missing_ok=True)
+        self.asset_versions_path = Path(manifest_file)
         self.store = InventoryStore(self.db_path)
         self.server = None
         self.server_thread = None
@@ -34,8 +39,11 @@ class AuthHttpTests(unittest.TestCase):
         gc.collect()
         for suffix in ("", "-wal", "-shm"):
             self.db_path.with_name(self.db_path.name + suffix).unlink(missing_ok=True)
+        self.asset_versions_path.unlink(missing_ok=True)
 
     def _start_server(self, system_config: dict) -> None:
+        system_config = dict(system_config)
+        system_config.setdefault("asset_versions_path", str(self.asset_versions_path))
         session_manager = SessionManager(
             admin=system_config["admin"],
             users=system_config.get("users", []),
@@ -67,6 +75,15 @@ class AuthHttpTests(unittest.TestCase):
     def _extract_cookie(headers_map: dict) -> str:
         cookie_header = str(headers_map.get("set-cookie") or "")
         return cookie_header.split(";", 1)[0]
+
+    def _request_text(self, method: str, path: str):
+        connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
+        connection.request(method, path)
+        response = connection.getresponse()
+        raw_body = response.read().decode("utf-8")
+        headers_map = {key.lower(): value for key, value in response.getheaders()}
+        connection.close()
+        return response.status, raw_body, headers_map
 
     def test_ut_auth_01_enable_login_false_allows_anonymous_state_access(self) -> None:
         config = {
@@ -183,6 +200,29 @@ class AuthHttpTests(unittest.TestCase):
         status, payload, _ = self._request_json("GET", "/api/state?transaction_limit=16", cookie=cookie)
         self.assertEqual(status, 401)
         self.assertIn("đăng nhập hệ thống", payload["error"])
+
+    def test_ut_auth_06_static_html_and_js_are_served_with_versioned_client_assets(self) -> None:
+        runtime_config = load_system_config()
+        app_version = str(runtime_config["version"])
+        config = {
+            **runtime_config,
+            "asset_versions_path": str(self.asset_versions_path),
+        }
+        self._start_server(config)
+
+        html_status, html_body, html_headers = self._request_text("GET", "/")
+        self.assertEqual(html_status, 200)
+        self.assertIn(f'/static/app.js?v={app_version}.', html_body)
+        self.assertEqual(html_headers.get("cache-control"), "no-cache, must-revalidate")
+
+        js_status, js_body, js_headers = self._request_text("GET", "/static/app.js")
+        self.assertEqual(js_status, 200)
+        self.assertIn(f'?v={app_version}.', js_body)
+        self.assertEqual(js_headers.get("cache-control"), "no-cache, must-revalidate")
+
+        manifest = json.loads(self.asset_versions_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["app_version"], app_version)
+        self.assertIn("app.js", manifest["files"])
 
 
 if __name__ == "__main__":

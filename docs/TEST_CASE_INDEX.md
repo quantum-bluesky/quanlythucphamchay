@@ -94,6 +94,10 @@ Mục tiêu:
 | 69 | `ACC-SCR-CAP-02` | `tests/integration/capture-screens.spec.js` | `npx playwright test tests/integration/capture-screens.spec.js --grep "ACC-SCR-CAP-02"` |
 | 70 | `UT-DB-11` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_11_purchase_must_be_ordered_before_receive_and_ordered_remains_editable` |
 | 71 | `IT-STS-01` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "IT-STS-01"` |
+| 72 | `UT-AUTH-06` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_06_static_html_and_js_are_served_with_versioned_client_assets` |
+| 73 | `UT-JSVER-01` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_01_versions_increment_per_changed_file_and_reset_when_main_version_changes` |
+| 74 | `UT-JSVER-02` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_02_index_and_module_imports_receive_version_query` |
+| 75 | `UT-JSVER-03` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_03_manifest_version_matches_system_config_version` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

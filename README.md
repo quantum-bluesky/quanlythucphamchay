@@ -25,6 +25,7 @@
 - `static/modules/sync-runtime.js`: sync state nhiều máy, auto refresh, migrate dữ liệu cũ, persist queue
 - `static/modules/entity-product-mutations.js`: mutate customer/supplier/product impact helpers
 - `static/modules/`: state, DOM refs, config màn hình và utility dùng chung
+- `data/js_asset_versions.json`: manifest version cache-busting cho từng file client `.js`
 
 Quy ước tách việc:
 
@@ -103,6 +104,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Đơn đã chốt và phiếu đã nhập kho/đã thanh toán được khóa sửa trực tiếp để tránh thay đổi ngược lịch sử
 - Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server
 - Tự nạp lại dữ liệu mới từ máy khác ở các màn chính khi màn hình đang rảnh thao tác, giúp thấy tồn kho và giá mới hơn mà không cần `F5`
+- Client `.js` được gắn version riêng theo dạng `version-chính.N` và tự tăng khi nội dung file đổi; chỉ cần reload thường là trình duyệt sẽ kéo đúng bản mới, không phải `Ctrl+F5`
 - Có kiểm tra xung đột khi nhiều máy cùng lưu `giỏ nháp` hoặc `phiếu nhập nháp`; app sẽ chặn ghi đè và yêu cầu tải dữ liệu mới nhất trước khi lưu tiếp
 - Trên mobile, menu nổi, ô tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi chạm ra ngoài; chạm vào phần mép còn lộ ra để mở lại
 - Trên PC/tablet, menu nghiệp vụ mặc định thu gọn; hover hoặc bấm `Mở menu` để bung ra nhanh, và menu sẽ tự gọn lại khi rê chuột hoặc bấm ra ngoài
