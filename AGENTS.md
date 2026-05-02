@@ -10,7 +10,7 @@ Mục tiêu khi làm việc trong repo này:
 - ưu tiên luồng nghiệp vụ thật cho cửa hàng nhỏ trên mobile
 - thay đổi nhỏ, đúng chỗ, tránh phá dữ liệu đang dùng
 - luôn giữ đồng bộ giữa code, help trong app và tài liệu người dùng
-- khi sửa file client `.js`, phải giữ cơ chế version cache-busting hoạt động: mỗi file dùng version dạng `version-chính.N`, `N` tự tăng theo lần đổi nội dung trong cùng version chính và reset về `1` khi version chính đổi
+- khi sửa file client `.js`, phải giữ cơ chế version cache-busting hoạt động: mỗi file dùng version dạng `version-chính.N`, `N` tự tăng theo lần đổi nội dung trong cùng version chính, bỏ qua khác biệt line ending `CRLF/LF`, và reset về `1` khi version chính đổi
 
 ## Stack và cấu trúc chính
 

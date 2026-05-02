@@ -1,3 +1,4 @@
+import hashlib
 import json
 import tempfile
 import unittest
@@ -5,7 +6,7 @@ from pathlib import Path
 
 from qltpchay.config import load_system_config
 from qltpchay.constants import JS_ASSET_VERSIONS_PATH
-from qltpchay.js_asset_versions import JavaScriptAssetVersionManager
+from qltpchay.js_asset_versions import JavaScriptAssetVersionManager, hash_line_ending_normalized_bytes
 
 
 def bump_patch_version(version: str) -> str:
@@ -98,3 +99,56 @@ class JavaScriptAssetVersionManagerTests(unittest.TestCase):
         manifest = json.loads(JS_ASSET_VERSIONS_PATH.read_text(encoding="utf-8"))
 
         self.assertEqual(manifest["app_version"], app_version)
+
+    def test_ut_jsver_04_line_ending_only_changes_do_not_increment_file_counter(self) -> None:
+        app_version = str(load_system_config()["version"])
+        manager = JavaScriptAssetVersionManager(
+            static_root=self.static_root,
+            manifest_path=self.manifest_path,
+            app_version=app_version,
+        )
+
+        manifest = manager.refresh_all()
+        self.assertEqual(manifest["files"]["modules/value.js"]["counter"], 1)
+
+        (self.static_root / "modules" / "value.js").write_bytes(b"export const value = 1;\r\n")
+        manifest = manager.refresh_all()
+        self.assertEqual(manifest["files"]["modules/value.js"]["counter"], 1)
+
+        (self.static_root / "modules" / "value.js").write_bytes(b"export const value = 2;\r\n")
+        manifest = manager.refresh_all()
+        self.assertEqual(manifest["files"]["modules/value.js"]["counter"], 2)
+
+    def test_ut_jsver_05_legacy_raw_crlf_hash_migrates_without_incrementing_counter(self) -> None:
+        app_version = str(load_system_config()["version"])
+        legacy_crlf_content = b"export const value = 1;\r\n"
+        lf_content = b"export const value = 1;\n"
+        legacy_counter = 5
+        (self.static_root / "modules" / "value.js").write_bytes(lf_content)
+        self.manifest_path.write_text(
+            json.dumps(
+                {
+                    "app_version": app_version,
+                    "files": {
+                        "modules/value.js": {
+                            "counter": legacy_counter,
+                            "sha256": hashlib.sha256(legacy_crlf_content).hexdigest(),
+                        }
+                    },
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        manager = JavaScriptAssetVersionManager(
+            static_root=self.static_root,
+            manifest_path=self.manifest_path,
+            app_version=app_version,
+        )
+
+        manifest = manager.refresh_all()
+        self.assertEqual(manifest["files"]["modules/value.js"]["counter"], legacy_counter)
+        self.assertEqual(
+            manifest["files"]["modules/value.js"]["sha256"],
+            hash_line_ending_normalized_bytes(lf_content),
+        )
