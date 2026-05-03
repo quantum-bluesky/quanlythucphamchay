@@ -42,6 +42,7 @@ Liên kết detail hiện có:
   - nhảy nhanh sang luồng xử lý liên quan
 - thành phần chính:
   - ô tìm kiếm tồn kho
+  - dropdown sắp xếp trong khu vực phân trang
   - card sản phẩm
   - badge `Chờ xuất` / `Chờ nhập`
   - lịch sử gần đây
@@ -49,6 +50,11 @@ Liên kết detail hiện có:
   - `Xuất`
   - `Nhập`
   - direct adjust chỉ cho Master Admin
+- nguyên tắc UI:
+  - search toolbar chỉ giữ ô tìm kiếm
+  - sort nằm ở pagination đầu list; pagination cuối không lặp sort control
+  - mode `Ưu tiên nhập/xử lý` hiển thị thêm điểm ưu tiên trên card
+  - mode `Hạn còn ít` hiển thị thêm hạn còn lại ước tính hoặc nhãn chưa có dữ liệu hạn
 
 ### `create-order` - Tạo đơn xuất hàng
 
@@ -108,6 +114,7 @@ Liên kết detail hiện có:
   - khối `Thêm sản phẩm`
   - khối `Lịch sử sản phẩm`
   - filter audit theo actor/date
+  - field `Hạn dùng (ngày)` và `Bảo quản (ngày)` để phục vụ sort hạn còn lại ở tồn kho
 
 ### `purchases` - Quản lý nhập hàng
 

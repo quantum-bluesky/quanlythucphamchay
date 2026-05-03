@@ -34,6 +34,9 @@ Nếu cần can thiệp đặc biệt
   - user thường không chỉnh tồn trực tiếp
   - direct adjust là quyền riêng của Master Admin
   - direct adjust bắt buộc lý do
+  - danh sách tồn kho có thể sắp xếp trong khu vực phân trang theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít
+  - `Ưu tiên nhập/xử lý` dùng sức bán thật đã chuẩn hóa theo tồn chuẩn và mức thiếu hàng
+  - `Hạn còn ít` chỉ là ước tính cấp sản phẩm, chưa phải hạn theo từng lô nhập
 
 ## 3. Luồng bán hàng
 
@@ -142,6 +145,7 @@ ordered -> cancelled
 - sửa giá nhập / giá bán mặc định
 - soft delete khi ngừng bán
 - xem audit lịch sử sản phẩm
+- khai báo hạn dùng / thời gian bảo quản theo ngày để hỗ trợ sort tồn kho theo hạn còn lại ước tính
 
 ### Khách hàng
 

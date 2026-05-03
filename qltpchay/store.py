@@ -5,7 +5,7 @@ import secrets
 import shutil
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -20,6 +20,7 @@ from .helpers import (
     parse_date_key,
     parse_non_negative_decimal,
     parse_month_key,
+    parse_optional_positive_decimal,
     parse_positive_decimal,
     shift_month,
     utc_now_iso,
@@ -104,6 +105,8 @@ class InventoryStore:
                     price REAL NOT NULL DEFAULT 0,
                     sale_price REAL NOT NULL DEFAULT 0,
                     low_stock_threshold REAL NOT NULL DEFAULT 5,
+                    shelf_life_days REAL,
+                    storage_life_days REAL,
                     is_deleted INTEGER NOT NULL DEFAULT 0,
                     deleted_at TEXT,
                     created_at TEXT NOT NULL,
@@ -296,6 +299,14 @@ class InventoryStore:
             if "deleted_at" not in columns:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN deleted_at TEXT"
+                )
+            if "shelf_life_days" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN shelf_life_days REAL"
+                )
+            if "storage_life_days" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN storage_life_days REAL"
                 )
             now = utc_now_iso()
             audit_columns = {
@@ -1002,6 +1013,8 @@ class InventoryStore:
                     p.price,
                     p.sale_price,
                     p.low_stock_threshold,
+                    p.shelf_life_days,
+                    p.storage_life_days,
                     p.is_deleted,
                     p.deleted_at,
                     p.created_at,
@@ -1026,7 +1039,7 @@ class InventoryStore:
                 ORDER BY p.is_deleted ASC, p.name COLLATE NOCASE ASC
             """
             rows = connection.execute(sql, params).fetchall()
-            return [self._serialize_product_row(row) for row in rows]
+            return self._serialize_product_rows(connection, rows)
 
     def get_summary(self) -> dict:
         products = self.get_products()
@@ -1048,7 +1061,9 @@ class InventoryStore:
         low_stock_threshold: str | int | float,
         price: str | int | float = 0,
         sale_price: str | int | float | None = None,
-    ) -> tuple[str, str, str, float, float, float]:
+        shelf_life_days: str | int | float | None = None,
+        storage_life_days: str | int | float | None = None,
+    ) -> tuple[str, str, str, float, float, float, float | None, float | None]:
         clean_name = (name or "").strip()
         clean_category = (category or "").strip()
         clean_unit = (unit or "").strip()
@@ -1066,7 +1081,24 @@ class InventoryStore:
             parsed_price if sale_price in (None, "") else sale_price,
             "Giá bán",
         )
-        return clean_name, clean_category, clean_unit, float(threshold), float(parsed_price), float(parsed_sale_price)
+        parsed_shelf_life_days = parse_optional_positive_decimal(
+            shelf_life_days,
+            "Hạn dùng",
+        )
+        parsed_storage_life_days = parse_optional_positive_decimal(
+            storage_life_days,
+            "Thời gian bảo quản",
+        )
+        return (
+            clean_name,
+            clean_category,
+            clean_unit,
+            float(threshold),
+            float(parsed_price),
+            float(parsed_sale_price),
+            None if parsed_shelf_life_days is None else float(parsed_shelf_life_days),
+            None if parsed_storage_life_days is None else float(parsed_storage_life_days),
+        )
 
     def create_product(
         self,
@@ -1076,14 +1108,27 @@ class InventoryStore:
         low_stock_threshold: str | int | float = 5,
         price: str | int | float = 0,
         sale_price: str | int | float | None = None,
+        shelf_life_days: str | int | float | None = None,
+        storage_life_days: str | int | float | None = None,
     ) -> dict:
-        clean_name, clean_category, clean_unit, threshold, parsed_price, parsed_sale_price = self._prepare_product_inputs(
+        (
+            clean_name,
+            clean_category,
+            clean_unit,
+            threshold,
+            parsed_price,
+            parsed_sale_price,
+            parsed_shelf_life_days,
+            parsed_storage_life_days,
+        ) = self._prepare_product_inputs(
             name,
             category,
             unit,
             low_stock_threshold,
             price,
             sale_price,
+            shelf_life_days,
+            storage_life_days,
         )
         now = utc_now_iso()
 
@@ -1091,10 +1136,32 @@ class InventoryStore:
             try:
                 cursor = connection.execute(
                     """
-                    INSERT INTO products(name, category, unit, price, sale_price, low_stock_threshold, created_at, updated_at)
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO products(
+                        name,
+                        category,
+                        unit,
+                        price,
+                        sale_price,
+                        low_stock_threshold,
+                        shelf_life_days,
+                        storage_life_days,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (clean_name, clean_category, clean_unit, parsed_price, parsed_sale_price, float(threshold), now, now),
+                    (
+                        clean_name,
+                        clean_category,
+                        clean_unit,
+                        parsed_price,
+                        parsed_sale_price,
+                        float(threshold),
+                        parsed_shelf_life_days,
+                        parsed_storage_life_days,
+                        now,
+                        now,
+                    ),
                 )
             except sqlite3.IntegrityError as exc:
                 deleted_match = connection.execute(
@@ -1125,24 +1192,59 @@ class InventoryStore:
         low_stock_threshold: str | int | float = 5,
         price: str | int | float = 0,
         sale_price: str | int | float | None = None,
+        shelf_life_days: str | int | float | None = None,
+        storage_life_days: str | int | float | None = None,
     ) -> bool:
-        clean_name, clean_category, clean_unit, threshold, parsed_price, parsed_sale_price = self._prepare_product_inputs(
+        (
+            clean_name,
+            clean_category,
+            clean_unit,
+            threshold,
+            parsed_price,
+            parsed_sale_price,
+            parsed_shelf_life_days,
+            parsed_storage_life_days,
+        ) = self._prepare_product_inputs(
             name,
             category,
             unit,
             low_stock_threshold,
             price,
             sale_price,
+            shelf_life_days,
+            storage_life_days,
         )
         now = utc_now_iso()
 
         with self._connect() as connection:
             cursor = connection.execute(
                 """
-                INSERT OR IGNORE INTO products(name, category, unit, price, sale_price, low_stock_threshold, created_at, updated_at)
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR IGNORE INTO products(
+                    name,
+                    category,
+                    unit,
+                    price,
+                    sale_price,
+                    low_stock_threshold,
+                    shelf_life_days,
+                    storage_life_days,
+                    created_at,
+                    updated_at
+                )
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (clean_name, clean_category, clean_unit, parsed_price, parsed_sale_price, threshold, now, now),
+                (
+                    clean_name,
+                    clean_category,
+                    clean_unit,
+                    parsed_price,
+                    parsed_sale_price,
+                    threshold,
+                    parsed_shelf_life_days,
+                    parsed_storage_life_days,
+                    now,
+                    now,
+                ),
             )
             return cursor.rowcount > 0
 
@@ -1207,14 +1309,27 @@ class InventoryStore:
         low_stock_threshold: str | int | float,
         price: str | int | float = 0,
         sale_price: str | int | float | None = None,
+        shelf_life_days: str | int | float | None = None,
+        storage_life_days: str | int | float | None = None,
     ) -> dict:
-        clean_name, clean_category, clean_unit, threshold, parsed_price, parsed_sale_price = self._prepare_product_inputs(
+        (
+            clean_name,
+            clean_category,
+            clean_unit,
+            threshold,
+            parsed_price,
+            parsed_sale_price,
+            parsed_shelf_life_days,
+            parsed_storage_life_days,
+        ) = self._prepare_product_inputs(
             name,
             category,
             unit,
             low_stock_threshold,
             price,
             sale_price,
+            shelf_life_days,
+            storage_life_days,
         )
         now = utc_now_iso()
 
@@ -1224,7 +1339,15 @@ class InventoryStore:
                 connection.execute(
                     """
                     UPDATE products
-                    SET name = ?, category = ?, unit = ?, price = ?, sale_price = ?, low_stock_threshold = ?, updated_at = ?
+                    SET name = ?,
+                        category = ?,
+                        unit = ?,
+                        price = ?,
+                        sale_price = ?,
+                        low_stock_threshold = ?,
+                        shelf_life_days = ?,
+                        storage_life_days = ?,
+                        updated_at = ?
                     WHERE id = ?
                     """,
                     (
@@ -1234,6 +1357,8 @@ class InventoryStore:
                         parsed_price,
                         parsed_sale_price,
                         threshold,
+                        parsed_shelf_life_days,
+                        parsed_storage_life_days,
                         now,
                         int(product_id),
                     ),
@@ -1501,6 +1626,8 @@ class InventoryStore:
                     p.price,
                     p.sale_price,
                     p.low_stock_threshold,
+                    p.shelf_life_days,
+                    p.storage_life_days,
                     p.is_deleted,
                     p.deleted_at,
                     p.created_at,
@@ -1523,7 +1650,7 @@ class InventoryStore:
             ).fetchone()
             if not row:
                 raise ValueError("Sản phẩm không tồn tại.")
-            return self._serialize_product_row(row)
+            return self._serialize_product_rows(connection, [row])[0]
 
     def create_transaction(
         self,
@@ -2386,19 +2513,178 @@ class InventoryStore:
             "total_amount": round(float(total_amount), 2),
         }
 
-    def _serialize_product_row(self, row: sqlite3.Row) -> dict:
+    @staticmethod
+    def _clamp_ratio(value: float) -> float:
+        if value <= 0:
+            return 0.0
+        if value >= 1:
+            return 1.0
+        return value
+
+    @staticmethod
+    def _parse_iso_datetime(value: str | None) -> datetime | None:
+        clean_value = str(value or "").strip()
+        if not clean_value:
+            return None
+        try:
+            parsed = datetime.fromisoformat(clean_value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+
+    @staticmethod
+    def _optional_float(value) -> float | None:
+        if value is None:
+            return None
+        return round(float(value), 2)
+
+    def _build_product_metric_map(self, connection: sqlite3.Connection, product_ids: list[int]) -> dict[int, dict]:
+        if not product_ids:
+            return {}
+
+        placeholders = ",".join("?" for _ in product_ids)
+        transaction_rows = connection.execute(
+            f"""
+            SELECT
+                t.product_id,
+                t.transaction_type,
+                t.quantity,
+                t.note,
+                t.created_at,
+                ir.receipt_type
+            FROM transactions t
+            LEFT JOIN inventory_receipt_items iri ON iri.transaction_id = t.id
+            LEFT JOIN inventory_receipts ir ON ir.id = iri.receipt_id
+            WHERE t.product_id IN ({placeholders})
+            ORDER BY t.created_at ASC, t.id ASC
+            """,
+            product_ids,
+        ).fetchall()
+
+        now = datetime.now()
+        start_6_month = month_key(*shift_month(now.year, now.month, -5))
+        start_12_month = month_key(*shift_month(now.year, now.month, -11))
+        metrics = {
+            product_id: {
+                "sales_6m_total": 0.0,
+                "sales_12m_total": 0.0,
+                "last_purchase_inbound_at": "",
+                "last_fallback_inbound_at": "",
+            }
+            for product_id in product_ids
+        }
+
+        for row in transaction_rows:
+            product_id = int(row["product_id"] or 0)
+            if product_id not in metrics:
+                continue
+
+            note = row["note"] or ""
+            transaction_kind = detect_report_transaction_kind(row["receipt_type"], note)
+            created_at = str(row["created_at"] or "")
+            row_month = created_at[:7]
+            quantity = float(row["quantity"] or 0)
+
+            if row["transaction_type"] == "out" and transaction_kind == "sale":
+                if row_month >= start_12_month:
+                    metrics[product_id]["sales_12m_total"] += quantity
+                if row_month >= start_6_month:
+                    metrics[product_id]["sales_6m_total"] += quantity
+
+            if row["transaction_type"] != "in":
+                continue
+            if transaction_kind == "purchase":
+                if created_at > metrics[product_id]["last_purchase_inbound_at"]:
+                    metrics[product_id]["last_purchase_inbound_at"] = created_at
+                continue
+            if transaction_kind:
+                continue
+            if created_at > metrics[product_id]["last_fallback_inbound_at"]:
+                metrics[product_id]["last_fallback_inbound_at"] = created_at
+
+        return metrics
+
+    def _serialize_product_rows(self, connection: sqlite3.Connection, rows: list[sqlite3.Row]) -> list[dict]:
+        product_ids = [int(row["id"]) for row in rows]
+        metric_map = self._build_product_metric_map(connection, product_ids)
+        return [
+            self._serialize_product_row(row, metric_map.get(int(row["id"]), {}))
+            for row in rows
+        ]
+
+    def _serialize_product_row(self, row: sqlite3.Row, metrics: dict | None = None) -> dict:
+        metrics = metrics or {}
         current_stock = round(float(row["current_stock"]), 2)
         threshold = round(float(row["low_stock_threshold"]), 2)
+        price = round(float(row["price"]), 2)
+        sales_6m_total = round(float(metrics.get("sales_6m_total") or 0), 2)
+        sales_12m_total = round(float(metrics.get("sales_12m_total") or 0), 2)
+        sales_6m_avg = round(sales_6m_total / 6, 2)
+        sales_12m_avg = round(sales_12m_total / 12, 2)
+        avg_monthly_out = sales_6m_avg if sales_6m_total > 0 else sales_12m_avg
+        priority_base_stock = round(max(threshold, avg_monthly_out, 1.0), 2)
+        demand_pressure = self._clamp_ratio(avg_monthly_out / priority_base_stock)
+        shortage_pressure = self._clamp_ratio((priority_base_stock - current_stock) / priority_base_stock)
+        priority_score = round(100 * ((demand_pressure + shortage_pressure) / 2), 2)
+        if current_stock <= 0:
+            urgency_tier = 3
+        elif current_stock <= threshold:
+            urgency_tier = 2
+        elif current_stock < priority_base_stock:
+            urgency_tier = 1
+        else:
+            urgency_tier = 0
+
+        shelf_life_days = self._optional_float(row["shelf_life_days"])
+        storage_life_days = self._optional_float(row["storage_life_days"])
+        last_purchase_inbound_at = (
+            str(metrics.get("last_purchase_inbound_at") or "").strip()
+            or str(metrics.get("last_fallback_inbound_at") or "").strip()
+        )
+        estimated_remaining_days = None
+        expiry_basis = "unknown"
+        expiry_source_date = self._parse_iso_datetime(last_purchase_inbound_at)
+        if expiry_source_date and shelf_life_days is not None:
+            days_since_inbound = max(
+                0,
+                int((datetime.now(timezone.utc) - expiry_source_date).total_seconds() // 86400),
+            )
+            estimated_remaining_days = round(shelf_life_days - days_since_inbound, 2)
+            expiry_basis = "shelf_life"
+        elif expiry_source_date and storage_life_days is not None:
+            days_since_inbound = max(
+                0,
+                int((datetime.now(timezone.utc) - expiry_source_date).total_seconds() // 86400),
+            )
+            estimated_remaining_days = round(storage_life_days - days_since_inbound, 2)
+            expiry_basis = "storage_life"
+
         return {
             "id": row["id"],
             "name": row["name"],
             "category": row["category"],
             "unit": row["unit"],
-            "price": round(float(row["price"]), 2),
+            "price": price,
             "sale_price": round(float(row["sale_price"]), 2),
             "low_stock_threshold": threshold,
+            "shelf_life_days": shelf_life_days,
+            "storage_life_days": storage_life_days,
             "current_stock": current_stock,
-            "inventory_value": round(current_stock * float(row["price"]), 2),
+            "inventory_value": round(current_stock * price, 2),
+            "sales_6m_total": sales_6m_total,
+            "sales_6m_avg": sales_6m_avg,
+            "sales_12m_total": sales_12m_total,
+            "sales_12m_avg": sales_12m_avg,
+            "priority_base_stock": priority_base_stock,
+            "demand_pressure": round(demand_pressure, 4),
+            "shortage_pressure": round(shortage_pressure, 4),
+            "priority_score": priority_score,
+            "urgency_tier": urgency_tier,
+            "last_purchase_inbound_at": last_purchase_inbound_at,
+            "estimated_remaining_days": estimated_remaining_days,
+            "expiry_basis": expiry_basis,
             "is_low_stock": current_stock <= threshold,
             "is_deleted": bool(row["is_deleted"]),
             "deleted_at": row["deleted_at"],
@@ -2821,6 +3107,8 @@ class InventoryStore:
             unit = str(record.get("unit") or "gói").strip()
             price = record.get("price", 0)
             threshold = record.get("low_stock_threshold", 5)
+            shelf_life_days = record.get("shelf_life_days")
+            storage_life_days = record.get("storage_life_days")
             if not name:
                 summary["skipped"] += 1
                 continue
@@ -2838,6 +3126,8 @@ class InventoryStore:
                     price=price,
                     sale_price=record.get("sale_price"),
                     low_stock_threshold=threshold,
+                    shelf_life_days=shelf_life_days,
+                    storage_life_days=storage_life_days,
                 )
                 summary["updated"] += 1
                 by_name[normalize_key(name)] = self.get_product_by_id(existing["id"])
@@ -2849,6 +3139,8 @@ class InventoryStore:
                     price=price,
                     sale_price=record.get("sale_price"),
                     low_stock_threshold=threshold,
+                    shelf_life_days=shelf_life_days,
+                    storage_life_days=storage_life_days,
                 )
                 summary["created"] += 1
                 by_name[normalize_key(name)] = created

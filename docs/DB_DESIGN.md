@@ -59,6 +59,8 @@ Nguồn: `CREATE TABLE IF NOT EXISTS products` trong `qltpchay/store.py`.
 - `price`: REAL, giá nhập mặc định
 - `sale_price`: REAL, giá bán mặc định
 - `low_stock_threshold`: REAL, ngưỡng cảnh báo sắp hết
+- `shelf_life_days`: REAL nullable, hạn dùng chuẩn theo số ngày
+- `storage_life_days`: REAL nullable, thời gian bảo quản ước tính theo số ngày
 - `is_deleted`: INTEGER, soft delete flag
 - `deleted_at`: TEXT, thời điểm xóa mềm
 - `created_at`: TEXT, timestamp ISO
@@ -69,6 +71,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS products` trong `qltpchay/store.py`.
 - là nguồn sự thật cho danh mục sản phẩm
 - không lưu tồn kho tĩnh; tồn hiện tại được tính từ `transactions`
 - hỗ trợ ngừng bán bằng `is_deleted = 1` thay vì xóa cứng
+- `shelf_life_days` và `storage_life_days` chỉ là metadata cấp sản phẩm để ước tính hạn còn lại, không phải tồn kho theo lô
 
 ## 5. Bảng `transactions`
 
@@ -252,6 +255,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - thêm `sale_price` vào `products` rồi backfill từ `price`
 - thêm `is_deleted`
 - thêm `deleted_at`
+- thêm `shelf_life_days` và `storage_life_days` vào `products`
 - thêm `actor` vào `audit_logs`
 - thêm bảng quan hệ cho `customers/suppliers/carts/purchases`
 - backfill tự động từ `app_state`
@@ -266,6 +270,8 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - direct adjustment bắt buộc có `adjustment_reason`
 - đơn đã `completed` và phiếu nhập đã `received/paid` không được sửa ngược trực tiếp
 - `app_state.updated_at` được dùng để chặn ghi đè stale save
+- sort ưu tiên tồn kho dùng metric suy diễn từ ledger bán hàng thật, không persist score vào DB
+- sort hạn còn lại dùng ước tính từ lần nhập gần nhất và metadata sản phẩm; app chưa quản lý hạn chính xác theo từng lô
 
 ## 13. Điểm mạnh và giới hạn hiện tại
 

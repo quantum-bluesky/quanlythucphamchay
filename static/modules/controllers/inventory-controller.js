@@ -214,6 +214,14 @@ export function registerInventoryControllerEvents(contract) {
     actions.setInventoryAdjustmentReason(reasonInput.dataset.adjustReasonInput, reasonInput.value);
   });
 
+  dom.productGrid.addEventListener("change", (event) => {
+    const sortSelect = event.target.closest("[data-inventory-sort]");
+    if (!sortSelect) return;
+    state.inventorySortMode = sortSelect.value || "name";
+    state.pagination.inventory = 1;
+    renderers.renderProducts();
+  });
+
   dom.productGrid.addEventListener("keydown", async (event) => {
     if (event.key === "Enter" && event.target.matches("[data-quantity-input]")) {
       if (!requireAdmin()) return;

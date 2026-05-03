@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="760" viewBox="0 0 420 760" role="img" aria-labelledby="title desc">
+  <title id="title">Mockup mobile cho dropdown sắp xếp trong khu vực phân trang</title>
+  <desc id="desc">Màn tồn kho trên điện thoại với ô tìm kiếm riêng, khối phân trang hai hàng và dropdown sắp xếp đặt trong vùng trống của phân trang.</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#1c2a20" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+  <rect width="420" height="760" fill="#edf4ed"/>
+  <rect x="34" y="24" width="352" height="712" rx="28" fill="#172018" filter="url(#shadow)"/>
+  <rect x="48" y="46" width="324" height="668" rx="20" fill="#f7faf5"/>
+
+  <rect x="48" y="46" width="324" height="64" rx="20" fill="#e6f0e4"/>
+  <text x="70" y="78" font-family="Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="0" fill="#41684e">MÀN HIỆN TẠI</text>
+  <text x="70" y="100" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1d2c21">Kiểm tra tồn kho</text>
+  <text x="270" y="86" font-family="Arial, sans-serif" font-size="13" fill="#6c786b">masteradmin</text>
+  <rect x="304" y="64" width="48" height="32" rx="10" fill="#ffffff" stroke="#d1dccf"/>
+  <text x="315" y="85" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#1d2c21">v2.8</text>
+
+  <text x="70" y="150" font-family="Arial, sans-serif" font-size="12" fill="#758273">Tồn kho</text>
+  <text x="70" y="174" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#1d2c21">Danh sách mặt hàng</text>
+
+  <rect x="70" y="194" width="132" height="54" rx="8" fill="#ffffff" stroke="#d9e3d8"/>
+  <text x="84" y="216" font-family="Arial, sans-serif" font-size="11" fill="#687766">Sản phẩm</text>
+  <text x="84" y="236" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1d2c21">26</text>
+  <rect x="212" y="194" width="132" height="54" rx="8" fill="#ffffff" stroke="#d9e3d8"/>
+  <text x="226" y="216" font-family="Arial, sans-serif" font-size="11" fill="#687766">Tổng tồn</text>
+  <text x="226" y="236" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1d2c21">180</text>
+
+  <rect x="64" y="266" width="292" height="42" rx="10" fill="#ffffff" stroke="#cbd8c9"/>
+  <text x="86" y="292" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#71806f">Tìm sản phẩm...</text>
+  <circle cx="326" cy="287" r="9" fill="none" stroke="#789078" stroke-width="2"/>
+  <line x1="333" y1="294" x2="340" y2="301" stroke="#789078" stroke-width="2" stroke-linecap="round"/>
+
+  <rect x="64" y="326" width="292" height="118" rx="12" fill="#fbfbf7" stroke="#d9d0bb" stroke-dasharray="3 3"/>
+  <rect x="78" y="342" width="104" height="36" rx="12" fill="#ffffff" stroke="#d1dccf"/>
+  <text x="99" y="365" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#8a9888">← Trước</text>
+  <text x="218" y="365" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#6d7b6a">Trang 1/2 • 26 mục</text>
+
+  <rect x="78" y="390" width="92" height="36" rx="12" fill="#ffffff" stroke="#d1dccf"/>
+  <text x="98" y="413" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1d3b25">Sau →</text>
+  <rect x="188" y="390" width="154" height="36" rx="12" fill="#ffffff" stroke="#c9d8c8"/>
+  <text x="204" y="413" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#203325">Ưu tiên nhập</text>
+  <path d="M324 402 L334 402 L329 411 Z" fill="#546653"/>
+  <text x="190" y="384" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#6d7b6a">SẮP XẾP</text>
+
+  <rect x="64" y="460" width="292" height="86" rx="8" fill="#fff8f2" stroke="#ecc9b9"/>
+  <text x="82" y="487" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1d2c21">Bò lát xào</text>
+  <text x="82" y="509" font-family="Arial, sans-serif" font-size="13" fill="#657564">Tồn 0 gói • Ngưỡng 5</text>
+  <rect x="82" y="520" width="96" height="22" rx="11" fill="#b24325"/>
+  <text x="96" y="536" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff">Ưu tiên 82</text>
+  <text x="254" y="509" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#b24325">Hết hàng</text>
+
+  <rect x="64" y="560" width="292" height="86" rx="8" fill="#ffffff" stroke="#d9e3d8"/>
+  <text x="82" y="587" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1d2c21">Ruốc nấm</text>
+  <text x="82" y="609" font-family="Arial, sans-serif" font-size="13" fill="#657564">Tồn 2 gói • Ngưỡng 3</text>
+  <rect x="82" y="620" width="96" height="22" rx="11" fill="#d98432"/>
+  <text x="96" y="636" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff">Ưu tiên 64</text>
+  <text x="250" y="609" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#d98432">Sắp hết</text>
+
+  <text x="70" y="690" font-family="Arial, sans-serif" font-size="11" fill="#6d7a6b">Sort nằm trong pagination, phần search chỉ giữ nhiệm vụ tìm nhanh.</text>
+</svg>
