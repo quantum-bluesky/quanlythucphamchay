@@ -29,16 +29,16 @@ def build_fixture(store: InventoryStore) -> None:
     store.reset_all_data()
 
     product_specs = [
-        ("Bò kho", "Đồ chay", "gói", 50000, 60000, 5),
-        ("Bò lát xào", "Đồ chay", "gói", 35000, 45000, 5),
-        ("Rong biển kim", "Đồ chay", "gói", 20000, 30000, 4),
-        ("Ruốc nấm", "Đồ chay", "gói", 15000, 25000, 3),
-        ("Chả quế chay", "Đồ chay", "gói", 40000, 55000, 4),
-        ("Hàng đã xóa", "Đồ chay", "gói", 10000, 15000, 2),
+        ("Bò kho", "Đồ chay", "gói", 50000, 60000, 5, 120, 180),
+        ("Bò lát xào", "Đồ chay", "gói", 35000, 45000, 5, 90, 120),
+        ("Rong biển kim", "Đồ chay", "gói", 20000, 30000, 4, 365, 365),
+        ("Ruốc nấm", "Đồ chay", "gói", 15000, 25000, 3, 45, 60),
+        ("Chả quế chay", "Đồ chay", "gói", 40000, 55000, 4, 120, 180),
+        ("Hàng đã xóa", "Đồ chay", "gói", 10000, 15000, 2, 30, 45),
     ]
 
     products: dict[str, dict] = {}
-    for name, category, unit, price, sale_price, threshold in product_specs:
+    for name, category, unit, price, sale_price, threshold, shelf_life_days, storage_life_days in product_specs:
         products[name] = store.create_product(
             name=name,
             category=category,
@@ -46,6 +46,8 @@ def build_fixture(store: InventoryStore) -> None:
             price=price,
             sale_price=sale_price,
             low_stock_threshold=threshold,
+            shelf_life_days=shelf_life_days,
+            storage_life_days=storage_life_days,
         )
 
     store.create_purchase_receipt(

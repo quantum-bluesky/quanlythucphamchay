@@ -45,6 +45,7 @@ Mục tiêu:
 | 21  | ACC-SYNC-02  | P0       | Nhiều máy / draft cart         | Lưu dữ liệu stale bị chặn với conflict metadata                           | Auto | `tests/integration/workflow-phase-c.spec.js`                                                     |
 | 22  | ACC-SYNC-03  | P0       | Nhiều máy / draft purchase     | Lưu dữ liệu stale bị chặn với conflict metadata                           | Auto | `tests/integration/workflow-phase-c.spec.js`                                                     |
 | 23  | ACC-SUP-02   | P0       | Nhà cung cấp + dữ liệu legacy  | Tạo mới NCC không bị lỗi sync khi có phiếu `paid` legacy dùng `received_at` | Auto | `tests/integration/acceptance-checklist.spec.js`                                                 |
+| 24  | ACC-INV-03   | P1       | Tồn kho / sắp xếp              | Dropdown sắp xếp nằm trong khu vực phân trang và sort đúng tồn kho         | Auto | `tests/integration/inventory-sort.spec.js`                                                       |
 
 ## 3. Bộ chạy tự động chuẩn cho Codex agent
 

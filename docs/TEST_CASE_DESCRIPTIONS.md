@@ -94,3 +94,8 @@ Lưu ý:
 | 73 | `UT-JSVER-03` | Kiểm tra manifest client JS đang dùng đúng `version` chính lấy từ `data/system_config.json`. |
 | 74 | `UT-JSVER-04` | Kiểm tra thay đổi line ending `LF <-> CRLF` không làm tăng counter version của file `.js`. |
 | 75 | `UT-JSVER-05` | Kiểm tra manifest cũ lưu raw hash `CRLF` được migrate sang hash chuẩn hóa line ending mà vẫn giữ nguyên counter. |
+| 76 | `UT-INVSORT-01` | Kiểm tra metadata hạn dùng/bảo quản, score ưu tiên chuẩn hóa, urgency tier và hạn còn lại ước tính ở backend. |
+| 77 | `UT-INVSORT-02` | Kiểm tra master CSV và seed pipe-format hỗ trợ field hạn dùng/bảo quản mới nhưng vẫn tương thích file cũ. |
+| 78 | `IT-INV-SORT-01` | Kiểm tra dropdown sort ở màn tồn kho nằm trong pagination mobile và sắp đúng theo tồn, ưu tiên, hạn còn lại. |
+| 79 | `IT-INV-SORT-02` | Kiểm tra dropdown sort ở màn tồn kho vẫn nằm trong pagination desktop cùng page-size picker. |
+| 80 | `IT-PROD-LIFE-01` | Kiểm tra màn Sản phẩm lưu được metadata hạn dùng/bảo quản từ inline edit và render lại đúng nhãn. |

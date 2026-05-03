@@ -8,6 +8,17 @@ export function registerProductsControllerEvents(contract) {
     utils,
   } = contract;
 
+  const resetProductForm = () => {
+    dom.productForm.reset();
+    dom.productForm.category.value = "Đồ chay đông lạnh";
+    dom.productForm.unit.value = "gói";
+    dom.productForm.price.value = "0";
+    dom.productForm.sale_price.value = "0";
+    dom.productForm.low_stock_threshold.value = "5";
+    if (dom.productForm.shelf_life_days) dom.productForm.shelf_life_days.value = "";
+    if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = "";
+  };
+
   dom.productForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(dom.productForm);
@@ -23,12 +34,7 @@ export function registerProductsControllerEvents(contract) {
             method: "POST",
             body: JSON.stringify(payload),
           });
-      dom.productForm.reset();
-      dom.productForm.category.value = "Đồ chay đông lạnh";
-      dom.productForm.unit.value = "gói";
-      dom.productForm.price.value = "0";
-      dom.productForm.sale_price.value = "0";
-      dom.productForm.low_stock_threshold.value = "5";
+      resetProductForm();
       state.editingProductId = null;
       if (dom.mobileQuery.matches) {
         state.productFormCollapsed = true;
@@ -44,12 +50,7 @@ export function registerProductsControllerEvents(contract) {
 
   dom.productFormCancelButton.addEventListener("click", () => {
     state.editingProductId = null;
-    dom.productForm.reset();
-    dom.productForm.category.value = "Đồ chay đông lạnh";
-    dom.productForm.unit.value = "gói";
-    dom.productForm.price.value = "0";
-    dom.productForm.sale_price.value = "0";
-    dom.productForm.low_stock_threshold.value = "5";
+    resetProductForm();
     if (dom.mobileQuery.matches) {
       state.productFormCollapsed = true;
     }
@@ -126,6 +127,8 @@ export function registerProductsControllerEvents(contract) {
             price: getValue("price"),
             sale_price: getValue("sale_price"),
             low_stock_threshold: getValue("low_stock_threshold"),
+            shelf_life_days: getValue("shelf_life_days"),
+            storage_life_days: getValue("storage_life_days"),
           }),
         });
         state.editingProductId = null;

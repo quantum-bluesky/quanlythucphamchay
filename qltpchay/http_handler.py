@@ -442,6 +442,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         price=payload.get("price", 0),
                         sale_price=payload.get("sale_price"),
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
+                        shelf_life_days=payload.get("shelf_life_days"),
+                        storage_life_days=payload.get("storage_life_days"),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -633,6 +635,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         price=payload.get("price", 0),
                         sale_price=payload.get("sale_price"),
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
+                        shelf_life_days=payload.get("shelf_life_days"),
+                        storage_life_days=payload.get("storage_life_days"),
                     )
                     self._send_json(
                         HTTPStatus.OK,
@@ -735,6 +739,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     "price",
                     "sale_price",
                     "low_stock_threshold",
+                    "shelf_life_days",
+                    "storage_life_days",
                 ]
             if entity_type == "customers":
                 return [
@@ -799,6 +805,15 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 raise ValueError("File CSV thiếu dòng tiêu đề (header).")
             normalized_headers = {str(field or "").strip() for field in reader.fieldnames if field}
             required_headers = set(cls._master_csv_columns(entity_type))
+            if entity_type == "products":
+                required_headers = {
+                    "name",
+                    "category",
+                    "unit",
+                    "price",
+                    "sale_price",
+                    "low_stock_threshold",
+                }
             missing_headers = sorted(required_headers - normalized_headers)
             if missing_headers:
                 raise ValueError(
@@ -814,6 +829,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 if entity_type == "products":
                     price = cls._parse_csv_float(data.get("price", ""), "price", 0)
                     threshold = cls._parse_csv_float(data.get("low_stock_threshold", ""), "low_stock_threshold", 5)
+                    shelf_life_days = cls._parse_csv_float(data.get("shelf_life_days", ""), "shelf_life_days", None)
+                    storage_life_days = cls._parse_csv_float(data.get("storage_life_days", ""), "storage_life_days", None)
                     records.append(
                         {
                             "name": data.get("name", ""),
@@ -822,6 +839,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "price": 0 if price is None else price,
                             "sale_price": cls._parse_csv_float(data.get("sale_price", ""), "sale_price", None),
                             "low_stock_threshold": 5 if threshold is None else threshold,
+                            "shelf_life_days": shelf_life_days,
+                            "storage_life_days": storage_life_days,
                         }
                     )
                     continue

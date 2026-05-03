@@ -61,6 +61,21 @@ test("ACC-ADM-01 / ACC-ADM-02 master admin login, export, import, backup and res
   await page.waitForTimeout(1200);
   await collectToast(page, runtime, "admin-import");
 
+  await page.locator("#adminMasterFormatProducts").selectOption("csv");
+  const productsExportPromise = page.waitForEvent("download");
+  await page.locator('[data-admin-export="products"]').click();
+  const productsDownload = await productsExportPromise;
+  expect(productsDownload.suggestedFilename()).toMatch(/\.csv$/i);
+  const productsFile = path.join(downloadsDir, productsDownload.suggestedFilename());
+  await productsDownload.saveAs(productsFile);
+  const productsCsv = fs.readFileSync(productsFile, "utf8");
+  expect(productsCsv).toContain("shelf_life_days");
+  expect(productsCsv).toContain("storage_life_days");
+  await page.locator("#adminImportProductsFile").setInputFiles(productsFile);
+  await page.locator('[data-admin-import="products"]').click();
+  await page.waitForTimeout(1200);
+  await collectToast(page, runtime, "admin-products-import");
+
   await page.locator("#adminRestoreDbFile").setInputFiles(backupFile);
   await page.locator("#adminRestoreButton").click();
   await page.waitForTimeout(1600);

@@ -198,6 +198,7 @@ Các nhóm kiểm tra chính:
 - `Tablet touch sau login`: vừa đăng nhập xong vẫn phải tap được nút `Mở menu` và item menu nghiệp vụ, không bị header menu chặn touch
 - `Input Tablet + bàn phím ảo`: khi viewport chỉ đổi chiều cao vì bàn phím bật/tắt, ô input đang nhập vẫn phải giữ focus và nhập tiếp được
 - `Phân trang PC/tablet`: list tự lấy số mục mặc định theo thiết bị và cho đổi nhanh `25/50/100` trên thanh phân trang
+- `Sắp xếp tồn kho`: dropdown sort nằm trong phân trang đầu list, không nằm trong search toolbar, và sắp đúng theo tồn, giá trị tồn, ưu tiên, hạn còn lại
 - `Đăng nhập hệ thống`: header `Login/Logout`, user thường, admin, timeout session, role-based access
 - `Master Admin`: login admin, export/import file master (`JSON` + `CSV`), backup, restore
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
@@ -224,6 +225,7 @@ Ngoài click thao tác, suite còn kiểm tra:
   - `tests/integration/reports-shortcuts.spec.js`
   - `tests/integration/purchase-supplier-flow.spec.js`
   - `tests/integration/pagination-settings.spec.js`
+  - `tests/integration/inventory-sort.spec.js`
   - `tests/integration/login.spec.js`
   - `tests/integration/mobile-floating-ui.spec.js`
   - `tests/integration/admin.spec.js`
@@ -254,6 +256,14 @@ Case regression UI báo cáo:
 Case regression điều hướng/detail:
 
 - `IT-NAV-01`: mở giỏ nháp hoặc phiếu nhập từ list phải tự scroll đến khối thông tin của phiếu vừa mở
+
+Case mới cho Issue 70:
+
+- `UT-INVSORT-01`: product metadata hạn dùng/bảo quản và metric ưu tiên tồn kho được chuẩn hóa đúng, không tính nhầm trả NCC hoặc điều chỉnh tồn vào demand
+- `UT-INVSORT-02`: master CSV và seed pipe-format hỗ trợ `shelf_life_days` / `storage_life_days`, đồng thời vẫn nhận file cũ
+- `IT-INV-SORT-01`: dropdown sort nằm trong pagination mobile và sắp đúng theo tồn, giá trị tồn, ưu tiên, hạn còn lại
+- `IT-INV-SORT-02`: dropdown sort vẫn nằm trong pagination desktop cùng page-size picker
+- `IT-PROD-LIFE-01`: màn `Sản phẩm` lưu được metadata hạn dùng/bảo quản bằng inline edit và render lại đúng nhãn
 
 ## Lưu ý
 

@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Mockup tablet desktop cho dropdown sắp xếp trong khu vực phân trang</title>
+  <desc id="desc">Màn tồn kho trên tablet hoặc desktop với ô tìm kiếm riêng, khối phân trang bên trái và dropdown sắp xếp đặt ở vùng trống của phân trang.</desc>
+  <rect width="960" height="540" fill="#f5f2ea"/>
+  <rect x="0" y="0" width="960" height="86" rx="18" fill="#fbfaf5" stroke="#ddd4bf"/>
+  <text x="24" y="36" font-family="Arial, sans-serif" font-size="11" font-weight="700" letter-spacing="0" fill="#41684e">MÀN HIỆN TẠI</text>
+  <text x="24" y="58" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1d2c21">Kiểm tra tồn kho</text>
+  <text x="846" y="30" font-family="Arial, sans-serif" font-size="12" fill="#657263">quan</text>
+  <rect x="880" y="14" width="64" height="34" rx="10" fill="#ffffff" stroke="#d1c8b5"/>
+  <text x="893" y="36" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#1d2c21">Logout</text>
+  <rect x="858" y="54" width="86" height="28" rx="10" fill="#ffffff" stroke="#d1c8b5"/>
+  <text x="873" y="73" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#657263">v2.8.8</text>
+
+  <text x="24" y="132" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#1d2c21">Danh sách mặt hàng</text>
+  <rect x="290" y="102" width="150" height="86" rx="12" fill="#fbfaf5" stroke="#d8cfbb"/>
+  <text x="306" y="128" font-family="Arial, sans-serif" font-size="16" fill="#1d2c21">Sản phẩm</text>
+  <text x="306" y="154" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1d2c21">26</text>
+  <text x="306" y="180" font-family="Arial, sans-serif" font-size="14" fill="#687766">Mặt hàng đang quản lý</text>
+  <rect x="452" y="102" width="150" height="86" rx="12" fill="#fbfaf5" stroke="#d8cfbb"/>
+  <text x="468" y="128" font-family="Arial, sans-serif" font-size="16" fill="#1d2c21">Tổng tồn</text>
+  <text x="468" y="154" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1d2c21">180</text>
+  <text x="468" y="180" font-family="Arial, sans-serif" font-size="14" fill="#687766">Tổng số lượng đang có</text>
+  <rect x="614" y="102" width="150" height="86" rx="12" fill="#fbfaf5" stroke="#d8cfbb"/>
+  <text x="630" y="128" font-family="Arial, sans-serif" font-size="16" fill="#1d2c21">Giá trị tồn</text>
+  <text x="630" y="154" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#1d2c21">2.213.000 đ</text>
+  <text x="630" y="180" font-family="Arial, sans-serif" font-size="14" fill="#687766">Theo giá nhập hiện tại</text>
+  <rect x="776" y="102" width="150" height="86" rx="12" fill="#fbfaf5" stroke="#d8cfbb"/>
+  <text x="792" y="128" font-family="Arial, sans-serif" font-size="16" fill="#1d2c21">Sắp hết</text>
+  <text x="792" y="154" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1d2c21">21</text>
+  <text x="792" y="180" font-family="Arial, sans-serif" font-size="14" fill="#687766">Cần ưu tiên kiểm tra</text>
+
+  <rect x="24" y="208" width="912" height="42" rx="10" fill="#ffffff" stroke="#d3cab6"/>
+  <text x="44" y="235" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#71806f">Tìm sản phẩm...</text>
+
+  <rect x="24" y="274" width="300" height="102" rx="12" fill="#fbfbf7" stroke="#d9d0bb" stroke-dasharray="3 3"/>
+  <rect x="38" y="288" width="76" height="34" rx="10" fill="#ffffff" stroke="#d1dccf"/>
+  <text x="58" y="310" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#8a9888">← Trước</text>
+  <text x="126" y="310" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#6d7b6a">Trang 1/1 • 26 mục</text>
+  <rect x="232" y="288" width="76" height="34" rx="10" fill="#ffffff" stroke="#d1dccf"/>
+  <text x="253" y="310" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#8a9888">Sau →</text>
+
+  <text x="42" y="350" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#6d7b6a">SẮP XẾP</text>
+  <rect x="110" y="330" width="128" height="34" rx="10" fill="#ffffff" stroke="#c9d8c8"/>
+  <text x="126" y="352" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#203325">Ưu tiên nhập</text>
+  <path d="M220 342 L230 342 L225 351 Z" fill="#546653"/>
+  <text x="250" y="350" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#6d7b6a">/ trang</text>
+
+  <rect x="338" y="274" width="286" height="102" rx="12" fill="#fffdfa" stroke="#d8cfbb"/>
+  <text x="354" y="302" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1d2c21">Bánh bao chay</text>
+  <text x="354" y="326" font-family="Arial, sans-serif" font-size="13" fill="#657564">Đồ chay đông lạnh • chiếc</text>
+  <text x="554" y="304" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1d2c21">12 chiếc</text>
+  <rect x="354" y="338" width="86" height="30" rx="9" fill="#ffffff" stroke="#d1dccf"/>
+  <text x="374" y="358" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#1d3b25">Xuất hàng</text>
+  <rect x="450" y="338" width="86" height="30" rx="9" fill="#ffffff" stroke="#d1dccf"/>
+  <text x="470" y="358" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#1d3b25">Nhập hàng</text>
+
+  <rect x="636" y="274" width="300" height="102" rx="12" fill="#fffdfa" stroke="#d8cfbb"/>
+  <text x="652" y="302" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1d2c21">Bánh chưng</text>
+  <text x="652" y="326" font-family="Arial, sans-serif" font-size="13" fill="#657564">Đồ chay • cái</text>
+  <text x="866" y="304" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1d2c21">12 cái</text>
+  <rect x="652" y="338" width="86" height="30" rx="9" fill="#ffffff" stroke="#d1dccf"/>
+  <text x="672" y="358" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#1d3b25">Xuất hàng</text>
+  <rect x="748" y="338" width="86" height="30" rx="9" fill="#ffffff" stroke="#d1dccf"/>
+  <text x="768" y="358" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#1d3b25">Nhập hàng</text>
+
+  <rect x="24" y="392" width="300" height="102" rx="12" fill="#fff0e8" stroke="#efbca4"/>
+  <text x="40" y="420" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1d2c21">Bánh giò</text>
+  <text x="40" y="444" font-family="Arial, sans-serif" font-size="13" fill="#657564">Tồn 0 • Không còn</text>
+  <rect x="40" y="456" width="86" height="30" rx="9" fill="#ffffff" stroke="#d1dccf"/>
+  <text x="60" y="476" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#1d3b25">Xuất hàng</text>
+  <rect x="136" y="456" width="86" height="30" rx="9" fill="#ffffff" stroke="#d1dccf"/>
+  <text x="156" y="476" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#1d3b25">Nhập hàng</text>
+
+  <text x="338" y="432" font-family="Arial, sans-serif" font-size="14" fill="#6d7a6b">Tablet/Desktop: sort nằm trong panel phân trang phía trên list, dùng vùng trống như ảnh đánh dấu.</text>
+</svg>

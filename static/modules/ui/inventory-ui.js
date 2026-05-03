@@ -19,6 +19,90 @@ export function createInventoryUi(deps) {
     paginateItems,
     renderPagination,
   } = deps;
+  const INVENTORY_SORT_OPTIONS = [
+    { value: "name", label: "Tên A-Z" },
+    { value: "stock-desc", label: "Tồn cao -> thấp" },
+    { value: "value-desc", label: "Giá trị tồn cao -> thấp" },
+    { value: "priority", label: "Ưu tiên nhập/xử lý" },
+    { value: "expiry", label: "Hạn còn ít -> nhiều" },
+  ];
+
+  const numberValue = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  const compareName = (left, right) => String(left.name || "").localeCompare(String(right.name || ""), "vi");
+
+  const remainingDaysValue = (value) => {
+    if (value === null || value === undefined || value === "") return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  function compareInventoryProducts(left, right) {
+    const sortMode = state.inventorySortMode || "name";
+    if (sortMode === "stock-desc") {
+      return numberValue(right.current_stock) - numberValue(left.current_stock) || compareName(left, right);
+    }
+    if (sortMode === "value-desc") {
+      return (
+        numberValue(right.inventory_value) - numberValue(left.inventory_value) ||
+        numberValue(right.current_stock) - numberValue(left.current_stock) ||
+        compareName(left, right)
+      );
+    }
+    if (sortMode === "priority") {
+      return (
+        numberValue(right.priority_score) - numberValue(left.priority_score) ||
+        numberValue(right.urgency_tier) - numberValue(left.urgency_tier) ||
+        numberValue(left.current_stock) - numberValue(right.current_stock) ||
+        compareName(left, right)
+      );
+    }
+    if (sortMode === "expiry") {
+      const leftRemaining = remainingDaysValue(left.estimated_remaining_days);
+      const rightRemaining = remainingDaysValue(right.estimated_remaining_days);
+      const leftHasExpiry = leftRemaining !== null;
+      const rightHasExpiry = rightRemaining !== null;
+      if (leftHasExpiry && !rightHasExpiry) return -1;
+      if (!leftHasExpiry && rightHasExpiry) return 1;
+      if (leftHasExpiry && rightHasExpiry && leftRemaining !== rightRemaining) {
+        return leftRemaining - rightRemaining;
+      }
+      return numberValue(right.urgency_tier) - numberValue(left.urgency_tier) || compareName(left, right);
+    }
+    return compareName(left, right);
+  }
+
+  function renderInventorySortControl() {
+    const currentMode = state.inventorySortMode || "name";
+    return `
+      <label class="pagination-sort-picker inventory-sort-picker">
+        <span>Sắp xếp</span>
+        <select data-inventory-sort aria-label="Sắp xếp danh sách tồn kho">
+          ${INVENTORY_SORT_OPTIONS.map((option) => `<option value="${option.value}" ${currentMode === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  function renderInventorySortSignal(product) {
+    if (state.inventorySortMode === "priority") {
+      return `<span>Ưu tiên ${escapeHtml(formatQuantity(product.priority_score || 0))}</span>`;
+    }
+    if (state.inventorySortMode === "expiry") {
+      const remaining = remainingDaysValue(product.estimated_remaining_days);
+      if (remaining === null) {
+        return "<span>Chưa có dữ liệu hạn</span>";
+      }
+      if (remaining < 0) {
+        return `<span>Quá hạn ước tính ${escapeHtml(formatQuantity(Math.abs(remaining)))} ngày</span>`;
+      }
+      return `<span>Còn ước tính ${escapeHtml(formatQuantity(remaining))} ngày</span>`;
+    }
+    return "";
+  }
 
   function renderInventoryDirectEditAccess() {
     const isAdmin = Boolean(state.admin?.isAdmin);
@@ -94,7 +178,7 @@ export function createInventoryUi(deps) {
     const filtered = state.products.filter((product) => {
       const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
       return text.includes(state.searchTerm.toLowerCase());
-    });
+    }).sort(compareInventoryProducts);
     dom.productGrid.classList.toggle("is-compact-search", isSearchResultMode("inventory"));
 
     if (!filtered.length) {
@@ -103,9 +187,13 @@ export function createInventoryUi(deps) {
     }
 
     const pageData = paginateItems(filtered, "inventory");
-    const paginationMarkup = renderPagination("inventory", pageData);
-    const topPagination = paginationMarkup ? `<div class="inventory-top-pagination">${paginationMarkup}</div>` : "";
-    const bottomPagination = paginationMarkup ? `<div class="inventory-bottom-pagination">${paginationMarkup}</div>` : "";
+    const topPaginationMarkup = renderPagination("inventory", pageData, {
+      force: true,
+      extraControls: renderInventorySortControl(),
+    });
+    const bottomPaginationMarkup = renderPagination("inventory", pageData);
+    const topPagination = topPaginationMarkup ? `<div class="inventory-top-pagination">${topPaginationMarkup}</div>` : "";
+    const bottomPagination = bottomPaginationMarkup ? `<div class="inventory-bottom-pagination">${bottomPaginationMarkup}</div>` : "";
 
     dom.productGrid.innerHTML = topPagination + pageData.items.map((product) => {
       const isExpanded = state.expandedProductId === product.id;
@@ -115,6 +203,7 @@ export function createInventoryUi(deps) {
       const incomingCount = Number(incomingCountMap.get(product.id) || 0);
       const relatedDraftCarts = getDraftCartsForProduct(product.id);
       const relatedPurchases = getOpenPurchasesForProduct(product.id);
+      const sortSignalMarkup = renderInventorySortSignal(product);
       const inventoryBadgeMarkup = draftCount || incomingCount
         ? `
           <div class="inventory-card-badges">
@@ -142,6 +231,7 @@ export function createInventoryUi(deps) {
               <div class="product-row-stock">${escapeHtml(signals.stockLabel)}</div>
               <div class="inventory-product-side-meta">
                 <span>Giá ${formatCurrency(product.price)}</span>
+                ${sortSignalMarkup}
                 <span class="status-pill ${signals.statusClass}">${escapeHtml(signals.statusLabel)}</span>
               </div>
             </div>
@@ -166,6 +256,7 @@ export function createInventoryUi(deps) {
               <div class="product-row-meta">
                 <span>Giá ${formatCurrency(product.price)}</span>
                 <span>Giá trị tồn ${formatCurrency(product.inventory_value)}</span>
+                ${sortSignalMarkup}
                 <span class="status-pill ${signals.statusClass}">${escapeHtml(signals.statusLabel)}</span>
               </div>
 
