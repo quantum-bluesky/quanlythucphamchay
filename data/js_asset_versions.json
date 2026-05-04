@@ -2,8 +2,8 @@
   "app_version": "2.8.10",
   "files": {
     "app.js": {
-      "counter": 1,
-      "sha256": "4e5ba74681781fdfda6431b11ec6c37b434f40a73a0a7b68541f6b47160f203a"
+      "counter": 4,
+      "sha256": "b5e46b4efaaca7f32e74cdd551b8858bedbcbd3030d91a9942fcec5eb797bfec"
     },
     "modules/app-state.js": {
       "counter": 1,
@@ -46,8 +46,8 @@
       "sha256": "f6c20f1be7690b687856f2dc4f6bf9bc379cb0408cca4334de1291b606a1bb09"
     },
     "modules/domain-helpers/purchases-domain.js": {
-      "counter": 1,
-      "sha256": "e5cdcec688414faef743fd824bd8780f76f4609ba3b692b6db0299e5e77a9c38"
+      "counter": 2,
+      "sha256": "7bc3e0dfabbf26d8a1d7ecdf963f48032ae38137aca8716a0e4924dd9fa22900"
     },
     "modules/domain-helpers/sales-domain.js": {
       "counter": 1,
@@ -62,8 +62,8 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 1,
-      "sha256": "9c101c123415c6101cde3201ea050ce561dd65e56cb72b48462a5ed29ed91320"
+      "counter": 2,
+      "sha256": "e6e35c84369b3dda2a30f2fafd16b4a12e4f237fdbff13d7ad119c1bf41deac8"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -86,8 +86,8 @@
       "sha256": "c22fdc99305a477dd2d7ee4b5a1097f480ef7b6b6f11808a1ffe67eafcb18954"
     },
     "modules/ui/purchases-ui.js": {
-      "counter": 1,
-      "sha256": "c90c262985a5dfb83a06b5eb9bd51bf7fdb9cfdc97209df8bc9c03b518f845d2"
+      "counter": 2,
+      "sha256": "684e6d4635d65c98899686e523969ccb9ec8c2e4ff4b281001f0684f27673b6d"
     },
     "modules/ui/reports-admin-ui.js": {
       "counter": 1,

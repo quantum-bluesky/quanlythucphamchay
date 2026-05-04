@@ -1432,43 +1432,52 @@ function syncSalesState() {
     .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
 
   state.purchases = (Array.isArray(state.purchases) ? state.purchases : [])
-    .map((purchase) => ({
-      id: purchase.id || createId("purchase"),
-      supplierName: String(purchase.supplierName || "").trim(),
-      note: String(purchase.note || "").trim(),
-      status: purchase.status || "draft",
-      createdAt: purchase.createdAt || nowIso(),
-      updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
-      receivedAt: purchase.receivedAt || purchase.received_at || null,
-      paidAt: purchase.paidAt || purchase.paid_at || null,
-      receiptCode: purchase.receiptCode || purchase.receipt_code || "",
-      isRepairableInvalid: Boolean(purchase.isRepairableInvalid ?? purchase.repairableInvalid),
-      repairableInvalid: Boolean(purchase.repairableInvalid ?? purchase.isRepairableInvalid),
-      items: Array.isArray(purchase.items)
-        ? purchase.items
-            .map((item) => {
-              const product = getProductById(item.productId);
-              const quantity = Number(item.quantity);
-              const unitCost = Number(item.unitCost);
-              if (!Number.isFinite(quantity) || quantity <= 0) {
-                return null;
-              }
-              if (!Number.isFinite(unitCost) || unitCost < 0) {
-                return null;
-              }
-              return {
-                id: item.id || createId("purchase_item"),
-                productId: Number(item.productId),
-                productName: product?.name || item.productName || "Sản phẩm",
-                unit: product?.unit || item.unit || "",
-                quantity,
-                unitCost,
-                lineTotal: Number((quantity * unitCost).toFixed(2)),
-              };
-            })
-            .filter(Boolean)
-        : [],
-    }))
+    .map((purchase) => {
+      const normalizedSource = normalizePurchaseSourcePayload(purchase);
+      return {
+        id: purchase.id || createId("purchase"),
+        supplierName: String(purchase.supplierName || "").trim(),
+        note: normalizedSource.note,
+        sourceType: normalizedSource.sourceType,
+        source_type: normalizedSource.sourceType,
+        sourceCode: normalizedSource.sourceCode,
+        source_code: normalizedSource.sourceCode,
+        sourceName: normalizedSource.sourceName,
+        source_name: normalizedSource.sourceName,
+        status: purchase.status || "draft",
+        createdAt: purchase.createdAt || nowIso(),
+        updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
+        receivedAt: purchase.receivedAt || purchase.received_at || null,
+        paidAt: purchase.paidAt || purchase.paid_at || null,
+        receiptCode: purchase.receiptCode || purchase.receipt_code || "",
+        isRepairableInvalid: Boolean(purchase.isRepairableInvalid ?? purchase.repairableInvalid),
+        repairableInvalid: Boolean(purchase.repairableInvalid ?? purchase.isRepairableInvalid),
+        items: Array.isArray(purchase.items)
+          ? purchase.items
+              .map((item) => {
+                const product = getProductById(item.productId);
+                const quantity = Number(item.quantity);
+                const unitCost = Number(item.unitCost);
+                if (!Number.isFinite(quantity) || quantity <= 0) {
+                  return null;
+                }
+                if (!Number.isFinite(unitCost) || unitCost < 0) {
+                  return null;
+                }
+                return {
+                  id: item.id || createId("purchase_item"),
+                  productId: Number(item.productId),
+                  productName: product?.name || item.productName || "Sản phẩm",
+                  unit: product?.unit || item.unit || "",
+                  quantity,
+                  unitCost,
+                  lineTotal: Number((quantity * unitCost).toFixed(2)),
+                };
+              })
+              .filter(Boolean)
+          : [],
+      };
+    })
     .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
 
   const activeDraftExists = state.carts.some(
@@ -1557,6 +1566,31 @@ function updatePaginationConfig(payload = {}) {
 
 function updateDebugConfig(payload = {}) {
   state.debug = normalizeDebugConfig(payload);
+}
+
+const LEGACY_AUTO_PURCHASE_NOTE_RE = /^Thiếu hàng cho đơn(?: của)?\s+(.+)$/i;
+
+function extractLegacyPurchaseSourceName(note) {
+  const cleanNote = String(note || "").trim();
+  const match = cleanNote.match(LEGACY_AUTO_PURCHASE_NOTE_RE);
+  return match ? String(match[1] || "").trim() : "";
+}
+
+function normalizePurchaseSourcePayload(purchase = {}) {
+  const cleanNote = String(purchase.note || "").trim();
+  const legacySourceName = extractLegacyPurchaseSourceName(cleanNote);
+  const cleanSourceType = String(purchase.sourceType || purchase.source_type || "").trim() || (legacySourceName ? "cart" : "");
+  const cleanSourceCode = String(purchase.sourceCode || purchase.source_code || "").trim();
+  const cleanSourceName = String(purchase.sourceName || purchase.source_name || "").trim() || legacySourceName;
+  return {
+    sourceType: cleanSourceType,
+    source_type: cleanSourceType,
+    sourceCode: cleanSourceCode,
+    source_code: cleanSourceCode,
+    sourceName: cleanSourceName,
+    source_name: cleanSourceName,
+    note: legacySourceName ? "" : cleanNote,
+  };
 }
 
 function updateAppInfo(payload = {}) {
@@ -2005,6 +2039,9 @@ function createPurchaseDraftIfMissing() {
       id: createId("purchase"),
       supplierName: purchaseSupplierInput?.value?.trim() || "",
       note: purchaseNoteInput?.value?.trim() || "",
+      sourceType: "",
+      sourceCode: "",
+      sourceName: "",
       status: "draft",
       createdAt: nowIso(),
       updatedAt: nowIso(),
@@ -2079,7 +2116,31 @@ function createPurchaseSuggestionFromCart(cart) {
     return false;
   }
 
-  const purchase = createPurchaseDraftIfMissing();
+  const sourceType = "cart";
+  const sourceCode = String(cart.id || "").trim();
+  const sourceName = String(cart.customerName || "").trim();
+  let purchase = state.purchases.find(
+    (entry) =>
+      entry.status === "draft" &&
+      String(entry.sourceType || entry.source_type || "").trim() === sourceType &&
+      String(entry.sourceCode || entry.source_code || "").trim() === sourceCode
+  ) || null;
+  if (!purchase) {
+    purchase = {
+      id: createId("purchase"),
+      supplierName: "",
+      note: "",
+      sourceType,
+      sourceCode,
+      sourceName,
+      status: "draft",
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      items: [],
+    };
+    state.purchases.unshift(purchase);
+    state.purchasePanelCollapsed = mobileQuery.matches;
+  }
   updatePurchase(purchase.id, (currentPurchase) => {
     const nextItems = [...currentPurchase.items];
     shortages.forEach(({ item, product, shortage }) => {
@@ -2099,12 +2160,16 @@ function createPurchaseSuggestionFromCart(cart) {
     });
     return {
       supplierName: purchaseSupplierInput?.value?.trim() || currentPurchase.supplierName,
-      note: `Thiếu hàng cho đơn ${cart.customerName}`,
+      note: currentPurchase.note || "",
+      sourceType,
+      sourceCode,
+      sourceName: currentPurchase.sourceName || sourceName,
       items: nextItems,
     };
   });
 
   state.activePurchaseId = purchase.id;
+  state.purchaseDetailExpanded = false;
   saveAndRenderAll(["purchases"]);
   return true;
 }

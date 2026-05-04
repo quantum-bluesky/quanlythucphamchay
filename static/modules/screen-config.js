@@ -120,6 +120,7 @@ export const SCREEN_HELP = {
       "Phiếu đang ở trạng thái `Nháp` hoặc `Đã đặt` vẫn có thể chỉnh sửa số lượng, giá và thêm bớt dòng; nút `Nhập kho` chỉ xuất hiện khi phiếu đã `Đã đặt`.",
       "Nhà cung cấp chỉ đổi được khi phiếu còn `Nháp`; từ `Đã đặt` trở đi, ô NCC và nút `NCC` sẽ bị khóa trên mọi thiết bị.",
       "Các mặt hàng đã thêm vào phiếu sẽ được gom vào phần tóm tắt phiếu phía trên và tự ẩn khỏi danh sách gợi ý phía dưới để màn hình gọn hơn.",
+      "Nếu phiếu được tạo từ một đơn đang thiếu hàng, phần `Detail` sẽ hiện nguồn đơn thiếu riêng; ô ghi chú của phiếu vẫn để trống để bạn tự nhập khi cần.",
       "Nếu có máy khác vừa tạo hoặc sửa phiếu nhập, màn hình sẽ tự làm mới khi bạn không còn nhập dở ở ô hiện tại.",
       "Nếu 2 máy cùng lưu trên một phiếu nháp, app sẽ báo xung đột đồng bộ và tự tải lại để tránh ghi đè dữ liệu của nhau.",
       "Trong detail từng dòng nhập, bạn có thể sửa số lượng, giá nhập và bấm Giá chung để cập nhật giá nhập mặc định của sản phẩm sau khi xác nhận.",

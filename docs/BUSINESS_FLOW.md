@@ -92,6 +92,7 @@ Nếu cần can thiệp đặc biệt
 ### Bước 3: Chọn NCC và chỉnh dòng nhập
 
 - gán nhà cung cấp
+- nếu phiếu được tạo từ đơn thiếu hàng, app giữ liên kết nguồn đơn riêng trong metadata của phiếu, không nhét sẵn vào ô ghi chú
 - sửa số lượng, giá nhập
 - có thể đổi giá nhập mặc định
 - nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB

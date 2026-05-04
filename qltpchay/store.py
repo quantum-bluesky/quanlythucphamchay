@@ -214,6 +214,9 @@ class InventoryStore:
                     supplier_id TEXT NOT NULL DEFAULT '',
                     supplier_name TEXT NOT NULL DEFAULT '',
                     note TEXT NOT NULL DEFAULT '',
+                    source_type TEXT NOT NULL DEFAULT '',
+                    source_code TEXT NOT NULL DEFAULT '',
+                    source_name TEXT NOT NULL DEFAULT '',
                     status TEXT NOT NULL DEFAULT 'draft',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
@@ -326,6 +329,21 @@ class InventoryStore:
             if "source_code" not in receipt_columns:
                 connection.execute(
                     "ALTER TABLE inventory_receipts ADD COLUMN source_code TEXT NOT NULL DEFAULT ''"
+                )
+            purchase_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(purchases)").fetchall()
+            }
+            if "source_type" not in purchase_columns:
+                connection.execute(
+                    "ALTER TABLE purchases ADD COLUMN source_type TEXT NOT NULL DEFAULT ''"
+                )
+            if "source_code" not in purchase_columns:
+                connection.execute(
+                    "ALTER TABLE purchases ADD COLUMN source_code TEXT NOT NULL DEFAULT ''"
+                )
+            if "source_name" not in purchase_columns:
+                connection.execute(
+                    "ALTER TABLE purchases ADD COLUMN source_name TEXT NOT NULL DEFAULT ''"
                 )
             for key in self.SYNC_COLLECTION_KEYS:
                 connection.execute(
@@ -531,10 +549,45 @@ class InventoryStore:
         items = purchase.get("items")
         return isinstance(items, list) and bool(items)
 
+    @staticmethod
+    def _extract_legacy_purchase_source_name(note: str) -> str:
+        clean_note = str(note or "").strip()
+        if not clean_note:
+            return ""
+        match = re.match(r"^Thiếu hàng cho đơn(?: của)?\s+(.+)$", clean_note, re.IGNORECASE)
+        if not match:
+            return ""
+        return str(match.group(1) or "").strip()
+
+    @classmethod
+    def _normalize_purchase_source_fields(cls, purchase: dict) -> dict:
+        clean_note = str(purchase.get("note") or "").strip()
+        clean_source_type = str(purchase.get("sourceType") or purchase.get("source_type") or "").strip()
+        clean_source_code = str(purchase.get("sourceCode") or purchase.get("source_code") or "").strip()
+        clean_source_name = str(purchase.get("sourceName") or purchase.get("source_name") or "").strip()
+        legacy_source_name = cls._extract_legacy_purchase_source_name(clean_note)
+        if legacy_source_name:
+            clean_note = ""
+            if not clean_source_type:
+                clean_source_type = "cart"
+            if not clean_source_name:
+                clean_source_name = legacy_source_name
+        return {
+            **purchase,
+            "note": clean_note,
+            "sourceType": clean_source_type,
+            "source_type": clean_source_type,
+            "sourceCode": clean_source_code,
+            "source_code": clean_source_code,
+            "sourceName": clean_source_name,
+            "source_name": clean_source_name,
+        }
+
     @classmethod
     def _normalize_purchases_for_storage(cls, purchases: list[dict]) -> list[dict]:
         normalized: list[dict] = []
         for purchase in purchases:
+            purchase = cls._normalize_purchase_source_fields(purchase)
             status = str(purchase.get("status") or "draft")
             if status == "draft" and not cls._purchase_has_items(purchase):
                 continue
@@ -609,7 +662,7 @@ class InventoryStore:
         if state_key == "purchases":
             purchase_rows = connection.execute(
                 """
-                SELECT id, supplier_id, supplier_name, note, status, created_at, updated_at,
+                SELECT id, supplier_id, supplier_name, note, source_type, source_code, source_name, status, created_at, updated_at,
                        received_at, paid_at, receipt_code
                 FROM purchases
                 ORDER BY datetime(updated_at) DESC, id
@@ -658,6 +711,12 @@ class InventoryStore:
                         "supplierId": row["supplier_id"] or "",
                         "supplierName": row["supplier_name"] or "",
                         "note": row["note"] or "",
+                        "sourceType": row["source_type"] or "",
+                        "source_type": row["source_type"] or "",
+                        "sourceCode": row["source_code"] or "",
+                        "source_code": row["source_code"] or "",
+                        "sourceName": row["source_name"] or "",
+                        "source_name": row["source_name"] or "",
                         "status": raw_status,
                         "createdAt": row["created_at"],
                         "updatedAt": row["updated_at"],
@@ -784,15 +843,19 @@ class InventoryStore:
                 connection.execute(
                     """
                     INSERT INTO purchases(
-                        id, supplier_id, supplier_name, note, status, created_at, updated_at, received_at, paid_at, receipt_code
+                        id, supplier_id, supplier_name, note, source_type, source_code, source_name,
+                        status, created_at, updated_at, received_at, paid_at, receipt_code
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         purchase_id,
                         str(record.get("supplierId") or "").strip(),
                         str(record.get("supplierName") or "").strip(),
                         str(record.get("note") or "").strip(),
+                        str(record.get("sourceType") or record.get("source_type") or "").strip(),
+                        str(record.get("sourceCode") or record.get("source_code") or "").strip(),
+                        str(record.get("sourceName") or record.get("source_name") or "").strip(),
                         str(record.get("status") or "draft"),
                         str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
                         str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
@@ -3032,6 +3095,9 @@ class InventoryStore:
             "supplierId": str(purchase.get("supplierId") or ""),
             "supplierName": str(purchase.get("supplierName") or ""),
             "note": str(purchase.get("note") or ""),
+            "sourceType": str(purchase.get("sourceType") or purchase.get("source_type") or ""),
+            "sourceCode": str(purchase.get("sourceCode") or purchase.get("source_code") or ""),
+            "sourceName": str(purchase.get("sourceName") or purchase.get("source_name") or ""),
             "receiptCode": str(purchase.get("receiptCode") or ""),
             "receivedAt": purchase.get("receivedAt") or purchase.get("received_at") or "",
             "items": sorted(
@@ -3053,6 +3119,9 @@ class InventoryStore:
             "supplierId": str(purchase.get("supplierId") or ""),
             "supplierName": str(purchase.get("supplierName") or ""),
             "note": str(purchase.get("note") or ""),
+            "sourceType": str(purchase.get("sourceType") or purchase.get("source_type") or ""),
+            "sourceCode": str(purchase.get("sourceCode") or purchase.get("source_code") or ""),
+            "sourceName": str(purchase.get("sourceName") or purchase.get("source_name") or ""),
             "items": sorted(
                 [
                     {
