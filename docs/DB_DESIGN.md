@@ -158,7 +158,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - header phiếu nhập
 - cột chính:
   - `id`, `supplier_id`, `supplier_name`
-  - `note`, `status`
+  - `note`, `source_type`, `source_code`, `source_name`, `status`
   - `created_at`, `updated_at`, `received_at`, `paid_at`
   - `receipt_code`
 
@@ -269,6 +269,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - chỉ `Master Admin` mới được chỉnh tồn trực tiếp qua `POST /api/transactions`
 - direct adjustment bắt buộc có `adjustment_reason`
 - đơn đã `completed` và phiếu nhập đã `received/paid` không được sửa ngược trực tiếp
+- phiếu nhập sinh ra từ đơn thiếu hàng lưu liên kết nguồn riêng ở `source_type/source_code/source_name`; `note` vẫn dành cho ghi chú user nhập tay
 - `app_state.updated_at` được dùng để chặn ghi đè stale save
 - sort ưu tiên tồn kho dùng metric suy diễn từ ledger bán hàng thật, không persist score vào DB
 - sort hạn còn lại dùng ước tính từ lần nhập gần nhất và metadata sản phẩm; app chưa quản lý hạn chính xác theo từng lô

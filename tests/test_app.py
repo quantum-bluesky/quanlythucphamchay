@@ -1082,6 +1082,109 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(purchase_count, 1)
         self.assertEqual(purchase_item_count, 1)
 
+    def test_ut_norm_05_purchase_shortage_source_is_persisted_separate_from_note(self) -> None:
+        product = self.store.create_product(
+            name="Chả chay lá lốt",
+            category="Đồ chay",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        sync_state = self.store.get_sync_state()
+        result = self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-shortage-source-01",
+                        "supplierName": "",
+                        "note": "",
+                        "sourceType": "cart",
+                        "sourceCode": "cart-shortage-01",
+                        "sourceName": "Huệ F0604",
+                        "status": "draft",
+                        "createdAt": "2026-05-04T22:15:00+07:00",
+                        "updatedAt": "2026-05-04T22:15:00+07:00",
+                        "items": [
+                            {
+                                "id": "purchase-shortage-item-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "unit": product["unit"],
+                                "quantity": 3,
+                                "unitCost": 25000,
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
+            }
+        )
+
+        saved_purchase = next(entry for entry in result["purchases"] if entry["id"] == "purchase-shortage-source-01")
+        self.assertEqual(saved_purchase["note"], "")
+        self.assertEqual(saved_purchase["sourceType"], "cart")
+        self.assertEqual(saved_purchase["sourceCode"], "cart-shortage-01")
+        self.assertEqual(saved_purchase["sourceName"], "Huệ F0604")
+
+        with self.store._connect() as connection:
+            row = connection.execute(
+                "SELECT note, source_type, source_code, source_name FROM purchases WHERE id = ?",
+                ("purchase-shortage-source-01",),
+            ).fetchone()
+
+        self.assertEqual(row["note"], "")
+        self.assertEqual(row["source_type"], "cart")
+        self.assertEqual(row["source_code"], "cart-shortage-01")
+        self.assertEqual(row["source_name"], "Huệ F0604")
+
+    def test_ut_norm_06_legacy_purchase_shortage_note_is_promoted_to_source_metadata(self) -> None:
+        product = self.store.create_product(
+            name="Nấm đùi gà",
+            category="Đồ tươi",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        sync_state = self.store.get_sync_state()
+        result = self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-legacy-shortage-01",
+                        "supplierName": "",
+                        "note": "Thiếu hàng cho đơn của Huệ F0604",
+                        "status": "draft",
+                        "createdAt": "2026-05-04T22:15:00+07:00",
+                        "updatedAt": "2026-05-04T22:15:00+07:00",
+                        "items": [
+                            {
+                                "id": "purchase-legacy-shortage-item-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "unit": product["unit"],
+                                "quantity": 2,
+                                "unitCost": 18000,
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
+            }
+        )
+
+        saved_purchase = next(entry for entry in result["purchases"] if entry["id"] == "purchase-legacy-shortage-01")
+        self.assertEqual(saved_purchase["note"], "")
+        self.assertEqual(saved_purchase["sourceType"], "cart")
+        self.assertEqual(saved_purchase["sourceName"], "Huệ F0604")
+
+        with self.store._connect() as connection:
+            row = connection.execute(
+                "SELECT note, source_type, source_name FROM purchases WHERE id = ?",
+                ("purchase-legacy-shortage-01",),
+            ).fetchone()
+
+        self.assertEqual(row["note"], "")
+        self.assertEqual(row["source_type"], "cart")
+        self.assertEqual(row["source_name"], "Huệ F0604")
+
 
 
 if __name__ == "__main__":

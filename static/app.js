@@ -1432,43 +1432,52 @@ function syncSalesState() {
     .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
 
   state.purchases = (Array.isArray(state.purchases) ? state.purchases : [])
-    .map((purchase) => ({
-      id: purchase.id || createId("purchase"),
-      supplierName: String(purchase.supplierName || "").trim(),
-      note: String(purchase.note || "").trim(),
-      status: purchase.status || "draft",
-      createdAt: purchase.createdAt || nowIso(),
-      updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
-      receivedAt: purchase.receivedAt || purchase.received_at || null,
-      paidAt: purchase.paidAt || purchase.paid_at || null,
-      receiptCode: purchase.receiptCode || purchase.receipt_code || "",
-      isRepairableInvalid: Boolean(purchase.isRepairableInvalid ?? purchase.repairableInvalid),
-      repairableInvalid: Boolean(purchase.repairableInvalid ?? purchase.isRepairableInvalid),
-      items: Array.isArray(purchase.items)
-        ? purchase.items
-            .map((item) => {
-              const product = getProductById(item.productId);
-              const quantity = Number(item.quantity);
-              const unitCost = Number(item.unitCost);
-              if (!Number.isFinite(quantity) || quantity <= 0) {
-                return null;
-              }
-              if (!Number.isFinite(unitCost) || unitCost < 0) {
-                return null;
-              }
-              return {
-                id: item.id || createId("purchase_item"),
-                productId: Number(item.productId),
-                productName: product?.name || item.productName || "Sản phẩm",
-                unit: product?.unit || item.unit || "",
-                quantity,
-                unitCost,
-                lineTotal: Number((quantity * unitCost).toFixed(2)),
-              };
-            })
-            .filter(Boolean)
-        : [],
-    }))
+    .map((purchase) => {
+      const normalizedSource = normalizePurchaseSourcePayload(purchase);
+      return {
+        id: purchase.id || createId("purchase"),
+        supplierName: String(purchase.supplierName || "").trim(),
+        note: normalizedSource.note,
+        sourceType: normalizedSource.sourceType,
+        source_type: normalizedSource.sourceType,
+        sourceCode: normalizedSource.sourceCode,
+        source_code: normalizedSource.sourceCode,
+        sourceName: normalizedSource.sourceName,
+        source_name: normalizedSource.sourceName,
+        status: purchase.status || "draft",
+        createdAt: purchase.createdAt || nowIso(),
+        updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
+        receivedAt: purchase.receivedAt || purchase.received_at || null,
+        paidAt: purchase.paidAt || purchase.paid_at || null,
+        receiptCode: purchase.receiptCode || purchase.receipt_code || "",
+        isRepairableInvalid: Boolean(purchase.isRepairableInvalid ?? purchase.repairableInvalid),
+        repairableInvalid: Boolean(purchase.repairableInvalid ?? purchase.isRepairableInvalid),
+        items: Array.isArray(purchase.items)
+          ? purchase.items
+              .map((item) => {
+                const product = getProductById(item.productId);
+                const quantity = Number(item.quantity);
+                const unitCost = Number(item.unitCost);
+                if (!Number.isFinite(quantity) || quantity <= 0) {
+                  return null;
+                }
+                if (!Number.isFinite(unitCost) || unitCost < 0) {
+                  return null;
+                }
+                return {
+                  id: item.id || createId("purchase_item"),
+                  productId: Number(item.productId),
+                  productName: product?.name || item.productName || "Sản phẩm",
+                  unit: product?.unit || item.unit || "",
+                  quantity,
+                  unitCost,
+                  lineTotal: Number((quantity * unitCost).toFixed(2)),
+                };
+              })
+              .filter(Boolean)
+          : [],
+      };
+    })
     .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
 
   const activeDraftExists = state.carts.some(
@@ -1557,6 +1566,31 @@ function updatePaginationConfig(payload = {}) {
 
 function updateDebugConfig(payload = {}) {
   state.debug = normalizeDebugConfig(payload);
+}
+
+const LEGACY_AUTO_PURCHASE_NOTE_RE = /^Thiếu hàng cho đơn(?: của)?\s+(.+)$/i;
+
+function extractLegacyPurchaseSourceName(note) {
+  const cleanNote = String(note || "").trim();
+  const match = cleanNote.match(LEGACY_AUTO_PURCHASE_NOTE_RE);
+  return match ? String(match[1] || "").trim() : "";
+}
+
+function normalizePurchaseSourcePayload(purchase = {}) {
+  const cleanNote = String(purchase.note || "").trim();
+  const legacySourceName = extractLegacyPurchaseSourceName(cleanNote);
+  const cleanSourceType = String(purchase.sourceType || purchase.source_type || "").trim() || (legacySourceName ? "cart" : "");
+  const cleanSourceCode = String(purchase.sourceCode || purchase.source_code || "").trim();
+  const cleanSourceName = String(purchase.sourceName || purchase.source_name || "").trim() || legacySourceName;
+  return {
+    sourceType: cleanSourceType,
+    source_type: cleanSourceType,
+    sourceCode: cleanSourceCode,
+    source_code: cleanSourceCode,
+    sourceName: cleanSourceName,
+    source_name: cleanSourceName,
+    note: legacySourceName ? "" : cleanNote,
+  };
 }
 
 function updateAppInfo(payload = {}) {
@@ -2005,6 +2039,9 @@ function createPurchaseDraftIfMissing() {
       id: createId("purchase"),
       supplierName: purchaseSupplierInput?.value?.trim() || "",
       note: purchaseNoteInput?.value?.trim() || "",
+      sourceType: "",
+      sourceCode: "",
+      sourceName: "",
       status: "draft",
       createdAt: nowIso(),
       updatedAt: nowIso(),
@@ -2071,40 +2108,160 @@ function addSuggestionToPurchase(productId, quantity, unitCost) {
   return getPurchasesDomainHelpers().addSuggestionToPurchase(productId, quantity, unitCost);
 }
 
-function createPurchaseSuggestionFromCart(cart) {
-  const shortages = getCartShortages(cart)
-    .filter((entry) => entry.shortage > 0 && entry.product);
+function getSourcePurchaseForCart(cart) {
+  const sourceType = "cart";
+  const sourceCode = String(cart?.id || "").trim();
+  if (!sourceCode) {
+    return null;
+  }
+  return state.purchases.find(
+    (entry) =>
+      ["draft", "ordered"].includes(String(entry.status || "").trim()) &&
+      String(entry.sourceType || entry.source_type || "").trim() === sourceType &&
+      String(entry.sourceCode || entry.source_code || "").trim() === sourceCode
+  ) || null;
+}
+
+function getOpenIncomingQuantityForProduct(productId, excludePurchaseId = "") {
+  return Number(getOpenPurchasesForProduct(productId).reduce((sum, purchase) => {
+    if (excludePurchaseId && purchase.id === excludePurchaseId) {
+      return sum;
+    }
+    const incoming = Array.isArray(purchase.items)
+      ? purchase.items.reduce(
+          (itemSum, item) => itemSum + (Number(item.productId) === Number(productId) ? Number(item.quantity || 0) : 0),
+          0
+        )
+      : 0;
+    return sum + incoming;
+  }, 0).toFixed(2));
+}
+
+function getCartShortagePlan(cart) {
+  const sourcePurchase = getSourcePurchaseForCart(cart);
+  return getCartShortages(cart)
+    .filter((entry) => entry.shortage > 0 && entry.product)
+    .map((entry) => {
+      const incomingQuantity = getOpenIncomingQuantityForProduct(entry.product.id);
+      const otherIncomingQuantity = getOpenIncomingQuantityForProduct(entry.product.id, sourcePurchase?.id || "");
+      const requiredFromSource = Math.max(0, Number((entry.shortage - otherIncomingQuantity).toFixed(2)));
+      return {
+        ...entry,
+        incomingQuantity,
+        otherIncomingQuantity,
+        requiredFromSource,
+      };
+    });
+}
+
+function formatShortagePlanLine(entry) {
+  const productName = entry.product?.name || entry.item.productName;
+  const shortageText = `${productName} thiếu ${formatQuantity(entry.shortage)}`;
+  if (entry.incomingQuantity > 0 && entry.requiredFromSource > 0) {
+    return `${shortageText}, đang chờ nhập ${formatQuantity(entry.incomingQuantity)}, cần bù thêm ${formatQuantity(entry.requiredFromSource)}`;
+  }
+  if (entry.incomingQuantity > 0) {
+    return `${shortageText}, đang chờ nhập ${formatQuantity(entry.incomingQuantity)}`;
+  }
+  return shortageText;
+}
+
+function openRelatedPurchasesForShortagePlan(cart, shortagePlan) {
+  const sourcePurchase = getSourcePurchaseForCart(cart);
+  const relatedPurchases = shortagePlan.reduce((map, entry) => {
+    getOpenPurchasesForProduct(entry.product?.id || entry.item.productId).forEach((purchase) => {
+      map.set(purchase.id, purchase);
+    });
+    return map;
+  }, new Map());
+
+  const preferredPurchase = sourcePurchase && relatedPurchases.has(sourcePurchase.id)
+    ? sourcePurchase
+    : relatedPurchases.size === 1
+      ? Array.from(relatedPurchases.values())[0]
+      : null;
+
+  state.purchaseSearchTerm = shortagePlan[0]?.product?.name || shortagePlan[0]?.item?.productName || "";
+  purchaseSearchInput.value = state.purchaseSearchTerm;
+  state.pagination.purchaseSuggestions = 1;
+  state.pagination.purchaseOrders = 1;
+
+  if (preferredPurchase) {
+    setActivePurchase(preferredPurchase.id);
+    switchMenu("purchases");
+    focusPurchasePanel();
+    return;
+  }
+
+  switchMenu("purchases");
+  renderPurchaseSuggestions();
+  renderPurchaseOrders();
+  focusPurchaseOrders();
+}
+
+function createPurchaseSuggestionFromCart(cart, shortagePlan = null) {
+  const shortages = Array.isArray(shortagePlan)
+    ? shortagePlan.filter((entry) => entry.requiredFromSource > 0 && entry.product)
+    : getCartShortagePlan(cart).filter((entry) => entry.requiredFromSource > 0 && entry.product);
 
   if (!shortages.length) {
     return false;
   }
 
-  const purchase = createPurchaseDraftIfMissing();
+  const sourceType = "cart";
+  const sourceCode = String(cart.id || "").trim();
+  const sourceName = String(cart.customerName || "").trim();
+  let purchase = getSourcePurchaseForCart(cart);
+  if (!purchase) {
+    purchase = {
+      id: createId("purchase"),
+      supplierName: "",
+      note: "",
+      sourceType,
+      sourceCode,
+      sourceName,
+      status: "draft",
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      items: [],
+    };
+    state.purchases.unshift(purchase);
+    state.purchasePanelCollapsed = mobileQuery.matches;
+  }
   updatePurchase(purchase.id, (currentPurchase) => {
     const nextItems = [...currentPurchase.items];
-    shortages.forEach(({ item, product, shortage }) => {
+    shortages.forEach(({ product, requiredFromSource }) => {
       const existing = nextItems.find((entry) => entry.productId === product.id);
+      const targetQuantity = Number(requiredFromSource || 0);
+      if (targetQuantity <= 0) {
+        return;
+      }
       if (existing) {
-        existing.quantity = Number((Number(existing.quantity) + shortage).toFixed(2));
+        existing.quantity = Number(Math.max(Number(existing.quantity || 0), targetQuantity).toFixed(2));
+        existing.unitCost = Number(existing.unitCost ?? product.price ?? 0);
       } else {
         nextItems.push({
           id: createId("purchase_item"),
           productId: product.id,
           productName: product.name,
           unit: product.unit,
-          quantity: shortage,
+          quantity: targetQuantity,
           unitCost: product.price,
         });
       }
     });
     return {
       supplierName: purchaseSupplierInput?.value?.trim() || currentPurchase.supplierName,
-      note: `Thiếu hàng cho đơn ${cart.customerName}`,
+      note: currentPurchase.note || "",
+      sourceType,
+      sourceCode,
+      sourceName: currentPurchase.sourceName || sourceName,
       items: nextItems,
     };
   });
 
   state.activePurchaseId = purchase.id;
+  state.purchaseDetailExpanded = false;
   saveAndRenderAll(["purchases"]);
   return true;
 }
@@ -3446,21 +3603,37 @@ async function checkoutActiveCart() {
     throw new Error("Giỏ hàng đang trống.");
   }
 
-  const shortages = getCartShortages(cart).filter((entry) => entry.shortage > 0);
-  if (shortages.length) {
-    const shortageNames = shortages.map((entry) => `${entry.product?.name || entry.item.productName} thiếu ${formatQuantity(entry.shortage)}`).join(", ");
+  const shortagePlan = getCartShortagePlan(cart);
+  if (shortagePlan.length) {
+    const shortageSummary = shortagePlan.map((entry) => `- ${formatShortagePlanLine(entry)}`).join("\n");
+    const hasEnoughPendingPurchases = shortagePlan.every((entry) => entry.incomingQuantity >= entry.shortage);
+    if (hasEnoughPendingPurchases) {
+      const shouldOpenRelatedPurchase = window.confirm(`Đơn đang thiếu hàng nhưng đã có phiếu chờ nhập đủ số lượng:\n${shortageSummary}\n\nChọn OK để mở phiếu nhập chờ liên quan nếu cần chỉnh.\nChọn Cancel để quay lại đơn này.`);
+      if (shouldOpenRelatedPurchase) {
+        openRelatedPurchasesForShortagePlan(cart, shortagePlan);
+        throw new Error("Đã mở phiếu nhập chờ liên quan để bạn kiểm tra hoặc chỉnh lại khi cần.");
+      }
+      throw new Error("Đơn đang thiếu hàng nhưng đã có phiếu nhập chờ đủ số lượng. Kiểm tra hàng về rồi chốt lại.");
+    }
+
     if (state.admin?.isAdmin) {
-      const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng: ${shortageNames}.\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel để tạo phiếu nhập hàng dự kiến.`);
+      const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng:\n${shortageSummary}\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel nếu muốn xử lý tiếp qua phiếu nhập.`);
       if (shouldAdjustStock) {
         switchMenu("inventory");
-        prefillProduct(shortages[0].product?.id || shortages[0].item.productId);
+        prefillProduct(shortagePlan[0].product?.id || shortagePlan[0].item.productId);
         throw new Error("Hãy điều chỉnh lại tồn kho rồi chốt đơn lại.");
       }
     }
 
-    createPurchaseSuggestionFromCart(cart);
+    const shouldCreatePurchase = window.confirm(`Đơn đang thiếu hàng:\n${shortageSummary}\n\nApp sẽ tạo hoặc cập nhật phiếu nhập tương ứng cho phần còn thiếu.\nChọn OK để sang màn nhập hàng.\nChọn Cancel để quay lại đơn này.`);
+    if (!shouldCreatePurchase) {
+      throw new Error("Đã giữ nguyên đơn nháp. Hãy tạo hoặc chỉnh phiếu nhập khi cần.");
+    }
+
+    createPurchaseSuggestionFromCart(cart, shortagePlan);
     switchMenu("purchases");
-    throw new Error("Đã tạo sẵn phiếu nhập dự kiến để bù thiếu cho đơn này.");
+    focusPurchasePanel();
+    throw new Error("Đã tạo hoặc cập nhật phiếu nhập dự kiến để bù thiếu cho đơn này.");
   }
 
   const data = await apiRequest("/api/orders/checkout", {

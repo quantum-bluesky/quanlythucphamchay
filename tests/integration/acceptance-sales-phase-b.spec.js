@@ -149,6 +149,28 @@ async function openDraftCartFromOrders(page, customerName, cartId) {
   }, cartId);
 }
 
+async function ensureActiveCartPanelOpen(page) {
+  const checkoutButton = page.locator('#activeCartPanel [data-cart-action="checkout"]');
+  if (!await checkoutButton.isVisible()) {
+    await page.locator('#activeCartPanel [data-cart-action="toggle-panel"]').click();
+    await expect(checkoutButton).toBeVisible();
+  }
+}
+
+async function interceptConfirm(page, nextResult = true) {
+  await page.evaluate((result) => {
+    window.__testConfirmMessages = [];
+    window.confirm = (message) => {
+      window.__testConfirmMessages.push(String(message || ""));
+      return Boolean(result);
+    };
+  }, nextResult);
+}
+
+async function readInterceptedConfirmMessages(page) {
+  return page.evaluate(() => Array.isArray(window.__testConfirmMessages) ? window.__testConfirmMessages.slice() : []);
+}
+
 function filterOrderOpenSyncNoise(runtime) {
   runtime.errors = runtime.errors.filter((entry) => {
     if (entry.includes("status of 400 (Bad Request)")) {
@@ -202,7 +224,16 @@ test("ACC-SALE-01 complete checkout updates stock and order history", async ({ r
 
 test("ACC-SALE-02 shortage checkout for normal user creates purchase suggestion instead of stock bypass", async ({ page, request }) => {
   const snapshot = await createBackupSnapshot(request);
-  const runtime = attachRuntimeTracking(page);
+  const runtime = { errors: [], toasts: [] };
+  page.on("pageerror", (error) => {
+    runtime.errors.push(`pageerror: ${error.message}`);
+  });
+  page.on("console", (message) => {
+    const text = message.text() || "";
+    if (message.type() === "error" && !/favicon\.ico/i.test(text)) {
+      runtime.errors.push(`console:${text}`);
+    }
+  });
   const customerName = `ACC Sale 02 ${Date.now()}`;
   const adminCookie = await loginAdminApi(request);
   const userCookie = await autoLoginUserRequest(request);
@@ -233,26 +264,83 @@ test("ACC-SALE-02 shortage checkout for normal user creates purchase suggestion 
     await openDraftCartFromOrders(page, customerName, seededCart.id);
     await expectScreenTitle(page, "Tạo đơn xuất hàng");
     await expect(page.locator("#customerLookupInput")).toHaveValue(customerName);
-    await page.locator('#activeCartPanel [data-cart-action="toggle-panel"]').click();
-    await page.waitForTimeout(300);
+    await ensureActiveCartPanelOpen(page);
+
+    await interceptConfirm(page, true);
     await page.locator('#activeCartPanel [data-cart-action="checkout"]').click();
 
     await expectScreenTitle(page, "Nhập hàng");
+    const createDialogMessages = await readInterceptedConfirmMessages(page);
+    const createDialogMessage = createDialogMessages[createDialogMessages.length - 1] || "";
+    expect(createDialogMessages[0] || "").toContain("Chốt xuất kho");
+    expect(createDialogMessage).toContain("App sẽ tạo hoặc cập nhật phiếu nhập tương ứng cho phần còn thiếu");
+    expect(createDialogMessage).toContain(shortageProduct.name);
     const shortageToast = await collectToast(page, runtime, "acc-sale-02-shortage", {
       errorPattern: /^$/,
     });
-    expect(shortageToast).toContain("Đã tạo sẵn phiếu nhập dự kiến");
-    await expect(page.locator("#purchaseNoteInput")).toHaveValue(`Thiếu hàng cho đơn ${customerName}`);
+    expect(shortageToast).toContain("Đã tạo hoặc cập nhật phiếu nhập dự kiến");
+    await expect(page.locator("#purchaseNoteInput")).toHaveValue("");
 
-    const syncState = await fetchSyncState(request, adminCookie);
-    const draftPurchase = (syncState.purchases || []).find((purchase) => purchase.note === `Thiếu hàng cho đơn ${customerName}`);
+    let syncState = await fetchSyncState(request, adminCookie);
+    const linkedPurchases = (syncState.purchases || []).filter((purchase) =>
+      purchase.status === "draft" &&
+      String(purchase.note || "") === "" &&
+      String(purchase.sourceType || purchase.source_type || "") === "cart" &&
+      String(purchase.sourceCode || purchase.source_code || "") === seededCart.id &&
+      String(purchase.sourceName || purchase.source_name || "") === customerName &&
+      Array.isArray(purchase.items)
+    );
+    expect(linkedPurchases).toHaveLength(1);
+    const draftPurchase = linkedPurchases[0];
     expect(draftPurchase).toBeTruthy();
     expect(draftPurchase.status).toBe("draft");
+    expect(
+      (syncState.purchases || []).some((purchase) => String(purchase.note || "") === "Seed phiếu nhập nháp cho Bò lát xào")
+    ).toBeTruthy();
     expect(
       draftPurchase.items.some(
         (item) => Number(item.productId) === Number(shortageProduct.id) && Number(item.quantity) >= shortageQuantity - Number(shortageProduct.current_stock)
       )
     ).toBeTruthy();
+
+    await switchMenu(page, "create-order");
+    await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    await expect(page.locator("#customerLookupInput")).toHaveValue(customerName);
+    await ensureActiveCartPanelOpen(page);
+
+    await interceptConfirm(page, true);
+    await page.locator('#activeCartPanel [data-cart-action="checkout"]').click();
+
+    await expectScreenTitle(page, "Nhập hàng");
+    const existingPurchaseDialogMessages = await readInterceptedConfirmMessages(page);
+    const existingPurchaseDialogMessage = existingPurchaseDialogMessages[existingPurchaseDialogMessages.length - 1] || "";
+    expect(existingPurchaseDialogMessages[0] || "").toContain("Chốt xuất kho");
+    expect(existingPurchaseDialogMessage).toContain("đã có phiếu chờ nhập đủ số lượng");
+    expect(existingPurchaseDialogMessage).toContain(shortageProduct.name);
+    const existingPurchaseToast = await collectToast(page, runtime, "acc-sale-02-existing-purchase", {
+      errorPattern: /^$/,
+    });
+    expect(existingPurchaseToast).toContain("Đã mở phiếu nhập chờ liên quan");
+    await expect(page.locator("#purchaseNoteInput")).toHaveValue("");
+
+    syncState = await fetchSyncState(request, adminCookie);
+    const linkedPurchasesAfterRetry = (syncState.purchases || []).filter((purchase) =>
+      purchase.status === "draft" &&
+      String(purchase.note || "") === "" &&
+      String(purchase.sourceType || purchase.source_type || "") === "cart" &&
+      String(purchase.sourceCode || purchase.source_code || "") === seededCart.id &&
+      String(purchase.sourceName || purchase.source_name || "") === customerName &&
+      Array.isArray(purchase.items)
+    );
+    expect(linkedPurchasesAfterRetry).toHaveLength(1);
+    expect(
+      linkedPurchasesAfterRetry[0].items.filter((item) => Number(item.productId) === Number(shortageProduct.id))
+    ).toHaveLength(1);
+    expect(
+      Number(
+        linkedPurchasesAfterRetry[0].items.find((item) => Number(item.productId) === Number(shortageProduct.id))?.quantity || 0
+      )
+    ).toBeCloseTo(shortageQuantity - Number(shortageProduct.current_stock), 2);
   } finally {
     await restoreBackupSnapshot(request, snapshot);
   }

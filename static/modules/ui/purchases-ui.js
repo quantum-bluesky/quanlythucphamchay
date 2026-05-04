@@ -38,6 +38,19 @@ export function createPurchasesUi(deps) {
     return { label: "Nháp", statusClass: "draft" };
   }
 
+  function getPurchaseSourceLabel(purchase) {
+    const sourceType = String(purchase?.sourceType || purchase?.source_type || "").trim();
+    const sourceName = String(purchase?.sourceName || purchase?.source_name || "").trim();
+    const sourceCode = String(purchase?.sourceCode || purchase?.source_code || "").trim();
+    if (sourceType === "cart") {
+      return sourceName ? `Đơn thiếu của ${sourceName}` : (sourceCode ? `Đơn thiếu ${sourceCode}` : "");
+    }
+    if (sourceName) {
+      return sourceCode ? `${sourceName} (${sourceCode})` : sourceName;
+    }
+    return sourceCode || "";
+  }
+
   function renderPurchaseEntryState() {
     const activePurchase = getActivePurchase();
     const compactActive = mobileQuery.matches && Boolean(activePurchase);
@@ -76,9 +89,11 @@ export function createPurchasesUi(deps) {
     }
     const totalAmount = purchase.items.reduce((sum, item) => sum + item.lineTotal, 0);
     const purchaseStatusMeta = getPurchaseStatusMeta(purchase);
+    const purchaseSourceLabel = getPurchaseSourceLabel(purchase);
     const detailRows = [
       { label: "Mã phiếu", value: purchase.receiptCode || "Chưa có" },
       { label: "Nhà cung cấp", value: purchase.supplierName || "Chưa có" },
+      ...(purchaseSourceLabel ? [{ label: "Nguồn tạo phiếu", value: purchaseSourceLabel }] : []),
       { label: "Trạng thái", value: purchaseStatusMeta.label },
       { label: "Ngày tạo", value: formatDate(purchase.createdAt) || "Chưa có" },
       { label: "Nhập kho", value: formatDate(purchase.receivedAt) || "Chưa có" },
@@ -192,7 +207,7 @@ export function createPurchasesUi(deps) {
       if (!state.purchaseSearchTerm) {
         return true;
       }
-      const haystack = `${purchase.supplierName} ${purchase.receiptCode} ${purchase.items.map((item) => item.productName).join(" ")}`.toLowerCase();
+      const haystack = `${purchase.supplierName} ${purchase.receiptCode} ${purchase.note || ""} ${purchase.sourceName || purchase.source_name || ""} ${purchase.sourceCode || purchase.source_code || ""} ${purchase.items.map((item) => item.productName).join(" ")}`.toLowerCase();
       return haystack.includes(state.purchaseSearchTerm.toLowerCase());
     });
     dom.purchaseOrderList.classList.toggle("is-compact-search", isSearchResultMode("purchaseOrders"));
