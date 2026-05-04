@@ -183,7 +183,7 @@ Mỗi lần chạy Playwright sẽ tự khởi động lại test server fixture
 Các nhóm kiểm tra chính:
 
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
-- `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, thiếu hàng của user thường
+- `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, thiếu hàng của user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu chờ đủ
 - `Confirm đổi trạng thái/xóa chứng từ`: trước khi `Xuất`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Xóa` app phải hiện dialog confirm
 - `Version cache-busting client JS`: HTML entrypoint và các module import phải được serve kèm query `?v=version-chính.N`, counter phải tăng đúng khi file `.js` đổi nội dung và không tăng nếu chỉ đổi line ending `CRLF/LF`
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
