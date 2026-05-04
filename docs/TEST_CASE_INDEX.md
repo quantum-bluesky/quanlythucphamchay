@@ -100,6 +100,11 @@ Mục tiêu:
 | 75 | `UT-JSVER-03` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_03_manifest_version_matches_system_config_version` |
 | 76 | `UT-JSVER-04` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_04_line_ending_only_changes_do_not_increment_file_counter` |
 | 77 | `UT-JSVER-05` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_05_legacy_raw_crlf_hash_migrates_without_incrementing_counter` |
+| 78 | `UT-INVSORT-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_invsort_01_product_life_fields_and_priority_metrics_are_normalized` |
+| 79 | `UT-INVSORT-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_invsort_02_master_csv_and_seed_import_accept_life_fields` |
+| 80 | `IT-INV-SORT-01` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-INV-SORT-01"` |
+| 81 | `IT-INV-SORT-02` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-INV-SORT-02"` |
+| 82 | `IT-PROD-LIFE-01` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-PROD-LIFE-01"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

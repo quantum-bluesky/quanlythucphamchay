@@ -1,13 +1,13 @@
 {
-  "app_version": "2.8.8",
+  "app_version": "2.8.10",
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "d3eb34ae2f35aac3920ffd65bd60d635a0265a749eb1315506f6c1fa6f6934a5"
+      "sha256": "4e5ba74681781fdfda6431b11ec6c37b434f40a73a0a7b68541f6b47160f203a"
     },
     "modules/app-state.js": {
       "counter": 1,
-      "sha256": "f11a6ab094e3141b9c1305b16cde3a5e07a77a924a81e63d1cb76d5505ed5420"
+      "sha256": "531896e689782803aa98dd23a452f4fbee6a7e4438e7bf45601c9dbef79459a9"
     },
     "modules/controllers/core-controller.js": {
       "counter": 1,
@@ -19,11 +19,11 @@
     },
     "modules/controllers/inventory-controller.js": {
       "counter": 1,
-      "sha256": "2cbe3fe9178690e86e8bcc6dd1679b55f9804951cab506ea274df89bbb3bfadc"
+      "sha256": "e64ea6e84126329c233e410640c6cca8d6e9c521a661021099eba70b07542c8b"
     },
     "modules/controllers/products-controller.js": {
       "counter": 1,
-      "sha256": "0ff21a582da1355dd98c43539a3ae4efc53c50c46c9ad555ae1795712b29f986"
+      "sha256": "6b18cb42cd722bc94de96e4fb007f295c0ccac7e6f83b465ce484e5dcaaad05f"
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
@@ -63,7 +63,7 @@
     },
     "modules/screen-config.js": {
       "counter": 1,
-      "sha256": "7f825c921d4a9e38af546c6293667b8b9fe95dee246e7baba0d902d94fe7896b"
+      "sha256": "9c101c123415c6101cde3201ea050ce561dd65e56cb72b48462a5ed29ed91320"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -79,11 +79,11 @@
     },
     "modules/ui/inventory-ui.js": {
       "counter": 1,
-      "sha256": "eeceffb1c4ac19b46fb4ea01ca7d4e4198cdc808502cc5d6203bdc85d779b174"
+      "sha256": "8c3ad78cbb1403d0b083b92aba7cec2459fd028c9c268f988481d0b9d7a2609c"
     },
     "modules/ui/products-ui.js": {
       "counter": 1,
-      "sha256": "f2bc2252c59a5e8a2360a15dc4e5810299223a0f7fc20e7f63d74c4c7789e0bb"
+      "sha256": "c22fdc99305a477dd2d7ee4b5a1097f480ef7b6b6f11808a1ffe67eafcb18954"
     },
     "modules/ui/purchases-ui.js": {
       "counter": 1,

@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .helpers import parse_non_negative_decimal
+from .helpers import parse_non_negative_decimal, parse_optional_positive_decimal
 
 
 def parse_seed_line(
@@ -25,6 +25,8 @@ def parse_seed_line(
     unit = default_unit
     low_stock_threshold = default_threshold
     price = default_price
+    shelf_life_days = None
+    storage_life_days = None
 
     if len(parts) == 2:
         try:
@@ -40,6 +42,15 @@ def parse_seed_line(
             low_stock_threshold = parts[3]
         if len(parts) > 4 and parts[4]:
             price = parts[4]
+        if len(parts) > 5 and parts[5]:
+            shelf_life_days = parts[5]
+        if len(parts) > 6 and parts[6]:
+            storage_life_days = parts[6]
+
+    if shelf_life_days not in (None, ""):
+        shelf_life_days = float(parse_optional_positive_decimal(shelf_life_days, "Hạn dùng"))
+    if storage_life_days not in (None, ""):
+        storage_life_days = float(parse_optional_positive_decimal(storage_life_days, "Thời gian bảo quản"))
 
     return {
         "name": name,
@@ -47,6 +58,8 @@ def parse_seed_line(
         "unit": unit,
         "low_stock_threshold": low_stock_threshold,
         "price": price,
+        "shelf_life_days": shelf_life_days,
+        "storage_life_days": storage_life_days,
     }
 
 
@@ -86,4 +99,3 @@ def import_products_from_file(
         "skipped": skipped,
         "total_products": store.get_summary()["product_count"],
     }
-

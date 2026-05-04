@@ -31,6 +31,15 @@ def parse_non_negative_decimal(value, field_name: str) -> Decimal:
     return number
 
 
+def parse_optional_positive_decimal(value, field_name: str) -> Decimal | None:
+    if value in (None, ""):
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    return parse_positive_decimal(text, field_name)
+
+
 def parse_month_key(value: str | None) -> tuple[int, int] | None:
     if not value:
         return None
@@ -83,4 +92,3 @@ def extract_cost_from_note(note: str) -> float | None:
 
 def normalize_key(value: str | None) -> str:
     return str(value or "").strip().lower()
-

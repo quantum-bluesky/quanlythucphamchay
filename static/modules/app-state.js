@@ -49,6 +49,7 @@ export const state = {
     documents: null,
   },
   searchTerm: "",
+  inventorySortMode: "name",
   salesSearchTerm: "",
   orderSearchTerm: "",
   customerSearchTerm: "",

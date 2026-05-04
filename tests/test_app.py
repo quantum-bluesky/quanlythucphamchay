@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from app import InventoryStore
+from qltpchay.http_handler import create_handler
+from qltpchay.importer import parse_seed_line
 from qltpchay.store import SyncConflictError
 
 
@@ -55,6 +57,88 @@ class InventoryStoreTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "lớn hơn tồn kho"):
             self.store.create_transaction(product["id"], "out", 3)
+
+    def test_ut_invsort_01_product_life_fields_and_priority_metrics_are_normalized(self) -> None:
+        product = self.store.create_product(
+            name="Bò kho ưu tiên",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=5,
+            shelf_life_days=30,
+            storage_life_days=45,
+        )
+        self.store.create_purchase_receipt(
+            supplier_name="NCC metric",
+            items=[{"product_id": product["id"], "quantity": 10, "unit_cost": 10000}],
+        )
+        self.store.create_checkout_order(
+            customer_name="Khách metric",
+            items=[{"product_id": product["id"], "quantity": 6, "unit_price": 15000}],
+        )
+        self.store.create_supplier_return_receipt(
+            supplier_name="NCC metric",
+            items=[{"product_id": product["id"], "quantity": 1, "unit_cost": 10000}],
+        )
+        self.store.create_inventory_adjustment_receipt(
+            items=[{"product_id": product["id"], "quantity_delta": -1}],
+            reason="Kiểm metric",
+            actor="tester",
+        )
+
+        refreshed = self.store.get_product_by_id(product["id"])
+
+        self.assertEqual(refreshed["shelf_life_days"], 30.0)
+        self.assertEqual(refreshed["storage_life_days"], 45.0)
+        self.assertEqual(refreshed["sales_6m_total"], 6.0)
+        self.assertEqual(refreshed["sales_12m_total"], 6.0)
+        self.assertEqual(refreshed["priority_base_stock"], 5.0)
+        self.assertEqual(refreshed["demand_pressure"], 0.2)
+        self.assertEqual(refreshed["shortage_pressure"], 0.6)
+        self.assertEqual(refreshed["priority_score"], 40.0)
+        self.assertEqual(refreshed["urgency_tier"], 2)
+        self.assertEqual(refreshed["estimated_remaining_days"], 30.0)
+        self.assertEqual(refreshed["expiry_basis"], "shelf_life")
+
+    def test_ut_invsort_02_master_csv_and_seed_import_accept_life_fields(self) -> None:
+        manifest_path = self.db_path.with_name("asset-versions-test.json")
+        handler = create_handler(
+            self.store,
+            admin_sessions=None,
+            system_config={"asset_versions_path": manifest_path, "version": "test"},
+        )
+        try:
+            old_csv = "name,category,unit,price,sale_price,low_stock_threshold\nĐậu hũ,Đồ tươi,hộp,10000,12000,4\n"
+            old_records = handler._parse_master_csv_records("products", old_csv)
+            self.assertEqual(old_records[0]["shelf_life_days"], None)
+            self.assertEqual(old_records[0]["storage_life_days"], None)
+
+            new_csv = (
+                "name,category,unit,price,sale_price,low_stock_threshold,shelf_life_days,storage_life_days\n"
+                "Chả chay,Đông lạnh,gói,20000,25000,3,90,120\n"
+            )
+            new_records = handler._parse_master_csv_records("products", new_csv)
+            self.assertEqual(new_records[0]["shelf_life_days"], 90.0)
+            self.assertEqual(new_records[0]["storage_life_days"], 120.0)
+
+            self.store.import_master_data("products", new_records)
+            product = self.store.get_products()[0]
+            exported_csv = handler._build_master_csv_bytes("products", [product]).decode("utf-8-sig")
+            self.assertIn("shelf_life_days", exported_csv.splitlines()[0])
+            self.assertIn("storage_life_days", exported_csv.splitlines()[0])
+
+            seed = parse_seed_line(
+                "Mì căn | Đồ khô | gói | 2 | 15000 | 180 | 240",
+                "Đồ chay",
+                "gói",
+                5,
+                0,
+            )
+            self.assertEqual(seed["shelf_life_days"], 180.0)
+            self.assertEqual(seed["storage_life_days"], 240.0)
+        finally:
+            manifest_path.unlink(missing_ok=True)
 
     def test_ut_db_03_inventory_adjustment_receipt_updates_stock_with_reason(self) -> None:
         product = self.store.create_product(

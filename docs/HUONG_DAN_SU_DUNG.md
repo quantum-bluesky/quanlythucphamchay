@@ -53,9 +53,10 @@ Vào menu:
 Thực hiện:
 
 1. Gõ tên sản phẩm để tìm nhanh
-2. Xem các mặt hàng có nhãn `Sắp hết`, `Sắp xuất hết`, `Sắp nhập về` hoặc `Không còn`
-3. Nếu card có badge `Chờ xuất` hoặc `Chờ nhập`, bấm trực tiếp vào badge để sang đúng màn liên quan
-4. Nếu cần xử lý một mặt hàng:
+2. Dùng dropdown `Sắp xếp` trong khung phân trang để đổi thứ tự theo `Tên A-Z`, `Tồn cao`, `Giá trị tồn`, `Ưu tiên nhập/xử lý` hoặc `Hạn còn ít`
+3. Xem các mặt hàng có nhãn `Sắp hết`, `Sắp xuất hết`, `Sắp nhập về` hoặc `Không còn`
+4. Nếu card có badge `Chờ xuất` hoặc `Chờ nhập`, badge sẽ hiện theo dạng `số phiếu / tổng số lượng` đang chờ cho đúng mặt hàng; bấm trực tiếp vào badge để sang đúng màn liên quan
+5. Nếu cần xử lý một mặt hàng:
    - bấm `Xuất` để sang đơn chờ xuất hoặc tạo luồng xuất mới
    - bấm `Nhập` để sang phiếu nhập chờ hoặc tạo phiếu nhập mới
 
@@ -64,6 +65,8 @@ Lưu ý:
 - user thường không chỉnh tăng/giảm tồn trực tiếp ở màn này nữa
 - chỉ `Master Admin` mới có chế độ chỉnh tồn trực tiếp và sẽ thấy cảnh báo rõ khi dùng
 - khi `Master Admin` chỉnh tồn trực tiếp, bắt buộc phải nhập lý do để lưu vào lịch sử và audit
+- sort `Ưu tiên nhập/xử lý` dùng sức bán đã chuẩn hóa theo ngưỡng tồn và mức thiếu hàng, không so sánh thô theo số lượng tuyệt đối giữa các sản phẩm
+- sort `Hạn còn ít` là ước tính theo sản phẩm từ lần nhập gần nhất, chưa phải hạn chính xác theo từng lô nhập
 - nếu máy khác vừa nhập hoặc xuất hàng, trạng thái tồn kho sẽ tự cập nhật lại khi màn hình đang rảnh
 
 ## 4. Luồng bán hàng cho khách
@@ -206,7 +209,7 @@ Vào menu:
 Màn này dùng để:
 
 - thêm mặt hàng mới
-- sửa tên / loại / đơn vị / giá nhập / giá bán mặc định / ngưỡng cảnh báo
+- sửa tên / loại / đơn vị / giá nhập / giá bán mặc định / ngưỡng cảnh báo / hạn dùng / thời gian bảo quản
 - xóa mặt hàng chưa có giao dịch
 - xem lịch sử thay đổi giá/trạng thái liên quan và lọc theo người thao tác, khoảng ngày
 
@@ -218,8 +221,9 @@ Màn này dùng để:
 4. Bấm `Sửa` trên đúng dòng sản phẩm cần chỉnh
 5. Đổi thông tin ngay trên dòng sản phẩm
 6. Đọc kỹ nhãn bên trái từng dòng để tránh nhập nhầm giữa `Giá nhập` và `Giá bán`
-7. Bấm `Lưu nhanh`
-8. Ở khối `Lịch sử sản phẩm`, có thể nhập tên người thao tác hoặc chọn `Từ ngày/Đến ngày` để lọc nhanh audit gần đây
+7. Nếu muốn sort tồn kho theo hạn còn lại, nhập `Hạn dùng` hoặc `Bảo quản` theo số ngày
+8. Bấm `Lưu nhanh`
+9. Ở khối `Lịch sử sản phẩm`, có thể nhập tên người thao tác hoặc chọn `Từ ngày/Đến ngày` để lọc nhanh audit gần đây
 
 ## 8. Luồng nhập hàng
 

@@ -1222,10 +1222,12 @@ function shouldShowPaginationSizePicker(key) {
   return !mobileQuery.matches && Boolean(PAGINATION_GROUP_MAP[key]);
 }
 
-function renderPagination(key, pageData) {
+function renderPagination(key, pageData, options = {}) {
   const pageSize = getPageSize(key);
   const showPageSizePicker = shouldShowPaginationSizePicker(key);
-  if (pageData.totalItems <= pageSize && (!showPageSizePicker || pageData.totalItems <= PAGINATION_PAGE_SIZE_OPTIONS[0])) {
+  const force = Boolean(options.force);
+  const extraControls = String(options.extraControls || "");
+  if (!force && pageData.totalItems <= pageSize && (!showPageSizePicker || pageData.totalItems <= PAGINATION_PAGE_SIZE_OPTIONS[0])) {
     return "";
   }
 
@@ -1246,6 +1248,7 @@ function renderPagination(key, pageData) {
         <span class="pagination-status">Trang ${pageData.page}/${pageData.totalPages} • ${pageData.totalItems} mục</span>
         <button type="button" class="ghost-button compact-button" data-page-key="${key}" data-page-action="next" ${pageData.page >= pageData.totalPages ? "disabled" : ""}>Sau →</button>
       </div>
+      ${extraControls}
       ${pageSizePicker}
     </div>
   `;

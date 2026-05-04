@@ -11,8 +11,9 @@ export const SCREEN_HELP = {
     overview: "Dùng màn này để xem tồn hiện tại, biết mặt hàng đang chờ nhập hoặc chờ xuất, rồi chuyển đúng sang đơn/phiếu liên quan.",
     steps: [
       "Gõ tên mặt hàng ở ô tìm kiếm để thu gọn danh sách cần xem.",
+      "Dùng dropdown Sắp xếp trong thanh phân trang để đổi thứ tự danh sách theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít.",
       "Bấm Xuất hoặc Nhập ngay trên từng mặt hàng để mở đơn chờ / phiếu chờ liên quan, hoặc tạo luồng mới nếu chưa có.",
-      "Nếu card có badge Chờ xuất hoặc Chờ nhập, bấm trực tiếp vào badge để sang đúng màn đang xử lý mặt hàng đó.",
+      "Nếu card có badge Chờ xuất hoặc Chờ nhập, badge sẽ hiện theo dạng số phiếu / tổng số lượng chờ; bấm trực tiếp vào badge để sang đúng màn đang xử lý mặt hàng đó.",
       "Nếu có máy khác vừa cập nhật tồn hoặc giá, màn hình sẽ tự nạp lại khi bạn đang rảnh thao tác; trong lúc đang gõ thì app sẽ tạm hoãn để tránh mất dữ liệu đang nhập.",
       "Chỉ Master Admin mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho và bắt buộc nhập lý do điều chỉnh.",
       "Nếu cần xử lý sai lệch sau khi chứng từ đã xử lý, dùng nút Phiếu DC hoặc mở khối Phiếu điều chỉnh tồn để lập chứng từ tăng/giảm mới thay vì sửa ngược đơn/phiếu cũ.",
@@ -95,6 +96,7 @@ export const SCREEN_HELP = {
     steps: [
       "Tìm đúng mặt hàng trong danh sách để sửa nhanh ngay trên từng ô.",
       "Khi sửa, đọc nhãn bên trái của từng dòng để tránh nhầm giữa Giá nhập và Giá bán.",
+      "Có thể nhập thêm Hạn dùng và Bảo quản theo số ngày để màn tồn kho ước tính mặt hàng nào cần xử lý trước theo hạn còn lại.",
       "Nếu cần thêm mới, dùng form phía dưới danh sách.",
       "Xem phần Lịch sử sản phẩm bên dưới để biết thay đổi gần đây trước khi chỉnh tiếp.",
       "Có thể lọc lịch sử theo người thao tác, từ ngày và đến ngày để đối chiếu audit nhanh.",

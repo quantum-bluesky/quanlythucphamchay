@@ -53,6 +53,8 @@ export function createProductsUi(deps) {
     dom.productManageList.innerHTML = topPagination + pageData.items
       .map((product) => {
         const isEditing = state.editingProductId === product.id;
+        const shelfLifeLabel = product.shelf_life_days ? `Hạn ${formatQuantity(product.shelf_life_days)} ngày` : "Chưa có hạn dùng";
+        const storageLifeLabel = product.storage_life_days ? `Bảo quản ${formatQuantity(product.storage_life_days)} ngày` : "Chưa có bảo quản";
         const compactLayout = compact
           ? `
             <div class="product-manage-compact">
@@ -72,6 +74,8 @@ export function createProductsUi(deps) {
                   <span>Giá nhập ${formatCurrency(product.price)}</span>
                   <span>Giá bán ${formatCurrency(product.sale_price ?? 0)}</span>
                   <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
+                  <span>${escapeHtml(shelfLifeLabel)}</span>
+                  <span>${escapeHtml(storageLifeLabel)}</span>
                   ${product.current_stock > 0 ? "" : `<span>Có thể ngừng bán.</span>`}
                 </div>
               </div>
@@ -92,7 +96,11 @@ export function createProductsUi(deps) {
                   </div>
                   <div class="product-row-stock">${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}</div>
                 </div>
-                <div class="product-row-meta"><span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span></div>
+                <div class="product-row-meta">
+                  <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
+                  <span>${escapeHtml(shelfLifeLabel)}</span>
+                  <span>${escapeHtml(storageLifeLabel)}</span>
+                </div>
                 <div class="cart-line-note">${product.current_stock > 0 ? `Còn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}.` : "Có thể ngừng bán."}</div>
                 <div class="row-actions">
                   <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy sửa" : "Sửa"}</button>
@@ -107,6 +115,8 @@ export function createProductsUi(deps) {
                 <label class="inline-labeled-field"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${product.price}" data-manage-input="price" data-product-id="${product.id}" placeholder="Giá nhập"></label>
                 <label class="inline-labeled-field"><span>Giá bán</span><input type="number" min="0" step="1000" value="${product.sale_price ?? 0}" data-manage-input="sale_price" data-product-id="${product.id}" placeholder="Giá bán"></label>
                 <label class="inline-labeled-field"><span>Ngưỡng</span><input type="number" min="0.01" step="0.01" value="${product.low_stock_threshold}" data-manage-input="low_stock_threshold" data-product-id="${product.id}" placeholder="Ngưỡng"></label>
+                <label class="inline-labeled-field"><span>Hạn dùng</span><input type="number" min="0.01" step="1" value="${product.shelf_life_days ?? ""}" data-manage-input="shelf_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>
+                <label class="inline-labeled-field"><span>Bảo quản</span><input type="number" min="0.01" step="1" value="${product.storage_life_days ?? ""}" data-manage-input="storage_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>
                 <div class="row-actions">
                   <button type="button" class="primary-button compact-button" data-product-manage-action="save-inline" data-product-id="${product.id}">Lưu nhanh</button>
                 </div>
