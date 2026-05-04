@@ -44,7 +44,7 @@ Liên kết detail hiện có:
   - ô tìm kiếm tồn kho
   - dropdown sắp xếp trong khu vực phân trang
   - card sản phẩm
-  - badge `Chờ xuất` / `Chờ nhập`
+  - badge `Chờ xuất` / `Chờ nhập` có thêm `số phiếu / tổng số lượng` đang chờ theo sản phẩm
   - lịch sử gần đây
 - hành động chính:
   - `Xuất`

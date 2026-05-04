@@ -2150,11 +2150,32 @@ button:disabled {
   }
 
   [data-menu-section="inventory"] .inventory-card-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
     min-height: 24px;
     padding: 4px 9px;
     border-radius: 999px;
     font-size: 0.74rem;
     line-height: 1.1;
+  }
+
+  [data-menu-section="inventory"] .inventory-pending-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  [data-menu-section="inventory"] .inventory-pending-divider {
+    color: var(--muted);
+  }
+
+  [data-menu-section="inventory"] .inventory-pending-quantity {
+    color: #d02424;
+    font-weight: 800;
   }
 
   [data-menu-section="inventory"] .inventory-inline-links {
