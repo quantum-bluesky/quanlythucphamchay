@@ -55,7 +55,7 @@ Thực hiện:
 1. Gõ tên sản phẩm để tìm nhanh
 2. Dùng dropdown `Sắp xếp` trong khung phân trang để đổi thứ tự theo `Tên A-Z`, `Tồn cao`, `Giá trị tồn`, `Ưu tiên nhập/xử lý` hoặc `Hạn còn ít`
 3. Xem các mặt hàng có nhãn `Sắp hết`, `Sắp xuất hết`, `Sắp nhập về` hoặc `Không còn`
-4. Nếu card có badge `Chờ xuất` hoặc `Chờ nhập`, bấm trực tiếp vào badge để sang đúng màn liên quan
+4. Nếu card có badge `Chờ xuất` hoặc `Chờ nhập`, badge sẽ hiện theo dạng `số phiếu / tổng số lượng` đang chờ cho đúng mặt hàng; bấm trực tiếp vào badge để sang đúng màn liên quan
 5. Nếu cần xử lý một mặt hàng:
    - bấm `Xuất` để sang đơn chờ xuất hoặc tạo luồng xuất mới
    - bấm `Nhập` để sang phiếu nhập chờ hoặc tạo phiếu nhập mới

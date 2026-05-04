@@ -1,5 +1,5 @@
 {
-  "app_version": "2.8.9",
+  "app_version": "2.8.10",
   "files": {
     "app.js": {
       "counter": 1,
@@ -63,7 +63,7 @@
     },
     "modules/screen-config.js": {
       "counter": 1,
-      "sha256": "574561a9ace24479cffef5691f04336eabbc9cc3139186fb0ed8da0b8e4e933c"
+      "sha256": "9c101c123415c6101cde3201ea050ce561dd65e56cb72b48462a5ed29ed91320"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -79,7 +79,7 @@
     },
     "modules/ui/inventory-ui.js": {
       "counter": 1,
-      "sha256": "4d0dcf27d446058b1ba30ccbbf54465e62b43510612ef4a8095e95696e5678aa"
+      "sha256": "8c3ad78cbb1403d0b083b92aba7cec2459fd028c9c268f988481d0b9d7a2609c"
     },
     "modules/ui/products-ui.js": {
       "counter": 1,

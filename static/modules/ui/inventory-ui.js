@@ -168,6 +168,22 @@ export function createInventoryUi(deps) {
       `).join("");
   }
 
+  function renderPendingInventoryButton({ label, count, quantity, menu, productId, buttonClass = "ghost-button compact-button inventory-card-badge" }) {
+    if (!count) {
+      return "";
+    }
+    return `
+      <button type="button" class="${buttonClass}" data-inventory-link="${menu}" data-product-id="${productId}">
+        <span>${escapeHtml(label)}</span>
+        <span class="inventory-pending-summary">
+          <span>${escapeHtml(String(count))}</span>
+          <span class="inventory-pending-divider">/</span>
+          <span class="inventory-pending-quantity">${escapeHtml(formatQuantity(quantity || 0))}</span>
+        </span>
+      </button>
+    `;
+  }
+
   function renderProducts() {
     const compact = mobileQuery.matches;
     const isAdmin = Boolean(state.admin?.isAdmin);
@@ -200,15 +216,17 @@ export function createInventoryUi(deps) {
       const isEditingPrice = isAdmin && state.editingPriceId === product.id;
       const signals = getInventoryProductSignals(product, draftDemandMap, incomingMap);
       const draftCount = Number(draftCountMap.get(product.id) || 0);
+      const draftQuantity = Number(draftDemandMap.get(product.id) || 0);
       const incomingCount = Number(incomingCountMap.get(product.id) || 0);
+      const incomingQuantity = Number(incomingMap.get(product.id) || 0);
       const relatedDraftCarts = getDraftCartsForProduct(product.id);
       const relatedPurchases = getOpenPurchasesForProduct(product.id);
       const sortSignalMarkup = renderInventorySortSignal(product);
       const inventoryBadgeMarkup = draftCount || incomingCount
         ? `
           <div class="inventory-card-badges">
-            ${draftCount ? `<button type="button" class="ghost-button compact-button inventory-card-badge" data-inventory-link="orders" data-product-id="${product.id}">Chờ xuất ${draftCount}</button>` : ""}
-            ${incomingCount ? `<button type="button" class="ghost-button compact-button inventory-card-badge" data-inventory-link="purchases" data-product-id="${product.id}">Chờ nhập ${incomingCount}</button>` : ""}
+            ${renderPendingInventoryButton({ label: "Chờ xuất", count: draftCount, quantity: draftQuantity, menu: "orders", productId: product.id })}
+            ${renderPendingInventoryButton({ label: "Chờ nhập", count: incomingCount, quantity: incomingQuantity, menu: "purchases", productId: product.id })}
           </div>
         `
         : "";
