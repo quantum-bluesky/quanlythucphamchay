@@ -248,10 +248,16 @@ test("ACC-SALE-02 shortage checkout for normal user creates purchase suggestion 
     const draftPurchase = (syncState.purchases || []).find((purchase) =>
       purchase.status === "draft" &&
       String(purchase.note || "") === "" &&
+      String(purchase.sourceType || purchase.source_type || "") === "cart" &&
+      String(purchase.sourceCode || purchase.source_code || "") === seededCart.id &&
+      String(purchase.sourceName || purchase.source_name || "") === customerName &&
       Array.isArray(purchase.items)
     );
     expect(draftPurchase).toBeTruthy();
     expect(draftPurchase.status).toBe("draft");
+    expect(
+      (syncState.purchases || []).some((purchase) => String(purchase.note || "") === "Seed phiếu nhập nháp cho Bò lát xào")
+    ).toBeTruthy();
     expect(
       draftPurchase.items.some(
         (item) => Number(item.productId) === Number(shortageProduct.id) && Number(item.quantity) >= shortageQuantity - Number(shortageProduct.current_stock)

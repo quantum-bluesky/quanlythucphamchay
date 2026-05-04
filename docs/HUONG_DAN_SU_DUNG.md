@@ -258,6 +258,11 @@ Màn này có 2 phần:
 16. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`
 17. Trước khi đổi trạng thái `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu` hoặc `Xóa phiếu`, app sẽ hiện message confirm để tránh thao tác nhầm
 
+Nếu phiếu được tạo từ một đơn đang thiếu hàng:
+
+- app giữ liên kết `đơn thiếu nguồn` ở phần `Detail`
+- ô `Ghi chú phiếu nhập` vẫn mặc định để trống để bạn tự nhập nội dung riêng nếu cần
+
 ### Ý nghĩa trạng thái phiếu nhập
 
 - `Nháp`: đang chuẩn bị
