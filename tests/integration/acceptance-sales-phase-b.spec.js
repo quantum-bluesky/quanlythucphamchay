@@ -242,10 +242,14 @@ test("ACC-SALE-02 shortage checkout for normal user creates purchase suggestion 
       errorPattern: /^$/,
     });
     expect(shortageToast).toContain("Đã tạo sẵn phiếu nhập dự kiến");
-    await expect(page.locator("#purchaseNoteInput")).toHaveValue(`Thiếu hàng cho đơn ${customerName}`);
+    await expect(page.locator("#purchaseNoteInput")).toHaveValue("");
 
     const syncState = await fetchSyncState(request, adminCookie);
-    const draftPurchase = (syncState.purchases || []).find((purchase) => purchase.note === `Thiếu hàng cho đơn ${customerName}`);
+    const draftPurchase = (syncState.purchases || []).find((purchase) =>
+      purchase.status === "draft" &&
+      String(purchase.note || "") === "" &&
+      Array.isArray(purchase.items)
+    );
     expect(draftPurchase).toBeTruthy();
     expect(draftPurchase.status).toBe("draft");
     expect(

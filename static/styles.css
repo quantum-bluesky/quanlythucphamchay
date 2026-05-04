@@ -2040,13 +2040,12 @@ button:disabled {
   }
 
   [data-menu-section="purchases"].has-active-purchase .sales-customer-card .sales-customer-form {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
-    align-items: center;
+    align-items: stretch;
   }
 
   [data-menu-section="purchases"].has-active-purchase .sales-customer-card label span,
-  [data-menu-section="purchases"].has-active-purchase .sales-customer-card label:last-child,
   [data-menu-section="purchases"].has-active-purchase .sales-customer-card .panel-note {
     display: none;
   }

@@ -1435,7 +1435,7 @@ function syncSalesState() {
     .map((purchase) => ({
       id: purchase.id || createId("purchase"),
       supplierName: String(purchase.supplierName || "").trim(),
-      note: String(purchase.note || "").trim(),
+      note: normalizePurchaseNoteValue(purchase.note),
       status: purchase.status || "draft",
       createdAt: purchase.createdAt || nowIso(),
       updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
@@ -1557,6 +1557,13 @@ function updatePaginationConfig(payload = {}) {
 
 function updateDebugConfig(payload = {}) {
   state.debug = normalizeDebugConfig(payload);
+}
+
+const LEGACY_AUTO_PURCHASE_NOTE_RE = /^Thiếu hàng cho đơn\b/i;
+
+function normalizePurchaseNoteValue(note) {
+  const cleanNote = String(note || "").trim();
+  return LEGACY_AUTO_PURCHASE_NOTE_RE.test(cleanNote) ? "" : cleanNote;
 }
 
 function updateAppInfo(payload = {}) {
@@ -2099,7 +2106,7 @@ function createPurchaseSuggestionFromCart(cart) {
     });
     return {
       supplierName: purchaseSupplierInput?.value?.trim() || currentPurchase.supplierName,
-      note: `Thiếu hàng cho đơn ${cart.customerName}`,
+      note: "",
       items: nextItems,
     };
   });
