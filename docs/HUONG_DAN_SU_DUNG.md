@@ -132,7 +132,9 @@ Nếu đủ hàng:
 
 Nếu thiếu hàng:
 
-- với user thường, hệ thống sẽ chuyển sang `Quản lý nhập hàng` để tạo phiếu nhập dự kiến
+- app sẽ báo thiếu hàng trước khi tạo hoặc cập nhật phiếu nhập dự kiến
+- nếu đã có phiếu chờ nhập với đủ số lượng cho các mặt hàng đang thiếu, app sẽ báo là đã có phiếu nhập và chỉ mở lại phiếu đó nếu bạn xác nhận cần chỉnh
+- với user thường, sau khi xác nhận app mới chuyển sang `Quản lý nhập hàng` để tạo hoặc mở phiếu nhập tương ứng
 - với `Master Admin`, hệ thống mới cho phép chọn sang màn tồn kho để chỉnh trực tiếp nếu thực sự cần
 - nếu cần đối chiếu nhanh metadata phiếu xuất hiện hành, bấm `Detail` trong khối `Giỏ hiện hành`
 
@@ -414,8 +416,9 @@ Giỏ sẽ nằm ở trạng thái chờ để mở lại sau.
 
 Khi đó:
 
-- nếu chỉ cần sửa lại số tồn: sang `Kiểm tra tồn kho`
-- nếu thực sự thiếu hàng: sang `Quản lý nhập hàng`
+- nếu đã có phiếu chờ nhập đủ số lượng, app sẽ báo để bạn kiểm tra lại phiếu đó trước
+- nếu chỉ cần sửa lại số tồn và bạn là `Master Admin`: sang `Kiểm tra tồn kho`
+- nếu thực sự còn thiếu hàng: xác nhận rồi sang `Quản lý nhập hàng`
 
 ### Muốn xem lại đơn cũ đã xong
 

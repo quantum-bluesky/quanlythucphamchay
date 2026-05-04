@@ -66,6 +66,8 @@ Nếu cần can thiệp đặc biệt
   - tạo xuất kho
   - cart chuyển `completed`
 - nếu thiếu tồn:
+  - app phải báo trước khi tạo hoặc cập nhật phiếu nhập cho phần còn thiếu
+  - nếu đã có phiếu `draft/ordered` đủ số lượng đáp ứng phần thiếu thì chỉ thông báo và cho mở lại phiếu liên quan khi user xác nhận cần chỉnh
   - user thường được dẫn sang luồng nhập hàng
   - không bypass chỉnh tồn
 

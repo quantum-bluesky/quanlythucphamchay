@@ -21,7 +21,7 @@ Lưu ý:
 | 2 | `ACC-INV-01` | Kiểm tra shortcut ở màn tồn kho mở đúng luồng nhập hàng và tạo đơn xuất. |
 | 3 | `ACC-INV-02` | Kiểm tra các màn tồn kho, nhập hàng, bán hàng và sản phẩm hoạt động ổn định khi điều hướng qua lại. |
 | 4 | `ACC-SALE-01` | Kiểm tra chốt đơn hoàn chỉnh làm giảm tồn kho và ghi nhận đúng lịch sử đơn hàng. |
-| 5 | `ACC-SALE-02` | Kiểm tra user thường gặp thiếu hàng khi chốt đơn sẽ được điều hướng sang phiếu nhập gợi ý thay vì bypass chỉnh tồn. |
+| 5 | `ACC-SALE-02` | Kiểm tra user thường gặp thiếu hàng khi chốt đơn sẽ được báo trước khi tạo/cập nhật phiếu nhập, đồng thời không tạo trùng nếu đã có phiếu chờ nhập đủ số lượng. |
 | 6 | `ACC-ORD-01` | Kiểm tra màn đơn hàng render ổn định và các thao tác chính không làm vỡ màn quản lý. |
 | 7 | `ACC-CUS-01` | Kiểm tra màn khách hàng render ổn định và các thao tác cơ bản hoạt động bình thường. |
 | 8 | `ACC-PROD-01` | Kiểm tra màn sản phẩm và luồng sửa nhanh hoạt động ổn định cùng các màn nghiệp vụ liên quan. |
