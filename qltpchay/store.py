@@ -51,6 +51,11 @@ def detect_report_transaction_kind(receipt_type: str | None, note: str) -> str:
     return ""
 
 
+def extract_order_code_from_note(note: str) -> str:
+    match = re.search(r"\bDH-\d{8}-\d{6}-[a-f0-9]{6}\b", note or "")
+    return match.group(0) if match else ""
+
+
 class SyncConflictError(ValueError):
     def __init__(self, state_key: str, expected_updated_at: str, actual_updated_at: str):
         self.state_key = state_key
@@ -183,6 +188,7 @@ class InventoryStore:
                     customer_name TEXT NOT NULL DEFAULT '',
                     status TEXT NOT NULL DEFAULT 'draft',
                     payment_status TEXT NOT NULL DEFAULT 'unpaid',
+                    discount_amount REAL NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     completed_at TEXT,
@@ -218,6 +224,7 @@ class InventoryStore:
                     source_code TEXT NOT NULL DEFAULT '',
                     source_name TEXT NOT NULL DEFAULT '',
                     status TEXT NOT NULL DEFAULT 'draft',
+                    discount_amount REAL NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     received_at TEXT,
@@ -255,6 +262,7 @@ class InventoryStore:
                     actor TEXT NOT NULL DEFAULT '',
                     reason TEXT NOT NULL DEFAULT '',
                     note TEXT NOT NULL DEFAULT '',
+                    discount_amount REAL NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL
                 );
 
@@ -330,6 +338,17 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE inventory_receipts ADD COLUMN source_code TEXT NOT NULL DEFAULT ''"
                 )
+            if "discount_amount" not in receipt_columns:
+                connection.execute(
+                    "ALTER TABLE inventory_receipts ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0"
+                )
+            cart_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(carts)").fetchall()
+            }
+            if "discount_amount" not in cart_columns:
+                connection.execute(
+                    "ALTER TABLE carts ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0"
+                )
             purchase_columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(purchases)").fetchall()
             }
@@ -344,6 +363,10 @@ class InventoryStore:
             if "source_name" not in purchase_columns:
                 connection.execute(
                     "ALTER TABLE purchases ADD COLUMN source_name TEXT NOT NULL DEFAULT ''"
+                )
+            if "discount_amount" not in purchase_columns:
+                connection.execute(
+                    "ALTER TABLE purchases ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0"
                 )
             for key in self.SYNC_COLLECTION_KEYS:
                 connection.execute(
@@ -545,6 +568,52 @@ class InventoryStore:
         }
 
     @staticmethod
+    def _parse_discount_amount_value(value, field_name: str) -> Decimal:
+        return parse_non_negative_decimal(value or 0, field_name)
+
+    @classmethod
+    def _get_cart_subtotal_amount(cls, cart: dict) -> Decimal:
+        subtotal = Decimal("0")
+        for item in cart.get("items") or []:
+            subtotal += Decimal(str(item.get("quantity") or 0)) * Decimal(str(item.get("unitPrice") or item.get("unit_price") or 0))
+        return subtotal
+
+    @classmethod
+    def _get_purchase_subtotal_amount(cls, purchase: dict) -> Decimal:
+        subtotal = Decimal("0")
+        for item in purchase.get("items") or []:
+            subtotal += Decimal(str(item.get("quantity") or 0)) * Decimal(str(item.get("unitCost") or item.get("unit_cost") or 0))
+        return subtotal
+
+    @classmethod
+    def _validate_discount_amount(
+        cls,
+        value,
+        subtotal: Decimal,
+        field_name: str,
+    ) -> float:
+        discount_amount = cls._parse_discount_amount_value(value, field_name)
+        if discount_amount > subtotal:
+            raise ValueError(f"{field_name} không được lớn hơn tạm tính của phiếu.")
+        return round(float(discount_amount), 2)
+
+    @classmethod
+    def _get_cart_discount_amount(cls, cart: dict) -> float:
+        return cls._validate_discount_amount(
+            cart.get("discountAmount", cart.get("discount_amount", 0)),
+            cls._get_cart_subtotal_amount(cart),
+            "Giảm giá khuyến mại phiếu xuất",
+        )
+
+    @classmethod
+    def _get_purchase_discount_amount(cls, purchase: dict) -> float:
+        return cls._validate_discount_amount(
+            purchase.get("discountAmount", purchase.get("discount_amount", 0)),
+            cls._get_purchase_subtotal_amount(purchase),
+            "Giảm giá khuyến mại phiếu nhập",
+        )
+
+    @staticmethod
     def _purchase_has_items(purchase: dict) -> bool:
         items = purchase.get("items")
         return isinstance(items, list) and bool(items)
@@ -622,7 +691,7 @@ class InventoryStore:
         if state_key == "carts":
             cart_rows = connection.execute(
                 """
-                SELECT id, customer_id, customer_name, status, payment_status, created_at, updated_at,
+                SELECT id, customer_id, customer_name, status, payment_status, discount_amount, created_at, updated_at,
                        completed_at, cancelled_at, paid_at, order_code
                 FROM carts
                 ORDER BY datetime(updated_at) DESC, id
@@ -648,6 +717,8 @@ class InventoryStore:
                         "customerName": row["customer_name"] or "",
                         "status": row["status"] or "draft",
                         "paymentStatus": row["payment_status"] or "unpaid",
+                        "discountAmount": round(float(row["discount_amount"] or 0), 2),
+                        "discount_amount": round(float(row["discount_amount"] or 0), 2),
                         "createdAt": row["created_at"],
                         "updatedAt": row["updated_at"],
                         "completedAt": row["completed_at"],
@@ -662,7 +733,7 @@ class InventoryStore:
         if state_key == "purchases":
             purchase_rows = connection.execute(
                 """
-                SELECT id, supplier_id, supplier_name, note, source_type, source_code, source_name, status, created_at, updated_at,
+                SELECT id, supplier_id, supplier_name, note, source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
                        received_at, paid_at, receipt_code
                 FROM purchases
                 ORDER BY datetime(updated_at) DESC, id
@@ -718,6 +789,8 @@ class InventoryStore:
                         "sourceName": row["source_name"] or "",
                         "source_name": row["source_name"] or "",
                         "status": raw_status,
+                        "discountAmount": round(float(row["discount_amount"] or 0), 2),
+                        "discount_amount": round(float(row["discount_amount"] or 0), 2),
                         "createdAt": row["created_at"],
                         "updatedAt": row["updated_at"],
                         "receivedAt": received_at,
@@ -794,13 +867,14 @@ class InventoryStore:
             connection.execute("DELETE FROM carts")
             for record in records:
                 cart_id = str(record.get("id") or f"cart_{secrets.token_hex(6)}")
+                discount_amount = self._get_cart_discount_amount(record)
                 connection.execute(
                     """
                     INSERT INTO carts(
-                        id, customer_id, customer_name, status, payment_status, created_at, updated_at,
+                        id, customer_id, customer_name, status, payment_status, discount_amount, created_at, updated_at,
                         completed_at, cancelled_at, paid_at, order_code
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         cart_id,
@@ -808,6 +882,7 @@ class InventoryStore:
                         str(record.get("customerName") or "").strip(),
                         str(record.get("status") or "draft"),
                         str(record.get("paymentStatus") or "unpaid"),
+                        discount_amount,
                         str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
                         str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
                         record.get("completedAt") or record.get("completed_at"),
@@ -840,13 +915,14 @@ class InventoryStore:
             connection.execute("DELETE FROM purchases")
             for record in self._normalize_purchases_for_storage(records):
                 purchase_id = str(record.get("id") or f"purchase_{secrets.token_hex(6)}")
+                discount_amount = self._get_purchase_discount_amount(record)
                 connection.execute(
                     """
                     INSERT INTO purchases(
                         id, supplier_id, supplier_name, note, source_type, source_code, source_name,
-                        status, created_at, updated_at, received_at, paid_at, receipt_code
+                        status, discount_amount, created_at, updated_at, received_at, paid_at, receipt_code
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         purchase_id,
@@ -857,6 +933,7 @@ class InventoryStore:
                         str(record.get("sourceCode") or record.get("source_code") or "").strip(),
                         str(record.get("sourceName") or record.get("source_name") or "").strip(),
                         str(record.get("status") or "draft"),
+                        discount_amount,
                         str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
                         str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
                         record.get("receivedAt") or record.get("received_at"),
@@ -899,15 +976,16 @@ class InventoryStore:
         actor: str = "",
         reason: str = "",
         note: str = "",
+        discount_amount: float = 0,
         created_at: str,
     ) -> int:
         cursor = connection.execute(
             """
             INSERT OR IGNORE INTO inventory_receipts(
                 receipt_code, receipt_type, customer_id, customer_name, supplier_id, supplier_name,
-                source_type, source_code, actor, reason, note, created_at
+                source_type, source_code, actor, reason, note, discount_amount, created_at
             )
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 receipt_code,
@@ -921,6 +999,7 @@ class InventoryStore:
                 actor,
                 reason,
                 note,
+                discount_amount,
                 created_at,
             ),
         )
@@ -1815,6 +1894,7 @@ class InventoryStore:
         customer_name: str,
         items: list[dict],
         note: str = "",
+        discount_amount=0,
     ) -> dict:
         clean_customer_name = (customer_name or "").strip()
         clean_note = (note or "").strip()
@@ -1863,18 +1943,26 @@ class InventoryStore:
                 current_stock_by_id[product_id] = current_stock
 
             transactions = []
-            total_amount = Decimal("0")
+            subtotal_amount = Decimal("0")
             total_quantity = Decimal("0")
+            for item in grouped_items.values():
+                subtotal_amount += item["quantity"] * item["unit_price"]
+            validated_discount_amount = self._validate_discount_amount(
+                discount_amount,
+                subtotal_amount,
+                "Giảm giá khuyến mại phiếu xuất",
+            )
 
             for product_id, item in grouped_items.items():
                 product = products_by_id[product_id]
                 line_total = item["quantity"] * item["unit_price"]
-                total_amount += line_total
                 total_quantity += item["quantity"]
                 unit_cost_snapshot = float(product["price"])
                 transaction_note = (
                     f"Đơn {order_code} | Khách: {clean_customer_name} | Giá bán: {float(item['unit_price']):.0f} | Giá vốn: {unit_cost_snapshot:.0f}"
                 )
+                if validated_discount_amount > 0:
+                    transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
                 if clean_note:
                     transaction_note += f" | {clean_note}"
                 if item["note"]:
@@ -1903,13 +1991,17 @@ class InventoryStore:
                     }
                 )
 
+        net_total_amount = subtotal_amount - Decimal(str(validated_discount_amount))
+
         return {
             "order_code": order_code,
             "customer_name": clean_customer_name,
             "created_at": now,
             "transactions": transactions,
             "total_quantity": round(float(total_quantity), 2),
-            "total_amount": round(float(total_amount), 2),
+            "subtotal_amount": round(float(subtotal_amount), 2),
+            "discount_amount": round(float(validated_discount_amount), 2),
+            "total_amount": round(float(net_total_amount), 2),
         }
 
     def create_purchase_receipt(
@@ -1917,6 +2009,7 @@ class InventoryStore:
         items: list[dict],
         note: str = "",
         supplier_name: str = "",
+        discount_amount=0,
     ) -> dict:
         clean_note = (note or "").strip()
         clean_supplier_name = (supplier_name or "").strip()
@@ -1946,26 +2039,37 @@ class InventoryStore:
 
         with self._connect() as connection:
             transactions = []
-            total_amount = Decimal("0")
+            subtotal_amount = Decimal("0")
             total_quantity = Decimal("0")
+            validated_discount_amount = self._validate_discount_amount(
+                discount_amount,
+                sum(
+                    item["quantity"] * item["unit_cost"]
+                    for item in grouped_items.values()
+                ),
+                "Giảm giá khuyến mại phiếu nhập",
+            )
             receipt_id = self._insert_inventory_receipt(
                 connection,
                 receipt_code=receipt_code,
                 receipt_type="purchase",
                 supplier_name=clean_supplier_name,
                 note=clean_note,
+                discount_amount=validated_discount_amount,
                 created_at=now,
             )
 
             for product_id, item in grouped_items.items():
                 product = self._get_product_or_raise(connection, product_id)
                 line_total = item["quantity"] * item["unit_cost"]
-                total_amount += line_total
+                subtotal_amount += line_total
                 total_quantity += item["quantity"]
 
                 transaction_note = f"Phiếu nhập {receipt_code}"
                 if clean_supplier_name:
                     transaction_note += f" | NCC: {clean_supplier_name}"
+                if validated_discount_amount > 0:
+                    transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
                 if clean_note:
                     transaction_note += f" | {clean_note}"
                 transaction_note += f" | Giá nhập: {float(item['unit_cost']):.0f}"
@@ -2010,13 +2114,17 @@ class InventoryStore:
                     transaction_id=cursor.lastrowid,
                 )
 
+        net_total_amount = subtotal_amount - Decimal(str(validated_discount_amount))
+
         return {
             "receipt_code": receipt_code,
             "supplier_name": clean_supplier_name,
             "created_at": now,
             "transactions": transactions,
             "total_quantity": round(float(total_quantity), 2),
-            "total_amount": round(float(total_amount), 2),
+            "subtotal_amount": round(float(subtotal_amount), 2),
+            "discount_amount": round(float(validated_discount_amount), 2),
+            "total_amount": round(float(net_total_amount), 2),
         }
 
     def _get_inventory_receipt_by_code(
@@ -2966,6 +3074,7 @@ class InventoryStore:
             cart_id = str(cart.get("id") or "")
             next_status = str(cart.get("status") or "draft")
             next_payment_status = str(cart.get("paymentStatus") or "unpaid")
+            self._get_cart_discount_amount(cart)
 
             if next_payment_status == "paid" and next_status != "completed":
                 raise ValueError("Đơn hàng chỉ được đánh dấu đã thanh toán sau khi đã chốt.")
@@ -2984,6 +3093,8 @@ class InventoryStore:
                     raise ValueError("Đơn hàng đã chốt không thể sửa trực tiếp. Hãy tạo chứng từ điều chỉnh mới.")
                 if previous_payment_status == "paid" and next_payment_status != "paid":
                     raise ValueError("Đơn hàng đã thanh toán không thể sửa ngược trạng thái.")
+                if previous_payment_status == "paid" and self._get_cart_discount_amount(previous) != self._get_cart_discount_amount(cart):
+                    raise ValueError("Đơn hàng đã thanh toán không thể sửa giảm giá khuyến mại.")
                 if previous_payment_status not in {"unpaid", "paid"}:
                     raise ValueError("Trạng thái thanh toán đơn hàng không hợp lệ.")
             elif previous_status == "cancelled":
@@ -2991,6 +3102,8 @@ class InventoryStore:
                     raise ValueError("Giỏ hàng đã hủy không thể mở lại hoặc sửa trực tiếp.")
                 if self._snapshot_cart_for_lock(previous) != self._snapshot_cart_for_lock(cart):
                     raise ValueError("Giỏ hàng đã hủy không thể sửa trực tiếp.")
+                if self._get_cart_discount_amount(previous) != self._get_cart_discount_amount(cart):
+                    raise ValueError("Giỏ hàng đã hủy không thể sửa giảm giá khuyến mại.")
                 if next_payment_status != previous_payment_status:
                     raise ValueError("Giỏ hàng đã hủy không thể đổi trạng thái thanh toán.")
 
@@ -3021,6 +3134,7 @@ class InventoryStore:
         for purchase in incoming_purchases:
             purchase_id = str(purchase.get("id") or "")
             next_status = str(purchase.get("status") or "draft")
+            self._get_purchase_discount_amount(purchase)
             previous = existing_by_id.get(purchase_id)
             previous_status = str(previous.get("status") or "draft") if previous else None
 
@@ -3037,6 +3151,8 @@ class InventoryStore:
                     raise ValueError("Phiếu nhập đã thanh toán không thể hạ trạng thái hoặc mở lại nháp.")
                 if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
                     raise ValueError("Phiếu nhập đã thanh toán không thể sửa trực tiếp.")
+                if self._get_purchase_discount_amount(previous) != self._get_purchase_discount_amount(purchase):
+                    raise ValueError("Phiếu nhập đã thanh toán không thể sửa giảm giá khuyến mại.")
                 continue
 
             if previous_status == "cancelled":
@@ -3044,6 +3160,8 @@ class InventoryStore:
                     raise ValueError("Phiếu nhập đã hủy không thể mở lại hoặc sửa trực tiếp.")
                 if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
                     raise ValueError("Phiếu nhập đã hủy không thể sửa trực tiếp.")
+                if self._get_purchase_discount_amount(previous) != self._get_purchase_discount_amount(purchase):
+                    raise ValueError("Phiếu nhập đã hủy không thể sửa giảm giá khuyến mại.")
                 continue
 
             if next_status == "received":
@@ -3359,6 +3477,7 @@ class InventoryStore:
                     substr(t.created_at, 1, 7) AS month_key,
                     ir.receipt_type,
                     ir.receipt_code,
+                    ir.discount_amount AS receipt_discount_amount,
                     iri.unit_amount AS receipt_unit_amount,
                     iri.line_total AS receipt_line_total
                 FROM transactions t
@@ -3370,6 +3489,123 @@ class InventoryStore:
                 """,
                 query_params,
             ).fetchall()
+            cart_discount_rows = connection.execute(
+                """
+                SELECT
+                    c.order_code,
+                    c.discount_amount,
+                    COALESCE(SUM(ci.quantity * ci.unit_price), 0) AS subtotal_amount
+                FROM carts c
+                LEFT JOIN cart_items ci ON ci.cart_id = c.id
+                WHERE c.order_code != ''
+                GROUP BY c.id, c.order_code, c.discount_amount
+                """
+            ).fetchall()
+            purchase_discount_rows = connection.execute(
+                """
+                SELECT
+                    ir.receipt_code,
+                    ir.discount_amount,
+                    COALESCE(SUM(iri.line_total), 0) AS subtotal_amount
+                FROM inventory_receipts ir
+                LEFT JOIN inventory_receipt_items iri ON iri.receipt_id = ir.id
+                WHERE ir.receipt_type = 'purchase'
+                GROUP BY ir.id, ir.receipt_code, ir.discount_amount
+                """
+            ).fetchall()
+
+        sale_discount_docs = {
+            str(row["order_code"] or "").strip(): {
+                "discount_amount": round(float(row["discount_amount"] or 0), 2),
+                "subtotal_amount": round(float(row["subtotal_amount"] or 0), 2),
+            }
+            for row in cart_discount_rows
+            if str(row["order_code"] or "").strip()
+        }
+        purchase_discount_docs = {
+            str(row["receipt_code"] or "").strip(): {
+                "discount_amount": round(float(row["discount_amount"] or 0), 2),
+                "subtotal_amount": round(float(row["subtotal_amount"] or 0), 2),
+            }
+            for row in purchase_discount_rows
+            if str(row["receipt_code"] or "").strip()
+        }
+
+        def allocate_document_discounts(grouped_rows: dict[str, list[tuple[int, float]]], document_map: dict[str, dict]) -> dict[int, float]:
+            allocations: dict[int, float] = {}
+            for document_code, row_entries in grouped_rows.items():
+                document_meta = document_map.get(document_code)
+                if not document_meta:
+                    continue
+                total_discount = round(float(document_meta.get("discount_amount") or 0), 2)
+                total_gross = round(float(document_meta.get("subtotal_amount") or 0), 2)
+                if total_discount <= 0 or total_gross <= 0 or not row_entries:
+                    continue
+                remaining_discount = total_discount
+                remaining_gross = total_gross
+                for index, (row_index, gross_amount) in enumerate(row_entries):
+                    gross_value = max(0.0, round(float(gross_amount or 0), 2))
+                    if gross_value <= 0:
+                        allocations[row_index] = 0.0
+                        continue
+                    is_last = index == len(row_entries) - 1
+                    if is_last or remaining_gross <= gross_value:
+                        allocated = round(max(0.0, remaining_discount), 2)
+                    else:
+                        allocated = round(total_discount * gross_value / total_gross, 2)
+                        allocated = min(allocated, remaining_discount)
+                    allocations[row_index] = allocated
+                    remaining_discount = round(max(0.0, remaining_discount - allocated), 2)
+                    remaining_gross = round(max(0.0, remaining_gross - gross_value), 2)
+            return allocations
+
+        sale_rows_by_order_code: dict[str, list[tuple[int, float]]] = {}
+        purchase_rows_by_receipt_code: dict[str, list[tuple[int, float]]] = {}
+        sale_discount_from_notes: dict[str, float] = {}
+        for row_index, row in enumerate(rows):
+            note = row["note"] or ""
+            transaction_kind = detect_report_transaction_kind(row["receipt_type"], note)
+            quantity = float(row["quantity"])
+            receipt_line_total = (
+                float(row["receipt_line_total"])
+                if row["receipt_line_total"] is not None
+                else None
+            )
+            if transaction_kind == "sale":
+                order_code = extract_order_code_from_note(note)
+                if order_code:
+                    if order_code not in sale_discount_from_notes:
+                        sale_discount_from_notes[order_code] = round(float(extract_labeled_price(note, "Giảm giá KM") or 0), 2)
+                    sale_rows_by_order_code.setdefault(order_code, []).append(
+                        (
+                            row_index,
+                            round(quantity * float(extract_price_from_note(note, "out") or row["sale_price"] or 0), 2),
+                        )
+                    )
+            elif transaction_kind == "purchase":
+                receipt_code = str(row["receipt_code"] or "").strip()
+                if receipt_code:
+                    purchase_rows_by_receipt_code.setdefault(receipt_code, []).append(
+                        (
+                            row_index,
+                            round(receipt_line_total if receipt_line_total is not None else quantity * float(extract_price_from_note(note, "in") or row["price"] or 0), 2),
+                        )
+                    )
+
+        for order_code, row_entries in sale_rows_by_order_code.items():
+            if order_code in sale_discount_docs:
+                continue
+            total_gross = round(sum(gross_amount for _, gross_amount in row_entries), 2)
+            total_discount = round(float(sale_discount_from_notes.get(order_code) or 0), 2)
+            if total_discount <= 0:
+                continue
+            sale_discount_docs[order_code] = {
+                "discount_amount": total_discount,
+                "subtotal_amount": total_gross,
+            }
+
+        sale_discount_allocations = allocate_document_discounts(sale_rows_by_order_code, sale_discount_docs)
+        purchase_discount_allocations = allocate_document_discounts(purchase_rows_by_receipt_code, purchase_discount_docs)
 
         def blank_bucket(month_value: str) -> dict:
             return {
@@ -3395,7 +3631,7 @@ class InventoryStore:
         focus_products: dict[int, dict] = {}
         monthly_out_by_product: dict[str, dict[int, float]] = {key: {} for key in avg_month_keys}
 
-        for row in rows:
+        for row_index, row in enumerate(rows):
             row_month = row["month_key"]
             if row_month not in monthly_totals:
                 continue
@@ -3437,6 +3673,8 @@ class InventoryStore:
                 2,
             )
             revenue_amount = round(quantity * sale_unit_price, 2)
+            purchase_amount = round(max(0.0, purchase_amount - purchase_discount_allocations.get(row_index, 0.0)), 2)
+            revenue_amount = round(max(0.0, revenue_amount - sale_discount_allocations.get(row_index, 0.0)), 2)
             cogs_amount = round(quantity * sale_unit_cost, 2)
             gross_profit_amount = round(revenue_amount - cogs_amount, 2)
             customer_return_amount = round(

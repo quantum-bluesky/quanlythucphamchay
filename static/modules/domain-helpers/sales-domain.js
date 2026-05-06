@@ -34,6 +34,15 @@ export function createSalesDomainHelpers(deps) {
     return state.carts.filter((cart) => cart.status === "draft");
   }
 
+  function canEditCartDiscount(cart) {
+    return Boolean(
+      cart && (
+        cart.status === "draft" ||
+        (cart.status === "completed" && cart.paymentStatus !== "paid")
+      )
+    );
+  }
+
   function decorateCart(cart) {
     const items = Array.isArray(cart.items)
       ? cart.items
@@ -58,7 +67,12 @@ export function createSalesDomainHelpers(deps) {
       : [];
 
     const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const subtotalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const rawDiscountAmount = Number(cart.discountAmount ?? cart.discount_amount ?? 0);
+    const discountAmount = Number.isFinite(rawDiscountAmount)
+      ? Math.max(0, Math.min(rawDiscountAmount, subtotalAmount))
+      : 0;
+    const totalAmount = Math.max(0, subtotalAmount - discountAmount);
 
     return {
       id: cart.id || createId("cart"),
@@ -66,9 +80,12 @@ export function createSalesDomainHelpers(deps) {
       customerName: cart.customerName || "Khách lẻ",
       status: cart.status || "draft",
       paymentStatus: cart.paymentStatus || "unpaid",
+      discountAmount: Number(discountAmount.toFixed(2)),
+      discount_amount: Number(discountAmount.toFixed(2)),
       items,
       itemCount: items.length,
       totalQuantity: Number(totalQuantity.toFixed(2)),
+      subtotalAmount: Number(subtotalAmount.toFixed(2)),
       totalAmount: Number(totalAmount.toFixed(2)),
       createdAt: cart.createdAt || nowIso(),
       updatedAt: cart.updatedAt || cart.createdAt || nowIso(),
@@ -120,6 +137,7 @@ export function createSalesDomainHelpers(deps) {
         customerId: customer.id,
         customerName: customer.name,
         status: "draft",
+        discountAmount: 0,
         items: [],
         createdAt: nowIso(),
         updatedAt: nowIso(),
@@ -281,5 +299,6 @@ export function createSalesDomainHelpers(deps) {
     getDraftCartsForProduct,
     startInventoryOutFlow,
     setActiveCart,
+    canEditCartDiscount,
   };
 }

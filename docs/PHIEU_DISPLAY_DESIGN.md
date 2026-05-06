@@ -40,7 +40,7 @@ List chỉ ưu tiên:
 - đối tượng chính: khách hàng / nhà cung cấp
 - trạng thái
 - mã phiếu nếu có
-- tổng tiền hoặc tổng SL
+- tổng tiền net sau khuyến mại hoặc tổng SL
 
 Không nhồi nhiều mốc thời gian vào list để giữ UI gọn trên mobile.
 
@@ -49,6 +49,9 @@ Không nhồi nhiều mốc thời gian vào list để giữ UI gọn trên mob
 Khi bấm button `Detail`, phải có khối metadata riêng hiển thị:
 
 - `Mã phiếu`
+- `Tạm tính`
+- `Giảm KM`
+- `Cần thanh toán`
 - `Ngày tạo`
 - `Ngày nhập kho`
 - `Ngày thanh toán`
@@ -80,6 +83,7 @@ Thông tin nên hiện trong detail:
 - mã đơn / mã phiếu
 - khách hàng
 - trạng thái xử lý
+- tạm tính / giảm khuyến mại / cần thanh toán
 - ngày tạo
 - ngày chốt hoặc ngày thanh toán nếu có
 - cập nhật cuối
@@ -100,6 +104,7 @@ Thông tin nên hiện trong detail:
 - mã phiếu
 - nhà cung cấp
 - trạng thái xử lý
+- tạm tính / giảm khuyến mại / cần thanh toán
 - ngày tạo
 - ngày nhập kho
 - ngày thanh toán
@@ -233,6 +238,7 @@ Rule lọc:
 
 - list phiếu vẫn giữ compact
 - detail phiếu thêm khối `Ngày xử lý và mã phiếu`
+- detail phiếu thêm trường `Tạm tính / Giảm KM / Cần thanh toán`
 - phiếu legacy thiếu timestamp nhưng có status xử lý sẽ không còn bị kẹt thanh toán chỉ vì thiếu `receivedAt`
 
 ### Màn `Báo cáo`

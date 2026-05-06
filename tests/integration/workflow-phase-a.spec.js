@@ -150,6 +150,96 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
   expectNoRuntimeErrors(runtime);
 });
 
+test("ACC-PUR-04 received purchase can save document discount before paid", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const supplierName = `NCC Discount ${timestamp}`;
+  const purchaseId = `purchase_discount_${timestamp}`;
+  const discountAmount = 5000;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const receivedPurchase = {
+    id: purchaseId,
+    supplierName,
+    note: "ACC-PUR-04 received purchase",
+    status: "received",
+    discountAmount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    receivedAt: new Date().toISOString(),
+    receiptCode: `PN-DISCOUNT-${timestamp}`,
+    items: [
+      {
+        id: `purchase_item_discount_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 2,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        purchases: [...(originalState.purchases || []), receivedPurchase],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    const purchaseCard = page.locator(".cart-queue-item", { hasText: supplierName }).first();
+    await purchaseCard.locator('[data-purchase-list-action="open"]').click();
+    await page.waitForTimeout(300);
+
+    const discountInput = page.locator(`[data-purchase-discount-input="${purchaseId}"]`);
+    await expect(discountInput).toBeVisible();
+    await discountInput.fill(String(discountAmount));
+    await page.locator('[data-purchase-action="save-discount"]').click();
+
+    const saveToast = await collectToast(page, runtime, "acc-pur-04-save-discount", { errorPattern: /^$/ });
+    expect(saveToast).toContain("Đã lưu giảm giá khuyến mại");
+    await expect(discountInput).toHaveValue(String(discountAmount));
+    await expect(page.locator("#purchasePanel")).toContainText("5.000");
+
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(latestStateResponse.ok()).toBeTruthy();
+    const latestState = await latestStateResponse.json();
+    const savedPurchase = (latestState.purchases || []).find((purchase) => purchase.id === purchaseId);
+    expect(savedPurchase).toBeTruthy();
+    expect(Number(savedPurchase.discountAmount || savedPurchase.discount_amount || 0)).toBe(discountAmount);
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("ACC-PUR-03 purchase draft must be ordered before receive and stays editable while ordered", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const userCookie = await autoLoginUserRequest(request);

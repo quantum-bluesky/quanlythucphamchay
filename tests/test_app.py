@@ -555,11 +555,13 @@ class InventoryStoreTests(unittest.TestCase):
             supplier_name="NCC Phase B",
             items=[{"product_id": product["id"], "quantity": 5, "unit_cost": 12000}],
             note="Nhập test report",
+            discount_amount=5000,
         )
         self.store.create_checkout_order(
             customer_name="Khách report",
             items=[{"product_id": product["id"], "quantity": 2, "unit_price": 18000}],
             note="Bán test report",
+            discount_amount=6000,
         )
         self.store.create_customer_return_receipt(
             customer_name="Khách report",
@@ -594,10 +596,10 @@ class InventoryStoreTests(unittest.TestCase):
             entry for entry in report["product_activity"] if entry["product_id"] == product["id"]
         )
 
-        self.assertEqual(focus["purchase_value"], 60000.0)
-        self.assertEqual(focus["revenue_value"], 36000.0)
+        self.assertEqual(focus["purchase_value"], 55000.0)
+        self.assertEqual(focus["revenue_value"], 30000.0)
         self.assertEqual(focus["cogs_value"], 24000.0)
-        self.assertEqual(focus["gross_profit_value"], 12000.0)
+        self.assertEqual(focus["gross_profit_value"], 6000.0)
         self.assertEqual(focus["customer_return_quantity"], 1.0)
         self.assertEqual(focus["customer_return_value"], 17000.0)
         self.assertEqual(focus["supplier_return_quantity"], 1.0)
@@ -674,6 +676,124 @@ class InventoryStoreTests(unittest.TestCase):
                 {
                     "carts": [{"id": "cart-b", "status": "draft", "items": []}],
                     "expected_updated_at": {"carts": "stale-version"},
+                }
+            )
+
+    def test_ut_sync_03_discount_updates_are_allowed_before_paid_and_locked_after_paid(self) -> None:
+        product = self.store.create_product(
+            name="Phiếu có giảm giá",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=1,
+        )
+        initial_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-discount-01",
+                        "customerName": "Khách discount",
+                        "status": "completed",
+                        "paymentStatus": "unpaid",
+                        "discountAmount": 0,
+                        "completedAt": "2026-05-06T09:10:00+07:00",
+                        "updatedAt": "2026-05-06T09:10:00+07:00",
+                        "orderCode": "DH-20260506-091000-abc123",
+                        "items": [
+                            {
+                                "id": "cart-item-discount-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitPrice": 15000,
+                            }
+                        ],
+                    }
+                ],
+                "purchases": [
+                    {
+                        "id": "purchase-discount-01",
+                        "supplierName": "NCC discount",
+                        "status": "received",
+                        "discountAmount": 0,
+                        "receivedAt": "2026-05-06T09:20:00+07:00",
+                        "updatedAt": "2026-05-06T09:20:00+07:00",
+                        "receiptCode": "PN-20260506-092000-def456",
+                        "items": [
+                            {
+                                "id": "purchase-item-discount-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 3,
+                                "unitCost": 10000,
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {
+                    "carts": initial_state["updated_at"]["carts"],
+                    "purchases": initial_state["updated_at"]["purchases"],
+                },
+            }
+        )
+
+        editable_state = self.store.get_sync_state()
+        editable_carts = copy.deepcopy(editable_state["carts"])
+        editable_purchases = copy.deepcopy(editable_state["purchases"])
+        editable_carts[0]["discountAmount"] = 5000
+        editable_purchases[0]["discountAmount"] = 4000
+        updated_state = self.store.save_sync_state(
+            {
+                "carts": editable_carts,
+                "purchases": editable_purchases,
+                "expected_updated_at": {
+                    "carts": editable_state["updated_at"]["carts"],
+                    "purchases": editable_state["updated_at"]["purchases"],
+                },
+            }
+        )
+
+        self.assertEqual(updated_state["carts"][0]["discountAmount"], 5000.0)
+        self.assertEqual(updated_state["purchases"][0]["discountAmount"], 4000.0)
+
+        paid_state = self.store.get_sync_state()
+        paid_carts = copy.deepcopy(paid_state["carts"])
+        paid_purchases = copy.deepcopy(paid_state["purchases"])
+        paid_carts[0]["paymentStatus"] = "paid"
+        paid_carts[0]["paidAt"] = "2026-05-06T09:30:00+07:00"
+        paid_purchases[0]["status"] = "paid"
+        paid_purchases[0]["paidAt"] = "2026-05-06T09:35:00+07:00"
+        locked_state = self.store.save_sync_state(
+            {
+                "carts": paid_carts,
+                "purchases": paid_purchases,
+                "expected_updated_at": {
+                    "carts": paid_state["updated_at"]["carts"],
+                    "purchases": paid_state["updated_at"]["purchases"],
+                },
+            }
+        )
+
+        final_carts = copy.deepcopy(locked_state["carts"])
+        final_purchases = copy.deepcopy(locked_state["purchases"])
+        final_carts[0]["discountAmount"] = 6000
+        final_purchases[0]["discountAmount"] = 4500
+
+        with self.assertRaisesRegex(ValueError, "không thể sửa giảm giá khuyến mại"):
+            self.store.save_sync_state(
+                {
+                    "carts": final_carts,
+                    "expected_updated_at": {"carts": locked_state["updated_at"]["carts"]},
+                }
+            )
+
+        with self.assertRaisesRegex(ValueError, "không thể sửa giảm giá khuyến mại"):
+            self.store.save_sync_state(
+                {
+                    "purchases": final_purchases,
+                    "expected_updated_at": {"purchases": locked_state["updated_at"]["purchases"]},
                 }
             )
 
@@ -863,6 +983,7 @@ class InventoryStoreTests(unittest.TestCase):
                     "customerName": "Khách A",
                     "status": "draft",
                     "paymentStatus": "unpaid",
+                    "discountAmount": 4000,
                     "createdAt": "2026-01-01T00:00:00+00:00",
                     "updatedAt": "2026-01-02T00:00:00+00:00",
                     "orderCode": "",
@@ -885,6 +1006,7 @@ class InventoryStoreTests(unittest.TestCase):
                     "supplierName": "NCC A",
                     "status": "draft",
                     "note": "Phiếu nháp",
+                    "discountAmount": 2500,
                     "createdAt": "2026-01-01T00:00:00+00:00",
                     "updatedAt": "2026-01-02T00:00:00+00:00",
                     "receiptCode": "",
@@ -903,6 +1025,8 @@ class InventoryStoreTests(unittest.TestCase):
 
         result = self.store.save_sync_state(payload)
         self.assertEqual(result["customers"][0]["name"], "Khách A")
+        self.assertEqual(result["carts"][0]["discountAmount"], 4000.0)
+        self.assertEqual(result["purchases"][0]["discountAmount"], 2500.0)
         self.assertEqual(result["purchases"][0]["items"][0]["unitCost"], 15000.0)
 
         with self.store._connect() as connection:

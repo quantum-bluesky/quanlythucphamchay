@@ -27,6 +27,40 @@ export function registerPurchasesControllerEvents(contract) {
     return window.confirm(message);
   }
 
+  function savePurchaseDiscount(purchaseId, inputSelectorRoot, options = {}) {
+    const { silent = false } = options;
+    const purchase = queries.getActivePurchase()?.id === purchaseId
+      ? queries.getActivePurchase()
+      : state.purchases.find((entry) => entry.id === purchaseId) || null;
+    if (!purchase) {
+      actions.showToast("Không tìm thấy phiếu nhập.", true);
+      return false;
+    }
+    if (!queries.canEditPurchaseDiscount(purchase)) {
+      actions.showToast("Chỉ phiếu chưa thanh toán mới được sửa giảm giá khuyến mại.", true);
+      return false;
+    }
+    const discountInput = inputSelectorRoot.querySelector(`[data-purchase-discount-input="${purchase.id}"]`);
+    const discountAmount = Number(discountInput?.value);
+    if (!Number.isFinite(discountAmount) || discountAmount < 0) {
+      actions.showToast("Giảm giá khuyến mại không hợp lệ.", true);
+      return false;
+    }
+    if (discountAmount > Number(purchase.subtotalAmount || 0)) {
+      actions.showToast("Giảm giá khuyến mại không được lớn hơn tạm tính của phiếu.", true);
+      return false;
+    }
+    actions.updatePurchase(purchase.id, (currentPurchase) => ({
+      discountAmount: Number(discountAmount.toFixed(2)),
+      updatedAt: utils.nowIso(),
+    }));
+    actions.saveAndRenderAll(["purchases"]);
+    if (!silent) {
+      actions.showToast("Đã lưu giảm giá khuyến mại.");
+    }
+    return true;
+  }
+
   dom.createPurchaseDraftButton.addEventListener("click", () => {
     state.purchaseDetailExpanded = false;
     const purchase = actions.createPurchaseDraftIfMissing();
@@ -70,6 +104,11 @@ export function registerPurchasesControllerEvents(contract) {
   dom.purchaseNoteInput.addEventListener("change", () => {
     const purchase = queries.getActivePurchase();
     if (!purchase) return;
+    if (!queries.canEditPurchase(purchase)) {
+      actions.showToast("Phiếu nhập đã khóa, không thể sửa ghi chú trực tiếp.", true);
+      renderers.renderPurchasePanel();
+      return;
+    }
     actions.updatePurchase(purchase.id, () => ({
       supplierName: dom.purchaseSupplierInput.value.trim(),
       note: dom.purchaseNoteInput.value.trim(),
@@ -302,12 +341,20 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho.", true);
         return;
       }
+      if (dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`) && !savePurchaseDiscount(purchase.id, dom.purchasePanel, { silent: true })) {
+        return;
+      }
+      const latestPurchase = queries.getActivePurchase() || purchase;
       if (!confirmPurchaseStatusAction(purchase, "mark-paid")) {
         return;
       }
-      actions.updatePurchase(purchase.id, () => ({ status: "paid", paidAt: utils.nowIso(), supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
+      actions.updatePurchase(latestPurchase.id, () => ({ status: "paid", paidAt: utils.nowIso(), supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
       actions.saveAndRenderAll(["purchases"]);
       actions.showToast("Đã cập nhật phiếu nhập là đã thanh toán.");
+      return;
+    }
+    if (actionButton.dataset.purchaseAction === "save-discount") {
+      savePurchaseDiscount(actionButton.dataset.purchaseId || purchase.id, dom.purchasePanel);
       return;
     }
     if (actionButton.dataset.purchaseAction === "supplier-return") {
@@ -325,6 +372,10 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Chỉ phiếu đã đặt hàng mới được nhập kho.", true);
         return;
       }
+      if (dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`) && !savePurchaseDiscount(purchase.id, dom.purchasePanel, { silent: true })) {
+        return;
+      }
+      const latestPurchase = queries.getActivePurchase() || purchase;
       if (!confirmPurchaseStatusAction(purchase, "receive")) {
         return;
       }
@@ -334,11 +385,12 @@ export function registerPurchasesControllerEvents(contract) {
           body: JSON.stringify({
             supplier_name: dom.purchaseSupplierInput.value.trim(),
             note: dom.purchaseNoteInput.value.trim(),
-            items: purchase.items.map((item) => ({ product_id: item.productId, quantity: item.quantity, unit_cost: item.unitCost })),
+            discount_amount: latestPurchase.discountAmount || 0,
+            items: latestPurchase.items.map((item) => ({ product_id: item.productId, quantity: item.quantity, unit_cost: item.unitCost })),
           }),
         });
-        state.purchases = state.purchases.map((entry) => entry.id === purchase.id ? { ...entry, status: "received", receiptCode: data.receipt?.receipt_code || "", receivedAt: data.receipt?.created_at || utils.nowIso(), updatedAt: data.receipt?.created_at || utils.nowIso() } : entry);
-        state.activePurchaseId = state.purchases.find((entry) => entry.status === "draft")?.id || null;
+        state.purchases = state.purchases.map((entry) => entry.id === latestPurchase.id ? { ...entry, status: "received", receiptCode: data.receipt?.receipt_code || "", receivedAt: data.receipt?.created_at || utils.nowIso(), updatedAt: data.receipt?.created_at || utils.nowIso() } : entry);
+        state.activePurchaseId = latestPurchase.id;
         actions.saveAndRenderAll();
         await actions.persistCollections(["purchases"]);
         await actions.refreshData();
@@ -353,8 +405,15 @@ export function registerPurchasesControllerEvents(contract) {
     if (event.key !== "Enter") return;
     const qtyInput = event.target.closest("[data-purchase-qty-input]");
     const costInput = event.target.closest("[data-purchase-cost-input]");
-    if (!qtyInput && !costInput) return;
+    const discountInput = event.target.closest("[data-purchase-discount-input]");
+    if (!qtyInput && !costInput && !discountInput) return;
     event.preventDefault();
+    if (discountInput) {
+      const purchaseId = discountInput.dataset.purchaseDiscountInput || "";
+      const saveButton = dom.purchasePanel.querySelector(`[data-purchase-action="save-discount"][data-purchase-id="${purchaseId}"]`);
+      saveButton?.click();
+      return;
+    }
     const itemId = qtyInput?.dataset.purchaseQtyInput || costInput?.dataset.purchaseCostInput;
     const saveButton = dom.purchasePanel.querySelector(`[data-purchase-item-action="save"][data-purchase-item-id="${itemId}"]`);
     saveButton?.click();

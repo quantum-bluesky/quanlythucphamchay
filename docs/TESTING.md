@@ -64,6 +64,7 @@ Phù hợp khi sửa:
 - validate dữ liệu
 - tính tồn kho / báo cáo
 - sync state `purchases`, đặc biệt rule không lưu phiếu nhập nháp nếu chưa có mặt hàng
+- lock workflow của `giảm giá khuyến mại` trước/sau thanh toán ở đơn xuất và phiếu nhập
 
 ## 2. Integration test
 
@@ -190,6 +191,7 @@ Các nhóm kiểm tra chính:
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
 - `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa
 - `Phiếu nhập legacy`: purchase `received/paid` thiếu timestamp vẫn phải hiển thị được ngày xử lý fallback để không kẹt flow thanh toán
+- `Giảm giá khuyến mại`: đơn đã chốt chưa thanh toán và phiếu đã nhập kho chưa thanh toán phải sửa được tổng giảm giá, đồng thời báo cáo và bản in phải phản ánh số net sau khuyến mại
 - `Báo cáo`: nút shortcut `Audit` phải tự cuộn xuống khung `Audit chứng từ` để xem ngay lịch sử chứng từ
 - `Audit chứng từ`: phải tra cứu được theo mã phiếu và mã tham chiếu nguồn trong kỳ đang xem
 - `Điều hướng mở phiếu/detail`: khi mở giỏ nháp hoặc phiếu nhập từ danh sách, viewport phải tự cuộn lên khối thông tin của phiếu vừa mở
@@ -248,6 +250,7 @@ Case mới cho Phase B.4:
 - `UT-REP-01`: backend report tách riêng sale/purchase với customer return / supplier return / adjustment
 - `UT-AUD-03`: receipt history trả về source link và audit message cho 3 loại phiếu Phase B
 - `UT-NORM-04`: sync state không persist phiếu nhập nháp rỗng, chỉ lưu draft khi đã có ít nhất một mặt hàng
+- `UT-SYNC-03`: chỉ cho sửa `giảm giá khuyến mại` trước thanh toán, và khóa lại sau khi chứng từ đã được đánh dấu thanh toán
 
 Case regression UI báo cáo:
 
