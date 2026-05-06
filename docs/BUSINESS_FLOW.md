@@ -57,6 +57,7 @@ Nếu cần can thiệp đặc biệt
 - trong `Giỏ hiện hành`, mỗi dòng hiển thị dưới dạng card gọn 2 dòng; bấm `...` để mở detail
 - sửa số lượng
 - sửa giá bán riêng cho đơn
+- có thể nhập thêm `giảm giá khuyến mại` cho toàn đơn; app tự tính lại số tiền cần thu
 - nếu cần, cập nhật luôn giá bán mặc định
 - trong lúc phiếu còn `Nháp` hoặc `Đã đặt`, vẫn có thể thêm bớt dòng và chỉnh số lượng/giá; chỉ sau `Đã nhập kho` mới khóa nội dung
 
@@ -76,7 +77,7 @@ Nếu cần can thiệp đặc biệt
 - màn `orders`
 - chỉ xem/in/thanh toán/hủy theo rule
 - giỏ nháp đang chờ xuất có thể bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile nút này nằm trong `...`
-- đơn đã `completed` không sửa trực tiếp
+- đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng hay giá; ngoại lệ duy nhất trước thanh toán là vẫn cho sửa `giảm giá khuyến mại` của toàn đơn
 
 ## 4. Luồng nhập hàng
 
@@ -96,6 +97,7 @@ Nếu cần can thiệp đặc biệt
 - gán nhà cung cấp
 - nếu phiếu được tạo từ đơn thiếu hàng, app giữ liên kết nguồn đơn riêng trong metadata của phiếu, không nhét sẵn vào ô ghi chú
 - sửa số lượng, giá nhập
+- có thể nhập thêm `giảm giá khuyến mại` cho toàn phiếu để phản ánh số tiền thực trả NCC
 - có thể đổi giá nhập mặc định
 - nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB
 - nhà cung cấp chỉ được đổi khi phiếu còn `draft`; từ `ordered` trở đi phải giữ nguyên NCC đã chốt
@@ -114,7 +116,7 @@ ordered -> cancelled
 - `ordered` mới được nhập kho và vẫn cho sửa trực tiếp để thêm bớt theo biến động thực tế
 - từ `ordered` trở đi không được đổi `supplierName`; UI phải khóa ô NCC và nút `NCC` trên mọi thiết bị
 - chỉ `received` mới được `paid`
-- `received` / `paid` / `cancelled` chuyển sang chỉ xem
+- `received` chỉ còn cho sửa `giảm giá khuyến mại`; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
 - trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
 
 ## 5. Luồng sửa sai sau khi đã xử lý chứng từ

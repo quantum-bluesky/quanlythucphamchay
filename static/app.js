@@ -795,6 +795,7 @@ function getSalesUi() {
       getActiveCart,
       getProductById,
       canDeleteCart,
+      canEditCartDiscount,
       isSearchResultMode,
       paginateItems,
       renderPagination,
@@ -824,6 +825,7 @@ function getPurchasesUi() {
       mobileQuery,
       getActivePurchase,
       canEditPurchase,
+      canEditPurchaseDiscount,
       canEditPurchaseSupplier,
       canReceivePurchase,
       canDeletePurchase,
@@ -1346,6 +1348,10 @@ function getActivePurchase() {
   return getPurchasesDomainHelpers().getActivePurchase();
 }
 
+function decoratePurchase(purchase) {
+  return getPurchasesDomainHelpers().decoratePurchase(purchase);
+}
+
 function canMarkPurchasePaid(purchase) {
   return getPurchasesDomainHelpers().canMarkPurchasePaid(purchase);
 }
@@ -1366,8 +1372,16 @@ function canDeleteCart(cart) {
   return isDraftCart(cart);
 }
 
+function canEditCartDiscount(cart) {
+  return getSalesDomainHelpers().canEditCartDiscount(cart);
+}
+
 function canEditPurchase(purchase) {
   return getPurchasesDomainHelpers().canEditPurchase(purchase);
+}
+
+function canEditPurchaseDiscount(purchase) {
+  return getPurchasesDomainHelpers().canEditPurchaseDiscount(purchase);
 }
 
 function canEditPurchaseSupplier(purchase) {
@@ -1434,9 +1448,8 @@ function syncSalesState() {
   state.purchases = (Array.isArray(state.purchases) ? state.purchases : [])
     .map((purchase) => {
       const normalizedSource = normalizePurchaseSourcePayload(purchase);
-      return {
-        id: purchase.id || createId("purchase"),
-        supplierName: String(purchase.supplierName || "").trim(),
+      return decoratePurchase({
+        ...purchase,
         note: normalizedSource.note,
         sourceType: normalizedSource.sourceType,
         source_type: normalizedSource.sourceType,
@@ -1444,39 +1457,9 @@ function syncSalesState() {
         source_code: normalizedSource.sourceCode,
         sourceName: normalizedSource.sourceName,
         source_name: normalizedSource.sourceName,
-        status: purchase.status || "draft",
-        createdAt: purchase.createdAt || nowIso(),
-        updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
-        receivedAt: purchase.receivedAt || purchase.received_at || null,
-        paidAt: purchase.paidAt || purchase.paid_at || null,
-        receiptCode: purchase.receiptCode || purchase.receipt_code || "",
         isRepairableInvalid: Boolean(purchase.isRepairableInvalid ?? purchase.repairableInvalid),
         repairableInvalid: Boolean(purchase.repairableInvalid ?? purchase.isRepairableInvalid),
-        items: Array.isArray(purchase.items)
-          ? purchase.items
-              .map((item) => {
-                const product = getProductById(item.productId);
-                const quantity = Number(item.quantity);
-                const unitCost = Number(item.unitCost);
-                if (!Number.isFinite(quantity) || quantity <= 0) {
-                  return null;
-                }
-                if (!Number.isFinite(unitCost) || unitCost < 0) {
-                  return null;
-                }
-                return {
-                  id: item.id || createId("purchase_item"),
-                  productId: Number(item.productId),
-                  productName: product?.name || item.productName || "Sản phẩm",
-                  unit: product?.unit || item.unit || "",
-                  quantity,
-                  unitCost,
-                  lineTotal: Number((quantity * unitCost).toFixed(2)),
-                };
-              })
-              .filter(Boolean)
-          : [],
-      };
+      });
     })
     .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
 
@@ -2043,6 +2026,7 @@ function createPurchaseDraftIfMissing() {
       sourceCode: "",
       sourceName: "",
       status: "draft",
+      discountAmount: 0,
       createdAt: nowIso(),
       updatedAt: nowIso(),
       items: [],
@@ -2221,6 +2205,7 @@ function createPurchaseSuggestionFromCart(cart, shortagePlan = null) {
       sourceCode,
       sourceName,
       status: "draft",
+      discountAmount: 0,
       createdAt: nowIso(),
       updatedAt: nowIso(),
       items: [],
@@ -3302,6 +3287,7 @@ function renderAll() {
   }
   const activePurchase = getActivePurchase();
   const supplierEditable = canEditPurchaseSupplier(activePurchase);
+  const noteEditable = canEditPurchase(activePurchase);
   if (activePurchase) {
     purchaseSupplierInput.value = activePurchase.supplierName || (supplierEditable ? state.pendingPurchaseSupplierName : "") || "";
     purchaseNoteInput.value = activePurchase.note || "";
@@ -3311,6 +3297,9 @@ function renderAll() {
   }
   if (purchaseSupplierInput) {
     purchaseSupplierInput.disabled = Boolean(activePurchase) && !supplierEditable;
+  }
+  if (purchaseNoteInput) {
+    purchaseNoteInput.disabled = Boolean(activePurchase) && !noteEditable;
   }
   if (purchaseSupplierMenuButton) {
     purchaseSupplierMenuButton.disabled = Boolean(activePurchase) && !supplierEditable;
@@ -3417,7 +3406,9 @@ function buildPrintMarkup(cart) {
         </thead>
         <tbody>${rows}</tbody>
       </table>
-      <p class="total">Tổng cộng: ${escapeHtml(formatCurrency(cart.totalAmount))}</p>
+      <p class="meta">Tạm tính: ${escapeHtml(formatCurrency(cart.subtotalAmount || 0))}</p>
+      <p class="meta">Giảm giá khuyến mại: ${escapeHtml(formatCurrency(cart.discountAmount || 0))}</p>
+      <p class="total">Cần thanh toán: ${escapeHtml(formatCurrency(cart.totalAmount))}</p>
     </body>
     </html>
   `;
@@ -3640,6 +3631,7 @@ async function checkoutActiveCart() {
     method: "POST",
     body: JSON.stringify({
       customer_name: cart.customerName,
+      discount_amount: cart.discountAmount || 0,
       items: cart.items.map((item) => ({
         product_id: item.productId,
         quantity: item.quantity,
@@ -3875,6 +3867,7 @@ registerSalesControllerEvents({
   queries: {
     getActiveCart,
     getCartById,
+    canEditCartDiscount,
   },
   utils: {
     formatCurrency,
@@ -4000,6 +3993,7 @@ registerPurchasesControllerEvents({
     getActivePurchase,
     getProductById,
     canEditPurchase,
+    canEditPurchaseDiscount,
     canEditPurchaseSupplier,
     canReceivePurchase,
     canCancelPurchase,

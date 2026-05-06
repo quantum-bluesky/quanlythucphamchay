@@ -27,6 +27,39 @@ export function registerSalesControllerEvents(contract) {
     return window.confirm(message);
   }
 
+  function saveCartDiscount(cartId, inputSelectorRoot, options = {}) {
+    const { silent = false } = options;
+    const cart = queries.getCartById(cartId);
+    if (!cart) {
+      actions.showToast("Không tìm thấy đơn hàng.", true);
+      return false;
+    }
+    if (!queries.canEditCartDiscount(cart)) {
+      actions.showToast("Chỉ đơn chưa thanh toán mới được sửa giảm giá khuyến mại.", true);
+      return false;
+    }
+    const discountInput = inputSelectorRoot.querySelector(`[data-cart-discount-input="${cartId}"]`);
+    const discountAmount = Number(discountInput?.value);
+    if (!Number.isFinite(discountAmount) || discountAmount < 0) {
+      actions.showToast("Giảm giá khuyến mại không hợp lệ.", true);
+      return false;
+    }
+    if (discountAmount > Number(cart.subtotalAmount || 0)) {
+      actions.showToast("Giảm giá khuyến mại không được lớn hơn tạm tính của phiếu.", true);
+      return false;
+    }
+    actions.updateCart(cartId, (currentCart) => ({
+      ...currentCart,
+      discountAmount: Number(discountAmount.toFixed(2)),
+      updatedAt: utils.nowIso(),
+    }));
+    actions.saveAndRenderAll(["carts"]);
+    if (!silent) {
+      actions.showToast("Đã lưu giảm giá khuyến mại.");
+    }
+    return true;
+  }
+
   dom.salesSearchInput.addEventListener("input", (event) => {
     state.salesSearchTerm = event.target.value;
     state.pagination.salesProducts = 1;
@@ -276,7 +309,14 @@ export function registerSalesControllerEvents(contract) {
       actions.printCart(cart.id);
       return;
     }
+    if (button.dataset.cartAction === "save-discount") {
+      saveCartDiscount(cart.id, dom.activeCartPanel);
+      return;
+    }
     if (button.dataset.cartAction === "checkout") {
+      if (dom.activeCartPanel.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.activeCartPanel, { silent: true })) {
+        return;
+      }
       if (!confirmCartStatusAction(cart, "checkout")) {
         return;
       }
@@ -341,7 +381,14 @@ export function registerSalesControllerEvents(contract) {
       actions.printCart(cart.id);
       return;
     }
+    if (action === "save-discount") {
+      saveCartDiscount(cart.id, dom.cartQueueList);
+      return;
+    }
     if (action === "checkout") {
+      if (dom.cartQueueList.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.cartQueueList, { silent: true })) {
+        return;
+      }
       if (!confirmCartStatusAction(cart, "checkout")) {
         return;
       }
@@ -363,10 +410,14 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     if (action === "paid" || action === "mark-paid") {
+      if (dom.cartQueueList.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.cartQueueList, { silent: true })) {
+        return;
+      }
+      const latestCart = queries.getCartById(button.dataset.cartId) || cart;
       if (!confirmCartStatusAction(cart, "mark-paid")) {
         return;
       }
-      cart.paymentStatus = "paid";
+      latestCart.paymentStatus = "paid";
       actions.saveAndRenderAll(["carts"]);
       return;
     }
@@ -386,6 +437,25 @@ export function registerSalesControllerEvents(contract) {
       if (state.activeCartId === cart.id) state.activeCartId = null;
       actions.saveAndRenderAll(["carts"]);
     }
+  });
+
+  dom.activeCartPanel.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const discountInput = event.target.closest("[data-cart-discount-input]");
+    if (!discountInput) return;
+    event.preventDefault();
+    const saveButton = dom.activeCartPanel.querySelector('[data-cart-action="save-discount"]');
+    saveButton?.click();
+  });
+
+  dom.cartQueueList.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const discountInput = event.target.closest("[data-cart-discount-input]");
+    if (!discountInput) return;
+    event.preventDefault();
+    const cartId = discountInput.dataset.cartDiscountInput;
+    const saveButton = dom.cartQueueList.querySelector(`[data-queue-action="save-discount"][data-cart-id="${cartId}"]`);
+    saveButton?.click();
   });
 
   dom.customerReturnToggleButton?.addEventListener("click", () => {

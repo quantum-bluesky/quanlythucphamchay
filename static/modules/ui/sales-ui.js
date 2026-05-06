@@ -10,6 +10,7 @@ export function createSalesUi(deps) {
     getActiveCart,
     getProductById,
     canDeleteCart,
+    canEditCartDiscount,
     isSearchResultMode,
     paginateItems,
     renderPagination,
@@ -39,14 +40,34 @@ export function createSalesUi(deps) {
       { label: "Mã đơn", value: cart.orderCode || "Chưa có" },
       { label: "Khách hàng", value: cart.customerName || "Chưa có" },
       { label: "Trạng thái", value: statusMeta.label },
+      { label: "Tạm tính", value: formatCurrency(cart.subtotalAmount || 0) },
+      { label: "Giảm KM", value: formatCurrency(cart.discountAmount || 0) },
+      { label: "Cần thanh toán", value: formatCurrency(cart.totalAmount || 0) },
       { label: "Ngày tạo", value: formatDate(cart.createdAt) || "Chưa có" },
       { label: processedLabel, value: formatDate(cart.paidAt || cart.completedAt || cart.cancelledAt) || "Chưa có" },
       { label: "Cập nhật cuối", value: formatDate(cart.updatedAt) || "Chưa có" },
     ];
   }
 
+  function renderCartDiscountEditor(cart, actionAttribute) {
+    if (!canEditCartDiscount(cart)) {
+      return "";
+    }
+    return `
+      <div class="document-discount-editor">
+        <label class="price-field">
+          <span>Giảm giá khuyến mại</span>
+          <input type="number" min="0" step="1000" value="${cart.discountAmount || 0}" data-cart-discount-input="${cart.id}">
+        </label>
+        <div class="line-actions">
+          <button type="button" class="ghost-button compact-button" ${actionAttribute} data-cart-id="${cart.id}">Lưu giảm giá</button>
+        </div>
+      </div>
+    `;
+  }
+
   function renderCartDocumentDetail(cart, options = {}) {
-    const { includeItems = false } = options;
+    const { includeItems = false, discountActionAttribute = "" } = options;
     const statusMeta = getCartStatusMeta(cart);
     const detailRows = getCartDetailRows(cart);
     const itemsMarkup = includeItems
@@ -65,6 +86,7 @@ export function createSalesUi(deps) {
           `).join("")}</div>`
         : '<div class="empty-state">Phiếu xuất này chưa có dòng hàng.</div>')
       : "";
+    const discountEditorMarkup = discountActionAttribute ? renderCartDiscountEditor(cart, discountActionAttribute) : "";
     return `
       <div class="document-detail-block">
         <div class="report-list document-detail-list">
@@ -76,6 +98,7 @@ export function createSalesUi(deps) {
             ${detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
           </article>
         </div>
+        ${discountEditorMarkup}
         ${itemsMarkup}
       </div>
     `;
@@ -105,7 +128,7 @@ export function createSalesUi(deps) {
             <div>
               <p class="panel-kicker">Giỏ hiện hành</p>
               <h3>${escapeHtml(cart.customerName)}</h3>
-              <p class="panel-note">${escapeHtml(cart.itemCount)} dòng • ${escapeHtml(formatCurrency(cart.totalAmount))}</p>
+              <p class="panel-note">${escapeHtml(cart.itemCount)} dòng • Cần thu ${escapeHtml(formatCurrency(cart.totalAmount))}</p>
             </div>
             <div class="row-actions active-cart-actions">
               <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Mở giỏ</button>
@@ -134,10 +157,10 @@ export function createSalesUi(deps) {
         </div>
         <div class="active-cart-stats">
           <div class="stat-chip"><span>Số dòng hàng</span><strong>${escapeHtml(cart.itemCount)}</strong></div>
-          <div class="stat-chip"><span>Tổng số lượng</span><strong>${escapeHtml(formatQuantity(cart.totalQuantity))}</strong></div>
-          <div class="stat-chip"><span>Tổng tiền bán</span><strong>${escapeHtml(formatCurrency(cart.totalAmount))}</strong></div>
+          <div class="stat-chip"><span>Tạm tính</span><strong>${escapeHtml(formatCurrency(cart.subtotalAmount || 0))}</strong></div>
+          <div class="stat-chip"><span>Cần thu</span><strong>${escapeHtml(formatCurrency(cart.totalAmount))}</strong></div>
         </div>
-        ${state.activeCartDetailExpanded ? renderCartDocumentDetail(cart) : ""}
+        ${state.activeCartDetailExpanded ? renderCartDocumentDetail(cart, { discountActionAttribute: 'data-cart-action="save-discount"' }) : renderCartDiscountEditor(cart, 'data-cart-action="save-discount"')}
         <div class="cart-toolbar">
           <button type="button" class="ghost-button" data-cart-action="toggle-detail">${detailButtonLabel}</button>
           <button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In / gửi khách"}</button>
@@ -217,7 +240,7 @@ export function createSalesUi(deps) {
     dom.selectedCartSection.hidden = false;
     dom.selectedCartSection.classList.toggle("is-collapsed", state.selectedCartItemsCollapsed);
     dom.selectedCartWrap.hidden = state.selectedCartItemsCollapsed;
-    dom.selectedCartSummaryNote.textContent = `${cart.itemCount} dòng • ${formatQuantity(cart.totalQuantity)} món • ${formatCurrency(cart.totalAmount)}`;
+    dom.selectedCartSummaryNote.textContent = `${cart.itemCount} dòng • ${formatQuantity(cart.totalQuantity)} món • Cần thu ${formatCurrency(cart.totalAmount)}`;
     dom.selectedCartToggleButton.textContent = state.selectedCartItemsCollapsed ? "..." : "Thu gọn";
     dom.cartItemsList.innerHTML = cart.items
       .map((item) => {
@@ -283,7 +306,7 @@ export function createSalesUi(deps) {
     dom.cartQueueList.innerHTML = topPagination + pageData.items
       .map((cart) => {
         const expanded = String(state.expandedOrderId) === String(cart.id);
-        const compactMeta = `${formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • ${formatCurrency(cart.totalAmount)}`;
+        const compactMeta = `${formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • Cần thu ${formatCurrency(cart.totalAmount)}`;
         const detailButtonLabel = expanded ? "Ẩn detail" : "Detail";
         return `
         <article class="cart-queue-item ${expanded ? "is-expanded" : ""}">
@@ -315,7 +338,7 @@ export function createSalesUi(deps) {
           </div>
           ${expanded ? `
             <div class="queue-detail-block">
-              ${renderCartDocumentDetail(cart, { includeItems: true })}
+              ${renderCartDocumentDetail(cart, { includeItems: true, discountActionAttribute: 'data-queue-action="save-discount"' })}
               ${compact ? `<div class="queue-actions queue-actions-expanded">
                 ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
                 ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="checkout" data-queue-action="checkout" data-cart-id="${cart.id}">Xuất</button>` : ""}

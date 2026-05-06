@@ -99,3 +99,4 @@ Lưu ý:
 | 78 | `IT-INV-SORT-01` | Kiểm tra dropdown sort ở màn tồn kho nằm trong pagination mobile và sắp đúng theo tồn, ưu tiên, hạn còn lại. |
 | 79 | `IT-INV-SORT-02` | Kiểm tra dropdown sort ở màn tồn kho vẫn nằm trong pagination desktop cùng page-size picker. |
 | 80 | `IT-PROD-LIFE-01` | Kiểm tra màn Sản phẩm lưu được metadata hạn dùng/bảo quản từ inline edit và render lại đúng nhãn. |
+| 81 | `UT-SYNC-03` | Kiểm tra đơn đã chốt chưa thanh toán và phiếu nhập đã nhận chưa thanh toán vẫn sửa được `giảm giá khuyến mại`, nhưng sau khi đánh dấu thanh toán thì field này bị khóa lại. |

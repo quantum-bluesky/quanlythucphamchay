@@ -9,6 +9,7 @@ export function createPurchasesUi(deps) {
     mobileQuery,
     getActivePurchase,
     canEditPurchase,
+    canEditPurchaseDiscount,
     canEditPurchaseSupplier,
     canDeletePurchase,
     canCancelPurchase,
@@ -61,6 +62,23 @@ export function createPurchasesUi(deps) {
     }
   }
 
+  function renderPurchaseDiscountEditor(purchase) {
+    if (!canEditPurchaseDiscount(purchase)) {
+      return "";
+    }
+    return `
+      <div class="document-discount-editor">
+        <label class="price-field">
+          <span>Giảm giá khuyến mại</span>
+          <input type="number" min="0" step="1000" value="${purchase.discountAmount || 0}" data-purchase-discount-input="${purchase.id}">
+        </label>
+        <div class="line-actions">
+          <button type="button" class="ghost-button compact-button" data-purchase-action="save-discount" data-purchase-id="${purchase.id}">Lưu giảm giá</button>
+        </div>
+      </div>
+    `;
+  }
+
   function renderPurchasePanel() {
     dom.createPurchaseDraftButton.textContent = mobileQuery.matches ? "Tạo phiếu" : "Tạo phiếu nháp";
     const purchase = getActivePurchase();
@@ -87,7 +105,6 @@ export function createPurchasesUi(deps) {
       dom.purchasePanel.innerHTML = `<div class="empty-state">Chưa có phiếu nhập nào đang mở.<div class="row-actions"><button type="button" class="ghost-button compact-button" data-purchase-panel-action="create">Tạo phiếu nhập nháp</button></div></div>`;
       return;
     }
-    const totalAmount = purchase.items.reduce((sum, item) => sum + item.lineTotal, 0);
     const purchaseStatusMeta = getPurchaseStatusMeta(purchase);
     const purchaseSourceLabel = getPurchaseSourceLabel(purchase);
     const detailRows = [
@@ -95,6 +112,9 @@ export function createPurchasesUi(deps) {
       { label: "Nhà cung cấp", value: purchase.supplierName || "Chưa có" },
       ...(purchaseSourceLabel ? [{ label: "Nguồn tạo phiếu", value: purchaseSourceLabel }] : []),
       { label: "Trạng thái", value: purchaseStatusMeta.label },
+      { label: "Tạm tính", value: formatCurrency(purchase.subtotalAmount || 0) },
+      { label: "Giảm KM", value: formatCurrency(purchase.discountAmount || 0) },
+      { label: "Cần thanh toán", value: formatCurrency(purchase.totalAmount || 0) },
       { label: "Ngày tạo", value: formatDate(purchase.createdAt) || "Chưa có" },
       { label: "Nhập kho", value: formatDate(purchase.receivedAt) || "Chưa có" },
       { label: "Thanh toán", value: formatDate(purchase.paidAt) || "Chưa có" },
@@ -128,9 +148,10 @@ export function createPurchasesUi(deps) {
         </div>
         <div class="active-cart-stats">
           <div class="stat-chip"><span>Số dòng</span><strong>${purchase.items.length}</strong></div>
-          <div class="stat-chip"><span>Tổng SL</span><strong>${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))}</strong></div>
-          <div class="stat-chip"><span>Tổng tiền</span><strong>${formatCurrency(totalAmount)}</strong></div>
+          <div class="stat-chip"><span>Tạm tính</span><strong>${formatCurrency(purchase.subtotalAmount || 0)}</strong></div>
+          <div class="stat-chip"><span>Cần trả</span><strong>${formatCurrency(purchase.totalAmount || 0)}</strong></div>
         </div>
+        ${renderPurchaseDiscountEditor(purchase)}
         <div class="document-detail-toggle-row">
           <button type="button" class="ghost-button compact-button" data-purchase-action="toggle-detail">${state.purchaseDetailExpanded ? "Ẩn detail" : "Detail"}</button>
         </div>
@@ -152,7 +173,7 @@ export function createPurchasesUi(deps) {
             <div>
               <p class="panel-kicker">Hàng đã chọn</p>
               <h3>Các dòng đang nằm trong phiếu</h3>
-              <p class="panel-note">${purchase.items.length} dòng • ${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))} món • ${formatCurrency(totalAmount)}</p>
+              <p class="panel-note">${purchase.items.length} dòng • ${formatQuantity(purchase.items.reduce((sum, item) => sum + Number(item.quantity), 0))} món • Cần trả ${formatCurrency(purchase.totalAmount || 0)}</p>
             </div>
             <button type="button" class="ghost-button compact-button" data-purchase-selected-action="toggle">${state.selectedPurchaseItemsCollapsed ? "..." : "Thu gọn"}</button>
           </div>
@@ -227,7 +248,7 @@ export function createPurchasesUi(deps) {
         </div>
         <div class="queue-meta">
           <span>${escapeHtml(purchase.receiptCode || formatDate(purchase.updatedAt))}</span>
-          <span>${formatCurrency(purchase.items.reduce((sum, item) => sum + item.lineTotal, 0))}</span>
+          <span>${formatCurrency(purchase.totalAmount || 0)}</span>
         </div>
         <div class="queue-actions">
           <button type="button" class="ghost-button compact-button" data-purchase-list-action="open" data-purchase-id="${purchase.id}">Mở</button>

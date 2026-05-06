@@ -481,6 +481,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         customer_name=payload.get("customer_name"),
                         items=payload.get("items", []),
                         note=payload.get("note", ""),
+                        discount_amount=payload.get("discount_amount", 0),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -497,6 +498,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         items=payload.get("items", []),
                         note=payload.get("note", ""),
                         supplier_name=payload.get("supplier_name", ""),
+                        discount_amount=payload.get("discount_amount", 0),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,

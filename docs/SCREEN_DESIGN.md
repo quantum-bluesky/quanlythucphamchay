@@ -73,8 +73,10 @@ Liên kết detail hiện có:
   - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
   - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
   - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
+  - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu, không phải per-line
   - khối `Giỏ hiện hành` có thêm button `Detail` để bung metadata phiếu xuất mà không chuyển màn
   - không dùng cụm nút tăng giảm nhanh trong `Giỏ hiện hành` để tránh rối trên mobile
+  - sau khi đơn đã `Đã xong` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Giảm giá khuyến mại`; không mở khóa lại dòng hàng
   - khi chốt đơn bị thiếu hàng, app phải báo trước khi tạo/cập nhật phiếu nhập; nếu đã có phiếu chờ nhập đủ số lượng thì chỉ mở lại phiếu liên quan sau khi user xác nhận cần chỉnh
 
 ### `orders` - Quản lý đơn hàng
@@ -90,6 +92,7 @@ Liên kết detail hiện có:
 - nguyên tắc UI:
   - giỏ nháp đang chờ xuất có nút `Xuất` nhanh ngay trên card trên tablet/PC
   - card đơn có button `Detail` để bung metadata và danh sách dòng hàng ngay trong list
+  - card đơn chưa thanh toán có thể hiện thêm input `Giảm giá khuyến mại` trong detail; đây là ngoại lệ duy nhất được sửa sau khi đơn đã chốt
   - trên mobile, `Xuất` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
   - các nút đổi trạng thái hoặc xóa phiếu như `Xuất`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
 
@@ -131,11 +134,13 @@ Liên kết detail hiện có:
 - nguyên tắc UI:
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
+  - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu để đối chiếu số tiền thực trả NCC
   - metadata phiếu nhập được bung/thu gọn bằng button `Detail` thay vì badge tĩnh để phần đầu phiếu gọn hơn
   - nếu phiếu nhập sinh ra từ một đơn đang thiếu hàng, phần metadata `Detail` phải hiện nguồn đơn thiếu riêng; không dùng ô ghi chú để nhét sẵn nội dung này
   - nếu shortage từ màn xuất hàng đã được cover bởi phiếu `draft/ordered` hiện có, màn nhập hàng chỉ mở lại phiếu liên quan khi user xác nhận; không tự tạo thêm phiếu trùng
   - nút `Nhập kho` chỉ hiện khi phiếu đã ở trạng thái `Đã đặt`; phiếu `Nháp` vẫn còn chỉnh sửa được nhưng chưa cho nhập kho
   - ô NCC và nút `NCC` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
+  - sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Giảm giá khuyến mại`; không mở khóa lại NCC hay dòng nhập
   - các nút đổi trạng thái hoặc xóa phiếu như `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu`, `Xóa phiếu` phải hiện message confirm trước khi app cập nhật
 - tài liệu detail:
   - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
