@@ -3840,6 +3840,7 @@ registerSalesControllerEvents({
     showToast,
     switchMenu,
     openCartForCustomer,
+    updateCart,
     toggleProductInActiveCart,
     updateCartItem,
     removeCartItem,
@@ -3871,6 +3872,7 @@ registerSalesControllerEvents({
   },
   utils: {
     formatCurrency,
+    nowIso,
   },
 });
 
