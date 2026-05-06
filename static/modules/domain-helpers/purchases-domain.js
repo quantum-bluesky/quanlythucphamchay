@@ -22,6 +22,52 @@ export function createPurchasesDomainHelpers(deps) {
     return state.purchases.find((purchase) => purchase.id === state.activePurchaseId) || null;
   }
 
+  function decoratePurchase(purchase) {
+    const items = Array.isArray(purchase.items)
+      ? purchase.items
+          .map((item) => {
+            const product = getProductById(item.productId);
+            const quantity = Number(item.quantity);
+            const unitCost = Number(item.unitCost ?? item.unit_cost);
+            if (!Number.isFinite(quantity) || quantity <= 0) return null;
+            if (!Number.isFinite(unitCost) || unitCost < 0) return null;
+            return {
+              id: item.id || createId("purchase_item"),
+              productId: Number(item.productId),
+              productName: product?.name || item.productName || "Sản phẩm",
+              unit: product?.unit || item.unit || "",
+              quantity,
+              unitCost,
+              lineTotal: Number((quantity * unitCost).toFixed(2)),
+            };
+          })
+          .filter(Boolean)
+      : [];
+    const subtotalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const rawDiscountAmount = Number(purchase.discountAmount ?? purchase.discount_amount ?? 0);
+    const discountAmount = Number.isFinite(rawDiscountAmount)
+      ? Math.max(0, Math.min(rawDiscountAmount, subtotalAmount))
+      : 0;
+    const totalAmount = Math.max(0, subtotalAmount - discountAmount);
+    return {
+      ...purchase,
+      id: purchase.id || createId("purchase"),
+      supplierName: String(purchase.supplierName || "").trim(),
+      note: String(purchase.note || "").trim(),
+      status: purchase.status || "draft",
+      discountAmount: Number(discountAmount.toFixed(2)),
+      discount_amount: Number(discountAmount.toFixed(2)),
+      subtotalAmount: Number(subtotalAmount.toFixed(2)),
+      totalAmount: Number(totalAmount.toFixed(2)),
+      createdAt: purchase.createdAt || nowIso(),
+      updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
+      receivedAt: purchase.receivedAt || purchase.received_at || null,
+      paidAt: purchase.paidAt || purchase.paid_at || null,
+      receiptCode: purchase.receiptCode || purchase.receipt_code || "",
+      items,
+    };
+  }
+
   function canMarkPurchasePaid(purchase) {
     return Boolean(purchase && purchase.status === "received");
   }
@@ -52,6 +98,15 @@ export function createPurchasesDomainHelpers(deps) {
     return Boolean(purchase && ["draft", "ordered"].includes(purchase.status));
   }
 
+  function canEditPurchaseDiscount(purchase) {
+    return Boolean(
+      purchase && (
+        ["draft", "ordered"].includes(purchase.status) ||
+        purchase.status === "received"
+      )
+    );
+  }
+
   function canEditPurchaseSupplier(purchase) {
     return Boolean(purchase && purchase.status === "draft");
   }
@@ -72,11 +127,11 @@ export function createPurchasesDomainHelpers(deps) {
     const index = state.purchases.findIndex((purchase) => purchase.id === purchaseId);
     if (index === -1) throw new Error("Không tìm thấy phiếu nhập.");
     const updated = updater(state.purchases[index]);
-    state.purchases[index] = {
+    state.purchases[index] = decoratePurchase({
       ...state.purchases[index],
       ...updated,
       updatedAt: updated.updatedAt || nowIso(),
-    };
+    });
     return state.purchases[index];
   }
 
@@ -136,6 +191,7 @@ export function createPurchasesDomainHelpers(deps) {
         sourceCode: "",
         sourceName: "",
         status: "draft",
+        discountAmount: 0,
         createdAt: nowIso(),
         updatedAt: nowIso(),
         receiptCode: "",
@@ -192,10 +248,12 @@ export function createPurchasesDomainHelpers(deps) {
 
   return {
     getActivePurchase,
+    decoratePurchase,
     canMarkPurchasePaid,
     canReceivePurchase,
     isRepairableInvalidPurchase,
     canEditPurchase,
+    canEditPurchaseDiscount,
     canEditPurchaseSupplier,
     canDeletePurchase,
     canCancelPurchase,

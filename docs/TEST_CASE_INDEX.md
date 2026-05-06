@@ -105,6 +105,7 @@ Mục tiêu:
 | 80 | `IT-INV-SORT-01` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-INV-SORT-01"` |
 | 81 | `IT-INV-SORT-02` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-INV-SORT-02"` |
 | 82 | `IT-PROD-LIFE-01` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-PROD-LIFE-01"` |
+| 83 | `UT-SYNC-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_03_discount_updates_are_allowed_before_paid_and_locked_after_paid` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

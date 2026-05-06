@@ -141,9 +141,14 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - header đơn hàng nháp/đã chốt
 - cột chính:
   - `id`, `customer_id`, `customer_name`
-  - `status`, `payment_status`
+  - `status`, `payment_status`, `discount_amount`
   - `created_at`, `updated_at`, `completed_at`, `cancelled_at`, `paid_at`
   - `order_code`
+
+### Vai trò nghiệp vụ bổ sung
+
+- `discount_amount` là giảm giá khuyến mại ở cấp toàn đơn
+- không đổi số lượng tồn kho hay line item, chỉ ảnh hưởng số tiền cần thu và báo cáo doanh thu net
 
 ### `cart_items`
 
@@ -158,9 +163,14 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - header phiếu nhập
 - cột chính:
   - `id`, `supplier_id`, `supplier_name`
-  - `note`, `source_type`, `source_code`, `source_name`, `status`
+  - `note`, `source_type`, `source_code`, `source_name`, `status`, `discount_amount`
   - `created_at`, `updated_at`, `received_at`, `paid_at`
   - `receipt_code`
+
+### Vai trò nghiệp vụ bổ sung
+
+- `discount_amount` là giảm giá khuyến mại ở cấp toàn phiếu nhập
+- không đổi tồn kho đã nhận hay từng dòng nhập, chỉ ảnh hưởng số tiền thực trả NCC và báo cáo chi nhập net
 
 ### `purchase_items`
 
@@ -184,7 +194,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `receipt_code`
   - `customer_id`, `customer_name`
   - `supplier_id`, `supplier_name`
-  - `actor`, `reason`, `note`
+  - `actor`, `reason`, `note`, `discount_amount`
   - `created_at`
 
 ### `inventory_receipt_items`
@@ -258,6 +268,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - thêm `shelf_life_days` và `storage_life_days` vào `products`
 - thêm `actor` vào `audit_logs`
 - thêm bảng quan hệ cho `customers/suppliers/carts/purchases`
+- thêm `discount_amount` vào `carts`, `purchases`, `inventory_receipts`
 - backfill tự động từ `app_state`
 - thêm bảng `inventory_receipts` và `inventory_receipt_items`
 - backfill receipt lịch sử từ `transactions.note` khi nhận diện được mã `PN/DC/THK/TNCC`
@@ -270,6 +281,9 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - direct adjustment bắt buộc có `adjustment_reason`
 - đơn đã `completed` và phiếu nhập đã `received/paid` không được sửa ngược trực tiếp
 - phiếu nhập sinh ra từ đơn thiếu hàng lưu liên kết nguồn riêng ở `source_type/source_code/source_name`; `note` vẫn dành cho ghi chú user nhập tay
+- `discount_amount` của `carts/purchases` phải nhỏ hơn hoặc bằng tạm tính của chính phiếu
+- đơn `completed` chưa thanh toán vẫn được sửa `discount_amount`; sau khi `payment_status = paid` thì khóa hẳn
+- phiếu nhập `received` chưa thanh toán vẫn được sửa `discount_amount`; sau khi `status = paid` thì khóa hẳn
 - `app_state.updated_at` được dùng để chặn ghi đè stale save
 - sort ưu tiên tồn kho dùng metric suy diễn từ ledger bán hàng thật, không persist score vào DB
 - sort hạn còn lại dùng ước tính từ lần nhập gần nhất và metadata sản phẩm; app chưa quản lý hạn chính xác theo từng lô
