@@ -26,8 +26,8 @@
       "sha256": "6b18cb42cd722bc94de96e4fb007f295c0ccac7e6f83b465ce484e5dcaaad05f"
     },
     "modules/controllers/purchases-controller.js": {
-      "counter": 1,
-      "sha256": "4ac8d999d8179a2152811ec87c53259c78e6e82c3cc7bffb7eba524cb8dfe0fe"
+      "counter": 2,
+      "sha256": "b2b659289828cce1c6379cedc640d86e504e0cecb46a340e5f3eff13d27e2e36"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,

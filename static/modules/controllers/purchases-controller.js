@@ -27,13 +27,20 @@ export function registerPurchasesControllerEvents(contract) {
     return window.confirm(message);
   }
 
-  function savePurchaseDiscount(purchase, options = {}) {
+  function savePurchaseDiscount(purchaseId, inputSelectorRoot, options = {}) {
     const { silent = false } = options;
+    const purchase = queries.getActivePurchase()?.id === purchaseId
+      ? queries.getActivePurchase()
+      : state.purchases.find((entry) => entry.id === purchaseId) || null;
+    if (!purchase) {
+      actions.showToast("Không tìm thấy phiếu nhập.", true);
+      return false;
+    }
     if (!queries.canEditPurchaseDiscount(purchase)) {
       actions.showToast("Chỉ phiếu chưa thanh toán mới được sửa giảm giá khuyến mại.", true);
       return false;
     }
-    const discountInput = dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`);
+    const discountInput = inputSelectorRoot.querySelector(`[data-purchase-discount-input="${purchase.id}"]`);
     const discountAmount = Number(discountInput?.value);
     if (!Number.isFinite(discountAmount) || discountAmount < 0) {
       actions.showToast("Giảm giá khuyến mại không hợp lệ.", true);
@@ -44,10 +51,7 @@ export function registerPurchasesControllerEvents(contract) {
       return false;
     }
     actions.updatePurchase(purchase.id, (currentPurchase) => ({
-      ...currentPurchase,
       discountAmount: Number(discountAmount.toFixed(2)),
-      supplierName: dom.purchaseSupplierInput.value.trim(),
-      note: dom.purchaseNoteInput.value.trim(),
       updatedAt: utils.nowIso(),
     }));
     actions.saveAndRenderAll(["purchases"]);
@@ -337,7 +341,7 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho.", true);
         return;
       }
-      if (dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`) && !savePurchaseDiscount(purchase, { silent: true })) {
+      if (dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`) && !savePurchaseDiscount(purchase.id, dom.purchasePanel, { silent: true })) {
         return;
       }
       const latestPurchase = queries.getActivePurchase() || purchase;
@@ -350,7 +354,7 @@ export function registerPurchasesControllerEvents(contract) {
       return;
     }
     if (actionButton.dataset.purchaseAction === "save-discount") {
-      savePurchaseDiscount(purchase);
+      savePurchaseDiscount(actionButton.dataset.purchaseId || purchase.id, dom.purchasePanel);
       return;
     }
     if (actionButton.dataset.purchaseAction === "supplier-return") {
@@ -368,7 +372,7 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Chỉ phiếu đã đặt hàng mới được nhập kho.", true);
         return;
       }
-      if (dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`) && !savePurchaseDiscount(purchase, { silent: true })) {
+      if (dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`) && !savePurchaseDiscount(purchase.id, dom.purchasePanel, { silent: true })) {
         return;
       }
       const latestPurchase = queries.getActivePurchase() || purchase;
@@ -405,7 +409,8 @@ export function registerPurchasesControllerEvents(contract) {
     if (!qtyInput && !costInput && !discountInput) return;
     event.preventDefault();
     if (discountInput) {
-      const saveButton = dom.purchasePanel.querySelector('[data-purchase-action="save-discount"]');
+      const purchaseId = discountInput.dataset.purchaseDiscountInput || "";
+      const saveButton = dom.purchasePanel.querySelector(`[data-purchase-action="save-discount"][data-purchase-id="${purchaseId}"]`);
       saveButton?.click();
       return;
     }
