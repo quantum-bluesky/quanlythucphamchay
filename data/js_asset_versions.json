@@ -2,8 +2,8 @@
   "app_version": "2.9.0",
   "files": {
     "app.js": {
-      "counter": 1,
-      "sha256": "7fe58ddf1f290e2945990be09575387e98aee5bd04764b438a1629c810727436"
+      "counter": 3,
+      "sha256": "9f8b8d30cd27e9a3d0c8a8db99a17ac766c84dfe28e8174d2446120b86de884d"
     },
     "modules/app-state.js": {
       "counter": 1,
@@ -26,8 +26,8 @@
       "sha256": "6b18cb42cd722bc94de96e4fb007f295c0ccac7e6f83b465ce484e5dcaaad05f"
     },
     "modules/controllers/purchases-controller.js": {
-      "counter": 1,
-      "sha256": "4ac8d999d8179a2152811ec87c53259c78e6e82c3cc7bffb7eba524cb8dfe0fe"
+      "counter": 2,
+      "sha256": "b2b659289828cce1c6379cedc640d86e504e0cecb46a340e5f3eff13d27e2e36"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
