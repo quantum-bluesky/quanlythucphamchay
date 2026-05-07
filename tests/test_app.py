@@ -542,6 +542,95 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(purchase["receivedAt"], "2026-04-19T12:20:00+07:00")
         self.assertEqual(purchase["receiptCode"], "PN-ORDERED-FLOW-01")
 
+    def test_ut_db_12_repair_purchase_document_allows_regular_draft_delete_and_ordered_cancel_but_rejects_ordered_delete(self) -> None:
+        product = self.store.create_product(
+            name="Phiếu nhập cancel/delete chuẩn",
+            category="Đồ khô",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        initial_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-draft-regular-01",
+                        "supplierName": "NCC draft regular",
+                        "status": "draft",
+                        "note": "Phiếu nháp có thể xóa",
+                        "createdAt": "2026-05-01T08:00:00+07:00",
+                        "updatedAt": "2026-05-01T08:00:00+07:00",
+                        "receiptCode": "",
+                        "items": [
+                            {
+                                "id": "purchase-item-draft-regular-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 1,
+                                "unitCost": 15000,
+                            }
+                        ],
+                    },
+                    {
+                        "id": "purchase-ordered-regular-01",
+                        "supplierName": "NCC ordered regular",
+                        "status": "ordered",
+                        "note": "Phiếu đã đặt chỉ được hủy",
+                        "createdAt": "2026-05-01T09:00:00+07:00",
+                        "updatedAt": "2026-05-01T09:00:00+07:00",
+                        "receiptCode": "",
+                        "items": [
+                            {
+                                "id": "purchase-item-ordered-regular-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 16000,
+                            }
+                        ],
+                    },
+                ],
+                "expected_updated_at": {"purchases": initial_state["updated_at"]["purchases"]},
+            }
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Chỉ được xóa/hủy phiếu nhập nháp, hủy phiếu đã đặt, hoặc xử lý phiếu lỗi chưa có nhập kho thật.",
+        ):
+            self.store.repair_purchase_document("purchase-ordered-regular-01", action="delete")
+
+        delete_result = self.store.repair_purchase_document(
+            "purchase-draft-regular-01",
+            action="delete",
+            actor="tester",
+        )
+        self.assertIn("Đã xóa phiếu nháp.", delete_result["message"])
+
+        state_after_delete = self.store.get_sync_state()
+        self.assertFalse(
+            any(
+                purchase["id"] == "purchase-draft-regular-01"
+                for purchase in state_after_delete["purchases"]
+            )
+        )
+
+        cancel_result = self.store.repair_purchase_document(
+            "purchase-ordered-regular-01",
+            action="cancel",
+            actor="tester",
+        )
+        self.assertIn("Đã hủy phiếu đã đặt.", cancel_result["message"])
+
+        final_state = self.store.get_sync_state()
+        ordered_purchase = next(
+            entry
+            for entry in final_state["purchases"]
+            if entry["id"] == "purchase-ordered-regular-01"
+        )
+        self.assertEqual(ordered_purchase["status"], "cancelled")
+        self.assertEqual(ordered_purchase["items"][0]["quantity"], 2.0)
+
     def test_ut_rep_01_monthly_report_separates_phase_b_receipts_from_sales_and_purchases(self) -> None:
         product = self.store.create_product(
             name="Bò lát chay",
@@ -794,6 +883,144 @@ class InventoryStoreTests(unittest.TestCase):
                 {
                     "purchases": final_purchases,
                     "expected_updated_at": {"purchases": locked_state["updated_at"]["purchases"]},
+                }
+            )
+
+    def test_ut_sync_04_cart_workflow_supports_draft_cancel_and_completed_paid_locks(self) -> None:
+        product = self.store.create_product(
+            name="Đơn hàng workflow trạng thái",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=1,
+        )
+        initial_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-status-draft-01",
+                        "customerName": "Khách draft trạng thái",
+                        "status": "draft",
+                        "paymentStatus": "unpaid",
+                        "createdAt": "2026-05-06T08:00:00+07:00",
+                        "updatedAt": "2026-05-06T08:00:00+07:00",
+                        "orderCode": "",
+                        "items": [
+                            {
+                                "id": "cart-item-status-draft-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 1,
+                                "unitPrice": 15000,
+                                "note": "",
+                            }
+                        ],
+                    },
+                    {
+                        "id": "cart-status-completed-01",
+                        "customerName": "Khách completed trạng thái",
+                        "status": "completed",
+                        "paymentStatus": "unpaid",
+                        "createdAt": "2026-05-06T08:10:00+07:00",
+                        "updatedAt": "2026-05-06T08:20:00+07:00",
+                        "completedAt": "2026-05-06T08:20:00+07:00",
+                        "orderCode": "DH-STATUS-01",
+                        "items": [
+                            {
+                                "id": "cart-item-status-completed-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitPrice": 15000,
+                                "note": "",
+                            }
+                        ],
+                    },
+                ],
+                "expected_updated_at": {"carts": initial_state["updated_at"]["carts"]},
+            }
+        )
+
+        seeded_state = self.store.get_sync_state()
+        invalid_paid_payload = copy.deepcopy(seeded_state["carts"])
+        invalid_draft_cart = next(
+            cart for cart in invalid_paid_payload if cart["id"] == "cart-status-draft-01"
+        )
+        invalid_draft_cart["paymentStatus"] = "paid"
+        invalid_draft_cart["paidAt"] = "2026-05-06T08:30:00+07:00"
+
+        with self.assertRaisesRegex(ValueError, "Đơn hàng chỉ được đánh dấu đã thanh toán sau khi đã chốt."):
+            self.store.save_sync_state(
+                {
+                    "carts": invalid_paid_payload,
+                    "expected_updated_at": {"carts": seeded_state["updated_at"]["carts"]},
+                }
+            )
+
+        cancel_payload = copy.deepcopy(seeded_state["carts"])
+        cancelled_draft_cart = next(
+            cart for cart in cancel_payload if cart["id"] == "cart-status-draft-01"
+        )
+        cancelled_draft_cart["status"] = "cancelled"
+        cancelled_draft_cart["cancelledAt"] = "2026-05-06T08:31:00+07:00"
+        self.store.save_sync_state(
+            {
+                "carts": cancel_payload,
+                "expected_updated_at": {"carts": seeded_state["updated_at"]["carts"]},
+            }
+        )
+
+        cancelled_state = self.store.get_sync_state()
+        cancelled_cart = next(
+            cart for cart in cancelled_state["carts"] if cart["id"] == "cart-status-draft-01"
+        )
+        self.assertEqual(cancelled_cart["status"], "cancelled")
+
+        reopen_payload = copy.deepcopy(cancelled_state["carts"])
+        reopened_cart = next(
+            cart for cart in reopen_payload if cart["id"] == "cart-status-draft-01"
+        )
+        reopened_cart["status"] = "draft"
+
+        with self.assertRaisesRegex(ValueError, "Giỏ hàng đã hủy không thể mở lại hoặc sửa trực tiếp."):
+            self.store.save_sync_state(
+                {
+                    "carts": reopen_payload,
+                    "expected_updated_at": {"carts": cancelled_state["updated_at"]["carts"]},
+                }
+            )
+
+        pay_payload = copy.deepcopy(cancelled_state["carts"])
+        paid_completed_cart = next(
+            cart for cart in pay_payload if cart["id"] == "cart-status-completed-01"
+        )
+        paid_completed_cart["paymentStatus"] = "paid"
+        paid_completed_cart["paidAt"] = "2026-05-06T08:35:00+07:00"
+        paid_state = self.store.save_sync_state(
+            {
+                "carts": pay_payload,
+                "expected_updated_at": {"carts": cancelled_state["updated_at"]["carts"]},
+            }
+        )
+
+        persisted_paid_cart = next(
+            cart for cart in paid_state["carts"] if cart["id"] == "cart-status-completed-01"
+        )
+        self.assertEqual(persisted_paid_cart["paymentStatus"], "paid")
+
+        revert_paid_payload = copy.deepcopy(paid_state["carts"])
+        reverted_paid_cart = next(
+            cart for cart in revert_paid_payload if cart["id"] == "cart-status-completed-01"
+        )
+        reverted_paid_cart["paymentStatus"] = "unpaid"
+
+        with self.assertRaisesRegex(ValueError, "Đơn hàng đã thanh toán không thể sửa ngược trạng thái."):
+            self.store.save_sync_state(
+                {
+                    "carts": revert_paid_payload,
+                    "expected_updated_at": {"carts": paid_state["updated_at"]["carts"]},
                 }
             )
 
