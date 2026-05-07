@@ -1631,8 +1631,16 @@ async function persistCollections(keys = SYNC_COLLECTION_KEYS) {
   return getSyncRuntimeHelpers().persistCollections(keys);
 }
 
+async function persistCollectionsWithoutConflictCheck(keys = SYNC_COLLECTION_KEYS) {
+  return getSyncRuntimeHelpers().persistCollectionsWithoutConflictCheck(keys);
+}
+
 function queuePersistCollections(keys = []) {
   return getSyncRuntimeHelpers().queuePersistCollections(keys);
+}
+
+async function flushPendingPersistCollections() {
+  return getSyncRuntimeHelpers().flushPendingPersistCollections();
 }
 
 function loadSalesState() {
@@ -1641,6 +1649,38 @@ function loadSalesState() {
 
 function saveAndRenderAll(changedCollections = []) {
   return getSyncRuntimeHelpers().saveAndRenderAll(changedCollections, renderAll);
+}
+
+const BUSINESS_FRESHNESS_MENUS = new Set(["inventory", "create-order", "orders", "purchases"]);
+
+function scheduleBusinessScreenRefresh(menu) {
+  if (!BUSINESS_FRESHNESS_MENUS.has(menu)) {
+    return;
+  }
+  if (isRefreshingState || persistScheduled || pendingPersistCollections.size) {
+    return;
+  }
+  window.setTimeout(async () => {
+    if (
+      state.activeMenu !== menu ||
+      document.hidden ||
+      isRefreshingState ||
+      persistScheduled ||
+      pendingPersistCollections.size
+    ) {
+      return;
+    }
+    try {
+      const runtimePayload = await apiRequest("/api/runtime-version");
+      if (hasRuntimeVersionChanged(runtimePayload)) {
+        await refreshData();
+      } else {
+        updateRuntimeVersion(runtimePayload);
+      }
+    } catch (error) {
+      showToast(`Không tải lại được dữ liệu mới: ${error.message}`, true);
+    }
+  }, 0);
 }
 
 function switchMenu(menu, { recordHistory = true } = {}) {
@@ -1659,6 +1699,7 @@ function switchMenu(menu, { recordHistory = true } = {}) {
       }
     }, 0);
   }
+  scheduleBusinessScreenRefresh(menu);
   return result;
 }
 
@@ -3643,6 +3684,7 @@ async function checkoutActiveCart() {
   const completedAt = data.order?.created_at || nowIso();
   const orderCode = data.order?.order_code || "";
 
+  await refreshData();
   updateCart(cart.id, (currentCart) => ({
     ...currentCart,
     status: "completed",
@@ -3655,8 +3697,7 @@ async function checkoutActiveCart() {
   if (state.activeCartId === cart.id) {
     state.activeCartId = getDraftCarts().find((entry) => entry.id !== cart.id)?.id || null;
   }
-  saveAndRenderAll();
-  await persistCollections(["carts"]);
+  await persistCollectionsWithoutConflictCheck(["carts"]);
   await refreshData();
   printCart(cart.id);
   showToast(data.message);
@@ -3845,6 +3886,9 @@ registerSalesControllerEvents({
     updateCartItem,
     removeCartItem,
     saveAndRenderAll,
+    persistCollections,
+    flushPendingPersistCollections,
+    refreshData,
     checkoutCart,
     checkoutActiveCart,
     printCart,
@@ -3972,6 +4016,8 @@ registerPurchasesControllerEvents({
     updatePurchase,
     apiRequest,
     persistCollections,
+    persistCollectionsWithoutConflictCheck,
+    flushPendingPersistCollections,
     updateProductPrice,
     refreshData,
     beginSupplierCreateFromPurchase,

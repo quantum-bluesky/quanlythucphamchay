@@ -28,7 +28,7 @@ export function registerPurchasesControllerEvents(contract) {
   }
 
   function savePurchaseDiscount(purchaseId, inputSelectorRoot, options = {}) {
-    const { silent = false } = options;
+    const { silent = false, persist = true } = options;
     const purchase = queries.getActivePurchase()?.id === purchaseId
       ? queries.getActivePurchase()
       : state.purchases.find((entry) => entry.id === purchaseId) || null;
@@ -54,11 +54,34 @@ export function registerPurchasesControllerEvents(contract) {
       discountAmount: Number(discountAmount.toFixed(2)),
       updatedAt: utils.nowIso(),
     }));
-    actions.saveAndRenderAll(["purchases"]);
+    actions.saveAndRenderAll(persist ? ["purchases"] : []);
     if (!silent) {
       actions.showToast("Đã lưu giảm giá khuyến mại.");
     }
     return true;
+  }
+
+  async function refreshAfterPurchaseStatusError(error) {
+    actions.showToast(`Không cập nhật được trạng thái phiếu nhập: ${error.message}`, true);
+    try {
+      await actions.refreshData();
+    } catch (refreshError) {
+      actions.showToast(`Không tải lại được dữ liệu mới: ${refreshError.message}`, true);
+    }
+  }
+
+  async function persistPurchaseStatusChange(successMessage = "") {
+    try {
+      await actions.persistCollections(["purchases"]);
+      await actions.refreshData();
+      if (successMessage) {
+        actions.showToast(successMessage);
+      }
+      return true;
+    } catch (error) {
+      await refreshAfterPurchaseStatusError(error);
+      return false;
+    }
   }
 
   dom.createPurchaseDraftButton.addEventListener("click", () => {
@@ -305,9 +328,10 @@ export function registerPurchasesControllerEvents(contract) {
       if (!confirmPurchaseStatusAction(purchase, "mark-ordered")) {
         return;
       }
+      await actions.flushPendingPersistCollections();
       actions.updatePurchase(purchase.id, () => ({ status: "ordered", supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
-      actions.saveAndRenderAll(["purchases"]);
-      actions.showToast("Đã cập nhật trạng thái đặt hàng.");
+      actions.saveAndRenderAll();
+      await persistPurchaseStatusChange("Đã cập nhật trạng thái đặt hàng.");
       return;
     }
     if (actionButton.dataset.purchaseAction === "cancel") {
@@ -341,16 +365,17 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho.", true);
         return;
       }
-      if (dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`) && !savePurchaseDiscount(purchase.id, dom.purchasePanel, { silent: true })) {
+      if (dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`) && !savePurchaseDiscount(purchase.id, dom.purchasePanel, { silent: true, persist: false })) {
         return;
       }
       const latestPurchase = queries.getActivePurchase() || purchase;
       if (!confirmPurchaseStatusAction(purchase, "mark-paid")) {
         return;
       }
+      await actions.flushPendingPersistCollections();
       actions.updatePurchase(latestPurchase.id, () => ({ status: "paid", paidAt: utils.nowIso(), supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
-      actions.saveAndRenderAll(["purchases"]);
-      actions.showToast("Đã cập nhật phiếu nhập là đã thanh toán.");
+      actions.saveAndRenderAll();
+      await persistPurchaseStatusChange("Đã cập nhật phiếu nhập là đã thanh toán.");
       return;
     }
     if (actionButton.dataset.purchaseAction === "save-discount") {
@@ -372,7 +397,7 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Chỉ phiếu đã đặt hàng mới được nhập kho.", true);
         return;
       }
-      if (dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`) && !savePurchaseDiscount(purchase.id, dom.purchasePanel, { silent: true })) {
+      if (dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`) && !savePurchaseDiscount(purchase.id, dom.purchasePanel, { silent: true, persist: false })) {
         return;
       }
       const latestPurchase = queries.getActivePurchase() || purchase;
@@ -380,6 +405,7 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       try {
+        await actions.flushPendingPersistCollections();
         const data = await actions.apiRequest("/api/purchases/receive", {
           method: "POST",
           body: JSON.stringify({
@@ -389,14 +415,14 @@ export function registerPurchasesControllerEvents(contract) {
             items: latestPurchase.items.map((item) => ({ product_id: item.productId, quantity: item.quantity, unit_cost: item.unitCost })),
           }),
         });
+        await actions.refreshData();
         state.purchases = state.purchases.map((entry) => entry.id === latestPurchase.id ? { ...entry, status: "received", receiptCode: data.receipt?.receipt_code || "", receivedAt: data.receipt?.created_at || utils.nowIso(), updatedAt: data.receipt?.created_at || utils.nowIso() } : entry);
         state.activePurchaseId = latestPurchase.id;
-        actions.saveAndRenderAll();
-        await actions.persistCollections(["purchases"]);
+        await actions.persistCollectionsWithoutConflictCheck(["purchases"]);
         await actions.refreshData();
         actions.showToast(data.message);
       } catch (error) {
-        actions.showToast(error.message, true);
+        await refreshAfterPurchaseStatusError(error);
       }
     }
   });
