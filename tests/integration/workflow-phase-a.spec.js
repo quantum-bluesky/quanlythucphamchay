@@ -29,6 +29,10 @@ async function captureDialogMessage(page, trigger) {
   return dialog.message();
 }
 
+function expectedQuantityText(value) {
+  return String(Number(Number(value).toFixed(2))).replace(".", ",");
+}
+
 test("ACC-PUR-01 purchase can only be marked paid after it has been received", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const userCookie = await autoLoginUserRequest(request);
@@ -255,6 +259,7 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
   expect(product).toBeTruthy();
+  const startingStock = Number(product.current_stock || 0);
 
   const draftPurchase = {
     id: purchaseId,
@@ -314,6 +319,12 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
     await page.locator('[data-purchase-action="receive"]').click();
     const receiveToast = await collectToast(page, runtime, "acc-pur-03-receive", { errorPattern: /^$/ });
     expect(receiveToast).toContain("Đã nhập hàng vào kho");
+
+    await switchMenu(page, "inventory");
+    await expectScreenTitle(page, "Kiểm tra tồn kho");
+    await setFloatingSearch(page, product.name);
+    const inventoryCard = page.locator(".product-row", { hasText: product.name }).first();
+    await expect(inventoryCard.locator(".product-row-stock").first()).toContainText(expectedQuantityText(startingStock + 2));
   } finally {
     await request.put("/api/state", {
       headers: { Cookie: userCookie },
@@ -354,6 +365,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.find((entry) => Number(entry.current_stock || 0) >= 2) || productsPayload.products?.[0];
   expect(product).toBeTruthy();
+  const startingStock = Number(product.current_stock || 0);
 
   const draftCart = {
     id: draftCartId,
@@ -499,6 +511,12 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     expect(checkoutDialog).toContain("Đã xong");
     const checkoutToast = await collectToast(page, runtime, "it-sts-01-checkout", { errorPattern: /^$/ });
     expect(checkoutToast).toContain("Đã chốt giỏ hàng");
+
+    await switchMenu(page, "inventory");
+    await expectScreenTitle(page, "Kiểm tra tồn kho");
+    await setFloatingSearch(page, product.name);
+    const inventoryCardAfterCheckout = page.locator(".product-row", { hasText: product.name }).first();
+    await expect(inventoryCardAfterCheckout.locator(".product-row-stock").first()).toContainText(expectedQuantityText(startingStock - 1));
 
     userCookie = await autoLoginUserRequest(request);
     await autoLoginUser(page, request);

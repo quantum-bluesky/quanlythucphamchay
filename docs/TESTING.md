@@ -185,6 +185,7 @@ Các nhóm kiểm tra chính:
 
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, thiếu hàng của user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu chờ đủ
+- `Reload số lượng sau đổi trạng thái`: sau `Xuất kho` hoặc `Nhập kho`, các màn `Tồn kho`, `Xuất hàng`, `Nhập hàng` phải nạp lại dữ liệu server mới mà không cần F5
 - `Confirm đổi trạng thái/xóa chứng từ`: trước khi `Xuất`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa` app phải hiện dialog confirm
 - `Version cache-busting client JS`: HTML entrypoint và các module import phải được serve kèm query `?v=version-chính.N`, counter phải tăng đúng khi file `.js` đổi nội dung và không tăng nếu chỉ đổi line ending `CRLF/LF`
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
@@ -240,7 +241,7 @@ Ngoài click thao tác, suite còn kiểm tra:
 
 Case mới cho Phase A:
 
-- `ACC-PUR-03`: phiếu nhập nháp phải được đặt hàng trước khi nhập kho, và phiếu đã đặt hàng vẫn còn chỉnh sửa được trước khi nhận hàng
+- `ACC-PUR-03`: phiếu nhập nháp phải được đặt hàng trước khi nhập kho, phiếu đã đặt hàng vẫn còn chỉnh sửa được trước khi nhận hàng, và tồn kho phải cập nhật ngay trên màn `Tồn kho` sau khi nhập kho mà không cần F5
 - `IT-PURSUP-01`: tạo nhà cung cấp từ màn nhập hàng rồi quay lại phiếu nhập vẫn giữ được giá trị NCC trên UI, nhưng phiếu nháp rỗng không còn persist
 - `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp rồi mới chuyển sang `received`
 - `UT-DB-12`: backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `draft/ordered`, và chặn xóa trực tiếp phiếu `ordered`
@@ -254,6 +255,7 @@ Case mới cho Phase B.4:
 - `UT-NORM-04`: sync state không persist phiếu nhập nháp rỗng, chỉ lưu draft khi đã có ít nhất một mặt hàng
 - `UT-SYNC-03`: chỉ cho sửa `giảm giá khuyến mại` trước thanh toán, và khóa lại sau khi chứng từ đã được đánh dấu thanh toán
 - `UT-SYNC-04`: đơn hàng chỉ được thanh toán sau khi đã chốt, vẫn cho hủy khi còn `draft`, và khóa luôn nhánh mở lại/hạ thanh toán sau khi đã `cancelled/paid`
+- `IT-STS-01`: sau `Xuất kho`, test chuyển sang `Tồn kho` và kiểm tra số lượng mới hiển thị ngay, đồng thời vẫn bắt confirm cho các action trạng thái/xóa/hủy
 
 Case regression UI báo cáo:
 

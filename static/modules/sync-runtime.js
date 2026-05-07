@@ -29,6 +29,8 @@ export function createSyncRuntimeHelpers(deps) {
     isSyncDebugEnabled,
     logSyncDebug,
   } = deps;
+  let queuedPersistTimer = null;
+  let persistInFlightPromise = null;
 
   function buildCollectionSummary(payload = {}) {
     const purchases = Array.isArray(payload.purchases) ? payload.purchases : [];
@@ -220,14 +222,38 @@ export function createSyncRuntimeHelpers(deps) {
     updateRuntimeVersion(response);
   }
 
-  function queuePersistCollections(keys = []) {
-    keys.filter((key) => syncCollectionKeys.includes(key)).forEach((key) => pendingPersistCollections.add(key));
-    if (getPersistScheduled() || !pendingPersistCollections.size) return;
-    setPersistScheduled(true);
-    window.setTimeout(async () => {
-      const keysToPersist = [...pendingPersistCollections];
-      pendingPersistCollections.clear();
-      setPersistScheduled(false);
+  async function persistCollectionsWithoutConflictCheck(keys = syncCollectionKeys) {
+    const uniqueKeys = [...new Set(keys)].filter((key) => syncCollectionKeys.includes(key));
+    if (!uniqueKeys.length) return;
+    const syncPayload = getSyncPayload(uniqueKeys);
+    delete syncPayload.expected_updated_at;
+    if (isSyncDebugEnabled()) {
+      logSyncDebug("persistCollectionsWithoutConflictCheck -> request", buildCollectionSummary(syncPayload));
+    }
+    const response = await apiRequest("/api/state", {
+      method: "PUT",
+      body: JSON.stringify(syncPayload),
+    });
+    if (isSyncDebugEnabled()) {
+      logSyncDebug("persistCollectionsWithoutConflictCheck -> success", {
+        keys: uniqueKeys,
+        responseUpdatedAt: response.updated_at || {},
+      });
+    }
+    setLatestSyncUpdatedAt(response.updated_at || getLatestSyncUpdatedAt());
+    updateRuntimeVersion(response);
+  }
+
+  async function runQueuedPersistCollections() {
+    if (queuedPersistTimer) {
+      window.clearTimeout(queuedPersistTimer);
+      queuedPersistTimer = null;
+    }
+    const keysToPersist = [...pendingPersistCollections];
+    pendingPersistCollections.clear();
+    setPersistScheduled(false);
+    if (!keysToPersist.length) return;
+    persistInFlightPromise = (async () => {
       try {
         await persistCollections(keysToPersist);
       } catch (error) {
@@ -246,8 +272,30 @@ export function createSyncRuntimeHelpers(deps) {
         }
         showToast(`Lưu đồng bộ thất bại: ${error.message}`, true);
         try { await refreshData(); } catch {}
+      } finally {
+        persistInFlightPromise = null;
       }
+    })();
+    await persistInFlightPromise;
+  }
+
+  function queuePersistCollections(keys = []) {
+    keys.filter((key) => syncCollectionKeys.includes(key)).forEach((key) => pendingPersistCollections.add(key));
+    if (getPersistScheduled() || !pendingPersistCollections.size) return;
+    setPersistScheduled(true);
+    queuedPersistTimer = window.setTimeout(() => {
+      queuedPersistTimer = null;
+      void runQueuedPersistCollections();
     }, 0);
+  }
+
+  async function flushPendingPersistCollections() {
+    if (getPersistScheduled() || pendingPersistCollections.size) {
+      await runQueuedPersistCollections();
+    }
+    if (persistInFlightPromise) {
+      await persistInFlightPromise;
+    }
   }
 
   function loadSalesState() {
@@ -280,7 +328,9 @@ export function createSyncRuntimeHelpers(deps) {
     startAutoRefreshLoop,
     migrateLegacyCollectionsIfNeeded,
     persistCollections,
+    persistCollectionsWithoutConflictCheck,
     queuePersistCollections,
+    flushPendingPersistCollections,
     loadSalesState,
     saveAndRenderAll,
   };

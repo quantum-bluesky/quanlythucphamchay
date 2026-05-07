@@ -28,7 +28,7 @@ export function registerSalesControllerEvents(contract) {
   }
 
   function saveCartDiscount(cartId, inputSelectorRoot, options = {}) {
-    const { silent = false } = options;
+    const { silent = false, persist = true } = options;
     const cart = queries.getCartById(cartId);
     if (!cart) {
       actions.showToast("Không tìm thấy đơn hàng.", true);
@@ -53,11 +53,34 @@ export function registerSalesControllerEvents(contract) {
       discountAmount: Number(discountAmount.toFixed(2)),
       updatedAt: utils.nowIso(),
     }));
-    actions.saveAndRenderAll(["carts"]);
+    actions.saveAndRenderAll(persist ? ["carts"] : []);
     if (!silent) {
       actions.showToast("Đã lưu giảm giá khuyến mại.");
     }
     return true;
+  }
+
+  async function refreshAfterCartStatusError(error) {
+    actions.showToast(`Không cập nhật được trạng thái đơn hàng: ${error.message}`, true);
+    try {
+      await actions.refreshData();
+    } catch (refreshError) {
+      actions.showToast(`Không tải lại được dữ liệu mới: ${refreshError.message}`, true);
+    }
+  }
+
+  async function persistCartStatusChange(successMessage = "") {
+    try {
+      await actions.persistCollections(["carts"]);
+      await actions.refreshData();
+      if (successMessage) {
+        actions.showToast(successMessage);
+      }
+      return true;
+    } catch (error) {
+      await refreshAfterCartStatusError(error);
+      return false;
+    }
   }
 
   dom.salesSearchInput.addEventListener("input", (event) => {
@@ -314,13 +337,14 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     if (button.dataset.cartAction === "checkout") {
-      if (dom.activeCartPanel.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.activeCartPanel, { silent: true })) {
+      if (dom.activeCartPanel.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.activeCartPanel, { silent: true, persist: false })) {
         return;
       }
       if (!confirmCartStatusAction(cart, "checkout")) {
         return;
       }
       try {
+        await actions.flushPendingPersistCollections();
         await actions.checkoutActiveCart();
       } catch (error) {
         actions.showToast(error.message, true);
@@ -331,17 +355,23 @@ export function registerSalesControllerEvents(contract) {
       if (!confirmCartStatusAction(cart, "cancel")) {
         return;
       }
+      await actions.flushPendingPersistCollections();
       cart.status = "cancelled";
-      actions.saveAndRenderAll(["carts"]);
+      cart.cancelledAt = utils.nowIso();
+      cart.updatedAt = utils.nowIso();
+      actions.saveAndRenderAll();
+      await persistCartStatusChange("Đã hủy đơn hàng.");
       return;
     }
     if (button.dataset.cartAction === "delete") {
       if (!confirmCartStatusAction(cart, "delete")) {
         return;
       }
+      await actions.flushPendingPersistCollections();
       state.carts = state.carts.filter((entry) => entry.id !== cart.id);
       state.activeCartId = null;
-      actions.saveAndRenderAll(["carts"]);
+      actions.saveAndRenderAll();
+      await persistCartStatusChange("Đã xóa giỏ nháp.");
     }
   });
 
@@ -386,13 +416,14 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     if (action === "checkout") {
-      if (dom.cartQueueList.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.cartQueueList, { silent: true })) {
+      if (dom.cartQueueList.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.cartQueueList, { silent: true, persist: false })) {
         return;
       }
       if (!confirmCartStatusAction(cart, "checkout")) {
         return;
       }
       try {
+        await actions.flushPendingPersistCollections();
         await actions.checkoutCart(cart.id);
       } catch (error) {
         actions.showToast(error.message, true);
@@ -410,38 +441,45 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     if (action === "paid" || action === "mark-paid") {
-      if (dom.cartQueueList.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.cartQueueList, { silent: true })) {
+      if (dom.cartQueueList.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.cartQueueList, { silent: true, persist: false })) {
         return;
       }
       const latestCart = queries.getCartById(button.dataset.cartId) || cart;
       if (!confirmCartStatusAction(cart, "mark-paid")) {
         return;
       }
+      await actions.flushPendingPersistCollections();
       actions.updateCart(latestCart.id, (currentCart) => ({
         ...currentCart,
         paymentStatus: "paid",
         paidAt: utils.nowIso(),
         updatedAt: utils.nowIso(),
       }));
-      actions.saveAndRenderAll(["carts"]);
-      actions.showToast("Đã cập nhật đơn là đã thanh toán.");
+      actions.saveAndRenderAll();
+      await persistCartStatusChange("Đã cập nhật đơn là đã thanh toán.");
       return;
     }
     if (action === "cancel") {
       if (!confirmCartStatusAction(cart, "cancel")) {
         return;
       }
+      await actions.flushPendingPersistCollections();
       cart.status = "cancelled";
-      actions.saveAndRenderAll(["carts"]);
+      cart.cancelledAt = utils.nowIso();
+      cart.updatedAt = utils.nowIso();
+      actions.saveAndRenderAll();
+      await persistCartStatusChange("Đã hủy đơn hàng.");
       return;
     }
     if (action === "delete") {
       if (!confirmCartStatusAction(cart, "delete")) {
         return;
       }
+      await actions.flushPendingPersistCollections();
       state.carts = state.carts.filter((entry) => entry.id !== cart.id);
       if (state.activeCartId === cart.id) state.activeCartId = null;
-      actions.saveAndRenderAll(["carts"]);
+      actions.saveAndRenderAll();
+      await persistCartStatusChange("Đã xóa giỏ nháp.");
     }
   });
 
