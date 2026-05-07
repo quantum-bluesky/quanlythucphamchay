@@ -87,7 +87,7 @@ Lưu ý:
 | 66 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |
 | 67 | `ACC-PUR-03` | Kiểm tra phiếu nhập nháp phải được chuyển sang `Đã đặt hàng` trước khi `Nhập kho`, phiếu `Đã đặt hàng` vẫn chỉnh sửa được nhưng NCC đã bị khóa. |
 | 68 | `UT-DB-11` | Kiểm tra backend chặn `draft -> received`, cho phép `ordered` tiếp tục chỉnh sửa, rồi mới chuyển sang `received` hợp lệ. |
-| 69 | `IT-STS-01` | Kiểm tra các action đổi trạng thái và xóa phiếu ở đơn hàng và phiếu nhập đều hiện dialog confirm trước khi app áp dụng thay đổi. |
+| 69 | `IT-STS-01` | Kiểm tra các action đổi trạng thái, hủy và xóa phiếu ở đơn hàng và phiếu nhập đều hiện dialog confirm trước khi app áp dụng thay đổi. |
 | 70 | `UT-AUTH-06` | Kiểm tra server serve `index.html` và `app.js` với cache-control phù hợp, đồng thời HTML/JS đã được gắn URL version cho client asset. |
 | 71 | `UT-JSVER-01` | Kiểm tra manifest version của từng file `.js` tăng đúng theo lần đổi nội dung và tự reset về `1` khi version chính đổi. |
 | 72 | `UT-JSVER-02` | Kiểm tra entrypoint HTML và các import module con đều được rewrite sang URL có query `?v=version-chính.N`. |
@@ -100,3 +100,5 @@ Lưu ý:
 | 79 | `IT-INV-SORT-02` | Kiểm tra dropdown sort ở màn tồn kho vẫn nằm trong pagination desktop cùng page-size picker. |
 | 80 | `IT-PROD-LIFE-01` | Kiểm tra màn Sản phẩm lưu được metadata hạn dùng/bảo quản từ inline edit và render lại đúng nhãn. |
 | 81 | `UT-SYNC-03` | Kiểm tra đơn đã chốt chưa thanh toán và phiếu nhập đã nhận chưa thanh toán vẫn sửa được `giảm giá khuyến mại`, nhưng sau khi đánh dấu thanh toán thì field này bị khóa lại. |
+| 82 | `UT-DB-12` | Kiểm tra backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `ordered`, và chặn xóa trực tiếp phiếu `ordered`. |
+| 83 | `UT-SYNC-04` | Kiểm tra đơn hàng chặn `draft -> paid`, cho `draft -> cancelled`, cho `completed -> paid`, rồi khóa nhánh mở lại/hạ thanh toán sau khi đã `cancelled/paid`. |

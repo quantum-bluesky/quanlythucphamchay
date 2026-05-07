@@ -106,6 +106,8 @@ Mục tiêu:
 | 81 | `IT-INV-SORT-02` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-INV-SORT-02"` |
 | 82 | `IT-PROD-LIFE-01` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-PROD-LIFE-01"` |
 | 83 | `UT-SYNC-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_03_discount_updates_are_allowed_before_paid_and_locked_after_paid` |
+| 84 | `UT-DB-12` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_12_repair_purchase_document_allows_regular_draft_delete_and_ordered_cancel_but_rejects_ordered_delete` |
+| 85 | `UT-SYNC-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_04_cart_workflow_supports_draft_cancel_and_completed_paid_locks` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 
