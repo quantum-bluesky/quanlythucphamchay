@@ -123,23 +123,15 @@ export function registerEntitiesControllerEvents(contract) {
       const isPurchaseSupplierFlow = state.pendingPurchaseSupplierFlow;
       const savedSupplierName = dom.supplierNameInput.value.trim();
       const activePurchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
-      const activePurchaseHasItems = Boolean(activePurchase && Array.isArray(activePurchase.items) && activePurchase.items.length);
+      const canApplySupplierToActiveDraft = Boolean(activePurchase && activePurchase.status === "draft");
       if (isPurchaseSupplierFlow) {
         dom.purchaseSupplierInput.value = savedSupplierName;
         state.pendingPurchaseSupplierName = savedSupplierName;
-        if (activePurchaseHasItems) {
+        if (canApplySupplierToActiveDraft) {
           actions.updatePurchase(activePurchase.id, () => ({
             supplierName: savedSupplierName,
             note: dom.purchaseNoteInput.value.trim(),
           }));
-        } else {
-          const purchase = actions.createPurchaseDraftIfMissing();
-          if (purchase) {
-            actions.updatePurchase(purchase.id, () => ({
-              supplierName: savedSupplierName,
-              note: dom.purchaseNoteInput.value.trim(),
-            }));
-          }
         }
       }
       actions.upsertSupplier({
@@ -148,7 +140,7 @@ export function registerEntitiesControllerEvents(contract) {
         address: dom.supplierAddressInput.value,
         note: dom.supplierNoteInput.value,
       }, editingSupplierId, {
-        extraCollections: isPurchaseSupplierFlow && activePurchaseHasItems ? ["purchases"] : [],
+        extraCollections: isPurchaseSupplierFlow && canApplySupplierToActiveDraft ? ["purchases"] : [],
       });
       dom.supplierForm.reset();
       state.editingSupplierFormId = null;
@@ -206,14 +198,17 @@ export function registerEntitiesControllerEvents(contract) {
     }
     if (button.dataset.supplierAction === "use") {
       dom.purchaseSupplierInput.value = supplier.name;
+      state.pendingPurchaseSupplierFlow = false;
       state.pendingPurchaseSupplierName = supplier.name;
       actions.switchMenu("purchases");
       const purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
-      const purchaseHasItems = Boolean(purchase && Array.isArray(purchase.items) && purchase.items.length);
-      if (purchaseHasItems) {
+      const canApplySupplierToActiveDraft = Boolean(purchase && purchase.status === "draft");
+      if (canApplySupplierToActiveDraft) {
         actions.updatePurchase(purchase.id, () => ({ supplierName: supplier.name, note: dom.purchaseNoteInput.value.trim() }));
         actions.saveAndRenderAll(["purchases"]);
         actions.focusPurchasePanel();
+      } else {
+        actions.saveAndRenderAll();
       }
       actions.showToast("Đã chọn nhà cung cấp cho phiếu nhập.");
       return;
