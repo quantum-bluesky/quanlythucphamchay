@@ -34,8 +34,8 @@
       "sha256": "6badf7c1809d4fa2a4f7ba0591e1163b3aeb01b0cb42beef8ea778375efde1e1"
     },
     "modules/controllers/sales-controller.js": {
-      "counter": 1,
-      "sha256": "ff3d68121615a230426f2c10560ec13ae993c0e08df6967df5fa94577eb88118"
+      "counter": 2,
+      "sha256": "a8937bf99775deb01b1f16d6fb12c7c8039d82b95b4b96321b4628448406e4c4"
     },
     "modules/dom.js": {
       "counter": 1,
