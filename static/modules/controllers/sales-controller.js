@@ -417,8 +417,14 @@ export function registerSalesControllerEvents(contract) {
       if (!confirmCartStatusAction(cart, "mark-paid")) {
         return;
       }
-      latestCart.paymentStatus = "paid";
+      actions.updateCart(latestCart.id, (currentCart) => ({
+        ...currentCart,
+        paymentStatus: "paid",
+        paidAt: utils.nowIso(),
+        updatedAt: utils.nowIso(),
+      }));
       actions.saveAndRenderAll(["carts"]);
+      actions.showToast("Đã cập nhật đơn là đã thanh toán.");
       return;
     }
     if (action === "cancel") {

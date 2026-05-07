@@ -331,7 +331,7 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
 
 test("IT-STS-01 status-changing order and purchase actions show confirm dialogs before applying", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
-  const userCookie = await autoLoginUserRequest(request);
+  let userCookie = await autoLoginUserRequest(request);
   const timestamp = Date.now();
   const draftCustomerName = `Khách confirm ${timestamp}`;
   const deleteDraftCustomerName = `Khách xóa confirm ${timestamp}`;
@@ -459,6 +459,10 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const checkoutToast = await collectToast(page, runtime, "it-sts-01-checkout", { errorPattern: /^$/ });
     expect(checkoutToast).toContain("Đã chốt giỏ hàng");
 
+    userCookie = await autoLoginUserRequest(request);
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
     await switchMenu(page, "orders");
     await expectScreenTitle(page, "Đơn hàng");
     await page.locator("#showArchivedCarts").check();
@@ -470,6 +474,8 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
       await completedOrderCard.locator('[data-queue-action="mark-paid"]').click();
     });
     expect(markPaidDialog).toContain("đã thanh toán");
+    const orderPaidToast = await collectToast(page, runtime, "it-sts-01-order-paid", { errorPattern: /^$/ });
+    expect(orderPaidToast).toContain("Đã cập nhật đơn là đã thanh toán");
     await page.waitForTimeout(700);
 
     const paidOrderStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
