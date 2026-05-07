@@ -14,8 +14,8 @@
       "sha256": "7f29ae2c2a9f6c5035cc087f36089bc2863607229f72db7f76d181dd4b34e4a7"
     },
     "modules/controllers/entities-controller.js": {
-      "counter": 1,
-      "sha256": "8a35243c2999550754d4425c8f27b4e4be6b4c9b41bbb222ff5c79014d4d1c4a"
+      "counter": 2,
+      "sha256": "9df98f2c47763f256301b1f5cf8097b1b8388515fc716267a43012384bfb699c"
     },
     "modules/controllers/inventory-controller.js": {
       "counter": 1,
