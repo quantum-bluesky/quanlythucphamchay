@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 
 def parse_cookie_header(cookie_header: str | None) -> dict[str, str]:
@@ -12,6 +13,30 @@ def parse_cookie_header(cookie_header: str | None) -> dict[str, str]:
         key, value = part.split("=", 1)
         cookies[key.strip()] = value.strip()
     return cookies
+
+
+def build_port_scoped_cookie_name(base_cookie_name: str, host_header: str | None) -> str:
+    clean_base = str(base_cookie_name or "").strip()
+    clean_host = str(host_header or "").strip()
+    if not clean_base or not clean_host:
+        return clean_base
+    try:
+        parsed = urlsplit(f"//{clean_host}")
+    except ValueError:
+        return clean_base
+    port = parsed.port
+    if port is None:
+        return clean_base
+    return f"{clean_base}_p{port}"
+
+
+def build_session_cookie_name_candidates(base_cookie_name: str, host_header: str | None) -> list[str]:
+    scoped_name = build_port_scoped_cookie_name(base_cookie_name, host_header)
+    candidates: list[str] = []
+    for name in (scoped_name, str(base_cookie_name or "").strip()):
+        if name and name not in candidates:
+            candidates.append(name)
+    return candidates
 
 
 class SessionManager:
