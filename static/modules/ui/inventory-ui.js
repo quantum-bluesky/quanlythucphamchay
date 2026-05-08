@@ -19,6 +19,13 @@ export function createInventoryUi(deps) {
     paginateItems,
     renderPagination,
   } = deps;
+  const INVENTORY_HISTORY_DOCUMENT_PREFIXES = [
+    { prefix: "DH-", type: "order", label: "Đơn" },
+    { prefix: "PN-", type: "purchase", label: "Phiếu nhập" },
+    { prefix: "DC-", type: "inventory_adjustment", label: "Phiếu điều chỉnh" },
+    { prefix: "THK-", type: "customer_return", label: "Phiếu trả khách" },
+    { prefix: "TNCC-", type: "supplier_return", label: "Phiếu trả NCC" },
+  ];
   const INVENTORY_SORT_OPTIONS = [
     { value: "name", label: "Tên A-Z" },
     { value: "stock-desc", label: "Tồn cao -> thấp" },
@@ -372,12 +379,75 @@ export function createInventoryUi(deps) {
   }
 
   function renderTransactions() {
+    if (dom.inventoryHistorySection && dom.inventoryHistoryWrap && dom.inventoryHistoryToggleButton) {
+      dom.inventoryHistorySection.classList.toggle("is-collapsed", state.inventoryHistoryCollapsed);
+      dom.inventoryHistoryWrap.hidden = state.inventoryHistoryCollapsed;
+      dom.inventoryHistoryToggleButton.textContent = state.inventoryHistoryCollapsed ? "Mở lịch sử" : "Thu gọn";
+    }
+    if (dom.inventoryHistoryShortcutButton) {
+      dom.inventoryHistoryShortcutButton.textContent = "Lịch sử";
+    }
+    if (state.inventoryHistoryCollapsed) {
+      dom.transactionList.innerHTML = "";
+      return;
+    }
+
     if (!state.transactions.length) {
       dom.transactionList.innerHTML = '<div class="empty-state">Chưa có giao dịch nào.</div>';
       return;
     }
 
-    dom.transactionList.innerHTML = state.transactions.map((transaction) => `
+    const extractTransactionReference = (note) => {
+      const text = String(note || "");
+      for (const meta of INVENTORY_HISTORY_DOCUMENT_PREFIXES) {
+        const match = text.match(new RegExp(`\\b${meta.prefix.replace(/-/g, "\\-")}[A-Za-z0-9-]+\\b`));
+        if (match) {
+          return {
+            code: match[0],
+            type: meta.type,
+            label: meta.label,
+          };
+        }
+      }
+      return null;
+    };
+
+    const renderTransactionReferenceLine = (note, reference) => {
+      if (!reference) {
+        return "";
+      }
+      const parts = String(note || "").split("|").map((part) => part.trim()).filter(Boolean);
+      const referencePart = parts.find((part) => part.includes(reference.code)) || `${reference.label} ${reference.code}`;
+      const prefixText = referencePart.slice(0, referencePart.indexOf(reference.code)).trim() || reference.label;
+      return `
+        <div class="transaction-reference-line">
+          <span>${escapeHtml(prefixText)}</span>
+          <button
+            type="button"
+            class="transaction-document-link"
+            data-transaction-document-code="${escapeHtml(reference.code)}"
+            data-transaction-document-type="${escapeHtml(reference.type)}"
+          >${escapeHtml(reference.code)}</button>
+        </div>
+      `;
+    };
+
+    const renderTransactionMetaLines = (note, reference, fallbackLabel) => {
+      const parts = String(note || "").split("|").map((part) => part.trim()).filter(Boolean);
+      const filteredParts = reference
+        ? parts.filter((part) => !part.includes(reference.code))
+        : parts;
+      if (!filteredParts.length) {
+        return `<div class="transaction-meta-line">${escapeHtml(fallbackLabel)}</div>`;
+      }
+      return filteredParts
+        .map((part) => `<div class="transaction-meta-line">${escapeHtml(part)}</div>`)
+        .join("");
+    };
+
+    dom.transactionList.innerHTML = state.transactions.map((transaction) => {
+      const reference = extractTransactionReference(transaction.note);
+      return `
         <article class="transaction-item">
           <div class="top-line">
             <strong>${escapeHtml(transaction.product_name)}</strong>
@@ -385,12 +455,21 @@ export function createInventoryUi(deps) {
               ${transaction.transaction_type === "in" ? "+" : "-"}${formatQuantity(transaction.quantity)} ${escapeHtml(transaction.unit)}
             </strong>
           </div>
+          <div class="transaction-meta-block">
+            ${renderTransactionReferenceLine(transaction.note, reference)}
+            ${renderTransactionMetaLines(
+              transaction.note,
+              reference,
+              transaction.transaction_type === "in" ? "Nhập kho" : "Xuất kho"
+            )}
+          </div>
           <div class="bottom-line">
-            <span>${escapeHtml(transaction.note || (transaction.transaction_type === "in" ? "Nhập kho" : "Xuất kho"))}</span>
+            <span>${escapeHtml(transaction.transaction_type === "in" ? "Giao dịch nhập kho" : "Giao dịch xuất kho")}</span>
             <span>${escapeHtml(formatDate(transaction.created_at))}</span>
           </div>
         </article>
-      `).join("");
+      `;
+    }).join("");
   }
 
   return {

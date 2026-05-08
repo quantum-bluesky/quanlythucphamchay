@@ -93,6 +93,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
 - Màn tồn kho có dropdown sắp xếp trong khu vực phân trang để xem theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít
+- Màn tồn kho có nút `Lịch sử` để nhảy nhanh xuống phần `Lịch sử gần đây`; khối này mặc định thu gọn và mã `DH/PN/DC/THK/TNCC` trong từng dòng có thể bấm để mở đúng chứng từ liên quan
 - Tồn kho liên kết trực tiếp với đơn chờ xuất và phiếu chờ nhập, thay cho nhập/xuất nhanh thủ công
 - Quản lý riêng `giá nhập` và `giá bán mặc định` của sản phẩm
 - Có badge `Chờ xuất` / `Chờ nhập` ngay trên card tồn kho để nhảy nhanh sang màn liên quan, đồng thời hiện `số phiếu / tổng số lượng` đang chờ theo từng mặt hàng

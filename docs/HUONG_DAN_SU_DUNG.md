@@ -59,6 +59,8 @@ Thực hiện:
 5. Nếu cần xử lý một mặt hàng:
    - bấm `Xuất` để sang đơn chờ xuất hoặc tạo luồng xuất mới
    - bấm `Nhập` để sang phiếu nhập chờ hoặc tạo phiếu nhập mới
+6. Nếu cần đối chiếu nhập/xuất mới nhất, bấm `Lịch sử` để nhảy nhanh xuống khối `Lịch sử gần đây`; khối này mặc định thu gọn nên có thể bấm `Mở lịch sử` để bung ra
+7. Với các dòng lịch sử có mã `DH/PN/DC/THK/TNCC`, bấm trực tiếp vào mã để mở đúng đơn hoặc phiếu liên quan
 
 Lưu ý:
 

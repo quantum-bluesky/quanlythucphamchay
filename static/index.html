@@ -115,7 +115,10 @@
             <p class="panel-kicker">Tồn kho</p>
             <h2>Danh sách mặt hàng</h2>
           </div>
-          <div class="hero-stats" id="summaryCards"></div>
+          <div class="inventory-heading-actions">
+            <div class="hero-stats" id="summaryCards"></div>
+            <button type="button" id="inventoryHistoryShortcutButton" class="ghost-button compact-button">Lịch sử</button>
+          </div>
         </div>
 
         <div class="sticky-toolbar list-search-toolbar">
@@ -166,17 +169,20 @@
           </div>
         </section>
 
-        <section class="panel">
-        <div class="panel-heading">
-          <div>
-            <p class="panel-kicker">Lịch sử gần đây</p>
-            <h2>Nhập / xuất mới nhất</h2>
+        <section id="inventoryHistorySection" class="panel product-collapse-card is-collapsed">
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Lịch sử gần đây</p>
+              <h3>Nhập / xuất mới nhất</h3>
+              <p class="panel-note">Chỉ hiện lịch sử kho để đối chiếu nhanh.</p>
+            </div>
+            <button type="button" id="inventoryHistoryToggleButton" class="ghost-button compact-button">Mở lịch sử</button>
           </div>
-          <p class="panel-note">Chỉ hiện lịch sử kho để đối chiếu nhanh.</p>
-        </div>
-        <div id="transactionList" class="transaction-list"></div>
+          <div id="inventoryHistoryWrap" class="product-collapse-body" hidden>
+            <div id="transactionList" class="transaction-list"></div>
+          </div>
+        </section>
       </section>
-    </section>
 
     <section class="view-section" data-menu-section="create-order">
       <section class="panel sales-panel">

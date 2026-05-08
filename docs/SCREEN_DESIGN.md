@@ -45,6 +45,7 @@ Liên kết detail hiện có:
   - dropdown sắp xếp trong khu vực phân trang
   - card sản phẩm
   - badge `Chờ xuất` / `Chờ nhập` có thêm `số phiếu / tổng số lượng` đang chờ theo sản phẩm
+  - nút `Lịch sử` để nhảy nhanh xuống phần lịch sử
   - lịch sử gần đây
 - hành động chính:
   - `Xuất`
@@ -55,6 +56,8 @@ Liên kết detail hiện có:
   - sort nằm ở pagination đầu list; pagination cuối không lặp sort control
   - mode `Ưu tiên nhập/xử lý` hiển thị thêm điểm ưu tiên trên card
   - mode `Hạn còn ít` hiển thị thêm hạn còn lại ước tính hoặc nhãn chưa có dữ liệu hạn
+  - khối `Lịch sử gần đây` mặc định thu gọn, có nút `Mở lịch sử/Thu gọn`
+  - nếu dòng lịch sử có mã `DH/PN/DC/THK/TNCC` thì mã đó là link nội bộ để mở đúng chứng từ liên quan
 
 ### `create-order` - Tạo đơn xuất hàng
 
