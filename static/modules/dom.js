@@ -1,6 +1,10 @@
 export const summaryCards = document.getElementById("summaryCards");
 export const productGrid = document.getElementById("productGrid");
 export const transactionList = document.getElementById("transactionList");
+export const inventoryHistorySection = document.getElementById("inventoryHistorySection");
+export const inventoryHistoryWrap = document.getElementById("inventoryHistoryWrap");
+export const inventoryHistoryToggleButton = document.getElementById("inventoryHistoryToggleButton");
+export const inventoryHistoryShortcutButton = document.getElementById("inventoryHistoryShortcutButton");
 export const inventoryReceiptSection = document.getElementById("inventoryReceiptSection");
 export const inventoryReceiptWrap = document.getElementById("inventoryReceiptWrap");
 export const inventoryReceiptToggleButton = document.getElementById("inventoryReceiptToggleButton");
