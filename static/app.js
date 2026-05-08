@@ -3,6 +3,10 @@ import {
   summaryCards,
   productGrid,
   transactionList,
+  inventoryHistorySection,
+  inventoryHistoryWrap,
+  inventoryHistoryToggleButton,
+  inventoryHistoryShortcutButton,
   inventoryReceiptSection,
   inventoryReceiptWrap,
   inventoryReceiptToggleButton,
@@ -526,6 +530,13 @@ function focusPurchasePanel() {
   scheduleScrollToTarget(purchasePanel, { delayMs: 40 });
 }
 
+function focusInventoryHistorySection() {
+  if (state.activeMenu !== "inventory") {
+    switchMenu("inventory");
+  }
+  scheduleScrollToTarget(inventoryHistorySection, { delayMs: 40 });
+}
+
 function focusInventoryReceiptSection() {
   if (state.activeMenu !== "inventory") {
     switchMenu("inventory");
@@ -594,6 +605,10 @@ function getInventoryUi() {
         summaryCards,
         productGrid,
         transactionList,
+        inventoryHistorySection,
+        inventoryHistoryWrap,
+        inventoryHistoryToggleButton,
+        inventoryHistoryShortcutButton,
       },
       formatQuantity,
       formatCurrency,
@@ -1038,6 +1053,74 @@ function focusReportSection(kind) {
       behavior: mobileQuery.matches ? "auto" : "smooth",
     });
   }, 30);
+}
+
+async function openInventoryHistoryDocument(documentType, documentCode) {
+  const cleanType = String(documentType || "").trim();
+  const cleanCode = String(documentCode || "").trim();
+  if (!cleanCode) {
+    throw new Error("Không tìm thấy mã chứng từ để mở.");
+  }
+
+  if (cleanType === "order") {
+    const cart = state.carts.find((entry) => String(entry.orderCode || "").trim() === cleanCode);
+    if (!cart) {
+      throw new Error(`Không tìm thấy đơn ${cleanCode}.`);
+    }
+    state.showArchivedCarts = true;
+    state.showPaidOrders = true;
+    state.orderSearchTerm = cleanCode;
+    state.pagination.orders = 1;
+    state.expandedOrderId = cart.id;
+    if (orderSearchInput) {
+      orderSearchInput.value = cleanCode;
+    }
+    switchMenu("orders");
+    renderCartQueue();
+    focusOrderQueueItem(cart.id);
+    return;
+  }
+
+  if (cleanType === "purchase") {
+    const purchase = state.purchases.find((entry) => String(entry.receiptCode || entry.receipt_code || "").trim() === cleanCode);
+    if (!purchase) {
+      throw new Error(`Không tìm thấy phiếu ${cleanCode}.`);
+    }
+    state.activePurchaseId = purchase.id;
+    state.showPaidPurchases = true;
+    state.purchaseSearchTerm = cleanCode;
+    state.purchasePanelCollapsed = false;
+    state.purchaseDetailExpanded = true;
+    state.selectedPurchaseItemsCollapsed = false;
+    state.pagination.purchaseOrders = 1;
+    if (purchaseSupplierInput) {
+      purchaseSupplierInput.value = purchase.supplierName || "";
+    }
+    if (purchaseNoteInput) {
+      purchaseNoteInput.value = purchase.note || "";
+    }
+    if (purchaseSearchInput) {
+      purchaseSearchInput.value = cleanCode;
+    }
+    switchMenu("purchases");
+    renderPurchasePanel();
+    renderPurchaseSuggestions();
+    renderPurchaseOrders();
+    focusPurchasePanel();
+    return;
+  }
+
+  if (["inventory_adjustment", "customer_return", "supplier_return"].includes(cleanType)) {
+    state.reportReceiptSearchTerm = cleanCode;
+    state.pagination.reportReceipts = 1;
+    switchMenu("reports");
+    await refreshReportData();
+    renderReports();
+    focusReportSection("audit");
+    return;
+  }
+
+  throw new Error(`Chưa hỗ trợ mở chứng từ ${cleanCode}.`);
 }
 
 function getCurrentScreenHelp() {
@@ -3807,6 +3890,9 @@ registerInventoryControllerEvents({
     searchInput,
     orderSearchInput,
     purchaseSearchInput,
+    transactionList,
+    inventoryHistoryToggleButton,
+    inventoryHistoryShortcutButton,
     inventoryReceiptToggleButton,
     inventoryReceiptProductInput,
     inventoryReceiptDeltaInput,
@@ -3830,7 +3916,9 @@ registerInventoryControllerEvents({
     focusCreateOrderSelection,
     focusActiveCartPanel,
     focusPurchasePanel,
+    focusInventoryHistorySection,
     setInventoryAdjustmentReason,
+    openInventoryHistoryDocument,
     openInventoryReceiptDraft: (productId) => {
       state.inventoryReceiptDraft.collapsed = false;
       state.inventoryReceiptDraft.productText = getProductById(productId)?.name || "";
@@ -3843,6 +3931,7 @@ registerInventoryControllerEvents({
   },
   renderers: {
     renderProducts,
+    renderTransactions,
     renderCartQueue,
     renderPurchaseSuggestions,
     renderPurchaseOrders,

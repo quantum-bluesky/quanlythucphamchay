@@ -91,6 +91,7 @@ export const state = {
     note: "",
     items: [],
   },
+  inventoryHistoryCollapsed: true,
   customerReturnDraft: {
     collapsed: true,
     sourceCartId: "",

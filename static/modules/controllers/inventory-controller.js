@@ -249,6 +249,35 @@ export function registerInventoryControllerEvents(contract) {
     renderers.renderProducts();
   });
 
+  dom.inventoryHistoryToggleButton?.addEventListener("click", () => {
+    state.inventoryHistoryCollapsed = !state.inventoryHistoryCollapsed;
+    renderers.renderTransactions();
+    if (!state.inventoryHistoryCollapsed) {
+      actions.focusInventoryHistorySection();
+    }
+  });
+
+  dom.inventoryHistoryShortcutButton?.addEventListener("click", () => {
+    if (state.inventoryHistoryCollapsed) {
+      state.inventoryHistoryCollapsed = false;
+      renderers.renderTransactions();
+    }
+    actions.focusInventoryHistorySection();
+  });
+
+  dom.transactionList?.addEventListener("click", async (event) => {
+    const linkButton = event.target.closest("[data-transaction-document-code]");
+    if (!linkButton) return;
+    try {
+      await actions.openInventoryHistoryDocument(
+        linkButton.dataset.transactionDocumentType,
+        linkButton.dataset.transactionDocumentCode
+      );
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
+
   dom.inventoryReceiptToggleButton?.addEventListener("click", () => {
     state.inventoryReceiptDraft.collapsed = !state.inventoryReceiptDraft.collapsed;
     renderers.renderInventoryReceiptSection();
