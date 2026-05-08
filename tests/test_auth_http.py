@@ -54,9 +54,17 @@ class AuthHttpTests(unittest.TestCase):
         self.server_thread.start()
         time.sleep(0.05)
 
-    def _request_json(self, method: str, path: str, *, payload: dict | None = None, cookie: str | None = None):
+    def _request_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        payload: dict | None = None,
+        cookie: str | None = None,
+        extra_headers: dict | None = None,
+    ):
         connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
-        headers = {}
+        headers = dict(extra_headers or {})
         body = None
         if payload is not None:
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -67,13 +75,33 @@ class AuthHttpTests(unittest.TestCase):
         response = connection.getresponse()
         raw_body = response.read().decode("utf-8")
         headers_map = {key.lower(): value for key, value in response.getheaders()}
+        headers_map["set-cookie-all"] = response.msg.get_all("Set-Cookie") or []
         data = json.loads(raw_body) if raw_body else {}
         connection.close()
         return response.status, data, headers_map
 
     @staticmethod
-    def _extract_cookie(headers_map: dict) -> str:
-        cookie_header = str(headers_map.get("set-cookie") or "")
+    def _extract_cookie(headers_map: dict, cookie_name_prefix: str | None = None) -> str:
+        cookie_headers = list(headers_map.get("set-cookie-all") or [])
+        cookie_header = ""
+        if cookie_name_prefix:
+            cookie_header = next(
+                (
+                    header
+                    for header in cookie_headers
+                    if str(header).startswith(cookie_name_prefix)
+                ),
+                "",
+            )
+        if not cookie_header:
+            cookie_header = next(
+                (
+                    str(header)
+                    for header in cookie_headers
+                    if "Max-Age=0" not in str(header)
+                ),
+                str(headers_map.get("set-cookie") or ""),
+            )
         return cookie_header.split(";", 1)[0]
 
     def _request_text(self, method: str, path: str):
@@ -223,6 +251,63 @@ class AuthHttpTests(unittest.TestCase):
         manifest = json.loads(self.asset_versions_path.read_text(encoding="utf-8"))
         self.assertEqual(manifest["app_version"], app_version)
         self.assertIn("app.js", manifest["files"])
+
+    def test_ut_auth_07_session_cookie_is_scoped_per_request_port(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [{"username": "staff", "password": "staff12345"}],
+            "debug": {"sync_state": False},
+        }
+        self._start_server(config)
+
+        login_4000_status, _, login_4000_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+            extra_headers={"Host": "quantum-home.zapto.org:4000"},
+        )
+        self.assertEqual(login_4000_status, 200)
+        cookie_4000 = self._extract_cookie(login_4000_headers, "qltpchay_admin_session_p4000=")
+        self.assertTrue(cookie_4000.startswith("qltpchay_admin_session_p4000="))
+
+        login_9999_status, _, login_9999_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+            extra_headers={"Host": "quantum-home.zapto.org:9999"},
+        )
+        self.assertEqual(login_9999_status, 200)
+        cookie_9999 = self._extract_cookie(login_9999_headers, "qltpchay_admin_session_p9999=")
+        self.assertTrue(cookie_9999.startswith("qltpchay_admin_session_p9999="))
+        self.assertNotEqual(cookie_4000, cookie_9999)
+
+        state_4000_status, _, _ = self._request_json(
+            "GET",
+            "/api/state?transaction_limit=16",
+            cookie=cookie_4000,
+            extra_headers={"Host": "quantum-home.zapto.org:4000"},
+        )
+        self.assertEqual(state_4000_status, 200)
+
+        state_9999_status, _, _ = self._request_json(
+            "GET",
+            "/api/state?transaction_limit=16",
+            cookie=cookie_9999,
+            extra_headers={"Host": "quantum-home.zapto.org:9999"},
+        )
+        self.assertEqual(state_9999_status, 200)
+
+        cross_port_status, cross_port_payload, _ = self._request_json(
+            "GET",
+            "/api/state?transaction_limit=16",
+            cookie=cookie_4000,
+            extra_headers={"Host": "quantum-home.zapto.org:9999"},
+        )
+        self.assertEqual(cross_port_status, 401)
+        self.assertIn("đăng nhập hệ thống", cross_port_payload["error"])
 
 
 if __name__ == "__main__":

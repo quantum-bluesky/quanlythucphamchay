@@ -503,6 +503,7 @@ Lưu ý timeout phiên:
 
 - `session_timeout_minutes`: timeout chung cho user thường
 - `admin_session_timeout_minutes`: timeout riêng cho tài khoản admin
+- nếu cùng một domain đang chạy nhiều app ở các port khác nhau như `:4000` và `:9999`, mỗi port sẽ giữ session login riêng
 - khi đủ timeout, app sẽ hiện hộp thoại nhắc logout
 - chọn `OK`: logout ngay
 - chọn `Cancel`: vẫn giữ phiên hiện tại và hẹn nhắc lại sau đúng chu kỳ timeout tương ứng

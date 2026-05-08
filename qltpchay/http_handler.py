@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .auth import parse_cookie_header
+from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
 from .constants import ADMIN_SESSION_COOKIE, APP_NAME, JS_ASSET_VERSIONS_PATH, STATIC_DIR
 from .js_asset_versions import JavaScriptAssetVersionManager
 from .store import SyncConflictError
@@ -302,7 +302,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "message": "Đã đăng nhập hệ thống.",
                             **self._get_session_status_payload(session_token=session_data["token"]),
                         },
-                        extra_headers=[("Set-Cookie", self._build_session_cookie(session_data["token"]))],
+                        extra_headers=self._build_session_cookie_headers(session_data["token"]),
                     )
                 except ValueError as exc:
                     self._send_json(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
@@ -316,7 +316,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "message": "Đã đăng xuất hệ thống.",
                         **self._get_session_status_payload(session_token=""),
                     },
-                    extra_headers=[("Set-Cookie", self._build_logout_cookie())],
+                    extra_headers=self._build_logout_cookie_headers(),
                 )
                 return
 
@@ -334,7 +334,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "message": "Đã đăng nhập Master Admin.",
                             **self._get_session_status_payload(session_token=session_data["token"]),
                         },
-                        extra_headers=[("Set-Cookie", self._build_session_cookie(session_data["token"]))],
+                        extra_headers=self._build_session_cookie_headers(session_data["token"]),
                     )
                 except ValueError as exc:
                     self._send_json(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
@@ -348,7 +348,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "message": "Đã đăng xuất Master Admin.",
                         **self._get_session_status_payload(session_token=""),
                     },
-                    extra_headers=[("Set-Cookie", self._build_logout_cookie())],
+                    extra_headers=self._build_logout_cookie_headers(),
                 )
                 return
 
@@ -905,9 +905,22 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
         def _is_login_enabled() -> bool:
             return auth_enabled
 
+        def _get_session_cookie_name(self) -> str:
+            return build_port_scoped_cookie_name(
+                ADMIN_SESSION_COOKIE,
+                self.headers.get("Host"),
+            )
+
         def _get_session_token(self) -> str | None:
             cookies = parse_cookie_header(self.headers.get("Cookie"))
-            return cookies.get(ADMIN_SESSION_COOKIE)
+            for cookie_name in build_session_cookie_name_candidates(
+                ADMIN_SESSION_COOKIE,
+                self.headers.get("Host"),
+            ):
+                token = cookies.get(cookie_name)
+                if token:
+                    return token
+            return None
 
         def _get_current_session(self) -> dict | None:
             return admin_sessions.get_session(self._get_session_token())
@@ -951,11 +964,27 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "Cần đăng nhập Master Admin."})
             return False
 
-        def _build_session_cookie(self, token: str) -> str:
-            return f"{ADMIN_SESSION_COOKIE}={token}; Path=/; HttpOnly; SameSite=Lax"
+        def _build_cookie_header(self, cookie_name: str, cookie_value: str, *, max_age: int | None = None) -> str:
+            header = f"{cookie_name}={cookie_value}; Path=/; HttpOnly; SameSite=Lax"
+            if max_age is not None:
+                header += f"; Max-Age={max_age}"
+            return header
 
-        def _build_logout_cookie(self) -> str:
-            return f"{ADMIN_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+        def _build_session_cookie_headers(self, token: str) -> list[tuple[str, str]]:
+            cookie_name = self._get_session_cookie_name()
+            headers = [("Set-Cookie", self._build_cookie_header(cookie_name, token))]
+            if cookie_name != ADMIN_SESSION_COOKIE:
+                headers.append(("Set-Cookie", self._build_cookie_header(ADMIN_SESSION_COOKIE, "", max_age=0)))
+            return headers
+
+        def _build_logout_cookie_headers(self) -> list[tuple[str, str]]:
+            headers: list[tuple[str, str]] = []
+            for cookie_name in build_session_cookie_name_candidates(
+                ADMIN_SESSION_COOKIE,
+                self.headers.get("Host"),
+            ):
+                headers.append(("Set-Cookie", self._build_cookie_header(cookie_name, "", max_age=0)))
+            return headers
 
         def _send_binary(
             self,
