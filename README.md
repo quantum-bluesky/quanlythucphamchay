@@ -2,6 +2,8 @@
 
 Ứng dụng web nhẹ để theo dõi tồn kho cá nhân cho thực phẩm chay đông lạnh. Hệ thống dùng Python chuẩn và SQLite, không cần cài thêm package ngoài.
 
+App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/qltp/`; client sẽ tự suy ra `app root` để gọi `static/*` và `api/*` theo đường dẫn hiện hành thay vì khóa cứng ở `/`.
+
 ## Tài liệu
 
 - Deploy Windows: [docs/DEPLOY_WINDOWS.md](docs/DEPLOY_WINDOWS.md)

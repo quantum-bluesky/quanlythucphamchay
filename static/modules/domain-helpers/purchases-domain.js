@@ -175,6 +175,7 @@ export function createPurchasesDomainHelpers(deps) {
     state.activePurchaseId = purchase.id;
     state.purchasePanelCollapsed = false;
     state.purchaseDetailExpanded = false;
+    state.selectedPurchaseItemsCollapsed = false;
     purchaseSupplierInput.value = purchase.supplierName || "";
     purchaseNoteInput.value = purchase.note || "";
     saveAndRenderAll();
@@ -224,6 +225,7 @@ export function createPurchasesDomainHelpers(deps) {
     });
     state.purchasePanelCollapsed = false;
     state.purchaseDetailExpanded = false;
+    state.selectedPurchaseItemsCollapsed = false;
     saveAndRenderAll(["purchases"]);
   }
 

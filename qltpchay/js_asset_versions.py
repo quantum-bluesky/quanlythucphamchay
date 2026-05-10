@@ -1,5 +1,6 @@
 import hashlib
 import json
+import posixpath
 import re
 from pathlib import Path, PurePosixPath
 
@@ -14,7 +15,7 @@ DYNAMIC_IMPORT_SPECIFIER_RE = re.compile(
     r'(?P<prefix>\bimport\s*\(\s*)(?P<quote>["\'])(?P<specifier>(?:\./|\.\./|/static/)[^"\']+?\.js)(?P=quote)'
 )
 INDEX_MODULE_SCRIPT_RE = re.compile(
-    r'(?P<prefix><script[^>]*\btype=["\']module["\'][^>]*\bsrc=["\'])/static/app\.js(?P<suffix>["\'][^>]*></script>)',
+    r'(?P<prefix><script[^>]*\btype=["\']module["\'][^>]*\bsrc=["\'])(?P<specifier>(?:\./)?static/app\.js|/static/app\.js)(?P<suffix>["\'][^>]*></script>)',
     re.IGNORECASE,
 )
 
@@ -64,12 +65,15 @@ class JavaScriptAssetVersionManager:
 
     def build_versioned_static_url(self, relative_path: str) -> str:
         normalized = self._normalize_relative_path(relative_path)
-        return f"/static/{normalized}?v={self.build_version_label(normalized)}"
+        return f"./static/{normalized}?v={self.build_version_label(normalized)}"
 
     def inject_index_versions(self, html_text: str) -> str:
-        versioned_url = self.build_versioned_static_url("app.js")
         return INDEX_MODULE_SCRIPT_RE.sub(
-            lambda match: f"{match.group('prefix')}{versioned_url}{match.group('suffix')}",
+            lambda match: (
+                f"{match.group('prefix')}"
+                f"{self._append_version_query(match.group('specifier'), self.build_version_label('app.js'))}"
+                f"{match.group('suffix')}"
+            ),
             html_text,
             count=1,
         )
@@ -83,8 +87,11 @@ class JavaScriptAssetVersionManager:
             resolved = self._resolve_specifier(current_path, specifier)
             if not resolved:
                 return match.group(0)
+            rewritten_specifier = specifier
+            if specifier.split("?", 1)[0].startswith("/static/"):
+                rewritten_specifier = self._build_relative_specifier(current_path, resolved)
             versioned_specifier = self._append_version_query(
-                specifier,
+                rewritten_specifier,
                 self._build_version_label_from_manifest(manifest, resolved),
             )
             return f"{match.group('prefix')}{match.group('quote')}{versioned_specifier}{match.group('quote')}"
@@ -121,6 +128,15 @@ class JavaScriptAssetVersionManager:
     def _append_version_query(specifier: str, version_label: str) -> str:
         separator = "&" if "?" in specifier else "?"
         return f"{specifier}{separator}v={version_label}"
+
+    @staticmethod
+    def _build_relative_specifier(current_path: PurePosixPath, resolved_path: str) -> str:
+        current_dir = current_path.parent.as_posix()
+        start = "." if current_dir in ("", ".") else current_dir
+        relative_specifier = posixpath.relpath(resolved_path, start=start)
+        if not relative_specifier.startswith("."):
+            relative_specifier = f"./{relative_specifier}"
+        return relative_specifier
 
     @staticmethod
     def _normalize_relative_path(relative_path: str) -> str:

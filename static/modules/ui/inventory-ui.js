@@ -249,7 +249,7 @@ export function createInventoryUi(deps) {
               <div class="row-actions inventory-product-actions">
                 <button type="button" class="ghost-button compact-button" data-inventory-flow="out" data-product-id="${product.id}">Xuất</button>
                 <button type="button" class="ghost-button compact-button" data-inventory-flow="in" data-product-id="${product.id}">Nhập</button>
-                ${isAdmin ? `<button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">${isExpanded ? "Thu" : "..."}</button>` : ""}
+                <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">${isExpanded ? "Thu" : "..."}</button>
               </div>
             </div>
             <div class="inventory-product-side">
@@ -291,10 +291,10 @@ export function createInventoryUi(deps) {
               <div class="row-actions">
                 <button type="button" class="ghost-button compact-button" data-inventory-flow="out" data-product-id="${product.id}">Xuất hàng</button>
                 <button type="button" class="ghost-button compact-button" data-inventory-flow="in" data-product-id="${product.id}">Nhập hàng</button>
+                <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
+                  ${isExpanded ? "Thu" : "Detail"}
+                </button>
                 ${isAdmin ? `
-                  <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
-                    ${isExpanded ? "Thu" : "Admin"}
-                  </button>
                   <button type="button" class="ghost-button compact-button" data-product-action="create-receipt" data-product-id="${product.id}">
                     Phiếu DC
                   </button>
