@@ -2,12 +2,12 @@
   "app_version": "2.9.5",
   "files": {
     "app.js": {
-      "counter": 1,
-      "sha256": "a383a20e0082d140f7254ae7b60ece511af2d7e96483d33b0aa25eb5a6fb084d"
+      "counter": 2,
+      "sha256": "8e821061f27546b2a337c46c66b29fab37f52fff020ad5fb6069650d44545b12"
     },
     "modules/app-state.js": {
-      "counter": 1,
-      "sha256": "a09ae93f649f0df26bd78030d6dcc8dfc68051a035a72269520b0fb2a7ca1fa0"
+      "counter": 2,
+      "sha256": "dafa4e75d0990020cad143823cee4e3de25f2aae72029591c99584c253091be4"
     },
     "modules/controllers/core-controller.js": {
       "counter": 1,
@@ -18,36 +18,36 @@
       "sha256": "9df98f2c47763f256301b1f5cf8097b1b8388515fc716267a43012384bfb699c"
     },
     "modules/controllers/inventory-controller.js": {
-      "counter": 1,
-      "sha256": "85fb0143dafa4261177d2df17b6cf7234af03b989c08a928880c2f5a76ee6c32"
+      "counter": 2,
+      "sha256": "9817935160ef5e5b4454b941c076c3d6c32b6577e421783418bc5722512498dc"
     },
     "modules/controllers/products-controller.js": {
       "counter": 1,
       "sha256": "6b18cb42cd722bc94de96e4fb007f295c0ccac7e6f83b465ce484e5dcaaad05f"
     },
     "modules/controllers/purchases-controller.js": {
-      "counter": 1,
-      "sha256": "501f5843f48e355de9a771d2cdab50f9b8a83a72d177d0ef68671c8db2715974"
+      "counter": 2,
+      "sha256": "9f09c746c54a3460ff0669cc909001d32e4e36eec3d9edae26e8e293c260ca02"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
       "sha256": "6badf7c1809d4fa2a4f7ba0591e1163b3aeb01b0cb42beef8ea778375efde1e1"
     },
     "modules/controllers/sales-controller.js": {
-      "counter": 1,
-      "sha256": "f6e0c7570ae45c4e92582339e8ca7c609cc70a8df684d9fb7ea41c9cf0db6864"
+      "counter": 2,
+      "sha256": "e836fae4b0285befbe4302584038aa0700feb2097c9aeb327d758ebc421be293"
     },
     "modules/dom.js": {
-      "counter": 1,
-      "sha256": "7a937a15bfcd265801a5bca4ac26ad218446b672274031b81edf07d816b68e51"
+      "counter": 2,
+      "sha256": "19a45b523327a51f8e785be8253c6538cd6ddbec2e6e9404abd424ac8be6e7f2"
     },
     "modules/domain-helpers/inventory-domain.js": {
       "counter": 1,
       "sha256": "f6c20f1be7690b687856f2dc4f6bf9bc379cb0408cca4334de1291b606a1bb09"
     },
     "modules/domain-helpers/purchases-domain.js": {
-      "counter": 1,
-      "sha256": "ee24c850b88dc7bf146d89d5495f0a8776ae6c8c822d1fe1377beb8ddc532424"
+      "counter": 2,
+      "sha256": "7334465238f4787a4c30718e97c0e32ff8e4d4c01eed9f15b15ee526c7f1c4ef"
     },
     "modules/domain-helpers/sales-domain.js": {
       "counter": 1,
@@ -62,8 +62,8 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 2,
-      "sha256": "6c4952a9ba58d2638404684a22251b3724e29117f57b9a7f021371602f7025a4"
+      "counter": 3,
+      "sha256": "3d8b0b0a76bf077f99799a415709a1c2c6a0880af36fb36283b81f6743eee4de"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -78,16 +78,16 @@
       "sha256": "c88975917fd38d712c40b19ecdc825b35ab1b1779c628a8ad512014a8e199aab"
     },
     "modules/ui/inventory-ui.js": {
-      "counter": 1,
-      "sha256": "68eef2a6ba9a9ff804c6ee3fae860875ad00763cab76220eb1774dc8ca64c36d"
+      "counter": 2,
+      "sha256": "01db287007b9424b0ae5bf94233284f9cacb3d6f93bcacc4ccc443e600818c4d"
     },
     "modules/ui/products-ui.js": {
       "counter": 1,
       "sha256": "c22fdc99305a477dd2d7ee4b5a1097f480ef7b6b6f11808a1ffe67eafcb18954"
     },
     "modules/ui/purchases-ui.js": {
-      "counter": 1,
-      "sha256": "ea9993eef1e0ab73fb64fab7707830fff27b04adfa793cb9c967c8ccd6e80686"
+      "counter": 2,
+      "sha256": "af723f59001ad883223defc6d50edfc8bf953cbb5b0cadb4dfe1575c2458576b"
     },
     "modules/ui/reports-admin-ui.js": {
       "counter": 1,

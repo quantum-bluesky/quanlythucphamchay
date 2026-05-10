@@ -289,7 +289,12 @@ export function registerInventoryControllerEvents(contract) {
   dom.inventoryReceiptAddButton?.addEventListener("click", () => {
     if (!requireAdmin()) return;
     try {
-      actions.addInventoryReceiptDraftItem(dom.inventoryReceiptProductInput.value, dom.inventoryReceiptDeltaInput.value);
+      actions.addInventoryReceiptDraftItem(
+        dom.inventoryReceiptProductInput.value,
+        dom.inventoryReceiptDeltaInput.value,
+        dom.inventoryReceiptBatchCodeInput?.value,
+        dom.inventoryReceiptExpiryDateInput?.value
+      );
       renderers.renderInventoryReceiptSection();
     } catch (error) {
       actions.showToast(error.message, true);
@@ -312,12 +317,20 @@ export function registerInventoryControllerEvents(contract) {
     state.inventoryReceiptDraft.quantityDelta = event.target.value;
   });
 
+  dom.inventoryReceiptBatchCodeInput?.addEventListener("input", (event) => {
+    state.inventoryReceiptDraft.batchCode = event.target.value;
+  });
+
+  dom.inventoryReceiptExpiryDateInput?.addEventListener("input", (event) => {
+    state.inventoryReceiptDraft.expiryDate = event.target.value;
+  });
+
   dom.inventoryReceiptItems?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-inventory-receipt-action]");
     if (!button) return;
     if (button.dataset.inventoryReceiptAction === "remove") {
       state.inventoryReceiptDraft.items = state.inventoryReceiptDraft.items.filter(
-        (item) => Number(item.productId) !== Number(button.dataset.productId)
+        (item) => item.id !== button.dataset.itemId
       );
       renderers.renderInventoryReceiptSection();
     }

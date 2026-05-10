@@ -38,6 +38,8 @@ export function createPurchasesDomainHelpers(deps) {
               unit: product?.unit || item.unit || "",
               quantity,
               unitCost,
+              batchCode: String(item.batchCode || item.batch_code || "").trim(),
+              expiryDate: String(item.expiryDate || item.expiry_date || "").trim(),
               lineTotal: Number((quantity * unitCost).toFixed(2)),
             };
           })
@@ -207,7 +209,17 @@ export function createPurchasesDomainHelpers(deps) {
       const existing = currentPurchase.items.find((item) => Number(item.productId) === Number(product.id));
       const items = existing
         ? currentPurchase.items.map((item) => Number(item.productId) === Number(product.id) ? { ...item, quantity: Number((Number(item.quantity) + nextQuantity).toFixed(2)), unitCost: nextUnitCost, lineTotal: Number(((Number(item.quantity) + nextQuantity) * nextUnitCost).toFixed(2)) } : item)
-        : [...currentPurchase.items, { id: createId("purchase_item"), productId: product.id, productName: product.name, unit: product.unit, quantity: nextQuantity, unitCost: nextUnitCost, lineTotal: Number((nextQuantity * nextUnitCost).toFixed(2)) }];
+        : [...currentPurchase.items, {
+          id: createId("purchase_item"),
+          productId: product.id,
+          productName: product.name,
+          unit: product.unit,
+          quantity: nextQuantity,
+          unitCost: nextUnitCost,
+          batchCode: "",
+          expiryDate: "",
+          lineTotal: Number((nextQuantity * nextUnitCost).toFixed(2)),
+        }];
       return { items, supplierName: currentPurchase.supplierName || "", note: currentPurchase.note || "" };
     });
     state.purchasePanelCollapsed = false;

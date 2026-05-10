@@ -102,3 +102,5 @@ Lưu ý:
 | 81 | `UT-SYNC-03` | Kiểm tra đơn đã chốt chưa thanh toán và phiếu nhập đã nhận chưa thanh toán vẫn sửa được `giảm giá khuyến mại`, nhưng sau khi đánh dấu thanh toán thì field này bị khóa lại. |
 | 82 | `UT-DB-12` | Kiểm tra backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `ordered`, và chặn xóa trực tiếp phiếu `ordered`. |
 | 83 | `UT-SYNC-04` | Kiểm tra đơn hàng chặn `draft -> paid`, cho `draft -> cancelled`, cho `completed -> paid`, rồi khóa nhánh mở lại/hạ thanh toán sau khi đã `cancelled/paid`. |
+| 84 | `UT-DB-13` | Kiểm tra backend khi xuất kho sẽ trừ đúng thứ tự FEFO theo HSD thật của các lô và tính lại giá vốn bình quân theo các lô đã bị trừ. |
+| 85 | `UT-DB-14` | Kiểm tra backend phiếu trả NCC có thể chỉ rõ `Mã lô` để trừ đúng lô đó thay vì lấy FEFO chung. |

@@ -64,6 +64,12 @@ Nếu thiếu dữ liệu thật thì hiện:
 
 Button `Detail` phải cho phép expand/collapse ngay trong card hoặc panel hiện tại để giữ list phiếu gọn trên mobile.
 
+Khi chứng từ có dữ liệu theo lô, phần danh sách dòng hoặc note đi kèm nên hiện thêm:
+
+- `Mã lô`
+- `HSD` nếu có
+- với phiếu xuất / trả NCC, có thể hiện thêm dấu vết `Lô xuất FIFO` để user đối chiếu lô đã bị trừ
+
 ### 3.3. Các nhóm phiếu chính
 
 #### Phiếu xuất hàng / Đơn hàng
@@ -105,6 +111,7 @@ Thông tin nên hiện trong detail:
 - nhà cung cấp
 - trạng thái xử lý
 - tạm tính / giảm khuyến mại / cần thanh toán
+- dòng hàng nên cho sửa/xem `Mã lô` và `Hạn dùng` theo từng lô nhập
 - ngày tạo
 - ngày nhập kho
 - ngày thanh toán
@@ -146,6 +153,7 @@ Thông tin nên hiện trong detail:
 - khách hàng
 - mã đơn / mã nguồn nếu có
 - lý do trả
+- lô nhập lại và HSD nếu người dùng có nhập
 - ngày xử lý
 - cập nhật cuối
 
@@ -166,6 +174,7 @@ Thông tin nên hiện trong detail:
 - nhà cung cấp
 - mã phiếu nhập / mã nguồn nếu có
 - lý do trả
+- mã lô bị trả nếu người dùng chỉ rõ, hoặc dấu vết `Lô xuất FIFO` nếu hệ thống tự phân bổ theo FEFO
 - ngày xử lý
 - cập nhật cuối
 

@@ -93,6 +93,8 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
 - Màn tồn kho có dropdown sắp xếp trong khu vực phân trang để xem theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít
+- Quản lý tồn kho theo lô còn hàng; card tồn kho có thể hiện các lô active, mã lô, HSD gần nhất và số lượng còn lại theo từng lô
+- Xuất kho và trả NCC dùng FEFO theo HSD thật của từng lô; nếu chứng từ trả NCC chỉ rõ mã lô thì hệ thống ưu tiên trừ đúng lô đó
 - Màn tồn kho có nút `Lịch sử` để nhảy nhanh xuống phần `Lịch sử gần đây`; khối này mặc định thu gọn và mã `DH/PN/DC/THK/TNCC` trong từng dòng có thể bấm để mở đúng chứng từ liên quan
 - Tồn kho liên kết trực tiếp với đơn chờ xuất và phiếu chờ nhập, thay cho nhập/xuất nhanh thủ công
 - Quản lý riêng `giá nhập` và `giá bán mặc định` của sản phẩm
@@ -116,6 +118,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Giao diện theo menu nghiệp vụ riêng cho tồn kho, tạo đơn, đơn hàng, khách hàng và sản phẩm
 - Các màn chọn đối tượng đều có ô tìm kiếm/gõ tên để thao tác nhanh trên điện thoại
 - Quản lý nhập hàng với phiếu nhập nháp, trạng thái đặt hàng/nhập kho và gợi ý sản phẩm cần nhập
+- Mỗi dòng nhập có thể khai báo riêng `Mã lô` và `Hạn dùng`; nếu cùng một sản phẩm về nhiều lô khác nhau có thể tách nhanh bằng nút `+ Lô`
 - Nếu phiếu nhập được tạo từ một đơn đang thiếu hàng, app giữ liên kết nguồn đơn riêng trong metadata phiếu; ô ghi chú vẫn để trống để user tự nhập
 - Phiếu nhập có nút `Detail` để bung/thu gọn metadata gồm mã phiếu, nhà cung cấp, trạng thái và các mốc ngày xử lý nhằm đối chiếu dữ liệu legacy/restore dễ hơn
 - Có nút `NCC` ở màn nhập hàng để mở nhanh form tạo/sửa nhà cung cấp với tên đang gõ khi phiếu còn `Nháp`; từ `Đã đặt` trở đi app khóa đổi NCC để giữ đúng workflow
@@ -130,7 +133,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Màn Sản phẩm cũng ưu tiên hiển thị danh sách; phần `Thêm sản phẩm` và `Lịch sử sản phẩm` được thu gọn sẵn và chỉ mở khi cần
 - Quản lý đơn hàng có trạng thái thanh toán và nút `Xuất` nhanh từ card giỏ nháp
 - Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, giá nhập, giá bán mặc định và ngưỡng cảnh báo
-- Danh mục sản phẩm có thêm `hạn dùng` và `thời gian bảo quản` theo số ngày để app ước tính hạn còn lại khi sắp xếp tồn kho
+- Danh mục sản phẩm có thêm `hạn dùng` và `thời gian bảo quản` theo số ngày để app làm fallback ước tính khi lô chưa có HSD thật; nếu lô đã có HSD riêng thì tồn kho ưu tiên dữ liệu lô
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần
 - Có lịch sử quản lý sản phẩm và màn quản lý các đối tượng đã xóa để khôi phục an toàn
 - Có login hệ thống cho `user` thường và `Master Admin`; có thể bật `EnableLogin` để bắt buộc login mới dùng app

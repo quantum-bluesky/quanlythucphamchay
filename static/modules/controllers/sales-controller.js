@@ -530,12 +530,22 @@ export function registerSalesControllerEvents(contract) {
     state.customerReturnDraft.unitRefund = event.target.value;
   });
 
+  dom.customerReturnBatchCodeInput?.addEventListener("input", (event) => {
+    state.customerReturnDraft.batchCode = event.target.value;
+  });
+
+  dom.customerReturnExpiryDateInput?.addEventListener("input", (event) => {
+    state.customerReturnDraft.expiryDate = event.target.value;
+  });
+
   dom.customerReturnAddButton?.addEventListener("click", () => {
     try {
       actions.addCustomerReturnDraftItem(
         dom.customerReturnProductInput.value,
         dom.customerReturnQuantityInput.value,
-        dom.customerReturnPriceInput.value
+        dom.customerReturnPriceInput.value,
+        dom.customerReturnBatchCodeInput?.value,
+        dom.customerReturnExpiryDateInput?.value
       );
       renderers.renderCustomerReturnSection();
     } catch (error) {

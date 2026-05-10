@@ -223,6 +223,8 @@ export function registerPurchasesControllerEvents(contract) {
       if (itemButton.dataset.purchaseItemAction === "save") {
         const qtyInput = dom.purchasePanel.querySelector(`[data-purchase-qty-input="${itemButton.dataset.purchaseItemId}"]`);
         const costInput = dom.purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
+        const batchInput = dom.purchasePanel.querySelector(`[data-purchase-batch-input="${itemButton.dataset.purchaseItemId}"]`);
+        const expiryInput = dom.purchasePanel.querySelector(`[data-purchase-expiry-input="${itemButton.dataset.purchaseItemId}"]`);
         const quantity = Number(qtyInput?.value);
         const unitCost = Number(costInput?.value);
         if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -234,12 +236,41 @@ export function registerPurchasesControllerEvents(contract) {
           return;
         }
         actions.updatePurchase(purchase.id, (currentPurchase) => ({
-          items: currentPurchase.items.map((item) => item.id === itemButton.dataset.purchaseItemId ? { ...item, quantity: Number(quantity.toFixed(2)), unitCost } : item),
+          items: currentPurchase.items.map((item) => item.id === itemButton.dataset.purchaseItemId ? {
+            ...item,
+            quantity: Number(quantity.toFixed(2)),
+            unitCost,
+            batchCode: String(batchInput?.value || "").trim(),
+            expiryDate: String(expiryInput?.value || "").trim(),
+          } : item),
           supplierName: dom.purchaseSupplierInput.value.trim(),
           note: dom.purchaseNoteInput.value.trim(),
         }));
         actions.saveAndRenderAll(["purchases"]);
         actions.showToast("Đã lưu dòng nhập hàng.");
+        return;
+      }
+      if (itemButton.dataset.purchaseItemAction === "clone-lot") {
+        const sourceItem = purchase.items.find((item) => item.id === itemButton.dataset.purchaseItemId);
+        if (!sourceItem) {
+          actions.showToast("Không tìm thấy dòng nhập để tách lô.", true);
+          return;
+        }
+        actions.updatePurchase(purchase.id, (currentPurchase) => ({
+          items: [
+            ...currentPurchase.items,
+            {
+              ...sourceItem,
+              id: `purchase_item_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+              quantity: 1,
+              batchCode: "",
+            },
+          ],
+          supplierName: dom.purchaseSupplierInput.value.trim(),
+          note: dom.purchaseNoteInput.value.trim(),
+        }));
+        actions.saveAndRenderAll(["purchases"]);
+        actions.showToast("Đã thêm dòng lô mới. Hãy chỉnh lại số lượng giữa các lô.");
         return;
       }
       if (itemButton.dataset.purchaseItemAction === "update-default-cost") {
@@ -412,7 +443,13 @@ export function registerPurchasesControllerEvents(contract) {
             supplier_name: dom.purchaseSupplierInput.value.trim(),
             note: dom.purchaseNoteInput.value.trim(),
             discount_amount: latestPurchase.discountAmount || 0,
-            items: latestPurchase.items.map((item) => ({ product_id: item.productId, quantity: item.quantity, unit_cost: item.unitCost })),
+            items: latestPurchase.items.map((item) => ({
+              product_id: item.productId,
+              quantity: item.quantity,
+              unit_cost: item.unitCost,
+              batch_code: item.batchCode || "",
+              expiry_date: item.expiryDate || "",
+            })),
           }),
         });
         await actions.refreshData();

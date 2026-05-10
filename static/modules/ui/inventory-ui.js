@@ -101,12 +101,12 @@ export function createInventoryUi(deps) {
     if (state.inventorySortMode === "expiry") {
       const remaining = remainingDaysValue(product.estimated_remaining_days);
       if (remaining === null) {
-        return "<span>Chưa có dữ liệu hạn</span>";
+        return product.lot_count ? "<span>Có lô nhưng thiếu HSD</span>" : "<span>Chưa có dữ liệu hạn</span>";
       }
       if (remaining < 0) {
-        return `<span>Quá hạn ước tính ${escapeHtml(formatQuantity(Math.abs(remaining)))} ngày</span>`;
+        return `<span>Quá hạn lô gần nhất ${escapeHtml(formatQuantity(Math.abs(remaining)))} ngày</span>`;
       }
-      return `<span>Còn ước tính ${escapeHtml(formatQuantity(remaining))} ngày</span>`;
+      return `<span>Lô gần nhất còn ${escapeHtml(formatQuantity(remaining))} ngày</span>`;
     }
     return "";
   }
@@ -281,6 +281,7 @@ export function createInventoryUi(deps) {
               <div class="product-row-meta">
                 <span>Giá ${formatCurrency(product.price)}</span>
                 <span>Giá trị tồn ${formatCurrency(product.inventory_value)}</span>
+                <span>${escapeHtml(String(product.lot_count || 0))} lô</span>
                 ${sortSignalMarkup}
                 <span class="status-pill ${signals.statusClass}">${escapeHtml(signals.statusLabel)}</span>
               </div>
@@ -336,6 +337,21 @@ export function createInventoryUi(deps) {
                       const item = purchase.items.find((entry) => Number(entry.productId) === Number(product.id));
                       return `<button type="button" class="ghost-button compact-button" data-open-related-purchase="${purchase.id}">${escapeHtml(purchase.supplierName || "Chưa có NCC")} • ${formatQuantity(item?.quantity || 0)} ${escapeHtml(product.unit)}</button>`;
                     }).join("")}
+                  </div>
+                </div>
+              ` : ""}
+
+              ${product.lots?.length ? `
+                <div class="inventory-related-list">
+                  <strong>Tồn theo lô</strong>
+                  <div class="inventory-related-actions">
+                    ${product.lots.map((lot) => `
+                      <span class="pill">
+                        ${escapeHtml(lot.batch_code || "Lô tự sinh")}
+                        • ${escapeHtml(formatQuantity(lot.remaining_quantity || 0))} ${escapeHtml(product.unit)}
+                        ${lot.expiry_date ? ` • HSD ${escapeHtml(lot.expiry_date)}` : " • Chưa có HSD"}
+                      </span>
+                    `).join("")}
                   </div>
                 </div>
               ` : ""}
@@ -447,6 +463,7 @@ export function createInventoryUi(deps) {
 
     dom.transactionList.innerHTML = state.transactions.map((transaction) => {
       const reference = extractTransactionReference(transaction.note);
+      const lotAllocations = Array.isArray(transaction.lot_allocations) ? transaction.lot_allocations : [];
       return `
         <article class="transaction-item">
           <div class="top-line">
@@ -462,6 +479,7 @@ export function createInventoryUi(deps) {
               reference,
               transaction.transaction_type === "in" ? "Nhập kho" : "Xuất kho"
             )}
+            ${lotAllocations.length ? lotAllocations.map((allocation) => `<div class="transaction-meta-line">Lô ${escapeHtml(allocation.batch_code || "tự sinh")} • ${escapeHtml(formatQuantity(allocation.quantity || 0))}${allocation.expiry_date ? ` • HSD ${escapeHtml(allocation.expiry_date)}` : ""}</div>`).join("") : ""}
           </div>
           <div class="bottom-line">
             <span>${escapeHtml(transaction.transaction_type === "in" ? "Giao dịch nhập kho" : "Giao dịch xuất kho")}</span>

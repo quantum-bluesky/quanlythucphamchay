@@ -465,6 +465,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         note=payload.get("note", ""),
                         adjustment_reason=payload.get("adjustment_reason", ""),
                         actor=self._get_current_username() or "",
+                        batch_code=payload.get("batch_code", ""),
+                        expiry_date=payload.get("expiry_date"),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,

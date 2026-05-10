@@ -149,6 +149,14 @@
                 <span>SL điều chỉnh (+/-)</span>
                 <input id="inventoryReceiptDeltaInput" type="number" step="0.01" placeholder="Ví dụ: -2 hoặc 3">
               </label>
+              <label>
+                <span>Mã lô</span>
+                <input id="inventoryReceiptBatchCodeInput" type="text" maxlength="80" placeholder="Tùy chọn khi tăng tồn">
+              </label>
+              <label>
+                <span>Hạn dùng</span>
+                <input id="inventoryReceiptExpiryDateInput" type="date">
+              </label>
               <div class="action-row">
                 <button type="button" id="inventoryReceiptAddButton" class="ghost-button">Thêm dòng</button>
               </div>
@@ -303,6 +311,14 @@
               <label class="price-field">
                 <span>Giá hoàn</span>
                 <input id="customerReturnPriceInput" type="number" min="0" step="1000" placeholder="0">
+              </label>
+              <label class="price-field">
+                <span>Mã lô</span>
+                <input id="customerReturnBatchCodeInput" type="text" maxlength="80" placeholder="Tùy chọn khi hàng trả về">
+              </label>
+              <label class="price-field">
+                <span>Hạn dùng</span>
+                <input id="customerReturnExpiryDateInput" type="date">
               </label>
             </div>
             <div class="customer-form-actions">
