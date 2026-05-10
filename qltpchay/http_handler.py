@@ -895,16 +895,18 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 )
 
         @staticmethod
-        def _build_request_base_href(request_path: str | None) -> str:
+        def _build_request_base_href(request_path: str | None) -> str | None:
             parsed_path = urlparse(request_path or "/").path or "/"
             if parsed_path == "/":
-                return "/"
+                return None
             if parsed_path.endswith("/"):
                 return parsed_path
             return f"{parsed_path}/"
 
         @staticmethod
-        def _inject_html_base_href(html_text: str, base_href: str) -> str:
+        def _inject_html_base_href(html_text: str, base_href: str | None) -> str:
+            if not base_href:
+                return re.sub(r"\s*<base\b[^>]*>", "", html_text, count=1, flags=re.IGNORECASE)
             escaped_base_href = html.escape(base_href, quote=True)
             base_tag = f'<base href="{escaped_base_href}">'
             if re.search(r"<base\b", html_text, flags=re.IGNORECASE):
