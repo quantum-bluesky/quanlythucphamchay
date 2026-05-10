@@ -3928,9 +3928,13 @@ class InventoryStore:
         for purchase in incoming_purchases:
             purchase_id = str(purchase.get("id") or "")
             next_status = str(purchase.get("status") or "draft")
+            supplier_name = str(purchase.get("supplierName") or "").strip()
             self._get_purchase_discount_amount(purchase)
             previous = existing_by_id.get(purchase_id)
             previous_status = str(previous.get("status") or "draft") if previous else None
+
+            if next_status == "ordered" and not supplier_name:
+                raise ValueError("Phiếu nhập phải có nhà cung cấp trước khi chuyển sang đã đặt hàng.")
 
             if previous_status == "received":
                 if next_status not in {"received", "paid"}:
@@ -3959,6 +3963,8 @@ class InventoryStore:
                 continue
 
             if next_status == "received":
+                if not supplier_name:
+                    raise ValueError("Phiếu nhập phải có nhà cung cấp trước khi nhập kho.")
                 received_at = purchase.get("receivedAt") or purchase.get("received_at")
                 if not received_at:
                     raise ValueError("Phiếu nhập phải có thời điểm nhập kho khi chuyển sang đã nhập kho.")
