@@ -174,8 +174,9 @@ export function registerPurchasesControllerEvents(contract) {
     if (!button) return;
     try {
       actions.addSuggestionToPurchase(button.dataset.productId, button.dataset.quantity, queries.getProductById(button.dataset.productId)?.price || 0);
-      state.purchasePanelCollapsed = utils.mobileQuery.matches;
+      state.purchasePanelCollapsed = false;
       renderers.renderPurchasePanel();
+      actions.focusPurchasePanel();
       actions.showToast("Đã thêm vào phiếu nhập.");
     } catch (error) {
       actions.showToast(error.message, true);
