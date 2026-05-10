@@ -2,8 +2,8 @@
   "app_version": "2.10.3",
   "files": {
     "app.js": {
-      "counter": 1,
-      "sha256": "7b8e004f5afe767b0426c9c1e91168eff100215036fb28af40a9c20f6c99dfbc"
+      "counter": 2,
+      "sha256": "abeba9a97517ab0556ac7d65de0dd67790c771671aafcd9c9523fe4624c19467"
     },
     "modules/app-state.js": {
       "counter": 1,
@@ -26,8 +26,8 @@
       "sha256": "6b18cb42cd722bc94de96e4fb007f295c0ccac7e6f83b465ce484e5dcaaad05f"
     },
     "modules/controllers/purchases-controller.js": {
-      "counter": 1,
-      "sha256": "807dd0c1f950a5b1604000dfc9ca7b2409f922b89ccd39794a0f78aacde1697e"
+      "counter": 2,
+      "sha256": "ad79d935289d5c6021b7b03f59eb92bb1d40a2312808a8f51e081f48490cd046"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
@@ -46,8 +46,8 @@
       "sha256": "f6c20f1be7690b687856f2dc4f6bf9bc379cb0408cca4334de1291b606a1bb09"
     },
     "modules/domain-helpers/purchases-domain.js": {
-      "counter": 1,
-      "sha256": "85f4ce3a30e8b555702f6617e13a3ec041656ca8a61f0b4c64837306464b63d5"
+      "counter": 2,
+      "sha256": "5c8a8c76d648cf867224e8180eb8128f78850df5d845317c5a43b8db12783855"
     },
     "modules/domain-helpers/sales-domain.js": {
       "counter": 1,
@@ -62,8 +62,8 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 1,
-      "sha256": "f7f6ec51a853cb96682caea8e2c7d3c7b4e55bd56a065ada89f5b307db7d8023"
+      "counter": 2,
+      "sha256": "18e4bf1fa9636fac78d38aad20cfb222014e107562e4ee3dcf74000d2a5024f0"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -86,8 +86,8 @@
       "sha256": "c22fdc99305a477dd2d7ee4b5a1097f480ef7b6b6f11808a1ffe67eafcb18954"
     },
     "modules/ui/purchases-ui.js": {
-      "counter": 1,
-      "sha256": "af723f59001ad883223defc6d50edfc8bf953cbb5b0cadb4dfe1575c2458576b"
+      "counter": 2,
+      "sha256": "54c47a5a30a54410bc2ae90612f9c5bbbb02798f904c5963ec319e095e6c20df"
     },
     "modules/ui/reports-admin-ui.js": {
       "counter": 1,

@@ -357,6 +357,10 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
         return;
       }
+      if (!queries.hasPurchaseSupplier(purchase)) {
+        actions.showToast("Cần chọn nhà cung cấp trước khi chuyển phiếu sang Đã đặt hàng.", true);
+        return;
+      }
       if (!confirmPurchaseStatusAction(purchase, "mark-ordered")) {
         return;
       }
@@ -427,6 +431,10 @@ export function registerPurchasesControllerEvents(contract) {
     if (actionButton.dataset.purchaseAction === "receive") {
       if (!queries.canReceivePurchase(purchase)) {
         actions.showToast("Chỉ phiếu đã đặt hàng mới được nhập kho.", true);
+        return;
+      }
+      if (!queries.hasPurchaseSupplier(purchase)) {
+        actions.showToast("Cần chọn nhà cung cấp trước khi nhập kho.", true);
         return;
       }
       if (dom.purchasePanel.querySelector(`[data-purchase-discount-input="${purchase.id}"]`) && !savePurchaseDiscount(purchase.id, dom.purchasePanel, { silent: true, persist: false })) {

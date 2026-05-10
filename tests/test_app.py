@@ -631,6 +631,63 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(ordered_purchase["status"], "cancelled")
         self.assertEqual(ordered_purchase["items"][0]["quantity"], 2.0)
 
+    def test_ut_db_15_purchase_requires_supplier_before_ordered_or_received(self) -> None:
+        product = self.store.create_product(
+            name="Phiếu nhập thiếu NCC",
+            category="Đồ khô",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        now = "2026-04-19T12:15:00+07:00"
+        draft_purchase = {
+            "id": "purchase-missing-supplier-01",
+            "supplierName": "",
+            "note": "Phiếu chưa chọn NCC",
+            "status": "draft",
+            "createdAt": now,
+            "updatedAt": now,
+            "receiptCode": "",
+            "items": [
+                {
+                    "id": "purchase-item-missing-supplier-01",
+                    "productId": product["id"],
+                    "productName": product["name"],
+                    "quantity": 1,
+                    "unitCost": 18000,
+                }
+            ],
+        }
+        sync_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "purchases": [draft_purchase],
+                "expected_updated_at": {"purchases": sync_state["updated_at"]["purchases"]},
+            }
+        )
+
+        draft_state = self.store.get_sync_state()
+        ordered_payload = copy.deepcopy(draft_state["purchases"])
+        ordered_payload[0]["status"] = "ordered"
+        with self.assertRaisesRegex(ValueError, "nhà cung cấp trước khi chuyển sang đã đặt hàng"):
+            self.store.save_sync_state(
+                {
+                    "purchases": ordered_payload,
+                    "expected_updated_at": {"purchases": draft_state["updated_at"]["purchases"]},
+                }
+            )
+
+        received_payload = copy.deepcopy(draft_state["purchases"])
+        received_payload[0]["status"] = "received"
+        received_payload[0]["receivedAt"] = now
+        received_payload[0]["receiptCode"] = "PN-NO-SUPPLIER-01"
+        with self.assertRaisesRegex(ValueError, "nhà cung cấp trước khi nhập kho"):
+            self.store.save_sync_state(
+                {
+                    "purchases": received_payload,
+                    "expected_updated_at": {"purchases": draft_state["updated_at"]["purchases"]},
+                }
+            )
+
     def test_ut_db_13_checkout_order_consumes_real_expiry_lots_in_fefo_order(self) -> None:
         product = self.store.create_product(
             name="Há cảo chay lô HSD",
@@ -1186,6 +1243,7 @@ class InventoryStoreTests(unittest.TestCase):
                     {
                         "id": "purchase-1",
                         "receiptCode": "PN-01",
+                        "supplierName": "NCC Audit",
                         "status": "draft",
                         "items": [
                             {
@@ -1210,6 +1268,7 @@ class InventoryStoreTests(unittest.TestCase):
                     {
                         "id": "purchase-1",
                         "receiptCode": "PN-01",
+                        "supplierName": "NCC Audit",
                         "status": "ordered",
                         "items": [
                             {
