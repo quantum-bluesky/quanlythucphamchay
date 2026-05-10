@@ -11,6 +11,7 @@ export function createPurchasesUi(deps) {
     canEditPurchase,
     canEditPurchaseDiscount,
     canEditPurchaseSupplier,
+    hasPurchaseSupplier,
     canDeletePurchase,
     canCancelPurchase,
     canMarkPurchasePaid,
@@ -97,6 +98,7 @@ export function createPurchasesUi(deps) {
     const purchaseCancellable = canCancelPurchase(purchase);
     const purchaseLocked = isLockedPurchase(purchase);
     const repairableInvalidPurchase = isRepairableInvalidPurchase(purchase);
+    const purchaseHasSupplier = hasPurchaseSupplier(purchase);
     if (state.purchasePanelCollapsed) {
       dom.purchasePanel.innerHTML = `<article class="empty-state">Phiếu nhập đang được thu gọn.</article>`;
       return;
@@ -183,13 +185,14 @@ export function createPurchasesUi(deps) {
           <div class="cart-items-list selected-items-body" ${state.selectedPurchaseItemsCollapsed ? "hidden" : ""}>${selectedItemsMarkup}</div>
         </section>
         <div class="cart-toolbar">
-          ${purchase.status === "draft" ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered">Đã đặt hàng</button>` : ""}
-          ${canReceivePurchase(purchase) ? `<button type="button" class="primary-button" data-purchase-action="receive" ${purchase.items.length ? "" : "disabled"}>Nhập kho</button>` : ""}
+          ${purchase.status === "draft" ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Đã đặt hàng</button>` : ""}
+          ${canReceivePurchase(purchase) ? `<button type="button" class="primary-button" data-purchase-action="receive" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Nhập kho</button>` : ""}
           ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
           ${["received", "paid"].includes(purchase.status) && !repairableInvalidPurchase ? `<button type="button" class="ghost-button" data-purchase-action="supplier-return">Trả NCC</button>` : ""}
           ${purchaseCancellable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
           ${canDeletePurchase(purchase) ? `<button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>` : ""}
         </div>
+        ${!purchaseHasSupplier && ["draft", "ordered"].includes(purchase.status) ? `<article class="inline-alert warning">Cần chọn nhà cung cấp trước khi chuyển sang Đã đặt hàng hoặc Nhập kho.</article>` : ""}
       </article>
     `;
   }

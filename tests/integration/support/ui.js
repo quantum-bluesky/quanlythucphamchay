@@ -108,6 +108,47 @@ function parseSetCookieHeader(setCookieHeader) {
   };
 }
 
+function getResponseSetCookieHeaders(response) {
+  if (!response || typeof response.headersArray !== "function") {
+    return [];
+  }
+  return response
+    .headersArray()
+    .filter((header) => String(header?.name || "").toLowerCase() === "set-cookie")
+    .map((header) => String(header?.value || "").trim())
+    .filter(Boolean);
+}
+
+async function extractSessionCookieFromResponse(request, response) {
+  const setCookieHeaders = getResponseSetCookieHeaders(response);
+  for (const headerValue of setCookieHeaders) {
+    const cookie = parseSetCookieHeader(headerValue);
+    if (cookie.name && cookie.value) {
+      return cookie;
+    }
+  }
+  const fallbackHeader = response?.headers?.()["set-cookie"] || "";
+  const fallbackCookie = parseSetCookieHeader(fallbackHeader);
+  if (fallbackCookie.name && fallbackCookie.value) {
+    return fallbackCookie;
+  }
+  if (request && typeof request.storageState === "function") {
+    const storageState = await request.storageState();
+    const sessionCookie = (storageState?.cookies || []).find((cookie) => {
+      const name = String(cookie?.name || "").trim();
+      const value = String(cookie?.value || "").trim();
+      return name.toLowerCase().includes("qltpchay_admin_session") && Boolean(value);
+    });
+    if (sessionCookie) {
+      return {
+        name: String(sessionCookie.name || "").trim(),
+        value: String(sessionCookie.value || "").trim(),
+      };
+    }
+  }
+  return { name: "", value: "" };
+}
+
 function resolveCookieUrl(page) {
   const currentUrl = String(page.url() || "").trim();
   if (!currentUrl || currentUrl === "about:blank") {
@@ -122,8 +163,7 @@ async function autoLogin(page, request, { username, password, route = "/api/sess
   });
   expect(loginResponse.ok()).toBeTruthy();
 
-  const setCookieHeader = loginResponse.headers()["set-cookie"] || "";
-  const cookie = parseSetCookieHeader(setCookieHeader);
+  const cookie = await extractSessionCookieFromResponse(request, loginResponse);
   expect(cookie.name).toBeTruthy();
   expect(cookie.value).toBeTruthy();
 
@@ -142,8 +182,7 @@ async function autoLoginRequest(request, { username, password, route = "/api/ses
     data: { username, password },
   });
   expect(loginResponse.ok()).toBeTruthy();
-  const setCookieHeader = loginResponse.headers()["set-cookie"] || "";
-  const cookie = parseSetCookieHeader(setCookieHeader);
+  const cookie = await extractSessionCookieFromResponse(request, loginResponse);
   expect(cookie.name).toBeTruthy();
   expect(cookie.value).toBeTruthy();
   return `${cookie.name}=${cookie.value}`;

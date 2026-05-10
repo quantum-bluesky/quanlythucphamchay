@@ -65,6 +65,7 @@ Phù hợp khi sửa:
 - tính tồn kho / báo cáo
 - quản lý tồn theo lô, FEFO theo HSD thật và phân bổ lô khi xuất/trả hàng
 - sync state `purchases`, đặc biệt rule không lưu phiếu nhập nháp nếu chưa có mặt hàng
+- workflow phiếu nhập: thiếu NCC thì không được `Đã đặt hàng` hoặc `Nhập kho`
 - lock workflow của `giảm giá khuyến mại` trước/sau thanh toán ở đơn xuất và phiếu nhập
 
 ## 2. Integration test

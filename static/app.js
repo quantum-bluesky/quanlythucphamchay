@@ -844,10 +844,11 @@ function getPurchasesUi() {
       escapeHtml,
       mobileQuery,
       getActivePurchase,
-      canEditPurchase,
-      canEditPurchaseDiscount,
-      canEditPurchaseSupplier,
-      canReceivePurchase,
+    canEditPurchase,
+    canEditPurchaseDiscount,
+    canEditPurchaseSupplier,
+    hasPurchaseSupplier,
+    canReceivePurchase,
       canDeletePurchase,
       canCancelPurchase,
       canMarkPurchasePaid,
@@ -1442,6 +1443,10 @@ function decoratePurchase(purchase) {
 
 function canMarkPurchasePaid(purchase) {
   return getPurchasesDomainHelpers().canMarkPurchasePaid(purchase);
+}
+
+function hasPurchaseSupplier(purchase) {
+  return getPurchasesDomainHelpers().hasPurchaseSupplier(purchase);
 }
 
 function canReceivePurchase(purchase) {
@@ -4208,6 +4213,7 @@ registerPurchasesControllerEvents({
     canEditPurchase,
     canEditPurchaseDiscount,
     canEditPurchaseSupplier,
+    hasPurchaseSupplier,
     canReceivePurchase,
     canCancelPurchase,
     canDeletePurchase,

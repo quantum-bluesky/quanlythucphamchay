@@ -513,10 +513,13 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     return
 
                 if route == "/api/purchases/receive":
+                    clean_supplier_name = str(payload.get("supplier_name", "")).strip()
+                    if not clean_supplier_name:
+                        raise ValueError("Phiếu nhập phải có nhà cung cấp trước khi nhập kho.")
                     receipt = store.create_purchase_receipt(
                         items=payload.get("items", []),
                         note=payload.get("note", ""),
-                        supplier_name=payload.get("supplier_name", ""),
+                        supplier_name=clean_supplier_name,
                         discount_amount=payload.get("discount_amount", 0),
                     )
                     self._send_json(

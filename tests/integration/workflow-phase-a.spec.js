@@ -340,6 +340,106 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
   expectNoRuntimeErrors(runtime);
 });
 
+test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const purchaseId = `purchase_no_supplier_${timestamp}`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const draftPurchase = {
+    id: purchaseId,
+    supplierName: "",
+    note: "ACC-PUR-05 draft purchase without supplier",
+    status: "draft",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    receiptCode: "",
+    items: [
+      {
+        id: `purchase_item_no_supplier_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        purchases: [...(originalState.purchases || []), draftPurchase],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+    const seededState = await seedResponse.json();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    const draftPurchaseCard = page.locator(".cart-queue-item", { hasText: "Phiếu nhập chưa có NCC" }).first();
+    await draftPurchaseCard.locator('[data-purchase-list-action="open"]').click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('[data-purchase-action="mark-ordered"]')).toBeDisabled();
+    await expect(page.locator("#purchasePanel")).toContainText("Cần chọn nhà cung cấp");
+
+    const orderedPayload = structuredClone(seededState.purchases || []);
+    const orderedPurchase = orderedPayload.find((purchase) => purchase.id === purchaseId);
+    expect(orderedPurchase).toBeTruthy();
+    orderedPurchase.status = "ordered";
+
+    const invalidOrderedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: { purchases: orderedPayload },
+    });
+    expect(invalidOrderedResponse.status()).toBe(400);
+    const invalidOrderedBody = await invalidOrderedResponse.json();
+    expect(invalidOrderedBody.error).toContain("nhà cung cấp trước khi chuyển sang đã đặt hàng");
+
+    const receivedPayload = structuredClone(seededState.purchases || []);
+    const receivedPurchase = receivedPayload.find((purchase) => purchase.id === purchaseId);
+    expect(receivedPurchase).toBeTruthy();
+    receivedPurchase.status = "received";
+    receivedPurchase.receivedAt = new Date().toISOString();
+    receivedPurchase.receiptCode = `PN-NO-SUP-${timestamp}`;
+
+    const invalidReceivedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: { purchases: receivedPayload },
+    });
+    expect(invalidReceivedResponse.status()).toBe(400);
+    const invalidReceivedBody = await invalidReceivedResponse.json();
+    expect(invalidReceivedBody.error).toContain("nhà cung cấp trước khi nhập kho");
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-STS-01 status-changing order and purchase actions show confirm dialogs before applying", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   let userCookie = await autoLoginUserRequest(request);

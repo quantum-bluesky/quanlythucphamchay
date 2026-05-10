@@ -74,6 +74,10 @@ export function createPurchasesDomainHelpers(deps) {
     return Boolean(purchase && purchase.status === "received");
   }
 
+  function hasPurchaseSupplier(purchase) {
+    return Boolean(String(purchase?.supplierName || "").trim());
+  }
+
   function canReceivePurchase(purchase) {
     return Boolean(purchase && purchase.status === "ordered");
   }
@@ -264,6 +268,7 @@ export function createPurchasesDomainHelpers(deps) {
     getActivePurchase,
     decoratePurchase,
     canMarkPurchasePaid,
+    hasPurchaseSupplier,
     canReceivePurchase,
     isRepairableInvalidPurchase,
     canEditPurchase,
