@@ -34,7 +34,7 @@ test("IT-INV-SORT-01 inventory sort control lives in pagination and sorts by sto
 
   await sortSelect.selectOption("expiry");
   await expect.poll(() => firstInventoryName(page)).toContain("Ruốc nấm");
-  await expect(page.locator("#productGrid .product-row").first()).toContainText("Còn ước tính");
+  await expect(page.locator("#productGrid .product-row").first()).toContainText("Lô gần nhất còn");
 
   expectNoRuntimeErrors(runtime);
 });
@@ -53,6 +53,8 @@ test("IT-PROD-LIFE-01 product life metadata saves from inline edit", async ({ pa
   await page.locator('[data-manage-input="shelf_life_days"]').first().fill("77");
   await page.locator('[data-manage-input="storage_life_days"]').first().fill("88");
   await page.locator('[data-product-manage-action="save-inline"]').first().click();
+  await expect(page.locator("#toast")).toContainText("Đã cập nhật sản phẩm.");
+  await switchMenu(page, "products");
 
   await expect(page.locator("#productManageList")).toContainText("Hạn 77 ngày");
   await expect(page.locator("#productManageList")).toContainText("Bảo quản 88 ngày");
