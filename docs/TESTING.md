@@ -63,6 +63,7 @@ Phù hợp khi sửa:
 - logic `InventoryStore`
 - validate dữ liệu
 - tính tồn kho / báo cáo
+- quản lý tồn theo lô, FEFO theo HSD thật và phân bổ lô khi xuất/trả hàng
 - sync state `purchases`, đặc biệt rule không lưu phiếu nhập nháp nếu chưa có mặt hàng
 - lock workflow của `giảm giá khuyến mại` trước/sau thanh toán ở đơn xuất và phiếu nhập
 
@@ -207,6 +208,7 @@ Các nhóm kiểm tra chính:
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
 - `Phase B UI`: tạo phiếu điều chỉnh trên màn tồn kho, tạo phiếu trả khách từ đơn cũ hoặc nhập tay, tạo phiếu trả NCC từ phiếu nhập cũ hoặc nhập tay
 - `Phase B.4 report/audit`: báo cáo tháng tách riêng hoàn khách, trả NCC, điều chỉnh tồn và API tra cứu lịch sử chứng từ
+- `Lot/FEFO`: nhập nhiều lô cho cùng sản phẩm, hiển thị lô còn hàng ở tồn kho và trừ kho đúng theo HSD thật hoặc đúng batch chỉ định
 - `UI mobile floating`: menu nổi, tìm kiếm nhanh và cụm nút điều hướng auto-hide vào mép màn hình rồi mở lại an toàn
 
 Ngoài click thao tác, suite còn kiểm tra:

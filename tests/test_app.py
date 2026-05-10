@@ -631,6 +631,119 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(ordered_purchase["status"], "cancelled")
         self.assertEqual(ordered_purchase["items"][0]["quantity"], 2.0)
 
+    def test_ut_db_13_checkout_order_consumes_real_expiry_lots_in_fefo_order(self) -> None:
+        product = self.store.create_product(
+            name="Há cảo chay lô HSD",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=2,
+            shelf_life_days=60,
+        )
+        self.store.create_purchase_receipt(
+            supplier_name="NCC FEFO",
+            items=[
+                {
+                    "product_id": product["id"],
+                    "quantity": 3,
+                    "unit_cost": 10000,
+                    "batch_code": "LO-MUON",
+                    "expiry_date": "2026-06-30",
+                },
+                {
+                    "product_id": product["id"],
+                    "quantity": 2,
+                    "unit_cost": 12000,
+                    "batch_code": "LO-SOM",
+                    "expiry_date": "2026-05-20",
+                },
+            ],
+        )
+
+        order = self.store.create_checkout_order(
+            customer_name="Khách FEFO",
+            items=[{"product_id": product["id"], "quantity": 4, "unit_price": 15000}],
+        )
+
+        transaction = order["transactions"][0]
+        refreshed = self.store.get_product_by_id(product["id"])
+
+        self.assertEqual(
+            [allocation["batch_code"] for allocation in transaction["lot_allocations"]],
+            ["LO-SOM", "LO-MUON"],
+        )
+        self.assertEqual(
+            [allocation["quantity"] for allocation in transaction["lot_allocations"]],
+            [2.0, 2.0],
+        )
+        self.assertEqual(transaction["unit_cost"], 11000.0)
+        self.assertEqual(refreshed["current_stock"], 1.0)
+        self.assertEqual(refreshed["expiry_basis"], "lot_expiry")
+        self.assertEqual(refreshed["next_expiry_date"], "2026-06-30")
+        self.assertEqual(refreshed["lot_count"], 1)
+
+    def test_ut_db_14_supplier_return_can_target_a_specific_batch(self) -> None:
+        product = self.store.create_product(
+            name="Chả giò chay trả lô",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=14000,
+            low_stock_threshold=2,
+        )
+        self.store.create_purchase_receipt(
+            supplier_name="NCC Batch",
+            items=[
+                {
+                    "product_id": product["id"],
+                    "quantity": 4,
+                    "unit_cost": 10000,
+                    "batch_code": "LO-FEFO",
+                    "expiry_date": "2026-05-15",
+                },
+                {
+                    "product_id": product["id"],
+                    "quantity": 3,
+                    "unit_cost": 10000,
+                    "batch_code": "LO-KEEP",
+                    "expiry_date": "2026-05-30",
+                },
+            ],
+        )
+
+        receipt = self.store.create_supplier_return_receipt(
+            supplier_name="NCC Batch",
+            items=[
+                {
+                    "product_id": product["id"],
+                    "quantity": 2,
+                    "unit_cost": 10000,
+                    "batch_code": "LO-KEEP",
+                }
+            ],
+            note="Trả đúng lô chỉ định",
+        )
+
+        transaction = receipt["transactions"][0]
+        refreshed = self.store.get_product_by_id(product["id"])
+        lots_by_code = {
+            lot["batch_code"]: lot["remaining_quantity"]
+            for lot in refreshed["lots"]
+        }
+
+        self.assertEqual(
+            [allocation["batch_code"] for allocation in transaction["lot_allocations"]],
+            ["LO-KEEP"],
+        )
+        self.assertEqual(
+            [allocation["quantity"] for allocation in transaction["lot_allocations"]],
+            [2.0],
+        )
+        self.assertEqual(refreshed["current_stock"], 5.0)
+        self.assertEqual(lots_by_code["LO-FEFO"], 4.0)
+        self.assertEqual(lots_by_code["LO-KEEP"], 1.0)
+
     def test_ut_rep_01_monthly_report_separates_phase_b_receipts_from_sales_and_purchases(self) -> None:
         product = self.store.create_product(
             name="Bò lát chay",

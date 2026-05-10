@@ -87,6 +87,8 @@ export const state = {
     collapsed: true,
     productText: "",
     quantityDelta: "",
+    batchCode: "",
+    expiryDate: "",
     reason: "",
     note: "",
     items: [],
@@ -100,6 +102,8 @@ export const state = {
     productText: "",
     quantity: "",
     unitRefund: "",
+    batchCode: "",
+    expiryDate: "",
     items: [],
   },
   supplierReturnDraft: {

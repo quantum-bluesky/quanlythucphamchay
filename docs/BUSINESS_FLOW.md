@@ -36,7 +36,7 @@ Nếu cần can thiệp đặc biệt
   - direct adjust bắt buộc lý do
   - danh sách tồn kho có thể sắp xếp trong khu vực phân trang theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít
   - `Ưu tiên nhập/xử lý` dùng sức bán thật đã chuẩn hóa theo tồn chuẩn và mức thiếu hàng
-  - `Hạn còn ít` chỉ là ước tính cấp sản phẩm, chưa phải hạn theo từng lô nhập
+  - `Hạn còn ít` ưu tiên theo HSD thật của từng lô còn hàng; nếu chưa có HSD lô thì mới fallback về metadata cấp sản phẩm
 
 ## 3. Luồng bán hàng
 
@@ -65,6 +65,7 @@ Nếu cần can thiệp đặc biệt
 
 - nếu đủ tồn:
   - tạo xuất kho
+  - trừ kho theo FEFO từ lô có HSD sớm nhất trước
   - cart chuyển `completed`
 - nếu thiếu tồn:
   - app phải báo trước khi tạo hoặc cập nhật phiếu nhập cho phần còn thiếu
@@ -96,11 +97,13 @@ Nếu cần can thiệp đặc biệt
 
 - gán nhà cung cấp
 - nếu phiếu được tạo từ đơn thiếu hàng, app giữ liên kết nguồn đơn riêng trong metadata của phiếu, không nhét sẵn vào ô ghi chú
-- sửa số lượng, giá nhập
+- sửa số lượng, giá nhập, mã lô và HSD thật của từng dòng
+- nếu cùng một sản phẩm về nhiều lô khác nhau thì tách thành nhiều dòng riêng
 - có thể nhập thêm `giảm giá khuyến mại` cho toàn phiếu để phản ánh số tiền thực trả NCC
 - có thể đổi giá nhập mặc định
 - nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB
 - nhà cung cấp chỉ được đổi khi phiếu còn `draft`; từ `ordered` trở đi phải giữ nguyên NCC đã chốt
+- nếu bỏ trống mã lô thì app tự sinh batch code khi nhập kho; nếu không nhập HSD thì lô vẫn được quản lý nhưng không được xem là có hạn thật
 
 ### Bước 4: Chạy trạng thái workflow
 
@@ -136,6 +139,7 @@ ordered -> cancelled
 
 - dùng khi trả ngược hàng lỗi cho NCC
 - tồn kho giảm
+- mặc định trừ theo FEFO; nếu dòng trả chỉ rõ mã lô thì ưu tiên trừ đúng lô đó
 
 ### Nguyên tắc chung
 
@@ -150,7 +154,7 @@ ordered -> cancelled
 - sửa giá nhập / giá bán mặc định
 - soft delete khi ngừng bán
 - xem audit lịch sử sản phẩm
-- khai báo hạn dùng / thời gian bảo quản theo ngày để hỗ trợ sort tồn kho theo hạn còn lại ước tính
+- khai báo hạn dùng / thời gian bảo quản theo ngày để làm fallback khi lô chưa có HSD thật
 
 ### Khách hàng
 

@@ -8,10 +8,11 @@ const DESKTOP_PAGINATION_HINT =
 export const SCREEN_HELP = {
   inventory: {
     title: "Kiểm tra nhập xuất hàng tồn",
-    overview: "Dùng màn này để xem tồn hiện tại, biết mặt hàng đang chờ nhập hoặc chờ xuất, rồi chuyển đúng sang đơn/phiếu liên quan.",
+    overview: "Dùng màn này để xem tồn hiện tại theo các lô còn hàng, biết mặt hàng đang chờ nhập hoặc chờ xuất, rồi chuyển đúng sang đơn/phiếu liên quan.",
     steps: [
       "Gõ tên mặt hàng ở ô tìm kiếm để thu gọn danh sách cần xem.",
       "Dùng dropdown Sắp xếp trong thanh phân trang để đổi thứ tự danh sách theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít.",
+      "Nếu sản phẩm có nhiều lô, card tồn kho sẽ hiện từng lô còn hàng và màn sắp xếp `Hạn còn ít` sẽ ưu tiên theo HSD thật của lô gần nhất; các lô chưa có HSD sẽ bị đẩy xuống sau.",
       "Bấm Xuất hoặc Nhập ngay trên từng mặt hàng để mở đơn chờ / phiếu chờ liên quan, hoặc tạo luồng mới nếu chưa có.",
       "Nếu card có badge Chờ xuất hoặc Chờ nhập, badge sẽ hiện theo dạng số phiếu / tổng số lượng chờ; bấm trực tiếp vào badge để sang đúng màn đang xử lý mặt hàng đó.",
       "Nếu có máy khác vừa cập nhật tồn hoặc giá, màn hình sẽ tự nạp lại khi bạn đang rảnh thao tác; trong lúc đang gõ thì app sẽ tạm hoãn để tránh mất dữ liệu đang nhập.",
@@ -100,7 +101,7 @@ export const SCREEN_HELP = {
     steps: [
       "Tìm đúng mặt hàng trong danh sách để sửa nhanh ngay trên từng ô.",
       "Khi sửa, đọc nhãn bên trái của từng dòng để tránh nhầm giữa Giá nhập và Giá bán.",
-      "Có thể nhập thêm Hạn dùng và Bảo quản theo số ngày để màn tồn kho ước tính mặt hàng nào cần xử lý trước theo hạn còn lại.",
+      "Có thể nhập thêm Hạn dùng và Bảo quản theo số ngày để làm metadata fallback khi lô chưa có HSD thật; nếu lô đã có HSD riêng thì màn tồn kho sẽ ưu tiên theo dữ liệu lô.",
       "Nếu cần thêm mới, dùng form phía dưới danh sách.",
       "Xem phần Lịch sử sản phẩm bên dưới để biết thay đổi gần đây trước khi chỉnh tiếp.",
       "Có thể lọc lịch sử theo người thao tác, từ ngày và đến ngày để đối chiếu audit nhanh.",
@@ -128,7 +129,9 @@ export const SCREEN_HELP = {
       "Phần `Detail` sẽ hiện nguồn đơn thiếu riêng; ô ghi chú của phiếu vẫn để trống để bạn tự nhập khi cần.",
       "Nếu có máy khác vừa tạo hoặc sửa phiếu nhập, màn hình sẽ tự làm mới khi bạn không còn nhập dở ở ô hiện tại.",
       "Nếu 2 máy cùng lưu trên một phiếu nháp, app sẽ báo xung đột đồng bộ và tự tải lại để tránh ghi đè dữ liệu của nhau.",
-      "Trong detail từng dòng nhập, bạn có thể sửa số lượng, giá nhập và bấm Giá chung để cập nhật giá nhập mặc định của sản phẩm sau khi xác nhận.",
+      "Trong detail từng dòng nhập, bạn có thể sửa số lượng, giá nhập, nhập thêm `Mã lô` và `Hạn dùng`; bấm `+ Lô` nếu cùng một sản phẩm cần tách thành nhiều lô nhập khác nhau.",
+      "Nếu không nhập `Mã lô`, app sẽ tự sinh mã lô khi `Nhập kho`; còn `Hạn dùng` chỉ được dùng khi bạn nhập HSD thật của lô đó.",
+      "Khi xuất kho hoặc trả NCC, app sẽ tự trừ theo FEFO từ lô có HSD sớm nhất trước; nếu phiếu trả NCC chỉ rõ `Mã lô` thì hệ thống sẽ ưu tiên trừ đúng lô đó.",
       "Giảm giá khuyến mại được nhập theo toàn phiếu nhập; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán` để bạn đối chiếu tiền thực trả NCC.",
       "Nút `Detail` trong phiếu nhập dùng để bung hoặc thu gọn khối metadata gồm mã phiếu, nhà cung cấp, trạng thái và các mốc thời gian xử lý.",
       "Nếu đang gõ tên NCC mới chưa có sẵn, chỉ khi phiếu còn `Nháp` mới bấm được nút NCC để mở thẳng form nhà cung cấp với tên đang nhập; nếu tên đó đã có, app sẽ mở luôn chế độ sửa NCC rồi quay lại phiếu nhập sau khi lưu.",

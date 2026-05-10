@@ -71,7 +71,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS products` trong `qltpchay/store.py`.
 - là nguồn sự thật cho danh mục sản phẩm
 - không lưu tồn kho tĩnh; tồn hiện tại được tính từ `transactions`
 - hỗ trợ ngừng bán bằng `is_deleted = 1` thay vì xóa cứng
-- `shelf_life_days` và `storage_life_days` chỉ là metadata cấp sản phẩm để ước tính hạn còn lại, không phải tồn kho theo lô
+- `shelf_life_days` và `storage_life_days` là metadata fallback ở cấp sản phẩm khi lô chưa có HSD thật, không thay thế dữ liệu tồn theo lô
 
 ## 5. Bảng `transactions`
 
@@ -95,10 +95,44 @@ Nguồn: `CREATE TABLE IF NOT EXISTS transactions` trong `qltpchay/store.py`.
 
 - là ledger kho
 - mọi thay đổi tồn kho đều phải quy đổi thành dòng `in` hoặc `out`
+- mọi chi tiết lô và phân bổ FEFO bám theo transaction nhưng được lưu riêng ở bảng lô để không làm phình ledger chính
 - Phase B vẫn tái sử dụng bảng này cho:
   - phiếu điều chỉnh tồn
   - phiếu trả hàng khách
   - phiếu trả NCC
+
+## 5A. Bảng tồn theo lô
+
+### `inventory_batches`
+
+- lưu từng lô tồn của một sản phẩm
+- cột chính:
+  - `product_id`
+  - `batch_code`
+  - `expiry_date`
+  - `received_at`
+  - `source_receipt_code`, `source_receipt_type`, `source_transaction_id`
+  - `unit_cost`
+  - `initial_quantity`, `remaining_quantity`
+  - `note`, `created_at`, `updated_at`
+
+### `inventory_batch_allocations`
+
+- lưu việc một transaction đã cộng/trừ vào lô nào
+- cột chính:
+  - `batch_id`
+  - `transaction_id`
+  - `product_id`
+  - `quantity`
+  - `direction`
+  - `created_at`
+
+### Vai trò nghiệp vụ
+
+- `inventory_batches` là nguồn sự thật cho tồn theo lô
+- lô có `expiry_date` sẽ được ưu tiên trong FEFO trước lô chưa có HSD
+- nếu người dùng không nhập `batch_code`, hệ thống có thể tự sinh mã lô khi ghi nhận nhập kho
+- `inventory_batch_allocations` giúp truy vết ngược từ một giao dịch sang đúng các lô đã bị cộng/trừ
 
 ## 6. Bảng `app_state`
 
@@ -178,7 +212,9 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - cột chính:
   - `id`, `purchase_id`
   - `product_id`, `product_name`
-  - `quantity`, `unit_cost`, `sort_order`
+  - `quantity`, `unit_cost`
+  - `batch_code`, `expiry_date`
+  - `sort_order`
 
 ## 8. Bảng receipt chuẩn hóa
 
@@ -208,6 +244,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `unit_amount`, `line_total`
   - `stock_after`
   - `transaction_id`
+  - `batch_id`, `batch_code`, `expiry_date`
 
 ## 9. Bảng `audit_logs`
 
@@ -249,6 +286,7 @@ Hệ quả thiết kế:
 - tránh lệch tồn do cập nhật kép
 - giúp truy vết theo lịch sử giao dịch
 - buộc workflow điều chỉnh phải đi qua chứng từ hoặc transaction hợp lệ
+- tồn theo lô được suy ra song song qua `inventory_batches.remaining_quantity`; nếu lệch thì phải sửa bằng chứng từ mới thay vì sửa tay số dư lô
 
 ## 11. Chiến lược migration
 
@@ -272,6 +310,10 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - backfill tự động từ `app_state`
 - thêm bảng `inventory_receipts` và `inventory_receipt_items`
 - backfill receipt lịch sử từ `transactions.note` khi nhận diện được mã `PN/DC/THK/TNCC`
+- thêm `batch_code`, `expiry_date` vào `purchase_items`
+- thêm `batch_id`, `batch_code`, `expiry_date` vào `inventory_receipt_items`
+- thêm bảng `inventory_batches` và `inventory_batch_allocations`
+- backfill mềm lô từ transaction/receipt cũ khi schema mới được khởi tạo trên DB đang dùng
 
 ## 12. Ràng buộc nghiệp vụ chính gắn với DB
 
@@ -286,7 +328,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - phiếu nhập `received` chưa thanh toán vẫn được sửa `discount_amount`; sau khi `status = paid` thì khóa hẳn
 - `app_state.updated_at` được dùng để chặn ghi đè stale save
 - sort ưu tiên tồn kho dùng metric suy diễn từ ledger bán hàng thật, không persist score vào DB
-- sort hạn còn lại dùng ước tính từ lần nhập gần nhất và metadata sản phẩm; app chưa quản lý hạn chính xác theo từng lô
+- sort hạn còn lại ưu tiên theo HSD thật sớm nhất trong các lô còn hàng; chỉ khi chưa có HSD lô mới fallback về metadata sản phẩm và lần nhập gần nhất
 
 ## 13. Điểm mạnh và giới hạn hiện tại
 
@@ -297,12 +339,14 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - audit và workflow lock đã bám vào data model hiện tại
 - state chính đã có bảng quan hệ nên dễ query/report hơn trước
 - receipt đã có header/detail riêng để mở rộng báo cáo điều chỉnh/trả hàng
+- tồn theo lô và phân bổ FEFO đã có bảng riêng nên có thể truy vết ngược từng chứng từ kho
 
 ### Giới hạn
 
 - app vẫn giữ `app_state` làm legacy cache để tương thích ngược
 - `supplier_id` và `customer_id` trong một số receipt cũ có thể chưa backfill đầy đủ nếu dữ liệu lịch sử chỉ có tên
 - reporting sâu cho receipt lịch sử cũ phụ thuộc chất lượng `transactions.note`
+- lô chưa có HSD vẫn quản lý được nhưng không thể tham gia FEFO theo ngày hết hạn thật
 
 ## 14. Định hướng nếu mở rộng sau này
 
