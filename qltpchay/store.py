@@ -242,6 +242,8 @@ class InventoryStore:
                     product_name TEXT NOT NULL DEFAULT '',
                     quantity REAL NOT NULL DEFAULT 0,
                     unit_cost REAL NOT NULL DEFAULT 0,
+                    batch_code TEXT NOT NULL DEFAULT '',
+                    expiry_date TEXT,
                     sort_order INTEGER NOT NULL DEFAULT 0,
                     FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE
                 );
@@ -287,6 +289,49 @@ class InventoryStore:
 
                 CREATE INDEX IF NOT EXISTS idx_inventory_receipt_items_receipt_id
                 ON inventory_receipt_items(receipt_id, id);
+
+                CREATE TABLE IF NOT EXISTS inventory_batches (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    product_id INTEGER NOT NULL,
+                    batch_code TEXT NOT NULL DEFAULT '',
+                    expiry_date TEXT,
+                    received_at TEXT NOT NULL,
+                    source_receipt_code TEXT NOT NULL DEFAULT '',
+                    source_receipt_type TEXT NOT NULL DEFAULT '',
+                    source_transaction_id INTEGER,
+                    unit_cost REAL NOT NULL DEFAULT 0,
+                    initial_quantity REAL NOT NULL DEFAULT 0,
+                    remaining_quantity REAL NOT NULL DEFAULT 0,
+                    note TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (product_id) REFERENCES products(id),
+                    FOREIGN KEY (source_transaction_id) REFERENCES transactions(id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_inventory_batches_product_expiry
+                ON inventory_batches(
+                    product_id,
+                    expiry_date,
+                    received_at,
+                    id
+                );
+
+                CREATE TABLE IF NOT EXISTS inventory_batch_allocations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    batch_id INTEGER NOT NULL,
+                    transaction_id INTEGER NOT NULL,
+                    product_id INTEGER NOT NULL,
+                    quantity REAL NOT NULL DEFAULT 0,
+                    direction TEXT NOT NULL CHECK(direction IN ('in', 'out')),
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (batch_id) REFERENCES inventory_batches(id) ON DELETE CASCADE,
+                    FOREIGN KEY (transaction_id) REFERENCES transactions(id),
+                    FOREIGN KEY (product_id) REFERENCES products(id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_inventory_batch_allocations_transaction
+                ON inventory_batch_allocations(transaction_id, id);
                 """
             )
             columns = {
@@ -352,6 +397,9 @@ class InventoryStore:
             purchase_columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(purchases)").fetchall()
             }
+            purchase_item_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(purchase_items)").fetchall()
+            }
             if "source_type" not in purchase_columns:
                 connection.execute(
                     "ALTER TABLE purchases ADD COLUMN source_type TEXT NOT NULL DEFAULT ''"
@@ -368,6 +416,36 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE purchases ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0"
                 )
+            if "batch_code" not in purchase_item_columns:
+                connection.execute(
+                    "ALTER TABLE purchase_items ADD COLUMN batch_code TEXT NOT NULL DEFAULT ''"
+                )
+            if "expiry_date" not in purchase_item_columns:
+                connection.execute(
+                    "ALTER TABLE purchase_items ADD COLUMN expiry_date TEXT"
+                )
+            receipt_item_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(inventory_receipt_items)").fetchall()
+            }
+            if "batch_id" not in receipt_item_columns:
+                connection.execute(
+                    "ALTER TABLE inventory_receipt_items ADD COLUMN batch_id INTEGER"
+                )
+            if "batch_code" not in receipt_item_columns:
+                connection.execute(
+                    "ALTER TABLE inventory_receipt_items ADD COLUMN batch_code TEXT NOT NULL DEFAULT ''"
+                )
+            if "expiry_date" not in receipt_item_columns:
+                connection.execute(
+                    "ALTER TABLE inventory_receipt_items ADD COLUMN expiry_date TEXT"
+                )
+            batch_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(inventory_batches)").fetchall()
+            }
+            if batch_columns and "source_transaction_id" not in batch_columns:
+                connection.execute(
+                    "ALTER TABLE inventory_batches ADD COLUMN source_transaction_id INTEGER"
+                )
             for key in self.SYNC_COLLECTION_KEYS:
                 connection.execute(
                     """
@@ -378,6 +456,7 @@ class InventoryStore:
                 )
             self._migrate_legacy_sync_state_if_needed(connection)
             self._backfill_receipts_from_transactions_if_needed(connection)
+            self._backfill_batches_from_transactions_if_needed(connection)
 
     def _migrate_legacy_sync_state_if_needed(self, connection: sqlite3.Connection) -> None:
         for state_key in self.SYNC_COLLECTION_KEYS:
@@ -516,6 +595,429 @@ class InventoryStore:
                     transaction_id=item["transaction_id"],
                 )
 
+    def _backfill_batches_from_transactions_if_needed(self, connection: sqlite3.Connection) -> None:
+        row = connection.execute(
+            "SELECT COUNT(*) AS total FROM inventory_batches"
+        ).fetchone()
+        if int(row["total"] or 0) > 0:
+            return
+
+        transaction_rows = connection.execute(
+            """
+            SELECT
+                t.id,
+                t.product_id,
+                t.transaction_type,
+                t.quantity,
+                t.note,
+                t.created_at,
+                p.name AS product_name,
+                p.price,
+                p.shelf_life_days,
+                p.storage_life_days,
+                ir.receipt_code,
+                ir.receipt_type,
+                iri.batch_code,
+                iri.expiry_date,
+                iri.unit_amount AS receipt_unit_amount
+            FROM transactions t
+            LEFT JOIN products p ON p.id = t.product_id
+            LEFT JOIN inventory_receipt_items iri ON iri.transaction_id = t.id
+            LEFT JOIN inventory_receipts ir ON ir.id = iri.receipt_id
+            ORDER BY t.created_at ASC, t.id ASC
+            """
+        ).fetchall()
+
+        for row in transaction_rows:
+            product = self._get_product_or_raise(
+                connection,
+                int(row["product_id"]),
+                allow_deleted=True,
+            )
+            if row["transaction_type"] == "in":
+                inbound_unit_cost = row["receipt_unit_amount"]
+                if inbound_unit_cost is None:
+                    inbound_unit_cost = extract_price_from_note(row["note"] or "", "in")
+                if inbound_unit_cost is None:
+                    inbound_unit_cost = float(row["price"] or 0)
+                batch_code = str(row["batch_code"] or "").strip() or (
+                    f"{str(row['receipt_code'] or '').strip() or 'LEGACY'}-L{row['id']}"
+                )
+                self._create_inventory_batch(
+                    connection,
+                    product=product,
+                    quantity=Decimal(str(row["quantity"] or 0)),
+                    unit_cost=Decimal(str(inbound_unit_cost or 0)),
+                    received_at=row["created_at"],
+                    source_receipt_code=str(row["receipt_code"] or "").strip(),
+                    source_receipt_type=str(row["receipt_type"] or "").strip(),
+                    source_transaction_id=int(row["id"]),
+                    transaction_id=int(row["id"]),
+                    batch_code=batch_code,
+                    expiry_date=row["expiry_date"],
+                    note="Backfill lô tồn từ giao dịch cũ.",
+                    fallback_batch_code=batch_code,
+                )
+                continue
+
+            self._consume_inventory_batches(
+                connection,
+                product_id=int(row["product_id"]),
+                quantity=Decimal(str(row["quantity"] or 0)),
+                transaction_id=int(row["id"]),
+                created_at=row["created_at"],
+            )
+
+    def _normalize_expiry_date(
+        self,
+        value,
+        *,
+        field_name: str = "Hạn dùng",
+    ) -> str | None:
+        clean_value = str(value or "").strip()
+        if not clean_value:
+            return None
+        try:
+            if "T" in clean_value:
+                parsed = datetime.fromisoformat(clean_value.replace("Z", "+00:00")).date()
+            else:
+                parsed = datetime.strptime(clean_value, "%Y-%m-%d").date()
+        except ValueError as exc:
+            raise ValueError(f"{field_name} không hợp lệ. Định dạng đúng là YYYY-MM-DD.") from exc
+        return parsed.isoformat()
+
+    @staticmethod
+    def _resolve_batch_code(batch_code: str, fallback_batch_code: str) -> str:
+        clean_batch_code = str(batch_code or "").strip()
+        if clean_batch_code:
+            return clean_batch_code
+        clean_fallback = str(fallback_batch_code or "").strip()
+        if clean_fallback:
+            return clean_fallback
+        return f"LO-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(3)}"
+
+    def _insert_inventory_batch_allocation(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        batch_id: int,
+        transaction_id: int,
+        product_id: int,
+        quantity: float,
+        direction: str,
+        created_at: str,
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO inventory_batch_allocations(
+                batch_id, transaction_id, product_id, quantity, direction, created_at
+            )
+            VALUES(?, ?, ?, ?, ?, ?)
+            """,
+            (
+                batch_id,
+                transaction_id,
+                product_id,
+                round(float(quantity), 2),
+                direction,
+                created_at,
+            ),
+        )
+
+    def _create_inventory_batch(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        product: sqlite3.Row,
+        quantity: Decimal,
+        unit_cost: Decimal,
+        received_at: str,
+        source_receipt_code: str = "",
+        source_receipt_type: str = "",
+        source_transaction_id: int | None = None,
+        transaction_id: int | None = None,
+        batch_code: str = "",
+        expiry_date: str | None = None,
+        note: str = "",
+        fallback_batch_code: str = "",
+    ) -> dict:
+        normalized_expiry_date = self._normalize_expiry_date(
+            expiry_date,
+            field_name="Hạn dùng lô",
+        )
+        resolved_expiry_date = normalized_expiry_date
+        resolved_batch_code = self._resolve_batch_code(batch_code, fallback_batch_code)
+        now = received_at or utc_now_iso()
+        cursor = connection.execute(
+            """
+            INSERT INTO inventory_batches(
+                product_id, batch_code, expiry_date, received_at, source_receipt_code,
+                source_receipt_type, source_transaction_id, unit_cost, initial_quantity,
+                remaining_quantity, note, created_at, updated_at
+            )
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(product["id"]),
+                resolved_batch_code,
+                resolved_expiry_date,
+                now,
+                str(source_receipt_code or "").strip(),
+                str(source_receipt_type or "").strip(),
+                source_transaction_id,
+                round(float(unit_cost), 2),
+                round(float(quantity), 2),
+                round(float(quantity), 2),
+                str(note or "").strip(),
+                now,
+                now,
+            ),
+        )
+        batch_id = int(cursor.lastrowid)
+        if transaction_id is not None:
+            self._insert_inventory_batch_allocation(
+                connection,
+                batch_id=batch_id,
+                transaction_id=int(transaction_id),
+                product_id=int(product["id"]),
+                quantity=round(float(quantity), 2),
+                direction="in",
+                created_at=now,
+            )
+        return {
+            "id": batch_id,
+            "batch_code": resolved_batch_code,
+            "expiry_date": resolved_expiry_date or "",
+            "received_at": now,
+            "unit_cost": round(float(unit_cost), 2),
+            "quantity": round(float(quantity), 2),
+        }
+
+    def _list_available_batches_for_product(
+        self,
+        connection: sqlite3.Connection,
+        product_id: int,
+        *,
+        preferred_batch_code: str = "",
+    ) -> list[sqlite3.Row]:
+        clean_preferred_batch_code = str(preferred_batch_code or "").strip()
+        if clean_preferred_batch_code:
+            return connection.execute(
+                """
+                SELECT
+                    id, product_id, batch_code, expiry_date, received_at,
+                    source_receipt_code, source_receipt_type, unit_cost,
+                    initial_quantity, remaining_quantity
+                FROM inventory_batches
+                WHERE product_id = ? AND batch_code = ? AND remaining_quantity > 0
+                ORDER BY datetime(received_at) ASC, id ASC
+                """,
+                (product_id, clean_preferred_batch_code),
+            ).fetchall()
+        return connection.execute(
+            """
+            SELECT
+                id, product_id, batch_code, expiry_date, received_at,
+                source_receipt_code, source_receipt_type, unit_cost,
+                initial_quantity, remaining_quantity
+            FROM inventory_batches
+            WHERE product_id = ? AND remaining_quantity > 0
+            ORDER BY
+                CASE WHEN expiry_date IS NULL OR expiry_date = '' THEN 1 ELSE 0 END ASC,
+                expiry_date ASC,
+                datetime(received_at) ASC,
+                id ASC
+            """,
+            (product_id,),
+        ).fetchall()
+
+    def _consume_inventory_batches(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        product_id: int,
+        quantity: Decimal,
+        transaction_id: int,
+        created_at: str,
+        preferred_batch_code: str = "",
+    ) -> list[dict]:
+        clean_preferred_batch_code = str(preferred_batch_code or "").strip()
+        available_batches = self._list_available_batches_for_product(
+            connection,
+            product_id,
+            preferred_batch_code=clean_preferred_batch_code,
+        )
+        total_available = sum(
+            Decimal(str(row["remaining_quantity"] or 0))
+            for row in available_batches
+        )
+        if quantity > total_available:
+            if clean_preferred_batch_code:
+                raise ValueError(
+                    f"Lô {clean_preferred_batch_code} không đủ tồn để trừ theo phiếu hiện tại."
+                )
+            raise ValueError("Số lượng xuất lớn hơn tồn kho hiện tại.")
+
+        remaining_to_consume = Decimal(str(quantity))
+        allocations: list[dict] = []
+        for batch in available_batches:
+            batch_remaining = Decimal(str(batch["remaining_quantity"] or 0))
+            if batch_remaining <= 0:
+                continue
+            consume_quantity = min(remaining_to_consume, batch_remaining)
+            if consume_quantity <= 0:
+                continue
+            updated_remaining = batch_remaining - consume_quantity
+            connection.execute(
+                """
+                UPDATE inventory_batches
+                SET remaining_quantity = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    round(float(updated_remaining), 2),
+                    created_at,
+                    int(batch["id"]),
+                ),
+            )
+            self._insert_inventory_batch_allocation(
+                connection,
+                batch_id=int(batch["id"]),
+                transaction_id=int(transaction_id),
+                product_id=int(product_id),
+                quantity=round(float(consume_quantity), 2),
+                direction="out",
+                created_at=created_at,
+            )
+            allocations.append(
+                {
+                    "batch_id": int(batch["id"]),
+                    "batch_code": batch["batch_code"] or "",
+                    "expiry_date": batch["expiry_date"] or "",
+                    "quantity": round(float(consume_quantity), 2),
+                    "unit_cost": round(float(batch["unit_cost"] or 0), 2),
+                    "source_receipt_code": batch["source_receipt_code"] or "",
+                    "remaining_quantity": round(float(updated_remaining), 2),
+                }
+            )
+            remaining_to_consume -= consume_quantity
+            if remaining_to_consume <= 0:
+                break
+        return allocations
+
+    def _build_batch_map_for_products(
+        self,
+        connection: sqlite3.Connection,
+        product_ids: list[int],
+    ) -> dict[int, list[dict]]:
+        if not product_ids:
+            return {}
+        placeholders = ",".join("?" for _ in product_ids)
+        rows = connection.execute(
+            f"""
+            SELECT
+                id, product_id, batch_code, expiry_date, received_at,
+                source_receipt_code, source_receipt_type, unit_cost,
+                initial_quantity, remaining_quantity
+            FROM inventory_batches
+            WHERE product_id IN ({placeholders}) AND remaining_quantity > 0
+            ORDER BY
+                product_id ASC,
+                CASE WHEN expiry_date IS NULL OR expiry_date = '' THEN 1 ELSE 0 END ASC,
+                expiry_date ASC,
+                datetime(received_at) ASC,
+                id ASC
+            """,
+            product_ids,
+        ).fetchall()
+        today = datetime.now().date()
+        batch_map: dict[int, list[dict]] = {}
+        for row in rows:
+            expiry_date = row["expiry_date"] or ""
+            days_to_expiry = None
+            if expiry_date:
+                try:
+                    days_to_expiry = (
+                        datetime.strptime(expiry_date, "%Y-%m-%d").date() - today
+                    ).days
+                except ValueError:
+                    days_to_expiry = None
+            batch_map.setdefault(int(row["product_id"]), []).append(
+                {
+                    "id": int(row["id"]),
+                    "batch_code": row["batch_code"] or "",
+                    "expiry_date": expiry_date,
+                    "received_at": row["received_at"],
+                    "source_receipt_code": row["source_receipt_code"] or "",
+                    "source_receipt_type": row["source_receipt_type"] or "",
+                    "unit_cost": round(float(row["unit_cost"] or 0), 2),
+                    "initial_quantity": round(float(row["initial_quantity"] or 0), 2),
+                    "remaining_quantity": round(float(row["remaining_quantity"] or 0), 2),
+                    "days_to_expiry": days_to_expiry,
+                }
+            )
+        return batch_map
+
+    def _get_batch_allocations_for_transactions(
+        self,
+        connection: sqlite3.Connection,
+        transaction_ids: list[int],
+    ) -> dict[int, list[dict]]:
+        if not transaction_ids:
+            return {}
+        placeholders = ",".join("?" for _ in transaction_ids)
+        rows = connection.execute(
+            f"""
+            SELECT
+                iba.transaction_id,
+                iba.direction,
+                iba.quantity,
+                ib.id AS batch_id,
+                ib.batch_code,
+                ib.expiry_date,
+                ib.unit_cost,
+                ib.source_receipt_code
+            FROM inventory_batch_allocations iba
+            INNER JOIN inventory_batches ib ON ib.id = iba.batch_id
+            WHERE iba.transaction_id IN ({placeholders})
+            ORDER BY iba.transaction_id ASC, iba.id ASC
+            """,
+            transaction_ids,
+        ).fetchall()
+        allocation_map: dict[int, list[dict]] = {}
+        for row in rows:
+            allocation_map.setdefault(int(row["transaction_id"]), []).append(
+                {
+                    "batch_id": int(row["batch_id"]),
+                    "batch_code": row["batch_code"] or "",
+                    "expiry_date": row["expiry_date"] or "",
+                    "unit_cost": round(float(row["unit_cost"] or 0), 2),
+                    "quantity": round(float(row["quantity"] or 0), 2),
+                    "direction": row["direction"] or "",
+                    "source_receipt_code": row["source_receipt_code"] or "",
+                }
+            )
+        return allocation_map
+
+    @staticmethod
+    def _format_batch_allocations_note(
+        allocations: list[dict],
+        *,
+        prefix: str,
+    ) -> str:
+        if not allocations:
+            return ""
+        parts = []
+        for allocation in allocations:
+            label = str(allocation.get("batch_code") or "").strip() or f"Lô {allocation.get('batch_id')}"
+            quantity = round(float(allocation.get("quantity") or 0), 2)
+            expiry_date = str(allocation.get("expiry_date") or "").strip()
+            detail = f"{label} {quantity:g}"
+            if expiry_date:
+                detail += f" HSD {expiry_date}"
+            parts.append(detail)
+        return f"{prefix}: " + "; ".join(parts)
+
     def _serialize_customer_row(self, row: sqlite3.Row) -> dict:
         deleted_at = row["deleted_at"]
         return {
@@ -565,6 +1067,10 @@ class InventoryStore:
             "quantity": round(float(row["quantity"] or 0), 2),
             "unitCost": round(float(row["unit_cost"] or 0), 2),
             "unit_cost": round(float(row["unit_cost"] or 0), 2),
+            "batchCode": row["batch_code"] or "",
+            "batch_code": row["batch_code"] or "",
+            "expiryDate": row["expiry_date"] or "",
+            "expiry_date": row["expiry_date"] or "",
         }
 
     @staticmethod
@@ -753,7 +1259,7 @@ class InventoryStore:
             purchase_receipt_codes = set(purchase_receipts_by_code.keys())
             item_rows = connection.execute(
                 """
-                SELECT id, purchase_id, product_id, product_name, quantity, unit_cost, sort_order
+                SELECT id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code, expiry_date, sort_order
                 FROM purchase_items
                 ORDER BY purchase_id, sort_order, id
                 """
@@ -944,8 +1450,10 @@ class InventoryStore:
                 for index, item in enumerate(record.get("items") or []):
                     connection.execute(
                         """
-                        INSERT INTO purchase_items(id, purchase_id, product_id, product_name, quantity, unit_cost, sort_order)
-                        VALUES(?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO purchase_items(
+                            id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code, expiry_date, sort_order
+                        )
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),
@@ -954,6 +1462,11 @@ class InventoryStore:
                             str(item.get("productName") or item.get("product_name") or "").strip(),
                             float(item.get("quantity") or 0),
                             float(item.get("unitCost") or item.get("unit_cost") or 0),
+                            str(item.get("batchCode") or item.get("batch_code") or "").strip(),
+                            self._normalize_expiry_date(
+                                item.get("expiryDate") or item.get("expiry_date"),
+                                field_name="Hạn dùng lô nhập",
+                            ),
                             index,
                         ),
                     )
@@ -1025,14 +1538,17 @@ class InventoryStore:
         line_total: float | None,
         stock_after: float | None,
         transaction_id: int | None,
+        batch_id: int | None = None,
+        batch_code: str = "",
+        expiry_date: str | None = None,
     ) -> None:
         connection.execute(
             """
             INSERT INTO inventory_receipt_items(
                 receipt_id, product_id, product_name, unit, transaction_type, quantity,
-                unit_amount, line_total, stock_after, transaction_id
+                unit_amount, line_total, stock_after, transaction_id, batch_id, batch_code, expiry_date
             )
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 receipt_id,
@@ -1045,6 +1561,9 @@ class InventoryStore:
                 line_total,
                 stock_after,
                 transaction_id,
+                batch_id,
+                batch_code,
+                expiry_date,
             ),
         )
 
@@ -1057,7 +1576,9 @@ class InventoryStore:
     ) -> sqlite3.Row:
         product = connection.execute(
             """
-            SELECT id, name, category, unit, price, sale_price, low_stock_threshold, is_deleted, deleted_at
+            SELECT
+                id, name, category, unit, price, sale_price, low_stock_threshold,
+                shelf_life_days, storage_life_days, is_deleted, deleted_at
             FROM products
             WHERE id = ?
             """,
@@ -1726,6 +2247,8 @@ class InventoryStore:
 
             # Xóa theo thứ tự từ bảng con -> bảng cha để tránh lỗi FOREIGN KEY.
             reset_order = [
+                "inventory_batch_allocations",
+                "inventory_batches",
                 "inventory_receipt_items",
                 "inventory_receipts",
                 "cart_items",
@@ -1746,7 +2269,15 @@ class InventoryStore:
             if "sqlite_sequence" in existing_tables:
                 sequence_tables = tuple(
                     table_name
-                    for table_name in ("products", "transactions", "audit_logs", "inventory_receipts", "inventory_receipt_items")
+                    for table_name in (
+                        "products",
+                        "transactions",
+                        "audit_logs",
+                        "inventory_receipts",
+                        "inventory_receipt_items",
+                        "inventory_batches",
+                        "inventory_batch_allocations",
+                    )
                     if table_name in existing_tables
                 )
                 if sequence_tables:
@@ -1802,6 +2333,8 @@ class InventoryStore:
         note: str = "",
         adjustment_reason: str = "",
         actor: str = "",
+        batch_code: str = "",
+        expiry_date: str | None = None,
     ) -> dict:
         if transaction_type not in {"in", "out"}:
             raise ValueError("Loại giao dịch không hợp lệ.")
@@ -1841,6 +2374,59 @@ class InventoryStore:
                 (int(product_id), transaction_type, float(amount), clean_note, now),
             )
 
+            allocations: list[dict] = []
+            created_batch: dict | None = None
+            if transaction_type == "in":
+                fallback_batch_code = f"ADJ-{int(product_id)}-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{cursor.lastrowid}"
+                created_batch = self._create_inventory_batch(
+                    connection,
+                    product=product,
+                    quantity=amount,
+                    unit_cost=Decimal(str(product["price"] or 0)),
+                    received_at=now,
+                    source_transaction_id=int(cursor.lastrowid),
+                    transaction_id=int(cursor.lastrowid),
+                    batch_code=batch_code,
+                    expiry_date=expiry_date,
+                    note=clean_note,
+                    fallback_batch_code=fallback_batch_code,
+                )
+                clean_note = " | ".join(
+                    part
+                    for part in (
+                        clean_note,
+                        self._format_batch_allocations_note(
+                            [created_batch],
+                            prefix="Lô nhập",
+                        ),
+                    )
+                    if part
+                )
+            else:
+                allocations = self._consume_inventory_batches(
+                    connection,
+                    product_id=int(product_id),
+                    quantity=amount,
+                    transaction_id=int(cursor.lastrowid),
+                    created_at=now,
+                )
+                clean_note = " | ".join(
+                    part
+                    for part in (
+                        clean_note,
+                        self._format_batch_allocations_note(
+                            allocations,
+                            prefix="Lô xuất FIFO",
+                        ),
+                    )
+                    if part
+                )
+            if clean_note:
+                connection.execute(
+                    "UPDATE transactions SET note = ? WHERE id = ?",
+                    (clean_note, int(cursor.lastrowid)),
+                )
+
         product_summary = self.get_product_by_id(int(product_id))
         return {
             "id": cursor.lastrowid,
@@ -1851,6 +2437,8 @@ class InventoryStore:
             "note": clean_note,
             "created_at": now,
             "current_stock": product_summary["current_stock"],
+            "lot_allocations": allocations,
+            "created_batch": created_batch,
         }
 
     def get_transactions(self, limit: int = 20) -> list[dict]:
@@ -1874,6 +2462,10 @@ class InventoryStore:
                 """,
                 (safe_limit,),
             ).fetchall()
+            allocation_map = self._get_batch_allocations_for_transactions(
+                connection,
+                [int(row["id"]) for row in rows],
+            )
 
         return [
             {
@@ -1885,6 +2477,7 @@ class InventoryStore:
                 "quantity": float(row["quantity"]),
                 "note": row["note"] or "",
                 "created_at": row["created_at"],
+                "lot_allocations": allocation_map.get(int(row["id"]), []),
             }
             for row in rows
         ]
@@ -1957,23 +2550,53 @@ class InventoryStore:
                 product = products_by_id[product_id]
                 line_total = item["quantity"] * item["unit_price"]
                 total_quantity += item["quantity"]
-                unit_cost_snapshot = float(product["price"])
-                transaction_note = (
-                    f"Đơn {order_code} | Khách: {clean_customer_name} | Giá bán: {float(item['unit_price']):.0f} | Giá vốn: {unit_cost_snapshot:.0f}"
+                base_transaction_note = (
+                    f"Đơn {order_code} | Khách: {clean_customer_name} | Giá bán: {float(item['unit_price']):.0f}"
                 )
                 if validated_discount_amount > 0:
-                    transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
+                    base_transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
                 if clean_note:
-                    transaction_note += f" | {clean_note}"
+                    base_transaction_note += f" | {clean_note}"
                 if item["note"]:
-                    transaction_note += f" | {item['note']}"
+                    base_transaction_note += f" | {item['note']}"
 
                 cursor = connection.execute(
                     """
                     INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
                     VALUES(?, 'out', ?, ?, ?)
                     """,
-                    (product_id, float(item["quantity"]), transaction_note, now),
+                    (product_id, float(item["quantity"]), base_transaction_note, now),
+                )
+                lot_allocations = self._consume_inventory_batches(
+                    connection,
+                    product_id=product_id,
+                    quantity=item["quantity"],
+                    transaction_id=int(cursor.lastrowid),
+                    created_at=now,
+                )
+                total_cost = sum(
+                    Decimal(str(allocation["quantity"])) * Decimal(str(allocation["unit_cost"]))
+                    for allocation in lot_allocations
+                )
+                unit_cost_snapshot = round(
+                    float(total_cost / item["quantity"]) if item["quantity"] > 0 else float(product["price"] or 0),
+                    2,
+                )
+                transaction_note = " | ".join(
+                    part
+                    for part in (
+                        base_transaction_note,
+                        f"Giá vốn: {unit_cost_snapshot:.2f}",
+                        self._format_batch_allocations_note(
+                            lot_allocations,
+                            prefix="Lô xuất FIFO",
+                        ),
+                    )
+                    if part
+                )
+                connection.execute(
+                    "UPDATE transactions SET note = ? WHERE id = ?",
+                    (transaction_note, int(cursor.lastrowid)),
                 )
 
                 remaining_stock = current_stock_by_id[product_id] - item["quantity"]
@@ -1985,9 +2608,11 @@ class InventoryStore:
                         "unit": product["unit"],
                         "quantity": float(item["quantity"]),
                         "unit_price": float(item["unit_price"]),
+                        "unit_cost": unit_cost_snapshot,
                         "line_total": round(float(line_total), 2),
                         "note": item["note"],
                         "remaining_stock": round(float(remaining_stock), 2),
+                        "lot_allocations": lot_allocations,
                     }
                 )
 
@@ -2016,21 +2641,33 @@ class InventoryStore:
         if not items:
             raise ValueError("Phiếu nhập đang trống.")
 
-        grouped_items: dict[int, dict] = {}
+        grouped_items: dict[tuple[int, str, str], dict] = {}
         for raw_item in items:
             product_id = int(raw_item.get("product_id", 0))
             quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
             unit_cost = parse_non_negative_decimal(raw_item.get("unit_cost", 0), "Giá nhập")
+            clean_batch_code = str(raw_item.get("batch_code") or raw_item.get("batchCode") or "").strip()
+            normalized_expiry_date = self._normalize_expiry_date(
+                raw_item.get("expiry_date") or raw_item.get("expiryDate"),
+                field_name="Hạn dùng lô nhập",
+            )
+            item_key = (
+                product_id,
+                clean_batch_code,
+                normalized_expiry_date or "",
+            )
 
-            existing = grouped_items.get(product_id)
+            existing = grouped_items.get(item_key)
             if existing:
                 existing["quantity"] += quantity
                 existing["unit_cost"] = unit_cost
             else:
-                grouped_items[product_id] = {
+                grouped_items[item_key] = {
                     "product_id": product_id,
                     "quantity": quantity,
                     "unit_cost": unit_cost,
+                    "batch_code": clean_batch_code,
+                    "expiry_date": normalized_expiry_date,
                 }
 
         now = utc_now_iso()
@@ -2059,11 +2696,17 @@ class InventoryStore:
                 created_at=now,
             )
 
-            for product_id, item in grouped_items.items():
+            for line_index, item in enumerate(grouped_items.values(), start=1):
+                product_id = int(item["product_id"])
                 product = self._get_product_or_raise(connection, product_id)
                 line_total = item["quantity"] * item["unit_cost"]
                 subtotal_amount += line_total
                 total_quantity += item["quantity"]
+                resolved_batch_code = self._resolve_batch_code(
+                    item.get("batch_code", ""),
+                    f"{receipt_code}-L{line_index}",
+                )
+                resolved_expiry_date = item.get("expiry_date")
 
                 transaction_note = f"Phiếu nhập {receipt_code}"
                 if clean_supplier_name:
@@ -2073,6 +2716,9 @@ class InventoryStore:
                 if clean_note:
                     transaction_note += f" | {clean_note}"
                 transaction_note += f" | Giá nhập: {float(item['unit_cost']):.0f}"
+                transaction_note += f" | Lô nhập: {resolved_batch_code} {float(item['quantity']):g}"
+                if resolved_expiry_date:
+                    transaction_note += f" HSD {resolved_expiry_date}"
 
                 cursor = connection.execute(
                     """
@@ -2080,6 +2726,21 @@ class InventoryStore:
                     VALUES(?, 'in', ?, ?, ?)
                     """,
                     (product_id, float(item["quantity"]), transaction_note, now),
+                )
+                created_batch = self._create_inventory_batch(
+                    connection,
+                    product=product,
+                    quantity=item["quantity"],
+                    unit_cost=item["unit_cost"],
+                    received_at=now,
+                    source_receipt_code=receipt_code,
+                    source_receipt_type="purchase",
+                    source_transaction_id=int(cursor.lastrowid),
+                    transaction_id=int(cursor.lastrowid),
+                    batch_code=resolved_batch_code,
+                    expiry_date=resolved_expiry_date,
+                    note=clean_note,
+                    fallback_batch_code=resolved_batch_code,
                 )
 
                 connection.execute(
@@ -2098,6 +2759,8 @@ class InventoryStore:
                         "unit_cost": float(item["unit_cost"]),
                         "line_total": round(float(line_total), 2),
                         "current_stock": round(float(current_stock), 2),
+                        "batch_code": created_batch["batch_code"],
+                        "expiry_date": created_batch["expiry_date"],
                     }
                 )
                 self._insert_inventory_receipt_item(
@@ -2112,6 +2775,9 @@ class InventoryStore:
                     line_total=round(float(line_total), 2),
                     stock_after=round(float(current_stock), 2),
                     transaction_id=cursor.lastrowid,
+                    batch_id=int(created_batch["id"]),
+                    batch_code=created_batch["batch_code"],
+                    expiry_date=created_batch["expiry_date"],
                 )
 
         net_total_amount = subtotal_amount - Decimal(str(validated_discount_amount))
@@ -2355,6 +3021,11 @@ class InventoryStore:
                     raise ValueError("Số lượng điều chỉnh phải khác 0.")
                 quantity = parse_positive_decimal(abs(delta), "Số lượng điều chỉnh")
                 direction = "in" if delta > 0 else "out"
+                clean_batch_code = str(raw_item.get("batch_code") or raw_item.get("batchCode") or "").strip()
+                normalized_expiry_date = self._normalize_expiry_date(
+                    raw_item.get("expiry_date") or raw_item.get("expiryDate"),
+                    field_name="Hạn dùng lô điều chỉnh",
+                )
                 product = self._get_product_or_raise(connection, product_id)
                 current_stock = self._get_stock_for_product(connection, product_id)
                 if direction == "out" and quantity > current_stock:
@@ -2375,6 +3046,38 @@ class InventoryStore:
                     """,
                     (product_id, direction, float(quantity), transaction_note, now),
                 )
+                created_batch = None
+                lot_allocations: list[dict] = []
+                if direction == "in":
+                    created_batch = self._create_inventory_batch(
+                        connection,
+                        product=product,
+                        quantity=quantity,
+                        unit_cost=Decimal(str(product["price"] or 0)),
+                        received_at=now,
+                        source_receipt_code=receipt_code,
+                        source_receipt_type="inventory_adjustment",
+                        source_transaction_id=int(cursor.lastrowid),
+                        transaction_id=int(cursor.lastrowid),
+                        batch_code=clean_batch_code,
+                        expiry_date=normalized_expiry_date,
+                        note=clean_note,
+                        fallback_batch_code=f"{receipt_code}-L{product_id}-{cursor.lastrowid}",
+                    )
+                    transaction_note += f" | {self._format_batch_allocations_note([created_batch], prefix='Lô nhập')}"
+                else:
+                    lot_allocations = self._consume_inventory_batches(
+                        connection,
+                        product_id=product_id,
+                        quantity=quantity,
+                        transaction_id=int(cursor.lastrowid),
+                        created_at=now,
+                    )
+                    transaction_note += f" | {self._format_batch_allocations_note(lot_allocations, prefix='Lô xuất FIFO')}"
+                connection.execute(
+                    "UPDATE transactions SET note = ? WHERE id = ?",
+                    (transaction_note, int(cursor.lastrowid)),
+                )
                 current_after = self._get_stock_for_product(connection, product_id)
                 if direction == "in":
                     total_in += quantity
@@ -2389,6 +3092,9 @@ class InventoryStore:
                         "transaction_type": direction,
                         "quantity": float(quantity),
                         "current_stock": round(float(current_after), 2),
+                        "batch_code": created_batch["batch_code"] if created_batch else "",
+                        "expiry_date": created_batch["expiry_date"] if created_batch else "",
+                        "lot_allocations": lot_allocations,
                     }
                 )
                 self._insert_inventory_receipt_item(
@@ -2403,6 +3109,9 @@ class InventoryStore:
                     line_total=None,
                     stock_after=round(float(current_after), 2),
                     transaction_id=cursor.lastrowid,
+                    batch_id=int(created_batch["id"]) if created_batch else None,
+                    batch_code=created_batch["batch_code"] if created_batch else "",
+                    expiry_date=created_batch["expiry_date"] if created_batch else None,
                 )
 
             self._record_audit(
@@ -2446,21 +3155,33 @@ class InventoryStore:
         if not items:
             raise ValueError("Phiếu trả hàng khách đang trống.")
 
-        grouped_items: dict[int, dict] = {}
+        grouped_items: dict[tuple[int, str, str], dict] = {}
         for raw_item in items:
             product_id = int(raw_item.get("product_id", 0))
             quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
             unit_refund = parse_non_negative_decimal(raw_item.get("unit_refund", 0), "Giá hoàn")
+            clean_batch_code = str(raw_item.get("batch_code") or raw_item.get("batchCode") or "").strip()
+            normalized_expiry_date = self._normalize_expiry_date(
+                raw_item.get("expiry_date") or raw_item.get("expiryDate"),
+                field_name="Hạn dùng lô trả khách",
+            )
+            item_key = (
+                product_id,
+                clean_batch_code,
+                normalized_expiry_date or "",
+            )
 
-            existing = grouped_items.get(product_id)
+            existing = grouped_items.get(item_key)
             if existing:
                 existing["quantity"] += quantity
                 existing["unit_refund"] = unit_refund
             else:
-                grouped_items[product_id] = {
+                grouped_items[item_key] = {
                     "product_id": product_id,
                     "quantity": quantity,
                     "unit_refund": unit_refund,
+                    "batch_code": clean_batch_code,
+                    "expiry_date": normalized_expiry_date,
                 }
 
         now = utc_now_iso()
@@ -2482,17 +3203,26 @@ class InventoryStore:
                 created_at=now,
             )
 
-            for product_id, item in grouped_items.items():
+            for line_index, item in enumerate(grouped_items.values(), start=1):
+                product_id = int(item["product_id"])
                 product = self._get_product_or_raise(connection, product_id)
                 line_total = item["quantity"] * item["unit_refund"]
                 total_amount += line_total
                 total_quantity += item["quantity"]
+                resolved_batch_code = self._resolve_batch_code(
+                    item.get("batch_code", ""),
+                    f"{receipt_code}-L{line_index}",
+                )
+                resolved_expiry_date = item.get("expiry_date")
 
                 transaction_note = (
                     f"Phiếu trả khách {receipt_code} | Khách: {clean_customer_name} | Giá hoàn: {float(item['unit_refund']):.0f}"
                 )
                 if clean_note:
                     transaction_note += f" | {clean_note}"
+                transaction_note += f" | Lô nhập: {resolved_batch_code} {float(item['quantity']):g}"
+                if resolved_expiry_date:
+                    transaction_note += f" HSD {resolved_expiry_date}"
 
                 cursor = connection.execute(
                     """
@@ -2500,6 +3230,21 @@ class InventoryStore:
                     VALUES(?, 'in', ?, ?, ?)
                     """,
                     (product_id, float(item["quantity"]), transaction_note, now),
+                )
+                created_batch = self._create_inventory_batch(
+                    connection,
+                    product=product,
+                    quantity=item["quantity"],
+                    unit_cost=Decimal(str(product["price"] or 0)),
+                    received_at=now,
+                    source_receipt_code=receipt_code,
+                    source_receipt_type="customer_return",
+                    source_transaction_id=int(cursor.lastrowid),
+                    transaction_id=int(cursor.lastrowid),
+                    batch_code=resolved_batch_code,
+                    expiry_date=resolved_expiry_date,
+                    note=clean_note,
+                    fallback_batch_code=resolved_batch_code,
                 )
                 current_stock = self._get_stock_for_product(connection, product_id)
                 transactions.append(
@@ -2512,6 +3257,8 @@ class InventoryStore:
                         "unit_refund": float(item["unit_refund"]),
                         "line_total": round(float(line_total), 2),
                         "current_stock": round(float(current_stock), 2),
+                        "batch_code": created_batch["batch_code"],
+                        "expiry_date": created_batch["expiry_date"],
                     }
                 )
                 self._insert_inventory_receipt_item(
@@ -2526,6 +3273,9 @@ class InventoryStore:
                     line_total=round(float(line_total), 2),
                     stock_after=round(float(current_stock), 2),
                     transaction_id=cursor.lastrowid,
+                    batch_id=int(created_batch["id"]),
+                    batch_code=created_batch["batch_code"],
+                    expiry_date=created_batch["expiry_date"],
                 )
             self._record_audit(
                 connection,
@@ -2569,21 +3319,24 @@ class InventoryStore:
         if not items:
             raise ValueError("Phiếu trả NCC đang trống.")
 
-        grouped_items: dict[int, dict] = {}
+        grouped_items: dict[tuple[int, str], dict] = {}
         for raw_item in items:
             product_id = int(raw_item.get("product_id", 0))
             quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
             unit_cost = parse_non_negative_decimal(raw_item.get("unit_cost", 0), "Giá trả NCC")
+            clean_batch_code = str(raw_item.get("batch_code") or raw_item.get("batchCode") or "").strip()
+            item_key = (product_id, clean_batch_code)
 
-            existing = grouped_items.get(product_id)
+            existing = grouped_items.get(item_key)
             if existing:
                 existing["quantity"] += quantity
                 existing["unit_cost"] = unit_cost
             else:
-                grouped_items[product_id] = {
+                grouped_items[item_key] = {
                     "product_id": product_id,
                     "quantity": quantity,
                     "unit_cost": unit_cost,
+                    "batch_code": clean_batch_code,
                 }
 
         now = utc_now_iso()
@@ -2593,7 +3346,8 @@ class InventoryStore:
         with self._connect() as connection:
             products_by_id: dict[int, sqlite3.Row] = {}
             current_stock_by_id: dict[int, Decimal] = {}
-            for product_id, item in grouped_items.items():
+            for item in grouped_items.values():
+                product_id = int(item["product_id"])
                 product = self._get_product_or_raise(connection, product_id)
                 current_stock = self._get_stock_for_product(connection, product_id)
                 if item["quantity"] > current_stock:
@@ -2616,7 +3370,8 @@ class InventoryStore:
                 note=clean_note,
                 created_at=now,
             )
-            for product_id, item in grouped_items.items():
+            for item in grouped_items.values():
+                product_id = int(item["product_id"])
                 product = products_by_id[product_id]
                 line_total = item["quantity"] * item["unit_cost"]
                 total_amount += line_total
@@ -2633,7 +3388,21 @@ class InventoryStore:
                     """,
                     (product_id, float(item["quantity"]), transaction_note, now),
                 )
+                lot_allocations = self._consume_inventory_batches(
+                    connection,
+                    product_id=product_id,
+                    quantity=item["quantity"],
+                    transaction_id=int(cursor.lastrowid),
+                    created_at=now,
+                    preferred_batch_code=item.get("batch_code", ""),
+                )
+                transaction_note += f" | {self._format_batch_allocations_note(lot_allocations, prefix='Lô xuất FIFO')}"
+                connection.execute(
+                    "UPDATE transactions SET note = ? WHERE id = ?",
+                    (transaction_note, int(cursor.lastrowid)),
+                )
                 remaining_stock = current_stock_by_id[product_id] - item["quantity"]
+                current_stock_by_id[product_id] = remaining_stock
                 transactions.append(
                     {
                         "id": cursor.lastrowid,
@@ -2644,6 +3413,8 @@ class InventoryStore:
                         "unit_cost": float(item["unit_cost"]),
                         "line_total": round(float(line_total), 2),
                         "remaining_stock": round(float(remaining_stock), 2),
+                        "batch_code": item.get("batch_code", ""),
+                        "lot_allocations": lot_allocations,
                     }
                 )
                 self._insert_inventory_receipt_item(
@@ -2658,6 +3429,7 @@ class InventoryStore:
                     line_total=round(float(line_total), 2),
                     stock_after=round(float(remaining_stock), 2),
                     transaction_id=cursor.lastrowid,
+                    batch_code=item.get("batch_code", ""),
                 )
             self._record_audit(
                 connection,
@@ -2780,13 +3552,24 @@ class InventoryStore:
     def _serialize_product_rows(self, connection: sqlite3.Connection, rows: list[sqlite3.Row]) -> list[dict]:
         product_ids = [int(row["id"]) for row in rows]
         metric_map = self._build_product_metric_map(connection, product_ids)
+        batch_map = self._build_batch_map_for_products(connection, product_ids)
         return [
-            self._serialize_product_row(row, metric_map.get(int(row["id"]), {}))
+            self._serialize_product_row(
+                row,
+                metric_map.get(int(row["id"]), {}),
+                batch_map.get(int(row["id"]), []),
+            )
             for row in rows
         ]
 
-    def _serialize_product_row(self, row: sqlite3.Row, metrics: dict | None = None) -> dict:
+    def _serialize_product_row(
+        self,
+        row: sqlite3.Row,
+        metrics: dict | None = None,
+        lots: list[dict] | None = None,
+    ) -> dict:
         metrics = metrics or {}
+        lots = lots or []
         current_stock = round(float(row["current_stock"]), 2)
         threshold = round(float(row["low_stock_threshold"]), 2)
         price = round(float(row["price"]), 2)
@@ -2816,22 +3599,29 @@ class InventoryStore:
         )
         estimated_remaining_days = None
         expiry_basis = "unknown"
-        expiry_source_date = self._parse_iso_datetime(last_purchase_inbound_at)
-        if expiry_source_date and shelf_life_days is not None:
-            days_since_inbound = max(
-                0,
-                int((datetime.now(timezone.utc) - expiry_source_date).total_seconds() // 86400),
-            )
-            estimated_remaining_days = round(shelf_life_days - days_since_inbound, 2)
-            expiry_basis = "shelf_life"
-        elif expiry_source_date and storage_life_days is not None:
-            days_since_inbound = max(
-                0,
-                int((datetime.now(timezone.utc) - expiry_source_date).total_seconds() // 86400),
-            )
-            estimated_remaining_days = round(storage_life_days - days_since_inbound, 2)
-            expiry_basis = "storage_life"
-
+        next_expiry_date = ""
+        known_expiry_lots = [lot for lot in lots if lot.get("expiry_date")]
+        if known_expiry_lots:
+            earliest_lot = known_expiry_lots[0]
+            estimated_remaining_days = earliest_lot.get("days_to_expiry")
+            next_expiry_date = str(earliest_lot.get("expiry_date") or "")
+            expiry_basis = "lot_expiry"
+        else:
+            expiry_source_date = self._parse_iso_datetime(last_purchase_inbound_at)
+            if expiry_source_date and shelf_life_days is not None:
+                days_since_inbound = max(
+                    0,
+                    int((datetime.now(timezone.utc) - expiry_source_date).total_seconds() // 86400),
+                )
+                estimated_remaining_days = round(shelf_life_days - days_since_inbound, 2)
+                expiry_basis = "shelf_life"
+            elif expiry_source_date and storage_life_days is not None:
+                days_since_inbound = max(
+                    0,
+                    int((datetime.now(timezone.utc) - expiry_source_date).total_seconds() // 86400),
+                )
+                estimated_remaining_days = round(storage_life_days - days_since_inbound, 2)
+                expiry_basis = "storage_life"
         return {
             "id": row["id"],
             "name": row["name"],
@@ -2856,6 +3646,10 @@ class InventoryStore:
             "last_purchase_inbound_at": last_purchase_inbound_at,
             "estimated_remaining_days": estimated_remaining_days,
             "expiry_basis": expiry_basis,
+            "next_expiry_date": next_expiry_date,
+            "lot_count": len(lots),
+            "lots": lots,
+            "has_unknown_expiry_lots": any(not lot.get("expiry_date") for lot in lots),
             "is_low_stock": current_stock <= threshold,
             "is_deleted": bool(row["is_deleted"]),
             "deleted_at": row["deleted_at"],
@@ -3225,6 +4019,8 @@ class InventoryStore:
                         "productId": int(item.get("productId") or 0),
                         "quantity": round(float(item.get("quantity") or 0), 2),
                         "unitCost": round(float(item.get("unitCost") or 0), 2),
+                        "batchCode": str(item.get("batchCode") or item.get("batch_code") or ""),
+                        "expiryDate": str(item.get("expiryDate") or item.get("expiry_date") or ""),
                     }
                     for item in (purchase.get("items") or [])
                 ],
@@ -3247,6 +4043,8 @@ class InventoryStore:
                         "productId": int(item.get("productId") or 0),
                         "quantity": round(float(item.get("quantity") or 0), 2),
                         "unitCost": round(float(item.get("unitCost") or 0), 2),
+                        "batchCode": str(item.get("batchCode") or item.get("batch_code") or ""),
+                        "expiryDate": str(item.get("expiryDate") or item.get("expiry_date") or ""),
                     }
                     for item in (purchase.get("items") or [])
                 ],

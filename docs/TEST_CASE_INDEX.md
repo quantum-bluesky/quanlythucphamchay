@@ -108,6 +108,8 @@ Mục tiêu:
 | 83 | `UT-SYNC-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_03_discount_updates_are_allowed_before_paid_and_locked_after_paid` |
 | 84 | `UT-DB-12` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_12_repair_purchase_document_allows_regular_draft_delete_and_ordered_cancel_but_rejects_ordered_delete` |
 | 85 | `UT-SYNC-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_04_cart_workflow_supports_draft_cancel_and_completed_paid_locks` |
+| 86 | `UT-DB-13` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_13_checkout_order_consumes_real_expiry_lots_in_fefo_order` |
+| 87 | `UT-DB-14` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_14_supplier_return_can_target_a_specific_batch` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

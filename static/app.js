@@ -13,6 +13,8 @@ import {
   inventoryReceiptEntryForm,
   inventoryReceiptProductInput,
   inventoryReceiptDeltaInput,
+  inventoryReceiptBatchCodeInput,
+  inventoryReceiptExpiryDateInput,
   inventoryReceiptAddButton,
   inventoryReceiptReasonInput,
   inventoryReceiptNoteInput,
@@ -56,6 +58,8 @@ import {
   customerReturnProductInput,
   customerReturnQuantityInput,
   customerReturnPriceInput,
+  customerReturnBatchCodeInput,
+  customerReturnExpiryDateInput,
   customerReturnAddButton,
   customerReturnItems,
   customerReturnSubmitButton,
@@ -2524,6 +2528,8 @@ function clearProtectedSessionData() {
     collapsed: true,
     productText: "",
     quantityDelta: "",
+    batchCode: "",
+    expiryDate: "",
     reason: "",
     note: "",
     items: [],
@@ -2533,6 +2539,11 @@ function clearProtectedSessionData() {
     sourceCartId: "",
     customerName: "",
     note: "",
+    productText: "",
+    quantity: "",
+    unitRefund: "",
+    batchCode: "",
+    expiryDate: "",
     items: [],
   };
   state.supplierReturnDraft = {
@@ -2870,24 +2881,32 @@ function resetInventoryReceiptDraft({ keepCollapsed = false } = {}) {
     collapsed: keepCollapsed ? state.inventoryReceiptDraft?.collapsed ?? true : true,
     productText: "",
     quantityDelta: "",
+    batchCode: "",
+    expiryDate: "",
     reason: "",
     note: "",
     items: [],
   };
 }
 
-function addInventoryReceiptDraftItem(productText, quantityDelta) {
+function addInventoryReceiptDraftItem(productText, quantityDelta, batchCode = "", expiryDate = "") {
   const product = resolveProductFromText(productText);
   const delta = Number(quantityDelta);
   if (!Number.isFinite(delta) || delta === 0) {
     throw new Error("SL điều chỉnh phải khác 0.");
   }
   const roundedDelta = Number(delta.toFixed(2));
-  const existing = state.inventoryReceiptDraft.items.find((item) => Number(item.productId) === Number(product.id));
+  const cleanBatchCode = String(batchCode || "").trim();
+  const cleanExpiryDate = String(expiryDate || "").trim();
+  const existing = state.inventoryReceiptDraft.items.find((item) => (
+    Number(item.productId) === Number(product.id)
+    && String(item.batchCode || "") === cleanBatchCode
+    && String(item.expiryDate || "") === cleanExpiryDate
+  ));
   if (existing) {
     existing.quantityDelta = Number((Number(existing.quantityDelta) + roundedDelta).toFixed(2));
     if (existing.quantityDelta === 0) {
-      state.inventoryReceiptDraft.items = state.inventoryReceiptDraft.items.filter((item) => Number(item.productId) !== Number(product.id));
+      state.inventoryReceiptDraft.items = state.inventoryReceiptDraft.items.filter((item) => item.id !== existing.id);
     }
   } else {
     state.inventoryReceiptDraft.items.push({
@@ -2896,10 +2915,14 @@ function addInventoryReceiptDraftItem(productText, quantityDelta) {
       productName: product.name,
       unit: product.unit,
       quantityDelta: roundedDelta,
+      batchCode: cleanBatchCode,
+      expiryDate: cleanExpiryDate,
     });
   }
   state.inventoryReceiptDraft.productText = "";
   state.inventoryReceiptDraft.quantityDelta = "";
+  state.inventoryReceiptDraft.batchCode = "";
+  state.inventoryReceiptDraft.expiryDate = "";
 }
 
 function renderInventoryReceiptSection() {
@@ -2917,6 +2940,8 @@ function renderInventoryReceiptSection() {
   inventoryReceiptToggleButton.textContent = draft.collapsed ? "Mở phiếu" : "Thu gọn";
   if (inventoryReceiptProductInput) inventoryReceiptProductInput.value = draft.productText || "";
   if (inventoryReceiptDeltaInput) inventoryReceiptDeltaInput.value = draft.quantityDelta || "";
+  if (inventoryReceiptBatchCodeInput) inventoryReceiptBatchCodeInput.value = draft.batchCode || "";
+  if (inventoryReceiptExpiryDateInput) inventoryReceiptExpiryDateInput.value = draft.expiryDate || "";
   if (inventoryReceiptReasonInput) inventoryReceiptReasonInput.value = draft.reason || "";
   if (inventoryReceiptNoteInput) inventoryReceiptNoteInput.value = draft.note || "";
   if (!inventoryReceiptItems) {
@@ -2932,11 +2957,12 @@ function renderInventoryReceiptSection() {
         <div>
           <strong>${escapeHtml(item.productName)}</strong>
           <div class="cart-line-note">${Number(item.quantityDelta) > 0 ? "Tăng" : "Giảm"} ${escapeHtml(formatQuantity(Math.abs(item.quantityDelta)))} ${escapeHtml(item.unit)}</div>
+          ${item.batchCode || item.expiryDate ? `<div class="cart-line-note">${item.batchCode ? `Lô ${escapeHtml(item.batchCode)}` : "Lô tự sinh"}${item.expiryDate ? ` • HSD ${escapeHtml(item.expiryDate)}` : ""}</div>` : ""}
         </div>
         <strong>${Number(item.quantityDelta) > 0 ? "+" : ""}${escapeHtml(formatQuantity(item.quantityDelta))}</strong>
       </div>
       <div class="line-actions">
-        <button type="button" class="danger-button compact-button" data-inventory-receipt-action="remove" data-product-id="${item.productId}">Bỏ dòng</button>
+        <button type="button" class="danger-button compact-button" data-inventory-receipt-action="remove" data-item-id="${item.id}">Bỏ dòng</button>
       </div>
     </article>
   `).join("");
@@ -2951,11 +2977,13 @@ function resetCustomerReturnDraft({ keepCollapsed = false } = {}) {
     productText: "",
     quantity: "",
     unitRefund: "",
+    batchCode: "",
+    expiryDate: "",
     items: [],
   };
 }
 
-function addCustomerReturnDraftItem(productText, quantity, unitRefund) {
+function addCustomerReturnDraftItem(productText, quantity, unitRefund, batchCode = "", expiryDate = "") {
   const product = resolveProductFromText(productText);
   const parsedQuantity = Number(quantity);
   const parsedUnitRefund = Number(unitRefund);
@@ -2967,7 +2995,13 @@ function addCustomerReturnDraftItem(productText, quantity, unitRefund) {
   }
   const roundedQuantity = Number(parsedQuantity.toFixed(2));
   const roundedUnitRefund = Number(parsedUnitRefund.toFixed(2));
-  const existing = state.customerReturnDraft.items.find((item) => Number(item.productId) === Number(product.id));
+  const cleanBatchCode = String(batchCode || "").trim();
+  const cleanExpiryDate = String(expiryDate || "").trim();
+  const existing = state.customerReturnDraft.items.find((item) => (
+    Number(item.productId) === Number(product.id)
+    && String(item.batchCode || "") === cleanBatchCode
+    && String(item.expiryDate || "") === cleanExpiryDate
+  ));
   if (existing) {
     existing.quantity = Number((Number(existing.quantity) + roundedQuantity).toFixed(2));
     existing.unitRefund = roundedUnitRefund;
@@ -2979,11 +3013,15 @@ function addCustomerReturnDraftItem(productText, quantity, unitRefund) {
       unit: product.unit,
       quantity: roundedQuantity,
       unitRefund: roundedUnitRefund,
+      batchCode: cleanBatchCode,
+      expiryDate: cleanExpiryDate,
     });
   }
   state.customerReturnDraft.productText = "";
   state.customerReturnDraft.quantity = "";
   state.customerReturnDraft.unitRefund = "";
+  state.customerReturnDraft.batchCode = "";
+  state.customerReturnDraft.expiryDate = "";
 }
 
 function openCustomerReturnDraftFromCart(cartId) {
@@ -2999,6 +3037,8 @@ function openCustomerReturnDraftFromCart(cartId) {
     productText: "",
     quantity: "",
     unitRefund: "",
+    batchCode: "",
+    expiryDate: "",
     items: (cart.items || []).map((item) => ({
       id: createId("customer_return_item"),
       productId: item.productId,
@@ -3006,6 +3046,8 @@ function openCustomerReturnDraftFromCart(cartId) {
       unit: item.unit,
       quantity: Number(item.quantity || 0),
       unitRefund: Number(item.unitPrice || 0),
+      batchCode: "",
+      expiryDate: "",
     })),
   };
 }
@@ -3023,6 +3065,8 @@ function renderCustomerReturnSection() {
   if (customerReturnProductInput) customerReturnProductInput.value = draft.productText || "";
   if (customerReturnQuantityInput) customerReturnQuantityInput.value = draft.quantity || "";
   if (customerReturnPriceInput) customerReturnPriceInput.value = draft.unitRefund || "";
+  if (customerReturnBatchCodeInput) customerReturnBatchCodeInput.value = draft.batchCode || "";
+  if (customerReturnExpiryDateInput) customerReturnExpiryDateInput.value = draft.expiryDate || "";
   if (!customerReturnItems) {
     return;
   }
@@ -3040,6 +3084,7 @@ function renderCustomerReturnSection() {
           <div>
             <strong>${escapeHtml(item.productName)}</strong>
             <div class="cart-line-note">${escapeHtml(item.unit)}</div>
+            ${item.batchCode || item.expiryDate ? `<div class="cart-line-note">${item.batchCode ? `Lô ${escapeHtml(item.batchCode)}` : "Lô tự sinh"}${item.expiryDate ? ` • HSD ${escapeHtml(item.expiryDate)}` : ""}</div>` : ""}
           </div>
           <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitRefund || 0)))}</strong>
         </div>
@@ -3080,7 +3125,10 @@ function addSupplierReturnDraftItem(productText, quantity, unitCost) {
   }
   const roundedQuantity = Number(parsedQuantity.toFixed(2));
   const roundedUnitCost = Number(parsedUnitCost.toFixed(2));
-  const existing = state.supplierReturnDraft.items.find((item) => Number(item.productId) === Number(product.id));
+  const existing = state.supplierReturnDraft.items.find((item) => (
+    Number(item.productId) === Number(product.id)
+    && !String(item.batchCode || "").trim()
+  ));
   if (existing) {
     existing.quantity = Number((Number(existing.quantity) + roundedQuantity).toFixed(2));
     existing.unitCost = roundedUnitCost;
@@ -3092,6 +3140,8 @@ function addSupplierReturnDraftItem(productText, quantity, unitCost) {
       unit: product.unit,
       quantity: roundedQuantity,
       unitCost: roundedUnitCost,
+      batchCode: "",
+      expiryDate: "",
     });
   }
   state.supplierReturnDraft.productText = "";
@@ -3119,6 +3169,8 @@ function openSupplierReturnDraftFromPurchase(purchaseId) {
       unit: item.unit,
       quantity: Number(item.quantity || 0),
       unitCost: Number(item.unitCost || 0),
+      batchCode: String(item.batchCode || item.batch_code || ""),
+      expiryDate: String(item.expiryDate || item.expiry_date || ""),
     })),
   };
 }
@@ -3153,6 +3205,7 @@ function renderSupplierReturnSection() {
           <div>
             <strong>${escapeHtml(item.productName)}</strong>
             <div class="cart-line-note">${escapeHtml(item.unit)}</div>
+            ${item.batchCode || item.expiryDate ? `<div class="cart-line-note">${item.batchCode ? `Lô ${escapeHtml(item.batchCode)}` : ""}${item.expiryDate ? `${item.batchCode ? " • " : ""}HSD ${escapeHtml(item.expiryDate)}` : ""}</div>` : ""}
           </div>
           <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitCost || 0)))}</strong>
         </div>
@@ -3633,6 +3686,8 @@ async function submitInventoryReceiptDraft() {
       items: draft.items.map((item) => ({
         product_id: item.productId,
         quantity_delta: item.quantityDelta,
+        batch_code: item.batchCode || "",
+        expiry_date: item.expiryDate || "",
       })),
     }),
   });
@@ -3667,6 +3722,8 @@ async function submitCustomerReturnDraft() {
         product_id: item.productId,
         quantity: item.quantity,
         unit_refund: item.unitRefund,
+        batch_code: item.batchCode || "",
+        expiry_date: item.expiryDate || "",
       })),
     }),
   });
@@ -3701,6 +3758,7 @@ async function submitSupplierReturnDraft() {
         product_id: item.productId,
         quantity: item.quantity,
         unit_cost: item.unitCost,
+        batch_code: item.batchCode || "",
       })),
     }),
   });
@@ -3896,6 +3954,8 @@ registerInventoryControllerEvents({
     inventoryReceiptToggleButton,
     inventoryReceiptProductInput,
     inventoryReceiptDeltaInput,
+    inventoryReceiptBatchCodeInput,
+    inventoryReceiptExpiryDateInput,
     inventoryReceiptAddButton,
     inventoryReceiptReasonInput,
     inventoryReceiptNoteInput,
@@ -3923,6 +3983,8 @@ registerInventoryControllerEvents({
       state.inventoryReceiptDraft.collapsed = false;
       state.inventoryReceiptDraft.productText = getProductById(productId)?.name || "";
       state.inventoryReceiptDraft.quantityDelta = "";
+      state.inventoryReceiptDraft.batchCode = "";
+      state.inventoryReceiptDraft.expiryDate = "";
     },
     focusInventoryReceiptSection,
     addInventoryReceiptDraftItem,
@@ -3961,6 +4023,8 @@ registerSalesControllerEvents({
     customerReturnProductInput,
     customerReturnQuantityInput,
     customerReturnPriceInput,
+    customerReturnBatchCodeInput,
+    customerReturnExpiryDateInput,
     customerReturnAddButton,
     customerReturnItems,
     customerReturnClearButton,

@@ -44,6 +44,7 @@ Liên kết detail hiện có:
   - ô tìm kiếm tồn kho
   - dropdown sắp xếp trong khu vực phân trang
   - card sản phẩm
+  - danh sách lô còn hàng trong phần detail card
   - badge `Chờ xuất` / `Chờ nhập` có thêm `số phiếu / tổng số lượng` đang chờ theo sản phẩm
   - nút `Lịch sử` để nhảy nhanh xuống phần lịch sử
   - lịch sử gần đây
@@ -55,7 +56,7 @@ Liên kết detail hiện có:
   - search toolbar chỉ giữ ô tìm kiếm
   - sort nằm ở pagination đầu list; pagination cuối không lặp sort control
   - mode `Ưu tiên nhập/xử lý` hiển thị thêm điểm ưu tiên trên card
-  - mode `Hạn còn ít` hiển thị thêm hạn còn lại ước tính hoặc nhãn chưa có dữ liệu hạn
+  - mode `Hạn còn ít` hiển thị theo HSD thật của lô gần nhất nếu có; chỉ fallback về ước tính sản phẩm khi chưa có lô nào có HSD
   - khối `Lịch sử gần đây` mặc định thu gọn, có nút `Mở lịch sử/Thu gọn`
   - nếu dòng lịch sử có mã `DH/PN/DC/THK/TNCC` thì mã đó là link nội bộ để mở đúng chứng từ liên quan
 
@@ -121,7 +122,7 @@ Liên kết detail hiện có:
   - khối `Thêm sản phẩm`
   - khối `Lịch sử sản phẩm`
   - filter audit theo actor/date
-  - field `Hạn dùng (ngày)` và `Bảo quản (ngày)` để phục vụ sort hạn còn lại ở tồn kho
+  - field `Hạn dùng (ngày)` và `Bảo quản (ngày)` để làm metadata fallback cho sort hạn còn lại khi lô chưa có HSD thật
 
 ### `purchases` - Quản lý nhập hàng
 
@@ -138,11 +139,13 @@ Liên kết detail hiện có:
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
   - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu để đối chiếu số tiền thực trả NCC
+  - mỗi dòng nhập cần có input `Mã lô` và `Hạn dùng`, kèm action `+ Lô` để tách một sản phẩm thành nhiều lô nhập khác nhau mà không mở popup riêng
   - metadata phiếu nhập được bung/thu gọn bằng button `Detail` thay vì badge tĩnh để phần đầu phiếu gọn hơn
   - nếu phiếu nhập sinh ra từ một đơn đang thiếu hàng, phần metadata `Detail` phải hiện nguồn đơn thiếu riêng; không dùng ô ghi chú để nhét sẵn nội dung này
   - nếu shortage từ màn xuất hàng đã được cover bởi phiếu `draft/ordered` hiện có, màn nhập hàng chỉ mở lại phiếu liên quan khi user xác nhận; không tự tạo thêm phiếu trùng
   - nút `Nhập kho` chỉ hiện khi phiếu đã ở trạng thái `Đã đặt`; phiếu `Nháp` vẫn còn chỉnh sửa được nhưng chưa cho nhập kho
   - ô NCC và nút `NCC` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
+  - nếu bỏ trống `Mã lô`, app tự sinh batch code khi nhập kho; còn `Hạn dùng` phải phản ánh HSD thật nếu có để phục vụ FEFO
   - sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Giảm giá khuyến mại`; không mở khóa lại NCC hay dòng nhập
   - các nút đổi trạng thái hoặc xóa phiếu như `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu`, `Xóa phiếu` phải hiện message confirm trước khi app cập nhật
 - tài liệu detail:
