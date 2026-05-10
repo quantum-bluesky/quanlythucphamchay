@@ -35,6 +35,8 @@ test("IT-INV-SORT-01 inventory sort control lives in pagination and sorts by sto
   await sortSelect.selectOption("expiry");
   await expect.poll(() => firstInventoryName(page)).toContain("Ruốc nấm");
   await expect(page.locator("#productGrid .product-row").first()).toContainText("Lô gần nhất còn");
+  await page.locator("#productGrid .product-row").first().locator('[data-product-action="toggle-expand"]').click();
+  await expect(page.locator("#productGrid .product-row").first()).toContainText("Tồn theo lô");
 
   expectNoRuntimeErrors(runtime);
 });
