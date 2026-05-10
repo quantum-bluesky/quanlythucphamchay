@@ -240,6 +240,7 @@ class AuthHttpTests(unittest.TestCase):
 
         html_status, html_body, html_headers = self._request_text("GET", "/")
         self.assertEqual(html_status, 200)
+        self.assertNotIn("<base ", html_body)
         self.assertIn(f'./static/app.js?v={app_version}.', html_body)
         self.assertEqual(html_headers.get("cache-control"), "no-cache, must-revalidate")
 
@@ -317,6 +318,11 @@ class AuthHttpTests(unittest.TestCase):
             "asset_versions_path": str(self.asset_versions_path),
         }
         self._start_server(config)
+
+        stripped_proxy_html_status, stripped_proxy_html_body, _ = self._request_text("GET", "/")
+        self.assertEqual(stripped_proxy_html_status, 200)
+        self.assertNotIn("<base ", stripped_proxy_html_body)
+        self.assertIn("./static/app.js?v=", stripped_proxy_html_body)
 
         html_status, html_body, _ = self._request_text("GET", "/qltp")
         self.assertEqual(html_status, 200)
