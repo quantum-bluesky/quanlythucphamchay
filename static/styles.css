@@ -635,6 +635,14 @@ button:disabled {
   align-items: center;
 }
 
+.purchase-suggestion-qty {
+  min-width: min(170px, 100%);
+}
+
+.purchase-suggestion-qty input {
+  min-width: 88px;
+}
+
 .wide-button {
   width: 100%;
 }
@@ -2181,6 +2189,10 @@ button:disabled {
     margin-top: 6px;
   }
 
+  [data-menu-section="purchases"] .purchase-suggestion-qty {
+    width: 100%;
+  }
+
   [data-menu-section="purchases"] .cart-queue-item {
     gap: 8px;
     padding: 12px;
@@ -2645,13 +2657,14 @@ button:disabled {
   }
 
   .purchase-suggestion-actions {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
     gap: 8px;
     margin-top: 8px;
   }
 
-  .purchase-suggestion-actions .status-pill,
+  .purchase-suggestion-actions .sales-inline-qty,
   .purchase-suggestion-actions .compact-button {
     min-height: 28px;
   }

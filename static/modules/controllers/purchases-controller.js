@@ -175,11 +175,24 @@ export function registerPurchasesControllerEvents(contract) {
     renderers.renderPurchaseOrders();
   });
 
+  function resolvePurchaseSuggestionQuantity(button) {
+    const fallbackQuantity = button.dataset.quantity;
+    const input = button
+      .closest(".sales-product-row")
+      ?.querySelector(`[data-purchase-suggestion-qty-input="${button.dataset.productId}"]`);
+    const quantity = Number(input?.value ?? fallbackQuantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new Error("Số lượng nhập phải lớn hơn 0.");
+    }
+    return Number(quantity.toFixed(2));
+  }
+
   dom.purchaseSuggestionList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-purchase-suggestion-action]");
     if (!button) return;
     try {
-      actions.addSuggestionToPurchase(button.dataset.productId, button.dataset.quantity, queries.getProductById(button.dataset.productId)?.price || 0);
+      const quantity = resolvePurchaseSuggestionQuantity(button);
+      actions.addSuggestionToPurchase(button.dataset.productId, quantity, queries.getProductById(button.dataset.productId)?.price || 0);
       state.purchasePanelCollapsed = false;
       renderers.renderPurchasePanel();
       actions.focusPurchasePanel();
@@ -187,6 +200,17 @@ export function registerPurchasesControllerEvents(contract) {
     } catch (error) {
       actions.showToast(error.message, true);
     }
+  });
+
+  dom.purchaseSuggestionList.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const qtyInput = event.target.closest("[data-purchase-suggestion-qty-input]");
+    if (!qtyInput) return;
+    event.preventDefault();
+    const productId = qtyInput.dataset.purchaseSuggestionQtyInput;
+    dom.purchaseSuggestionList
+      .querySelector(`[data-purchase-suggestion-action="add"][data-product-id="${productId}"]`)
+      ?.click();
   });
 
   dom.purchasePanel.addEventListener("click", async (event) => {
