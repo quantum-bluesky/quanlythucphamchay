@@ -204,7 +204,7 @@ Các nhóm kiểm tra chính:
 - `Input Tablet + bàn phím ảo`: khi viewport chỉ đổi chiều cao vì bàn phím bật/tắt, ô input đang nhập vẫn phải giữ focus và nhập tiếp được
 - `Phân trang PC/tablet`: list tự lấy số mục mặc định theo thiết bị và cho đổi nhanh `25/50/100` trên thanh phân trang
 - `Sắp xếp tồn kho`: dropdown sort nằm trong phân trang đầu list, không nằm trong search toolbar, và sắp đúng theo tồn, giá trị tồn, ưu tiên, hạn còn lại
-- `Đăng nhập hệ thống`: header `Login/Logout`, user thường, admin, timeout session, role-based access
+- `Đăng nhập hệ thống`: header `Login/Logout`, user thường, admin, timeout session, role-based access; user thường vẫn xem được detail tồn kho nhưng không thấy panel chỉnh tồn trực tiếp hay action admin như `Phiếu DC` / sửa giá
 - `Master Admin`: login admin, export/import file master (`JSON` + `CSV`), backup, restore
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
 - `Phase B UI`: tạo phiếu điều chỉnh trên màn tồn kho, tạo phiếu trả khách từ đơn cũ hoặc nhập tay, tạo phiếu trả NCC từ phiếu nhập cũ hoặc nhập tay

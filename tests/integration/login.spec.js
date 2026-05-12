@@ -28,7 +28,10 @@ test("ACC-LOG-01 normal user and admin login update header state and permissions
 
   await switchMenu(page, "inventory");
   await expectScreenTitle(page, "Kiểm tra tồn kho");
-  await expect(page.locator('[data-product-action="toggle-expand"]').first()).toHaveCount(0);
+  await expect(page.locator("#quickPanel")).toBeHidden();
+  await expect(page.locator('[data-product-action="create-receipt"]')).toHaveCount(0);
+  await expect(page.locator('[data-product-action="start-price-edit"]')).toHaveCount(0);
+  await expect(page.locator('[data-product-action="toggle-expand"]').first()).toBeVisible();
 
   await page.evaluate(async () => {
     await fetch("/api/session/logout", { method: "POST" });
@@ -49,6 +52,8 @@ test("ACC-LOG-01 normal user and admin login update header state and permissions
   await expect(page.locator("#adminModulePanel")).toBeVisible();
 
   await switchMenu(page, "inventory");
+  await expect(page.locator("#quickPanel")).toBeVisible();
+  await expect(page.locator("#noteInput")).toHaveAttribute("required", "");
   await expect(page.locator('[data-product-action="toggle-expand"]').first()).toBeVisible();
 
   expectNoRuntimeErrors(runtime);
