@@ -532,6 +532,28 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
+                if route == "/api/purchases/received-item-expiry":
+                    result = store.update_received_purchase_item_expiry(
+                        payload.get("purchase_id", ""),
+                        payload.get("purchase_item_id", ""),
+                        expiry_input_mode=payload.get("expiry_input_mode", "direct"),
+                        manufacture_date=payload.get("manufacture_date"),
+                        expiry_date=payload.get("expiry_date"),
+                        expected_updated_at=payload.get("expected_updated_at", ""),
+                        actor=self._get_current_username() or "",
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã cập nhật hạn dùng của dòng nhập hàng.",
+                            "purchase": result["purchase"],
+                            "item": result["item"],
+                            "purchases": result["purchases"],
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
                 if route == "/api/purchases/repair":
                     result = store.repair_purchase_document(
                         payload.get("purchase_id", ""),

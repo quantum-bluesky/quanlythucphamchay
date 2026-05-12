@@ -99,14 +99,14 @@ Nếu cần can thiệp đặc biệt
 
 - gán nhà cung cấp
 - nếu phiếu được tạo từ đơn thiếu hàng, app giữ liên kết nguồn đơn riêng trong metadata của phiếu, không nhét sẵn vào ô ghi chú
-- sửa số lượng, giá nhập, mã lô và HSD thật của từng dòng
+- sửa số lượng, giá nhập, mã lô và HSD của từng dòng; mặc định nhập trực tiếp HSD, hoặc có thể chuyển sang nhập gián tiếp bằng `Ngày sản xuất` để app tự tính HSD theo thời gian bảo quản
 - nếu cùng một sản phẩm về nhiều lô khác nhau thì tách thành nhiều dòng riêng
 - bắt buộc có nhà cung cấp trước khi chuyển phiếu sang `ordered`
 - có thể nhập thêm `giảm giá khuyến mại` cho toàn phiếu để phản ánh số tiền thực trả NCC
 - có thể đổi giá nhập mặc định
 - nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB
 - nhà cung cấp chỉ được đổi khi phiếu còn `draft`; từ `ordered` trở đi phải giữ nguyên NCC đã chốt
-- nếu bỏ trống mã lô thì app tự sinh batch code khi nhập kho; nếu không nhập HSD thì lô vẫn được quản lý nhưng không được xem là có hạn thật
+- nếu bỏ trống mã lô thì app tự sinh batch code khi nhập kho; nếu không nhập HSD thì app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản`, còn nếu cũng không có metadata bảo quản thì lô vẫn được quản lý nhưng không có hạn thật
 
 ### Bước 4: Chạy trạng thái workflow
 
@@ -123,7 +123,7 @@ ordered -> cancelled
 - nếu chưa có nhà cung cấp thì không được chuyển `draft -> ordered` hoặc `ordered -> received`
 - từ `ordered` trở đi không được đổi `supplierName`; UI phải khóa ô NCC và nút `NCC` trên mọi thiết bị
 - chỉ `received` mới được `paid`
-- `received` chỉ còn cho sửa `giảm giá khuyến mại`; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
+- `received` chỉ còn cho sửa `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
 - trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
 
 ## 5. Luồng sửa sai sau khi đã xử lý chứng từ

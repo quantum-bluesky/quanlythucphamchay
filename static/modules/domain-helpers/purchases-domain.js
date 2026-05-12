@@ -18,6 +18,70 @@ export function createPurchasesDomainHelpers(deps) {
     saveAndRenderAll,
   } = deps;
 
+  function getProductStorageLifeDays(product) {
+    const candidates = [
+      product?.storage_life_days,
+      product?.storageLifeDays,
+      product?.shelf_life_days,
+      product?.shelfLifeDays,
+    ];
+    for (const candidate of candidates) {
+      const numericValue = Number(candidate);
+      if (Number.isFinite(numericValue) && numericValue > 0) {
+        return numericValue;
+      }
+    }
+    return null;
+  }
+
+  function shiftDateByDays(dateText, days) {
+    const cleanDateText = String(dateText || "").trim();
+    const numericDays = Number(days);
+    if (!cleanDateText || !Number.isFinite(numericDays) || numericDays <= 0) {
+      return "";
+    }
+    const [yearText, monthText, dayText] = cleanDateText.split("-");
+    const year = Number(yearText);
+    const month = Number(monthText);
+    const day = Number(dayText);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+      return "";
+    }
+    const baseDate = new Date(Date.UTC(year, month - 1, day));
+    if (Number.isNaN(baseDate.getTime())) {
+      return "";
+    }
+    baseDate.setUTCDate(baseDate.getUTCDate() + Math.max(0, Math.round(numericDays)));
+    return baseDate.toISOString().slice(0, 10);
+  }
+
+  function resolvePurchaseItemExpiryMeta(purchase, item) {
+    const product = getProductById(item?.productId);
+    const storageLifeDays = getProductStorageLifeDays(product);
+    const mode = String(item?.expiryInputMode || item?.expiry_input_mode || "direct").trim() || "direct";
+    const rawExpiryDate = String(item?.expiryDate || item?.expiry_date || "").trim();
+    const manufactureDate = String(item?.manufactureDate || item?.manufacture_date || "").trim();
+    const receivedDate = String(purchase?.receivedAt || purchase?.received_at || "").trim().slice(0, 10);
+    const directInputValue = mode === "received_fallback" ? "" : rawExpiryDate;
+    const isManufactureMode = mode === "manufacture";
+    const effectiveExpiryDate = isManufactureMode
+      ? (manufactureDate && storageLifeDays !== null ? shiftDateByDays(manufactureDate, storageLifeDays) : rawExpiryDate)
+      : (rawExpiryDate || (receivedDate && storageLifeDays !== null ? shiftDateByDays(receivedDate, storageLifeDays) : ""));
+    const fallbackExpiryDate = !isManufactureMode && !directInputValue && receivedDate && storageLifeDays !== null
+      ? shiftDateByDays(receivedDate, storageLifeDays)
+      : "";
+    return {
+      mode,
+      isManufactureMode,
+      storageLifeDays,
+      directInputValue,
+      manufactureDate,
+      effectiveExpiryDate,
+      fallbackExpiryDate,
+      usesReceivedFallback: mode === "received_fallback" || (!isManufactureMode && !directInputValue && Boolean(fallbackExpiryDate)),
+    };
+  }
+
   function getActivePurchase() {
     return state.purchases.find((purchase) => purchase.id === state.activePurchaseId) || null;
   }
@@ -39,6 +103,8 @@ export function createPurchasesDomainHelpers(deps) {
               quantity,
               unitCost,
               batchCode: String(item.batchCode || item.batch_code || "").trim(),
+              expiryInputMode: String(item.expiryInputMode || item.expiry_input_mode || "direct").trim() || "direct",
+              manufactureDate: String(item.manufactureDate || item.manufacture_date || "").trim(),
               expiryDate: String(item.expiryDate || item.expiry_date || "").trim(),
               lineTotal: Number((quantity * unitCost).toFixed(2)),
             };
@@ -102,6 +168,10 @@ export function createPurchasesDomainHelpers(deps) {
 
   function canEditPurchase(purchase) {
     return Boolean(purchase && ["draft", "ordered"].includes(purchase.status));
+  }
+
+  function canEditPurchaseExpiryMetadata(purchase) {
+    return Boolean(purchase && ["draft", "ordered", "received"].includes(purchase.status));
   }
 
   function canEditPurchaseDiscount(purchase) {
@@ -283,6 +353,8 @@ export function createPurchasesDomainHelpers(deps) {
     getOpenPurchasesForProduct,
     setActivePurchase,
     addSuggestionToPurchase,
+    canEditPurchaseExpiryMetadata,
+    resolvePurchaseItemExpiryMeta,
     startInventoryInFlow,
   };
 }
