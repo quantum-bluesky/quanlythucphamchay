@@ -284,6 +284,7 @@ export function createSalesUi(deps) {
     const drafts = state.carts.filter((cart) => cart.status === "draft");
     const archived = state.carts.filter((cart) => {
       if (cart.status === "draft") return false;
+      if (!state.showCancelledOrders && cart.status === "cancelled") return false;
       if (!state.showPaidOrders && cart.paymentStatus === "paid") return false;
       return true;
     });

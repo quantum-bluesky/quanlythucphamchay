@@ -61,7 +61,7 @@ export const SCREEN_HELP = {
     overview: "Theo dõi các giỏ hàng nháp, đơn đã chốt, đơn đã thanh toán và tra cứu lịch sử đơn theo khách hay mặt hàng.",
     steps: [
       "Dùng ô tìm kiếm để lọc theo khách hàng, mã đơn hoặc tên mặt hàng.",
-      "Bật hoặc tắt các tùy chọn hiện đơn đã xong và đã thanh toán để thu gọn danh sách.",
+      "Bật hoặc tắt các tùy chọn hiện đơn đã xong, đã hủy và đã thanh toán để thu gọn danh sách; riêng đơn đã hủy mặc định được ẩn.",
       "Khi đi từ màn Khách hàng sang, app có thể tự lọc đúng theo khách; nếu khách chỉ có 1 phiếu hàng thì màn này sẽ tự mở thẳng phần detail của phiếu đó, kể cả khi đơn đã xong hoặc đã thanh toán.",
       "Với giỏ nháp đang chờ xuất, bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile mở `Detail` để thấy cụm action gọn của card.",
       "Trước khi `Xuất`, `Đã thanh toán`, `Hủy` hoặc `Xóa`, app sẽ hiện message confirm để bạn kiểm tra lại thao tác có thể đổi trạng thái hoặc xóa phiếu.",
@@ -146,7 +146,7 @@ export const SCREEN_HELP = {
       "Nếu gặp dữ liệu lỗi cũ kiểu phiếu bị lệch marker/trạng thái, như dính Đã thanh toán nhưng chưa có Nhập kho thật hoặc đang hiện thành Nháp sai, app sẽ hiện cảnh báo và cho phép Hủy/Xóa để dọn trạng thái lỗi mà không khôi phục lại thành nháp.",
       "Phiếu đã nhập kho, đã thanh toán hoặc đã hủy sẽ chuyển sang chế độ chỉ xem; nếu sai sót thì bấm Trả NCC trên phiếu cũ hoặc mở khối Phiếu trả NCC để lập phiếu độc lập.",
       "Master Admin cũng không được xóa hoặc hủy ngược phiếu đã khóa, trừ ngoại lệ phiếu lỗi dữ liệu nói trên; ngoài ngoại lệ đó thì chỉ phiếu nháp mới được xóa hẳn.",
-      "Ẩn các phiếu đã thanh toán để giữ màn hình gọn; bật lại khi cần đối chiếu lịch sử.",
+      "Mặc định danh sách ẩn phiếu đã hủy và cũng có thể ẩn phiếu đã thanh toán để giữ màn hình gọn; bật lại các checkbox khi cần đối chiếu lịch sử.",
       DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
