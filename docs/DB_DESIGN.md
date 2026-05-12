@@ -213,7 +213,10 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `id`, `purchase_id`
   - `product_id`, `product_name`
   - `quantity`, `unit_cost`
-  - `batch_code`, `expiry_date`
+  - `batch_code`
+  - `expiry_input_mode`: `direct`, `manufacture`, hoặc `received_fallback`
+  - `manufacture_date`
+  - `expiry_date`: HSD hiệu lực đã resolve để dùng cho FEFO/lô
   - `sort_order`
 
 ## 8. Bảng receipt chuẩn hóa
@@ -243,7 +246,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `quantity`
   - `unit_amount`, `line_total`
   - `stock_after`
-  - `transaction_id`
+  - `transaction_id`, `purchase_item_id`
   - `batch_id`, `batch_code`, `expiry_date`
 
 ## 9. Bảng `audit_logs`
@@ -325,7 +328,8 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - phiếu nhập sinh ra từ đơn thiếu hàng lưu liên kết nguồn riêng ở `source_type/source_code/source_name`; `note` vẫn dành cho ghi chú user nhập tay
 - `discount_amount` của `carts/purchases` phải nhỏ hơn hoặc bằng tạm tính của chính phiếu
 - đơn `completed` chưa thanh toán vẫn được sửa `discount_amount`; sau khi `payment_status = paid` thì khóa hẳn
-- phiếu nhập `received` chưa thanh toán vẫn được sửa `discount_amount`; sau khi `status = paid` thì khóa hẳn
+- phiếu nhập `received` chưa thanh toán vẫn được sửa `discount_amount` và metadata HSD/NSX của từng dòng; sau khi `status = paid` thì khóa hẳn
+- nếu dòng nhập không có HSD trực tiếp thì backend có thể resolve `expiry_date` tự động từ `received_at + storage_life_days`; nếu user chọn mode `manufacture` thì resolve từ `manufacture_date + storage_life_days`
 - `app_state.updated_at` được dùng để chặn ghi đè stale save
 - sort ưu tiên tồn kho dùng metric suy diễn từ ledger bán hàng thật, không persist score vào DB
 - sort hạn còn lại ưu tiên theo HSD thật sớm nhất trong các lô còn hàng; chỉ khi chưa có HSD lô mới fallback về metadata sản phẩm và lần nhập gần nhất

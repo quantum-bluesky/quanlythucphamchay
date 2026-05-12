@@ -5,7 +5,7 @@ import secrets
 import shutil
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -243,6 +243,8 @@ class InventoryStore:
                     quantity REAL NOT NULL DEFAULT 0,
                     unit_cost REAL NOT NULL DEFAULT 0,
                     batch_code TEXT NOT NULL DEFAULT '',
+                    expiry_input_mode TEXT NOT NULL DEFAULT 'direct',
+                    manufacture_date TEXT,
                     expiry_date TEXT,
                     sort_order INTEGER NOT NULL DEFAULT 0,
                     FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE
@@ -283,6 +285,7 @@ class InventoryStore:
                     line_total REAL,
                     stock_after REAL,
                     transaction_id INTEGER,
+                    purchase_item_id TEXT NOT NULL DEFAULT '',
                     FOREIGN KEY (receipt_id) REFERENCES inventory_receipts(id) ON DELETE CASCADE,
                     FOREIGN KEY (transaction_id) REFERENCES transactions(id)
                 );
@@ -420,6 +423,14 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE purchase_items ADD COLUMN batch_code TEXT NOT NULL DEFAULT ''"
                 )
+            if "expiry_input_mode" not in purchase_item_columns:
+                connection.execute(
+                    "ALTER TABLE purchase_items ADD COLUMN expiry_input_mode TEXT NOT NULL DEFAULT 'direct'"
+                )
+            if "manufacture_date" not in purchase_item_columns:
+                connection.execute(
+                    "ALTER TABLE purchase_items ADD COLUMN manufacture_date TEXT"
+                )
             if "expiry_date" not in purchase_item_columns:
                 connection.execute(
                     "ALTER TABLE purchase_items ADD COLUMN expiry_date TEXT"
@@ -430,6 +441,10 @@ class InventoryStore:
             if "batch_id" not in receipt_item_columns:
                 connection.execute(
                     "ALTER TABLE inventory_receipt_items ADD COLUMN batch_id INTEGER"
+                )
+            if "purchase_item_id" not in receipt_item_columns:
+                connection.execute(
+                    "ALTER TABLE inventory_receipt_items ADD COLUMN purchase_item_id TEXT NOT NULL DEFAULT ''"
                 )
             if "batch_code" not in receipt_item_columns:
                 connection.execute(
@@ -685,6 +700,87 @@ class InventoryStore:
         except ValueError as exc:
             raise ValueError(f"{field_name} không hợp lệ. Định dạng đúng là YYYY-MM-DD.") from exc
         return parsed.isoformat()
+
+    @staticmethod
+    def _normalize_purchase_expiry_input_mode(value) -> str:
+        clean_value = str(value or "").strip().lower()
+        if not clean_value:
+            return "direct"
+        if clean_value not in {"direct", "manufacture", "received_fallback"}:
+            raise ValueError("Cách nhập hạn dùng không hợp lệ.")
+        return clean_value
+
+    @staticmethod
+    def _resolve_purchase_storage_life_days(product: sqlite3.Row | dict) -> float | None:
+        storage_life_days = InventoryStore._optional_float(product["storage_life_days"])
+        if storage_life_days is not None:
+            return storage_life_days
+        return InventoryStore._optional_float(product["shelf_life_days"])
+
+    def _shift_date_by_days(
+        self,
+        base_date,
+        days: float | None,
+        *,
+        field_name: str,
+    ) -> str | None:
+        normalized_base_date = self._normalize_expiry_date(base_date, field_name=field_name)
+        if not normalized_base_date or days is None:
+            return None
+        whole_days = max(0, int(round(float(days))))
+        shifted_date = datetime.strptime(normalized_base_date, "%Y-%m-%d").date() + timedelta(days=whole_days)
+        return shifted_date.isoformat()
+
+    def _resolve_purchase_item_expiry_metadata(
+        self,
+        *,
+        raw_item: dict,
+        product: sqlite3.Row | dict,
+        received_at: str = "",
+        field_prefix: str = "Dòng nhập",
+    ) -> dict:
+        raw_mode = self._normalize_purchase_expiry_input_mode(
+            raw_item.get("expiry_input_mode") or raw_item.get("expiryInputMode")
+        )
+        manufacture_date = self._normalize_expiry_date(
+            raw_item.get("manufacture_date") or raw_item.get("manufactureDate"),
+            field_name=f"{field_prefix} - Ngày sản xuất",
+        )
+        expiry_date = self._normalize_expiry_date(
+            raw_item.get("expiry_date") or raw_item.get("expiryDate"),
+            field_name=f"{field_prefix} - Hạn dùng",
+        )
+        storage_life_days = self._resolve_purchase_storage_life_days(product)
+        resolved_mode = raw_mode
+        resolved_manufacture_date = manufacture_date if raw_mode == "manufacture" else None
+        resolved_expiry_date = expiry_date
+
+        if raw_mode == "manufacture":
+            if not manufacture_date:
+                raise ValueError("Ngày sản xuất là bắt buộc khi chọn cách nhập HSD gián tiếp.")
+            if storage_life_days is None:
+                raise ValueError(
+                    f'Sản phẩm "{product["name"]}" chưa có thời gian bảo quản để tự tính HSD từ ngày sản xuất.'
+                )
+            resolved_expiry_date = self._shift_date_by_days(
+                manufacture_date,
+                storage_life_days,
+                field_name=f"{field_prefix} - Ngày sản xuất",
+            )
+        elif not expiry_date and received_at and storage_life_days is not None:
+            resolved_mode = "received_fallback"
+            resolved_expiry_date = self._shift_date_by_days(
+                received_at,
+                storage_life_days,
+                field_name=f"{field_prefix} - Ngày nhập kho",
+            )
+
+        return {
+            "expiry_input_mode": resolved_mode,
+            "manufacture_date": resolved_manufacture_date,
+            "expiry_date": resolved_expiry_date,
+            "storage_life_days": storage_life_days,
+        }
 
     @staticmethod
     def _resolve_batch_code(batch_code: str, fallback_batch_code: str) -> str:
@@ -1069,6 +1165,10 @@ class InventoryStore:
             "unit_cost": round(float(row["unit_cost"] or 0), 2),
             "batchCode": row["batch_code"] or "",
             "batch_code": row["batch_code"] or "",
+            "expiryInputMode": row["expiry_input_mode"] or "direct",
+            "expiry_input_mode": row["expiry_input_mode"] or "direct",
+            "manufactureDate": row["manufacture_date"] or "",
+            "manufacture_date": row["manufacture_date"] or "",
             "expiryDate": row["expiry_date"] or "",
             "expiry_date": row["expiry_date"] or "",
         }
@@ -1259,7 +1359,9 @@ class InventoryStore:
             purchase_receipt_codes = set(purchase_receipts_by_code.keys())
             item_rows = connection.execute(
                 """
-                SELECT id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code, expiry_date, sort_order
+                SELECT
+                    id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code,
+                    expiry_input_mode, manufacture_date, expiry_date, sort_order
                 FROM purchase_items
                 ORDER BY purchase_id, sort_order, id
                 """
@@ -1448,25 +1550,48 @@ class InventoryStore:
                     ),
                 )
                 for index, item in enumerate(record.get("items") or []):
+                    product_id = int(item.get("productId") or item.get("product_id") or 0)
+                    product = self._get_product_or_raise(connection, product_id) if product_id > 0 else None
+                    if product is not None:
+                        expiry_metadata = self._resolve_purchase_item_expiry_metadata(
+                            raw_item=item,
+                            product=product,
+                            received_at=str(record.get("receivedAt") or record.get("received_at") or ""),
+                            field_prefix=f'Dòng nhập của "{product["name"]}"',
+                        )
+                    else:
+                        expiry_metadata = {
+                            "expiry_input_mode": self._normalize_purchase_expiry_input_mode(
+                                item.get("expiryInputMode") or item.get("expiry_input_mode") or "direct"
+                            ),
+                            "manufacture_date": self._normalize_expiry_date(
+                                item.get("manufactureDate") or item.get("manufacture_date"),
+                                field_name="Ngày sản xuất lô nhập",
+                            ),
+                            "expiry_date": self._normalize_expiry_date(
+                                item.get("expiryDate") or item.get("expiry_date"),
+                                field_name="Hạn dùng lô nhập",
+                            ),
+                        }
                     connection.execute(
                         """
                         INSERT INTO purchase_items(
-                            id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code, expiry_date, sort_order
+                            id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code,
+                            expiry_input_mode, manufacture_date, expiry_date, sort_order
                         )
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),
                             purchase_id,
-                            int(item.get("productId") or item.get("product_id") or 0),
+                            product_id,
                             str(item.get("productName") or item.get("product_name") or "").strip(),
                             float(item.get("quantity") or 0),
                             float(item.get("unitCost") or item.get("unit_cost") or 0),
                             str(item.get("batchCode") or item.get("batch_code") or "").strip(),
-                            self._normalize_expiry_date(
-                                item.get("expiryDate") or item.get("expiry_date"),
-                                field_name="Hạn dùng lô nhập",
-                            ),
+                            expiry_metadata["expiry_input_mode"],
+                            expiry_metadata["manufacture_date"],
+                            expiry_metadata["expiry_date"],
                             index,
                         ),
                     )
@@ -1538,6 +1663,7 @@ class InventoryStore:
         line_total: float | None,
         stock_after: float | None,
         transaction_id: int | None,
+        purchase_item_id: str = "",
         batch_id: int | None = None,
         batch_code: str = "",
         expiry_date: str | None = None,
@@ -1546,9 +1672,9 @@ class InventoryStore:
             """
             INSERT INTO inventory_receipt_items(
                 receipt_id, product_id, product_name, unit, transaction_type, quantity,
-                unit_amount, line_total, stock_after, transaction_id, batch_id, batch_code, expiry_date
+                unit_amount, line_total, stock_after, transaction_id, purchase_item_id, batch_id, batch_code, expiry_date
             )
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 receipt_id,
@@ -1561,6 +1687,7 @@ class InventoryStore:
                 line_total,
                 stock_after,
                 transaction_id,
+                str(purchase_item_id or "").strip(),
                 batch_id,
                 batch_code,
                 expiry_date,
@@ -2641,40 +2768,70 @@ class InventoryStore:
         if not items:
             raise ValueError("Phiếu nhập đang trống.")
 
-        grouped_items: dict[tuple[int, str, str], dict] = {}
+        parsed_items: list[dict] = []
         for raw_item in items:
             product_id = int(raw_item.get("product_id", 0))
             quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
             unit_cost = parse_non_negative_decimal(raw_item.get("unit_cost", 0), "Giá nhập")
-            clean_batch_code = str(raw_item.get("batch_code") or raw_item.get("batchCode") or "").strip()
-            normalized_expiry_date = self._normalize_expiry_date(
-                raw_item.get("expiry_date") or raw_item.get("expiryDate"),
-                field_name="Hạn dùng lô nhập",
-            )
-            item_key = (
-                product_id,
-                clean_batch_code,
-                normalized_expiry_date or "",
-            )
-
-            existing = grouped_items.get(item_key)
-            if existing:
-                existing["quantity"] += quantity
-                existing["unit_cost"] = unit_cost
-            else:
-                grouped_items[item_key] = {
+            parsed_items.append(
+                {
+                    "purchase_item_id": str(raw_item.get("purchase_item_id") or raw_item.get("purchaseItemId") or raw_item.get("id") or "").strip(),
                     "product_id": product_id,
                     "quantity": quantity,
                     "unit_cost": unit_cost,
-                    "batch_code": clean_batch_code,
-                    "expiry_date": normalized_expiry_date,
+                    "product_name": str(raw_item.get("product_name") or raw_item.get("productName") or "").strip(),
+                    "batch_code": str(raw_item.get("batch_code") or raw_item.get("batchCode") or "").strip(),
+                    "expiry_input_mode": raw_item.get("expiry_input_mode") or raw_item.get("expiryInputMode") or "direct",
+                    "manufacture_date": raw_item.get("manufacture_date") or raw_item.get("manufactureDate"),
+                    "expiry_date": raw_item.get("expiry_date") or raw_item.get("expiryDate"),
                 }
+            )
 
         now = utc_now_iso()
         receipt_suffix = hashlib.sha1(f"{clean_supplier_name}-{clean_note}-{now}".encode("utf-8")).hexdigest()[:6]
         receipt_code = f"PN-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{receipt_suffix}"
 
         with self._connect() as connection:
+            normalized_items: list[dict] = []
+            grouped_items: dict[tuple[int, str, str, str, str], dict] = {}
+            for raw_item in parsed_items:
+                product_id = int(raw_item["product_id"])
+                product = self._get_product_or_raise(connection, product_id)
+                expiry_metadata = self._resolve_purchase_item_expiry_metadata(
+                    raw_item=raw_item,
+                    product=product,
+                    received_at=now,
+                    field_prefix=f'Dòng nhập của "{product["name"]}"',
+                )
+                normalized_item = {
+                    "purchase_item_id": str(raw_item.get("purchase_item_id") or "").strip(),
+                    "product_id": product_id,
+                    "product_name": str(raw_item.get("product_name") or product["name"]).strip() or str(product["name"]),
+                    "quantity": raw_item["quantity"],
+                    "unit_cost": raw_item["unit_cost"],
+                    "batch_code": str(raw_item.get("batch_code") or "").strip(),
+                    "expiry_input_mode": expiry_metadata["expiry_input_mode"],
+                    "manufacture_date": expiry_metadata["manufacture_date"],
+                    "expiry_date": expiry_metadata["expiry_date"],
+                }
+                if normalized_item["purchase_item_id"]:
+                    normalized_items.append(normalized_item)
+                    continue
+                item_key = (
+                    normalized_item["product_id"],
+                    normalized_item["batch_code"],
+                    normalized_item["expiry_input_mode"],
+                    normalized_item["manufacture_date"] or "",
+                    normalized_item["expiry_date"] or "",
+                )
+                existing = grouped_items.get(item_key)
+                if existing:
+                    existing["quantity"] += normalized_item["quantity"]
+                    existing["unit_cost"] = normalized_item["unit_cost"]
+                else:
+                    grouped_items[item_key] = normalized_item
+            normalized_items.extend(grouped_items.values())
+
             transactions = []
             subtotal_amount = Decimal("0")
             total_quantity = Decimal("0")
@@ -2682,7 +2839,7 @@ class InventoryStore:
                 discount_amount,
                 sum(
                     item["quantity"] * item["unit_cost"]
-                    for item in grouped_items.values()
+                    for item in normalized_items
                 ),
                 "Giảm giá khuyến mại phiếu nhập",
             )
@@ -2696,7 +2853,7 @@ class InventoryStore:
                 created_at=now,
             )
 
-            for line_index, item in enumerate(grouped_items.values(), start=1):
+            for line_index, item in enumerate(normalized_items, start=1):
                 product_id = int(item["product_id"])
                 product = self._get_product_or_raise(connection, product_id)
                 line_total = item["quantity"] * item["unit_cost"]
@@ -2761,6 +2918,8 @@ class InventoryStore:
                         "current_stock": round(float(current_stock), 2),
                         "batch_code": created_batch["batch_code"],
                         "expiry_date": created_batch["expiry_date"],
+                        "expiry_input_mode": item["expiry_input_mode"],
+                        "manufacture_date": item["manufacture_date"] or "",
                     }
                 )
                 self._insert_inventory_receipt_item(
@@ -2775,6 +2934,7 @@ class InventoryStore:
                     line_total=round(float(line_total), 2),
                     stock_after=round(float(current_stock), 2),
                     transaction_id=cursor.lastrowid,
+                    purchase_item_id=item["purchase_item_id"],
                     batch_id=int(created_batch["id"]),
                     batch_code=created_batch["batch_code"],
                     expiry_date=created_batch["expiry_date"],
@@ -2793,6 +2953,250 @@ class InventoryStore:
             "total_amount": round(float(net_total_amount), 2),
         }
 
+    @staticmethod
+    def _build_purchase_receipt_transaction_note(
+        *,
+        receipt_code: str,
+        supplier_name: str,
+        note: str,
+        discount_amount: float,
+        unit_cost: float,
+        quantity: float,
+        batch_code: str,
+        expiry_date: str = "",
+    ) -> str:
+        transaction_note = f"Phiếu nhập {receipt_code}"
+        if supplier_name:
+            transaction_note += f" | NCC: {supplier_name}"
+        if discount_amount > 0:
+            transaction_note += f" | Giảm giá KM: {discount_amount:.0f}"
+        if note:
+            transaction_note += f" | {note}"
+        transaction_note += f" | Giá nhập: {unit_cost:.0f}"
+        transaction_note += f" | Lô nhập: {batch_code} {quantity:g}"
+        if expiry_date:
+            transaction_note += f" HSD {expiry_date}"
+        return transaction_note
+
+    def update_received_purchase_item_expiry(
+        self,
+        purchase_id: str,
+        purchase_item_id: str,
+        *,
+        expiry_input_mode: str = "direct",
+        manufacture_date=None,
+        expiry_date=None,
+        expected_updated_at: str = "",
+        actor: str = "",
+    ) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        clean_purchase_item_id = str(purchase_item_id or "").strip()
+        clean_expected_updated_at = str(expected_updated_at or "").strip()
+        if not clean_purchase_id:
+            raise ValueError("Thiếu mã phiếu nhập cần cập nhật HSD.")
+        if not clean_purchase_item_id:
+            raise ValueError("Thiếu mã dòng nhập cần cập nhật HSD.")
+
+        now = utc_now_iso()
+        with self._connect() as connection:
+            purchases = self._load_sync_collection_from_tables(connection, "purchases")
+            target_purchase = next(
+                (purchase for purchase in purchases if str(purchase.get("id") or "") == clean_purchase_id),
+                None,
+            )
+            if not target_purchase:
+                raise ValueError("Không tìm thấy phiếu nhập cần cập nhật HSD.")
+
+            actual_updated_at = str(target_purchase.get("updatedAt") or target_purchase.get("updated_at") or "")
+            if clean_expected_updated_at and actual_updated_at and clean_expected_updated_at != actual_updated_at:
+                raise SyncConflictError("purchases", clean_expected_updated_at, actual_updated_at)
+
+            current_status = str(target_purchase.get("status") or "draft")
+            if current_status != "received":
+                raise ValueError("Chỉ phiếu đã nhập kho và chưa thanh toán mới được cập nhật HSD.")
+
+            receipt_code = str(target_purchase.get("receiptCode") or target_purchase.get("receipt_code") or "").strip()
+            receipt_row = self._get_inventory_receipt_by_code(
+                connection,
+                receipt_code,
+                receipt_type="purchase",
+            )
+            if receipt_row is None:
+                raise ValueError("Phiếu nhập đã nhận hàng nhưng thiếu receipt kho tương ứng.")
+
+            purchase_item_rows = connection.execute(
+                """
+                SELECT
+                    id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code,
+                    expiry_input_mode, manufacture_date, expiry_date, sort_order
+                FROM purchase_items
+                WHERE purchase_id = ?
+                ORDER BY sort_order, id
+                """,
+                (clean_purchase_id,),
+            ).fetchall()
+            purchase_item_row = next(
+                (row for row in purchase_item_rows if str(row["id"] or "") == clean_purchase_item_id),
+                None,
+            )
+            if purchase_item_row is None:
+                raise ValueError("Không tìm thấy dòng nhập cần cập nhật HSD.")
+
+            receipt_item_rows = connection.execute(
+                """
+                SELECT
+                    id, product_id, quantity, unit_amount, transaction_id, purchase_item_id,
+                    batch_id, batch_code, expiry_date
+                FROM inventory_receipt_items
+                WHERE receipt_id = ? AND transaction_type = 'in'
+                ORDER BY id
+                """,
+                (int(receipt_row["id"]),),
+            ).fetchall()
+            mapped_receipt_item = next(
+                (
+                    row for row in receipt_item_rows
+                    if str(row["purchase_item_id"] or "").strip() == clean_purchase_item_id
+                ),
+                None,
+            )
+            if mapped_receipt_item is None:
+                if len(receipt_item_rows) != len(purchase_item_rows):
+                    raise ValueError("Không thể đối chiếu dòng phiếu nhập với receipt kho để cập nhật HSD.")
+                zipped_mapping = {
+                    str(purchase_row["id"] or ""): receipt_item_rows[index]
+                    for index, purchase_row in enumerate(purchase_item_rows)
+                }
+                mapped_receipt_item = zipped_mapping.get(clean_purchase_item_id)
+            if mapped_receipt_item is None:
+                raise ValueError("Không tìm thấy receipt item tương ứng để cập nhật HSD.")
+
+            product = self._get_product_or_raise(connection, int(purchase_item_row["product_id"] or 0))
+            expiry_metadata = self._resolve_purchase_item_expiry_metadata(
+                raw_item={
+                    "expiry_input_mode": expiry_input_mode,
+                    "manufacture_date": manufacture_date,
+                    "expiry_date": expiry_date,
+                },
+                product=product,
+                received_at=str(receipt_row["created_at"] or target_purchase.get("receivedAt") or ""),
+                field_prefix=f'Dòng nhập của "{product["name"]}"',
+            )
+
+            connection.execute(
+                """
+                UPDATE purchase_items
+                SET expiry_input_mode = ?, manufacture_date = ?, expiry_date = ?
+                WHERE id = ? AND purchase_id = ?
+                """,
+                (
+                    expiry_metadata["expiry_input_mode"],
+                    expiry_metadata["manufacture_date"],
+                    expiry_metadata["expiry_date"],
+                    clean_purchase_item_id,
+                    clean_purchase_id,
+                ),
+            )
+
+            if mapped_receipt_item["batch_id"] is not None:
+                connection.execute(
+                    """
+                    UPDATE inventory_batches
+                    SET expiry_date = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        expiry_metadata["expiry_date"],
+                        now,
+                        int(mapped_receipt_item["batch_id"]),
+                    ),
+                )
+
+            connection.execute(
+                """
+                UPDATE inventory_receipt_items
+                SET purchase_item_id = ?, expiry_date = ?
+                WHERE id = ?
+                """,
+                (
+                    clean_purchase_item_id,
+                    expiry_metadata["expiry_date"],
+                    int(mapped_receipt_item["id"]),
+                ),
+            )
+
+            transaction_id = mapped_receipt_item["transaction_id"]
+            if transaction_id is not None:
+                resolved_batch_code = str(mapped_receipt_item["batch_code"] or purchase_item_row["batch_code"] or "").strip()
+                transaction_note = self._build_purchase_receipt_transaction_note(
+                    receipt_code=receipt_code,
+                    supplier_name=str(target_purchase.get("supplierName") or ""),
+                    note=str(target_purchase.get("note") or ""),
+                    discount_amount=self._get_purchase_discount_amount(target_purchase),
+                    unit_cost=float(purchase_item_row["unit_cost"] or 0),
+                    quantity=float(purchase_item_row["quantity"] or 0),
+                    batch_code=resolved_batch_code,
+                    expiry_date=expiry_metadata["expiry_date"] or "",
+                )
+                connection.execute(
+                    "UPDATE transactions SET note = ? WHERE id = ?",
+                    (transaction_note, int(transaction_id)),
+                )
+
+            connection.execute(
+                """
+                UPDATE purchases
+                SET updated_at = ?
+                WHERE id = ?
+                """,
+                (now, clean_purchase_id),
+            )
+
+            canonical = self._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                """
+                INSERT INTO app_state(state_key, state_value, updated_at)
+                VALUES('purchases', ?, ?)
+                ON CONFLICT(state_key) DO UPDATE SET
+                    state_value = excluded.state_value,
+                    updated_at = excluded.updated_at
+                """,
+                (json.dumps(canonical, ensure_ascii=False), now),
+            )
+            updated_purchase = next(
+                (purchase for purchase in canonical if str(purchase.get("id") or "") == clean_purchase_id),
+                None,
+            )
+            updated_item = next(
+                (
+                    item for item in (updated_purchase.get("items") or [])
+                    if str(item.get("id") or "") == clean_purchase_item_id
+                ),
+                None,
+            ) if updated_purchase else None
+            self._record_audit(
+                connection,
+                entity_type="purchase",
+                entity_id=clean_purchase_id,
+                entity_name=receipt_code or clean_purchase_id,
+                action="update_expiry",
+                actor=actor,
+                message=(
+                    f'Cập nhật HSD dòng "{product["name"]}" của phiếu {receipt_code or clean_purchase_id}'
+                    + (
+                        f' -> {expiry_metadata["expiry_date"]}'
+                        if expiry_metadata["expiry_date"]
+                        else " -> bỏ trống HSD"
+                    )
+                ),
+            )
+
+        return {
+            "purchase": updated_purchase,
+            "item": updated_item,
+            "purchases": canonical,
+        }
+
     def _get_inventory_receipt_by_code(
         self,
         connection: sqlite3.Connection,
@@ -2806,7 +3210,7 @@ class InventoryStore:
         if receipt_type:
             return connection.execute(
                 """
-                SELECT id, receipt_code, receipt_type, source_type, source_code
+                SELECT id, receipt_code, receipt_type, source_type, source_code, created_at
                 FROM inventory_receipts
                 WHERE receipt_code = ? AND receipt_type = ?
                 """,
@@ -2814,7 +3218,7 @@ class InventoryStore:
             ).fetchone()
         return connection.execute(
             """
-            SELECT id, receipt_code, receipt_type, source_type, source_code
+            SELECT id, receipt_code, receipt_type, source_type, source_code, created_at
             FROM inventory_receipts
             WHERE receipt_code = ?
             """,
@@ -4026,6 +4430,8 @@ class InventoryStore:
                         "quantity": round(float(item.get("quantity") or 0), 2),
                         "unitCost": round(float(item.get("unitCost") or 0), 2),
                         "batchCode": str(item.get("batchCode") or item.get("batch_code") or ""),
+                        "expiryInputMode": str(item.get("expiryInputMode") or item.get("expiry_input_mode") or "direct"),
+                        "manufactureDate": str(item.get("manufactureDate") or item.get("manufacture_date") or ""),
                         "expiryDate": str(item.get("expiryDate") or item.get("expiry_date") or ""),
                     }
                     for item in (purchase.get("items") or [])
@@ -4050,6 +4456,8 @@ class InventoryStore:
                         "quantity": round(float(item.get("quantity") or 0), 2),
                         "unitCost": round(float(item.get("unitCost") or 0), 2),
                         "batchCode": str(item.get("batchCode") or item.get("batch_code") or ""),
+                        "expiryInputMode": str(item.get("expiryInputMode") or item.get("expiry_input_mode") or "direct"),
+                        "manufactureDate": str(item.get("manufactureDate") or item.get("manufacture_date") or ""),
                         "expiryDate": str(item.get("expiryDate") or item.get("expiry_date") or ""),
                     }
                     for item in (purchase.get("items") or [])

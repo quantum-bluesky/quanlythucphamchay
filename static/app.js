@@ -847,17 +847,19 @@ function getPurchasesUi() {
       escapeHtml,
       mobileQuery,
       getActivePurchase,
-    canEditPurchase,
-    canEditPurchaseDiscount,
-    canEditPurchaseSupplier,
-    hasPurchaseSupplier,
-    canReceivePurchase,
+      canEditPurchase,
+      canEditPurchaseExpiryMetadata,
+      canEditPurchaseDiscount,
+      canEditPurchaseSupplier,
+      hasPurchaseSupplier,
+      canReceivePurchase,
       canDeletePurchase,
       canCancelPurchase,
       canMarkPurchasePaid,
       isLockedPurchase,
       isRepairableInvalidPurchase,
       getPurchaseSuggestions,
+      resolvePurchaseItemExpiryMeta,
       isSearchResultMode,
       paginateItems,
       renderPagination,
@@ -1455,6 +1457,14 @@ function hasPurchaseSupplier(purchase) {
 
 function canReceivePurchase(purchase) {
   return getPurchasesDomainHelpers().canReceivePurchase(purchase);
+}
+
+function canEditPurchaseExpiryMetadata(purchase) {
+  return getPurchasesDomainHelpers().canEditPurchaseExpiryMetadata(purchase);
+}
+
+function resolvePurchaseItemExpiryMeta(purchase, item) {
+  return getPurchasesDomainHelpers().resolvePurchaseItemExpiryMeta(purchase, item);
 }
 
 function isRepairableInvalidPurchase(purchase) {
@@ -4090,6 +4100,7 @@ registerPurchasesControllerEvents({
     getActivePurchase,
     getProductById,
     canEditPurchase,
+    canEditPurchaseExpiryMetadata,
     canEditPurchaseDiscount,
     canEditPurchaseSupplier,
     hasPurchaseSupplier,

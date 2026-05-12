@@ -148,15 +148,15 @@ Liên kết detail hiện có:
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
   - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu để đối chiếu số tiền thực trả NCC
-  - mỗi dòng nhập cần có input `Mã lô` và `Hạn dùng`, kèm action `+ Lô` để tách một sản phẩm thành nhiều lô nhập khác nhau mà không mở popup riêng
+  - mỗi dòng nhập cần có input `Mã lô` và phần nhập HSD hỗ trợ 2 mode: nhập trực tiếp `Hạn dùng` hoặc nhập gián tiếp `Ngày sản xuất`; mode mặc định là nhập trực tiếp HSD, còn mode gián tiếp sẽ tự tính `HSD = NSX + thời gian bảo quản`
   - metadata phiếu nhập được bung/thu gọn bằng button `Detail` thay vì badge tĩnh để phần đầu phiếu gọn hơn
   - nếu phiếu nhập sinh ra từ một đơn đang thiếu hàng, phần metadata `Detail` phải hiện nguồn đơn thiếu riêng; không dùng ô ghi chú để nhét sẵn nội dung này
   - nếu shortage từ màn xuất hàng đã được cover bởi phiếu `draft/ordered` hiện có, màn nhập hàng chỉ mở lại phiếu liên quan khi user xác nhận; không tự tạo thêm phiếu trùng
   - nút `Nhập kho` chỉ hiện khi phiếu đã ở trạng thái `Đã đặt`; phiếu `Nháp` vẫn còn chỉnh sửa được nhưng chưa cho nhập kho
   - nếu chưa có `Nhà cung cấp`, button `Đã đặt hàng` và `Nhập kho` phải bị khóa; UI cần hiện cảnh báo ngắn để user biết thiếu dữ liệu gì
   - ô NCC và nút `NCC` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
-  - nếu bỏ trống `Mã lô`, app tự sinh batch code khi nhập kho; còn `Hạn dùng` phải phản ánh HSD thật nếu có để phục vụ FEFO
-  - sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Giảm giá khuyến mại`; không mở khóa lại NCC hay dòng nhập
+  - nếu bỏ trống `Mã lô`, app tự sinh batch code khi nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` để FEFO vẫn có mốc hạn
+  - sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, chỉ cho sửa `Giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; không mở khóa lại số lượng, giá, mã lô, NCC hay cấu trúc dòng nhập
   - các nút đổi trạng thái hoặc xóa phiếu như `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu`, `Xóa phiếu` phải hiện message confirm trước khi app cập nhật
 - tài liệu detail:
   - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)

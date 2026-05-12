@@ -98,8 +98,11 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(refreshed["shortage_pressure"], 0.6)
         self.assertEqual(refreshed["priority_score"], 40.0)
         self.assertEqual(refreshed["urgency_tier"], 2)
-        self.assertEqual(refreshed["estimated_remaining_days"], 30.0)
-        self.assertEqual(refreshed["expiry_basis"], "shelf_life")
+        expected_remaining_days = (
+            datetime.strptime(refreshed["next_expiry_date"], "%Y-%m-%d").date() - datetime.now().date()
+        ).days
+        self.assertEqual(refreshed["estimated_remaining_days"], expected_remaining_days)
+        self.assertEqual(refreshed["expiry_basis"], "lot_expiry")
 
     def test_ut_invsort_02_master_csv_and_seed_import_accept_life_fields(self) -> None:
         manifest_path = self.db_path.with_name("asset-versions-test.json")
@@ -687,6 +690,198 @@ class InventoryStoreTests(unittest.TestCase):
                     "expected_updated_at": {"purchases": draft_state["updated_at"]["purchases"]},
                 }
             )
+
+    def test_ut_db_16_purchase_receipt_auto_calculates_expiry_from_received_date_or_manufacture_date(self) -> None:
+        product = self.store.create_product(
+            name="Mọc chay tự tính HSD",
+            category="Đông lạnh",
+            unit="gói",
+            price=12000,
+            sale_price=18000,
+            low_stock_threshold=1,
+            storage_life_days=20,
+        )
+
+        receipt = self.store.create_purchase_receipt(
+            supplier_name="NCC Auto HSD",
+            items=[
+                {
+                    "id": "purchase-item-auto-fallback-01",
+                    "product_id": product["id"],
+                    "quantity": 2,
+                    "unit_cost": 12000,
+                    "batch_code": "LO-FALLBACK",
+                    "expiry_input_mode": "direct",
+                    "expiry_date": "",
+                },
+                {
+                    "id": "purchase-item-manufacture-01",
+                    "product_id": product["id"],
+                    "quantity": 1,
+                    "unit_cost": 12000,
+                    "batch_code": "LO-NSX",
+                    "expiry_input_mode": "manufacture",
+                    "manufacture_date": "2026-04-01",
+                },
+            ],
+            note="UT-DB-16",
+        )
+
+        expected_fallback_expiry = (
+            datetime.fromisoformat(receipt["created_at"].replace("Z", "+00:00")).date() + timedelta(days=20)
+        ).isoformat()
+
+        self.assertEqual(receipt["transactions"][0]["batch_code"], "LO-FALLBACK")
+        self.assertEqual(receipt["transactions"][0]["expiry_input_mode"], "received_fallback")
+        self.assertEqual(receipt["transactions"][0]["expiry_date"], expected_fallback_expiry)
+        self.assertEqual(receipt["transactions"][1]["batch_code"], "LO-NSX")
+        self.assertEqual(receipt["transactions"][1]["expiry_input_mode"], "manufacture")
+        self.assertEqual(receipt["transactions"][1]["manufacture_date"], "2026-04-01")
+        self.assertEqual(receipt["transactions"][1]["expiry_date"], "2026-04-21")
+
+        with self.store._connect() as connection:
+            receipt_rows = connection.execute(
+                """
+                SELECT purchase_item_id, batch_code, expiry_date
+                FROM inventory_receipt_items
+                WHERE purchase_item_id IN (?, ?)
+                ORDER BY id
+                """,
+                ("purchase-item-auto-fallback-01", "purchase-item-manufacture-01"),
+            ).fetchall()
+        self.assertEqual(
+            [
+                (row["purchase_item_id"], row["batch_code"], row["expiry_date"])
+                for row in receipt_rows
+            ],
+            [
+                ("purchase-item-auto-fallback-01", "LO-FALLBACK", expected_fallback_expiry),
+                ("purchase-item-manufacture-01", "LO-NSX", "2026-04-21"),
+            ],
+        )
+
+    def test_ut_db_17_received_purchase_expiry_update_syncs_purchase_items_batches_and_receipt_items(self) -> None:
+        product = self.store.create_product(
+            name="Chả lá lốt cập nhật HSD",
+            category="Đông lạnh",
+            unit="gói",
+            price=15000,
+            sale_price=22000,
+            low_stock_threshold=1,
+            storage_life_days=15,
+        )
+        initial_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-received-expiry-01",
+                        "supplierName": "NCC Received",
+                        "note": "Phiếu test cập nhật HSD sau nhập kho",
+                        "status": "ordered",
+                        "createdAt": "2026-04-19T08:00:00+07:00",
+                        "updatedAt": "2026-04-19T08:00:00+07:00",
+                        "receiptCode": "",
+                        "items": [
+                            {
+                                "id": "purchase-item-received-expiry-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 15000,
+                                "batchCode": "LO-OLD",
+                                "expiryInputMode": "direct",
+                                "expiryDate": "",
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {"purchases": initial_state["updated_at"]["purchases"]},
+            }
+        )
+
+        receipt = self.store.create_purchase_receipt(
+            supplier_name="NCC Received",
+            note="Phiếu test cập nhật HSD sau nhập kho",
+            items=[
+                {
+                    "id": "purchase-item-received-expiry-01",
+                    "product_id": product["id"],
+                    "quantity": 2,
+                    "unit_cost": 15000,
+                    "batch_code": "LO-OLD",
+                    "expiry_input_mode": "direct",
+                    "expiry_date": "",
+                }
+            ],
+        )
+
+        ordered_state = self.store.get_sync_state()
+        received_payload = copy.deepcopy(ordered_state["purchases"])
+        received_payload[0]["status"] = "received"
+        received_payload[0]["receiptCode"] = receipt["receipt_code"]
+        received_payload[0]["receivedAt"] = receipt["created_at"]
+        self.store.save_sync_state(
+            {
+                "purchases": received_payload,
+                "expected_updated_at": {"purchases": ordered_state["updated_at"]["purchases"]},
+            }
+        )
+
+        received_state = self.store.get_sync_state()
+        received_purchase = received_state["purchases"][0]
+        received_item = received_purchase["items"][0]
+        self.assertEqual(received_item["expiryInputMode"], "received_fallback")
+
+        update_result = self.store.update_received_purchase_item_expiry(
+            received_purchase["id"],
+            "purchase-item-received-expiry-01",
+            expiry_input_mode="manufacture",
+            manufacture_date="2026-04-10",
+            expected_updated_at=received_purchase["updatedAt"],
+            actor="tester",
+        )
+
+        updated_item = update_result["item"]
+        self.assertIsNotNone(updated_item)
+        self.assertEqual(updated_item["expiryInputMode"], "manufacture")
+        self.assertEqual(updated_item["manufactureDate"], "2026-04-10")
+        self.assertEqual(updated_item["expiryDate"], "2026-04-25")
+
+        with self.store._connect() as connection:
+            batch_row = connection.execute(
+                """
+                SELECT expiry_date
+                FROM inventory_batches
+                WHERE source_receipt_code = ? AND batch_code = ?
+                """,
+                (receipt["receipt_code"], "LO-OLD"),
+            ).fetchone()
+            receipt_item_row = connection.execute(
+                """
+                SELECT purchase_item_id, expiry_date
+                FROM inventory_receipt_items
+                WHERE receipt_id = (
+                    SELECT id FROM inventory_receipts WHERE receipt_code = ?
+                )
+                """,
+                (receipt["receipt_code"],),
+            ).fetchone()
+            transaction_row = connection.execute(
+                """
+                SELECT note
+                FROM transactions
+                WHERE note LIKE ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (f"%{receipt['receipt_code']}%",),
+            ).fetchone()
+
+        self.assertEqual(batch_row["expiry_date"], "2026-04-25")
+        self.assertEqual(receipt_item_row["purchase_item_id"], "purchase-item-received-expiry-01")
+        self.assertEqual(receipt_item_row["expiry_date"], "2026-04-25")
+        self.assertIn("HSD 2026-04-25", transaction_row["note"])
 
     def test_ut_db_13_checkout_order_consumes_real_expiry_lots_in_fefo_order(self) -> None:
         product = self.store.create_product(

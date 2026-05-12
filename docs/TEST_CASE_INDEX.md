@@ -114,6 +114,8 @@ Mục tiêu:
 | 88 | `UT-DB-15` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_15_purchase_requires_supplier_before_ordered_or_received` |
 | 89 | `ACC-PUR-05` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "ACC-PUR-05"` |
 | 90 | `IT-PUR-01` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "IT-PUR-01"` |
+| 91 | `UT-DB-16` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_16_purchase_receipt_auto_calculates_expiry_from_received_date_or_manufacture_date` |
+| 92 | `UT-DB-17` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_17_received_purchase_expiry_update_syncs_purchase_items_batches_and_receipt_items` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 
