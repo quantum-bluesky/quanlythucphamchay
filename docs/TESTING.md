@@ -245,6 +245,7 @@ Ngoài click thao tác, suite còn kiểm tra:
 Case mới cho Phase A:
 
 - `ACC-PUR-03`: phiếu nhập nháp phải được đặt hàng trước khi nhập kho, phiếu đã đặt hàng vẫn còn chỉnh sửa được trước khi nhận hàng, và tồn kho phải cập nhật ngay trên màn `Tồn kho` sau khi nhập kho mà không cần F5
+- `IT-PUR-01`: card gợi ý ở màn `Nhập hàng` cho đổi nhanh ô `SL` trước khi bấm `+ Phiếu`, và phiếu nháp phải nhận đúng số lượng vừa nhập
 - `IT-PURSUP-01`: tạo nhà cung cấp từ màn nhập hàng rồi quay lại phiếu nhập vẫn giữ được giá trị NCC trên UI, nhưng phiếu nháp rỗng không còn persist
 - `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp rồi mới chuyển sang `received`
 - `UT-DB-12`: backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `draft/ordered`, và chặn xóa trực tiếp phiếu `ordered`

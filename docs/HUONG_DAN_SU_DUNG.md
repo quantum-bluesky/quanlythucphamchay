@@ -252,23 +252,24 @@ Màn này có 2 phần:
 ### Luồng nhập hàng chuẩn
 
 1. Xem `Gợi ý nhập`
-2. Bấm `Thêm vào phiếu nhập` cho các mặt hàng cần nhập
-3. Các mặt hàng đã thêm sẽ tự ẩn khỏi danh sách gợi ý phía dưới và được gom vào phần tóm tắt `Phiếu nhập hiện hành`; bấm `...` để sổ danh sách dòng đã chọn ra nếu cần sửa nhanh
-4. Chọn nhà cung cấp
-5. Ghi chú phiếu nếu cần
-6. Sửa trực tiếp số lượng, giá nhập, `Mã lô` và `Hạn dùng` của từng dòng
-7. Nếu cùng một sản phẩm về nhiều lô khác nhau, bấm `+ Lô` để nhân dòng đó thành dòng mới rồi nhập lại `Mã lô` / `HSD` riêng
-8. Bấm `Lưu dòng` nếu có chỉnh
-9. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
-10. Nếu có khuyến mại cho cả phiếu, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
-11. Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; nếu phiếu đang trống thì app chỉ giữ trạng thái mở tạm trên màn hình
-12. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, chỉ khi phiếu còn `Nháp` mới bấm được `NCC` để mở form nhà cung cấp với tên đang nhập; nếu tên đó đã tồn tại thì app sẽ mở thẳng chế độ sửa NCC
-13. Lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
-14. Chỉ khi phiếu đã có `Nhà cung cấp`, app mới cho bấm `Đã đặt hàng`
-15. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`; từ lúc này phiếu vẫn còn chỉnh được nếu nhà cung cấp yêu cầu đổi số lượng hoặc giá, nhưng không còn được đổi NCC
-16. Khi hàng về thực tế và phiếu đã là `Đã đặt`, bấm `Nhập kho`
-17. Nếu chưa có `Nhà cung cấp`, app cũng sẽ chặn luôn bước `Nhập kho`
-18. Nếu bỏ trống `Mã lô`, app sẽ tự sinh mã lô lúc nhập kho; còn `Hạn dùng` chỉ nên nhập khi bạn có HSD thật của lô đó
+2. Nếu cần, sửa nhanh ô `SL` ngay trên từng card gợi ý
+3. Bấm `+ Phiếu` để thêm đúng số lượng đó vào phiếu nhập
+4. Các mặt hàng đã thêm sẽ tự ẩn khỏi danh sách gợi ý phía dưới và được gom vào phần tóm tắt `Phiếu nhập hiện hành`; bấm `...` để sổ danh sách dòng đã chọn ra nếu cần sửa nhanh
+5. Chọn nhà cung cấp
+6. Ghi chú phiếu nếu cần
+7. Sửa trực tiếp số lượng, giá nhập, `Mã lô` và `Hạn dùng` của từng dòng
+8. Nếu cùng một sản phẩm về nhiều lô khác nhau, bấm `+ Lô` để nhân dòng đó thành dòng mới rồi nhập lại `Mã lô` / `HSD` riêng
+9. Bấm `Lưu dòng` nếu có chỉnh
+10. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
+11. Nếu có khuyến mại cho cả phiếu, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
+12. Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; nếu phiếu đang trống thì app chỉ giữ trạng thái mở tạm trên màn hình
+13. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, chỉ khi phiếu còn `Nháp` mới bấm được `NCC` để mở form nhà cung cấp với tên đang nhập; nếu tên đó đã tồn tại thì app sẽ mở thẳng chế độ sửa NCC
+14. Lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
+15. Chỉ khi phiếu đã có `Nhà cung cấp`, app mới cho bấm `Đã đặt hàng`
+16. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`; từ lúc này phiếu vẫn còn chỉnh được nếu nhà cung cấp yêu cầu đổi số lượng hoặc giá, nhưng không còn được đổi NCC
+17. Khi hàng về thực tế và phiếu đã là `Đã đặt`, bấm `Nhập kho`
+18. Nếu chưa có `Nhà cung cấp`, app cũng sẽ chặn luôn bước `Nhập kho`
+19. Nếu bỏ trống `Mã lô`, app sẽ tự sinh mã lô lúc nhập kho; còn `Hạn dùng` chỉ nên nhập khi bạn có HSD thật của lô đó
 19. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 20. Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa riêng `Giảm giá khuyến mại`; app không mở khóa lại dòng nhập hay NCC
 21. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`

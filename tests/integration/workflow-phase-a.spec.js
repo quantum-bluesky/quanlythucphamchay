@@ -440,6 +440,35 @@ test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-PUR-01 purchase suggestions allow overriding quantity before adding to draft", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
+
+  await switchMenu(page, "purchases");
+  await expectScreenTitle(page, "Nhập hàng");
+
+  const suggestionCard = page.locator("#purchaseSuggestionList .sales-product-row").first();
+  await expect(suggestionCard).toBeVisible();
+  const productName = (await suggestionCard.locator("strong").first().textContent())?.trim();
+  expect(productName).toBeTruthy();
+  const overriddenQuantity = "7";
+  await suggestionCard.locator("[data-purchase-suggestion-qty-input]").fill(overriddenQuantity);
+  await suggestionCard.locator('[data-purchase-suggestion-action="add"]').click();
+
+  const toastText = await collectToast(page, runtime, "it-pur-01-add-suggestion", { errorPattern: /^$/ });
+  expect(toastText).toContain("Đã thêm vào phiếu nhập");
+
+  const purchaseItemCard = page.locator(".cart-item").filter({ hasText: productName }).first();
+  await expect(purchaseItemCard).toBeVisible();
+  await expect(purchaseItemCard.locator("[data-purchase-qty-input]").first()).toHaveValue(overriddenQuantity);
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-STS-01 status-changing order and purchase actions show confirm dialogs before applying", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   let userCookie = await autoLoginUserRequest(request);
