@@ -706,6 +706,40 @@ button:disabled {
   background: linear-gradient(180deg, #fff9f5 0%, var(--warning-soft) 100%);
 }
 
+.customer-item-compact {
+  gap: 6px;
+}
+
+.customer-primary-note span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-mobile-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.customer-phone-inline {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-actions-inline {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .product-row-head,
 .product-row-meta,
 .sales-product-head,
@@ -839,6 +873,13 @@ button:disabled {
 .status-pill.completed {
   background: rgba(36, 91, 63, 0.12);
   color: var(--accent-strong);
+}
+
+.status-pill-button {
+  border: 1px solid rgba(36, 91, 63, 0.18);
+  min-height: 0;
+  padding: 6px 10px;
+  box-shadow: none;
 }
 
 .inline-price-edit {
@@ -2056,6 +2097,31 @@ button:disabled {
 
   [data-menu-section="orders"] .queue-detail-block .cart-line-note {
     font-size: 0.84rem;
+  }
+
+  [data-menu-section="customers"] .customer-item {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  [data-menu-section="customers"] .customer-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: start;
+  }
+
+  [data-menu-section="customers"] .customer-header strong {
+    line-height: 1.2;
+  }
+
+  [data-menu-section="customers"] .customer-meta {
+    font-size: 0.84rem;
+  }
+
+  [data-menu-section="customers"] .customer-actions-inline .compact-button {
+    min-height: 34px;
+    padding: 0 10px;
   }
 
   [data-menu-section="purchases"] .panel-heading .panel-note {

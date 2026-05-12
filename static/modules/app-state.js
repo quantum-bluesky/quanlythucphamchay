@@ -52,6 +52,7 @@ export const state = {
   inventorySortMode: "name",
   salesSearchTerm: "",
   orderSearchTerm: "",
+  orderFilterCustomerId: "",
   customerSearchTerm: "",
   productManageSearchTerm: "",
   purchaseSearchTerm: "",

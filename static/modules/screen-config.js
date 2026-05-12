@@ -62,6 +62,7 @@ export const SCREEN_HELP = {
     steps: [
       "Dùng ô tìm kiếm để lọc theo khách hàng, mã đơn hoặc tên mặt hàng.",
       "Bật hoặc tắt các tùy chọn hiện đơn đã xong và đã thanh toán để thu gọn danh sách.",
+      "Khi đi từ màn Khách hàng sang, app có thể tự lọc đúng theo khách; nếu khách chỉ có 1 phiếu hàng thì màn này sẽ tự mở thẳng phần detail của phiếu đó, kể cả khi đơn đã xong hoặc đã thanh toán.",
       "Với giỏ nháp đang chờ xuất, bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile mở `Detail` để thấy cụm action gọn của card.",
       "Trước khi `Xuất`, `Đã thanh toán`, `Hủy` hoặc `Xóa`, app sẽ hiện message confirm để bạn kiểm tra lại thao tác có thể đổi trạng thái hoặc xóa phiếu.",
       "Nút `Detail` trên card đơn dùng để bung nhanh metadata và danh sách dòng hàng của phiếu mà không cần mở sang chỗ chỉnh sửa.",
@@ -86,6 +87,7 @@ export const SCREEN_HELP = {
       "Mở vào màn là thấy ngay danh sách khách hàng hiện hành.",
       "Form tạo/sửa được thu gọn sẵn để ưu tiên phần danh sách; bấm Thêm mới hoặc Sửa để mở đúng lúc cần nhập liệu.",
       "Tìm nhanh bằng tên, số điện thoại hoặc địa chỉ để tránh nhập trùng.",
+      "Badge `giỏ chờ` hoặc `đơn` trên từng khách là link sang màn Đơn hàng; nếu khách chỉ có đúng 1 phiếu thì app sẽ mở thẳng detail của phiếu đó để đối chiếu nhanh.",
       DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
