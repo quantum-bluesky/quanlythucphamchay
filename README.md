@@ -129,6 +129,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Có nút `NCC` ở màn nhập hàng để mở nhanh form tạo/sửa nhà cung cấp với tên đang gõ khi phiếu còn `Nháp`; từ `Đã đặt` trở đi app khóa đổi NCC để giữ đúng workflow
 - Phiếu nhập chỉ được chuyển sang `Đã thanh toán` sau khi đã `Nhập kho`, để tránh trả tiền khi hàng chưa được nhận vào tồn
 - Nếu dữ liệu cũ làm phiếu bị lệch trạng thái, ví dụ đang dính marker `Đã thanh toán` nhưng chưa có `Nhập kho` thật hoặc ngoài màn hình lại đang hiện như `Nháp`, app sẽ hiện cảnh báo và cho phép `Hủy phiếu` hoặc `Xóa phiếu` để dọn dữ liệu lỗi mà không khôi phục lại thành nháp
+- Màn `Nhập hàng` mặc định ẩn phiếu đã hủy; khi cần đối chiếu lịch sử có thể bật checkbox `Hiện phiếu đã hủy`
 - Có API chứng từ điều chỉnh cho Phase B gồm: `phiếu điều chỉnh tồn`, `phiếu trả hàng khách`, `phiếu trả NCC` để không sửa ngược chứng từ cũ
 - Có audit log Phase D cho thay đổi trạng thái đơn/phiếu, thay đổi giá chung và lưu người thao tác để truy vết
 - Báo cáo nhập xuất theo tháng, tách riêng `hoàn khách`, `trả NCC`, `điều chỉnh tồn`, có thêm khối audit chứng từ để tra cứu ngay trong màn `Báo cáo`

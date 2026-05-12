@@ -114,6 +114,7 @@ export const purchasesPanel = purchasesSection?.querySelector(".purchases-panel"
 export const purchaseCustomerCard = purchasesSection?.querySelector(".sales-customer-card") || null;
 export const purchaseSuggestionToolbar = purchaseSearchInput?.closest(".sticky-toolbar") || null;
 export const purchaseOrdersCard = purchaseOrderList?.closest(".sales-card") || null;
+export const showCancelledPurchases = document.getElementById("showCancelledPurchases");
 export const showPaidPurchases = document.getElementById("showPaidPurchases");
 export const supplierOptions = document.getElementById("supplierOptions");
 export const supplierForm = document.getElementById("supplierForm");

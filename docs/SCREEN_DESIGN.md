@@ -140,8 +140,10 @@ Liên kết detail hiện có:
   - gợi ý nhập
   - phiếu nhập hiện hành
   - danh sách phiếu
+  - filter hiện phiếu đã hủy / đã thanh toán
   - nút `NCC`
 - nguyên tắc UI:
+  - phiếu đã hủy mặc định ẩn để list gọn hơn; user chỉ bật lại khi cần tra cứu
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
   - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu để đối chiếu số tiền thực trả NCC

@@ -78,6 +78,7 @@ export const state = {
   showArchivedCarts: false,
   showCancelledOrders: false,
   showPaidOrders: false,
+  showCancelledPurchases: false,
   showPaidPurchases: false,
   expandedProductId: null,
   expandedSalesProductId: null,

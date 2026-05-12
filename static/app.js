@@ -116,6 +116,7 @@ import {
   purchaseCustomerCard,
   purchaseSuggestionToolbar,
   purchaseOrdersCard,
+  showCancelledPurchases,
   showPaidPurchases,
   supplierOptions,
   supplierForm,
@@ -3348,6 +3349,7 @@ function renderAll() {
   showArchivedCarts.checked = state.showArchivedCarts;
   showCancelledOrders.checked = state.showCancelledOrders || false;
   showPaidOrders.checked = state.showPaidOrders;
+  showCancelledPurchases.checked = state.showCancelledPurchases || false;
   showPaidPurchases.checked = state.showPaidPurchases || false;
   const activeCart = getActiveCart();
   if (activeCart) {
@@ -4037,6 +4039,7 @@ registerPurchasesControllerEvents({
     purchaseNoteInput,
     purchaseSupplierMenuButton,
     purchaseSearchInput,
+    showCancelledPurchases,
     showPaidPurchases,
     purchaseSuggestionList,
     purchasePanel,

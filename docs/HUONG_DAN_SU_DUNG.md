@@ -290,6 +290,7 @@ Nếu phiếu được tạo từ một đơn đang thiếu hàng:
 
 Lưu ý:
 
+- mặc định danh sách không hiện phiếu đã hủy; chỉ bật checkbox `Hiện phiếu đã hủy` khi cần tra cứu lại lịch sử hủy
 - chỉ `Nháp` và `Đã đặt` mới được sửa trực tiếp dòng hàng
 - nếu chưa có nhà cung cấp thì không được chuyển sang `Đã đặt` hoặc `Nhập kho`
 - chỉ `Nháp` mới được đổi nhà cung cấp; từ `Đã đặt` trở đi ô NCC và nút `NCC` sẽ bị khóa
@@ -460,6 +461,14 @@ Vào `Quản lý nhập hàng` rồi bật:
 
 ```text
 Hiện phiếu đã thanh toán
+```
+
+### Muốn xem lại phiếu nhập đã hủy
+
+Vào `Quản lý nhập hàng` rồi bật:
+
+```text
+Hiện phiếu đã hủy
 ```
 
 ## 12. Lưu ý sử dụng chung nhiều máy

@@ -230,13 +230,20 @@ export function createPurchasesUi(deps) {
   }
 
   function renderPurchaseOrders() {
-    const visiblePurchases = state.purchases.filter((purchase) => state.showPaidPurchases || purchase.status !== "paid").filter((purchase) => {
-      if (!state.purchaseSearchTerm) {
-        return true;
-      }
-      const haystack = `${purchase.supplierName} ${purchase.receiptCode} ${purchase.note || ""} ${purchase.sourceName || purchase.source_name || ""} ${purchase.sourceCode || purchase.source_code || ""} ${purchase.items.map((item) => item.productName).join(" ")}`.toLowerCase();
-      return haystack.includes(state.purchaseSearchTerm.toLowerCase());
-    });
+    const visiblePurchases = state.purchases
+      .filter((purchase) => {
+        if (!state.showCancelledPurchases && purchase.status === "cancelled") {
+          return false;
+        }
+        return state.showPaidPurchases || purchase.status !== "paid";
+      })
+      .filter((purchase) => {
+        if (!state.purchaseSearchTerm) {
+          return true;
+        }
+        const haystack = `${purchase.supplierName} ${purchase.receiptCode} ${purchase.note || ""} ${purchase.sourceName || purchase.source_name || ""} ${purchase.sourceCode || purchase.source_code || ""} ${purchase.items.map((item) => item.productName).join(" ")}`.toLowerCase();
+        return haystack.includes(state.purchaseSearchTerm.toLowerCase());
+      });
     dom.purchaseOrderList.classList.toggle("is-compact-search", isSearchResultMode("purchaseOrders"));
     if (!visiblePurchases.length) {
       dom.purchaseOrderList.innerHTML = '<div class="empty-state">Chưa có phiếu nhập nào.</div>';
