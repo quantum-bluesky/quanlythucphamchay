@@ -113,6 +113,7 @@ Mục tiêu:
 | 87 | `UT-DB-14` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_14_supplier_return_can_target_a_specific_batch` |
 | 88 | `UT-DB-15` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_15_purchase_requires_supplier_before_ordered_or_received` |
 | 89 | `ACC-PUR-05` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "ACC-PUR-05"` |
+| 90 | `IT-PUR-01` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "IT-PUR-01"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

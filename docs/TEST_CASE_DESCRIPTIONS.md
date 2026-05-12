@@ -107,3 +107,4 @@ Lưu ý:
 | 85 | `UT-DB-14` | Kiểm tra backend phiếu trả NCC có thể chỉ rõ `Mã lô` để trừ đúng lô đó thay vì lấy FEFO chung. |
 | 86 | `UT-DB-15` | Kiểm tra backend chặn phiếu nhập chuyển sang `Đã đặt` hoặc `Đã nhập kho` nếu chưa có nhà cung cấp. |
 | 87 | `ACC-PUR-05` | Kiểm tra UI và API đều chặn phiếu nhập chưa có nhà cung cấp chuyển sang `Đã đặt hàng` hoặc `Nhập kho`. |
+| 88 | `IT-PUR-01` | Kiểm tra card gợi ý ở màn `Nhập hàng` cho đổi nhanh ô `SL` trước khi bấm `+ Phiếu`, và phiếu nháp nhận đúng số lượng vừa nhập. |

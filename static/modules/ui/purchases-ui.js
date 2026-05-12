@@ -219,10 +219,14 @@ export function createPurchasesUi(deps) {
           <div>
             <strong>${escapeHtml(entry.product.name)}</strong>
             <div class="sales-product-meta">Tồn ${formatQuantity(entry.product.current_stock)} ${escapeHtml(entry.product.unit)} | Cần cho đơn ${formatQuantity(entry.demand)}</div>
+            <div class="cart-line-note">Đề xuất ${formatQuantity(entry.suggestedQuantity || entry.shortageFromOrders || 1)} ${escapeHtml(entry.product.unit)} trước khi thêm vào phiếu.</div>
           </div>
         </div>
         <div class="queue-actions purchase-suggestion-actions">
-          <span class="status-pill cancelled compact-pill">Đề xuất ${formatQuantity(entry.suggestedQuantity || entry.shortageFromOrders || 1)}</span>
+          <label class="sales-inline-qty purchase-suggestion-qty">
+            <span>SL</span>
+            <input class="qty-input" type="number" min="0.01" step="0.01" value="${entry.suggestedQuantity || entry.shortageFromOrders || 1}" data-purchase-suggestion-qty-input="${entry.product.id}" aria-label="Số lượng thêm vào phiếu cho ${escapeHtml(entry.product.name)}">
+          </label>
           <button type="button" class="ghost-button compact-button" data-purchase-suggestion-action="add" data-product-id="${entry.product.id}" data-quantity="${entry.suggestedQuantity || entry.shortageFromOrders || 1}">+ Phiếu</button>
         </div>
       </article>

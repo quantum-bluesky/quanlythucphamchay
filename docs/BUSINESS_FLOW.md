@@ -92,6 +92,7 @@ Nếu cần can thiệp đặc biệt
 ### Bước 2: Chọn hàng cần nhập
 
 - thêm từ danh sách gợi ý
+- có thể sửa nhanh ô `SL` ngay trên card gợi ý trước khi bấm `+ Phiếu`
 - hàng đã chọn được gom vào phần tóm tắt phiếu
 
 ### Bước 3: Chọn NCC và chỉnh dòng nhập
