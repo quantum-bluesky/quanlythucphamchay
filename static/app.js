@@ -2595,8 +2595,8 @@ function setLoginReturnMenu(menu) {
 
 function isLoginScreenTarget(target) {
   return Boolean(
-    dom.adminLoginPanel?.contains(target) ||
-    dom.adminLoginForm?.contains(target)
+    adminLoginPanel?.contains(target) ||
+    adminLoginForm?.contains(target)
   );
 }
 
@@ -2643,7 +2643,7 @@ function handleBlockedLoginInteraction(event) {
   );
   if (shouldGoLogin) {
     redirectToLoginScreen({ rememberMenu: true });
-    dom.adminUsernameInput?.focus();
+    adminUsernameInput?.focus();
   }
   return true;
 }

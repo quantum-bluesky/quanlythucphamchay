@@ -43,9 +43,10 @@ Lưu ý:
 | 24 | `ACC-ADM-01` | Kiểm tra Master Admin login, export/import master data, backup và restore hoạt động trên fixture DB. |
 | 25 | `ACC-ADM-02` | Kiểm tra cùng luồng Master Admin ở trên vẫn hoạt động đầy đủ và ổn định trong cùng spec admin. |
 | 26 | `ACC-ADM-03` | Kiểm tra chỉnh tồn trực tiếp yêu cầu đăng nhập admin và bắt buộc có lý do điều chỉnh. |
-| 27 | `ACC-SYNC-01` | Kiểm tra màn tạo đơn tự refresh tồn kho và giá sau khi có thay đổi từ client khác. |
-| 28 | `ACC-SYNC-02` | Kiểm tra sync state từ chối cập nhật giỏ hàng stale và trả metadata conflict đúng. |
-| 29 | `ACC-SYNC-03` | Kiểm tra sync state từ chối cập nhật phiếu nhập stale và trả metadata conflict đúng. |
+| 27 | `ACC-LOG-01` | Kiểm tra login user thường và admin cập nhật đúng header `Login/Logout`, ẩn/hiện đúng module quản trị, đồng thời chỉ admin mới thấy các control tồn kho đặc quyền như panel chỉnh tồn trực tiếp và action `Phiếu DC` / sửa giá. |
+| 28 | `ACC-SYNC-01` | Kiểm tra màn tạo đơn tự refresh tồn kho và giá sau khi có thay đổi từ client khác. |
+| 29 | `ACC-SYNC-02` | Kiểm tra sync state từ chối cập nhật giỏ hàng stale và trả metadata conflict đúng. |
+| 30 | `ACC-SYNC-03` | Kiểm tra sync state từ chối cập nhật phiếu nhập stale và trả metadata conflict đúng. |
 | 30 | `IT-PHD-01` | Kiểm tra product history hỗ trợ lọc theo người thao tác cho thay đổi giá mặc định. |
 | 31 | `IT-PHD-02` | Kiểm tra sync state lưu `actor` khi trạng thái giỏ hàng thay đổi. |
 | 32 | `ACC-SCR-CAP-01` | Kiểm tra chụp ảnh tất cả các màn hình chính trên mobile (tồn kho, xuất hàng, đơn hàng, khách hàng, sản phẩm, nhập hàng, nhà cung cấp, báo cáo, lịch sử, admin) và lưu vào thư mục `test-results/capture/${yyyymmdd}/`. |
