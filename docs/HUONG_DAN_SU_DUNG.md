@@ -172,6 +172,7 @@ Dùng màn này để:
 
 Lưu ý:
 
+- mặc định danh sách không hiện đơn đã hủy; chỉ bật checkbox `Hiện đơn đã hủy` khi cần tra cứu lại lịch sử hủy
 - đơn đã `Đã xong` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng hay giá
 - trước khi `Đã thanh toán`, vẫn được sửa riêng `Giảm giá khuyến mại` của cả đơn
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
@@ -443,6 +444,14 @@ Vào `Quản lý đơn hàng` rồi bật:
 
 ```text
 Hiện đơn đã xong
+```
+
+### Muốn xem lại đơn đã hủy
+
+Vào `Quản lý đơn hàng` rồi bật:
+
+```text
+Hiện đơn đã hủy
 ```
 
 ### Muốn xem lại phiếu nhập đã thanh toán

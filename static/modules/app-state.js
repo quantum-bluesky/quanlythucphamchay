@@ -76,6 +76,7 @@ export const state = {
   floatingSearchExpanded: false,
   floatingSearchAutoHidden: false,
   showArchivedCarts: false,
+  showCancelledOrders: false,
   showPaidOrders: false,
   showPaidPurchases: false,
   expandedProductId: null,

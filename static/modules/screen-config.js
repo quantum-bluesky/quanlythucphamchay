@@ -61,7 +61,7 @@ export const SCREEN_HELP = {
     overview: "Theo dõi các giỏ hàng nháp, đơn đã chốt, đơn đã thanh toán và tra cứu lịch sử đơn theo khách hay mặt hàng.",
     steps: [
       "Dùng ô tìm kiếm để lọc theo khách hàng, mã đơn hoặc tên mặt hàng.",
-      "Bật hoặc tắt các tùy chọn hiện đơn đã xong và đã thanh toán để thu gọn danh sách.",
+      "Bật hoặc tắt các tùy chọn hiện đơn đã xong, đã hủy và đã thanh toán để thu gọn danh sách; riêng đơn đã hủy mặc định được ẩn.",
       "Khi đi từ màn Khách hàng sang, app có thể tự lọc đúng theo khách; nếu khách chỉ có 1 phiếu hàng thì màn này sẽ tự mở thẳng phần detail của phiếu đó, kể cả khi đơn đã xong hoặc đã thanh toán.",
       "Với giỏ nháp đang chờ xuất, bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile mở `Detail` để thấy cụm action gọn của card.",
       "Trước khi `Xuất`, `Đã thanh toán`, `Hủy` hoặc `Xóa`, app sẽ hiện message confirm để bạn kiểm tra lại thao tác có thể đổi trạng thái hoặc xóa phiếu.",

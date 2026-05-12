@@ -91,9 +91,10 @@ Liên kết detail hiện có:
   - cập nhật thanh toán
 - thành phần chính:
   - search đơn hàng
-  - filter hiện đơn đã xong / đã thanh toán
+  - filter hiện đơn đã xong / đã hủy / đã thanh toán
   - danh sách order card
 - nguyên tắc UI:
+  - đơn đã hủy mặc định ẩn để list gọn hơn; user chỉ bật lại khi cần tra cứu
   - giỏ nháp đang chờ xuất có nút `Xuất` nhanh ngay trên card trên tablet/PC
   - card đơn có button `Detail` để bung metadata và danh sách dòng hàng ngay trong list
   - khi đi từ màn `customers`, list có thể tự lọc đúng theo `customerId`; nếu chỉ còn 1 phiếu phù hợp thì detail của phiếu đó phải tự mở kể cả với đơn `Đã xong` hoặc `Đã thanh toán`

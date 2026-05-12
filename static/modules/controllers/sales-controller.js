@@ -102,6 +102,12 @@ export function registerSalesControllerEvents(contract) {
     renderers.renderCartQueue();
   });
 
+  dom.showCancelledOrders.addEventListener("change", (event) => {
+    state.showCancelledOrders = event.target.checked;
+    state.pagination.orders = 1;
+    renderers.renderCartQueue();
+  });
+
   dom.showPaidOrders.addEventListener("change", (event) => {
     state.showPaidOrders = event.target.checked;
     state.pagination.orders = 1;

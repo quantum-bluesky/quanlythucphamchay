@@ -47,6 +47,7 @@ import {
   selectedCartWrap,
   cartItemsList,
   showArchivedCarts,
+  showCancelledOrders,
   showPaidOrders,
   orderSearchInput,
   cartQueueList,
@@ -3345,6 +3346,7 @@ function renderAdminSection() {
 
 function renderAll() {
   showArchivedCarts.checked = state.showArchivedCarts;
+  showCancelledOrders.checked = state.showCancelledOrders || false;
   showPaidOrders.checked = state.showPaidOrders;
   showPaidPurchases.checked = state.showPaidPurchases || false;
   const activeCart = getActiveCart();
@@ -3900,6 +3902,7 @@ registerSalesControllerEvents({
     salesSearchInput,
     orderSearchInput,
     showArchivedCarts,
+    showCancelledOrders,
     showPaidOrders,
     salesProductList,
     cartItemsList,

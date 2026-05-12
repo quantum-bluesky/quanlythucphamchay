@@ -110,6 +110,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Khi chốt đơn bị thiếu hàng, app sẽ báo trước khi tạo/cập nhật phiếu nhập; nếu đã có phiếu chờ nhập đủ số lượng thì app chỉ thông báo và cho mở lại phiếu đó khi người dùng xác nhận cần chỉnh
 - Nút `Detail` ở `Giỏ hiện hành` và `Đơn hàng` cho phép bung nhanh metadata phiếu xuất và danh sách dòng hàng mà không phải mở sang chỗ chỉnh sửa
 - Từ màn Khách hàng có thể bấm badge `giỏ chờ` / `đơn` để mở danh sách phiếu của đúng khách; nếu khách chỉ có 1 phiếu thì màn Đơn hàng sẽ tự mở detail kể cả với đơn đã xong hoặc đã thanh toán
+- Màn `Đơn hàng` mặc định ẩn đơn đã hủy; khi cần đối chiếu lịch sử có thể bật checkbox `Hiện đơn đã hủy`
 - Đơn đã chốt và phiếu đã nhập kho/đã thanh toán được khóa sửa trực tiếp để tránh thay đổi ngược lịch sử; ngoại lệ duy nhất trước thanh toán là vẫn được chỉnh `giảm giá khuyến mại` của toàn phiếu
 - Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server
 - Tự nạp lại dữ liệu mới từ máy khác ở các màn chính khi màn hình đang rảnh thao tác, giúp thấy tồn kho và giá mới hơn mà không cần `F5`

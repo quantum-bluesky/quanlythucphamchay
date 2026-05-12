@@ -45,6 +45,7 @@ export const selectedCartSummaryNote = document.getElementById("selectedCartSumm
 export const selectedCartWrap = document.getElementById("selectedCartWrap");
 export const cartItemsList = document.getElementById("cartItemsList");
 export const showArchivedCarts = document.getElementById("showArchivedCarts");
+export const showCancelledOrders = document.getElementById("showCancelledOrders");
 export const showPaidOrders = document.getElementById("showPaidOrders");
 export const orderSearchInput = document.getElementById("orderSearchInput");
 export const cartQueueList = document.getElementById("cartQueueList");
