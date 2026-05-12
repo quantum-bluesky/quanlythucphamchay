@@ -112,7 +112,7 @@ Thông tin nên hiện trong detail:
 - nhà cung cấp
 - trạng thái xử lý
 - tạm tính / giảm khuyến mại / cần thanh toán
-- dòng hàng nên cho sửa/xem `Mã lô` và `Hạn dùng` theo từng lô nhập
+- dòng hàng nên cho sửa/xem `Mã lô`, `Hạn dùng` hoặc `Ngày sản xuất` theo từng lô nhập; nếu user chọn nhập qua NSX thì UI phải hiện HSD tự tính tương ứng
 - ngày tạo
 - ngày nhập kho
 - ngày thanh toán

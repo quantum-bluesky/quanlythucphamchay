@@ -175,6 +175,82 @@ export function registerPurchasesControllerEvents(contract) {
     renderers.renderPurchaseOrders();
   });
 
+  function getProductStorageLifeDays(product) {
+    const candidates = [
+      product?.storage_life_days,
+      product?.storageLifeDays,
+      product?.shelf_life_days,
+      product?.shelfLifeDays,
+    ];
+    for (const candidate of candidates) {
+      const numericValue = Number(candidate);
+      if (Number.isFinite(numericValue) && numericValue > 0) {
+        return numericValue;
+      }
+    }
+    return null;
+  }
+
+  function shiftDateByDays(dateText, days) {
+    const cleanDateText = String(dateText || "").trim();
+    const numericDays = Number(days);
+    if (!cleanDateText || !Number.isFinite(numericDays) || numericDays <= 0) {
+      return "";
+    }
+    const [yearText, monthText, dayText] = cleanDateText.split("-");
+    const year = Number(yearText);
+    const month = Number(monthText);
+    const day = Number(dayText);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+      return "";
+    }
+    const baseDate = new Date(Date.UTC(year, month - 1, day));
+    if (Number.isNaN(baseDate.getTime())) {
+      return "";
+    }
+    baseDate.setUTCDate(baseDate.getUTCDate() + Math.max(0, Math.round(numericDays)));
+    return baseDate.toISOString().slice(0, 10);
+  }
+
+  function updatePurchaseExpiryEditorState(itemId) {
+    const purchase = queries.getActivePurchase();
+    if (!purchase) return;
+    const modeInput = dom.purchasePanel.querySelector(`[data-purchase-expiry-mode-input="${itemId}"]`);
+    const expiryInput = dom.purchasePanel.querySelector(`[data-purchase-expiry-input="${itemId}"]`);
+    const manufactureInput = dom.purchasePanel.querySelector(`[data-purchase-manufacture-input="${itemId}"]`);
+    const hintNode = dom.purchasePanel.querySelector(`[data-purchase-expiry-hint="${itemId}"]`);
+    const item = purchase.items.find((entry) => entry.id === itemId);
+    if (!modeInput || !expiryInput || !manufactureInput || !hintNode || !item) {
+      return;
+    }
+    const isManufactureMode = modeInput.value === "manufacture";
+    const canEditExpiry = queries.canEditPurchaseExpiryMetadata(purchase);
+    expiryInput.disabled = !canEditExpiry || isManufactureMode;
+    manufactureInput.disabled = !canEditExpiry || !isManufactureMode;
+
+    const product = queries.getProductById(item.productId);
+    const storageLifeDays = getProductStorageLifeDays(product);
+    if (isManufactureMode) {
+      const computedExpiryDate = manufactureInput.value && storageLifeDays !== null
+        ? shiftDateByDays(manufactureInput.value, storageLifeDays)
+        : "";
+      hintNode.textContent = storageLifeDays === null
+        ? "Cần khai báo thời gian bảo quản ở sản phẩm để tự tính HSD từ ngày sản xuất."
+        : (manufactureInput.value
+          ? `HSD tự tính: ${computedExpiryDate || "Chưa có"} = NSX + ${storageLifeDays} ngày`
+          : `Nhập ngày sản xuất để app tự tính HSD theo ${storageLifeDays} ngày bảo quản.`);
+      return;
+    }
+
+    const receivedDate = String(purchase.receivedAt || purchase.received_at || "").trim().slice(0, 10);
+    const fallbackExpiryDate = !expiryInput.value && receivedDate && storageLifeDays !== null
+      ? shiftDateByDays(receivedDate, storageLifeDays)
+      : "";
+    hintNode.textContent = fallbackExpiryDate
+      ? `Nếu để trống HSD, app dùng giá trị tự tính ${fallbackExpiryDate} = ngày nhập kho + ${storageLifeDays} ngày.`
+      : "Nhập HSD trực tiếp nếu đã có thông tin chính xác của lô.";
+  }
+
   function resolvePurchaseSuggestionQuantity(button) {
     const fallbackQuantity = button.dataset.quantity;
     const input = button
@@ -213,6 +289,19 @@ export function registerPurchasesControllerEvents(contract) {
       ?.click();
   });
 
+  dom.purchasePanel.addEventListener("change", (event) => {
+    const modeInput = event.target.closest("[data-purchase-expiry-mode-input]");
+    if (modeInput) {
+      updatePurchaseExpiryEditorState(modeInput.dataset.purchaseExpiryModeInput);
+      return;
+    }
+    const dateInput = event.target.closest("[data-purchase-expiry-input], [data-purchase-manufacture-input]");
+    if (dateInput) {
+      const itemId = dateInput.dataset.purchaseExpiryInput || dateInput.dataset.purchaseManufactureInput;
+      updatePurchaseExpiryEditorState(itemId);
+    }
+  });
+
   dom.purchasePanel.addEventListener("click", async (event) => {
     const selectedToggleButton = event.target.closest("[data-purchase-selected-action]");
     if (selectedToggleButton?.dataset.purchaseSelectedAction === "toggle") {
@@ -247,15 +336,61 @@ export function registerPurchasesControllerEvents(contract) {
     if (itemButton) {
       const purchase = queries.getActivePurchase();
       if (!purchase) return;
-      if (!queries.canEditPurchase(purchase)) {
+      const itemAction = itemButton.dataset.purchaseItemAction;
+      const canEditStructure = queries.canEditPurchase(purchase);
+      const canEditExpiryMetadata = queries.canEditPurchaseExpiryMetadata(purchase);
+      if (itemAction === "save" && !canEditExpiryMetadata) {
         actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
         return;
       }
-      if (itemButton.dataset.purchaseItemAction === "save") {
+      if (itemAction !== "save" && !canEditStructure) {
+        actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
+        return;
+      }
+      if (itemAction === "save") {
         const qtyInput = dom.purchasePanel.querySelector(`[data-purchase-qty-input="${itemButton.dataset.purchaseItemId}"]`);
         const costInput = dom.purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
         const batchInput = dom.purchasePanel.querySelector(`[data-purchase-batch-input="${itemButton.dataset.purchaseItemId}"]`);
+        const expiryModeInput = dom.purchasePanel.querySelector(`[data-purchase-expiry-mode-input="${itemButton.dataset.purchaseItemId}"]`);
         const expiryInput = dom.purchasePanel.querySelector(`[data-purchase-expiry-input="${itemButton.dataset.purchaseItemId}"]`);
+        const manufactureInput = dom.purchasePanel.querySelector(`[data-purchase-manufacture-input="${itemButton.dataset.purchaseItemId}"]`);
+        const sourceItem = purchase.items.find((item) => item.id === itemButton.dataset.purchaseItemId);
+        const product = queries.getProductById(sourceItem?.productId);
+        const expiryInputMode = expiryModeInput?.value === "manufacture" ? "manufacture" : "direct";
+        const manufactureDate = String(manufactureInput?.value || "").trim();
+        const expiryDate = String(expiryInput?.value || "").trim();
+        if (expiryInputMode === "manufacture") {
+          if (!manufactureDate) {
+            actions.showToast("Cần nhập ngày sản xuất khi chọn cách nhập HSD gián tiếp.", true);
+            return;
+          }
+          if (getProductStorageLifeDays(product) === null) {
+            actions.showToast("Sản phẩm này chưa có thời gian bảo quản để tự tính HSD từ ngày sản xuất.", true);
+            return;
+          }
+        }
+        if (purchase.status === "received") {
+          try {
+            const data = await actions.apiRequest("/api/purchases/received-item-expiry", {
+              method: "POST",
+              body: JSON.stringify({
+                purchase_id: purchase.id,
+                purchase_item_id: itemButton.dataset.purchaseItemId,
+                expiry_input_mode: expiryInputMode,
+                manufacture_date: manufactureDate,
+                expiry_date: expiryDate,
+                expected_updated_at: purchase.updatedAt || "",
+              }),
+            });
+            await actions.refreshData();
+            state.activePurchaseId = purchase.id;
+            renderers.renderPurchasePanel();
+            actions.showToast(data.message || "Đã cập nhật hạn dùng của dòng nhập hàng.");
+          } catch (error) {
+            actions.showToast(error.message, true);
+          }
+          return;
+        }
         const quantity = Number(qtyInput?.value);
         const unitCost = Number(costInput?.value);
         if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -272,7 +407,9 @@ export function registerPurchasesControllerEvents(contract) {
             quantity: Number(quantity.toFixed(2)),
             unitCost,
             batchCode: String(batchInput?.value || "").trim(),
-            expiryDate: String(expiryInput?.value || "").trim(),
+            expiryInputMode,
+            manufactureDate: expiryInputMode === "manufacture" ? manufactureDate : "",
+            expiryDate: expiryInputMode === "manufacture" ? "" : expiryDate,
           } : item),
           supplierName: dom.purchaseSupplierInput.value.trim(),
           note: dom.purchaseNoteInput.value.trim(),
@@ -281,7 +418,7 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Đã lưu dòng nhập hàng.");
         return;
       }
-      if (itemButton.dataset.purchaseItemAction === "clone-lot") {
+      if (itemAction === "clone-lot") {
         const sourceItem = purchase.items.find((item) => item.id === itemButton.dataset.purchaseItemId);
         if (!sourceItem) {
           actions.showToast("Không tìm thấy dòng nhập để tách lô.", true);
@@ -295,6 +432,9 @@ export function registerPurchasesControllerEvents(contract) {
               id: `purchase_item_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
               quantity: 1,
               batchCode: "",
+              expiryInputMode: "direct",
+              manufactureDate: "",
+              expiryDate: "",
             },
           ],
           supplierName: dom.purchaseSupplierInput.value.trim(),
@@ -304,7 +444,7 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Đã thêm dòng lô mới. Hãy chỉnh lại số lượng giữa các lô.");
         return;
       }
-      if (itemButton.dataset.purchaseItemAction === "update-default-cost") {
+      if (itemAction === "update-default-cost") {
         const costInput = dom.purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
         const unitCost = Number(costInput?.value);
         if (!Number.isFinite(unitCost) || unitCost < 0) {
@@ -330,8 +470,8 @@ export function registerPurchasesControllerEvents(contract) {
       }
       actions.updatePurchase(purchase.id, (currentPurchase) => ({
         items: currentPurchase.items
-          .map((item) => item.id === itemButton.dataset.purchaseItemId ? { ...item, quantity: itemButton.dataset.purchaseItemAction === "add-one" ? Number((Number(item.quantity) + 1).toFixed(2)) : item.quantity } : item)
-          .filter((item) => itemButton.dataset.purchaseItemAction === "remove" ? item.id !== itemButton.dataset.purchaseItemId : true),
+          .map((item) => item.id === itemButton.dataset.purchaseItemId ? { ...item, quantity: itemAction === "add-one" ? Number((Number(item.quantity) + 1).toFixed(2)) : item.quantity } : item)
+          .filter((item) => itemAction === "remove" ? item.id !== itemButton.dataset.purchaseItemId : true),
         supplierName: dom.purchaseSupplierInput.value.trim(),
         note: dom.purchaseNoteInput.value.trim(),
       }));
@@ -483,10 +623,13 @@ export function registerPurchasesControllerEvents(contract) {
             note: dom.purchaseNoteInput.value.trim(),
             discount_amount: latestPurchase.discountAmount || 0,
             items: latestPurchase.items.map((item) => ({
+              id: item.id,
               product_id: item.productId,
               quantity: item.quantity,
               unit_cost: item.unitCost,
               batch_code: item.batchCode || "",
+              expiry_input_mode: item.expiryInputMode || "direct",
+              manufacture_date: item.manufactureDate || "",
               expiry_date: item.expiryDate || "",
             })),
           }),
@@ -507,8 +650,10 @@ export function registerPurchasesControllerEvents(contract) {
     if (event.key !== "Enter") return;
     const qtyInput = event.target.closest("[data-purchase-qty-input]");
     const costInput = event.target.closest("[data-purchase-cost-input]");
+    const expiryInput = event.target.closest("[data-purchase-expiry-input]");
+    const manufactureInput = event.target.closest("[data-purchase-manufacture-input]");
     const discountInput = event.target.closest("[data-purchase-discount-input]");
-    if (!qtyInput && !costInput && !discountInput) return;
+    if (!qtyInput && !costInput && !expiryInput && !manufactureInput && !discountInput) return;
     event.preventDefault();
     if (discountInput) {
       const purchaseId = discountInput.dataset.purchaseDiscountInput || "";
@@ -516,7 +661,10 @@ export function registerPurchasesControllerEvents(contract) {
       saveButton?.click();
       return;
     }
-    const itemId = qtyInput?.dataset.purchaseQtyInput || costInput?.dataset.purchaseCostInput;
+    const itemId = qtyInput?.dataset.purchaseQtyInput
+      || costInput?.dataset.purchaseCostInput
+      || expiryInput?.dataset.purchaseExpiryInput
+      || manufactureInput?.dataset.purchaseManufactureInput;
     const saveButton = dom.purchasePanel.querySelector(`[data-purchase-item-action="save"][data-purchase-item-id="${itemId}"]`);
     saveButton?.click();
   });
