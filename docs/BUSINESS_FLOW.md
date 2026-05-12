@@ -77,6 +77,7 @@ Nếu cần can thiệp đặc biệt
 
 - màn `orders`
 - chỉ xem/in/thanh toán/hủy theo rule
+- nếu đi từ màn `customers`, app có thể lọc danh sách đơn đúng theo khách; nếu khách chỉ có 1 phiếu thì mở sẵn detail để xem ngay kể cả với đơn đã `completed/paid`
 - giỏ nháp đang chờ xuất có thể bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile nút này nằm trong `...`
 - đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng hay giá; ngoại lệ duy nhất trước thanh toán là vẫn cho sửa `giảm giá khuyến mại` của toàn đơn
 
@@ -162,6 +163,7 @@ ordered -> cancelled
 
 - lưu danh bạ giao hàng
 - mở nhanh giỏ hàng
+- từ badge `giỏ chờ` / `đơn` trên card khách có thể mở nhanh list phiếu của đúng khách hoặc nhảy thẳng vào detail nếu chỉ có 1 phiếu
 
 ### Nhà cung cấp
 

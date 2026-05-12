@@ -109,6 +109,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm
 - Khi chốt đơn bị thiếu hàng, app sẽ báo trước khi tạo/cập nhật phiếu nhập; nếu đã có phiếu chờ nhập đủ số lượng thì app chỉ thông báo và cho mở lại phiếu đó khi người dùng xác nhận cần chỉnh
 - Nút `Detail` ở `Giỏ hiện hành` và `Đơn hàng` cho phép bung nhanh metadata phiếu xuất và danh sách dòng hàng mà không phải mở sang chỗ chỉnh sửa
+- Từ màn Khách hàng có thể bấm badge `giỏ chờ` / `đơn` để mở danh sách phiếu của đúng khách; nếu khách chỉ có 1 phiếu thì màn Đơn hàng sẽ tự mở detail kể cả với đơn đã xong hoặc đã thanh toán
 - Đơn đã chốt và phiếu đã nhập kho/đã thanh toán được khóa sửa trực tiếp để tránh thay đổi ngược lịch sử; ngoại lệ duy nhất trước thanh toán là vẫn được chỉnh `giảm giá khuyến mại` của toàn phiếu
 - Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server
 - Tự nạp lại dữ liệu mới từ máy khác ở các màn chính khi màn hình đang rảnh thao tác, giúp thấy tồn kho và giá mới hơn mà không cần `F5`
@@ -132,6 +133,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Báo cáo nhập xuất theo tháng, tách riêng `hoàn khách`, `trả NCC`, `điều chỉnh tồn`, có thêm khối audit chứng từ để tra cứu ngay trong màn `Báo cáo`
 - Khối audit chứng từ ở màn `Báo cáo` hỗ trợ tìm theo mã phiếu và mã tham chiếu nguồn để đối chiếu nhanh
 - Quản lý khách hàng có thêm số liên lạc, địa chỉ ship và link Zalo
+- Màn Khách hàng trên mobile được nén còn khoảng 3 dòng mỗi card để thấy nhiều khách hơn; dòng cuối ưu tiên số liên lạc và action ngắn
 - Màn Khách hàng và Nhà cung cấp ưu tiên hiển thị danh sách; form tạo/sửa được thu gọn và chỉ mở khi bấm `Thêm mới` hoặc `Sửa`
 - Màn Sản phẩm cũng ưu tiên hiển thị danh sách; phần `Thêm sản phẩm` và `Lịch sử sản phẩm` được thu gọn sẵn và chỉ mở khi cần
 - Quản lý đơn hàng có trạng thái thanh toán và nút `Xuất` nhanh từ card giỏ nháp

@@ -86,6 +86,14 @@ export function registerEntitiesControllerEvents(contract) {
       }
       return;
     }
+    if (button.dataset.customerAction === "open-orders") {
+      try {
+        actions.openOrdersForCustomer(customerId);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (button.dataset.customerAction === "edit") {
       state.editingCustomerFormId = customerId;
       dom.customerNameInput.value = customer.name;

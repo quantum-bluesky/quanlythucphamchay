@@ -280,6 +280,7 @@ export function createSalesUi(deps) {
 
   function renderCartQueue() {
     const compact = mobileQuery.matches;
+    const customerFilterId = String(state.orderFilterCustomerId || "");
     const drafts = state.carts.filter((cart) => cart.status === "draft");
     const archived = state.carts.filter((cart) => {
       if (cart.status === "draft") return false;
@@ -287,11 +288,12 @@ export function createSalesUi(deps) {
       return true;
     });
     const visibleCarts = (state.showArchivedCarts ? [...drafts, ...archived] : drafts).filter((cart) => {
+      if (customerFilterId && String(cart.customerId || "") !== customerFilterId) return false;
       if (!state.orderSearchTerm) return true;
       const haystack = `${cart.customerName} ${cart.orderCode} ${cart.items.map((item) => item.productName).join(" ")}`.toLowerCase();
       return haystack.includes(state.orderSearchTerm.toLowerCase());
     });
-    dom.cartQueueList.classList.toggle("is-compact-search", isSearchResultMode("orders"));
+    dom.cartQueueList.classList.toggle("is-compact-search", Boolean(customerFilterId) || isSearchResultMode("orders"));
     if (dom.draftCartBadge) {
       dom.draftCartBadge.textContent = String(drafts.length);
     }

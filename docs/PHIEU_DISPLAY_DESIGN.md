@@ -63,6 +63,7 @@ Nếu thiếu dữ liệu thật thì hiện:
 - giá trị suy ra từ DB nếu đó là fallback an toàn
 
 Button `Detail` phải cho phép expand/collapse ngay trong card hoặc panel hiện tại để giữ list phiếu gọn trên mobile.
+Detail của phiếu xuất phải vẫn mở được với đơn `Đã xong` và `Đã thanh toán`, kể cả khi người dùng đi từ màn khách hàng sang bằng link nội bộ.
 
 Khi chứng từ có dữ liệu theo lô, phần danh sách dòng hoặc note đi kèm nên hiện thêm:
 
