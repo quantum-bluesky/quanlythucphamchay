@@ -240,7 +240,7 @@ class AuthHttpTests(unittest.TestCase):
 
         html_status, html_body, html_headers = self._request_text("GET", "/")
         self.assertEqual(html_status, 200)
-        self.assertIn(f'./static/app.js?v={app_version}.', html_body)
+        self.assertIn(f'/static/app.js?v={app_version}.', html_body)
         self.assertEqual(html_headers.get("cache-control"), "no-cache, must-revalidate")
 
         js_status, js_body, js_headers = self._request_text("GET", "/static/app.js")
@@ -308,28 +308,6 @@ class AuthHttpTests(unittest.TestCase):
         )
         self.assertEqual(cross_port_status, 401)
         self.assertIn("đăng nhập hệ thống", cross_port_payload["error"])
-
-    def test_ut_auth_08_prefixed_subpath_routes_serve_same_app_and_api(self) -> None:
-        runtime_config = load_system_config()
-        config = {
-            **runtime_config,
-            "EnableLogin": False,
-            "asset_versions_path": str(self.asset_versions_path),
-        }
-        self._start_server(config)
-
-        html_status, html_body, _ = self._request_text("GET", "/qltp")
-        self.assertEqual(html_status, 200)
-        self.assertIn('<base href="/qltp/">', html_body)
-        self.assertIn("./static/app.js?v=", html_body)
-
-        js_status, js_body, _ = self._request_text("GET", "/qltp/static/app.js")
-        self.assertEqual(js_status, 200)
-        self.assertIn("./modules/app-state.js?v=", js_body)
-
-        state_status, state_payload, _ = self._request_json("GET", "/qltp/api/state?transaction_limit=16")
-        self.assertEqual(state_status, 200)
-        self.assertIn("products", state_payload)
 
 
 if __name__ == "__main__":

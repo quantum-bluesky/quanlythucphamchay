@@ -226,7 +226,6 @@ let currentAppInfo = {
   name: document.title || "Quản lý thực phẩm chay",
   version: "",
 };
-const APP_ROOT_URL = new URL("../", import.meta.url);
 let autoRefreshTimer = null;
 let autoRefreshInFlight = false;
 let skipNextPurchaseSupplierChangePersist = false;
@@ -2462,19 +2461,8 @@ function getSyncCollectionLabel(stateKey = "") {
   return labels[stateKey] || "dữ liệu đồng bộ";
 }
 
-function resolveAppUrl(path) {
-  const rawPath = String(path || "").trim();
-  if (!rawPath) {
-    return APP_ROOT_URL.toString();
-  }
-  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(rawPath) || rawPath.startsWith("//")) {
-    return rawPath;
-  }
-  return new URL(rawPath.replace(/^\/+/, ""), APP_ROOT_URL).toString();
-}
-
 async function apiRequest(path, options = {}) {
-  const response = await fetch(resolveAppUrl(path), {
+  const response = await fetch(path, {
     headers: {
       "Content-Type": "application/json",
     },
@@ -2751,7 +2739,7 @@ function updateAdminSessionState(payload = {}, { resetReminder = false } = {}) {
 }
 
 async function downloadAdminFile(path, fallbackName) {
-  const response = await fetch(resolveAppUrl(path));
+  const response = await fetch(path);
   if (!response.ok) {
     const data = await response.json();
     throw new Error(data.error || "Không tải được file.");

@@ -1,6 +1,5 @@
 import base64
 import csv
-import html
 import io
 import json
 import mimetypes
@@ -108,28 +107,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             except Exception:
                 pass
 
-        @staticmethod
-        def _normalize_route_path(raw_path: str) -> str:
-            parsed_path = urlparse(raw_path).path or "/"
-            if parsed_path == "/":
-                return "/"
-            if parsed_path.endswith("/favicon.ico"):
-                return "/favicon.ico"
-            for marker in ("/static/", "/api/"):
-                marker_index = parsed_path.find(marker)
-                if marker_index >= 0:
-                    return parsed_path[marker_index:]
-            last_segment = parsed_path.rsplit("/", 1)[-1]
-            if not last_segment or "." not in last_segment:
-                return "/"
-            return parsed_path
-
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
-            route = self._normalize_route_path(parsed.path)
+            route = parsed.path
 
             if route == "/":
-                self._serve_static_file("index.html", request_path=parsed.path)
+                self._serve_static_file("index.html")
                 return
 
             if route == "/favicon.ico":
@@ -305,7 +288,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy tài nguyên."})
 
         def do_POST(self) -> None:
-            route = self._normalize_route_path(self.path)
+            route = urlparse(self.path).path
             if route == "/api/session/login":
                 try:
                     payload = self._read_json_body()
@@ -428,7 +411,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                     return
 
-            restore_match = re.fullmatch(r"/api/products/(\d+)/restore", route)
+            restore_match = re.fullmatch(r"/api/products/(\d+)/restore", urlparse(self.path).path)
             if restore_match:
                 try:
                     product = store.restore_product(restore_match.group(1))
@@ -451,7 +434,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return
 
             try:
-                if route == "/api/products":
+                if self.path == "/api/products":
                     product = store.create_product(
                         name=payload.get("name"),
                         category=payload.get("category"),
@@ -472,7 +455,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
-                if route == "/api/transactions":
+                if self.path == "/api/transactions":
                     if not self._require_admin():
                         return
                     transaction = store.create_transaction(
@@ -495,7 +478,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
-                if route == "/api/orders/checkout":
+                if self.path == "/api/orders/checkout":
                     order = store.create_checkout_order(
                         customer_name=payload.get("customer_name"),
                         items=payload.get("items", []),
@@ -532,7 +515,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
-                if route == "/api/purchases/repair":
+                if self.path == "/api/purchases/repair":
                     result = store.repair_purchase_document(
                         payload.get("purchase_id", ""),
                         action=payload.get("action", ""),
@@ -549,7 +532,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
-                if route == "/api/adjustments/inventory":
+                if self.path == "/api/adjustments/inventory":
                     if not self._require_admin():
                         return
                     receipt = store.create_inventory_adjustment_receipt(
@@ -568,7 +551,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
-                if route == "/api/returns/customers":
+                if self.path == "/api/returns/customers":
                     receipt = store.create_customer_return_receipt(
                         customer_name=payload.get("customer_name", ""),
                         items=payload.get("items", []),
@@ -586,7 +569,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
-                if route == "/api/returns/suppliers":
+                if self.path == "/api/returns/suppliers":
                     receipt = store.create_supplier_return_receipt(
                         supplier_name=payload.get("supplier_name", ""),
                         items=payload.get("items", []),
@@ -609,10 +592,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
 
         def do_PUT(self) -> None:
-            route = self._normalize_route_path(self.path)
             if self._is_login_enabled() and not self._require_authenticated_session():
                 return
-            if route == "/api/state":
+            if urlparse(self.path).path == "/api/state":
                 try:
                     payload = self._read_json_body()
                     payload["actor"] = payload.get("actor") or self._get_current_actor_name()
@@ -648,7 +630,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 
-            product_match = re.fullmatch(r"/api/products/(\d+)$", route)
+            product_match = re.fullmatch(r"/api/products/(\d+)$", urlparse(self.path).path)
             if product_match:
                 try:
                     payload = self._read_json_body()
@@ -675,7 +657,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 
-            match = re.fullmatch(r"/api/products/(\d+)/price", route)
+            match = re.fullmatch(r"/api/products/(\d+)/price", urlparse(self.path).path)
             if match:
                 try:
                     payload = self._read_json_body()
@@ -696,7 +678,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 
-            match = re.fullmatch(r"/api/products/(\d+)/sale-price", route)
+            match = re.fullmatch(r"/api/products/(\d+)/sale-price", urlparse(self.path).path)
             if match:
                 try:
                     payload = self._read_json_body()
@@ -720,10 +702,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
 
         def do_DELETE(self) -> None:
-            route = self._normalize_route_path(self.path)
             if self._is_login_enabled() and not self._require_authenticated_session():
                 return
-            match = re.fullmatch(r"/api/products/(\d+)$", route)
+            match = re.fullmatch(r"/api/products/(\d+)$", urlparse(self.path).path)
             if not match:
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
                 return
@@ -897,24 +878,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     f"Bạn đang import '{source_entity_type}' vào '{import_entity_type}'."
                 )
 
-        @staticmethod
-        def _build_request_base_href(request_path: str | None) -> str:
-            parsed_path = urlparse(request_path or "/").path or "/"
-            if parsed_path == "/":
-                return "/"
-            if parsed_path.endswith("/"):
-                return parsed_path
-            return f"{parsed_path}/"
-
-        @staticmethod
-        def _inject_html_base_href(html_text: str, base_href: str) -> str:
-            escaped_base_href = html.escape(base_href, quote=True)
-            base_tag = f'<base href="{escaped_base_href}">'
-            if re.search(r"<base\b", html_text, flags=re.IGNORECASE):
-                return re.sub(r"<base\b[^>]*>", base_tag, html_text, count=1, flags=re.IGNORECASE)
-            return re.sub(r"(<head[^>]*>)", rf"\1\n  {base_tag}", html_text, count=1, flags=re.IGNORECASE)
-
-        def _serve_static_file(self, relative_path: str, request_path: str | None = None) -> None:
+        def _serve_static_file(self, relative_path: str) -> None:
             safe_path = (STATIC_DIR / relative_path).resolve()
             static_root = STATIC_DIR.resolve()
             if not safe_path.is_file() or (static_root not in safe_path.parents and safe_path != static_root):
@@ -926,10 +890,6 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             cache_control = "public, max-age=3600"
             if safe_path.suffix == ".html":
                 html_text = payload.decode("utf-8")
-                html_text = self._inject_html_base_href(
-                    html_text,
-                    self._build_request_base_href(request_path),
-                )
                 payload = js_asset_versions.inject_index_versions(html_text).encode("utf-8")
                 content_type = "text/html; charset=utf-8"
                 cache_control = "no-cache, must-revalidate"

@@ -112,30 +112,7 @@ Ví dụ:
 http://192.168.1.18:8000
 ```
 
-## 7.1. Chạy sau reverse proxy ở subpath
-
-App hiện hỗ trợ chạy dưới subpath thay vì bắt buộc ở `/`.
-
-Ví dụ hợp lệ:
-
-```text
-https://quantum-home.zapto.org/qltp/
-```
-
-Miễn là reverse proxy tiếp tục forward các request cùng prefix này về app Python, client sẽ tự suy ra `app root` hiện hành để gọi:
-
-- `./static/...`
-- `./api/...`
-
-Điều này tránh lỗi asset/API bị rơi về `/static/...` hoặc `/api/...` ở root domain khi app đang nằm dưới subpath như `/qltp/`.
-
-Lưu ý vận hành:
-
-- nên giữ URL ngoài trình duyệt có dấu `/` ở cuối subpath, ví dụ `/qltp/`
-- nếu reverse proxy có rule rewrite prefix, hãy rewrite đồng nhất cho cả HTML, `static/*` và `api/*`
-- nếu giữ nguyên prefix khi forward vào backend, app vẫn nhận được các route dạng `/qltp/static/...` và `/qltp/api/...`
-
-## 7.2. Tài khoản Master Admin
+## 7.1. Tài khoản Master Admin
 
 Hệ thống dùng file cấu hình:
 
@@ -180,7 +157,7 @@ python app.py config
 
 Nên đổi mật khẩu admin trước khi đưa vào sử dụng thật.
 
-## 7.3. Version client JS khi deploy
+## 7.2. Version client JS khi deploy
 
 Hệ thống dùng `version` chính trong:
 
@@ -197,8 +174,8 @@ data\js_asset_versions.json
 Khi server chạy, app sẽ quét các file `.js` trong `static\` và tự gắn URL dạng:
 
 ```text
-./static/app.js?v=2.8.8.1
-./static/modules/controllers/sales-controller.js?v=2.8.8.3
+/static/app.js?v=2.8.8.1
+/static/modules/controllers/sales-controller.js?v=2.8.8.3
 ```
 
 Quy tắc deploy:
