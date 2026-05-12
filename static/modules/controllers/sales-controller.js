@@ -91,6 +91,7 @@ export function registerSalesControllerEvents(contract) {
 
   dom.orderSearchInput.addEventListener("input", (event) => {
     state.orderSearchTerm = event.target.value;
+    state.orderFilterCustomerId = "";
     state.pagination.orders = 1;
     renderers.renderCartQueue();
   });

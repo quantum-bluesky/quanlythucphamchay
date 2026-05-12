@@ -14,6 +14,7 @@ export function createSalesDomainHelpers(deps) {
     renderSalesProductList,
     focusCreateOrderSelection,
     focusActiveCartPanel,
+    focusOrderQueueItem,
     focusPurchaseOrders,
     switchMenu,
     showToast,
@@ -154,6 +155,40 @@ export function createSalesDomainHelpers(deps) {
     showToast(cart.itemCount ? "Đã mở lại giỏ hàng đang chờ." : "Đã tạo giỏ hàng mới.");
   }
 
+  function openOrdersForCustomer(customerId) {
+    const customer = state.customers.find((entry) => entry.id === customerId && !entry.deletedAt);
+    if (!customer) {
+      throw new Error("Không tìm thấy khách hàng.");
+    }
+    const relatedCarts = state.carts.filter((cart) => (
+      cart.customerId === customer.id &&
+      cart.status !== "cancelled"
+    ));
+    if (!relatedCarts.length) {
+      throw new Error("Khách hàng này chưa có phiếu hàng.");
+    }
+    const sortedRelatedCarts = [...relatedCarts].sort((left, right) => {
+      const leftTime = new Date(left.paidAt || left.completedAt || left.updatedAt || left.createdAt || 0).getTime();
+      const rightTime = new Date(right.paidAt || right.completedAt || right.updatedAt || right.createdAt || 0).getTime();
+      return rightTime - leftTime;
+    });
+    const targetCart = sortedRelatedCarts[0];
+    state.showArchivedCarts = true;
+    state.showPaidOrders = true;
+    state.orderFilterCustomerId = customer.id;
+    state.orderSearchTerm = customer.name;
+    state.pagination.orders = 1;
+    state.expandedOrderId = sortedRelatedCarts.length === 1 ? targetCart.id : null;
+    switchMenu("orders");
+    saveAndRenderAll();
+    if (sortedRelatedCarts.length === 1) {
+      focusOrderQueueItem(targetCart.id);
+      showToast("Đã mở detail phiếu hàng của khách.");
+      return;
+    }
+    showToast(`Đã lọc ${sortedRelatedCarts.length} phiếu hàng của khách.`);
+  }
+
   function updateCart(cartId, updater) {
     const index = state.carts.findIndex((cart) => cart.id === cartId);
     if (index === -1) throw new Error("Không tìm thấy giỏ hàng.");
@@ -290,6 +325,7 @@ export function createSalesDomainHelpers(deps) {
     getDraftCarts,
     decorateCart,
     openCartForCustomer,
+    openOrdersForCustomer,
     updateCart,
     toggleProductInActiveCart,
     updateCartItem,

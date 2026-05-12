@@ -177,6 +177,7 @@ Lưu ý:
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
 - kể cả `Master Admin` cũng không được xóa hoặc hủy ngược đơn đã chốt
 - trên mobile hoặc tablet, có thể dùng `Detail` để bung rồi thu gọn nhanh nội dung phiếu ngay trong danh sách
+- nếu đi từ màn `Khách hàng` sang bằng badge `giỏ chờ` hoặc `đơn`, app sẽ tự lọc đúng các phiếu của khách; khi khách chỉ có 1 phiếu thì detail sẽ tự mở sẵn kể cả nếu đơn đã `Đã xong` hoặc `Đã thanh toán`
 - trước khi `Xuất`, `Đã thanh toán`, `Hủy` hoặc `Xóa`, app sẽ hiện message confirm để tránh đổi trạng thái hoặc xóa nhầm
 
 ## 6. Luồng quản lý khách hàng
@@ -201,6 +202,7 @@ Thông tin nên lưu:
 3. Điền thông tin rồi bấm `Lưu khách hàng`
 4. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
 5. Khi cần mở giỏ hàng nhanh cho khách, bấm `Mở giỏ`
+6. Nếu muốn xem lại phiếu hàng của khách, bấm badge `giỏ chờ` hoặc `đơn`; nếu khách chỉ có 1 phiếu thì app sẽ mở thẳng detail của phiếu đó ở màn `Quản lý đơn hàng`
 
 Khuyến nghị:
 

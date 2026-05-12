@@ -96,6 +96,7 @@ Liên kết detail hiện có:
 - nguyên tắc UI:
   - giỏ nháp đang chờ xuất có nút `Xuất` nhanh ngay trên card trên tablet/PC
   - card đơn có button `Detail` để bung metadata và danh sách dòng hàng ngay trong list
+  - khi đi từ màn `customers`, list có thể tự lọc đúng theo `customerId`; nếu chỉ còn 1 phiếu phù hợp thì detail của phiếu đó phải tự mở kể cả với đơn `Đã xong` hoặc `Đã thanh toán`
   - card đơn chưa thanh toán có thể hiện thêm input `Giảm giá khuyến mại` trong detail; đây là ngoại lệ duy nhất được sửa sau khi đơn đã chốt
   - trên mobile, `Xuất` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
   - các nút đổi trạng thái hoặc xóa phiếu như `Xuất`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
@@ -109,6 +110,10 @@ Liên kết detail hiện có:
   - search khách hàng
   - danh sách khách
   - form tạo/sửa thu gọn
+- nguyên tắc UI:
+  - trên mobile, card khách nên giữ ở khoảng 3 dòng để ưu tiên mật độ danh sách
+  - dòng cuối của card mobile ưu tiên `số liên lạc` và các action ngắn cùng hàng để thấy được nhiều khách hơn
+  - badge `giỏ chờ` hoặc `đơn` trên card là link nội bộ sang màn `orders`; nếu chỉ có 1 phiếu liên quan thì app mở thẳng detail phiếu đó
 
 ### `products` - Quản lý sản phẩm
 
