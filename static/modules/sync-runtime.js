@@ -122,13 +122,15 @@ export function createSyncRuntimeHelpers(deps) {
     if (!shouldAutoRefresh()) return false;
     setAutoRefreshInFlight(true);
     try {
-      const runtimeVersion = await apiRequest("/api/runtime-version");
+      const runtimeVersion = await apiRequest("/api/runtime-version", {
+        sessionActivity: "passive",
+      });
       if (!getLatestRuntimeVersion()) {
         setLatestRuntimeVersion(normalizeRuntimeVersion(runtimeVersion));
         return false;
       }
       if (!hasRuntimeVersionChanged(runtimeVersion)) return false;
-      await refreshData();
+      await refreshData({ sessionActivity: "passive" });
       return true;
     } catch (error) {
       console.warn("Auto refresh skipped:", error);

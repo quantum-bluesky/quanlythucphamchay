@@ -34,7 +34,6 @@ export const state = {
     enableLogin: false,
     sessionStartedAt: "",
     timeoutMinutes: 360,
-    nextReminderAtMs: 0,
     returnMenuAfterLogin: "",
   },
   debug: {

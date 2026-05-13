@@ -108,7 +108,7 @@ export function registerReportsAdminControllerEvents(contract) {
           password: dom.adminPasswordInput.value,
         }),
       });
-      actions.updateAdminSessionState(data, { resetReminder: true });
+      actions.updateAdminSessionState(data);
       await actions.refreshData({ sessionAlreadyLoaded: true });
       const returnMenu = state.admin?.returnMenuAfterLogin || "inventory";
       state.admin.returnMenuAfterLogin = "";

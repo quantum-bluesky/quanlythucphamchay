@@ -219,7 +219,7 @@ export const SCREEN_HELP = {
       "Dùng tài khoản user hoặc admin đã cấu hình trong file hệ thống để login. Nếu bật EnableLogin thì phải login mới dùng được app.",
       "Dùng export/import để quản trị dữ liệu master của sản phẩm, khách hàng và nhà cung cấp (hỗ trợ cả JSON và CSV).",
       "User thường chỉ dùng được phần nghiệp vụ chung; riêng Master Admin mới thấy module quản trị và chỉnh tồn trực tiếp.",
-      "Session user thường dùng session_timeout_minutes, còn admin dùng admin_session_timeout_minutes trong system_config.json.",
+      "Session user thường dùng session_timeout_minutes, còn admin dùng admin_session_timeout_minutes trong system_config.json; nếu không có thao tác đủ lâu thì phiên sẽ tự hết hạn và cần login lại.",
       "Nếu cùng một domain đang chạy nhiều app ở các port khác nhau, mỗi port sẽ giữ session login riêng để không tự logout chéo.",
       "Chỉ restore database khi đã hiểu rõ rằng dữ liệu hiện tại sẽ bị ghi đè bằng bản phục hồi.",
       DESKTOP_MENU_HINT,
