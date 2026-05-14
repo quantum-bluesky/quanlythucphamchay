@@ -284,6 +284,14 @@ export function createPurchasesDomainHelpers(deps) {
     );
   }
 
+  function isUnsavedEmptyDraftPurchase(purchase) {
+    return Boolean(
+      isDraftPurchase(purchase) &&
+      (!Array.isArray(purchase.items) || purchase.items.length === 0) &&
+      !String(purchase.receiptCode || purchase.receipt_code || "").trim()
+    );
+  }
+
   function movePurchaseToFront(purchaseId) {
     const index = state.purchases.findIndex((purchase) => purchase.id === purchaseId);
     if (index <= 0) {
@@ -333,6 +341,18 @@ export function createPurchasesDomainHelpers(deps) {
     if (state.activePurchaseId === purchaseId) {
       state.activePurchaseId = state.purchases[0]?.id || null;
     }
+  }
+
+  function deletePurchaseDraftLocally(purchaseId) {
+    const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
+    if (!isUnsavedEmptyDraftPurchase(purchase)) {
+      throw new Error("Chỉ phiếu nháp tạm đang trống mới được xóa trực tiếp trên màn hình.");
+    }
+    removePurchaseById(purchaseId);
+    const nextActivePurchase = getActivePurchase();
+    purchaseSupplierInput.value = nextActivePurchase?.supplierName || "";
+    purchaseNoteInput.value = nextActivePurchase?.note || "";
+    return nextActivePurchase;
   }
 
   function findDraftPurchaseBySupplierName(supplierName, options = {}) {
@@ -534,6 +554,13 @@ export function createPurchasesDomainHelpers(deps) {
           shouldPersist: true,
         };
       }
+      if (isUnsavedEmptyDraftPurchase(activeDraft)) {
+        removePurchaseById(activeDraft.id);
+        return {
+          purchase: activatePurchaseState(matchingSupplierDraft.id) || matchingSupplierDraft,
+          shouldPersist: false,
+        };
+      }
       if (isTransientBlankPurchaseDraft(activeDraft)) {
         removePurchaseById(activeDraft.id);
       }
@@ -551,6 +578,17 @@ export function createPurchasesDomainHelpers(deps) {
       return {
         purchase: activatePurchaseState(activeDraft.id) || getActivePurchase(),
         shouldPersist: true,
+      };
+    }
+
+    if (isUnsavedEmptyDraftPurchase(activeDraft)) {
+      updatePurchase(activeDraft.id, () => ({
+        supplierName: cleanSupplier,
+        note: nextNote,
+      }));
+      return {
+        purchase: activatePurchaseState(activeDraft.id) || getActivePurchase(),
+        shouldPersist: false,
       };
     }
 
@@ -663,6 +701,7 @@ export function createPurchasesDomainHelpers(deps) {
     canEditPurchaseDiscount,
     canEditPurchaseSupplier,
     canDeletePurchase,
+    isUnsavedEmptyDraftPurchase,
     canCancelPurchase,
     isLockedPurchase,
     updatePurchase,
@@ -672,6 +711,7 @@ export function createPurchasesDomainHelpers(deps) {
     setActivePurchase,
     createPurchaseDraftIfMissing,
     applySupplierToActiveDraft,
+    deletePurchaseDraftLocally,
     findUnsuppliedDraftPurchaseBySource,
     buildDraftPurchase,
     addSuggestionToPurchase,

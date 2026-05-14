@@ -193,6 +193,7 @@ Các nhóm kiểm tra chính:
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
 - `Nhập hàng theo NCC`: mỗi NCC chỉ có 1 phiếu nháp riêng; chọn lại cùng NCC phải mở nháp sẵn có và không được tạo trùng khi đổi qua lại giữa các NCC
+- `Nhập hàng -> nháp tạm`: phiếu nháp còn trống phải xóa được ngay trên UI, và nút `NCC` vẫn phải cho đổi sang NCC khác khi phiếu còn `Nháp`
 - `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa
 - `Phiếu nhập legacy`: purchase `received/paid` thiếu timestamp vẫn phải hiển thị được ngày xử lý fallback để không kẹt flow thanh toán
 - `Giảm giá khuyến mại`: đơn đã chốt chưa thanh toán và phiếu đã nhập kho chưa thanh toán phải sửa được tổng giảm giá, đồng thời báo cáo và bản in phải phản ánh số net sau khuyến mại
