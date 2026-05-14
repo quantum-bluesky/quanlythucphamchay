@@ -149,9 +149,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 self._send_json(HTTPStatus.OK, self._get_session_status_payload())
                 return
 
-            if route.startswith("/api/") and self._is_login_enabled() and not self._get_current_session():
-                self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "Cần đăng nhập hệ thống."})
-                return
+            if route.startswith("/api/") and self._is_login_enabled():
+                session, expired = self._resolve_current_session()
+                if not session:
+                    self._send_json(
+                        HTTPStatus.UNAUTHORIZED,
+                        self._build_auth_required_payload(session_expired=expired),
+                    )
+                    return
 
             if route == "/api/products":
                 self._send_json(
@@ -974,6 +979,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
         def _is_login_enabled() -> bool:
             return auth_enabled
 
+        def _should_touch_session(self) -> bool:
+            return str(self.headers.get("X-Session-Activity") or "").strip().lower() != "passive"
+
         def _get_session_cookie_name(self) -> str:
             return build_port_scoped_cookie_name(
                 ADMIN_SESSION_COOKIE,
@@ -991,21 +999,30 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     return token
             return None
 
-        def _get_current_session(self) -> dict | None:
-            return admin_sessions.get_session(self._get_session_token())
+        def _resolve_current_session(self, *, touch: bool | None = None) -> tuple[dict | None, bool]:
+            return admin_sessions.resolve_session(
+                self._get_session_token(),
+                touch=self._should_touch_session() if touch is None else touch,
+            )
+
+        def _get_current_session(self, *, touch: bool | None = None) -> dict | None:
+            session, _ = self._resolve_current_session(touch=touch)
+            return session
 
         def _get_current_username(self) -> str | None:
-            return admin_sessions.get_username(self._get_session_token())
+            session = self._get_current_session(touch=False)
+            return str(session.get("username") or "") if session else None
 
         def _get_current_role(self) -> str:
-            return str(admin_sessions.get_role(self._get_session_token()) or "")
+            session = self._get_current_session(touch=False)
+            return str(session.get("role") or "") if session else ""
 
         def _get_current_actor_name(self) -> str:
             return self._get_current_username() or "Nhân viên"
 
         def _get_session_status_payload(self, session_token: str | None = None) -> dict:
             token = session_token if session_token is not None else self._get_session_token()
-            session = admin_sessions.get_session(token)
+            session = admin_sessions.get_session(token, touch=False)
             username = str(session.get("username") or "") if session else ""
             role = str(session.get("role") or "") if session else ""
             return {
@@ -1021,16 +1038,41 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 "pagination": self._get_pagination_info(),
             }
 
+        @staticmethod
+        def _build_auth_required_payload(*, session_expired: bool = False, admin_only: bool = False) -> dict:
+            if session_expired:
+                return {
+                    "error": "Phiên đăng nhập đã hết hạn.",
+                    "session_expired": True,
+                }
+            if admin_only:
+                return {"error": "Cần đăng nhập Master Admin."}
+            return {"error": "Cần đăng nhập hệ thống."}
+
         def _require_authenticated_session(self) -> bool:
-            if self._get_current_session():
+            session, expired = self._resolve_current_session()
+            if session:
                 return True
-            self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "Cần đăng nhập hệ thống."})
+            self._send_json(
+                HTTPStatus.UNAUTHORIZED,
+                self._build_auth_required_payload(session_expired=expired),
+            )
             return False
 
         def _require_admin(self) -> bool:
-            if admin_sessions.is_admin(self._get_session_token()):
+            session, expired = self._resolve_current_session()
+            if expired:
+                self._send_json(
+                    HTTPStatus.UNAUTHORIZED,
+                    self._build_auth_required_payload(session_expired=True),
+                )
+                return False
+            if session and str(session.get("role") or "") == "admin":
                 return True
-            self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "Cần đăng nhập Master Admin."})
+            self._send_json(
+                HTTPStatus.UNAUTHORIZED,
+                self._build_auth_required_payload(admin_only=True),
+            )
             return False
 
         def _build_cookie_header(self, cookie_name: str, cookie_value: str, *, max_age: int | None = None) -> str:

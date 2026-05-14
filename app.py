@@ -77,6 +77,8 @@ def run_server(system_config: dict, host: str | None = None, port: int | None = 
         str(system_config["admin"]["username"]),
         str(system_config["admin"]["password"]),
         users=system_config.get("users", []),
+        user_timeout_minutes=system_config.get("session_timeout_minutes", 360),
+        admin_timeout_minutes=system_config.get("admin_session_timeout_minutes", 30),
     )
     server = ThreadingHTTPServer(
         (resolved_host, resolved_port),

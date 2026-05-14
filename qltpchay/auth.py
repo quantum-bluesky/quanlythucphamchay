@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 
@@ -40,9 +40,24 @@ def build_session_cookie_name_candidates(base_cookie_name: str, host_header: str
 
 
 class SessionManager:
-    def __init__(self, *, admin: dict, users: list[dict] | None = None):
+    def __init__(
+        self,
+        *,
+        admin: dict,
+        users: list[dict] | None = None,
+        user_timeout_minutes: int = 360,
+        admin_timeout_minutes: int = 30,
+    ):
         self.admin_username = str(admin.get("username") or "").strip()
         self.admin_password = str(admin.get("password") or "")
+        try:
+            self.user_timeout_minutes = max(1, int(user_timeout_minutes))
+        except (TypeError, ValueError):
+            self.user_timeout_minutes = 360
+        try:
+            self.admin_timeout_minutes = max(1, int(admin_timeout_minutes))
+        except (TypeError, ValueError):
+            self.admin_timeout_minutes = 30
         self._users = [
             {
                 "username": str(user.get("username") or "").strip(),
@@ -54,11 +69,37 @@ class SessionManager:
         ]
         self._sessions: dict[str, dict[str, str]] = {}
 
+    @staticmethod
+    def _utc_now() -> datetime:
+        return datetime.now(timezone.utc)
+
+    @classmethod
+    def _utc_now_iso(cls) -> str:
+        return cls._utc_now().isoformat(timespec="seconds")
+
+    @staticmethod
+    def _parse_utc_iso(value: str | None) -> datetime | None:
+        clean_value = str(value or "").strip()
+        if not clean_value:
+            return None
+        try:
+            parsed = datetime.fromisoformat(clean_value)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+
+    def _get_timeout_minutes_for_role(self, role: str) -> int:
+        return self.admin_timeout_minutes if str(role or "") == "admin" else self.user_timeout_minutes
+
     def _build_session_payload(self, *, username: str, role: str) -> dict[str, str]:
+        now_iso = self._utc_now_iso()
         return {
             "username": username,
             "role": role,
-            "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "started_at": now_iso,
+            "last_activity_at": now_iso,
         }
 
     def _find_user(self, username: str) -> dict | None:
@@ -89,33 +130,63 @@ class SessionManager:
             **session,
         }
 
+    def _is_session_expired(self, session: dict) -> bool:
+        role = str(session.get("role") or "")
+        timeout_minutes = self._get_timeout_minutes_for_role(role)
+        reference_at = self._parse_utc_iso(
+            session.get("last_activity_at") or session.get("started_at") or ""
+        )
+        if reference_at is None:
+            return False
+        expires_at = reference_at + timedelta(minutes=timeout_minutes)
+        return self._utc_now() >= expires_at
+
+    def resolve_session(self, token: str | None, *, touch: bool = True) -> tuple[dict | None, bool]:
+        if not token:
+            return None, False
+        session = self._sessions.get(token)
+        if not session:
+            return None, False
+        if self._is_session_expired(session):
+            self._sessions.pop(token, None)
+            return None, True
+        if touch:
+            session["last_activity_at"] = self._utc_now_iso()
+        return dict(session), False
+
     def logout(self, token: str | None) -> None:
         if token:
             self._sessions.pop(token, None)
 
-    def get_session(self, token: str | None) -> dict | None:
-        if not token:
-            return None
-        session = self._sessions.get(token)
-        if not session:
-            return None
-        return dict(session)
+    def get_session(self, token: str | None, *, touch: bool = True) -> dict | None:
+        session, _ = self.resolve_session(token, touch=touch)
+        return session
 
-    def get_username(self, token: str | None) -> str | None:
-        session = self.get_session(token)
+    def get_username(self, token: str | None, *, touch: bool = True) -> str | None:
+        session = self.get_session(token, touch=touch)
         return str(session.get("username") or "") if session else None
 
-    def get_role(self, token: str | None) -> str | None:
-        session = self.get_session(token)
+    def get_role(self, token: str | None, *, touch: bool = True) -> str | None:
+        session = self.get_session(token, touch=touch)
         return str(session.get("role") or "") if session else None
 
-    def is_admin(self, token: str | None) -> bool:
-        return self.get_role(token) == "admin"
+    def is_admin(self, token: str | None, *, touch: bool = True) -> bool:
+        return self.get_role(token, touch=touch) == "admin"
 
 
 class AdminSessionManager(SessionManager):
-    def __init__(self, username: str, password: str, users: list[dict] | None = None):
+    def __init__(
+        self,
+        username: str,
+        password: str,
+        users: list[dict] | None = None,
+        *,
+        user_timeout_minutes: int = 360,
+        admin_timeout_minutes: int = 30,
+    ):
         super().__init__(
             admin={"username": username, "password": password},
             users=users,
+            user_timeout_minutes=user_timeout_minutes,
+            admin_timeout_minutes=admin_timeout_minutes,
         )
