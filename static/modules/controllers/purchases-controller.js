@@ -506,6 +506,12 @@ export function registerPurchasesControllerEvents(contract) {
       if (!(confirmMessage ? window.confirm(confirmMessage) : confirmPurchaseStatusAction(purchase, "delete"))) {
         return;
       }
+      if (queries.isUnsavedEmptyDraftPurchase(purchase)) {
+        actions.deletePurchaseDraftLocally(purchase.id);
+        actions.saveAndRenderAll();
+        actions.showToast("Đã xóa phiếu nháp.");
+        return;
+      }
       try {
         const data = await actions.apiRequest("/api/purchases/repair", {
           method: "POST",
