@@ -104,6 +104,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Quản lý khách hàng, giỏ hàng nháp và checkout nhiều mặt hàng trong một lần
 - Ở màn xuất hàng và nhập hàng, các mặt hàng đã chọn sẽ được gom lên phần tóm tắt đơn/phiếu phía trên để thao tác nhanh
 - Ở màn nhập hàng, mỗi card gợi ý có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`
+- Mỗi nhà cung cấp giữ tối đa 1 phiếu nhập nháp riêng; nếu chọn lại đúng NCC đã có nháp thì app mở lại phiếu đó để thêm tiếp, còn nếu chọn NCC khác thì app giữ nguyên phiếu cũ và tạo nháp riêng cho NCC mới
 - Riêng màn xuất hàng giữ nút `...` luôn hiện trên card sản phẩm để mở/thu gọn detail; hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót, nhưng nếu user chủ động bấm `...` thì app vẫn giữ lại đúng card đang thao tác
 - Khối `Giỏ hiện hành` ở màn xuất hàng hiển thị từng dòng đã chọn dưới dạng card gọn 2 dòng; bấm `...` trên từng card để mở detail sửa số lượng, giá bán hoặc bỏ khỏi giỏ
 - Phiếu xuất và phiếu nhập có thêm `giảm giá khuyến mại` ở cấp toàn phiếu; app tự tính `Tạm tính / Giảm KM / Cần thanh toán` ngay trên panel, detail và bản in
@@ -148,7 +149,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Có login hệ thống cho `user` thường và `Master Admin`; có thể bật `EnableLogin` để bắt buộc login mới dùng app
 - Nếu cùng một domain chạy nhiều instance app ở các port khác nhau như `:4000` và `:9999`, session login sẽ được tách riêng theo từng port để không tự đá nhau
 - Có module `Master Admin` để export/import file master (JSON/CSV) và backup/restore toàn bộ database
-- Timeout phiên tách riêng trong config: `session_timeout_minutes` cho user thường và `admin_session_timeout_minutes` cho admin
+- Timeout phiên tách riêng trong config: `session_timeout_minutes` cho user thường và `admin_session_timeout_minutes` cho admin; khi không có thao tác đủ lâu thì phiên sẽ tự hết hạn và quay về trạng thái cần login, không hiện dialog gia hạn phiên
 - Chỉ `Master Admin` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit
 - Luồng Phase B đã có UI ngay trong app: `Phiếu DC` ở màn tồn kho, `Phiếu trả hàng khách` ở màn đơn hàng, `Phiếu trả NCC` ở màn nhập hàng
 - Các chứng từ đã `completed/received/paid/cancelled` vẫn bị khóa xóa/hủy trực tiếp kể cả với `Master Admin`; muốn điều chỉnh phải lập phiếu mới để giữ audit
@@ -207,7 +208,7 @@ Ví dụ:
 }
 ```
 
-Muốn đổi tài khoản user/admin, bật `EnableLogin`, đổi timeout phiên, hoặc đổi base phân trang thì sửa trực tiếp `system_config.json`. App không tự ghi đè lại các giá trị này trong lúc đang chạy.
+Muốn đổi tài khoản user/admin, bật `EnableLogin`, đổi timeout phiên rảnh, hoặc đổi base phân trang thì sửa trực tiếp `system_config.json`. App không tự ghi đè lại các giá trị này trong lúc đang chạy.
 
 Ý nghĩa cấu hình phân trang:
 

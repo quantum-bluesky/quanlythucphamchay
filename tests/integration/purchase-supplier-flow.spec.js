@@ -20,6 +20,12 @@ async function setFloatingSearch(page, term) {
   await page.waitForTimeout(250);
 }
 
+async function fetchSyncState(request, cookie) {
+  const response = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: cookie } });
+  expect(response.ok()).toBeTruthy();
+  return response.json();
+}
+
 test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back to the draft flow", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const timestamp = Date.now();
@@ -71,6 +77,101 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
       purchase.supplierName === supplierName &&
       (!Array.isArray(purchase.items) || purchase.items.length === 0)
     )).toBeFalsy();
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the existing draft when supplier repeats", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const timestamp = Date.now();
+  const supplierA = `NCC A ${timestamp}`;
+  const supplierB = `NCC B ${timestamp}`;
+  const userCookie = await autoLoginUserRequest(request);
+  const originalState = await fetchSyncState(request, userCookie);
+
+  try {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    const purchaseSuggestions = page.locator("#purchaseSuggestionList .sales-product-row");
+    await expect(purchaseSuggestions.first()).toBeVisible();
+    const suggestionCount = await purchaseSuggestions.count();
+    expect(suggestionCount).toBeGreaterThanOrEqual(2);
+
+    const productOneName = ((await purchaseSuggestions.nth(0).locator("strong").first().textContent()) || "").trim();
+    const productTwoName = ((await purchaseSuggestions.nth(1).locator("strong").first().textContent()) || "").trim();
+    expect(productOneName).toBeTruthy();
+    expect(productTwoName).toBeTruthy();
+    expect(productTwoName).not.toBe(productOneName);
+
+    await page.locator("#purchaseSupplierInput").fill(supplierA);
+    await page.locator("#purchaseNoteInput").click();
+    await page.waitForTimeout(250);
+    await purchaseSuggestions.nth(0).locator('[data-purchase-suggestion-action="add"]').click();
+    await collectToast(page, runtime, "it-pursup-03-add-supplier-a", { errorPattern: /^$/ });
+
+    await page.locator("#createPurchaseDraftButton").click();
+    await page.waitForTimeout(250);
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue("");
+
+    await page.locator("#purchaseSupplierInput").fill(supplierB);
+    await page.locator("#purchaseNoteInput").click();
+    await page.waitForTimeout(250);
+    const secondProductSuggestion = page.locator("#purchaseSuggestionList .sales-product-row", { hasText: productTwoName }).first();
+    await expect(secondProductSuggestion).toBeVisible();
+    await secondProductSuggestion.locator('[data-purchase-suggestion-action="add"]').click();
+    await collectToast(page, runtime, "it-pursup-03-add-supplier-b", { errorPattern: /^$/ });
+
+    let latestState = await fetchSyncState(request, userCookie);
+    let supplierADrafts = (latestState.purchases || []).filter((purchase) => purchase.status === "draft" && purchase.supplierName === supplierA);
+    let supplierBDrafts = (latestState.purchases || []).filter((purchase) => purchase.status === "draft" && purchase.supplierName === supplierB);
+
+    expect(supplierADrafts).toHaveLength(1);
+    expect(supplierBDrafts).toHaveLength(1);
+    expect((supplierADrafts[0].items || []).some((item) => item.productName === productOneName)).toBeTruthy();
+    expect((supplierBDrafts[0].items || []).some((item) => item.productName === productTwoName)).toBeTruthy();
+    expect((supplierADrafts[0].items || []).some((item) => item.productName === productTwoName)).toBeFalsy();
+
+    await page.locator("#createPurchaseDraftButton").click();
+    await page.waitForTimeout(250);
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue("");
+
+    await page.locator("#purchaseSupplierInput").fill(supplierA);
+    await page.locator("#purchaseNoteInput").click();
+    await page.waitForTimeout(250);
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierA);
+    await expect(page.locator(".cart-item").filter({ hasText: productOneName }).first()).toBeVisible();
+    await expect(page.locator(".cart-item").filter({ hasText: productTwoName })).toHaveCount(0);
+
+    await expect(secondProductSuggestion).toBeVisible();
+    await secondProductSuggestion.locator('[data-purchase-suggestion-action="add"]').click();
+    await collectToast(page, runtime, "it-pursup-03-reuse-supplier-a", { errorPattern: /^$/ });
+
+    latestState = await fetchSyncState(request, userCookie);
+    supplierADrafts = (latestState.purchases || []).filter((purchase) => purchase.status === "draft" && purchase.supplierName === supplierA);
+    supplierBDrafts = (latestState.purchases || []).filter((purchase) => purchase.status === "draft" && purchase.supplierName === supplierB);
+
+    expect(supplierADrafts).toHaveLength(1);
+    expect(supplierBDrafts).toHaveLength(1);
+    expect((supplierADrafts[0].items || []).some((item) => item.productName === productOneName)).toBeTruthy();
+    expect((supplierADrafts[0].items || []).some((item) => item.productName === productTwoName)).toBeTruthy();
+    expect((supplierBDrafts[0].items || []).some((item) => item.productName === productTwoName)).toBeTruthy();
   } finally {
     await request.put("/api/state", {
       headers: { Cookie: userCookie },

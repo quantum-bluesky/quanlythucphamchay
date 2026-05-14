@@ -7,6 +7,7 @@ import tempfile
 import threading
 import time
 import unittest
+from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -28,6 +29,7 @@ class AuthHttpTests(unittest.TestCase):
         self.store = InventoryStore(self.db_path)
         self.server = None
         self.server_thread = None
+        self.session_manager = None
 
     def tearDown(self) -> None:
         if self.server:
@@ -44,11 +46,13 @@ class AuthHttpTests(unittest.TestCase):
     def _start_server(self, system_config: dict) -> None:
         system_config = dict(system_config)
         system_config.setdefault("asset_versions_path", str(self.asset_versions_path))
-        session_manager = SessionManager(
+        self.session_manager = SessionManager(
             admin=system_config["admin"],
             users=system_config.get("users", []),
+            user_timeout_minutes=system_config.get("session_timeout_minutes", 360),
+            admin_timeout_minutes=system_config.get("admin_session_timeout_minutes", 30),
         )
-        handler = create_handler(self.store, session_manager, system_config=system_config)
+        handler = create_handler(self.store, self.session_manager, system_config=system_config)
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
         self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.server_thread.start()
@@ -112,6 +116,15 @@ class AuthHttpTests(unittest.TestCase):
         headers_map = {key.lower(): value for key, value in response.getheaders()}
         connection.close()
         return response.status, raw_body, headers_map
+
+    @staticmethod
+    def _extract_cookie_value(cookie: str) -> str:
+        return str(cookie or "").split("=", 1)[1] if "=" in str(cookie or "") else ""
+
+    def _set_session_last_activity_minutes_ago(self, token: str, minutes_ago: int) -> str:
+        timestamp = (datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)).isoformat(timespec="seconds")
+        self.session_manager._sessions[token]["last_activity_at"] = timestamp
+        return timestamp
 
     def test_ut_auth_01_enable_login_false_allows_anonymous_state_access(self) -> None:
         config = {
@@ -228,6 +241,61 @@ class AuthHttpTests(unittest.TestCase):
         status, payload, _ = self._request_json("GET", "/api/state?transaction_limit=16", cookie=cookie)
         self.assertEqual(status, 401)
         self.assertIn("đăng nhập hệ thống", payload["error"])
+
+    def test_ut_auth_05a_inactive_user_session_expires_on_next_request(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [{"username": "staff", "password": "staff12345"}],
+            "debug": {"sync_state": False},
+        }
+        self._start_server(config)
+
+        _, _, login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+        )
+        cookie = self._extract_cookie(login_headers)
+        token = self._extract_cookie_value(cookie)
+        self._set_session_last_activity_minutes_ago(token, 361)
+
+        status, payload, _ = self._request_json("GET", "/api/state?transaction_limit=16", cookie=cookie)
+        self.assertEqual(status, 401)
+        self.assertTrue(payload["session_expired"])
+        self.assertIn("hết hạn", payload["error"])
+        self.assertNotIn(token, self.session_manager._sessions)
+
+    def test_ut_auth_05b_session_status_does_not_extend_idle_timeout(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [{"username": "staff", "password": "staff12345"}],
+            "debug": {"sync_state": False},
+        }
+        self._start_server(config)
+
+        _, _, login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+        )
+        cookie = self._extract_cookie(login_headers)
+        token = self._extract_cookie_value(cookie)
+        original_last_activity = self._set_session_last_activity_minutes_ago(token, 10)
+
+        status_payload_status, status_payload, _ = self._request_json("GET", "/api/session/status", cookie=cookie)
+        self.assertEqual(status_payload_status, 200)
+        self.assertTrue(status_payload["authenticated"])
+        self.assertEqual(self.session_manager._sessions[token]["last_activity_at"], original_last_activity)
+
+        state_status, _, _ = self._request_json("GET", "/api/state?transaction_limit=16", cookie=cookie)
+        self.assertEqual(state_status, 200)
+        self.assertNotEqual(self.session_manager._sessions[token]["last_activity_at"], original_last_activity)
 
     def test_ut_auth_06_static_html_and_js_are_served_with_versioned_client_assets(self) -> None:
         runtime_config = load_system_config()

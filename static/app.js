@@ -245,7 +245,6 @@ let salesUi = null;
 let purchasesUi = null;
 let entitiesUi = null;
 let reportsAdminUi = null;
-let adminSessionReminderTimer = null;
 let stickyLayoutUpdateFrame = 0;
 let stickyLayoutResizeObserver = null;
 let paginationResizeFrame = 0;
@@ -686,6 +685,7 @@ function getPurchasesDomainHelpers() {
       switchMenu,
       showToast,
       saveAndRenderAll,
+      normalizeText,
     });
   }
   return purchasesDomainHelpers;
@@ -2171,27 +2171,20 @@ function restoreSupplier(supplierId) {
   return getEntityProductMutationHelpers().restoreSupplier(supplierId);
 }
 
-function createPurchaseDraftIfMissing() {
-  let purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId && entry.status === "draft") || null;
-  if (!purchase) {
-    purchase = {
-      id: createId("purchase"),
-      supplierName: purchaseSupplierInput?.value?.trim() || "",
-      note: purchaseNoteInput?.value?.trim() || "",
-      sourceType: "",
-      sourceCode: "",
-      sourceName: "",
-      status: "draft",
-      discountAmount: 0,
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-      items: [],
-    };
-    state.purchases.unshift(purchase);
-    state.activePurchaseId = purchase.id;
-    state.purchasePanelCollapsed = mobileQuery.matches;
-  }
-  return purchase;
+function createPurchaseDraftIfMissing(options = {}) {
+  return getPurchasesDomainHelpers().createPurchaseDraftIfMissing({
+    preferredSupplierName: Object.prototype.hasOwnProperty.call(options, "preferredSupplierName")
+      ? options.preferredSupplierName
+      : "",
+    sourceType: options.sourceType || "",
+    sourceCode: options.sourceCode || "",
+    sourceName: options.sourceName || "",
+    preferBlankWhenActiveHasSupplier: options.preferBlankWhenActiveHasSupplier ?? true,
+  });
+}
+
+function applySupplierToActiveDraft(supplierName, options = {}) {
+  return getPurchasesDomainHelpers().applySupplierToActiveDraft(supplierName, options);
 }
 
 function updatePurchase(purchaseId, updater) {
@@ -2351,22 +2344,23 @@ function createPurchaseSuggestionFromCart(cart, shortagePlan = null) {
   const sourceType = "cart";
   const sourceCode = String(cart.id || "").trim();
   const sourceName = String(cart.customerName || "").trim();
-  let purchase = getSourcePurchaseForCart(cart);
+  let purchase = state.purchases.find(
+    (entry) =>
+      entry.id === state.activePurchaseId &&
+      entry.status === "draft" &&
+      !String(entry.supplierName || "").trim() &&
+      String(entry.sourceType || entry.source_type || "").trim() === sourceType &&
+      String(entry.sourceCode || entry.source_code || "").trim() === sourceCode
+  ) || getPurchasesDomainHelpers().findUnsuppliedDraftPurchaseBySource(sourceType, sourceCode);
   if (!purchase) {
-    purchase = {
-      id: createId("purchase"),
+    purchase = getPurchasesDomainHelpers().buildDraftPurchase({
       supplierName: "",
       note: "",
       sourceType,
       sourceCode,
       sourceName,
-      status: "draft",
-      discountAmount: 0,
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
       items: [],
-    };
-    state.purchases.unshift(purchase);
+    });
     state.purchasePanelCollapsed = mobileQuery.matches;
   }
   updatePurchase(purchase.id, (currentPurchase) => {
@@ -2496,11 +2490,18 @@ function resolveAppUrl(path) {
 }
 
 async function apiRequest(path, options = {}) {
+  const {
+    headers: customHeaders = {},
+    sessionActivity = "active",
+    ...fetchOptions
+  } = options;
   const response = await fetch(resolveAppUrl(path), {
     headers: {
       "Content-Type": "application/json",
+      "X-Session-Activity": sessionActivity,
+      ...customHeaders,
     },
-    ...options,
+    ...fetchOptions,
   });
 
   const data = await response.json();
@@ -2508,7 +2509,7 @@ async function apiRequest(path, options = {}) {
     if (response.status === 401 && state.admin?.enableLogin) {
       redirectToLoginScreen({
         rememberMenu: true,
-        message: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+        message: data?.session_expired ? "" : "Cần đăng nhập để sử dụng hệ thống.",
       });
     }
     const error = new Error(data.error || "Có lỗi xảy ra.");
@@ -2520,8 +2521,8 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
-async function refreshSessionStatus() {
-  const payload = await apiRequest("/api/session/status");
+async function refreshSessionStatus({ sessionActivity = "passive" } = {}) {
+  const payload = await apiRequest("/api/session/status", { sessionActivity });
   updateAppInfo(payload);
   updateDebugConfig(payload);
   updatePaginationConfig(payload);
@@ -2534,19 +2535,6 @@ function normalizeAdminTimeoutMinutes(value) {
     return 360;
   }
   return Math.round(parsed);
-}
-
-function parseAdminSessionStartedAtMs(value) {
-  const timestamp = String(value || "").trim();
-  if (!timestamp) return NaN;
-  return Date.parse(timestamp);
-}
-
-function clearSessionReminder() {
-  if (adminSessionReminderTimer) {
-    window.clearTimeout(adminSessionReminderTimer);
-    adminSessionReminderTimer = null;
-  }
 }
 
 function clearProtectedSessionData() {
@@ -2660,34 +2648,13 @@ function handleBlockedLoginInteraction(event) {
   return true;
 }
 
-function scheduleSessionReminder() {
-  clearSessionReminder();
-  if (!state.admin?.authenticated) {
-    return;
-  }
-  const timeoutMinutes = normalizeAdminTimeoutMinutes(state.admin.timeoutMinutes);
-  const timeoutMs = timeoutMinutes * 60 * 1000;
-  let nextReminderAtMs = Number(state.admin.nextReminderAtMs || 0);
-  if (!Number.isFinite(nextReminderAtMs) || nextReminderAtMs <= 0) {
-    const sessionStartedAtMs = parseAdminSessionStartedAtMs(state.admin.sessionStartedAt);
-    nextReminderAtMs = Number.isFinite(sessionStartedAtMs)
-      ? sessionStartedAtMs + timeoutMs
-      : Date.now() + timeoutMs;
-    state.admin.nextReminderAtMs = nextReminderAtMs;
-  }
-  const delayMs = Math.max(0, nextReminderAtMs - Date.now());
-  adminSessionReminderTimer = window.setTimeout(() => {
-    void handleSessionReminder();
-  }, delayMs);
-}
-
 async function performSessionLogout(message) {
   try {
     const data = await apiRequest("/api/session/logout", {
       method: "POST",
       body: JSON.stringify({}),
     });
-    updateAdminSessionState(data, { resetReminder: true });
+    updateAdminSessionState(data);
     if (state.admin?.enableLogin) {
       clearProtectedSessionData();
       state.admin.returnMenuAfterLogin = "inventory";
@@ -2700,30 +2667,7 @@ async function performSessionLogout(message) {
   }
 }
 
-async function handleSessionReminder() {
-  if (!state.admin?.authenticated) {
-    clearSessionReminder();
-    return;
-  }
-  const timeoutMinutes = normalizeAdminTimeoutMinutes(state.admin.timeoutMinutes);
-  const roleLabel = state.admin?.isAdmin ? "Master Admin" : "user";
-  const shouldLogout = window.confirm(
-    [
-      `${roleLabel} đã đăng nhập đủ ${timeoutMinutes} phút.`,
-      "Chọn OK để đăng xuất ngay.",
-      `Chọn Cancel để tiếp tục dùng hệ thống và nhắc lại sau ${timeoutMinutes} phút.`,
-    ].join("\n"),
-  );
-  if (shouldLogout) {
-    await performSessionLogout("Đã tự động đăng xuất theo xác nhận.");
-    return;
-  }
-  state.admin.nextReminderAtMs = Date.now() + timeoutMinutes * 60 * 1000;
-  scheduleSessionReminder();
-  showToast(`Tiếp tục phiên đăng nhập. Hệ thống sẽ nhắc lại sau ${timeoutMinutes} phút.`);
-}
-
-function updateAdminSessionState(payload = {}, { resetReminder = false } = {}) {
+function updateAdminSessionState(payload = {}) {
   const previous = state.admin || {};
   const authenticated = Boolean(payload.authenticated);
   const timeoutMinutes = normalizeAdminTimeoutMinutes(payload.timeout_minutes ?? payload.timeoutMinutes);
@@ -2731,30 +2675,6 @@ function updateAdminSessionState(payload = {}, { resetReminder = false } = {}) {
   const returnMenuAfterLogin = String(
     payload.return_menu_after_login ?? payload.returnMenuAfterLogin ?? previous.returnMenuAfterLogin ?? ""
   ).trim();
-  const sameSession = Boolean(
-    authenticated &&
-    previous.authenticated &&
-    previous.sessionStartedAt &&
-    sessionStartedAt &&
-    previous.sessionStartedAt === sessionStartedAt &&
-    String(previous.username || "") === String(payload.username || "") &&
-    String(previous.role || "") === String(payload.role || ""),
-  );
-  let nextReminderAtMs = 0;
-  if (authenticated) {
-    if (!resetReminder && sameSession) {
-      const existingReminderAtMs = Number(previous.nextReminderAtMs || 0);
-      if (Number.isFinite(existingReminderAtMs) && existingReminderAtMs > 0) {
-        nextReminderAtMs = existingReminderAtMs;
-      }
-    }
-    if (!nextReminderAtMs) {
-      const sessionStartedAtMs = parseAdminSessionStartedAtMs(sessionStartedAt);
-      nextReminderAtMs = Number.isFinite(sessionStartedAtMs)
-        ? sessionStartedAtMs + timeoutMinutes * 60 * 1000
-        : Date.now() + timeoutMinutes * 60 * 1000;
-    }
-  }
   state.admin = {
     authenticated,
     username: String(payload.username || ""),
@@ -2763,10 +2683,8 @@ function updateAdminSessionState(payload = {}, { resetReminder = false } = {}) {
     enableLogin: Boolean(payload.enable_login ?? payload.enableLogin),
     sessionStartedAt,
     timeoutMinutes,
-    nextReminderAtMs,
     returnMenuAfterLogin,
   };
-  scheduleSessionReminder();
   if (previous.authenticated && !authenticated && state.admin?.enableLogin) {
     redirectToLoginScreen({ rememberMenu: true });
   }
@@ -2815,7 +2733,7 @@ function readFileAsBase64(file) {
   });
 }
 
-async function refreshReportData() {
+async function refreshReportData({ sessionActivity = "active" } = {}) {
   const focusMonth = state.reportFocusMonth || new Date().toISOString().slice(0, 7);
   const rangeMonths = Number(state.reportRangeMonths || 6);
   const params = new URLSearchParams({
@@ -2826,21 +2744,24 @@ async function refreshReportData() {
     params.set("start_date", state.reportStartDate);
     params.set("end_date", state.reportEndDate);
   }
-  state.reports = await apiRequest(`/api/reports/monthly?${params.toString()}`);
+  state.reports = await apiRequest(`/api/reports/monthly?${params.toString()}`, { sessionActivity });
   state.reportFocusMonth = state.reports?.focus_month || focusMonth;
   const shouldLoadReceiptHistory = state.activeMenu === "reports";
   if (shouldLoadReceiptHistory) {
-    const receiptHistoryPayload = await apiRequest(`/api/receipts/history?${buildReceiptHistoryParams().toString()}`);
+    const receiptHistoryPayload = await apiRequest(
+      `/api/receipts/history?${buildReceiptHistoryParams().toString()}`,
+      { sessionActivity },
+    );
     state.receiptHistory = receiptHistoryPayload.history || [];
   }
   return state.reports;
 }
 
-async function refreshData({ sessionAlreadyLoaded = false } = {}) {
+async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "active" } = {}) {
   isRefreshingState = true;
   try {
     if (!sessionAlreadyLoaded) {
-      await refreshSessionStatus();
+      await refreshSessionStatus({ sessionActivity });
     }
     if (state.admin?.enableLogin && !state.admin?.authenticated) {
       redirectToLoginScreen({ rememberMenu: true });
@@ -2858,10 +2779,10 @@ async function refreshData({ sessionAlreadyLoaded = false } = {}) {
       historyParams.set("end_date", `${state.productHistoryEndDate}T23:59:59`);
     }
     const [payload, deletedProductsPayload, productHistoryPayload] = await Promise.all([
-      apiRequest("/api/state?transaction_limit=16"),
-      apiRequest("/api/products/deleted"),
-      apiRequest(`/api/products/history?${historyParams.toString()}`),
-      refreshReportData(),
+      apiRequest("/api/state?transaction_limit=16", { sessionActivity }),
+      apiRequest("/api/products/deleted", { sessionActivity }),
+      apiRequest(`/api/products/history?${historyParams.toString()}`, { sessionActivity }),
+      refreshReportData({ sessionActivity }),
     ]);
     latestSyncUpdatedAt = payload.updated_at || {};
     updateAppInfo(payload);
@@ -4014,6 +3935,7 @@ registerEntitiesControllerEvents({
     upsertSupplier,
     clearPendingPurchaseSupplierFlow,
     createPurchaseDraftIfMissing,
+    applySupplierToActiveDraft,
     updatePurchase,
     focusPurchasePanel,
     switchMenu,
@@ -4068,6 +3990,7 @@ registerPurchasesControllerEvents({
   },
   actions: {
     createPurchaseDraftIfMissing,
+    applySupplierToActiveDraft,
     saveAndRenderAll,
     focusPurchaseSuggestions,
     focusPurchasePanel,
