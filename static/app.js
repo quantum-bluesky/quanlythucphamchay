@@ -1014,6 +1014,10 @@ function beginSupplierCreateFromPurchase() {
   const existingSupplier = pendingName
     ? getActiveSuppliers().find((supplier) => normalizeText(supplier.name) === normalizeText(pendingName))
     : null;
+  const activeDraftPurchase = state.purchases.find(
+    (purchase) => purchase.id === state.activePurchaseId && String(purchase.status || "").trim() === "draft"
+  ) || null;
+  const activeDraftSupplierName = String(activeDraftPurchase?.supplierName || "").trim();
   state.pendingPurchaseSupplierFlow = true;
   state.pendingPurchaseSupplierName = existingSupplier?.name || pendingName;
   state.supplierSearchTerm = "";
@@ -1021,6 +1025,17 @@ function beginSupplierCreateFromPurchase() {
   switchMenu("suppliers");
   supplierForm?.reset();
   renderSuppliers();
+  if (
+    existingSupplier &&
+    activeDraftSupplierName &&
+    normalizeText(existingSupplier.name) === normalizeText(activeDraftSupplierName)
+  ) {
+    state.editingSupplierFormId = null;
+    state.supplierFormCollapsed = true;
+    renderEntityForms();
+    showToast("Đã mở danh sách nhà cung cấp. Chọn NCC khác bằng nút Dùng cho phiếu nhập.");
+    return;
+  }
   if (existingSupplier) {
     state.editingSupplierFormId = existingSupplier.id;
     fillSupplierForm(existingSupplier);
@@ -2185,6 +2200,14 @@ function createPurchaseDraftIfMissing(options = {}) {
 
 function applySupplierToActiveDraft(supplierName, options = {}) {
   return getPurchasesDomainHelpers().applySupplierToActiveDraft(supplierName, options);
+}
+
+function deletePurchaseDraftLocally(purchaseId) {
+  return getPurchasesDomainHelpers().deletePurchaseDraftLocally(purchaseId);
+}
+
+function isUnsavedEmptyDraftPurchase(purchase) {
+  return getPurchasesDomainHelpers().isUnsavedEmptyDraftPurchase(purchase);
 }
 
 function updatePurchase(purchaseId, updater) {
@@ -3991,6 +4014,7 @@ registerPurchasesControllerEvents({
   actions: {
     createPurchaseDraftIfMissing,
     applySupplierToActiveDraft,
+    deletePurchaseDraftLocally,
     saveAndRenderAll,
     focusPurchaseSuggestions,
     focusPurchasePanel,
@@ -4030,6 +4054,7 @@ registerPurchasesControllerEvents({
     canReceivePurchase,
     canCancelPurchase,
     canDeletePurchase,
+    isUnsavedEmptyDraftPurchase,
     canMarkPurchasePaid,
     isRepairableInvalidPurchase,
     getSkipNextPurchaseSupplierChangePersist: () => skipNextPurchaseSupplierChangePersist,

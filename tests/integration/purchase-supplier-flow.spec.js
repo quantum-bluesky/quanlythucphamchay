@@ -187,6 +187,100 @@ test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the exis
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-PURSUP-04 empty purchase draft can be deleted and supplier button can switch supplier before ordered", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const timestamp = Date.now();
+  const supplierA = `NCC draft A ${timestamp}`;
+  const supplierB = `NCC draft B ${timestamp}`;
+  const now = new Date().toISOString();
+  const userCookie = await autoLoginUserRequest(request);
+  const originalState = await fetchSyncState(request, userCookie);
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: [
+          ...(originalState.suppliers || []),
+          {
+            id: `supplier_draft_a_${timestamp}`,
+            name: supplierA,
+            phone: "",
+            address: "",
+            note: "",
+            createdAt: now,
+            updatedAt: now,
+          },
+          {
+            id: `supplier_draft_b_${timestamp}`,
+            name: supplierB,
+            phone: "",
+            address: "",
+            note: "",
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    await page.locator("#createPurchaseDraftButton").click();
+    await page.waitForTimeout(250);
+    await page.locator("#purchaseSupplierInput").fill(supplierA);
+    await page.locator("#purchaseNoteInput").click();
+    await page.waitForTimeout(250);
+
+    await page.locator('[data-purchase-action="delete"]').click();
+    const deleteToast = await collectToast(page, runtime, "it-pursup-04-delete-empty-draft", { errorPattern: /^$/ });
+    expect(deleteToast).toContain("Đã xóa phiếu nháp");
+    await expect(page.locator("#purchaseSupplierInput")).not.toHaveValue(supplierA);
+    const stateAfterDelete = await fetchSyncState(request, userCookie);
+    expect((stateAfterDelete.purchases || []).some((purchase) => purchase.supplierName === supplierA)).toBeFalsy();
+
+    await page.locator("#createPurchaseDraftButton").click();
+    await page.waitForTimeout(250);
+    await page.locator("#purchaseSupplierInput").fill(supplierA);
+    await page.locator("#purchaseNoteInput").click();
+    await page.waitForTimeout(250);
+    await page.locator('.purchases-panel [data-go-menu="suppliers"]').click();
+
+    await expectScreenTitle(page, "Nhà cung cấp");
+    await expect(page.locator("#supplierFormSection")).toHaveClass(/is-collapsed/);
+    await page.locator(`[data-supplier-action="use"][data-supplier-id="supplier_draft_b_${timestamp}"]`).click();
+
+    await expectScreenTitle(page, "Nhập hàng");
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierB);
+
+    const stateAfterSwitch = await fetchSyncState(request, userCookie);
+    expect((stateAfterSwitch.purchases || []).some((purchase) => purchase.supplierName === supplierA)).toBeFalsy();
+    expect((stateAfterSwitch.purchases || []).some((purchase) => purchase.supplierName === supplierB)).toBeFalsy();
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid purchase history", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const timestamp = Date.now();
