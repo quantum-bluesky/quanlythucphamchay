@@ -132,14 +132,14 @@ export function registerEntitiesControllerEvents(contract) {
       const savedSupplierName = dom.supplierNameInput.value.trim();
       const activePurchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
       const canApplySupplierToActiveDraft = Boolean(activePurchase && activePurchase.status === "draft");
+      let purchaseDraftApplyResult = null;
       if (isPurchaseSupplierFlow) {
         dom.purchaseSupplierInput.value = savedSupplierName;
         state.pendingPurchaseSupplierName = savedSupplierName;
         if (canApplySupplierToActiveDraft) {
-          actions.updatePurchase(activePurchase.id, () => ({
-            supplierName: savedSupplierName,
+          purchaseDraftApplyResult = actions.applySupplierToActiveDraft(savedSupplierName, {
             note: dom.purchaseNoteInput.value.trim(),
-          }));
+          });
         }
       }
       actions.upsertSupplier({
@@ -148,7 +148,7 @@ export function registerEntitiesControllerEvents(contract) {
         address: dom.supplierAddressInput.value,
         note: dom.supplierNoteInput.value,
       }, editingSupplierId, {
-        extraCollections: isPurchaseSupplierFlow && canApplySupplierToActiveDraft ? ["purchases"] : [],
+        extraCollections: isPurchaseSupplierFlow && canApplySupplierToActiveDraft && purchaseDraftApplyResult?.shouldPersist ? ["purchases"] : [],
       });
       dom.supplierForm.reset();
       state.editingSupplierFormId = null;
@@ -212,8 +212,10 @@ export function registerEntitiesControllerEvents(contract) {
       const purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
       const canApplySupplierToActiveDraft = Boolean(purchase && purchase.status === "draft");
       if (canApplySupplierToActiveDraft) {
-        actions.updatePurchase(purchase.id, () => ({ supplierName: supplier.name, note: dom.purchaseNoteInput.value.trim() }));
-        actions.saveAndRenderAll(["purchases"]);
+        const result = actions.applySupplierToActiveDraft(supplier.name, {
+          note: dom.purchaseNoteInput.value.trim(),
+        });
+        actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
         actions.focusPurchasePanel();
       } else {
         actions.saveAndRenderAll();

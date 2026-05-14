@@ -98,6 +98,7 @@ Nếu cần can thiệp đặc biệt
 ### Bước 3: Chọn NCC và chỉnh dòng nhập
 
 - gán nhà cung cấp
+- mỗi nhà cung cấp chỉ giữ tối đa 1 phiếu `draft`; nếu chọn lại đúng NCC đã có nháp thì app mở lại phiếu đó để nhập tiếp, còn nếu chọn NCC khác thì phiếu cũ được giữ nguyên và app mở nháp riêng cho NCC mới
 - nếu phiếu được tạo từ đơn thiếu hàng, app giữ liên kết nguồn đơn riêng trong metadata của phiếu, không nhét sẵn vào ô ghi chú
 - sửa số lượng, giá nhập, mã lô và HSD của từng dòng; mặc định nhập trực tiếp HSD, hoặc có thể chuyển sang nhập gián tiếp bằng `Ngày sản xuất` để app tự tính HSD theo thời gian bảo quản
 - nếu cùng một sản phẩm về nhiều lô khác nhau thì tách thành nhiều dòng riêng

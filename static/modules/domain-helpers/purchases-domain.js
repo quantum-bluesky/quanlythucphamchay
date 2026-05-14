@@ -16,6 +16,7 @@ export function createPurchasesDomainHelpers(deps) {
     switchMenu,
     showToast,
     saveAndRenderAll,
+    normalizeText,
   } = deps;
 
   function getProductStorageLifeDays(product) {
@@ -84,6 +85,16 @@ export function createPurchasesDomainHelpers(deps) {
 
   function getActivePurchase() {
     return state.purchases.find((purchase) => purchase.id === state.activePurchaseId) || null;
+  }
+
+  function normalizeSupplierName(value) {
+    const cleanValue = String(value || "").trim();
+    if (!cleanValue) {
+      return "";
+    }
+    return typeof normalizeText === "function"
+      ? normalizeText(cleanValue)
+      : cleanValue.toLocaleLowerCase("vi");
   }
 
   function decoratePurchase(purchase) {
@@ -243,40 +254,339 @@ export function createPurchasesDomainHelpers(deps) {
     );
   }
 
-  function setActivePurchase(purchaseId) {
-    const purchase = state.purchases.find((entry) => entry.id === purchaseId);
-    if (!purchase || !["draft", "ordered"].includes(purchase.status)) return;
+  function getPurchaseSourceMeta(purchase = {}) {
+    return {
+      sourceType: String(purchase.sourceType || purchase.source_type || "").trim(),
+      sourceCode: String(purchase.sourceCode || purchase.source_code || "").trim(),
+      sourceName: String(purchase.sourceName || purchase.source_name || "").trim(),
+    };
+  }
+
+  function isDraftPurchase(purchase) {
+    return Boolean(purchase && purchase.status === "draft");
+  }
+
+  function isUnsuppliedDraftPurchase(purchase) {
+    return Boolean(isDraftPurchase(purchase) && !hasPurchaseSupplier(purchase));
+  }
+
+  function isTransientBlankPurchaseDraft(purchase) {
+    if (!isUnsuppliedDraftPurchase(purchase)) {
+      return false;
+    }
+    const sourceMeta = getPurchaseSourceMeta(purchase);
+    return (
+      (!Array.isArray(purchase.items) || purchase.items.length === 0) &&
+      !String(purchase.note || "").trim() &&
+      !sourceMeta.sourceType &&
+      !sourceMeta.sourceCode &&
+      !sourceMeta.sourceName
+    );
+  }
+
+  function movePurchaseToFront(purchaseId) {
+    const index = state.purchases.findIndex((purchase) => purchase.id === purchaseId);
+    if (index <= 0) {
+      return;
+    }
+    const [purchase] = state.purchases.splice(index, 1);
+    state.purchases.unshift(purchase);
+  }
+
+  function activatePurchaseState(purchaseId) {
+    const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
+    if (!purchase) {
+      return null;
+    }
     state.activePurchaseId = purchase.id;
     state.purchasePanelCollapsed = false;
     state.purchaseDetailExpanded = false;
     state.selectedPurchaseItemsCollapsed = false;
     purchaseSupplierInput.value = purchase.supplierName || "";
     purchaseNoteInput.value = purchase.note || "";
+    movePurchaseToFront(purchase.id);
+    return purchase;
+  }
+
+  function buildDraftPurchase(overrides = {}) {
+    const createdAt = overrides.createdAt || nowIso();
+    const draft = decoratePurchase({
+      id: overrides.id || createId("purchase"),
+      supplierName: overrides.supplierName || "",
+      note: overrides.note || "",
+      sourceType: overrides.sourceType || "",
+      sourceCode: overrides.sourceCode || "",
+      sourceName: overrides.sourceName || "",
+      status: "draft",
+      discountAmount: overrides.discountAmount ?? 0,
+      createdAt,
+      updatedAt: overrides.updatedAt || createdAt,
+      receiptCode: "",
+      items: Array.isArray(overrides.items) ? overrides.items : [],
+    });
+    state.purchases = [draft, ...state.purchases.filter((purchase) => purchase.id !== draft.id)];
+    return draft;
+  }
+
+  function removePurchaseById(purchaseId) {
+    state.purchases = state.purchases.filter((purchase) => purchase.id !== purchaseId);
+    if (state.activePurchaseId === purchaseId) {
+      state.activePurchaseId = state.purchases[0]?.id || null;
+    }
+  }
+
+  function findDraftPurchaseBySupplierName(supplierName, options = {}) {
+    const cleanSupplier = normalizeSupplierName(supplierName);
+    const excludePurchaseId = String(options.excludePurchaseId || "").trim();
+    if (!cleanSupplier) {
+      return null;
+    }
+    return state.purchases.find((purchase) => {
+      if (!isDraftPurchase(purchase) || purchase.id === excludePurchaseId) {
+        return false;
+      }
+      return normalizeSupplierName(purchase.supplierName) === cleanSupplier;
+    }) || null;
+  }
+
+  function findUnsuppliedDraftPurchaseBySource(sourceType, sourceCode) {
+    const cleanSourceType = String(sourceType || "").trim();
+    const cleanSourceCode = String(sourceCode || "").trim();
+    if (!cleanSourceType || !cleanSourceCode) {
+      return null;
+    }
+    return state.purchases.find((purchase) => {
+      if (!isUnsuppliedDraftPurchase(purchase)) {
+        return false;
+      }
+      const sourceMeta = getPurchaseSourceMeta(purchase);
+      return sourceMeta.sourceType === cleanSourceType && sourceMeta.sourceCode === cleanSourceCode;
+    }) || null;
+  }
+
+  function buildPurchaseItemMergeKey(item = {}) {
+    return [
+      Number(item.productId || 0),
+      Number(item.unitCost || item.unit_cost || 0),
+      String(item.batchCode || item.batch_code || "").trim(),
+      String(item.expiryInputMode || item.expiry_input_mode || "direct").trim() || "direct",
+      String(item.manufactureDate || item.manufacture_date || "").trim(),
+      String(item.expiryDate || item.expiry_date || "").trim(),
+    ].join("|");
+  }
+
+  function mergeDraftItems(targetItems, sourceItems) {
+    const mergedItems = Array.isArray(targetItems)
+      ? targetItems.map((item) => ({
+        ...item,
+        batchCode: String(item.batchCode || item.batch_code || "").trim(),
+        expiryInputMode: String(item.expiryInputMode || item.expiry_input_mode || "direct").trim() || "direct",
+        manufactureDate: String(item.manufactureDate || item.manufacture_date || "").trim(),
+        expiryDate: String(item.expiryDate || item.expiry_date || "").trim(),
+      }))
+      : [];
+    const mergedIndexByKey = new Map(mergedItems.map((item, index) => [buildPurchaseItemMergeKey(item), index]));
+
+    (Array.isArray(sourceItems) ? sourceItems : []).forEach((item) => {
+      const normalizedItem = {
+        ...item,
+        batchCode: String(item.batchCode || item.batch_code || "").trim(),
+        expiryInputMode: String(item.expiryInputMode || item.expiry_input_mode || "direct").trim() || "direct",
+        manufactureDate: String(item.manufactureDate || item.manufacture_date || "").trim(),
+        expiryDate: String(item.expiryDate || item.expiry_date || "").trim(),
+      };
+      const mergeKey = buildPurchaseItemMergeKey(normalizedItem);
+      const existingIndex = mergedIndexByKey.get(mergeKey);
+      if (existingIndex === undefined) {
+        mergedIndexByKey.set(mergeKey, mergedItems.length);
+        mergedItems.push({
+          ...normalizedItem,
+          id: createId("purchase_item"),
+          lineTotal: Number((Number(normalizedItem.quantity || 0) * Number(normalizedItem.unitCost || 0)).toFixed(2)),
+        });
+        return;
+      }
+      const existingItem = mergedItems[existingIndex];
+      const nextQuantity = Number((Number(existingItem.quantity || 0) + Number(normalizedItem.quantity || 0)).toFixed(2));
+      mergedItems[existingIndex] = {
+        ...existingItem,
+        quantity: nextQuantity,
+        lineTotal: Number((nextQuantity * Number(existingItem.unitCost || 0)).toFixed(2)),
+      };
+    });
+    return mergedItems;
+  }
+
+  function createPurchaseDraftIfMissing(options = {}) {
+    const {
+      preferredSupplierName = String(purchaseSupplierInput?.value || "").trim(),
+      sourceType = "",
+      sourceCode = "",
+      sourceName = "",
+      preferBlankWhenActiveHasSupplier = false,
+    } = options;
+    const cleanSupplier = String(preferredSupplierName || "").trim();
+    const activeDraft = state.purchases.find((purchase) => purchase.id === state.activePurchaseId && isDraftPurchase(purchase)) || null;
+    const matchingSupplierDraft = cleanSupplier ? findDraftPurchaseBySupplierName(cleanSupplier) : null;
+    if (matchingSupplierDraft) {
+      return activatePurchaseState(matchingSupplierDraft.id) || matchingSupplierDraft;
+    }
+    const matchingUnsuppliedSourceDraft = sourceType && sourceCode
+      ? findUnsuppliedDraftPurchaseBySource(sourceType, sourceCode)
+      : null;
+    if (matchingUnsuppliedSourceDraft) {
+      return activatePurchaseState(matchingUnsuppliedSourceDraft.id) || matchingUnsuppliedSourceDraft;
+    }
+    if (activeDraft) {
+      const activeSource = getPurchaseSourceMeta(activeDraft);
+      const sameSource = !sourceType && !sourceCode
+        ? true
+        : activeSource.sourceType === String(sourceType || "").trim() && activeSource.sourceCode === String(sourceCode || "").trim();
+      const sameSupplier = cleanSupplier && normalizeSupplierName(activeDraft.supplierName) === normalizeSupplierName(cleanSupplier);
+      if (sameSupplier) {
+        return activatePurchaseState(activeDraft.id) || activeDraft;
+      }
+      if (isUnsuppliedDraftPurchase(activeDraft) && sameSource) {
+        return activatePurchaseState(activeDraft.id) || activeDraft;
+      }
+      if (!cleanSupplier && !preferBlankWhenActiveHasSupplier) {
+        return activatePurchaseState(activeDraft.id) || activeDraft;
+      }
+    }
+
+    const draft = buildDraftPurchase({
+      supplierName: cleanSupplier,
+      sourceType,
+      sourceCode,
+      sourceName,
+    });
+    return activatePurchaseState(draft.id) || draft;
+  }
+
+  function applySupplierToActiveDraft(supplierName, options = {}) {
+    const cleanSupplier = String(supplierName || "").trim();
+    const nextNote = String(options.note ?? purchaseNoteInput?.value ?? "").trim();
+    const activeDraft = state.purchases.find((purchase) => purchase.id === state.activePurchaseId && isDraftPurchase(purchase)) || null;
+    const matchingSupplierDraft = cleanSupplier
+      ? findDraftPurchaseBySupplierName(cleanSupplier, { excludePurchaseId: activeDraft?.id || "" })
+      : null;
+
+    if (!activeDraft) {
+      if (matchingSupplierDraft) {
+        return {
+          purchase: activatePurchaseState(matchingSupplierDraft.id) || matchingSupplierDraft,
+          shouldPersist: false,
+        };
+      }
+      if (!cleanSupplier) {
+        return { purchase: null, shouldPersist: false };
+      }
+      const draft = buildDraftPurchase({ supplierName: cleanSupplier, note: nextNote });
+      return {
+        purchase: activatePurchaseState(draft.id) || draft,
+        shouldPersist: false,
+      };
+    }
+
+    if (!cleanSupplier) {
+      if (!activeDraft.supplierName && String(activeDraft.note || "").trim() === nextNote) {
+        return { purchase: activeDraft, shouldPersist: false };
+      }
+      updatePurchase(activeDraft.id, () => ({
+        supplierName: "",
+        note: nextNote,
+      }));
+      return {
+        purchase: activatePurchaseState(activeDraft.id) || getActivePurchase(),
+        shouldPersist: true,
+      };
+    }
+
+    if (normalizeSupplierName(activeDraft.supplierName) === normalizeSupplierName(cleanSupplier)) {
+      const supplierChanged = String(activeDraft.supplierName || "").trim() !== cleanSupplier;
+      const noteChanged = String(activeDraft.note || "").trim() !== nextNote;
+      if (!supplierChanged && !noteChanged) {
+        return { purchase: activeDraft, shouldPersist: false };
+      }
+      updatePurchase(activeDraft.id, () => ({
+        supplierName: cleanSupplier,
+        note: nextNote,
+      }));
+      return {
+        purchase: activatePurchaseState(activeDraft.id) || getActivePurchase(),
+        shouldPersist: true,
+      };
+    }
+
+    if (matchingSupplierDraft) {
+      if (isUnsuppliedDraftPurchase(activeDraft) && Array.isArray(activeDraft.items) && activeDraft.items.length > 0) {
+        updatePurchase(matchingSupplierDraft.id, (currentPurchase) => ({
+          supplierName: cleanSupplier,
+          note: String(currentPurchase.note || "").trim() || nextNote,
+          sourceType: currentPurchase.sourceType || activeDraft.sourceType || activeDraft.source_type || "",
+          sourceCode: currentPurchase.sourceCode || activeDraft.sourceCode || activeDraft.source_code || "",
+          sourceName: currentPurchase.sourceName || activeDraft.sourceName || activeDraft.source_name || "",
+          items: mergeDraftItems(currentPurchase.items, activeDraft.items),
+        }));
+        removePurchaseById(activeDraft.id);
+        return {
+          purchase: activatePurchaseState(matchingSupplierDraft.id) || getActivePurchase(),
+          shouldPersist: true,
+        };
+      }
+      if (isTransientBlankPurchaseDraft(activeDraft)) {
+        removePurchaseById(activeDraft.id);
+      }
+      return {
+        purchase: activatePurchaseState(matchingSupplierDraft.id) || matchingSupplierDraft,
+        shouldPersist: false,
+      };
+    }
+
+    if (isUnsuppliedDraftPurchase(activeDraft)) {
+      updatePurchase(activeDraft.id, () => ({
+        supplierName: cleanSupplier,
+        note: nextNote,
+      }));
+      return {
+        purchase: activatePurchaseState(activeDraft.id) || getActivePurchase(),
+        shouldPersist: true,
+      };
+    }
+
+    const sourceMeta = getPurchaseSourceMeta(activeDraft);
+    const newDraft = buildDraftPurchase({
+      supplierName: cleanSupplier,
+      sourceType: sourceMeta.sourceType,
+      sourceCode: sourceMeta.sourceCode,
+      sourceName: sourceMeta.sourceName,
+      note: "",
+    });
+    return {
+      purchase: activatePurchaseState(newDraft.id) || newDraft,
+      shouldPersist: false,
+    };
+  }
+
+  function setActivePurchase(purchaseId) {
+    const purchase = state.purchases.find((entry) => entry.id === purchaseId);
+    if (!purchase || !["draft", "ordered"].includes(purchase.status)) return;
+    activatePurchaseState(purchase.id);
     saveAndRenderAll();
   }
 
-  function addSuggestionToPurchase(productId, quantity, unitCost) {
+  function addSuggestionToPurchase(productId, quantity, unitCost, options = {}) {
     const product = getProductById(productId);
     if (!product) throw new Error("Không tìm thấy sản phẩm.");
-    let purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId && entry.status === "draft");
-    if (!purchase) {
-      purchase = {
-        id: createId("purchase"),
-        supplierName: "",
-        note: "",
-        sourceType: "",
-        sourceCode: "",
-        sourceName: "",
-        status: "draft",
-        discountAmount: 0,
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-        receiptCode: "",
-        items: [],
-      };
-      state.purchases.unshift(purchase);
-      state.activePurchaseId = purchase.id;
-    }
+    const purchase = createPurchaseDraftIfMissing({
+      preferredSupplierName: Object.prototype.hasOwnProperty.call(options, "preferredSupplierName")
+        ? options.preferredSupplierName
+        : String(purchaseSupplierInput?.value || "").trim(),
+      sourceType: options.sourceType || "",
+      sourceCode: options.sourceCode || "",
+      sourceName: options.sourceName || "",
+      preferBlankWhenActiveHasSupplier: Boolean(options.preferBlankWhenActiveHasSupplier),
+    });
     const nextQuantity = Number(quantity || 0);
     const nextUnitCost = Number(unitCost || product.price || 0);
     if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) throw new Error("Số lượng nhập phải lớn hơn 0.");
@@ -324,7 +634,15 @@ export function createPurchasesDomainHelpers(deps) {
       showToast("Mặt hàng này đang có nhiều phiếu nhập chờ. Hãy chọn đúng phiếu bên dưới.");
       return;
     }
-    addSuggestionToPurchase(product.id, Math.max(1, product.low_stock_threshold || 1), product.price || 0);
+    addSuggestionToPurchase(
+      product.id,
+      Math.max(1, product.low_stock_threshold || 1),
+      product.price || 0,
+      {
+        preferredSupplierName: "",
+        preferBlankWhenActiveHasSupplier: true,
+      }
+    );
     state.purchaseSearchTerm = product.name;
     purchaseSearchInput.value = product.name;
     state.pagination.purchaseSuggestions = 1;
@@ -352,6 +670,10 @@ export function createPurchasesDomainHelpers(deps) {
     getOpenPurchaseCountByProductId,
     getOpenPurchasesForProduct,
     setActivePurchase,
+    createPurchaseDraftIfMissing,
+    applySupplierToActiveDraft,
+    findUnsuppliedDraftPurchaseBySource,
+    buildDraftPurchase,
     addSuggestionToPurchase,
     canEditPurchaseExpiryMetadata,
     resolvePurchaseItemExpiryMeta,

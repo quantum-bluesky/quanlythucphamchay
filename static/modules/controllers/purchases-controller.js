@@ -117,11 +117,10 @@ export function registerPurchasesControllerEvents(contract) {
       renderers.renderPurchasePanel();
       return;
     }
-    actions.updatePurchase(purchase.id, () => ({
-      supplierName: dom.purchaseSupplierInput.value.trim(),
+    const result = actions.applySupplierToActiveDraft(dom.purchaseSupplierInput.value.trim(), {
       note: dom.purchaseNoteInput.value.trim(),
-    }));
-    actions.saveAndRenderAll(["purchases"]);
+    });
+    actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
   });
 
   dom.purchaseNoteInput.addEventListener("change", () => {
