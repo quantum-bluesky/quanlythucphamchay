@@ -1,8 +1,8 @@
 {
-  "app_version": "2.10.8",
+  "app_version": "2.10.9",
   "files": {
     "app.js": {
-      "counter": 3,
+      "counter": 1,
       "sha256": "90f50e8a1324240c35e8b2a6b081d5cbe08fd88f895fac2fe7f173cb33eaaa00"
     },
     "modules/app-state.js": {
@@ -14,7 +14,7 @@
       "sha256": "7f29ae2c2a9f6c5035cc087f36089bc2863607229f72db7f76d181dd4b34e4a7"
     },
     "modules/controllers/entities-controller.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "390bbd9d8aed4d36668a3fe30317769ab8890c368c585e4c3f5121c2fc7a4c76"
     },
     "modules/controllers/inventory-controller.js": {
@@ -26,7 +26,7 @@
       "sha256": "6b18cb42cd722bc94de96e4fb007f295c0ccac7e6f83b465ce484e5dcaaad05f"
     },
     "modules/controllers/purchases-controller.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "ccad86a3d1c503e54ecbbf2358875a4113a66b3c46ef1423f42b1fde52d65496"
     },
     "modules/controllers/reports-admin-controller.js": {
@@ -46,7 +46,7 @@
       "sha256": "f6c20f1be7690b687856f2dc4f6bf9bc379cb0408cca4334de1291b606a1bb09"
     },
     "modules/domain-helpers/purchases-domain.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "0e880111252f5f928fb07f33028fe15ce414ed92d520515d3c9fd1beb730001a"
     },
     "modules/domain-helpers/sales-domain.js": {
@@ -62,7 +62,7 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "58fa3a937bae70350ee95b4c21afd8f38d70e5b7378df631f911cad267d765ba"
     },
     "modules/sync-runtime.js": {
