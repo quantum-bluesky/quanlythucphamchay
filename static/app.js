@@ -685,6 +685,7 @@ function getPurchasesDomainHelpers() {
       switchMenu,
       showToast,
       saveAndRenderAll,
+      normalizeText,
     });
   }
   return purchasesDomainHelpers;
@@ -2170,27 +2171,20 @@ function restoreSupplier(supplierId) {
   return getEntityProductMutationHelpers().restoreSupplier(supplierId);
 }
 
-function createPurchaseDraftIfMissing() {
-  let purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId && entry.status === "draft") || null;
-  if (!purchase) {
-    purchase = {
-      id: createId("purchase"),
-      supplierName: purchaseSupplierInput?.value?.trim() || "",
-      note: purchaseNoteInput?.value?.trim() || "",
-      sourceType: "",
-      sourceCode: "",
-      sourceName: "",
-      status: "draft",
-      discountAmount: 0,
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-      items: [],
-    };
-    state.purchases.unshift(purchase);
-    state.activePurchaseId = purchase.id;
-    state.purchasePanelCollapsed = mobileQuery.matches;
-  }
-  return purchase;
+function createPurchaseDraftIfMissing(options = {}) {
+  return getPurchasesDomainHelpers().createPurchaseDraftIfMissing({
+    preferredSupplierName: Object.prototype.hasOwnProperty.call(options, "preferredSupplierName")
+      ? options.preferredSupplierName
+      : "",
+    sourceType: options.sourceType || "",
+    sourceCode: options.sourceCode || "",
+    sourceName: options.sourceName || "",
+    preferBlankWhenActiveHasSupplier: options.preferBlankWhenActiveHasSupplier ?? true,
+  });
+}
+
+function applySupplierToActiveDraft(supplierName, options = {}) {
+  return getPurchasesDomainHelpers().applySupplierToActiveDraft(supplierName, options);
 }
 
 function updatePurchase(purchaseId, updater) {
@@ -2350,22 +2344,23 @@ function createPurchaseSuggestionFromCart(cart, shortagePlan = null) {
   const sourceType = "cart";
   const sourceCode = String(cart.id || "").trim();
   const sourceName = String(cart.customerName || "").trim();
-  let purchase = getSourcePurchaseForCart(cart);
+  let purchase = state.purchases.find(
+    (entry) =>
+      entry.id === state.activePurchaseId &&
+      entry.status === "draft" &&
+      !String(entry.supplierName || "").trim() &&
+      String(entry.sourceType || entry.source_type || "").trim() === sourceType &&
+      String(entry.sourceCode || entry.source_code || "").trim() === sourceCode
+  ) || getPurchasesDomainHelpers().findUnsuppliedDraftPurchaseBySource(sourceType, sourceCode);
   if (!purchase) {
-    purchase = {
-      id: createId("purchase"),
+    purchase = getPurchasesDomainHelpers().buildDraftPurchase({
       supplierName: "",
       note: "",
       sourceType,
       sourceCode,
       sourceName,
-      status: "draft",
-      discountAmount: 0,
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
       items: [],
-    };
-    state.purchases.unshift(purchase);
+    });
     state.purchasePanelCollapsed = mobileQuery.matches;
   }
   updatePurchase(purchase.id, (currentPurchase) => {
@@ -3940,6 +3935,7 @@ registerEntitiesControllerEvents({
     upsertSupplier,
     clearPendingPurchaseSupplierFlow,
     createPurchaseDraftIfMissing,
+    applySupplierToActiveDraft,
     updatePurchase,
     focusPurchasePanel,
     switchMenu,
@@ -3994,6 +3990,7 @@ registerPurchasesControllerEvents({
   },
   actions: {
     createPurchaseDraftIfMissing,
+    applySupplierToActiveDraft,
     saveAndRenderAll,
     focusPurchaseSuggestions,
     focusPurchasePanel,
