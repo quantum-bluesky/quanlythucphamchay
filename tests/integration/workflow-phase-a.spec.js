@@ -907,7 +907,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
     });
     expect(invalidCartResponse.status()).toBe(400);
     const invalidCartBody = await invalidCartResponse.json();
-    expect(invalidCartBody.error).toContain("Đơn hàng đã chốt không thể sửa trực tiếp");
+    expect(invalidCartBody.error).toContain("Đơn hàng đã xuất hàng không thể sửa trực tiếp");
 
     const invalidPurchasePayload = structuredClone(seededState.purchases || []);
     const lockedPurchase = invalidPurchasePayload.find((purchase) => purchase.id === paidPurchaseId);
