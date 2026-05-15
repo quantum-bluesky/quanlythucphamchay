@@ -267,11 +267,20 @@ export function registerPurchasesControllerEvents(contract) {
     if (!button) return;
     try {
       const quantity = resolvePurchaseSuggestionQuantity(button);
-      actions.addSuggestionToPurchase(button.dataset.productId, quantity, queries.getProductById(button.dataset.productId)?.price || 0);
+      const result = actions.addSuggestionToPurchase(button.dataset.productId, quantity, queries.getProductById(button.dataset.productId)?.price || 0);
       state.purchasePanelCollapsed = false;
       renderers.renderPurchasePanel();
       actions.focusPurchasePanel();
-      actions.showToast("Đã thêm vào phiếu nhập.");
+      if (result?.supplierSuggestion?.applied) {
+        const supplierName = result.supplierSuggestion.supplierName || "NCC liên quan";
+        actions.showToast(
+          result.supplierSuggestion.reusedDraft
+            ? `Đã chuyển sang phiếu nháp hiện có của ${supplierName} và thêm mặt hàng.`
+            : `Đã thêm vào phiếu nhập và tự chọn ${supplierName} theo lịch sử nhập hàng.`
+        );
+      } else {
+        actions.showToast("Đã thêm vào phiếu nhập.");
+      }
     } catch (error) {
       actions.showToast(error.message, true);
     }

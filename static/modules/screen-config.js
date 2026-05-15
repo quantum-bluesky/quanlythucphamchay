@@ -128,6 +128,7 @@ export const SCREEN_HELP = {
       "Phiếu đang ở trạng thái `Nháp` hoặc `Đã đặt` vẫn có thể chỉnh sửa số lượng, giá và thêm bớt dòng; nút `Nhập kho` chỉ xuất hiện khi phiếu đã `Đã đặt`.",
       "Bắt buộc chọn `Nhà cung cấp` trước khi chuyển phiếu sang `Đã đặt hàng`; nếu chưa có NCC thì app sẽ khóa luôn bước `Nhập kho`.",
       "Mỗi nhà cung cấp chỉ giữ 1 phiếu nhập nháp riêng: nếu chọn lại đúng NCC đã có nháp thì app mở lại phiếu đó để nhập tiếp, còn nếu chọn NCC khác thì app giữ nguyên phiếu cũ và mở nháp riêng cho NCC mới.",
+      "Nếu phiếu nháp chưa có NCC, app tự chọn NCC khi mặt hàng vừa thêm chỉ từng nhập từ đúng một NCC; nếu từng nhập từ nhiều NCC thì ô NCC vẫn cho nhập tự do nhưng danh sách gợi ý sẽ đưa NCC nhập nhiều hơn lên trước.",
       "Phiếu nháp đang trống vẫn có thể `Xóa phiếu` ngay trên màn hình mà không cần lưu xuống DB trước.",
       "Nhà cung cấp chỉ đổi được khi phiếu còn `Nháp`; từ `Đã đặt` trở đi, ô NCC và nút `NCC` sẽ bị khóa trên mọi thiết bị.",
       "Ngay trên từng card gợi ý nhập có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`.",

@@ -26,6 +26,68 @@ async function fetchSyncState(request, cookie) {
   return response.json();
 }
 
+async function fetchProducts(request, cookie) {
+  const response = await request.get("/api/products", { headers: { Cookie: cookie } });
+  expect(response.ok()).toBeTruthy();
+  const payload = await response.json();
+  return payload.products || [];
+}
+
+function hasActualPurchaseHistory(state, productId) {
+  return (state.purchases || []).some((purchase) =>
+    ["received", "paid"].includes(String(purchase.status || "")) &&
+    String(purchase.supplierName || "").trim() &&
+    (purchase.items || []).some((item) => Number(item.productId) === Number(productId))
+  );
+}
+
+function buildPaidPurchase({ id, supplierName, product, quantity, now }) {
+  return {
+    id,
+    supplierName,
+    note: "Seed lịch sử NCC theo sản phẩm",
+    status: "paid",
+    createdAt: now,
+    updatedAt: now,
+    receivedAt: now,
+    paidAt: now,
+    receiptCode: `PN-${id}`,
+    items: [
+      {
+        id: `${id}_item`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity,
+        unitCost: Number(product.price || 0),
+      },
+    ],
+  };
+}
+
+function buildDemandCart({ id, customerName, product, quantity, now }) {
+  return {
+    id,
+    customerName,
+    status: "draft",
+    paymentStatus: "unpaid",
+    createdAt: now,
+    updatedAt: now,
+    orderCode: "",
+    items: [
+      {
+        id: `${id}_item`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity,
+        unitPrice: Number(product.sale_price || product.price || 0) || 1000,
+        note: "",
+      },
+    ],
+  };
+}
+
 test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back to the draft flow", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const timestamp = Date.now();
@@ -266,6 +328,163 @@ test("IT-PURSUP-04 empty purchase draft can be deleted and supplier button can s
     const stateAfterSwitch = await fetchSyncState(request, userCookie);
     expect((stateAfterSwitch.purchases || []).some((purchase) => purchase.supplierName === supplierA)).toBeFalsy();
     expect((stateAfterSwitch.purchases || []).some((purchase) => purchase.supplierName === supplierB)).toBeFalsy();
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical supplier", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const timestamp = Date.now();
+  const now = new Date().toISOString();
+  const userCookie = await autoLoginUserRequest(request);
+  const originalState = await fetchSyncState(request, userCookie);
+  const products = await fetchProducts(request, userCookie);
+  const candidateProducts = products.filter((product) => !hasActualPurchaseHistory(originalState, product.id));
+  expect(candidateProducts.length).toBeGreaterThanOrEqual(1);
+  const uniqueProduct = products.find((product) => product.name === "Bò kho" && !hasActualPurchaseHistory(originalState, product.id)) || candidateProducts[0];
+  const uniqueSupplier = `NCC unique ${timestamp}`;
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: [
+          ...(originalState.suppliers || []),
+          { id: `supplier_unique_${timestamp}`, name: uniqueSupplier, phone: "", address: "", note: "", createdAt: now, updatedAt: now },
+        ],
+        carts: [
+          buildDemandCart({
+            id: `cart_unique_${timestamp}`,
+            customerName: `Khách cần ${uniqueProduct.name} ${timestamp}`,
+            product: uniqueProduct,
+            quantity: Math.max(Number(uniqueProduct.current_stock || 0) + 2, 2),
+            now,
+          }),
+          ...(originalState.carts || []),
+        ],
+        purchases: [
+          buildPaidPurchase({ id: `purchase_unique_${timestamp}`, supplierName: uniqueSupplier, product: uniqueProduct, quantity: 4, now }),
+          ...(originalState.purchases || []),
+        ],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+    await page.locator("#createPurchaseDraftButton").click();
+    await page.waitForTimeout(250);
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue("");
+
+    const addUniqueButton = page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${uniqueProduct.id}"]`).first();
+    await expect(addUniqueButton).toBeVisible();
+    await addUniqueButton.click();
+    const uniqueToast = await collectToast(page, runtime, "it-pursup-05-unique", { errorPattern: /^$/ });
+    expect(uniqueToast).toContain(`tự chọn ${uniqueSupplier}`);
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue(uniqueSupplier);
+
+    const stateAfterUnique = await fetchSyncState(request, userCookie);
+    expect((stateAfterUnique.purchases || []).some((purchase) =>
+      purchase.status === "draft" &&
+      purchase.supplierName === uniqueSupplier &&
+      (purchase.items || []).some((item) => Number(item.productId) === Number(uniqueProduct.id))
+    )).toBeTruthy();
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-PURSUP-06 purchase supplier suggestions prioritize multiple historical suppliers", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const timestamp = Date.now();
+  const now = new Date().toISOString();
+  const userCookie = await autoLoginUserRequest(request);
+  const originalState = await fetchSyncState(request, userCookie);
+  const products = await fetchProducts(request, userCookie);
+  const candidateProducts = products.filter((product) => !hasActualPurchaseHistory(originalState, product.id));
+  expect(candidateProducts.length).toBeGreaterThanOrEqual(1);
+  const multiProduct = products.find((product) => product.name === "Bò lát xào" && !hasActualPurchaseHistory(originalState, product.id)) || candidateProducts[0];
+  const lowPrioritySupplier = `NCC low ${timestamp}`;
+  const highPrioritySupplier = `NCC high ${timestamp}`;
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: [
+          ...(originalState.suppliers || []),
+          { id: `supplier_low_${timestamp}`, name: lowPrioritySupplier, phone: "", address: "", note: "", createdAt: now, updatedAt: now },
+          { id: `supplier_high_${timestamp}`, name: highPrioritySupplier, phone: "", address: "", note: "", createdAt: now, updatedAt: now },
+        ],
+        carts: [
+          buildDemandCart({
+            id: `cart_multi_${timestamp}`,
+            customerName: `Khách cần ${multiProduct.name} ${timestamp}`,
+            product: multiProduct,
+            quantity: Math.max(Number(multiProduct.current_stock || 0) + 2, 2),
+            now,
+          }),
+          ...(originalState.carts || []),
+        ],
+        purchases: [
+          buildPaidPurchase({ id: `purchase_low_${timestamp}`, supplierName: lowPrioritySupplier, product: multiProduct, quantity: 2, now }),
+          buildPaidPurchase({ id: `purchase_high_${timestamp}`, supplierName: highPrioritySupplier, product: multiProduct, quantity: 9, now }),
+          ...(originalState.purchases || []),
+        ],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+    await page.locator("#createPurchaseDraftButton").click();
+    await page.waitForTimeout(250);
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue("");
+
+    const addMultiButton = page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${multiProduct.id}"]`).first();
+    await expect(addMultiButton).toBeVisible();
+    await addMultiButton.click();
+    const multiToast = await collectToast(page, runtime, "it-pursup-05-multiple", { errorPattern: /^$/ });
+    expect(multiToast).toContain("Đã thêm vào phiếu nhập");
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue("");
+
+    const supplierOptionValues = await page.locator("#supplierOptions option").evaluateAll((options) =>
+      options.map((option) => option.getAttribute("value") || "")
+    );
+    expect(supplierOptionValues.indexOf(highPrioritySupplier)).toBeGreaterThanOrEqual(0);
+    expect(supplierOptionValues.indexOf(lowPrioritySupplier)).toBeGreaterThanOrEqual(0);
+    expect(supplierOptionValues.indexOf(highPrioritySupplier)).toBeLessThan(supplierOptionValues.indexOf(lowPrioritySupplier));
   } finally {
     await request.put("/api/state", {
       headers: { Cookie: userCookie },

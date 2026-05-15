@@ -2202,6 +2202,14 @@ function applySupplierToActiveDraft(supplierName, options = {}) {
   return getPurchasesDomainHelpers().applySupplierToActiveDraft(supplierName, options);
 }
 
+function getSupplierSuggestionsForPurchase(purchase) {
+  return getPurchasesDomainHelpers().getSupplierSuggestionsForPurchase(purchase);
+}
+
+function maybeApplySupplierSuggestionToPurchase(purchaseId, productIds = []) {
+  return getPurchasesDomainHelpers().maybeApplySupplierSuggestionToPurchase(purchaseId, productIds);
+}
+
 function deletePurchaseDraftLocally(purchaseId) {
   return getPurchasesDomainHelpers().deletePurchaseDraftLocally(purchaseId);
 }
@@ -2386,7 +2394,7 @@ function createPurchaseSuggestionFromCart(cart, shortagePlan = null) {
     });
     state.purchasePanelCollapsed = mobileQuery.matches;
   }
-  updatePurchase(purchase.id, (currentPurchase) => {
+  const updatedPurchase = updatePurchase(purchase.id, (currentPurchase) => {
     const nextItems = [...currentPurchase.items];
     shortages.forEach(({ product, requiredFromSource }) => {
       const existing = nextItems.find((entry) => entry.productId === product.id);
@@ -2419,9 +2427,13 @@ function createPurchaseSuggestionFromCart(cart, shortagePlan = null) {
   });
 
   state.activePurchaseId = purchase.id;
+  const supplierSuggestion = maybeApplySupplierSuggestionToPurchase(
+    updatedPurchase.id,
+    shortages.map((entry) => entry.product?.id)
+  );
   state.purchaseDetailExpanded = false;
   saveAndRenderAll(["purchases"]);
-  return true;
+  return { created: true, supplierSuggestion };
 }
 
 function getCartShortages(cart) {
@@ -2846,7 +2858,23 @@ function renderCustomerOptions() {
 }
 
 function renderSupplierOptions() {
-  supplierOptions.innerHTML = getActiveSuppliers()
+  const activePurchase = getActivePurchase();
+  const prioritizedSupplierNames = activePurchase && !activePurchase.supplierName
+    ? getSupplierSuggestionsForPurchase(activePurchase).map((entry) => normalizeText(entry.supplierName))
+    : [];
+  const priorityMap = new Map(prioritizedSupplierNames.map((name, index) => [name, index]));
+  const activeSuppliers = getActiveSuppliers();
+  const originalIndexMap = new Map(activeSuppliers.map((supplier, index) => [supplier.id || supplier.name, index]));
+  supplierOptions.innerHTML = activeSuppliers
+    .slice()
+    .sort((left, right) => {
+      const leftPriority = priorityMap.get(normalizeText(left.name));
+      const rightPriority = priorityMap.get(normalizeText(right.name));
+      if (leftPriority !== undefined || rightPriority !== undefined) {
+        return (leftPriority ?? Number.MAX_SAFE_INTEGER) - (rightPriority ?? Number.MAX_SAFE_INTEGER);
+      }
+      return (originalIndexMap.get(left.id || left.name) || 0) - (originalIndexMap.get(right.id || right.name) || 0);
+    })
     .map((supplier) => `<option value="${escapeHtml(supplier.name)}"></option>`)
     .join("");
 }
