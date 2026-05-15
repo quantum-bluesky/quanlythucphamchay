@@ -401,7 +401,11 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             raise ValueError("Dữ liệu import không hợp lệ.")
                         if not records:
                             raise ValueError("File import không có bản ghi hợp lệ.")
-                        result = store.import_master_data(import_entity_type, records)
+                        result = store.import_master_data(
+                            import_entity_type,
+                            records,
+                            actor=self._get_current_actor_name(),
+                        )
                         self._send_json(
                             HTTPStatus.OK,
                             {
@@ -436,7 +440,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             restore_match = re.fullmatch(r"/api/products/(\d+)/restore", route)
             if restore_match:
                 try:
-                    product = store.restore_product(restore_match.group(1))
+                    product = store.restore_product(
+                        restore_match.group(1),
+                        actor=self._get_current_actor_name(),
+                    )
                     self._send_json(
                         HTTPStatus.OK,
                         {
@@ -466,6 +473,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
                         shelf_life_days=payload.get("shelf_life_days"),
                         storage_life_days=payload.get("storage_life_days"),
+                        actor=self._get_current_actor_name(),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -602,6 +610,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         note=payload.get("note", ""),
                         source_type=payload.get("source_type", ""),
                         source_code=payload.get("source_code", ""),
+                        actor=self._get_current_actor_name(),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -620,6 +629,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         note=payload.get("note", ""),
                         source_type=payload.get("source_type", ""),
                         source_code=payload.get("source_code", ""),
+                        actor=self._get_current_actor_name(),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -689,6 +699,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
                         shelf_life_days=payload.get("shelf_life_days"),
                         storage_life_days=payload.get("storage_life_days"),
+                        actor=payload.get("actor") or self._get_current_actor_name(),
                     )
                     self._send_json(
                         HTTPStatus.OK,
@@ -756,7 +767,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return
 
             try:
-                deleted = store.delete_product(match.group(1))
+                deleted = store.delete_product(
+                    match.group(1),
+                    actor=self._get_current_actor_name(),
+                )
                 self._send_json(
                     HTTPStatus.OK,
                     {

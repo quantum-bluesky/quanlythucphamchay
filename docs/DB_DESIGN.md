@@ -271,9 +271,10 @@ Nguồn: `CREATE TABLE IF NOT EXISTS audit_logs` trong `qltpchay/store.py`.
 ### Vai trò nghiệp vụ
 
 - audit thay đổi giá nhập/giá bán mặc định
+- audit create/update/delete/restore sản phẩm với actor thực hiện; riêng update sản phẩm ghi rõ field cũ/mới thay vì chỉ ghi tên
 - audit direct adjustment bởi Master Admin
 - audit chuyển trạng thái cart và purchase
-- audit tạo chứng từ điều chỉnh/trả hàng
+- audit tạo chứng từ điều chỉnh/trả hàng và giữ đúng actor khi tạo/import từ các luồng quản trị
 
 ## 10. Cách tính tồn kho
 
