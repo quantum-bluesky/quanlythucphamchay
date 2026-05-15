@@ -621,11 +621,17 @@ function getInventoryUi() {
       formatDate,
       escapeHtml,
       mobileQuery,
+      getPendingDemandByProductId,
       getDraftDemandByProductId,
+      getCommittedDemandByProductId,
+      getPendingCartCountByProductId,
       getDraftCartCountByProductId,
+      getCommittedCartCountByProductId,
       getIncomingPurchaseByProductId,
       getOpenPurchaseCountByProductId,
+      getPendingCartsForProduct,
       getDraftCartsForProduct,
+      getCommittedCartsForProduct,
       getOpenPurchasesForProduct,
       getInventoryProductSignals,
       getInventoryAdjustmentReason,
@@ -816,6 +822,7 @@ function getSalesUi() {
       escapeHtml,
       mobileQuery,
       getActiveCart,
+      getPendingMergeCommittedCarts,
       getProductById,
       canDeleteCart,
       canEditCartDiscount,
@@ -1585,11 +1592,19 @@ function syncSalesState() {
     })
     .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
 
-  const activeDraftExists = state.carts.some(
-    (cart) => cart.id === state.activeCartId && cart.status === "draft"
+  const activeEditableCartExists = state.carts.some(
+    (cart) => cart.id === state.activeCartId && ["draft", "committed"].includes(cart.status)
   );
-  if (state.activeCartId && !activeDraftExists) {
+  if (state.activeCartId && !activeEditableCartExists) {
     state.activeCartId = null;
+  }
+
+  if (
+    state.pendingCartMergeCustomerId &&
+    !state.carts.some((cart) => cart.status === "committed" && cart.customerId === state.pendingCartMergeCustomerId)
+  ) {
+    state.pendingCartMergeCustomerId = "";
+    state.pendingCartMergeCustomerName = "";
   }
 
   const activePurchaseExists = state.purchases.some(
@@ -2057,7 +2072,7 @@ function resolveCustomerFromText(text) {
 
 function setActiveCart(cartId) {
   const cart = getCartById(cartId);
-  if (!cart || cart.status !== "draft") {
+  if (!cart || !["draft", "committed"].includes(String(cart.status || "").trim())) {
     return;
   }
 
@@ -2093,6 +2108,26 @@ function startInventoryInFlow(productId) {
 
 function updateCart(cartId, updater) {
   return getSalesDomainHelpers().updateCart(cartId, updater);
+}
+
+function getCommittedCarts() {
+  return getSalesDomainHelpers().getCommittedCarts();
+}
+
+function getPendingCarts() {
+  return getSalesDomainHelpers().getPendingCarts();
+}
+
+function createNewDraftForPendingMergeCustomer() {
+  return getSalesDomainHelpers().createNewDraftForPendingMergeCustomer();
+}
+
+function clearPendingCartMergePrompt() {
+  return getSalesDomainHelpers().clearPendingCartMergePrompt();
+}
+
+function getPendingMergeCommittedCarts() {
+  return getSalesDomainHelpers().getPendingMergeCommittedCarts();
 }
 
 function toggleProductInActiveCart(productId, checked) {
@@ -2170,6 +2205,28 @@ async function checkoutCart(cartId) {
   }
 }
 
+async function commitCart(cartId) {
+  const previousActiveCartId = state.activeCartId;
+  state.activeCartId = cartId;
+  try {
+    return await commitActiveCart();
+  } catch (error) {
+    state.activeCartId = previousActiveCartId;
+    throw error;
+  }
+}
+
+async function shipCart(cartId) {
+  const previousActiveCartId = state.activeCartId;
+  state.activeCartId = cartId;
+  try {
+    return await shipActiveCart();
+  } catch (error) {
+    state.activeCartId = previousActiveCartId;
+    throw error;
+  }
+}
+
 function renameCustomer(customerId, newName) {
   return getEntityProductMutationHelpers().renameCustomer(customerId, newName);
 }
@@ -2226,35 +2283,59 @@ function getDraftDemandByProductId() {
   return getSalesDomainHelpers().getDraftDemandByProductId();
 }
 
+function getCommittedDemandByProductId() {
+  return getSalesDomainHelpers().getCommittedDemandByProductId();
+}
+
+function getPendingDemandByProductId() {
+  return getSalesDomainHelpers().getPendingDemandByProductId();
+}
+
 function getIncomingPurchaseByProductId() {
   return getPurchasesDomainHelpers().getIncomingPurchaseByProductId();
+}
+
+function getPendingCartCountByProductId() {
+  return getSalesDomainHelpers().getPendingCartCountByProductId();
 }
 
 function getDraftCartCountByProductId() {
   return getSalesDomainHelpers().getDraftCartCountByProductId();
 }
 
+function getCommittedCartCountByProductId() {
+  return getSalesDomainHelpers().getCommittedCartCountByProductId();
+}
+
 function getOpenPurchaseCountByProductId() {
   return getPurchasesDomainHelpers().getOpenPurchaseCountByProductId();
+}
+
+function getPendingCartsForProduct(productId) {
+  return getSalesDomainHelpers().getPendingCartsForProduct(productId);
 }
 
 function getDraftCartsForProduct(productId) {
   return getSalesDomainHelpers().getDraftCartsForProduct(productId);
 }
 
+function getCommittedCartsForProduct(productId) {
+  return getSalesDomainHelpers().getCommittedCartsForProduct(productId);
+}
+
 function getOpenPurchasesForProduct(productId) {
   return getPurchasesDomainHelpers().getOpenPurchasesForProduct(productId);
 }
 
-function getInventoryProductSignals(product, draftDemandMap, incomingMap) {
-  return getInventoryDomainHelpers().getInventoryProductSignals(product, draftDemandMap, incomingMap);
+function getInventoryProductSignals(product, demandMaps, incomingMap) {
+  return getInventoryDomainHelpers().getInventoryProductSignals(product, demandMaps, incomingMap);
 }
 
 function getPurchaseSuggestions() {
-  const draftDemand = getDraftDemandByProductId();
+  const pendingDemand = getPendingDemandByProductId();
   return state.products
     .map((product) => {
-      const demand = draftDemand.get(product.id) || 0;
+      const demand = pendingDemand.get(product.id) || 0;
       const shortageFromOrders = Math.max(0, demand - Number(product.current_stock));
       const lowStockGap = Math.max(0, Number(product.low_stock_threshold) - Number(product.current_stock));
       const suggestedQuantity = Math.max(shortageFromOrders, lowStockGap);
@@ -2445,6 +2526,38 @@ function getCartShortages(cart) {
         item,
         product,
         shortage,
+      };
+    });
+}
+
+function getCommittedReservedQuantityForProduct(productId, excludeCartId = "") {
+  return Number(getCommittedCarts().reduce((sum, cart) => {
+    if (excludeCartId && cart.id === excludeCartId) {
+      return sum;
+    }
+    const reserved = Array.isArray(cart.items)
+      ? cart.items.reduce(
+          (itemSum, item) => itemSum + (Number(item.productId) === Number(productId) ? Number(item.quantity || 0) : 0),
+          0
+        )
+      : 0;
+    return sum + reserved;
+  }, 0).toFixed(2));
+}
+
+function getCartCommitShortages(cart) {
+  return cart.items
+    .map((item) => {
+      const product = getProductById(item.productId);
+      const reservedByCommitted = getCommittedReservedQuantityForProduct(item.productId);
+      const availableQuantity = Math.max(0, Number(product?.current_stock || 0) - reservedByCommitted);
+      const shortage = Math.max(0, Number(item.quantity) - availableQuantity);
+      return {
+        item,
+        product,
+        shortage,
+        availableQuantity,
+        reservedByCommitted,
       };
     });
 }
@@ -3445,7 +3558,8 @@ function buildPrintMarkup(cart) {
     <body>
       <h1>${escapeHtml(cart.orderCode || "Giỏ hàng xuất")}</h1>
       <p class="meta">Khách hàng: ${escapeHtml(cart.customerName)}</p>
-      <p class="meta">Thời gian: ${escapeHtml(formatDate(cart.completedAt || cart.updatedAt || cart.createdAt))}</p>
+      <p class="meta">Địa chỉ giao: ${escapeHtml(cart.shipAddress || "Chưa có")}</p>
+      <p class="meta">Thời gian: ${escapeHtml(formatDate(cart.completedAt || cart.committedAt || cart.updatedAt || cart.createdAt))}</p>
       <table>
         <thead>
           <tr>
@@ -3719,6 +3833,149 @@ async function checkoutActiveCart() {
   showToast(data.message);
 }
 
+async function commitActiveCart() {
+  const cart = getActiveCart();
+  if (!cart) {
+    throw new Error("Chưa có đơn hàng nào đang mở.");
+  }
+  if (cart.status !== "draft") {
+    throw new Error("Chỉ đơn nháp mới được chốt đơn.");
+  }
+  if (!cart.items.length) {
+    throw new Error("Đơn hàng đang trống.");
+  }
+
+  const shortagePlan = getCartCommitShortages(cart)
+    .filter((entry) => entry.shortage > 0 && entry.product)
+    .map((entry) => {
+      const incomingQuantity = getOpenIncomingQuantityForProduct(entry.product.id);
+      return {
+        ...entry,
+        incomingQuantity,
+        otherIncomingQuantity: incomingQuantity,
+        requiredFromSource: Math.max(0, Number((entry.shortage - incomingQuantity).toFixed(2))),
+      };
+    });
+
+  if (shortagePlan.length) {
+    const shortageSummary = shortagePlan.map((entry) => {
+      const productName = entry.product?.name || entry.item.productName;
+      const parts = [
+        `${productName} cần ${formatQuantity(entry.item.quantity)}`,
+        `khả dụng ${formatQuantity(entry.availableQuantity || 0)}`,
+      ];
+      if (entry.reservedByCommitted > 0) {
+        parts.push(`đã giữ ${formatQuantity(entry.reservedByCommitted)}`);
+      }
+      if (entry.incomingQuantity > 0) {
+        parts.push(`chờ nhập ${formatQuantity(entry.incomingQuantity)}`);
+      }
+      return `- ${parts.join(", ")}`;
+    }).join("\n");
+    const hasEnoughPendingPurchases = shortagePlan.every((entry) => entry.incomingQuantity >= entry.shortage);
+    if (hasEnoughPendingPurchases) {
+      const shouldOpenRelatedPurchase = window.confirm(`Đơn chưa đủ hàng khả dụng để chốt:\n${shortageSummary}\n\nChọn OK để mở phiếu nhập chờ liên quan nếu cần chỉnh.\nChọn Cancel để quay lại đơn này.`);
+      if (shouldOpenRelatedPurchase) {
+        openRelatedPurchasesForShortagePlan(cart, shortagePlan);
+        throw new Error("Đã mở phiếu nhập chờ liên quan để bạn kiểm tra hoặc chỉnh lại khi cần.");
+      }
+      throw new Error("Đơn chưa đủ hàng khả dụng để chốt. Kiểm tra hàng về hoặc điều chỉnh lại các đơn đã chốt.");
+    }
+
+    if (state.admin?.isAdmin) {
+      const shouldAdjustStock = window.confirm(`Đơn chưa đủ hàng khả dụng để chốt:\n${shortageSummary}\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel nếu muốn xử lý tiếp qua phiếu nhập.`);
+      if (shouldAdjustStock) {
+        switchMenu("inventory");
+        prefillProduct(shortagePlan[0].product?.id || shortagePlan[0].item.productId);
+        throw new Error("Hãy điều chỉnh lại tồn kho rồi chốt đơn lại.");
+      }
+    }
+
+    const shouldCreatePurchase = window.confirm(`Đơn chưa đủ hàng khả dụng để chốt:\n${shortageSummary}\n\nApp sẽ tạo hoặc cập nhật phiếu nhập tương ứng cho phần còn thiếu.\nChọn OK để sang màn nhập hàng.\nChọn Cancel để quay lại đơn này.`);
+    if (!shouldCreatePurchase) {
+      throw new Error("Đã giữ nguyên đơn nháp. Hãy tạo hoặc chỉnh phiếu nhập khi cần.");
+    }
+
+    createPurchaseSuggestionFromCart(cart, shortagePlan);
+    switchMenu("purchases");
+    focusPurchasePanel();
+    throw new Error("Đã tạo hoặc cập nhật phiếu nhập dự kiến để bù thiếu cho đơn này.");
+  }
+
+  const data = await apiRequest("/api/orders/commit", {
+    method: "POST",
+    body: JSON.stringify({
+      cart_id: cart.id,
+    }),
+  });
+
+  await refreshData();
+  state.activeCartId = cart.id;
+  state.activeCartPanelCollapsed = mobileQuery.matches;
+  state.activeCartDetailExpanded = false;
+  showToast(data.message || "Đã chốt đơn.");
+}
+
+async function shipActiveCart() {
+  const cart = getActiveCart();
+  if (!cart) {
+    throw new Error("Chưa có đơn hàng nào đang mở.");
+  }
+  if (cart.status !== "committed") {
+    throw new Error("Chỉ đơn đã chốt mới được xuất hàng.");
+  }
+  if (!cart.items.length) {
+    throw new Error("Đơn hàng đang trống.");
+  }
+
+  const shortagePlan = getCartShortagePlan(cart);
+  if (shortagePlan.length) {
+    const shortageSummary = shortagePlan.map((entry) => `- ${formatShortagePlanLine(entry)}`).join("\n");
+    const hasEnoughPendingPurchases = shortagePlan.every((entry) => entry.incomingQuantity >= entry.shortage);
+    if (hasEnoughPendingPurchases) {
+      const shouldOpenRelatedPurchase = window.confirm(`Đơn đã chốt nhưng hiện chưa đủ hàng để xuất:\n${shortageSummary}\n\nChọn OK để mở phiếu nhập chờ liên quan nếu cần chỉnh.\nChọn Cancel để quay lại đơn này.`);
+      if (shouldOpenRelatedPurchase) {
+        openRelatedPurchasesForShortagePlan(cart, shortagePlan);
+        throw new Error("Đã mở phiếu nhập chờ liên quan để bạn kiểm tra hoặc chỉnh lại khi cần.");
+      }
+      throw new Error("Đơn đã chốt nhưng hiện chưa đủ hàng để xuất. Kiểm tra hàng về rồi xuất lại.");
+    }
+
+    if (state.admin?.isAdmin) {
+      const shouldAdjustStock = window.confirm(`Đơn đã chốt nhưng hiện chưa đủ hàng để xuất:\n${shortageSummary}\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel nếu muốn xử lý tiếp qua phiếu nhập.`);
+      if (shouldAdjustStock) {
+        switchMenu("inventory");
+        prefillProduct(shortagePlan[0].product?.id || shortagePlan[0].item.productId);
+        throw new Error("Hãy điều chỉnh lại tồn kho rồi xuất hàng lại.");
+      }
+    }
+
+    const shouldCreatePurchase = window.confirm(`Đơn đã chốt nhưng hiện chưa đủ hàng để xuất:\n${shortageSummary}\n\nApp sẽ tạo hoặc cập nhật phiếu nhập tương ứng cho phần còn thiếu.\nChọn OK để sang màn nhập hàng.\nChọn Cancel để quay lại đơn này.`);
+    if (!shouldCreatePurchase) {
+      throw new Error("Đã giữ nguyên đơn đã chốt. Hãy tạo hoặc chỉnh phiếu nhập khi cần.");
+    }
+
+    createPurchaseSuggestionFromCart(cart, shortagePlan);
+    switchMenu("purchases");
+    focusPurchasePanel();
+    throw new Error("Đã tạo hoặc cập nhật phiếu nhập dự kiến để bù thiếu cho đơn này.");
+  }
+
+  const data = await apiRequest("/api/orders/ship", {
+    method: "POST",
+    body: JSON.stringify({
+      cart_id: cart.id,
+    }),
+  });
+
+  await refreshData();
+  if (state.activeCartId === cart.id) {
+    state.activeCartId = getPendingCarts().find((entry) => entry.id !== cart.id)?.id || null;
+  }
+  state.activeCartDetailExpanded = false;
+  showToast(data.message || "Đã xuất hàng.");
+}
+
 registerCoreControllerEvents({
   state,
   dom: {
@@ -3910,14 +4167,22 @@ registerSalesControllerEvents({
     showToast,
     switchMenu,
     openCartForCustomer,
+    openOrdersForCustomer,
     updateCart,
     toggleProductInActiveCart,
     updateCartItem,
     removeCartItem,
+    setActiveCart,
+    createNewDraftForPendingMergeCustomer,
+    clearPendingCartMergePrompt,
     saveAndRenderAll,
     persistCollections,
     flushPendingPersistCollections,
     refreshData,
+    commitCart,
+    commitActiveCart,
+    shipCart,
+    shipActiveCart,
     checkoutCart,
     checkoutActiveCart,
     printCart,

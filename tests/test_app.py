@@ -1365,7 +1365,7 @@ class InventoryStoreTests(unittest.TestCase):
         invalid_draft_cart["paymentStatus"] = "paid"
         invalid_draft_cart["paidAt"] = "2026-05-06T08:30:00+07:00"
 
-        with self.assertRaisesRegex(ValueError, "Đơn hàng chỉ được đánh dấu đã thanh toán sau khi đã chốt."):
+        with self.assertRaisesRegex(ValueError, "Đơn hàng chỉ được đánh dấu đã thanh toán sau khi đã xuất hàng."):
             self.store.save_sync_state(
                 {
                     "carts": invalid_paid_payload,
@@ -1438,6 +1438,128 @@ class InventoryStoreTests(unittest.TestCase):
                 }
             )
 
+    def test_ut_sync_05_committed_cart_locks_customer_but_allows_ship_address_until_completed(self) -> None:
+        product = self.store.create_product(
+            name="Đơn committed khóa khách",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=1,
+        )
+        initial_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-status-committed-01",
+                        "customerId": "customer-committed-01",
+                        "customerName": "Khách committed",
+                        "status": "committed",
+                        "paymentStatus": "unpaid",
+                        "shipAddress": "12 Nguyễn Trãi",
+                        "createdAt": "2026-05-06T08:00:00+07:00",
+                        "updatedAt": "2026-05-06T08:10:00+07:00",
+                        "committedAt": "2026-05-06T08:10:00+07:00",
+                        "orderCode": "DH-COMMITTED-01",
+                        "items": [
+                            {
+                                "id": "cart-item-status-committed-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 1,
+                                "unitPrice": 15000,
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {"carts": initial_state["updated_at"]["carts"]},
+            }
+        )
+
+        seeded_state = self.store.get_sync_state()
+        rename_payload = copy.deepcopy(seeded_state["carts"])
+        rename_payload[0]["customerName"] = "Khách đổi tên"
+
+        with self.assertRaisesRegex(ValueError, "Đơn đã chốt không thể đổi khách hàng."):
+            self.store.save_sync_state(
+                {
+                    "carts": rename_payload,
+                    "expected_updated_at": {"carts": seeded_state["updated_at"]["carts"]},
+                }
+            )
+
+        address_payload = copy.deepcopy(seeded_state["carts"])
+        address_payload[0]["shipAddress"] = "99 Lê Lợi"
+        address_payload[0]["updatedAt"] = "2026-05-06T08:20:00+07:00"
+        updated_state = self.store.save_sync_state(
+            {
+                "carts": address_payload,
+                "expected_updated_at": {"carts": seeded_state["updated_at"]["carts"]},
+            }
+        )
+        self.assertEqual(updated_state["carts"][0]["shipAddress"], "99 Lê Lợi")
+
+        direct_complete_payload = copy.deepcopy(updated_state["carts"])
+        direct_complete_payload[0]["status"] = "completed"
+        direct_complete_payload[0]["completedAt"] = "2026-05-06T08:30:00+07:00"
+        with self.assertRaisesRegex(ValueError, "Đơn đã chốt phải xuất hàng qua API xuất hàng."):
+            self.store.save_sync_state(
+                {
+                    "carts": direct_complete_payload,
+                    "expected_updated_at": {"carts": updated_state["updated_at"]["carts"]},
+                }
+            )
+
+    def test_ut_ord_15_commit_and_ship_cart_order_follow_new_workflow(self) -> None:
+        product = self.store.create_product(
+            name="Đơn commit rồi ship",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 5, "Tồn đầu để test commit/ship")
+        initial_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-commit-ship-01",
+                        "customerId": "customer-commit-ship-01",
+                        "customerName": "Khách commit ship",
+                        "status": "draft",
+                        "paymentStatus": "unpaid",
+                        "shipAddress": "1 Trần Hưng Đạo",
+                        "createdAt": "2026-05-06T08:00:00+07:00",
+                        "updatedAt": "2026-05-06T08:00:00+07:00",
+                        "items": [
+                            {
+                                "id": "cart-item-commit-ship-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitPrice": 15000,
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {"carts": initial_state["updated_at"]["carts"]},
+            }
+        )
+
+        committed = self.store.commit_cart_order("cart-commit-ship-01", actor="tester")
+        self.assertEqual(committed["cart"]["status"], "committed")
+        self.assertTrue(committed["order_code"].startswith("DH-"))
+        self.assertTrue(committed["committed_at"])
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 5.0)
+
+        shipped = self.store.ship_cart_order("cart-commit-ship-01", actor="tester")
+        self.assertEqual(shipped["cart"]["status"], "completed")
+        self.assertTrue(shipped["cart"]["completedAt"])
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 3.0)
+
     def test_ut_aud_01_save_sync_state_logs_cart_status_changes_with_actor(self) -> None:
         self.store.save_sync_state(
             {
@@ -1449,7 +1571,7 @@ class InventoryStoreTests(unittest.TestCase):
         sync_state = self.store.get_sync_state()
         self.store.save_sync_state(
             {
-                "carts": [{"id": "cart-1", "orderCode": "DH-01", "status": "completed", "items": []}],
+                "carts": [{"id": "cart-1", "orderCode": "DH-01", "status": "cancelled", "cancelledAt": "2026-05-06T09:00:00+07:00", "items": []}],
                 "expected_updated_at": {"carts": sync_state["updated_at"]["carts"]},
                 "actor": "thu-ngan-a",
             }
@@ -1472,7 +1594,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(log["action"], "status-change")
         self.assertEqual(log["actor"], "thu-ngan-a")
         self.assertIn("draft", log["message"])
-        self.assertIn("completed", log["message"])
+        self.assertIn("cancelled", log["message"])
 
     def test_ut_aud_02_save_sync_state_logs_purchase_status_changes_with_actor(self) -> None:
         product = self.store.create_product(

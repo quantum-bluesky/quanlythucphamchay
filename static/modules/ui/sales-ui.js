@@ -8,6 +8,7 @@ export function createSalesUi(deps) {
     escapeHtml,
     mobileQuery,
     getActiveCart,
+    getPendingMergeCommittedCarts,
     getProductById,
     canDeleteCart,
     canEditCartDiscount,
@@ -24,29 +25,35 @@ export function createSalesUi(deps) {
       return { label: "Đã hủy", statusClass: "cancelled" };
     }
     if (cart.status === "completed") {
-      return { label: "Đã xong", statusClass: "completed" };
+      return { label: "Đã xuất hàng", statusClass: "completed" };
     }
-    return { label: "Nháp", statusClass: "draft" };
+    if (cart.status === "committed") {
+      return { label: "Chốt đơn", statusClass: "warning" };
+    }
+    return { label: "Chờ chốt", statusClass: "draft" };
+  }
+
+  function canEditCartShipAddress(cart) {
+    return Boolean(cart && ["draft", "committed"].includes(String(cart.status || "").trim()));
   }
 
   function getCartDetailRows(cart) {
     const statusMeta = getCartStatusMeta(cart);
-    const processedLabel = cart.paymentStatus === "paid"
-      ? "Ngày thanh toán"
-      : cart.status === "cancelled"
-        ? "Ngày hủy"
-        : "Ngày chốt";
     return [
       { label: "Mã đơn", value: cart.orderCode || "Chưa có" },
       { label: "Khách hàng", value: cart.customerName || "Chưa có" },
+      { label: "Địa chỉ giao", value: cart.shipAddress || "Chưa có" },
       { label: "Trạng thái", value: statusMeta.label },
       { label: "Tạm tính", value: formatCurrency(cart.subtotalAmount || 0) },
       { label: "Giảm KM", value: formatCurrency(cart.discountAmount || 0) },
       { label: "Cần thanh toán", value: formatCurrency(cart.totalAmount || 0) },
       { label: "Ngày tạo", value: formatDate(cart.createdAt) || "Chưa có" },
-      { label: processedLabel, value: formatDate(cart.paidAt || cart.completedAt || cart.cancelledAt) || "Chưa có" },
+      cart.committedAt ? { label: "Ngày chốt", value: formatDate(cart.committedAt) || "Chưa có" } : null,
+      cart.completedAt ? { label: "Ngày xuất", value: formatDate(cart.completedAt) || "Chưa có" } : null,
+      cart.cancelledAt ? { label: "Ngày hủy", value: formatDate(cart.cancelledAt) || "Chưa có" } : null,
+      cart.paidAt ? { label: "Ngày thanh toán", value: formatDate(cart.paidAt) || "Chưa có" } : null,
       { label: "Cập nhật cuối", value: formatDate(cart.updatedAt) || "Chưa có" },
-    ];
+    ].filter(Boolean);
   }
 
   function renderCartDiscountEditor(cart, actionAttribute) {
@@ -66,8 +73,25 @@ export function createSalesUi(deps) {
     `;
   }
 
+  function renderCartShipAddressEditor(cart, actionAttribute) {
+    if (!canEditCartShipAddress(cart)) {
+      return "";
+    }
+    return `
+      <div class="document-discount-editor">
+        <label class="price-field">
+          <span>Địa chỉ giao hàng</span>
+          <input type="text" maxlength="255" value="${escapeHtml(cart.shipAddress || "")}" data-cart-ship-address-input="${cart.id}" placeholder="Nhập địa chỉ giao cho đơn này">
+        </label>
+        <div class="line-actions">
+          <button type="button" class="ghost-button compact-button" ${actionAttribute} data-cart-id="${cart.id}">Lưu địa chỉ giao</button>
+        </div>
+      </div>
+    `;
+  }
+
   function renderCartDocumentDetail(cart, options = {}) {
-    const { includeItems = false, discountActionAttribute = "" } = options;
+    const { includeItems = false, discountActionAttribute = "", shipAddressActionAttribute = "" } = options;
     const statusMeta = getCartStatusMeta(cart);
     const detailRows = getCartDetailRows(cart);
     const itemsMarkup = includeItems
@@ -86,6 +110,7 @@ export function createSalesUi(deps) {
           `).join("")}</div>`
         : '<div class="empty-state">Phiếu xuất này chưa có dòng hàng.</div>')
       : "";
+    const shipAddressMarkup = shipAddressActionAttribute ? renderCartShipAddressEditor(cart, shipAddressActionAttribute) : "";
     const discountEditorMarkup = discountActionAttribute ? renderCartDiscountEditor(cart, discountActionAttribute) : "";
     return `
       <div class="document-detail-block">
@@ -98,15 +123,66 @@ export function createSalesUi(deps) {
             ${detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
           </article>
         </div>
+        ${shipAddressMarkup}
         ${discountEditorMarkup}
         ${itemsMarkup}
       </div>
     `;
   }
 
+  function renderPendingMergePrompt() {
+    const customerName = String(state.pendingCartMergeCustomerName || "").trim();
+    const committedCarts = getPendingMergeCommittedCarts();
+    if (!customerName || !committedCarts.length) {
+      dom.activeCartPanel.innerHTML = '<div class="empty-state">Chưa có giỏ hàng nào đang mở. Hãy mở giỏ hàng trước khi chọn sản phẩm.</div>';
+      return;
+    }
+    dom.activeCartPanel.innerHTML = `
+      <article class="active-cart-card">
+        <div class="active-cart-header">
+          <div>
+            <p class="panel-kicker">Khách hiện hành</p>
+            <h3>${escapeHtml(customerName)}</h3>
+            <p class="panel-note">Khách này đang có ${escapeHtml(String(committedCarts.length))} đơn đã chốt. Chọn gộp vào đơn có sẵn hoặc tạo đơn nháp mới.</p>
+          </div>
+          <div class="inline-menu-actions">
+            <span class="status-pill warning">Chờ chọn</span>
+            <button type="button" class="ghost-button compact-button" data-cart-action="merge-dismiss">Đóng</button>
+          </div>
+        </div>
+        <div class="cart-toolbar">
+          <button type="button" class="ghost-button" data-cart-action="merge-open-orders">Xem danh sách đơn</button>
+          <button type="button" class="primary-button" data-cart-action="merge-create-new">Tạo đơn mới</button>
+        </div>
+        <div class="document-detail-items">
+          ${committedCarts.map((cart) => {
+            const statusMeta = getCartStatusMeta(cart);
+            return `
+              <article class="document-detail-item">
+                <div class="document-detail-item-head">
+                  <strong>${escapeHtml(cart.orderCode || cart.customerName)}</strong>
+                  <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}</span>
+                </div>
+                <div class="document-detail-item-meta">
+                  <span>${escapeHtml(formatDate(cart.committedAt || cart.updatedAt || cart.createdAt))}</span>
+                  <span>${escapeHtml(formatCurrency(cart.totalAmount || 0))}</span>
+                </div>
+                <div class="line-actions">
+                  <button type="button" class="ghost-button compact-button" data-cart-action="merge-open-existing" data-cart-id="${cart.id}">Mở đơn này</button>
+                  <button type="button" class="ghost-button compact-button" data-cart-action="merge-print-existing" data-cart-id="${cart.id}">In</button>
+                </div>
+              </article>
+            `;
+          }).join("")}
+        </div>
+      </article>
+    `;
+  }
+
   function renderCreateOrderEntryState() {
     const activeCart = getActiveCart();
-    const compactActive = mobileQuery.matches && Boolean(activeCart);
+    const hasPendingMergePrompt = !activeCart && Boolean(state.pendingCartMergeCustomerId && getPendingMergeCommittedCarts().length);
+    const compactActive = mobileQuery.matches && Boolean(activeCart || hasPendingMergePrompt);
     dom.createOrderSection?.classList.toggle("has-active-cart", compactActive);
     dom.createOrderCustomerCard?.classList.toggle("is-compact-active", compactActive);
     if (dom.openCartButton) {
@@ -118,21 +194,31 @@ export function createSalesUi(deps) {
     const compact = mobileQuery.matches;
     const cart = getActiveCart();
     if (!cart) {
+      if (state.pendingCartMergeCustomerId) {
+        renderPendingMergePrompt();
+        return;
+      }
       dom.activeCartPanel.innerHTML = '<div class="empty-state">Chưa có giỏ hàng nào đang mở. Hãy mở giỏ hàng trước khi chọn sản phẩm.</div>';
       return;
     }
+    const statusMeta = getCartStatusMeta(cart);
+    const canPrint = ["committed", "completed"].includes(cart.status);
+    const noteText = cart.status === "committed"
+      ? "Đơn đã chốt: khóa khách hàng, vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới khi xuất."
+      : "Đơn nháp: có thể chọn khách, sửa dòng hàng, địa chỉ giao và giảm giá trước khi chốt.";
     if (state.activeCartPanelCollapsed) {
       dom.activeCartPanel.innerHTML = `
         <article class="active-cart-card is-collapsed">
           <div class="active-cart-header">
             <div>
-              <p class="panel-kicker">Giỏ hiện hành</p>
+              <p class="panel-kicker">${cart.status === "committed" ? "Đơn đã chốt" : "Giỏ hiện hành"}</p>
               <h3>${escapeHtml(cart.customerName)}</h3>
               <p class="panel-note">${escapeHtml(cart.itemCount)} dòng • Cần thu ${escapeHtml(formatCurrency(cart.totalAmount))}</p>
             </div>
             <div class="row-actions active-cart-actions">
-              <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Mở giỏ</button>
-              <button type="button" class="ghost-button compact-button" data-cart-action="close">Đóng giỏ</button>
+              <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}</span>
+              <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Mở đơn</button>
+              <button type="button" class="ghost-button compact-button" data-cart-action="close">Đóng</button>
             </div>
           </div>
         </article>
@@ -141,18 +227,20 @@ export function createSalesUi(deps) {
     }
 
     const detailButtonLabel = state.activeCartDetailExpanded ? (compact ? "Ẩn detail" : "Thu gọn detail") : "Detail";
+    const shipAddressMarkup = renderCartShipAddressEditor(cart, 'data-cart-action="save-ship-address"');
+    const discountMarkup = renderCartDiscountEditor(cart, 'data-cart-action="save-discount"');
     dom.activeCartPanel.innerHTML = `
       <article class="active-cart-card">
         <div class="active-cart-header">
           <div>
-            <p class="panel-kicker">Khách hiện hành</p>
+            <p class="panel-kicker">${cart.status === "committed" ? "Đơn đã chốt" : "Khách hiện hành"}</p>
             <h3>${escapeHtml(cart.customerName)}</h3>
-            <p class="panel-note">Tạo lúc ${escapeHtml(formatDate(cart.createdAt))}. Cập nhật ${escapeHtml(formatDate(cart.updatedAt))}.</p>
+            <p class="panel-note">${escapeHtml(noteText)}</p>
           </div>
           <div class="inline-menu-actions">
-            <span class="status-pill draft">Đang chờ</span>
+            <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}</span>
             <button type="button" class="ghost-button compact-button" data-cart-action="toggle-panel">Thu gọn</button>
-            <button type="button" class="ghost-button compact-button" data-cart-action="close">Đóng giỏ</button>
+            <button type="button" class="ghost-button compact-button" data-cart-action="close">Đóng</button>
           </div>
         </div>
         <div class="active-cart-stats">
@@ -160,13 +248,18 @@ export function createSalesUi(deps) {
           <div class="stat-chip"><span>Tạm tính</span><strong>${escapeHtml(formatCurrency(cart.subtotalAmount || 0))}</strong></div>
           <div class="stat-chip"><span>Cần thu</span><strong>${escapeHtml(formatCurrency(cart.totalAmount))}</strong></div>
         </div>
-        ${state.activeCartDetailExpanded ? renderCartDocumentDetail(cart, { discountActionAttribute: 'data-cart-action="save-discount"' }) : renderCartDiscountEditor(cart, 'data-cart-action="save-discount"')}
+        ${state.activeCartDetailExpanded ? renderCartDocumentDetail(cart, {
+          shipAddressActionAttribute: 'data-cart-action="save-ship-address"',
+          discountActionAttribute: 'data-cart-action="save-discount"',
+        }) : `${shipAddressMarkup}${discountMarkup}`}
         <div class="cart-toolbar">
           <button type="button" class="ghost-button" data-cart-action="toggle-detail">${detailButtonLabel}</button>
-          <button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In / gửi khách"}</button>
-          <button type="button" class="primary-button" data-cart-action="checkout" ${cart.itemCount ? "" : "disabled"}>${compact ? "Xuất" : "Chốt xuất kho"}</button>
-          <button type="button" class="secondary-button" data-cart-action="cancel">${compact ? "Hủy" : "Hủy giỏ"}</button>
-          <button type="button" class="danger-button" data-cart-action="delete">${compact ? "Xóa" : "Xóa giỏ"}</button>
+          ${canPrint ? `<button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In phiếu"}</button>` : ""}
+          ${cart.status === "draft"
+            ? `<button type="button" class="primary-button" data-cart-action="commit" ${cart.itemCount ? "" : "disabled"}>${compact ? "Chốt" : "Chốt đơn"}</button>`
+            : `<button type="button" class="primary-button" data-cart-action="ship" ${cart.itemCount ? "" : "disabled"}>${compact ? "Xuất" : "Xuất hàng"}</button>`}
+          <button type="button" class="secondary-button" data-cart-action="cancel">${compact ? "Hủy" : "Hủy đơn"}</button>
+          ${canDeleteCart(cart) ? `<button type="button" class="danger-button" data-cart-action="delete">${compact ? "Xóa" : "Xóa giỏ"}</button>` : ""}
         </div>
       </article>
     `;
@@ -185,8 +278,10 @@ export function createSalesUi(deps) {
     dom.salesProductList.classList.toggle("is-compact-search", isSearchResultMode("salesProducts"));
 
     const notice = !activeCart
-      ? '<article class="inline-alert warning">Chưa mở giỏ hàng. Hãy chọn khách và bấm "Mở giỏ hàng" trước khi chọn sản phẩm.</article>'
-      : "";
+      ? '<article class="inline-alert warning">Chưa mở đơn hàng. Hãy chọn khách và bấm "Mở giỏ hàng" trước khi chọn sản phẩm.</article>'
+      : activeCart.status === "committed"
+        ? '<article class="inline-alert warning">Đơn đã chốt: không đổi được khách hàng, nhưng vẫn có thể điều chỉnh dòng hàng cho tới khi xuất.</article>'
+        : "";
     if (!filtered.length) {
       dom.salesProductList.innerHTML = `${notice}<div class="empty-state">${activeCart?.items?.length ? "Các mặt hàng đang khớp đã được chuyển lên phần giỏ hiện hành phía trên; chỉ dòng đang thao tác bằng nút ... mới được giữ lại ở danh sách dưới." : "Không có mặt hàng phù hợp."}</div>`;
       return;
@@ -218,7 +313,7 @@ export function createSalesUi(deps) {
             </div>
             ${expandedInline ? (inCart
               ? `<div class="sales-inline-detail"><div class="sales-inline-editor"><label class="sales-inline-qty"><span>SL</span><input type="number" min="0.01" step="0.01" value="${cartItem.quantity}" data-sales-inline-qty="${cartItem.id}"></label></div><label class="price-field"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${cartItem.unitPrice}" data-sales-inline-price="${cartItem.id}"></label><div class="line-actions"><button type="button" class="ghost-button compact-button" data-sales-inline-action="save" data-item-id="${cartItem.id}">Lưu</button><button type="button" class="ghost-button compact-button" data-sales-inline-action="update-default-price" data-product-id="${product.id}" data-item-id="${cartItem.id}">Giá chung</button></div></div>`
-              : `<div class="sales-inline-detail"><div class="cart-line-note">Tick chọn sản phẩm để đưa vào giỏ, sau đó nhập số lượng và giá bán chi tiết tại đây.</div></div>`)
+              : `<div class="sales-inline-detail"><div class="cart-line-note">Tick chọn sản phẩm để đưa vào đơn, sau đó nhập số lượng và giá bán chi tiết tại đây.</div></div>`)
             : ""}
           </article>
         `;
@@ -262,13 +357,13 @@ export function createSalesUi(deps) {
             ${expandedItem ? `<div class="cart-item-controls">
               <div class="cart-item-edit-grid">
                 <label class="price-field"><span>Số lượng</span><input class="qty-input" type="number" min="0.01" step="0.01" value="${item.quantity}" data-qty-input="${item.id}"></label>
-                <label class="price-field"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${item.unitPrice}" data-price-input="${item.id}"></label>
+                <label class="price-field"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${item.unitPrice}" data-price-input="${item.id}"></label></label>
               </div>
               <div class="cart-line-pricing">
                 <div class="line-actions">
                   <button type="button" class="ghost-button compact-button" data-cart-item-action="save" data-item-id="${item.id}">Lưu dòng</button>
                   <button type="button" class="ghost-button compact-button" data-cart-item-action="update-default-price" data-product-id="${item.productId}" data-item-id="${item.id}">Giá chung</button>
-                  <button type="button" class="danger-button compact-button" data-cart-item-action="remove" data-item-id="${item.id}">Bỏ khỏi giỏ</button>
+                  <button type="button" class="danger-button compact-button" data-cart-item-action="remove" data-item-id="${item.id}">Bỏ khỏi đơn</button>
                 </div>
               </div>
             </div>` : ""}
@@ -281,14 +376,14 @@ export function createSalesUi(deps) {
   function renderCartQueue() {
     const compact = mobileQuery.matches;
     const customerFilterId = String(state.orderFilterCustomerId || "");
-    const drafts = state.carts.filter((cart) => cart.status === "draft");
+    const pending = state.carts.filter((cart) => ["draft", "committed"].includes(cart.status));
     const archived = state.carts.filter((cart) => {
-      if (cart.status === "draft") return false;
+      if (["draft", "committed"].includes(cart.status)) return false;
       if (!state.showCancelledOrders && cart.status === "cancelled") return false;
       if (!state.showPaidOrders && cart.paymentStatus === "paid") return false;
       return true;
     });
-    const visibleCarts = (state.showArchivedCarts ? [...drafts, ...archived] : drafts).filter((cart) => {
+    const visibleCarts = (state.showArchivedCarts ? [...pending, ...archived] : pending).filter((cart) => {
       if (customerFilterId && String(cart.customerId || "") !== customerFilterId) return false;
       if (!state.orderSearchTerm) return true;
       const haystack = `${cart.customerName} ${cart.orderCode} ${cart.items.map((item) => item.productName).join(" ")}`.toLowerCase();
@@ -296,7 +391,7 @@ export function createSalesUi(deps) {
     });
     dom.cartQueueList.classList.toggle("is-compact-search", Boolean(customerFilterId) || isSearchResultMode("orders"));
     if (dom.draftCartBadge) {
-      dom.draftCartBadge.textContent = String(drafts.length);
+      dom.draftCartBadge.textContent = String(pending.length);
     }
     if (!visibleCarts.length) {
       dom.cartQueueList.innerHTML = '<div class="empty-state">Không có đơn hàng phù hợp.</div>';
@@ -309,13 +404,16 @@ export function createSalesUi(deps) {
     dom.cartQueueList.innerHTML = topPagination + pageData.items
       .map((cart) => {
         const expanded = String(state.expandedOrderId) === String(cart.id);
-        const compactMeta = `${formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • Cần thu ${formatCurrency(cart.totalAmount)}`;
+        const statusMeta = getCartStatusMeta(cart);
+        const compactMeta = `${formatDate(cart.completedAt || cart.committedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • Cần thu ${formatCurrency(cart.totalAmount)}`;
         const detailButtonLabel = expanded ? "Ẩn detail" : "Detail";
+        const allowPrint = ["committed", "completed"].includes(cart.status);
+        const allowOpen = ["draft", "committed"].includes(cart.status);
         return `
         <article class="cart-queue-item ${expanded ? "is-expanded" : ""}">
           <div class="queue-header">
             <strong>${escapeHtml(cart.customerName)}</strong>
-            <span class="status-pill ${getCartStatusMeta(cart).statusClass}">${getCartStatusMeta(cart).label}</span>
+            <span class="status-pill ${statusMeta.statusClass}">${statusMeta.label}</span>
           </div>
           <div class="queue-meta">
             <span>${escapeHtml(cart.orderCode || `Cập nhật ${formatDate(cart.updatedAt)}`)}</span>
@@ -326,28 +424,37 @@ export function createSalesUi(deps) {
             : `
               <div class="queue-meta">
                 <span>${escapeHtml(cart.itemCount)} dòng | ${escapeHtml(formatQuantity(cart.totalQuantity))} số lượng | ${cart.paymentStatus === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}</span>
-                <span>${escapeHtml(formatDate(cart.completedAt || cart.cancelledAt || cart.updatedAt))}</span>
+                <span>${escapeHtml(formatDate(cart.completedAt || cart.committedAt || cart.cancelledAt || cart.updatedAt))}</span>
               </div>
             `}
           <div class="queue-actions">
-            ${cart.status === "draft"
-              ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="open" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục bán"}</button>`
-              : `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>`}
+            ${allowOpen
+              ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="open" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục xử lý"}</button>`
+              : allowPrint
+                ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>`
+                : ""}
             <button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">${detailButtonLabel}</button>
             ${!compact && cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="customer-return" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
             ${!compact && cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
-            ${!compact && cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
+            ${!compact && cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="commit" data-queue-action="commit" data-cart-id="${cart.id}">Chốt đơn</button>` : ""}
+            ${!compact && cart.status === "committed" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="ship" data-queue-action="ship" data-cart-id="${cart.id}">Xuất hàng</button>` : ""}
+            ${!compact && ["draft", "committed"].includes(cart.status) ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
             ${!compact && canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
           </div>
           ${expanded ? `
             <div class="queue-detail-block">
-              ${renderCartDocumentDetail(cart, { includeItems: true, discountActionAttribute: 'data-queue-action="save-discount"' })}
+              ${renderCartDocumentDetail(cart, {
+                includeItems: true,
+                shipAddressActionAttribute: 'data-queue-action="save-ship-address"',
+                discountActionAttribute: 'data-queue-action="save-discount"',
+              })}
               ${compact ? `<div class="queue-actions queue-actions-expanded">
-                ${cart.status === "draft" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
-                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="checkout" data-queue-action="checkout" data-cart-id="${cart.id}">Xuất</button>` : ""}
+                ${allowPrint ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
+                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="commit" data-queue-action="commit" data-cart-id="${cart.id}">Chốt</button>` : ""}
+                ${cart.status === "committed" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="ship" data-queue-action="ship" data-cart-id="${cart.id}">Xuất</button>` : ""}
                 ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="customer-return" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả</button>` : ""}
                 ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">TT</button>` : ""}
-                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
+                ${["draft", "committed"].includes(cart.status) ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
                 ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
               </div>` : ""}
             </div>

@@ -119,24 +119,40 @@ Trong `Giỏ hiện hành`:
 
 ### Bước 4: Chốt đơn
 
-Bấm:
+Ở đơn nháp, bấm:
 
 ```text
-Chốt xuất kho
+Chốt đơn
 ```
 
-Trước khi đổi trạng thái sang đơn đã xong, app sẽ hiện message confirm để tránh xuất nhầm.
+Trước khi đổi trạng thái sang `Chốt đơn`, app sẽ hiện message confirm để tránh bấm nhầm.
 
 Nếu đủ hàng:
 
-- hệ thống trừ kho
-- đơn chuyển sang trạng thái đã xong
-- có thể in / gửi danh sách cho khách
+- hệ thống giữ hàng logic cho đơn này nhưng chưa trừ kho thật
+- đơn chuyển sang trạng thái `Chốt đơn`
+- khóa khách hàng của đơn, không cho xóa phiếu
+- vẫn cho sửa dòng hàng, địa chỉ giao và `Giảm giá khuyến mại` cho tới trước khi xuất hàng
+- có thể in / gửi danh sách cho khách ngay từ thời điểm này
 - nếu đã nhập `Giảm giá khuyến mại`, số `Cần thanh toán` trên phiếu và bản in sẽ là số đã trừ khuyến mại
+
+### Bước 5: Xuất hàng
+
+Khi giao thật, mở lại đơn đang ở trạng thái `Chốt đơn` rồi bấm:
+
+```text
+Xuất hàng
+```
+
+Nếu đủ hàng:
+
+- hệ thống mới trừ kho ở bước này
+- đơn chuyển sang trạng thái `Đã xuất hàng`
+- không tự in phiếu nữa; nếu cần in thì bấm `In`
 
 Nếu thiếu hàng:
 
-- app sẽ báo thiếu hàng trước khi tạo hoặc cập nhật phiếu nhập dự kiến
+- app sẽ báo thiếu hàng khả dụng trước khi chốt hoặc thiếu hàng thực tế trước khi xuất
 - nếu đã có phiếu chờ nhập với đủ số lượng cho các mặt hàng đang thiếu, app sẽ báo là đã có phiếu nhập và chỉ mở lại phiếu đó nếu bạn xác nhận cần chỉnh
 - với user thường, sau khi xác nhận app mới chuyển sang `Quản lý nhập hàng` để tạo hoặc mở phiếu nhập tương ứng
 - với `Master Admin`, hệ thống mới cho phép chọn sang màn tồn kho để chỉnh trực tiếp nếu thực sự cần
@@ -153,7 +169,8 @@ Vào menu:
 Dùng màn này để:
 
 - mở lại giỏ hàng đang chờ
-- xuất nhanh giỏ nháp ra đơn
+- chốt nhanh đơn nháp
+- xuất hàng cho đơn đã chốt
 - in lại đơn
 - đánh dấu `Đã thanh toán`
 - hủy đơn
@@ -161,25 +178,29 @@ Dùng màn này để:
 
 ### Khi nào dùng từng nút
 
-- `Tiếp tục bán`: mở lại giỏ hàng nháp để sửa tiếp
-- `Xuất`: chốt nhanh giỏ nháp thành đơn mà không cần mở lại giỏ; trên mobile mở `Detail` để hiện cụm action của card
+- `Tiếp tục xử lý`: mở lại đơn nháp hoặc đơn đã chốt để sửa tiếp trước khi xuất
+- `Chốt đơn`: khóa khách hàng và giữ hàng logic cho đơn nháp
+- `Xuất hàng`: trừ kho thật cho đơn đã chốt
 - `Detail`: bung nhanh mã đơn, trạng thái, ngày tạo, mốc xử lý và danh sách dòng hàng của phiếu
 - `In`: in hoặc gửi lại danh sách hàng cho khách
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền
 - `Hủy`: dùng khi khách không lấy nữa
 - `Xóa`: chỉ áp dụng cho giỏ nháp tạo nhầm; đơn đã chốt phải giữ lại lịch sử
-- `Lưu giảm giá`: chỉnh lại tổng khuyến mại của cả đơn khi đơn đã chốt nhưng chưa thanh toán
+- `Lưu giảm giá`: chỉnh lại tổng khuyến mại của cả đơn khi đơn chưa thanh toán
+- `Lưu địa chỉ giao`: cập nhật địa chỉ giao riêng của đơn cho tới trước khi đã xuất hàng
 
 Lưu ý:
 
 - mặc định danh sách không hiện đơn đã hủy; chỉ bật checkbox `Hiện đơn đã hủy` khi cần tra cứu lại lịch sử hủy
-- đơn đã `Đã xong` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng hay giá
-- trước khi `Đã thanh toán`, vẫn được sửa riêng `Giảm giá khuyến mại` của cả đơn
+- một khách có thể có nhiều đơn `Chốt đơn`; khi mở đơn mới cho khách mà khách chưa có đơn nháp nhưng đang có đơn đã chốt, app sẽ hiện khối chọn để `Mở đơn đã chốt` hoặc `Tạo đơn mới`
+- đơn đã `Chốt đơn` không đổi được khách hàng và không được xóa, nhưng vẫn hủy được nếu khách không lấy nữa
+- đơn đã `Đã xuất hàng` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao
+- trước khi `Đã thanh toán`, vẫn được sửa riêng `Giảm giá khuyến mại` của cả đơn; riêng địa chỉ giao chỉ được sửa tới trước `Đã xuất hàng`
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
 - kể cả `Master Admin` cũng không được xóa hoặc hủy ngược đơn đã chốt
 - trên mobile hoặc tablet, có thể dùng `Detail` để bung rồi thu gọn nhanh nội dung phiếu ngay trong danh sách
-- nếu đi từ màn `Khách hàng` sang bằng badge `giỏ chờ` hoặc `đơn`, app sẽ tự lọc đúng các phiếu của khách; khi khách chỉ có 1 phiếu thì detail sẽ tự mở sẵn kể cả nếu đơn đã `Đã xong` hoặc `Đã thanh toán`
-- trước khi `Xuất`, `Đã thanh toán`, `Hủy` hoặc `Xóa`, app sẽ hiện message confirm để tránh đổi trạng thái hoặc xóa nhầm
+- nếu đi từ màn `Khách hàng` sang bằng badge `đơn chờ` hoặc `đơn`, app sẽ tự lọc đúng các phiếu của khách; khi khách chỉ có 1 phiếu thì detail sẽ tự mở sẵn kể cả nếu đơn đã `Đã xuất hàng` hoặc `Đã thanh toán`
+- trước khi `Chốt đơn`, `Xuất hàng`, `Đã thanh toán`, `Hủy` hoặc `Xóa`, app sẽ hiện message confirm để tránh đổi trạng thái hoặc xóa nhầm
 
 ## 6. Luồng quản lý khách hàng
 
@@ -447,12 +468,12 @@ Khi đó:
 - nếu chỉ cần sửa lại số tồn và bạn là `Master Admin`: sang `Kiểm tra tồn kho`
 - nếu thực sự còn thiếu hàng: xác nhận rồi sang `Quản lý nhập hàng`
 
-### Muốn xem lại đơn cũ đã xong
+### Muốn xem lại đơn cũ đã xuất hàng
 
 Vào `Quản lý đơn hàng` rồi bật:
 
 ```text
-Hiện đơn đã xong
+Hiện đơn lưu trữ
 ```
 
 ### Muốn xem lại đơn đã hủy

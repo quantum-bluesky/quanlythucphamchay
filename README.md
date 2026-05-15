@@ -13,6 +13,7 @@ App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/ql
 - Design database: [docs/DB_DESIGN.md](docs/DB_DESIGN.md)
 - Business flow: [docs/BUSINESS_FLOW.md](docs/BUSINESS_FLOW.md)
 - Design hiển thị phiếu: [docs/PHIEU_DISPLAY_DESIGN.md](docs/PHIEU_DISPLAY_DESIGN.md)
+- Thiết kế Issue 110 - Chốt đơn / Đã xuất hàng: [docs/ISSUE_110_ORDER_COMMIT_DESIGN.md](docs/ISSUE_110_ORDER_COMMIT_DESIGN.md)
 - Hướng dẫn test: [docs/TESTING.md](docs/TESTING.md)
 - Acceptance checklist: [docs/ACCEPTANCE_CHECKLIST.md](docs/ACCEPTANCE_CHECKLIST.md)
 - Phân tích workflow: [docs/WORKFLOW_REVIEW.md](docs/WORKFLOW_REVIEW.md)
@@ -101,7 +102,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Tồn kho liên kết trực tiếp với đơn chờ xuất và phiếu chờ nhập, thay cho nhập/xuất nhanh thủ công
 - Quản lý riêng `giá nhập` và `giá bán mặc định` của sản phẩm
 - Có badge `Chờ xuất` / `Chờ nhập` ngay trên card tồn kho để nhảy nhanh sang màn liên quan, đồng thời hiện `số phiếu / tổng số lượng` đang chờ theo từng mặt hàng
-- Quản lý khách hàng, giỏ hàng nháp và checkout nhiều mặt hàng trong một lần
+- Quản lý khách hàng, đơn nháp, `Chốt đơn` và `Xuất hàng` nhiều mặt hàng trong một lần
 - Ở màn xuất hàng và nhập hàng, các mặt hàng đã chọn sẽ được gom lên phần tóm tắt đơn/phiếu phía trên để thao tác nhanh
 - Ở màn nhập hàng, mỗi card gợi ý có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`
 - Khi thêm hàng vào phiếu chưa có NCC, app sẽ tự chọn NCC nếu mặt hàng chỉ từng nhập từ 1 NCC; nếu từng nhập từ nhiều NCC thì danh sách gợi ý NCC ưu tiên NCC đã nhập mặt hàng đó nhiều hơn
@@ -112,16 +113,16 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm
 - Khi chốt đơn bị thiếu hàng, app sẽ báo trước khi tạo/cập nhật phiếu nhập; nếu đã có phiếu chờ nhập đủ số lượng thì app chỉ thông báo và cho mở lại phiếu đó khi người dùng xác nhận cần chỉnh
 - Nút `Detail` ở `Giỏ hiện hành` và `Đơn hàng` cho phép bung nhanh metadata phiếu xuất và danh sách dòng hàng mà không phải mở sang chỗ chỉnh sửa
-- Từ màn Khách hàng có thể bấm badge `giỏ chờ` / `đơn` để mở danh sách phiếu của đúng khách; nếu khách chỉ có 1 phiếu thì màn Đơn hàng sẽ tự mở detail kể cả với đơn đã xong hoặc đã thanh toán
+- Từ màn Khách hàng có thể bấm badge `đơn chờ` / `đơn` để mở danh sách phiếu của đúng khách; nếu khách chỉ có 1 phiếu thì màn Đơn hàng sẽ tự mở detail kể cả với đơn đã xuất hàng hoặc đã thanh toán
 - Màn `Đơn hàng` mặc định ẩn đơn đã hủy; khi cần đối chiếu lịch sử có thể bật checkbox `Hiện đơn đã hủy`
-- Đơn đã chốt và phiếu đã nhập kho/đã thanh toán được khóa sửa trực tiếp để tránh thay đổi ngược lịch sử; ngoại lệ của phiếu nhập `Đã nhập kho` trước thanh toán là vẫn được chỉnh `giảm giá khuyến mại` và cập nhật lại metadata HSD/NSX của từng dòng
+- Đơn `Chốt đơn` khóa khách hàng nhưng vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới trước `Đã xuất hàng`; sau `Đã xuất hàng` chỉ còn được sửa `giảm giá khuyến mại` trước thanh toán
 - Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server
 - Tự nạp lại dữ liệu mới từ máy khác ở các màn chính khi màn hình đang rảnh thao tác, giúp thấy tồn kho và giá mới hơn mà không cần `F5`
 - Client `.js` được gắn version riêng theo dạng `version-chính.N`; trong cùng version chính, `N` tăng theo số lần nội dung file đổi, bỏ qua khác biệt `CRLF/LF`, còn khi version chính đổi thì `N` reset về `1`
 - Có kiểm tra xung đột khi nhiều máy cùng lưu `giỏ nháp` hoặc `phiếu nhập nháp`; app sẽ chặn ghi đè và yêu cầu tải dữ liệu mới nhất trước khi lưu tiếp
 - Trên mobile, menu nổi, ô tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi chạm ra ngoài; chạm vào phần mép còn lộ ra để mở lại
 - Trên PC/tablet, menu nghiệp vụ mặc định thu gọn; hover hoặc bấm `Mở menu` để bung ra nhanh, và menu sẽ tự gọn lại khi rê chuột hoặc bấm ra ngoài
-- In nhanh danh sách hàng và tổng tiền cho khách ngay từ giỏ hàng hoặc từ lịch sử đơn
+- In nhanh danh sách hàng và tổng tiền cho khách từ thời điểm đơn đã `Chốt đơn` hoặc từ lịch sử đơn
 - Giao diện theo menu nghiệp vụ riêng cho tồn kho, tạo đơn, đơn hàng, khách hàng và sản phẩm
 - Các màn chọn đối tượng đều có ô tìm kiếm/gõ tên để thao tác nhanh trên điện thoại
 - Quản lý nhập hàng với phiếu nhập nháp, trạng thái đặt hàng/nhập kho và gợi ý sản phẩm cần nhập
@@ -142,7 +143,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Màn Khách hàng trên mobile được nén còn khoảng 3 dòng mỗi card để thấy nhiều khách hơn; dòng cuối ưu tiên số liên lạc và action ngắn
 - Màn Khách hàng và Nhà cung cấp ưu tiên hiển thị danh sách; form tạo/sửa được thu gọn và chỉ mở khi bấm `Thêm mới` hoặc `Sửa`
 - Màn Sản phẩm cũng ưu tiên hiển thị danh sách; phần `Thêm sản phẩm` và `Lịch sử sản phẩm` được thu gọn sẵn và chỉ mở khi cần
-- Quản lý đơn hàng có trạng thái thanh toán và nút `Xuất` nhanh từ card giỏ nháp
+- Quản lý đơn hàng có thêm trạng thái `Chốt đơn`, `Đã xuất hàng`, thanh toán và các nút `Chốt đơn` / `Xuất hàng` nhanh theo từng card
 - Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, giá nhập, giá bán mặc định và ngưỡng cảnh báo
 - Danh mục sản phẩm có thêm `hạn dùng` và `thời gian bảo quản` theo số ngày để app làm fallback ước tính khi lô chưa có HSD thật, cũng như tự tính HSD từ `Ngày sản xuất` hoặc `Ngày nhập kho`; nếu lô đã có HSD riêng thì tồn kho ưu tiên dữ liệu lô
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần

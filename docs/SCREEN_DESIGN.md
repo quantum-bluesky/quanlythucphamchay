@@ -23,6 +23,7 @@ Tài liệu common liên quan:
 Liên kết detail hiện có:
 
 - Hiển thị các phiếu/chứng từ: [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
+- Thiết kế planned cho workflow `Chốt đơn` / `Đã xuất hàng`: [ISSUE_110_ORDER_COMMIT_DESIGN.md](ISSUE_110_ORDER_COMMIT_DESIGN.md)
 
 ## 1. Nguyên tắc UI chung
 
@@ -79,28 +80,33 @@ Liên kết detail hiện có:
   - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
   - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu, không phải per-line
   - khối `Giỏ hiện hành` có thêm button `Detail` để bung metadata phiếu xuất mà không chuyển màn
+  - detail đơn phải có thêm `Địa chỉ giao`; field này là snapshot riêng của đơn và cho sửa tới trước khi `Đã xuất hàng`
   - không dùng cụm nút tăng giảm nhanh trong `Giỏ hiện hành` để tránh rối trên mobile
-  - sau khi đơn đã `Đã xong` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Giảm giá khuyến mại`; không mở khóa lại dòng hàng
-  - khi chốt đơn bị thiếu hàng, app phải báo trước khi tạo/cập nhật phiếu nhập; nếu đã có phiếu chờ nhập đủ số lượng thì chỉ mở lại phiếu liên quan sau khi user xác nhận cần chỉnh
+  - sau khi đơn đã `Chốt đơn`, app khóa khách hàng nhưng vẫn cho sửa dòng hàng, địa chỉ giao và `Giảm giá khuyến mại`
+  - sau khi đơn đã `Đã xuất hàng` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Giảm giá khuyến mại`; không mở khóa lại dòng hàng
+  - khi mở đơn mới cho khách đang có đơn `Chốt đơn`, panel phải hiện lựa chọn `Mở đơn đã chốt` hoặc `Tạo đơn mới`
+  - khi chốt đơn bị thiếu hàng khả dụng hoặc khi xuất hàng bị thiếu hàng thực tế, app phải báo trước khi tạo/cập nhật phiếu nhập; nếu đã có phiếu chờ nhập đủ số lượng thì chỉ mở lại phiếu liên quan sau khi user xác nhận cần chỉnh
 
 ### `orders` - Quản lý đơn hàng
 
 - mục tiêu:
-  - xem giỏ nháp
-  - theo dõi đơn đã chốt
+  - xem đơn nháp và đơn đã chốt
+  - theo dõi đơn đã xuất hàng
   - cập nhật thanh toán
 - thành phần chính:
   - search đơn hàng
-  - filter hiện đơn đã xong / đã hủy / đã thanh toán
+  - filter hiện đơn lưu trữ / đã hủy / đã thanh toán
   - danh sách order card
 - nguyên tắc UI:
   - đơn đã hủy mặc định ẩn để list gọn hơn; user chỉ bật lại khi cần tra cứu
-  - giỏ nháp đang chờ xuất có nút `Xuất` nhanh ngay trên card trên tablet/PC
+  - đơn `draft` có nút `Chốt đơn` nhanh ngay trên card trên tablet/PC
+  - đơn `committed` có nút `Xuất hàng` nhanh ngay trên card trên tablet/PC
   - card đơn có button `Detail` để bung metadata và danh sách dòng hàng ngay trong list
-  - khi đi từ màn `customers`, list có thể tự lọc đúng theo `customerId`; nếu chỉ còn 1 phiếu phù hợp thì detail của phiếu đó phải tự mở kể cả với đơn `Đã xong` hoặc `Đã thanh toán`
-  - card đơn chưa thanh toán có thể hiện thêm input `Giảm giá khuyến mại` trong detail; đây là ngoại lệ duy nhất được sửa sau khi đơn đã chốt
-  - trên mobile, `Xuất` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
-  - các nút đổi trạng thái hoặc xóa phiếu như `Xuất`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
+  - khi đi từ màn `customers`, list có thể tự lọc đúng theo `customerId`; nếu chỉ còn 1 phiếu phù hợp thì detail của phiếu đó phải tự mở kể cả với đơn `Đã xuất hàng` hoặc `Đã thanh toán`
+  - card đơn `committed` có thể hiện thêm input `Địa chỉ giao` và `Giảm giá khuyến mại` trong detail
+  - card đơn `completed` chưa thanh toán chỉ còn hiện input `Giảm giá khuyến mại` trong detail
+  - trên mobile, `Chốt đơn`, `Xuất hàng` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
+  - các nút đổi trạng thái hoặc xóa phiếu như `Chốt đơn`, `Xuất hàng`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
 
 ### `customers` - Quản lý khách hàng
 

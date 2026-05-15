@@ -15,9 +15,10 @@ export function registerSalesControllerEvents(contract) {
   function confirmCartStatusAction(cart, action) {
     const label = getCartDisplayName(cart);
     const messages = {
-      checkout: `Chốt xuất kho cho "${label}"?\n\nĐơn sẽ chuyển sang Đã xong và tồn kho sẽ bị trừ ngay theo các dòng hiện tại.`,
+      commit: `Chốt đơn "${label}"?\n\nĐơn sẽ khóa khách hàng, giữ lại danh mục hàng đã chọn và cho phép in phiếu từ lúc này.`,
+      ship: `Xuất hàng cho "${label}"?\n\nĐơn sẽ chuyển sang Đã xuất hàng và tồn kho sẽ bị trừ ngay theo các dòng hiện tại.`,
       "mark-paid": `Đánh dấu "${label}" là đã thanh toán?\n\nApp sẽ ghi nhận đơn này đã thu tiền.`,
-      cancel: `Hủy "${label}"?\n\nGiỏ sẽ chuyển sang trạng thái Đã hủy và giữ lại trong lịch sử.`,
+      cancel: `Hủy "${label}"?\n\nĐơn sẽ chuyển sang trạng thái Đã hủy và giữ lại trong lịch sử.`,
       delete: `Xóa "${label}"?\n\nChỉ giỏ nháp tạo nhầm mới được xóa hẳn. Sau khi xác nhận, phiếu sẽ biến mất khỏi danh sách.`,
     };
     const message = messages[action];
@@ -60,6 +61,32 @@ export function registerSalesControllerEvents(contract) {
     return true;
   }
 
+  function saveCartShipAddress(cartId, inputSelectorRoot, options = {}) {
+    const { silent = false, persist = true } = options;
+    const cart = queries.getCartById(cartId);
+    if (!cart) {
+      actions.showToast("Không tìm thấy đơn hàng.", true);
+      return false;
+    }
+    if (!["draft", "committed"].includes(String(cart.status || "").trim())) {
+      actions.showToast("Chỉ đơn chưa xuất hàng mới được sửa địa chỉ giao.", true);
+      return false;
+    }
+    const shipAddressInput = inputSelectorRoot.querySelector(`[data-cart-ship-address-input="${cartId}"]`);
+    const shipAddress = String(shipAddressInput?.value || "").trim();
+    actions.updateCart(cartId, (currentCart) => ({
+      ...currentCart,
+      shipAddress,
+      ship_address: shipAddress,
+      updatedAt: utils.nowIso(),
+    }));
+    actions.saveAndRenderAll(persist ? ["carts"] : []);
+    if (!silent) {
+      actions.showToast("Đã lưu địa chỉ giao.");
+    }
+    return true;
+  }
+
   async function refreshAfterCartStatusError(error) {
     actions.showToast(`Không cập nhật được trạng thái đơn hàng: ${error.message}`, true);
     try {
@@ -81,6 +108,18 @@ export function registerSalesControllerEvents(contract) {
       await refreshAfterCartStatusError(error);
       return false;
     }
+  }
+
+  function saveCartEditorsBeforeStatusChange(cartId, root) {
+    const hasShipAddressInput = Boolean(root.querySelector(`[data-cart-ship-address-input="${cartId}"]`));
+    if (hasShipAddressInput && !saveCartShipAddress(cartId, root, { silent: true, persist: false })) {
+      return false;
+    }
+    const hasDiscountInput = Boolean(root.querySelector(`[data-cart-discount-input="${cartId}"]`));
+    if (hasDiscountInput && !saveCartDiscount(cartId, root, { silent: true, persist: false })) {
+      return false;
+    }
+    return true;
   }
 
   dom.salesSearchInput.addEventListener("input", (event) => {
@@ -132,7 +171,7 @@ export function registerSalesControllerEvents(contract) {
 
     const activeCart = queries.getActiveCart();
     if (!activeCart) {
-      actions.showToast("Hãy mở giỏ hàng trước.", true);
+      actions.showToast("Hãy mở đơn hàng trước.", true);
       checkbox.checked = false;
       return;
     }
@@ -189,7 +228,7 @@ export function registerSalesControllerEvents(contract) {
     }
     const activeCart = queries.getActiveCart();
     if (!activeCart) {
-      actions.showToast("Hãy mở giỏ hàng trước.", true);
+      actions.showToast("Hãy mở đơn hàng trước.", true);
       return;
     }
     if (actionButton.dataset.salesInlineAction === "remove") {
@@ -313,6 +352,40 @@ export function registerSalesControllerEvents(contract) {
   dom.activeCartPanel.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-cart-action]");
     if (!button) return;
+    if (button.dataset.cartAction === "merge-open-existing") {
+      actions.setActiveCart(button.dataset.cartId);
+      actions.focusActiveCartPanel();
+      return;
+    }
+    if (button.dataset.cartAction === "merge-print-existing") {
+      actions.printCart(button.dataset.cartId);
+      return;
+    }
+    if (button.dataset.cartAction === "merge-create-new") {
+      try {
+        actions.createNewDraftForPendingMergeCustomer();
+        renderers.renderCreateOrderEntryState();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (button.dataset.cartAction === "merge-open-orders") {
+      const customerId = state.pendingCartMergeCustomerId;
+      if (!customerId) return;
+      try {
+        actions.openOrdersForCustomer(customerId);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (button.dataset.cartAction === "merge-dismiss") {
+      actions.clearPendingCartMergePrompt();
+      actions.saveAndRenderAll();
+      renderers.renderCreateOrderEntryState();
+      return;
+    }
     if (button.dataset.cartAction === "toggle-panel") {
       state.activeCartPanelCollapsed = !state.activeCartPanelCollapsed;
       renderers.renderActiveCartPanel();
@@ -343,16 +416,35 @@ export function registerSalesControllerEvents(contract) {
       saveCartDiscount(cart.id, dom.activeCartPanel);
       return;
     }
-    if (button.dataset.cartAction === "checkout") {
-      if (dom.activeCartPanel.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.activeCartPanel, { silent: true, persist: false })) {
+    if (button.dataset.cartAction === "save-ship-address") {
+      saveCartShipAddress(cart.id, dom.activeCartPanel);
+      return;
+    }
+    if (button.dataset.cartAction === "commit") {
+      if (!saveCartEditorsBeforeStatusChange(cart.id, dom.activeCartPanel)) {
         return;
       }
-      if (!confirmCartStatusAction(cart, "checkout")) {
+      if (!confirmCartStatusAction(cart, "commit")) {
         return;
       }
       try {
         await actions.flushPendingPersistCollections();
-        await actions.checkoutActiveCart();
+        await actions.commitActiveCart();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (button.dataset.cartAction === "ship") {
+      if (!saveCartEditorsBeforeStatusChange(cart.id, dom.activeCartPanel)) {
+        return;
+      }
+      if (!confirmCartStatusAction(cart, "ship")) {
+        return;
+      }
+      try {
+        await actions.flushPendingPersistCollections();
+        await actions.shipActiveCart();
       } catch (error) {
         actions.showToast(error.message, true);
       }
@@ -403,11 +495,11 @@ export function registerSalesControllerEvents(contract) {
     const cart = queries.getCartById(button.dataset.cartId);
     if (!cart) return;
     if (action === "open") {
-      state.activeCartId = cart.id;
+      actions.setActiveCart(cart.id);
       state.activeCartDetailExpanded = false;
-      actions.switchMenu(cart.status === "draft" ? "create-order" : "orders");
+      actions.switchMenu(["draft", "committed"].includes(cart.status) ? "create-order" : "orders");
       actions.saveAndRenderAll();
-      if (cart.status === "draft") {
+      if (["draft", "committed"].includes(cart.status)) {
         actions.focusActiveCartPanel();
       } else {
         actions.focusOrderQueueItem(cart.id);
@@ -422,16 +514,35 @@ export function registerSalesControllerEvents(contract) {
       saveCartDiscount(cart.id, dom.cartQueueList);
       return;
     }
-    if (action === "checkout") {
-      if (dom.cartQueueList.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.cartQueueList, { silent: true, persist: false })) {
+    if (action === "save-ship-address") {
+      saveCartShipAddress(cart.id, dom.cartQueueList);
+      return;
+    }
+    if (action === "commit") {
+      if (!saveCartEditorsBeforeStatusChange(cart.id, dom.cartQueueList)) {
         return;
       }
-      if (!confirmCartStatusAction(cart, "checkout")) {
+      if (!confirmCartStatusAction(cart, "commit")) {
         return;
       }
       try {
         await actions.flushPendingPersistCollections();
-        await actions.checkoutCart(cart.id);
+        await actions.commitCart(cart.id);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (action === "ship") {
+      if (!saveCartEditorsBeforeStatusChange(cart.id, dom.cartQueueList)) {
+        return;
+      }
+      if (!confirmCartStatusAction(cart, "ship")) {
+        return;
+      }
+      try {
+        await actions.flushPendingPersistCollections();
+        await actions.shipCart(cart.id);
       } catch (error) {
         actions.showToast(error.message, true);
       }
@@ -448,7 +559,7 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     if (action === "paid" || action === "mark-paid") {
-      if (dom.cartQueueList.querySelector(`[data-cart-discount-input="${cart.id}"]`) && !saveCartDiscount(cart.id, dom.cartQueueList, { silent: true, persist: false })) {
+      if (!saveCartEditorsBeforeStatusChange(cart.id, dom.cartQueueList)) {
         return;
       }
       const latestCart = queries.getCartById(button.dataset.cartId) || cart;
@@ -493,19 +604,34 @@ export function registerSalesControllerEvents(contract) {
   dom.activeCartPanel.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     const discountInput = event.target.closest("[data-cart-discount-input]");
-    if (!discountInput) return;
+    if (discountInput) {
+      event.preventDefault();
+      const saveButton = dom.activeCartPanel.querySelector('[data-cart-action="save-discount"]');
+      saveButton?.click();
+      return;
+    }
+    const shipAddressInput = event.target.closest("[data-cart-ship-address-input]");
+    if (!shipAddressInput) return;
     event.preventDefault();
-    const saveButton = dom.activeCartPanel.querySelector('[data-cart-action="save-discount"]');
+    const saveButton = dom.activeCartPanel.querySelector('[data-cart-action="save-ship-address"]');
     saveButton?.click();
   });
 
   dom.cartQueueList.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     const discountInput = event.target.closest("[data-cart-discount-input]");
-    if (!discountInput) return;
+    if (discountInput) {
+      event.preventDefault();
+      const cartId = discountInput.dataset.cartDiscountInput;
+      const saveButton = dom.cartQueueList.querySelector(`[data-queue-action="save-discount"][data-cart-id="${cartId}"]`);
+      saveButton?.click();
+      return;
+    }
+    const shipAddressInput = event.target.closest("[data-cart-ship-address-input]");
+    if (!shipAddressInput) return;
     event.preventDefault();
-    const cartId = discountInput.dataset.cartDiscountInput;
-    const saveButton = dom.cartQueueList.querySelector(`[data-queue-action="save-discount"][data-cart-id="${cartId}"]`);
+    const cartId = shipAddressInput.dataset.cartShipAddressInput;
+    const saveButton = dom.cartQueueList.querySelector(`[data-queue-action="save-ship-address"][data-cart-id="${cartId}"]`);
     saveButton?.click();
   });
 

@@ -57,29 +57,44 @@ Nếu cần can thiệp đặc biệt
 - trong `Giỏ hiện hành`, mỗi dòng hiển thị dưới dạng card gọn 2 dòng; bấm `...` để mở detail
 - sửa số lượng
 - sửa giá bán riêng cho đơn
+- sửa địa chỉ giao riêng của đơn
 - có thể nhập thêm `giảm giá khuyến mại` cho toàn đơn; app tự tính lại số tiền cần thu
 - nếu cần, cập nhật luôn giá bán mặc định
-- trong lúc phiếu còn `Nháp` hoặc `Đã đặt`, vẫn có thể thêm bớt dòng và chỉnh số lượng/giá; chỉ sau `Đã nhập kho` mới khóa nội dung
+- trong lúc đơn còn `draft` hoặc `committed`, vẫn có thể thêm bớt dòng và chỉnh số lượng/giá; chỉ sau `completed` mới khóa nội dung
+- từ `committed` trở đi, khách hàng của đơn bị khóa và không được đổi nữa
 
 ### Bước 4: Chốt đơn
 
 - nếu đủ tồn:
-  - tạo xuất kho
-  - trừ kho theo FEFO từ lô có HSD sớm nhất trước
-  - cart chuyển `completed`
+  - kiểm tra tồn khả dụng sau khi trừ phần đã giữ cho các đơn `committed` khác
+  - cart chuyển `committed`
+  - phát sinh `order_code` và `committed_at`
+  - chưa trừ kho thật
 - nếu thiếu tồn:
   - app phải báo trước khi tạo hoặc cập nhật phiếu nhập cho phần còn thiếu
   - nếu đã có phiếu `draft/ordered` đủ số lượng đáp ứng phần thiếu thì chỉ thông báo và cho mở lại phiếu liên quan khi user xác nhận cần chỉnh
   - user thường được dẫn sang luồng nhập hàng
   - không bypass chỉnh tồn
 
-### Bước 5: Theo dõi đơn
+### Bước 5: Xuất hàng
+
+- chỉ nhận đơn `committed`
+- nếu đủ tồn thực tế:
+  - tạo xuất kho
+  - trừ kho theo FEFO từ lô có HSD sớm nhất trước
+  - cart chuyển `completed`
+- nếu thiếu tồn thực tế:
+  - app báo trước và cho mở/tạo phiếu nhập bù thiếu
+- không tự động in phiếu sau khi xuất
+
+### Bước 6: Theo dõi đơn
 
 - màn `orders`
 - chỉ xem/in/thanh toán/hủy theo rule
 - nếu đi từ màn `customers`, app có thể lọc danh sách đơn đúng theo khách; nếu khách chỉ có 1 phiếu thì mở sẵn detail để xem ngay kể cả với đơn đã `completed/paid`
-- giỏ nháp đang chờ xuất có thể bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile nút này nằm trong `...`
-- đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng hay giá; ngoại lệ duy nhất trước thanh toán là vẫn cho sửa `giảm giá khuyến mại` của toàn đơn
+- đơn `draft` có nút `Chốt đơn`, đơn `committed` có nút `Xuất hàng`
+- đơn `committed` vẫn cho sửa dòng hàng, địa chỉ giao và giảm giá; không đổi được khách, không được xóa
+- đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; ngoại lệ duy nhất trước thanh toán là vẫn cho sửa `giảm giá khuyến mại` của toàn đơn
 
 ## 4. Luồng nhập hàng
 
