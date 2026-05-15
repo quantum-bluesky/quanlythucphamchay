@@ -146,7 +146,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, giá nhập, giá bán mặc định và ngưỡng cảnh báo
 - Danh mục sản phẩm có thêm `hạn dùng` và `thời gian bảo quản` theo số ngày để app làm fallback ước tính khi lô chưa có HSD thật, cũng như tự tính HSD từ `Ngày sản xuất` hoặc `Ngày nhập kho`; nếu lô đã có HSD riêng thì tồn kho ưu tiên dữ liệu lô
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần
-- Có lịch sử quản lý sản phẩm và màn quản lý các đối tượng đã xóa để khôi phục an toàn
+- Có lịch sử quản lý sản phẩm hiển thị rõ field nào đã đổi, người thao tác và vẫn giữ đúng actor khi import master; kèm màn quản lý các đối tượng đã xóa để khôi phục an toàn
 - Có login hệ thống cho `user` thường và `Master Admin`; có thể bật `EnableLogin` để bắt buộc login mới dùng app
 - Nếu cùng một domain chạy nhiều instance app ở các port khác nhau như `:4000` và `:9999`, session login sẽ được tách riêng theo từng port để không tự đá nhau
 - Có module `Master Admin` để export/import file master (JSON/CSV) và backup/restore toàn bộ database

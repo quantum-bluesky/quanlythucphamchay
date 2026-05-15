@@ -1110,6 +1110,55 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(by_code[adjustment["receipt_code"]]["reason"], "Kiểm kho")
         self.assertIn("Tạo phiếu điều chỉnh tồn", by_code[adjustment["receipt_code"]]["audit_message"])
 
+    def test_ut_aud_04_product_master_import_logs_actor_for_restore_and_update(self) -> None:
+        product = self.store.create_product(
+            name="Chả cốm chay",
+            category="Đông lạnh",
+            unit="gói",
+            price=18000,
+            sale_price=22000,
+            low_stock_threshold=2,
+            actor="seed-user",
+        )
+        self.store.delete_product(product["id"], actor="seed-user")
+
+        result = self.store.import_master_data(
+            "products",
+            [
+                {
+                    "name": "Chả cốm chay",
+                    "category": "Đông lạnh cao cấp",
+                    "unit": "gói",
+                    "price": 20000,
+                    "sale_price": 26000,
+                    "low_stock_threshold": 4,
+                }
+            ],
+            actor="admin-csv",
+        )
+
+        self.assertEqual(result["restored"], 1)
+        self.assertEqual(result["updated"], 1)
+
+        with self.store._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT action, actor, message
+                FROM audit_logs
+                WHERE entity_type = 'product'
+                  AND entity_id = ?
+                  AND action IN ('restore', 'update')
+                ORDER BY id DESC
+                """,
+                (str(product["id"]),),
+            ).fetchall()
+
+        logs = {row["action"]: row for row in rows}
+        self.assertEqual(logs["restore"]["actor"], "admin-csv")
+        self.assertEqual(logs["update"]["actor"], "admin-csv")
+        self.assertIn("Loại thực phẩm", logs["update"]["message"])
+        self.assertIn("Giá nhập", logs["update"]["message"])
+
     def test_ut_sync_01_save_sync_state_accepts_matching_expected_updated_at(self) -> None:
         initial = self.store.get_sync_state()
         expected = initial["updated_at"]["carts"]
@@ -1545,6 +1594,46 @@ class InventoryStoreTests(unittest.TestCase):
 
         self.assertTrue(any(entry["id"] == log_entry["id"] for entry in included_logs))
         self.assertFalse(any(entry["id"] == log_entry["id"] for entry in excluded_logs))
+
+    def test_ut_his_03_product_history_lists_changed_fields_for_inline_update(self) -> None:
+        product = self.store.create_product(
+            name="Bánh khúc",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=2,
+            shelf_life_days=30,
+            storage_life_days=45,
+        )
+        self.store.update_product(
+            product["id"],
+            name="Bánh khúc",
+            category="Đặc sản đông lạnh",
+            unit="hộp",
+            price=12000,
+            sale_price=18000,
+            low_stock_threshold=4,
+            shelf_life_days=60,
+            storage_life_days=None,
+            actor="user-detail",
+        )
+
+        log_entry = next(
+            entry
+            for entry in self.store.get_product_history(limit=20, actor="user-detail")
+            if entry["product_id"] == product["id"] and entry["action"] == "update"
+        )
+
+        self.assertEqual(log_entry["actor"], "user-detail")
+        self.assertNotIn("Tên sản phẩm", log_entry["message"])
+        self.assertIn('Loại thực phẩm: "Đông lạnh" -> "Đặc sản đông lạnh"', log_entry["message"])
+        self.assertIn('Đơn vị tính: "gói" -> "hộp"', log_entry["message"])
+        self.assertIn("Giá nhập: 10000 -> 12000", log_entry["message"])
+        self.assertIn("Giá bán: 15000 -> 18000", log_entry["message"])
+        self.assertIn("Ngưỡng cảnh báo: 2 -> 4", log_entry["message"])
+        self.assertIn("Hạn dùng (ngày): 30 -> 60", log_entry["message"])
+        self.assertIn("Bảo quản (ngày): 45 -> (trống)", log_entry["message"])
 
     def test_ut_norm_01_save_sync_state_persists_relational_tables(self) -> None:
         payload = {

@@ -107,6 +107,7 @@ export const SCREEN_HELP = {
       "Có thể nhập thêm Hạn dùng và Bảo quản theo số ngày để làm metadata fallback khi lô chưa có HSD thật; nếu lô đã có HSD riêng thì màn tồn kho sẽ ưu tiên theo dữ liệu lô.",
       "Nếu cần thêm mới, dùng form phía dưới danh sách.",
       "Xem phần Lịch sử sản phẩm bên dưới để biết thay đổi gần đây trước khi chỉnh tiếp.",
+      "Mỗi dòng lịch sử sẽ ghi rõ field nào đã đổi, giá trị cũ/mới và người thao tác để đối chiếu nhanh.",
       "Có thể lọc lịch sử theo người thao tác, từ ngày và đến ngày để đối chiếu audit nhanh.",
       DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
