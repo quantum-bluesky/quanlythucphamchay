@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Issue 110 Prototype - Chot don / Da xuat hang</title>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --paper: #fffdf8;
+      --line: #d8cdb8;
+      --ink: #253127;
+      --muted: #6d7566;
+      --draft: #efe4a7;
+      --draft-ink: #5d5100;
+      --commit: #d7ead4;
+      --commit-ink: #1d5a34;
+      --done: #cfe2f8;
+      --done-ink: #20466e;
+      --paid: #d9f0e2;
+      --paid-ink: #155336;
+      --danger: #f4d5d1;
+      --danger-ink: #7a2017;
+      --shadow: 0 14px 36px rgba(51, 43, 28, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.7), transparent 28%),
+        linear-gradient(180deg, #efe5d2 0%, var(--bg) 100%);
+      color: var(--ink);
+    }
+
+    .page {
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 24px 16px 56px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(255,253,248,0.98), rgba(245,238,222,0.95));
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.15;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .legend,
+    .layout {
+      display: grid;
+      gap: 16px;
+    }
+
+    .legend {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      margin: 18px 0 22px;
+    }
+
+    .legend-card,
+    .panel,
+    .modal-preview {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .legend-card {
+      padding: 16px;
+    }
+
+    .layout {
+      grid-template-columns: minmax(0, 1.08fr) minmax(330px, 0.92fr);
+      align-items: start;
+    }
+
+    .panel {
+      padding: 18px;
+    }
+
+    .panel h2,
+    .panel h3,
+    .modal-preview h3 {
+      margin: 0 0 10px;
+    }
+
+    .panel-note {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .chip,
+    .button,
+    .tab {
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      font-weight: 700;
+    }
+
+    .chip.draft { background: var(--draft); color: var(--draft-ink); }
+    .chip.committed { background: var(--commit); color: var(--commit-ink); }
+    .chip.completed { background: var(--done); color: var(--done-ink); }
+    .chip.paid { background: var(--paid); color: var(--paid-ink); }
+    .chip.cancelled { background: var(--danger); color: var(--danger-ink); }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .tab {
+      cursor: pointer;
+      background: #f1e8d6;
+      color: var(--ink);
+      padding: 10px 14px;
+      font-weight: 700;
+    }
+
+    .tab.active {
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .order-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(180deg, #fffefb 0%, #faf4e8 100%);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .order-head,
+    .meta-grid,
+    .line-row,
+    .action-row,
+    .filter-row,
+    .queue-card-head,
+    .modal-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .order-head {
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .order-title {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .subtle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .meta-grid {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .meta-box {
+      min-width: 136px;
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.7);
+    }
+
+    .meta-box strong {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .field-stack {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .field {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      padding: 10px 12px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .field .value {
+      font-weight: 600;
+    }
+
+    .locked {
+      color: #8a8479;
+      font-style: italic;
+    }
+
+    .items {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .line-row {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255,255,255,0.76);
+      align-items: flex-start;
+    }
+
+    .line-name {
+      font-weight: 700;
+      margin: 0 0 4px;
+    }
+
+    .line-note {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .line-price {
+      text-align: right;
+      min-width: 112px;
+    }
+
+    .line-price strong {
+      display: block;
+      font-size: 16px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 11px 14px;
+      background: #fff;
+      border-color: var(--line);
+      color: var(--ink);
+      font-weight: 700;
+      min-height: 40px;
+    }
+
+    .button.primary {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+
+    .button.commit {
+      background: var(--commit);
+      color: var(--commit-ink);
+      border-color: #a5cfaf;
+    }
+
+    .button.ship {
+      background: var(--done);
+      color: var(--done-ink);
+      border-color: #aac7e6;
+    }
+
+    .button.danger {
+      background: #fff2ef;
+      color: var(--danger-ink);
+      border-color: #e7beb8;
+    }
+
+    .action-row {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+
+    .queue-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .queue-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      background: linear-gradient(180deg, #fffefa 0%, #f7f1e3 100%);
+    }
+
+    .queue-card-head {
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .queue-card h4 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .queue-meta {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .filter-row {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .modal-preview {
+      padding: 18px;
+      margin-top: 16px;
+      background: linear-gradient(180deg, #fffdfa 0%, #f6efe2 100%);
+    }
+
+    .modal-row {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      margin-top: 10px;
+      background: rgba(255,255,255,0.82);
+      align-items: flex-start;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 960px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .hero h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>Prototype Issue 110: `Chốt đơn` trước `Đã xuất hàng`</h1>
+      <p>Mockup này chỉ để confirm flow và bố cục trước khi implement runtime thật. Hướng chốt ở prototype: giữ `Địa chỉ giao` ở cấp đơn, cho `In phiếu` từ `Chốt đơn`, và bỏ auto-print ở bước `Xuất hàng`.</p>
+    </section>
+
+    <section class="legend">
+      <article class="legend-card">
+        <span class="chip draft">Nháp</span>
+        <p class="panel-note">Sửa toàn bộ, đổi khách, xóa được.</p>
+      </article>
+      <article class="legend-card">
+        <span class="chip committed">Chốt đơn</span>
+        <p class="panel-note">Khóa khách, giữ địa chỉ giao và item còn sửa được trước khi xuất.</p>
+      </article>
+      <article class="legend-card">
+        <span class="chip completed">Đã xuất hàng</span>
+        <p class="panel-note">Đã trừ kho thật, khóa sửa trực tiếp, chỉ còn in lại, thanh toán, trả hàng.</p>
+      </article>
+      <article class="legend-card">
+        <span class="chip paid">Đã thanh toán</span>
+        <p class="panel-note">Trạng thái phủ sau `Đã xuất hàng`.</p>
+      </article>
+    </section>
+
+    <section class="layout">
+      <section class="panel">
+        <h2>Màn `Tạo đơn xuất hàng`</h2>
+        <p class="panel-note">Prototype của panel đơn hiện hành ở 3 trạng thái.</p>
+
+        <div class="tabs">
+          <button class="tab active" data-target="draft-view" type="button">Nháp</button>
+          <button class="tab" data-target="commit-view" type="button">Chốt đơn</button>
+          <button class="tab" data-target="ship-view" type="button">Đã xuất hàng</button>
+        </div>
+
+        <div id="draft-view" class="view active">
+          <article class="order-card">
+            <div class="order-head">
+              <div>
+                <h3 class="order-title">DH-mau-01</h3>
+                <p class="subtle">Khách hiện hành: Cô Lan Q7</p>
+              </div>
+              <span class="chip draft">Nháp</span>
+            </div>
+            <div class="meta-grid">
+              <div class="meta-box"><strong>Số dòng</strong>3 dòng</div>
+              <div class="meta-box"><strong>Tạm tính</strong>320.000</div>
+              <div class="meta-box"><strong>Giảm KM</strong>20.000</div>
+              <div class="meta-box"><strong>Cần thu</strong>300.000</div>
+            </div>
+            <div class="field-stack">
+              <div class="field">
+                <label>Khách hàng</label>
+                <div class="value">Cô Lan Q7</div>
+              </div>
+              <div class="field">
+                <label>Địa chỉ giao</label>
+                <div class="value">54 Nguyen Thi Thap, Q7</div>
+              </div>
+            </div>
+            <div class="items">
+              <div class="line-row">
+                <div>
+                  <p class="line-name">Cha lua chay</p>
+                  <p class="line-note">SL 2 cay • Gia ban 95.000 • Con sua duoc</p>
+                </div>
+                <div class="line-price"><strong>190.000</strong></div>
+              </div>
+              <div class="line-row">
+                <div>
+                  <p class="line-name">Nem chay</p>
+                  <p class="line-note">SL 2 hop • Gia ban 55.000 • Con sua duoc</p>
+                </div>
+                <div class="line-price"><strong>110.000</strong></div>
+              </div>
+            </div>
+            <div class="action-row">
+              <button class="button commit" type="button">Chốt đơn</button>
+              <button class="button" type="button">Detail</button>
+              <button class="button" type="button">In nháp</button>
+              <button class="button danger" type="button">Hủy</button>
+              <button class="button danger" type="button">Xóa</button>
+            </div>
+          </article>
+        </div>
+
+        <div id="commit-view" class="view">
+          <article class="order-card">
+            <div class="order-head">
+              <div>
+                <h3 class="order-title">DH-20260516-083000-01</h3>
+                <p class="subtle">Da xac nhan danh muc hang de giao</p>
+              </div>
+              <span class="chip committed">Chốt đơn</span>
+            </div>
+            <div class="meta-grid">
+              <div class="meta-box"><strong>Ngay tao</strong>08:10</div>
+              <div class="meta-box"><strong>Ngay chot</strong>08:30</div>
+              <div class="meta-box"><strong>Tam tinh</strong>320.000</div>
+              <div class="meta-box"><strong>Can thu</strong>300.000</div>
+            </div>
+            <div class="field-stack">
+              <div class="field">
+                <label>Khách hàng</label>
+                <div class="value locked">Co Lan Q7 (da khoa)</div>
+              </div>
+              <div class="field">
+                <label>Địa chỉ giao</label>
+                <div class="value">54 Nguyen Thi Thap, Q7 - Co the sua truoc khi xuat</div>
+              </div>
+            </div>
+            <div class="items">
+              <div class="line-row">
+                <div>
+                  <p class="line-name">Cha lua chay</p>
+                  <p class="line-note">SL 2 cay • Gia ban 95.000 • Cho phep them bot neu can gop don</p>
+                </div>
+                <div class="line-price"><strong>190.000</strong></div>
+              </div>
+              <div class="line-row">
+                <div>
+                  <p class="line-name">Nem chay</p>
+                  <p class="line-note">SL 2 hop • Co the sua, nhung khong doi khach</p>
+                </div>
+                <div class="line-price"><strong>110.000</strong></div>
+              </div>
+            </div>
+            <div class="action-row">
+              <button class="button ship" type="button">Xuất hàng</button>
+              <button class="button" type="button">In phiếu</button>
+              <button class="button" type="button">Detail</button>
+              <button class="button danger" type="button">Hủy đơn</button>
+            </div>
+          </article>
+        </div>
+
+        <div id="ship-view" class="view">
+          <article class="order-card">
+            <div class="order-head">
+              <div>
+                <h3 class="order-title">DH-20260516-083000-01</h3>
+                <p class="subtle">Da tru kho thuc te, khoa sua truc tiep</p>
+              </div>
+              <span class="chip completed">Đã xuất hàng</span>
+            </div>
+            <div class="meta-grid">
+              <div class="meta-box"><strong>Ngay chot</strong>08:30</div>
+              <div class="meta-box"><strong>Ngay xuat</strong>09:05</div>
+              <div class="meta-box"><strong>Trang thai TT</strong>Chua thanh toan</div>
+              <div class="meta-box"><strong>Can thu</strong>300.000</div>
+            </div>
+            <div class="field-stack">
+              <div class="field">
+                <label>Khách hàng</label>
+                <div class="value locked">Co Lan Q7</div>
+              </div>
+              <div class="field">
+                <label>Địa chỉ giao</label>
+                <div class="value locked">54 Nguyen Thi Thap, Q7 (da khoa)</div>
+              </div>
+            </div>
+            <div class="items">
+              <div class="line-row">
+                <div>
+                  <p class="line-name">Cha lua chay</p>
+                  <p class="line-note">SL 2 cay • Gia ban 95.000 • Da xuat kho</p>
+                </div>
+                <div class="line-price"><strong>190.000</strong></div>
+              </div>
+              <div class="line-row">
+                <div>
+                  <p class="line-name">Nem chay</p>
+                  <p class="line-note">SL 2 hop • Neu sai se qua phieu tra hang</p>
+                </div>
+                <div class="line-price"><strong>110.000</strong></div>
+              </div>
+            </div>
+            <div class="action-row">
+              <button class="button" type="button">In lại</button>
+              <button class="button primary" type="button">Đã thanh toán</button>
+              <button class="button" type="button">Trả hàng</button>
+              <button class="button" type="button">Detail</button>
+            </div>
+          </article>
+        </div>
+
+        <p class="footer-note">Prototype chot theo huong: `Xuất hàng` khong tu dong mo popup in. In la thao tac thu cong, co chu y.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Màn `Đơn hàng` và modal `Gộp đơn`</h2>
+        <p class="panel-note">Prototype list card theo trạng thái và cảnh báo khi cùng khách đang có đơn `Chốt đơn`.</p>
+
+        <div class="filter-row">
+          <span class="chip draft">Hiện nháp</span>
+          <span class="chip committed">Hiện đã chốt</span>
+          <span class="chip completed">Hiện đã xuất</span>
+          <span class="chip paid">Hiện đã thanh toán</span>
+          <span class="chip cancelled">Hiện đã hủy</span>
+        </div>
+
+        <div class="queue-list">
+          <article class="queue-card">
+            <div class="queue-card-head">
+              <div>
+                <h4>Co Lan Q7</h4>
+                <div class="queue-meta">DH-20260516-083000-01 • 3 dong • Can thu 300.000</div>
+              </div>
+              <span class="chip committed">Chốt đơn</span>
+            </div>
+            <div class="action-row">
+              <button class="button" type="button">Mở sửa</button>
+              <button class="button ship" type="button">Xuất hàng</button>
+              <button class="button" type="button">In</button>
+              <button class="button danger" type="button">Hủy</button>
+            </div>
+          </article>
+
+          <article class="queue-card">
+            <div class="queue-card-head">
+              <div>
+                <h4>Chu Hai Binh Thanh</h4>
+                <div class="queue-meta">DH-20260516-090500-02 • 2 dong • Can thu 180.000</div>
+              </div>
+              <span class="chip completed">Đã xuất hàng</span>
+            </div>
+            <div class="action-row">
+              <button class="button" type="button">In lại</button>
+              <button class="button primary" type="button">Đã thanh toán</button>
+              <button class="button" type="button">Trả hàng</button>
+            </div>
+          </article>
+        </div>
+
+        <aside class="modal-preview">
+          <h3>Modal khi mo giỏ moi cho khach da co don `Chốt đơn`</h3>
+          <p class="panel-note">Chi hien khi khach khong co `Nháp` nhung dang co it nhat mot don `Chốt đơn`.</p>
+
+          <div class="modal-row">
+            <div>
+              <strong>DH-20260516-083000-01</strong>
+              <p class="subtle">Ngay chot 08:30 • 3 dong • Can thu 300.000</p>
+            </div>
+            <span class="chip committed">Chốt đơn</span>
+          </div>
+
+          <div class="modal-row">
+            <div>
+              <strong>DH-20260516-101500-03</strong>
+              <p class="subtle">Ngay chot 10:15 • 2 dong • Can thu 180.000</p>
+            </div>
+            <span class="chip committed">Chốt đơn</span>
+          </div>
+
+          <div class="modal-actions">
+            <button class="button" type="button">Gộp vào đơn đã chốt</button>
+            <button class="button" type="button">Tạo đơn mới</button>
+            <button class="button" type="button">Mở xem danh sách đơn</button>
+          </div>
+        </aside>
+
+        <p class="footer-note">Phan confirm quan trong: prototype nay van cho `Tạo đơn mới`, khong ep auto-gop. `Gộp` la chon co chu y cua user.</p>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const tabs = document.querySelectorAll(".tab");
+    const views = document.querySelectorAll(".view");
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((item) => item.classList.remove("active"));
+        views.forEach((view) => view.classList.remove("active"));
+        tab.classList.add("active");
+        const target = document.getElementById(tab.getAttribute("data-target"));
+        if (target) target.classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>

@@ -5,6 +5,11 @@ Nguồn gốc:
 - Task: `No. 110`
 - Phạm vi tài liệu này là `design + checklist`, chưa phản ánh là app runtime đã triển khai.
 
+Tài liệu prototype để confirm trước khi code:
+
+- [ISSUE_110_ORDER_COMMIT_PROTOTYPE.md](ISSUE_110_ORDER_COMMIT_PROTOTYPE.md)
+- [Mockup HTML tĩnh](/D:/QUAN/Program/QuanLyThucPhamChay/docs/assets/issue-110-order-commit-prototype.html)
+
 ## 1. Tóm tắt yêu cầu
 
 Đơn xuất cần tách thêm trạng thái trung gian `Chốt đơn`:
