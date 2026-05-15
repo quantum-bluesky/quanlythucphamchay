@@ -234,7 +234,8 @@ Màn này dùng để:
 6. Đọc kỹ nhãn bên trái từng dòng để tránh nhập nhầm giữa `Giá nhập` và `Giá bán`
 7. Nếu muốn sort tồn kho theo hạn còn lại, nhập `Hạn dùng` hoặc `Bảo quản` theo số ngày
 8. Bấm `Lưu nhanh`
-9. Ở khối `Lịch sử sản phẩm`, có thể nhập tên người thao tác hoặc chọn `Từ ngày/Đến ngày` để lọc nhanh audit gần đây
+9. Ở khối `Lịch sử sản phẩm`, mỗi dòng sẽ ghi rõ field nào đã đổi, giá trị cũ/mới, người thao tác và thời gian xử lý
+10. Có thể nhập tên người thao tác hoặc chọn `Từ ngày/Đến ngày` để lọc nhanh audit gần đây, kể cả các lần import master bằng `Admin`
 
 ## 8. Luồng nhập hàng
 

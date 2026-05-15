@@ -128,6 +128,7 @@ Liên kết detail hiện có:
   - khối `Thêm sản phẩm`
   - khối `Lịch sử sản phẩm`
   - filter audit theo actor/date
+  - card lịch sử ghi rõ field thay đổi, giá trị cũ/mới, actor và thời gian
   - field `Hạn dùng (ngày)` và `Bảo quản (ngày)` để làm metadata fallback cho sort hạn còn lại khi lô chưa có HSD thật
 
 ### `purchases` - Quản lý nhập hàng

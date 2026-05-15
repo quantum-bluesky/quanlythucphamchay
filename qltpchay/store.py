@@ -1890,6 +1890,42 @@ class InventoryStore:
             None if parsed_storage_life_days is None else float(parsed_storage_life_days),
         )
 
+    @staticmethod
+    def _format_product_audit_value(value) -> str:
+        if value is None:
+            return "(trống)"
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return f"{float(value):g}"
+        clean_text = str(value).strip()
+        if not clean_text:
+            return "(trống)"
+        return f'"{clean_text}"'
+
+    def _build_product_update_audit_message(self, current_product: sqlite3.Row, *, next_values: dict) -> str:
+        field_specs = (
+            ("name", "Tên sản phẩm"),
+            ("category", "Loại thực phẩm"),
+            ("unit", "Đơn vị tính"),
+            ("price", "Giá nhập"),
+            ("sale_price", "Giá bán"),
+            ("low_stock_threshold", "Ngưỡng cảnh báo"),
+            ("shelf_life_days", "Hạn dùng (ngày)"),
+            ("storage_life_days", "Bảo quản (ngày)"),
+        )
+        changes: list[str] = []
+        for field_name, label in field_specs:
+            previous_value = current_product[field_name]
+            next_value = next_values[field_name]
+            if previous_value == next_value:
+                continue
+            changes.append(
+                f"{label}: {self._format_product_audit_value(previous_value)} -> "
+                f"{self._format_product_audit_value(next_value)}"
+            )
+        if not changes:
+            return "Lưu lại sản phẩm, không thay đổi dữ liệu."
+        return "Cập nhật sản phẩm: " + "; ".join(changes) + "."
+
     def create_product(
         self,
         name: str,
@@ -1900,6 +1936,7 @@ class InventoryStore:
         sale_price: str | int | float | None = None,
         shelf_life_days: str | int | float | None = None,
         storage_life_days: str | int | float | None = None,
+        actor: str = "",
     ) -> dict:
         (
             clean_name,
@@ -1969,6 +2006,7 @@ class InventoryStore:
                 entity_id=product_id,
                 entity_name=clean_name,
                 action="create",
+                actor=actor,
                 message="Tạo mới sản phẩm trong danh mục đang dùng.",
             )
 
@@ -2043,23 +2081,23 @@ class InventoryStore:
         now = utc_now_iso()
 
         with self._connect() as connection:
-            self._get_product_or_raise(connection, int(product_id))
+            current_product = self._get_product_or_raise(connection, int(product_id))
             connection.execute(
                 "UPDATE products SET price = ?, updated_at = ? WHERE id = ?",
                 (parsed_price, now, int(product_id)),
             )
-            product = connection.execute(
-                "SELECT name FROM products WHERE id = ?",
-                (int(product_id),),
-            ).fetchone()
             self._record_audit(
                 connection,
                 entity_type="product",
                 entity_id=product_id,
-                entity_name=product["name"],
+                entity_name=current_product["name"],
                 action="update-price",
                 actor=actor,
-                message=f"Cập nhật giá nhập thành {parsed_price:.0f}.",
+                message=(
+                    "Cập nhật giá nhập: "
+                    f"{self._format_product_audit_value(current_product['price'])} -> "
+                    f"{self._format_product_audit_value(parsed_price)}."
+                ),
             )
 
         return self.get_product_by_id(int(product_id))
@@ -2069,23 +2107,23 @@ class InventoryStore:
         now = utc_now_iso()
 
         with self._connect() as connection:
-            self._get_product_or_raise(connection, int(product_id))
+            current_product = self._get_product_or_raise(connection, int(product_id))
             connection.execute(
                 "UPDATE products SET sale_price = ?, updated_at = ? WHERE id = ?",
                 (parsed_sale_price, now, int(product_id)),
             )
-            product = connection.execute(
-                "SELECT name FROM products WHERE id = ?",
-                (int(product_id),),
-            ).fetchone()
             self._record_audit(
                 connection,
                 entity_type="product",
                 entity_id=product_id,
-                entity_name=product["name"],
+                entity_name=current_product["name"],
                 action="update-sale-price",
                 actor=actor,
-                message=f"Cập nhật giá bán thành {parsed_sale_price:.0f}.",
+                message=(
+                    "Cập nhật giá bán: "
+                    f"{self._format_product_audit_value(current_product['sale_price'])} -> "
+                    f"{self._format_product_audit_value(parsed_sale_price)}."
+                ),
             )
 
         return self.get_product_by_id(int(product_id))
@@ -2101,6 +2139,7 @@ class InventoryStore:
         sale_price: str | int | float | None = None,
         shelf_life_days: str | int | float | None = None,
         storage_life_days: str | int | float | None = None,
+        actor: str = "",
     ) -> dict:
         (
             clean_name,
@@ -2161,18 +2200,32 @@ class InventoryStore:
                 if deleted_match:
                     raise ValueError("Tên sản phẩm trùng với một sản phẩm đang nằm trong danh mục đã xóa.") from exc
                 raise ValueError("Tên sản phẩm đã tồn tại.") from exc
+            audit_message = self._build_product_update_audit_message(
+                current_product,
+                next_values={
+                    "name": clean_name,
+                    "category": clean_category,
+                    "unit": clean_unit,
+                    "price": parsed_price,
+                    "sale_price": parsed_sale_price,
+                    "low_stock_threshold": threshold,
+                    "shelf_life_days": parsed_shelf_life_days,
+                    "storage_life_days": parsed_storage_life_days,
+                },
+            )
             self._record_audit(
                 connection,
                 entity_type="product",
                 entity_id=product_id,
                 entity_name=clean_name,
                 action="update",
-                message=f"Cập nhật từ {current_product['name']} sang {clean_name}.",
+                actor=actor,
+                message=audit_message,
             )
 
         return self.get_product_by_id(int(product_id))
 
-    def delete_product(self, product_id: int) -> dict:
+    def delete_product(self, product_id: int, actor: str = "") -> dict:
         with self._connect() as connection:
             product = self._get_product_or_raise(connection, int(product_id))
             current_stock = float(self._get_stock_for_product(connection, int(product_id)))
@@ -2203,6 +2256,7 @@ class InventoryStore:
                 entity_id=product_id,
                 entity_name=product["name"],
                 action="delete",
+                actor=actor,
                 message="Đưa sản phẩm vào danh mục đã xóa.",
             )
             return {
@@ -2211,7 +2265,7 @@ class InventoryStore:
                 "impacts": impacts,
             }
 
-    def restore_product(self, product_id: int) -> dict:
+    def restore_product(self, product_id: int, actor: str = "") -> dict:
         with self._connect() as connection:
             product = self._get_product_or_raise(connection, int(product_id), allow_deleted=True)
             if int(product["is_deleted"] or 0) == 0:
@@ -2239,6 +2293,7 @@ class InventoryStore:
                 entity_id=product_id,
                 entity_name=product["name"],
                 action="restore",
+                actor=actor,
                 message="Khôi phục sản phẩm về danh mục đang dùng.",
             )
         return self.get_product_by_id(int(product_id))
@@ -3549,11 +3604,13 @@ class InventoryStore:
         note: str = "",
         source_type: str = "",
         source_code: str = "",
+        actor: str = "",
     ) -> dict:
         clean_customer_name = (customer_name or "").strip()
         clean_note = (note or "").strip()
         clean_source_type = (source_type or "").strip()
         clean_source_code = (source_code or "").strip()
+        clean_actor = (actor or "").strip()
         if not clean_customer_name:
             raise ValueError("Khách hàng là bắt buộc.")
         if not items:
@@ -3603,6 +3660,7 @@ class InventoryStore:
                 customer_name=clean_customer_name,
                 source_type=clean_source_type,
                 source_code=clean_source_code,
+                actor=clean_actor,
                 note=clean_note,
                 created_at=now,
             )
@@ -3687,6 +3745,7 @@ class InventoryStore:
                 entity_id=receipt_code,
                 entity_name=clean_customer_name,
                 action="create",
+                actor=clean_actor,
                 message=(
                     f"Tạo phiếu trả hàng khách {receipt_code} | Khách: {clean_customer_name} | "
                     f"Tổng SL: {round(float(total_quantity), 2):g} | Tổng hoàn: {round(float(total_amount), 2):.0f}"
@@ -3699,6 +3758,7 @@ class InventoryStore:
             "customer_name": clean_customer_name,
             "source_type": clean_source_type,
             "source_code": clean_source_code,
+            "actor": clean_actor,
             "note": clean_note,
             "created_at": now,
             "transactions": transactions,
@@ -3713,11 +3773,13 @@ class InventoryStore:
         note: str = "",
         source_type: str = "",
         source_code: str = "",
+        actor: str = "",
     ) -> dict:
         clean_supplier_name = (supplier_name or "").strip()
         clean_note = (note or "").strip()
         clean_source_type = (source_type or "").strip()
         clean_source_code = (source_code or "").strip()
+        clean_actor = (actor or "").strip()
         if not clean_supplier_name:
             raise ValueError("Nhà cung cấp là bắt buộc.")
         if not items:
@@ -3771,6 +3833,7 @@ class InventoryStore:
                 supplier_name=clean_supplier_name,
                 source_type=clean_source_type,
                 source_code=clean_source_code,
+                actor=clean_actor,
                 note=clean_note,
                 created_at=now,
             )
@@ -3841,6 +3904,7 @@ class InventoryStore:
                 entity_id=receipt_code,
                 entity_name=clean_supplier_name,
                 action="create",
+                actor=clean_actor,
                 message=(
                     f"Tạo phiếu trả NCC {receipt_code} | NCC: {clean_supplier_name} | "
                     f"Tổng SL: {round(float(total_quantity), 2):g} | Tổng trả: {round(float(total_amount), 2):.0f}"
@@ -3853,6 +3917,7 @@ class InventoryStore:
             "supplier_name": clean_supplier_name,
             "source_type": clean_source_type,
             "source_code": clean_source_code,
+            "actor": clean_actor,
             "note": clean_note,
             "created_at": now,
             "transactions": transactions,
@@ -4485,17 +4550,17 @@ class InventoryStore:
             "records": records,
         }
 
-    def import_master_data(self, entity_type: str, records: list[dict]) -> dict:
+    def import_master_data(self, entity_type: str, records: list[dict], actor: str = "") -> dict:
         if not isinstance(records, list):
             raise ValueError("File import phải chứa danh sách records.")
 
         if entity_type == "products":
-            return self._import_products_master(records)
+            return self._import_products_master(records, actor=actor)
         if entity_type in {"customers", "suppliers"}:
-            return self._import_sync_master(entity_type, records)
+            return self._import_sync_master(entity_type, records, actor=actor)
         raise ValueError("Loại dữ liệu master không hợp lệ.")
 
-    def _import_products_master(self, records: list[dict]) -> dict:
+    def _import_products_master(self, records: list[dict], *, actor: str = "") -> dict:
         summary = {"created": 0, "updated": 0, "restored": 0, "skipped": 0}
         products = self.get_products(include_deleted=True)
         by_name = {normalize_key(product["name"]): product for product in products}
@@ -4515,7 +4580,7 @@ class InventoryStore:
             existing = by_name.get(normalize_key(name))
             if existing:
                 if existing.get("is_deleted"):
-                    self.restore_product(existing["id"])
+                    self.restore_product(existing["id"], actor=actor)
                     summary["restored"] += 1
                 self.update_product(
                     existing["id"],
@@ -4527,6 +4592,7 @@ class InventoryStore:
                     low_stock_threshold=threshold,
                     shelf_life_days=shelf_life_days,
                     storage_life_days=storage_life_days,
+                    actor=actor,
                 )
                 summary["updated"] += 1
                 by_name[normalize_key(name)] = self.get_product_by_id(existing["id"])
@@ -4540,13 +4606,14 @@ class InventoryStore:
                     low_stock_threshold=threshold,
                     shelf_life_days=shelf_life_days,
                     storage_life_days=storage_life_days,
+                    actor=actor,
                 )
                 summary["created"] += 1
                 by_name[normalize_key(name)] = created
 
         return summary
 
-    def _import_sync_master(self, state_key: str, records: list[dict]) -> dict:
+    def _import_sync_master(self, state_key: str, records: list[dict], *, actor: str = "") -> dict:
         existing = self._get_sync_collection(state_key)
         active_items = {normalize_key(item.get("name")): item for item in existing if item.get("name")}
         summary = {"created": 0, "updated": 0, "restored": 0, "skipped": 0}
@@ -4577,7 +4644,10 @@ class InventoryStore:
             active_items[normalized] = payload
 
         merged = list(active_items.values())
-        self.save_sync_state({state_key: merged})
+        payload = {state_key: merged}
+        if actor:
+            payload["actor"] = actor
+        self.save_sync_state(payload)
         return summary
 
     def create_database_backup(self) -> Path:
