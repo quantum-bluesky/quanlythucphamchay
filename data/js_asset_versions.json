@@ -1,5 +1,5 @@
 {
-  "app_version": "2.10.11",
+  "app_version": "3.0.1",
   "files": {
     "app.js": {
       "counter": 1,
@@ -62,7 +62,7 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "8b3521bde57251c5f58ab48917e0a3a2055490a66a8718f8d52c5ed93133361b"
     },
     "modules/sync-runtime.js": {
