@@ -7,11 +7,17 @@ export function createInventoryUi(deps) {
     formatDate,
     escapeHtml,
     mobileQuery,
+    getPendingDemandByProductId,
     getDraftDemandByProductId,
+    getCommittedDemandByProductId,
+    getPendingCartCountByProductId,
     getDraftCartCountByProductId,
+    getCommittedCartCountByProductId,
     getIncomingPurchaseByProductId,
     getOpenPurchaseCountByProductId,
+    getPendingCartsForProduct,
     getDraftCartsForProduct,
+    getCommittedCartsForProduct,
     getOpenPurchasesForProduct,
     getInventoryProductSignals,
     getInventoryAdjustmentReason,
@@ -194,8 +200,12 @@ export function createInventoryUi(deps) {
   function renderProducts() {
     const compact = mobileQuery.matches;
     const isAdmin = Boolean(state.admin?.isAdmin);
+    const pendingDemandMap = getPendingDemandByProductId();
     const draftDemandMap = getDraftDemandByProductId();
+    const committedDemandMap = getCommittedDemandByProductId();
+    const pendingCountMap = getPendingCartCountByProductId();
     const draftCountMap = getDraftCartCountByProductId();
+    const committedCountMap = getCommittedCartCountByProductId();
     const incomingMap = getIncomingPurchaseByProductId();
     const incomingCountMap = getOpenPurchaseCountByProductId();
     const filtered = state.products.filter((product) => {
@@ -221,18 +231,29 @@ export function createInventoryUi(deps) {
     dom.productGrid.innerHTML = topPagination + pageData.items.map((product) => {
       const isExpanded = state.expandedProductId === product.id;
       const isEditingPrice = isAdmin && state.editingPriceId === product.id;
-      const signals = getInventoryProductSignals(product, draftDemandMap, incomingMap);
+      const signals = getInventoryProductSignals(product, {
+        pending: pendingDemandMap,
+        draft: draftDemandMap,
+        committed: committedDemandMap,
+      }, incomingMap);
+      const pendingCount = Number(pendingCountMap.get(product.id) || 0);
+      const pendingQuantity = Number(pendingDemandMap.get(product.id) || 0);
       const draftCount = Number(draftCountMap.get(product.id) || 0);
       const draftQuantity = Number(draftDemandMap.get(product.id) || 0);
+      const committedCount = Number(committedCountMap.get(product.id) || 0);
+      const committedQuantity = Number(committedDemandMap.get(product.id) || 0);
       const incomingCount = Number(incomingCountMap.get(product.id) || 0);
       const incomingQuantity = Number(incomingMap.get(product.id) || 0);
+      const relatedPendingCarts = getPendingCartsForProduct(product.id);
       const relatedDraftCarts = getDraftCartsForProduct(product.id);
+      const relatedCommittedCarts = getCommittedCartsForProduct(product.id);
       const relatedPurchases = getOpenPurchasesForProduct(product.id);
       const sortSignalMarkup = renderInventorySortSignal(product);
-      const inventoryBadgeMarkup = draftCount || incomingCount
+      const inventoryBadgeMarkup = pendingCount || committedCount || incomingCount
         ? `
           <div class="inventory-card-badges">
-            ${renderPendingInventoryButton({ label: "Chờ xuất", count: draftCount, quantity: draftQuantity, menu: "orders", productId: product.id })}
+            ${renderPendingInventoryButton({ label: "Chờ xử lý", count: pendingCount, quantity: pendingQuantity, menu: "orders", productId: product.id })}
+            ${renderPendingInventoryButton({ label: "Đã chốt", count: committedCount, quantity: committedQuantity, menu: "orders", productId: product.id })}
             ${renderPendingInventoryButton({ label: "Chờ nhập", count: incomingCount, quantity: incomingQuantity, menu: "purchases", productId: product.id })}
           </div>
         `
@@ -305,7 +326,7 @@ export function createInventoryUi(deps) {
               </div>
             `}
 
-          ${isExpanded || isEditingPrice || relatedDraftCarts.length > 1 || relatedPurchases.length > 1 ? `
+          ${isExpanded || isEditingPrice || relatedPendingCarts.length > 1 || relatedPurchases.length > 1 ? `
             <div class="product-row-body">
               <div class="meta-row">
                 <span class="pill">Cảnh báo dưới ${formatQuantity(product.low_stock_threshold)} ${escapeHtml(product.unit)}</span>
@@ -313,13 +334,27 @@ export function createInventoryUi(deps) {
               </div>
 
               <div class="inventory-inline-links">
-                ${draftCount ? `<button type="button" class="ghost-button compact-button" data-inventory-link="orders" data-product-id="${product.id}">Đơn chờ xuất ${draftCount}</button>` : ""}
+                ${pendingCount ? `<button type="button" class="ghost-button compact-button" data-inventory-link="orders" data-product-id="${product.id}">Đơn chờ xử lý ${pendingCount}</button>` : ""}
+                ${committedCount ? `<button type="button" class="ghost-button compact-button" data-inventory-link="orders" data-product-id="${product.id}">Đơn đã chốt ${committedCount}</button>` : ""}
+                ${draftCount ? `<button type="button" class="ghost-button compact-button" data-inventory-link="orders" data-product-id="${product.id}">Đơn nháp ${draftCount}</button>` : ""}
                 ${incomingCount ? `<button type="button" class="ghost-button compact-button" data-inventory-link="purchases" data-product-id="${product.id}">Đơn chờ nhập ${incomingCount}</button>` : ""}
               </div>
 
-              ${relatedDraftCarts.length > 1 ? `
+              ${relatedCommittedCarts.length ? `
                 <div class="inventory-related-list">
-                  <strong>Đơn chờ xuất</strong>
+                  <strong>Đơn đã chốt</strong>
+                  <div class="inventory-related-actions">
+                    ${relatedCommittedCarts.map((cart) => {
+                      const item = cart.items.find((entry) => Number(entry.productId) === Number(product.id));
+                      return `<button type="button" class="ghost-button compact-button" data-open-related-cart="${cart.id}">${escapeHtml(cart.orderCode || cart.customerName)} • ${formatQuantity(item?.quantity || 0)} ${escapeHtml(product.unit)}</button>`;
+                    }).join("")}
+                  </div>
+                </div>
+              ` : ""}
+
+              ${relatedDraftCarts.length ? `
+                <div class="inventory-related-list">
+                  <strong>Đơn nháp</strong>
                   <div class="inventory-related-actions">
                     ${relatedDraftCarts.map((cart) => {
                       const item = cart.items.find((entry) => Number(entry.productId) === Number(product.id));

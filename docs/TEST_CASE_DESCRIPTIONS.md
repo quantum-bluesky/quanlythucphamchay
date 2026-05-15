@@ -116,3 +116,5 @@ Lưu ý:
 | 88 | `IT-PUR-01` | Kiểm tra card gợi ý ở màn `Nhập hàng` cho đổi nhanh ô `SL` trước khi bấm `+ Phiếu`, và phiếu nháp nhận đúng số lượng vừa nhập. |
 | 89 | `UT-DB-16` | Kiểm tra backend tự tính HSD của dòng phiếu nhập từ `ngày nhập kho + thời gian bảo quản` hoặc từ `ngày sản xuất + thời gian bảo quản`, đồng thời lưu đúng liên kết `purchase_item_id` ở receipt item. |
 | 90 | `UT-DB-17` | Kiểm tra backend cho cập nhật lại HSD/NSX của dòng phiếu `received` và đồng bộ đúng sang `purchase_items`, `inventory_batches`, `inventory_receipt_items` và note transaction. |
+| 91 | `UT-SYNC-05` | Kiểm tra đơn `committed` khóa khách hàng nhưng vẫn cho sửa `ship_address`, đồng thời chặn việc đổi thẳng `committed -> completed` qua sync state. |
+| 92 | `UT-ORD-15` | Kiểm tra flow backend `draft -> committed -> completed`: bước `commit` chưa trừ kho, bước `ship` mới trừ kho và cập nhật trạng thái hoàn tất. |

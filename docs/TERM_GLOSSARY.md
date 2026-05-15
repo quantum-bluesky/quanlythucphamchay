@@ -22,11 +22,12 @@ Lưu ý:
 | 3 | `received` | đã nhập kho / đã nhận hàng | Hàng đã vào kho |
 | 4 | `paid` | đã thanh toán | Đã trả tiền xong |
 | 5 | `unpaid` | chưa thanh toán | Chưa trả tiền |
-| 6 | `completed` | đã xong / đã chốt | Đơn bán đã chốt xong |
-| 7 | `cancelled` | đã hủy | Chứng từ hoặc đơn đã hủy |
-| 8 | `active` | đang hoạt động | Đang dùng, còn hiệu lực |
-| 9 | `deleted` | đã xóa | Thường là xóa mềm trong app |
-| 10 | `restored` | đã khôi phục | Khôi phục từ trạng thái đã xóa |
+| 6 | `committed` | chốt đơn | Đơn bán đã khóa khách hàng và giữ hàng logic nhưng chưa trừ kho |
+| 7 | `completed` | đã xuất hàng | Đơn bán đã giao/xuất thật và đã trừ kho |
+| 8 | `cancelled` | đã hủy | Chứng từ hoặc đơn đã hủy |
+| 9 | `active` | đang hoạt động | Đang dùng, còn hiệu lực |
+| 10 | `deleted` | đã xóa | Thường là xóa mềm trong app |
+| 11 | `restored` | đã khôi phục | Khôi phục từ trạng thái đã xóa |
 
 ## 2. Thuật ngữ chứng từ và tồn kho
 
@@ -39,7 +40,7 @@ Lưu ý:
 | 5 | `receipt` | phiếu / chứng từ | Tùy ngữ cảnh có thể là phiếu nhập hoặc phiếu điều chỉnh |
 | 6 | `purchase receipt` | phiếu nhập hàng | Phiếu nhập từ NCC |
 | 7 | `order` | đơn hàng | Đơn bán cho khách |
-| 8 | `checkout` | chốt đơn | Hoàn tất đơn bán và xuất kho |
+| 8 | `checkout` | chốt + xuất ngay (legacy API cũ) | Thuật ngữ cũ gộp cả `Chốt đơn` và `Xuất hàng` trong một bước; workflow hiện tại tách 2 bước riêng |
 | 9 | `stock` | tồn kho | Số lượng còn trong kho |
 | 10 | `incoming` | đang chờ nhập | Hàng sắp vào kho |
 | 11 | `outgoing` | đang chờ xuất | Hàng sắp xuất cho khách |

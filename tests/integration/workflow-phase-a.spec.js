@@ -629,17 +629,24 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const draftOrderCard = page.locator(".cart-queue-item", { hasText: draftCustomerName }).first();
     await draftOrderCard.locator('[data-queue-action="open"]').click();
     await expectScreenTitle(page, "Tạo đơn xuất hàng");
-    if (!await page.locator('[data-cart-action="checkout"]').isVisible().catch(() => false)) {
+    if (!await page.locator('[data-cart-action="commit"]').isVisible().catch(() => false)) {
       await page.locator('[data-cart-action="toggle-panel"]').click();
-      await expect(page.locator('[data-cart-action="checkout"]')).toBeVisible();
+      await expect(page.locator('[data-cart-action="commit"]')).toBeVisible();
     }
 
-    const checkoutDialog = await captureDialogMessage(page, async () => {
-      await page.locator('[data-cart-action="checkout"]').click();
+    const commitDialog = await captureDialogMessage(page, async () => {
+      await page.locator('[data-cart-action="commit"]').click();
     });
-    expect(checkoutDialog).toContain("Đã xong");
-    const checkoutToast = await collectToast(page, runtime, "it-sts-01-checkout", { errorPattern: /^$/ });
-    expect(checkoutToast).toContain("Đã chốt giỏ hàng");
+    expect(commitDialog).toContain("Chốt đơn");
+    const commitToast = await collectToast(page, runtime, "it-sts-01-commit", { errorPattern: /^$/ });
+    expect(commitToast).toContain("Đã chốt đơn");
+
+    const shipDialog = await captureDialogMessage(page, async () => {
+      await page.locator('[data-cart-action="ship"]').click();
+    });
+    expect(shipDialog).toContain("Đã xuất hàng");
+    const shipToast = await collectToast(page, runtime, "it-sts-01-ship", { errorPattern: /^$/ });
+    expect(shipToast).toContain("Đã xuất hàng");
 
     await switchMenu(page, "inventory");
     await expectScreenTitle(page, "Kiểm tra tồn kho");

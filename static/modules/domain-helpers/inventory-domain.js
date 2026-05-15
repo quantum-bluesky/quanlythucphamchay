@@ -9,27 +9,43 @@ export function createInventoryDomainHelpers(deps) {
     state.inventoryAdjustmentReasons[String(productId)] = String(value || "").trimStart();
   }
 
-  function getInventoryProductSignals(product, draftDemandMap, incomingMap) {
+  function getInventoryProductSignals(product, demandMaps, incomingMap) {
     const currentStock = Number(product.current_stock || 0);
-    const demand = Number(draftDemandMap.get(product.id) || 0);
+    const pendingDemandMap = demandMaps?.pending || new Map();
+    const committedDemandMap = demandMaps?.committed || new Map();
+    const demand = Number(pendingDemandMap.get(product.id) || 0);
+    const committedDemand = Number(committedDemandMap.get(product.id) || 0);
     const incoming = Number(incomingMap.get(product.id) || 0);
-    const shortageAfterDraft = demand > currentStock ? demand - currentStock : 0;
+    const shortageAfterCommitted = committedDemand > currentStock ? committedDemand - currentStock : 0;
+    const shortageAfterPending = demand > currentStock ? demand - currentStock : 0;
 
     if (currentStock <= 0) {
       return {
         statusClass: "cancelled",
         statusLabel: incoming > 0 ? "Sắp nhập về" : "Không còn",
         stockLabel: "Không còn",
-        shortage: shortageAfterDraft,
+        shortage: shortageAfterPending,
+        committedShortage: shortageAfterCommitted,
       };
     }
 
-    if (shortageAfterDraft > 0) {
+    if (shortageAfterCommitted > 0) {
       return {
         statusClass: "cancelled",
-        statusLabel: incoming >= shortageAfterDraft ? "Sắp nhập về" : "Sắp xuất hết",
+        statusLabel: incoming >= shortageAfterCommitted ? "Thiếu cho đơn chốt" : "Đơn chốt vượt tồn",
         stockLabel: `${formatQuantity(currentStock)} ${product.unit}`,
-        shortage: shortageAfterDraft,
+        shortage: shortageAfterPending,
+        committedShortage: shortageAfterCommitted,
+      };
+    }
+
+    if (shortageAfterPending > 0) {
+      return {
+        statusClass: "warning",
+        statusLabel: incoming >= shortageAfterPending ? "Đang chờ nhập" : "Đang kín chỗ",
+        stockLabel: `${formatQuantity(currentStock)} ${product.unit}`,
+        shortage: shortageAfterPending,
+        committedShortage: 0,
       };
     }
 
@@ -39,6 +55,7 @@ export function createInventoryDomainHelpers(deps) {
         statusLabel: "Sắp hết",
         stockLabel: `${formatQuantity(currentStock)} ${product.unit}`,
         shortage: 0,
+        committedShortage: 0,
       };
     }
 
@@ -47,6 +64,7 @@ export function createInventoryDomainHelpers(deps) {
       statusLabel: "Ổn",
       stockLabel: `${formatQuantity(currentStock)} ${product.unit}`,
       shortage: 0,
+      committedShortage: 0,
     };
   }
 

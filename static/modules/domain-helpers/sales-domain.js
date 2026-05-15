@@ -27,18 +27,31 @@ export function createSalesDomainHelpers(deps) {
     return state.carts.find((cart) => cart.id === cartId) || null;
   }
 
+  function isEditableCartStatus(status) {
+    return ["draft", "committed"].includes(String(status || "").trim());
+  }
+
   function getActiveCart() {
-    return state.carts.find((cart) => cart.id === state.activeCartId && cart.status === "draft") || null;
+    return state.carts.find((cart) => cart.id === state.activeCartId && isEditableCartStatus(cart.status)) || null;
   }
 
   function getDraftCarts() {
     return state.carts.filter((cart) => cart.status === "draft");
   }
 
+  function getCommittedCarts() {
+    return state.carts.filter((cart) => cart.status === "committed");
+  }
+
+  function getPendingCarts() {
+    return state.carts.filter((cart) => ["draft", "committed"].includes(cart.status));
+  }
+
   function canEditCartDiscount(cart) {
     return Boolean(
       cart && (
         cart.status === "draft" ||
+        cart.status === "committed" ||
         (cart.status === "completed" && cart.paymentStatus !== "paid")
       )
     );
@@ -83,6 +96,8 @@ export function createSalesDomainHelpers(deps) {
       paymentStatus: cart.paymentStatus || "unpaid",
       discountAmount: Number(discountAmount.toFixed(2)),
       discount_amount: Number(discountAmount.toFixed(2)),
+      shipAddress: String(cart.shipAddress || cart.ship_address || "").trim(),
+      ship_address: String(cart.shipAddress || cart.ship_address || "").trim(),
       items,
       itemCount: items.length,
       totalQuantity: Number(totalQuantity.toFixed(2)),
@@ -90,6 +105,7 @@ export function createSalesDomainHelpers(deps) {
       totalAmount: Number(totalAmount.toFixed(2)),
       createdAt: cart.createdAt || nowIso(),
       updatedAt: cart.updatedAt || cart.createdAt || nowIso(),
+      committedAt: cart.committedAt || cart.committed_at || null,
       completedAt: cart.completedAt || null,
       cancelledAt: cart.cancelledAt || null,
       paidAt: cart.paidAt || null,
@@ -121,38 +137,99 @@ export function createSalesDomainHelpers(deps) {
 
   function setActiveCart(cartId) {
     const cart = getCartById(cartId);
-    if (!cart || cart.status !== "draft") return;
+    if (!cart || !isEditableCartStatus(cart.status)) return;
     state.activeCartId = cart.id;
     state.activeCartPanelCollapsed = mobileQuery.matches;
     state.activeCartDetailExpanded = false;
+    state.pendingCartMergeCustomerId = "";
+    state.pendingCartMergeCustomerName = "";
     customerLookupInput.value = cart.customerName;
     saveAndRenderAll();
+  }
+
+  function createDraftCartForCustomer(customer) {
+    const cart = decorateCart({
+      id: createId("cart"),
+      customerId: customer.id,
+      customerName: customer.name,
+      status: "draft",
+      paymentStatus: "unpaid",
+      discountAmount: 0,
+      shipAddress: customer.address || "",
+      items: [],
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    });
+    state.carts.unshift(cart);
+    return cart;
+  }
+
+  function clearPendingCartMergePrompt() {
+    state.pendingCartMergeCustomerId = "";
+    state.pendingCartMergeCustomerName = "";
   }
 
   function openCartForCustomer(customerName) {
     const customer = resolveCustomerFromText(customerName);
     let cart = state.carts.find((entry) => entry.status === "draft" && entry.customerId === customer.id);
     if (!cart) {
-      cart = decorateCart({
-        id: createId("cart"),
-        customerId: customer.id,
-        customerName: customer.name,
-        status: "draft",
-        discountAmount: 0,
-        items: [],
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      });
-      state.carts.unshift(cart);
+      const committedCarts = getCommittedCarts().filter((entry) => entry.customerId === customer.id);
+      if (committedCarts.length) {
+        state.activeCartId = null;
+        state.activeCartPanelCollapsed = false;
+        state.activeCartDetailExpanded = false;
+        state.pendingCartMergeCustomerId = customer.id;
+        state.pendingCartMergeCustomerName = customer.name;
+        customerLookupInput.value = customer.name;
+        switchMenu("create-order");
+        saveAndRenderAll();
+        showToast(`Khách này đang có ${committedCarts.length} đơn đã chốt. Hãy chọn gộp hoặc tạo đơn mới.`);
+        return;
+      }
+      cart = createDraftCartForCustomer(customer);
     }
     state.activeCartId = cart.id;
     state.activeCartPanelCollapsed = mobileQuery.matches;
     state.activeCartDetailExpanded = false;
+    clearPendingCartMergePrompt();
     customerLookupInput.value = customer.name;
     saveAndRenderAll(["customers", "carts"]);
     switchMenu("create-order");
     focusActiveCartPanel();
     showToast(cart.itemCount ? "Đã mở lại giỏ hàng đang chờ." : "Đã tạo giỏ hàng mới.");
+  }
+
+  function createNewDraftForPendingMergeCustomer() {
+    const customerId = String(state.pendingCartMergeCustomerId || "").trim();
+    if (!customerId) {
+      throw new Error("Không có khách hàng đang chờ chọn gộp đơn.");
+    }
+    const customer = state.customers.find((entry) => entry.id === customerId && !entry.deletedAt);
+    if (!customer) {
+      throw new Error("Không tìm thấy khách hàng.");
+    }
+    const cart = createDraftCartForCustomer(customer);
+    state.activeCartId = cart.id;
+    state.activeCartPanelCollapsed = mobileQuery.matches;
+    state.activeCartDetailExpanded = false;
+    clearPendingCartMergePrompt();
+    customerLookupInput.value = customer.name;
+    saveAndRenderAll(["customers", "carts"]);
+    focusActiveCartPanel();
+    showToast("Đã tạo đơn nháp mới cho khách.");
+    return cart;
+  }
+
+  function getPendingMergeCommittedCarts() {
+    const customerId = String(state.pendingCartMergeCustomerId || "").trim();
+    if (!customerId) return [];
+    return getCommittedCarts()
+      .filter((cart) => cart.customerId === customerId)
+      .sort((left, right) => {
+        const leftTime = new Date(left.committedAt || left.updatedAt || left.createdAt || 0).getTime();
+        const rightTime = new Date(right.committedAt || right.updatedAt || right.createdAt || 0).getTime();
+        return rightTime - leftTime;
+      });
   }
 
   function openOrdersForCustomer(customerId) {
@@ -278,6 +355,28 @@ export function createSalesDomainHelpers(deps) {
     return map;
   }
 
+  function getCommittedDemandByProductId() {
+    const map = new Map();
+    getCommittedCarts().forEach((cart) => {
+      cart.items.forEach((item) => {
+        const current = Number(map.get(item.productId) || 0);
+        map.set(item.productId, current + Number(item.quantity || 0));
+      });
+    });
+    return map;
+  }
+
+  function getPendingDemandByProductId() {
+    const map = new Map();
+    getPendingCarts().forEach((cart) => {
+      cart.items.forEach((item) => {
+        const current = Number(map.get(item.productId) || 0);
+        map.set(item.productId, current + Number(item.quantity || 0));
+      });
+    });
+    return map;
+  }
+
   function getDraftCartCountByProductId() {
     const map = new Map();
     getDraftCarts().forEach((cart) => {
@@ -287,6 +386,32 @@ export function createSalesDomainHelpers(deps) {
     return map;
   }
 
+  function getCommittedCartCountByProductId() {
+    const map = new Map();
+    getCommittedCarts().forEach((cart) => {
+      const productIds = new Set(cart.items.map((item) => Number(item.productId)));
+      productIds.forEach((productId) => map.set(productId, Number(map.get(productId) || 0) + 1));
+    });
+    return map;
+  }
+
+  function getPendingCartCountByProductId() {
+    const map = new Map();
+    getPendingCarts().forEach((cart) => {
+      const productIds = new Set(cart.items.map((item) => Number(item.productId)));
+      productIds.forEach((productId) => map.set(productId, Number(map.get(productId) || 0) + 1));
+    });
+    return map;
+  }
+
+  function getPendingCartsForProduct(productId) {
+    return getPendingCarts().filter((cart) => cart.items.some((item) => Number(item.productId) === Number(productId)));
+  }
+
+  function getCommittedCartsForProduct(productId) {
+    return getCommittedCarts().filter((cart) => cart.items.some((item) => Number(item.productId) === Number(productId)));
+  }
+
   function getDraftCartsForProduct(productId) {
     return getDraftCarts().filter((cart) => cart.items.some((item) => Number(item.productId) === Number(productId)));
   }
@@ -294,9 +419,9 @@ export function createSalesDomainHelpers(deps) {
   function startInventoryOutFlow(productId) {
     const product = getProductById(productId);
     if (!product) throw new Error("Không tìm thấy sản phẩm.");
-    const relatedDraftCarts = getDraftCartsForProduct(product.id);
-    if (relatedDraftCarts.length === 1) {
-      setActiveCart(relatedDraftCarts[0].id);
+    const relatedPendingCarts = getPendingCartsForProduct(product.id);
+    if (relatedPendingCarts.length === 1) {
+      setActiveCart(relatedPendingCarts[0].id);
       state.salesSearchTerm = product.name;
       salesSearchInput.value = product.name;
       state.pagination.salesProducts = 1;
@@ -305,7 +430,7 @@ export function createSalesDomainHelpers(deps) {
       showToast("Đã mở đơn chờ xuất liên quan.");
       return;
     }
-    if (relatedDraftCarts.length > 1) {
+    if (relatedPendingCarts.length > 1) {
       state.expandedProductId = product.id;
       renderProducts();
       showToast("Mặt hàng này đang có nhiều đơn chờ xuất. Hãy chọn đúng đơn bên dưới.");
@@ -323,16 +448,27 @@ export function createSalesDomainHelpers(deps) {
     getCartById,
     getActiveCart,
     getDraftCarts,
+    getCommittedCarts,
+    getPendingCarts,
     decorateCart,
     openCartForCustomer,
+    createNewDraftForPendingMergeCustomer,
+    clearPendingCartMergePrompt,
+    getPendingMergeCommittedCarts,
     openOrdersForCustomer,
     updateCart,
     toggleProductInActiveCart,
     updateCartItem,
     removeCartItem,
     getDraftDemandByProductId,
+    getCommittedDemandByProductId,
+    getPendingDemandByProductId,
     getDraftCartCountByProductId,
+    getCommittedCartCountByProductId,
+    getPendingCartCountByProductId,
     getDraftCartsForProduct,
+    getCommittedCartsForProduct,
+    getPendingCartsForProduct,
     startInventoryOutFlow,
     setActiveCart,
     canEditCartDiscount,

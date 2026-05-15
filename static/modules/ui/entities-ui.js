@@ -41,17 +41,17 @@ export function createEntitiesUi(deps) {
     const pageData = paginateItems(filtered, "customers");
     dom.customerList.innerHTML = pageData.items.map((customer) => {
       const relatedCarts = state.carts.filter((cart) => cart.customerId === customer.id && cart.status !== "cancelled");
-      const draftCount = relatedCarts.filter((cart) => cart.status === "draft").length;
-      const historyCount = relatedCarts.filter((cart) => cart.status !== "draft").length;
-      const orderLinkLabel = draftCount > 0 ? `${draftCount} giỏ chờ` : `${relatedCarts.length} đơn`;
+      const pendingCount = relatedCarts.filter((cart) => ["draft", "committed"].includes(cart.status)).length;
+      const historyCount = relatedCarts.filter((cart) => cart.status === "completed").length;
+      const orderLinkLabel = pendingCount > 0 ? `${pendingCount} đơn chờ` : `${relatedCarts.length} đơn`;
       const orderLinkMarkup = relatedCarts.length
-        ? `<button type="button" class="status-pill ${draftCount > 0 ? "draft" : "completed"} status-pill-button" data-customer-action="open-orders" data-customer-id="${customer.id}">${escapeHtml(orderLinkLabel)}</button>`
+        ? `<button type="button" class="status-pill ${pendingCount > 0 ? "draft" : "completed"} status-pill-button" data-customer-action="open-orders" data-customer-id="${customer.id}">${escapeHtml(orderLinkLabel)}</button>`
         : '<span class="status-pill cancelled">Chưa có đơn</span>';
       if (compact) {
-        const compactNote = customer.address || `${historyCount} đơn đã xong`;
+        const compactNote = customer.address || `${historyCount} đơn đã xuất`;
         return `<article class="customer-item customer-item-compact"><div class="customer-header"><strong>${escapeHtml(customer.name)}</strong>${orderLinkMarkup}</div><div class="customer-meta customer-primary-note"><span>${escapeHtml(compactNote || "Chưa có địa chỉ")}</span></div><div class="customer-mobile-bottom"><span class="customer-phone-inline">${escapeHtml(customer.phone || "Chưa có số liên lạc")}</span><div class="customer-actions customer-actions-inline"><button type="button" class="ghost-button compact-button" data-customer-action="open-cart" data-customer-id="${customer.id}">Mở</button><button type="button" class="ghost-button compact-button" data-customer-action="edit" data-customer-id="${customer.id}">Sửa</button><button type="button" class="danger-button compact-button" data-customer-action="delete" data-customer-id="${customer.id}">Xóa</button></div></div></article>`;
       }
-      return `<article class="customer-item"><div class="customer-header"><strong>${escapeHtml(customer.name)}</strong>${orderLinkMarkup}</div><div class="customer-meta"><span>${escapeHtml(historyCount)} đơn đã xong</span><span>Cập nhật ${escapeHtml(formatDate(customer.updatedAt))}</span></div><div class="customer-meta"><span>${escapeHtml(customer.phone || "Chưa có số liên lạc")}</span><span>${escapeHtml(customer.address || "Chưa có địa chỉ")}</span></div><div class="customer-meta"><span>${escapeHtml(customer.zaloUrl || "Chưa có link Zalo")}</span></div><div class="customer-actions"><button type="button" class="ghost-button compact-button" data-customer-action="open-cart" data-customer-id="${customer.id}">Mở giỏ</button><button type="button" class="ghost-button compact-button" data-customer-action="edit" data-customer-id="${customer.id}">Sửa</button><button type="button" class="danger-button compact-button" data-customer-action="delete" data-customer-id="${customer.id}">Xóa</button></div></article>`;
+      return `<article class="customer-item"><div class="customer-header"><strong>${escapeHtml(customer.name)}</strong>${orderLinkMarkup}</div><div class="customer-meta"><span>${escapeHtml(historyCount)} đơn đã xuất</span><span>Cập nhật ${escapeHtml(formatDate(customer.updatedAt))}</span></div><div class="customer-meta"><span>${escapeHtml(customer.phone || "Chưa có số liên lạc")}</span><span>${escapeHtml(customer.address || "Chưa có địa chỉ")}</span></div><div class="customer-meta"><span>${escapeHtml(customer.zaloUrl || "Chưa có link Zalo")}</span></div><div class="customer-actions"><button type="button" class="ghost-button compact-button" data-customer-action="open-cart" data-customer-id="${customer.id}">Mở giỏ</button><button type="button" class="ghost-button compact-button" data-customer-action="edit" data-customer-id="${customer.id}">Sửa</button><button type="button" class="danger-button compact-button" data-customer-action="delete" data-customer-id="${customer.id}">Xóa</button></div></article>`;
     }).join("") + renderPagination("customers", pageData);
   }
 
