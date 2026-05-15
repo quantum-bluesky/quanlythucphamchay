@@ -56,16 +56,18 @@ Lưu ý:
 | 35 | `IT-PURSUP-02` | Kiểm tra màn nhà cung cấp sửa thông tin NCC mà không ghi đè lịch sử phiếu đã thanh toán. |
 | 36 | `IT-PURSUP-03` | Kiểm tra màn nhập hàng giữ mỗi NCC đúng 1 phiếu nháp riêng, không tạo trùng khi chuyển qua lại giữa các NCC, và khi chọn lại cùng NCC thì app mở lại phiếu nháp sẵn có để nhập tiếp. |
 | 37 | `IT-PURSUP-04` | Kiểm tra phiếu nhập nháp trống có thể `Xóa phiếu` ngay trên UI, đồng thời nút `NCC` trên phiếu `Nháp` vẫn cho sang danh sách NCC để đổi sang nhà cung cấp khác trước khi đặt hàng. |
-| 38 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
-| 39 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
-| 40 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |
-| 41 | `IT-ORD-01` | Kiểm tra màn đơn hàng hỗ trợ mở rộng chi tiết, đánh dấu đã thanh toán và mở lại giỏ nháp. |
-| 42 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
-| 43 | `IT-NAV-02` | Kiểm tra menu trên PC/tablet bung ra từ nút `Mở menu`, tự thu gọn khi rê chuột hoặc bấm ra ngoài, đồng thời giữ chiều rộng menu gọn. |
-| 44 | `IT-NAV-03` | Kiểm tra sau khi xoay giữa màn hình dọc và ngang thì vẫn bấm được các item trong menu nghiệp vụ để chuyển màn bình thường. |
-| 45 | `IT-NAV-04` | Kiểm tra trên Tablet touch thật vừa login xong vẫn tap được nút `Mở menu` và chuyển màn bằng item menu bình thường, không bị header menu chặn touch. |
-| 46 | `IT-TAB-01` | Kiểm tra trên Tablet khi viewport chỉ đổi chiều cao như lúc bàn phím ảo bật lên thì ô input đang nhập vẫn giữ focus và gõ tiếp được, không bị render lại làm tắt bàn phím. |
-| 47 | `IT-PAG-01` | Kiểm tra trên desktop list sản phẩm tự hiện combobox phân trang `25/50/100`, mặc định lấy mức desktop và đổi số mục trên trang đúng theo lựa chọn. |
+| 38 | `IT-PURSUP-05` | Kiểm tra màn nhập hàng tự chọn NCC khi mặt hàng thêm vào phiếu chưa có NCC chỉ từng nhập từ một NCC. |
+| 39 | `IT-PURSUP-06` | Kiểm tra màn nhập hàng không tự điền NCC khi mặt hàng có nhiều NCC lịch sử, nhưng datalist NCC ưu tiên NCC có lịch sử nhập nhiều hơn. |
+| 40 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
+| 41 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
+| 42 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |
+| 43 | `IT-ORD-01` | Kiểm tra màn đơn hàng hỗ trợ mở rộng chi tiết, đánh dấu đã thanh toán và mở lại giỏ nháp. |
+| 44 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
+| 45 | `IT-NAV-02` | Kiểm tra menu trên PC/tablet bung ra từ nút `Mở menu`, tự thu gọn khi rê chuột hoặc bấm ra ngoài, đồng thời giữ chiều rộng menu gọn. |
+| 46 | `IT-NAV-03` | Kiểm tra sau khi xoay giữa màn hình dọc và ngang thì vẫn bấm được các item trong menu nghiệp vụ để chuyển màn bình thường. |
+| 47 | `IT-NAV-04` | Kiểm tra trên Tablet touch thật vừa login xong vẫn tap được nút `Mở menu` và chuyển màn bằng item menu bình thường, không bị header menu chặn touch. |
+| 48 | `IT-TAB-01` | Kiểm tra trên Tablet khi viewport chỉ đổi chiều cao như lúc bàn phím ảo bật lên thì ô input đang nhập vẫn giữ focus và gõ tiếp được, không bị render lại làm tắt bàn phím. |
+| 49 | `IT-PAG-01` | Kiểm tra trên desktop list sản phẩm tự hiện combobox phân trang `25/50/100`, mặc định lấy mức desktop và đổi số mục trên trang đúng theo lựa chọn. |
 | 45 | `UT-DB-01` | Kiểm tra tạo sản phẩm, nhập xuất kho và tổng hợp tồn kho cơ bản ở backend. |
 | 46 | `UT-DB-02` | Kiểm tra backend chặn xuất kho vượt quá tồn hiện tại. |
 | 47 | `UT-DB-03` | Kiểm tra phiếu điều chỉnh tồn backend cập nhật tồn kho và yêu cầu lý do đúng. |

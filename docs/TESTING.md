@@ -194,6 +194,7 @@ Các nhóm kiểm tra chính:
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
 - `Nhập hàng theo NCC`: mỗi NCC chỉ có 1 phiếu nháp riêng; chọn lại cùng NCC phải mở nháp sẵn có và không được tạo trùng khi đổi qua lại giữa các NCC
 - `Nhập hàng -> nháp tạm`: phiếu nháp còn trống phải xóa được ngay trên UI, và nút `NCC` vẫn phải cho đổi sang NCC khác khi phiếu còn `Nháp`
+- `Nhập hàng -> gợi ý NCC`: phiếu chưa có NCC phải tự chọn NCC nếu mặt hàng chỉ có 1 NCC từng nhập thực tế; nếu có nhiều NCC thì datalist NCC phải ưu tiên NCC nhập nhiều hơn nhưng không tự điền
 - `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa
 - `Phiếu nhập legacy`: purchase `received/paid` thiếu timestamp vẫn phải hiển thị được ngày xử lý fallback để không kẹt flow thanh toán
 - `Giảm giá khuyến mại`: đơn đã chốt chưa thanh toán và phiếu đã nhập kho chưa thanh toán phải sửa được tổng giảm giá, đồng thời báo cáo và bản in phải phản ánh số net sau khuyến mại
@@ -249,6 +250,8 @@ Case mới cho Phase A:
 - `ACC-PUR-03`: phiếu nhập nháp phải được đặt hàng trước khi nhập kho, phiếu đã đặt hàng vẫn còn chỉnh sửa được trước khi nhận hàng, và tồn kho phải cập nhật ngay trên màn `Tồn kho` sau khi nhập kho mà không cần F5
 - `IT-PUR-01`: card gợi ý ở màn `Nhập hàng` cho đổi nhanh ô `SL` trước khi bấm `+ Phiếu`, và phiếu nháp phải nhận đúng số lượng vừa nhập
 - `IT-PURSUP-01`: tạo nhà cung cấp từ màn nhập hàng rồi quay lại phiếu nhập vẫn giữ được giá trị NCC trên UI, nhưng phiếu nháp rỗng không còn persist
+- `IT-PURSUP-05`: kiểm tra gợi ý NCC khi thêm hàng vào phiếu nhập chưa có NCC sẽ tự chọn nếu chỉ có 1 NCC lịch sử
+- `IT-PURSUP-06`: kiểm tra gợi ý NCC khi có nhiều NCC lịch sử sẽ ưu tiên thứ tự datalist nhưng không tự điền NCC
 - `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp rồi mới chuyển sang `received`
 - `UT-DB-12`: backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `draft/ordered`, và chặn xóa trực tiếp phiếu `ordered`
 - `UT-DB-16`: backend tự tính HSD của phiếu nhập theo `ngày nhập kho + thời gian bảo quản` hoặc `ngày sản xuất + thời gian bảo quản`

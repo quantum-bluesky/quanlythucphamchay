@@ -262,6 +262,99 @@ export function createPurchasesDomainHelpers(deps) {
     };
   }
 
+  function isDeletedSupplierName(supplierName) {
+    const cleanSupplier = normalizeSupplierName(supplierName);
+    if (!cleanSupplier) {
+      return false;
+    }
+    const supplier = (Array.isArray(state.suppliers) ? state.suppliers : []).find(
+      (entry) => normalizeSupplierName(entry?.name) === cleanSupplier
+    );
+    return Boolean(supplier?.deletedAt || supplier?.deleted_at);
+  }
+
+  function getPurchaseActivityTimestamp(purchase = {}) {
+    const candidates = [purchase.paidAt, purchase.paid_at, purchase.receivedAt, purchase.received_at, purchase.updatedAt, purchase.updated_at, purchase.createdAt, purchase.created_at];
+    for (const candidate of candidates) {
+      const timestamp = Date.parse(String(candidate || ""));
+      if (Number.isFinite(timestamp)) {
+        return timestamp;
+      }
+    }
+    return 0;
+  }
+
+  function getSupplierHistoryForProduct(productId) {
+    const targetProductId = Number(productId);
+    if (!Number.isFinite(targetProductId)) {
+      return [];
+    }
+    const supplierMap = new Map();
+    state.purchases.forEach((purchase) => {
+      const status = String(purchase.status || "").trim();
+      const supplierName = String(purchase.supplierName || "").trim();
+      if (!["received", "paid"].includes(status) || !supplierName || isDeletedSupplierName(supplierName)) {
+        return;
+      }
+      const matchedItems = (Array.isArray(purchase.items) ? purchase.items : []).filter(
+        (item) => Number(item.productId) === targetProductId
+      );
+      if (!matchedItems.length) {
+        return;
+      }
+      const key = normalizeSupplierName(supplierName);
+      const current = supplierMap.get(key) || {
+        supplierName,
+        totalQuantity: 0,
+        purchaseCount: 0,
+        latestAt: 0,
+      };
+      current.totalQuantity += matchedItems.reduce((sum, item) => sum + Math.max(0, Number(item.quantity || 0)), 0);
+      current.purchaseCount += 1;
+      current.latestAt = Math.max(current.latestAt, getPurchaseActivityTimestamp(purchase));
+      supplierMap.set(key, current);
+    });
+    return [...supplierMap.values()].sort((left, right) =>
+      (right.totalQuantity - left.totalQuantity) ||
+      (right.purchaseCount - left.purchaseCount) ||
+      (right.latestAt - left.latestAt) ||
+      left.supplierName.localeCompare(right.supplierName, "vi")
+    );
+  }
+
+  function getSupplierHistoryForProducts(productIds = []) {
+    const supplierMap = new Map();
+    const uniqueProductIds = [...new Set((Array.isArray(productIds) ? productIds : []).map(Number).filter(Number.isFinite))];
+    uniqueProductIds.forEach((productId) => {
+      getSupplierHistoryForProduct(productId).forEach((entry) => {
+        const key = normalizeSupplierName(entry.supplierName);
+        const current = supplierMap.get(key) || {
+          supplierName: entry.supplierName,
+          totalQuantity: 0,
+          purchaseCount: 0,
+          latestAt: 0,
+        };
+        current.totalQuantity += Number(entry.totalQuantity || 0);
+        current.purchaseCount += Number(entry.purchaseCount || 0);
+        current.latestAt = Math.max(current.latestAt, Number(entry.latestAt || 0));
+        supplierMap.set(key, current);
+      });
+    });
+    return [...supplierMap.values()].sort((left, right) =>
+      (right.totalQuantity - left.totalQuantity) ||
+      (right.purchaseCount - left.purchaseCount) ||
+      (right.latestAt - left.latestAt) ||
+      left.supplierName.localeCompare(right.supplierName, "vi")
+    );
+  }
+
+  function getSupplierSuggestionsForPurchase(purchase = getActivePurchase()) {
+    if (!purchase || hasPurchaseSupplier(purchase)) {
+      return [];
+    }
+    return getSupplierHistoryForProducts((Array.isArray(purchase.items) ? purchase.items : []).map((item) => item.productId));
+  }
+
   function isDraftPurchase(purchase) {
     return Boolean(purchase && purchase.status === "draft");
   }
@@ -606,6 +699,29 @@ export function createPurchasesDomainHelpers(deps) {
     };
   }
 
+  function maybeApplySupplierSuggestionToPurchase(purchaseId, productIds = []) {
+    const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
+    if (!purchase || !isDraftPurchase(purchase) || hasPurchaseSupplier(purchase)) {
+      return { applied: false, suggestions: [] };
+    }
+    activatePurchaseState(purchase.id);
+    const suggestions = getSupplierHistoryForProducts(productIds);
+    if (suggestions.length !== 1) {
+      return { applied: false, suggestions };
+    }
+    const supplierName = suggestions[0].supplierName;
+    const reusedDraft = Boolean(findDraftPurchaseBySupplierName(supplierName, { excludePurchaseId: purchase.id }));
+    const result = applySupplierToActiveDraft(supplierName, { note: purchase.note || "" });
+    return {
+      applied: true,
+      supplierName,
+      reusedDraft,
+      suggestions,
+      purchase: result?.purchase || getActivePurchase(),
+      shouldPersist: Boolean(result?.shouldPersist),
+    };
+  }
+
   function setActivePurchase(purchaseId) {
     const purchase = state.purchases.find((entry) => entry.id === purchaseId);
     if (!purchase || !["draft", "ordered"].includes(purchase.status)) return;
@@ -628,7 +744,7 @@ export function createPurchasesDomainHelpers(deps) {
     const nextQuantity = Number(quantity || 0);
     const nextUnitCost = Number(unitCost || product.price || 0);
     if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) throw new Error("Số lượng nhập phải lớn hơn 0.");
-    updatePurchase(purchase.id, (currentPurchase) => {
+    const updatedPurchase = updatePurchase(purchase.id, (currentPurchase) => {
       const existing = currentPurchase.items.find((item) => Number(item.productId) === Number(product.id));
       const items = existing
         ? currentPurchase.items.map((item) => Number(item.productId) === Number(product.id) ? { ...item, quantity: Number((Number(item.quantity) + nextQuantity).toFixed(2)), unitCost: nextUnitCost, lineTotal: Number(((Number(item.quantity) + nextQuantity) * nextUnitCost).toFixed(2)) } : item)
@@ -645,10 +761,15 @@ export function createPurchasesDomainHelpers(deps) {
         }];
       return { items, supplierName: currentPurchase.supplierName || "", note: currentPurchase.note || "" };
     });
+    const supplierSuggestion = maybeApplySupplierSuggestionToPurchase(updatedPurchase.id, [product.id]);
     state.purchasePanelCollapsed = false;
     state.purchaseDetailExpanded = false;
     state.selectedPurchaseItemsCollapsed = false;
     saveAndRenderAll(["purchases"]);
+    return {
+      purchase: getActivePurchase(),
+      supplierSuggestion,
+    };
   }
 
   function startInventoryInFlow(productId) {
@@ -708,6 +829,10 @@ export function createPurchasesDomainHelpers(deps) {
     getIncomingPurchaseByProductId,
     getOpenPurchaseCountByProductId,
     getOpenPurchasesForProduct,
+    getSupplierHistoryForProduct,
+    getSupplierHistoryForProducts,
+    getSupplierSuggestionsForPurchase,
+    maybeApplySupplierSuggestionToPurchase,
     setActivePurchase,
     createPurchaseDraftIfMissing,
     applySupplierToActiveDraft,
