@@ -323,6 +323,7 @@ Lưu ý:
 - nếu phiếu nháp chưa có NCC, app chỉ tự chọn NCC khi các mặt hàng liên quan suy ra đúng một NCC từ lịch sử `Đã nhập kho/Đã thanh toán`; nếu có nhiều NCC thì chỉ ưu tiên thứ tự trong gợi ý, không tự đổi
 - mỗi nhà cung cấp chỉ có 1 phiếu `Nháp` đang mở; chọn lại đúng NCC sẽ mở phiếu đó, còn chọn NCC khác sẽ giữ nguyên phiếu cũ và tạo/mở nháp riêng cho NCC mới
 - chỉ `Nháp` mới được đổi nhà cung cấp; từ `Đã đặt` trở đi ô NCC và nút `NCC` sẽ bị khóa
+- ngoại lệ: nếu app nhận diện một phiếu `Đã đặt` trên DB cũ đang bị lỗi dữ liệu, ví dụ thiếu NCC hoặc marker trạng thái lệch, app sẽ mở lại thao tác sửa NCC hoặc xóa/hủy để cứu phiếu đó
 - khi xuất kho hoặc trả NCC, app sẽ tự trừ theo FEFO từ lô có HSD sớm nhất; nếu lô chưa có HSD thì hệ thống để sau các lô có HSD
 - phiếu đã `Đã nhập kho` vẫn cho cập nhật lại `Hạn dùng` hoặc `Ngày sản xuất` của từng dòng và sửa `Giảm giá khuyến mại`; từ `Đã thanh toán` hoặc `Đã hủy` trở đi mới chuyển sang chế độ chỉ xem hoàn toàn
 - kể cả `Master Admin` cũng không được xóa hoặc hủy ngược các phiếu đã khóa, trừ ngoại lệ phiếu lỗi dữ liệu bị lệch marker/trạng thái nói ở trên

@@ -90,7 +90,7 @@ export function createPurchasesUi(deps) {
       dom.purchaseSupplierMenuButton.textContent = mobileQuery.matches ? "NCC" : "Nhà cung cấp";
       dom.purchaseSupplierMenuButton.disabled = Boolean(purchase) && !purchaseSupplierEditable;
       dom.purchaseSupplierMenuButton.title = purchase && !purchaseSupplierEditable
-        ? "Chỉ phiếu nháp mới được đổi nhà cung cấp."
+        ? "Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp."
         : "";
     }
     dom.togglePurchasePanelButton.textContent = mobileQuery.matches

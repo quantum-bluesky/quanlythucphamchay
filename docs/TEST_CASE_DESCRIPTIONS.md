@@ -118,3 +118,4 @@ Lưu ý:
 | 90 | `UT-DB-17` | Kiểm tra backend cho cập nhật lại HSD/NSX của dòng phiếu `received` và đồng bộ đúng sang `purchase_items`, `inventory_batches`, `inventory_receipt_items` và note transaction. |
 | 91 | `UT-SYNC-05` | Kiểm tra đơn `committed` khóa khách hàng nhưng vẫn cho sửa `ship_address`, đồng thời chặn việc đổi thẳng `committed -> completed` qua sync state. |
 | 92 | `UT-ORD-15` | Kiểm tra flow backend `draft -> committed -> completed`: bước `commit` chưa trừ kho, bước `ship` mới trừ kho và cập nhật trạng thái hoàn tất. |
+| 93 | `UT-DB-18` | Kiểm tra phiếu nhập `ordered` nhưng thiếu nhà cung cấp được nhận diện là dữ liệu lỗi có thể repair để UI cho sửa NCC hoặc xóa/hủy. |

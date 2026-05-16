@@ -165,14 +165,21 @@ export function createPurchasesDomainHelpers(deps) {
       return true;
     }
     const status = String(purchase.status || "draft").trim();
+    const supplierName = String(purchase.supplierName || "").trim();
     const receivedAt = String(purchase.receivedAt || purchase.received_at || "").trim();
     const paidAt = String(purchase.paidAt || purchase.paid_at || "").trim();
     const receiptCode = String(purchase.receiptCode || purchase.receipt_code || "").trim();
+    const itemCount = Array.isArray(purchase.items) ? purchase.items.length : 0;
     if (status === "paid") {
       return !receivedAt || !receiptCode;
     }
     if (["draft", "ordered"].includes(status)) {
-      return Boolean(receivedAt || paidAt || receiptCode);
+      if (receivedAt || paidAt || receiptCode) {
+        return true;
+      }
+      if (status === "ordered" && (!supplierName || itemCount <= 0)) {
+        return true;
+      }
     }
     return false;
   }
@@ -195,7 +202,12 @@ export function createPurchasesDomainHelpers(deps) {
   }
 
   function canEditPurchaseSupplier(purchase) {
-    return Boolean(purchase && purchase.status === "draft");
+    return Boolean(
+      purchase && (
+        purchase.status === "draft" ||
+        (purchase.status === "ordered" && isRepairableInvalidPurchase(purchase))
+      )
+    );
   }
 
   function canDeletePurchase(purchase) {

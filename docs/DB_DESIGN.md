@@ -213,6 +213,11 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 
 - `discount_amount` là giảm giá khuyến mại ở cấp toàn phiếu nhập
 - không đổi tồn kho đã nhận hay từng dòng nhập, chỉ ảnh hưởng số tiền thực trả NCC và báo cáo chi nhập net
+- khi load sync state, backend phải suy ra thêm cờ repair cho phiếu nhập legacy lỗi dữ liệu, tối thiểu gồm:
+  - phiếu `paid` nhưng không tìm được receipt nhập kho hợp lệ
+  - phiếu `draft/ordered` còn marker `received_at` / `paid_at` / `receipt_code` không khớp workflow mở
+  - phiếu `ordered` nhưng thiếu `supplier_name` hoặc không còn item hợp lệ
+- cờ repair này chỉ dùng để mở đường sửa/xóa/hủy dữ liệu cũ đang lệch, không đổi workflow chuẩn của phiếu nhập mới
 
 ### `purchase_items`
 
