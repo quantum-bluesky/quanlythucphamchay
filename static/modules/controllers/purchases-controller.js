@@ -113,7 +113,7 @@ export function registerPurchasesControllerEvents(contract) {
     const purchase = queries.getActivePurchase();
     if (!purchase) return;
     if (!queries.canEditPurchaseSupplier(purchase)) {
-      actions.showToast("Chỉ phiếu nháp mới được đổi nhà cung cấp.", true);
+      actions.showToast("Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp.", true);
       renderers.renderPurchasePanel();
       return;
     }
@@ -148,7 +148,7 @@ export function registerPurchasesControllerEvents(contract) {
     actions.setSkipNextPurchaseSupplierChangePersist(false);
     const purchase = queries.getActivePurchase();
     if (purchase && !queries.canEditPurchaseSupplier(purchase)) {
-      actions.showToast("Chỉ phiếu nháp mới được đổi nhà cung cấp.", true);
+      actions.showToast("Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp.", true);
       renderers.renderPurchasePanel();
       return;
     }

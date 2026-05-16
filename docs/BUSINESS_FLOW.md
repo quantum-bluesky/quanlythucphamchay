@@ -57,29 +57,44 @@ Nếu cần can thiệp đặc biệt
 - trong `Giỏ hiện hành`, mỗi dòng hiển thị dưới dạng card gọn 2 dòng; bấm `...` để mở detail
 - sửa số lượng
 - sửa giá bán riêng cho đơn
+- sửa địa chỉ giao riêng của đơn
 - có thể nhập thêm `giảm giá khuyến mại` cho toàn đơn; app tự tính lại số tiền cần thu
 - nếu cần, cập nhật luôn giá bán mặc định
-- trong lúc phiếu còn `Nháp` hoặc `Đã đặt`, vẫn có thể thêm bớt dòng và chỉnh số lượng/giá; chỉ sau `Đã nhập kho` mới khóa nội dung
+- trong lúc đơn còn `draft` hoặc `committed`, vẫn có thể thêm bớt dòng và chỉnh số lượng/giá; chỉ sau `completed` mới khóa nội dung
+- từ `committed` trở đi, khách hàng của đơn bị khóa và không được đổi nữa
 
 ### Bước 4: Chốt đơn
 
 - nếu đủ tồn:
-  - tạo xuất kho
-  - trừ kho theo FEFO từ lô có HSD sớm nhất trước
-  - cart chuyển `completed`
+  - kiểm tra tồn khả dụng sau khi trừ phần đã giữ cho các đơn `committed` khác
+  - cart chuyển `committed`
+  - phát sinh `order_code` và `committed_at`
+  - chưa trừ kho thật
 - nếu thiếu tồn:
   - app phải báo trước khi tạo hoặc cập nhật phiếu nhập cho phần còn thiếu
   - nếu đã có phiếu `draft/ordered` đủ số lượng đáp ứng phần thiếu thì chỉ thông báo và cho mở lại phiếu liên quan khi user xác nhận cần chỉnh
   - user thường được dẫn sang luồng nhập hàng
   - không bypass chỉnh tồn
 
-### Bước 5: Theo dõi đơn
+### Bước 5: Xuất hàng
+
+- chỉ nhận đơn `committed`
+- nếu đủ tồn thực tế:
+  - tạo xuất kho
+  - trừ kho theo FEFO từ lô có HSD sớm nhất trước
+  - cart chuyển `completed`
+- nếu thiếu tồn thực tế:
+  - app báo trước và cho mở/tạo phiếu nhập bù thiếu
+- không tự động in phiếu sau khi xuất
+
+### Bước 6: Theo dõi đơn
 
 - màn `orders`
 - chỉ xem/in/thanh toán/hủy theo rule
 - nếu đi từ màn `customers`, app có thể lọc danh sách đơn đúng theo khách; nếu khách chỉ có 1 phiếu thì mở sẵn detail để xem ngay kể cả với đơn đã `completed/paid`
-- giỏ nháp đang chờ xuất có thể bấm `Xuất` ngay trên card để chốt nhanh mà không cần mở lại giỏ; trên mobile nút này nằm trong `...`
-- đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng hay giá; ngoại lệ duy nhất trước thanh toán là vẫn cho sửa `giảm giá khuyến mại` của toàn đơn
+- đơn `draft` có nút `Chốt đơn`, đơn `committed` có nút `Xuất hàng`
+- đơn `committed` vẫn cho sửa dòng hàng, địa chỉ giao và giảm giá; không đổi được khách, không được xóa
+- đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; ngoại lệ duy nhất trước thanh toán là vẫn cho sửa `giảm giá khuyến mại` của toàn đơn
 
 ## 4. Luồng nhập hàng
 
@@ -109,6 +124,7 @@ Nếu cần can thiệp đặc biệt
 - có thể đổi giá nhập mặc định
 - nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB; nếu phiếu đang là `draft` và đã có NCC thì bấm nút `NCC` vẫn phải cho chọn NCC khác
 - nhà cung cấp chỉ được đổi khi phiếu còn `draft`; từ `ordered` trở đi phải giữ nguyên NCC đã chốt
+- ngoại lệ compatibility: nếu DB cũ còn phiếu `ordered` nhưng thiếu `supplierName` hoặc thiếu item hợp lệ, app phải nhận diện đó là phiếu lỗi dữ liệu có thể repair để cho sửa NCC hoặc hủy/xóa dọn dữ liệu, thay vì khóa chết UI
 - nếu bỏ trống mã lô thì app tự sinh batch code khi nhập kho; nếu không nhập HSD thì app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản`, còn nếu cũng không có metadata bảo quản thì lô vẫn được quản lý nhưng không có hạn thật
 
 ### Bước 4: Chạy trạng thái workflow
@@ -125,6 +141,7 @@ ordered -> cancelled
 - `ordered` mới được nhập kho và vẫn cho sửa trực tiếp để thêm bớt theo biến động thực tế
 - nếu chưa có nhà cung cấp thì không được chuyển `draft -> ordered` hoặc `ordered -> received`
 - từ `ordered` trở đi không được đổi `supplierName`; UI phải khóa ô NCC và nút `NCC` trên mọi thiết bị
+- ngoại lệ duy nhất là phiếu legacy bị đánh dấu `repairableInvalid`; trường hợp này UI mở lại thao tác sửa NCC hoặc xóa/hủy để cứu dữ liệu cũ, nhưng không coi là workflow chuẩn hằng ngày
 - chỉ `received` mới được `paid`
 - `received` chỉ còn cho sửa `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
 - trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận

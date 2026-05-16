@@ -63,7 +63,7 @@ Nếu thiếu dữ liệu thật thì hiện:
 - giá trị suy ra từ DB nếu đó là fallback an toàn
 
 Button `Detail` phải cho phép expand/collapse ngay trong card hoặc panel hiện tại để giữ list phiếu gọn trên mobile.
-Detail của phiếu xuất phải vẫn mở được với đơn `Đã xong` và `Đã thanh toán`, kể cả khi người dùng đi từ màn khách hàng sang bằng link nội bộ.
+Detail của phiếu xuất phải vẫn mở được với đơn `Chốt đơn`, `Đã xuất hàng` và `Đã thanh toán`, kể cả khi người dùng đi từ màn khách hàng sang bằng link nội bộ.
 
 Khi chứng từ có dữ liệu theo lô, phần danh sách dòng hoặc note đi kèm nên hiện thêm:
 
@@ -89,10 +89,11 @@ Thông tin nên hiện trong detail:
 
 - mã đơn / mã phiếu
 - khách hàng
+- địa chỉ giao
 - trạng thái xử lý
 - tạm tính / giảm khuyến mại / cần thanh toán
 - ngày tạo
-- ngày chốt hoặc ngày thanh toán nếu có
+- ngày chốt / ngày xuất / ngày thanh toán nếu có
 - cập nhật cuối
 
 #### Phiếu nhập

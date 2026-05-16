@@ -525,6 +525,41 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
+                if route == "/api/orders/commit":
+                    result = store.commit_cart_order(
+                        payload.get("cart_id", ""),
+                        actor=self._get_current_username() or "",
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã chốt đơn.",
+                            "cart": result["cart"],
+                            "order": {
+                                "order_code": result["order_code"],
+                                "committed_at": result["committed_at"],
+                            },
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
+                if route == "/api/orders/ship":
+                    result = store.ship_cart_order(
+                        payload.get("cart_id", ""),
+                        actor=self._get_current_username() or "",
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã xuất hàng.",
+                            "cart": result["cart"],
+                            "order": result["order"],
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
                 if route == "/api/purchases/receive":
                     clean_supplier_name = str(payload.get("supplier_name", "")).strip()
                     if not clean_supplier_name:

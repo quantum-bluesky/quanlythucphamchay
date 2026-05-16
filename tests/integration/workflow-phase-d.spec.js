@@ -54,17 +54,19 @@ test("IT-PHD-02 state sync stores actor when cart status changes", async ({ requ
   expect(seedResponse.ok()).toBeTruthy();
   const seededPayload = await seedResponse.json();
 
-  const completeResponse = await request.put("/api/state", {
+  const cancelResponse = await request.put("/api/state", {
     headers: { Cookie: userCookie },
     data: {
       carts: seededPayload.carts.map((cart) => (
-        cart.id === cartId ? { ...cart, status: "completed" } : cart
+        cart.id === cartId
+          ? { ...cart, status: "cancelled", cancelledAt: new Date().toISOString() }
+          : cart
       )),
       expected_updated_at: { carts: seededPayload.updated_at?.carts || "" },
       actor: "phase-d-user",
     },
   });
-  expect(completeResponse.ok()).toBeTruthy();
+  expect(cancelResponse.ok()).toBeTruthy();
 });
 
 test("IT-PHD-03 product history filter form applies actor and date filters in UI", async ({ page, request }) => {

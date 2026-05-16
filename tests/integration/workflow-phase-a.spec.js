@@ -629,17 +629,24 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const draftOrderCard = page.locator(".cart-queue-item", { hasText: draftCustomerName }).first();
     await draftOrderCard.locator('[data-queue-action="open"]').click();
     await expectScreenTitle(page, "Tạo đơn xuất hàng");
-    if (!await page.locator('[data-cart-action="checkout"]').isVisible().catch(() => false)) {
+    if (!await page.locator('[data-cart-action="commit"]').isVisible().catch(() => false)) {
       await page.locator('[data-cart-action="toggle-panel"]').click();
-      await expect(page.locator('[data-cart-action="checkout"]')).toBeVisible();
+      await expect(page.locator('[data-cart-action="commit"]')).toBeVisible();
     }
 
-    const checkoutDialog = await captureDialogMessage(page, async () => {
-      await page.locator('[data-cart-action="checkout"]').click();
+    const commitDialog = await captureDialogMessage(page, async () => {
+      await page.locator('[data-cart-action="commit"]').click();
     });
-    expect(checkoutDialog).toContain("Đã xong");
-    const checkoutToast = await collectToast(page, runtime, "it-sts-01-checkout", { errorPattern: /^$/ });
-    expect(checkoutToast).toContain("Đã chốt giỏ hàng");
+    expect(commitDialog).toContain("Chốt đơn");
+    const commitToast = await collectToast(page, runtime, "it-sts-01-commit", { errorPattern: /^$/ });
+    expect(commitToast).toContain("Đã chốt đơn");
+
+    const shipDialog = await captureDialogMessage(page, async () => {
+      await page.locator('[data-cart-action="ship"]').click();
+    });
+    expect(shipDialog).toContain("Đã xuất hàng");
+    const shipToast = await collectToast(page, runtime, "it-sts-01-ship", { errorPattern: /^$/ });
+    expect(shipToast).toContain("Đã xuất hàng");
 
     await switchMenu(page, "inventory");
     await expectScreenTitle(page, "Kiểm tra tồn kho");
@@ -900,7 +907,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
     });
     expect(invalidCartResponse.status()).toBe(400);
     const invalidCartBody = await invalidCartResponse.json();
-    expect(invalidCartBody.error).toContain("Đơn hàng đã chốt không thể sửa trực tiếp");
+    expect(invalidCartBody.error).toContain("Đơn hàng đã xuất hàng không thể sửa trực tiếp");
 
     const invalidPurchasePayload = structuredClone(seededState.purchases || []);
     const lockedPurchase = invalidPurchasePayload.find((purchase) => purchase.id === paidPurchaseId);

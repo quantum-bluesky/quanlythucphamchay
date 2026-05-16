@@ -258,6 +258,9 @@ Case mới cho Phase A:
 - `UT-DB-16`: backend tự tính HSD của phiếu nhập theo `ngày nhập kho + thời gian bảo quản` hoặc `ngày sản xuất + thời gian bảo quản`
 - `UT-DB-17`: backend cho cập nhật lại HSD/NSX của dòng phiếu `received`, đồng thời đồng bộ lại `purchase_items`, `inventory_batches`, `inventory_receipt_items`
 - `UT-SYNC-04`: backend chặn `draft -> paid` ở đơn hàng, cho `draft -> cancelled`, cho `completed -> paid`, rồi khóa hẳn nhánh mở lại/hạ trạng thái sau khi đã `cancelled/paid`
+- `UT-SYNC-05`: backend khóa `customerId/customerName` từ lúc đơn ở `committed`, vẫn cho sửa `ship_address`, và chặn đổi `committed -> completed` qua sync thẳng
+- `UT-ORD-15`: backend `commit_cart_order()` không trừ kho, còn `ship_cart_order()` mới trừ kho và chuyển đơn sang `completed`
+- `UT-DB-18`: backend nhận diện phiếu nhập `ordered` nhưng thiếu NCC là dữ liệu lỗi có thể repair để không khóa chết UI trên DB cũ
 
 Case mới cho Phase B.4:
 
@@ -266,8 +269,10 @@ Case mới cho Phase B.4:
 - `UT-AUD-03`: receipt history trả về source link và audit message cho 3 loại phiếu Phase B
 - `UT-NORM-04`: sync state không persist phiếu nhập nháp rỗng, chỉ lưu draft khi đã có ít nhất một mặt hàng
 - `UT-SYNC-03`: chỉ cho sửa `giảm giá khuyến mại` trước thanh toán, và khóa lại sau khi chứng từ đã được đánh dấu thanh toán
-- `UT-SYNC-04`: đơn hàng chỉ được thanh toán sau khi đã chốt, vẫn cho hủy khi còn `draft`, và khóa luôn nhánh mở lại/hạ thanh toán sau khi đã `cancelled/paid`
-- `IT-STS-01`: sau `Xuất kho`, test chuyển sang `Tồn kho` và kiểm tra số lượng mới hiển thị ngay, đồng thời vẫn bắt confirm cho các action trạng thái/xóa/hủy
+- `UT-SYNC-04`: đơn hàng chỉ được thanh toán sau khi đã `Đã xuất hàng`, vẫn cho hủy khi còn `draft`, và khóa luôn nhánh mở lại/hạ thanh toán sau khi đã `cancelled/paid`
+- `UT-SYNC-05`: đơn `Chốt đơn` khóa khách hàng nhưng còn sửa được `Địa chỉ giao`; sync thẳng không được phép tự đổi sang `Đã xuất hàng`
+- `UT-ORD-15`: test trực tiếp API backend cho flow `draft -> committed -> completed`
+- `IT-STS-01`: sau `Chốt đơn -> Xuất hàng`, test chuyển sang `Tồn kho` và kiểm tra số lượng mới hiển thị ngay, đồng thời vẫn bắt confirm cho các action trạng thái/xóa/hủy
 
 Case regression UI báo cáo:
 

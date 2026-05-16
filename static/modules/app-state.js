@@ -84,6 +84,8 @@ export const state = {
   visibleSelectedSalesProductId: null,
   expandedSelectedCartItemId: null,
   expandedOrderId: null,
+  pendingCartMergeCustomerId: "",
+  pendingCartMergeCustomerName: "",
   inventoryAdjustmentReasons: {},
   inventoryReceiptDraft: {
     collapsed: true,

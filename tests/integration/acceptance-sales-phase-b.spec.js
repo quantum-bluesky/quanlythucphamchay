@@ -150,10 +150,10 @@ async function openDraftCartFromOrders(page, customerName, cartId) {
 }
 
 async function ensureActiveCartPanelOpen(page) {
-  const checkoutButton = page.locator('#activeCartPanel [data-cart-action="checkout"]');
-  if (!await checkoutButton.isVisible()) {
+  const commitButton = page.locator('#activeCartPanel [data-cart-action="commit"]');
+  if (!await commitButton.isVisible()) {
     await page.locator('#activeCartPanel [data-cart-action="toggle-panel"]').click();
-    await expect(checkoutButton).toBeVisible();
+    await expect(commitButton).toBeVisible();
   }
 }
 
@@ -267,12 +267,12 @@ test("ACC-SALE-02 shortage checkout for normal user creates purchase suggestion 
     await ensureActiveCartPanelOpen(page);
 
     await interceptConfirm(page, true);
-    await page.locator('#activeCartPanel [data-cart-action="checkout"]').click();
+    await page.locator('#activeCartPanel [data-cart-action="commit"]').click();
 
     await expectScreenTitle(page, "Nhập hàng");
     const createDialogMessages = await readInterceptedConfirmMessages(page);
     const createDialogMessage = createDialogMessages[createDialogMessages.length - 1] || "";
-    expect(createDialogMessages[0] || "").toContain("Chốt xuất kho");
+    expect(createDialogMessages[0] || "").toContain("Chốt đơn");
     expect(createDialogMessage).toContain(shortageProduct.name);
     const createdLinkedPurchase = createDialogMessage.includes("App sẽ tạo hoặc cập nhật phiếu nhập tương ứng cho phần còn thiếu");
     const shortageToast = await collectToast(page, runtime, "acc-sale-02-shortage", {
@@ -324,13 +324,13 @@ test("ACC-SALE-02 shortage checkout for normal user creates purchase suggestion 
     await ensureActiveCartPanelOpen(page);
 
     await interceptConfirm(page, true);
-    await page.locator('#activeCartPanel [data-cart-action="checkout"]').click();
+    await page.locator('#activeCartPanel [data-cart-action="commit"]').click();
 
     await expectScreenTitle(page, "Nhập hàng");
     const existingPurchaseDialogMessages = await readInterceptedConfirmMessages(page);
     const existingPurchaseDialogMessage = existingPurchaseDialogMessages[existingPurchaseDialogMessages.length - 1] || "";
-    expect(existingPurchaseDialogMessages[0] || "").toContain("Chốt xuất kho");
-    expect(existingPurchaseDialogMessage).toContain("đã có phiếu chờ nhập đủ số lượng");
+    expect(existingPurchaseDialogMessages[0] || "").toContain("Chốt đơn");
+    expect(existingPurchaseDialogMessage).toContain("Đơn chưa đủ hàng khả dụng để chốt");
     expect(existingPurchaseDialogMessage).toContain(shortageProduct.name);
     const existingPurchaseToast = await collectToast(page, runtime, "acc-sale-02-existing-purchase", {
       errorPattern: /^$/,
