@@ -44,6 +44,10 @@ app_state
 audit_logs
   lưu audit cho product price, direct adjustment, trạng thái cart/purchase,
   và chứng từ adjustment / return
+
+workflow_locks
+procurement_assignments
+  giữ khóa kỳ gom nhập và rule một sản phẩm thiếu chỉ được gán vào một phiếu nhập batch mở
 ```
 
 ## 4. Bảng `products`
@@ -296,7 +300,36 @@ Nguồn: `CREATE TABLE IF NOT EXISTS audit_logs` trong `qltpchay/store.py`.
 - audit chuyển trạng thái cart và purchase
 - audit tạo chứng từ điều chỉnh/trả hàng và giữ đúng actor khi tạo/import từ các luồng quản trị
 
-## 10. Cách tính tồn kho
+## 10. Bảng workflow lock và procurement assignment
+
+### `workflow_locks`
+
+- dùng để khóa các flow không được xử lý song song
+- cột chính:
+  - `lock_key`: khóa nghiệp vụ, hiện dùng `procurement_batch`
+  - `owner_username`
+  - `owner_role`
+  - `metadata`: JSON mở rộng
+  - `created_at`, `updated_at`, `expires_at`, `released_at`
+
+### `procurement_assignments`
+
+- gán một sản phẩm đang thiếu vào một phiếu nhập batch mở
+- cột chính:
+  - `product_id`
+  - `purchase_id`
+  - `mode`: hiện dùng `batch`
+  - `source_scope_type`, `source_scope_code`
+  - `created_by`
+  - `created_at`, `released_at`
+
+### Ràng buộc
+
+- unique partial index trên `(product_id, mode)` khi `released_at IS NULL`, nên một sản phẩm thiếu chỉ có một assignment active trong batch mode
+- khi tạo purchase từ planner, backend gom các dòng cùng NCC vào cùng purchase `draft`, tạo assignment trong cùng transaction và reuse purchase batch `draft` đang mở của NCC đó nếu có
+- assignment chỉ đại diện cho logistics gom nhập; tồn kho thật vẫn chỉ tăng khi purchase đi qua bước `Nhập kho`
+
+## 11. Cách tính tồn kho
 
 App không có cột `current_stock` trong bảng `products`.
 
@@ -312,7 +345,7 @@ Hệ quả thiết kế:
 - buộc workflow điều chỉnh phải đi qua chứng từ hoặc transaction hợp lệ
 - tồn theo lô được suy ra song song qua `inventory_batches.remaining_quantity`; nếu lệch thì phải sửa bằng chứng từ mới thay vì sửa tay số dư lô
 
-## 11. Chiến lược migration
+## 12. Chiến lược migration
 
 Schema được migrate inline trong `initialize_schema()` bằng:
 
@@ -338,8 +371,9 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - thêm `batch_id`, `batch_code`, `expiry_date` vào `inventory_receipt_items`
 - thêm bảng `inventory_batches` và `inventory_batch_allocations`
 - backfill mềm lô từ transaction/receipt cũ khi schema mới được khởi tạo trên DB đang dùng
+- thêm bảng `workflow_locks` và `procurement_assignments` cho Batch procurement mode
 
-## 12. Ràng buộc nghiệp vụ chính gắn với DB
+## 13. Ràng buộc nghiệp vụ chính gắn với DB
 
 - `products.price` là giá nhập mặc định
 - `products.sale_price` là giá bán mặc định
@@ -354,8 +388,23 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - `app_state.updated_at` được dùng để chặn ghi đè stale save
 - sort ưu tiên tồn kho dùng metric suy diễn từ ledger bán hàng thật, không persist score vào DB
 - sort hạn còn lại ưu tiên theo HSD thật sớm nhất trong các lô còn hàng; chỉ khi chưa có HSD lô mới fallback về metadata sản phẩm và lần nhập gần nhất
+- Batch procurement mode được suy ra từ `workflow_locks.lock_key = procurement_batch` còn hiệu lực
+- `procurement_assignments` chặn tạo trùng nhiều phiếu nhập mở cho cùng một sản phẩm thiếu trong batch mode
+- phiếu nhập batch có `source_type = procurement_batch`; nhiều assignment có thể cùng trỏ tới một purchase nếu cùng NCC
 
-## 13. Điểm mạnh và giới hạn hiện tại
+## 14. Config liên quan
+
+`system_config.json` có nhóm `procurement`:
+
+- `batch_planner_enabled`: bật màn xử lý nhập thiếu batch
+- `batch_lock_timeout_minutes`: thời gian khóa batch trước khi hết hạn
+- `allow_daily_quick_shortage_flow`: giữ flow nhanh theo đơn khi không ở batch mode
+- `required_login_for_batch_mode`: bắt buộc login để xác định người giữ khóa
+- `planner_manager_usernames`: danh sách user thường được phép xử lý batch ngoài permission trực tiếp
+
+User thường có thể có permission `procurement_batch_manage`; quyền này chỉ cho xử lý kỳ gom nhập, không cho chỉnh tồn trực tiếp.
+
+## 15. Điểm mạnh và giới hạn hiện tại
 
 ### Điểm mạnh
 
@@ -365,6 +414,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - state chính đã có bảng quan hệ nên dễ query/report hơn trước
 - receipt đã có header/detail riêng để mở rộng báo cáo điều chỉnh/trả hàng
 - tồn theo lô và phân bổ FEFO đã có bảng riêng nên có thể truy vết ngược từng chứng từ kho
+- workflow lock giúp giới hạn batch gom nhập cho một người xử lý, phù hợp cửa hàng ít user
 
 ### Giới hạn
 
@@ -373,8 +423,9 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - `supplier_id` và `customer_id` trong một số receipt cũ có thể chưa backfill đầy đủ nếu dữ liệu lịch sử chỉ có tên
 - reporting sâu cho receipt lịch sử cũ phụ thuộc chất lượng `transactions.note`
 - lô chưa có HSD vẫn quản lý được nhưng không thể tham gia FEFO theo ngày hết hạn thật
+- planner batch hiện tạo phiếu nhập theo từng sản phẩm; việc chuyển assignment giữa NCC/phiếu là hướng mở rộng sau
 
-## 14. Định hướng nếu mở rộng sau này
+## 16. Định hướng nếu mở rộng sau này
 
 - giữ `transactions` làm ledger trung tâm
 - cân nhắc tách bảng quan hệ cho `carts`, `purchases`, `customers`, `suppliers`

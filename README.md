@@ -14,6 +14,7 @@ App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/ql
 - Business flow: [docs/BUSINESS_FLOW.md](docs/BUSINESS_FLOW.md)
 - Design hiển thị phiếu: [docs/PHIEU_DISPLAY_DESIGN.md](docs/PHIEU_DISPLAY_DESIGN.md)
 - Thiết kế Issue 110 - Chốt đơn / Đã xuất hàng: [docs/ISSUE_110_ORDER_COMMIT_DESIGN.md](docs/ISSUE_110_ORDER_COMMIT_DESIGN.md)
+- Thiết kế Issue 113 - Batch procurement mode / Xử lý nhập thiếu: [docs/ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md](docs/ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md)
 - Hướng dẫn test: [docs/TESTING.md](docs/TESTING.md)
 - Acceptance checklist: [docs/ACCEPTANCE_CHECKLIST.md](docs/ACCEPTANCE_CHECKLIST.md)
 - Phân tích workflow: [docs/WORKFLOW_REVIEW.md](docs/WORKFLOW_REVIEW.md)
@@ -89,6 +90,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - `XH`: Xuất hàng
 - `TK`: Tồn kho
 - `ĐH`: Đơn hàng
+- `XL`: Xử lý nhập thiếu
 - `NCC`: Nhà cung cấp
 - `KH`: Khách hàng
 
@@ -112,6 +114,12 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Phiếu xuất và phiếu nhập có thêm `giảm giá khuyến mại` ở cấp toàn phiếu; app tự tính `Tạm tính / Giảm KM / Cần thanh toán` ngay trên panel, detail và bản in
 - Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm
 - Khi chốt đơn bị thiếu hàng, app sẽ báo trước khi tạo/cập nhật phiếu nhập; nếu đã có phiếu chờ nhập đủ số lượng thì app chỉ thông báo và cho mở lại phiếu đó khi người dùng xác nhận cần chỉnh
+- Màn `Xử lý nhập thiếu` cho phép bật kỳ gom nhập định kỳ, gom nhu cầu của cả đơn nháp và đơn đã chốt theo từng mặt hàng để tạo phiếu nhập batch
+- Trong kỳ gom nhập, shortage flow không auto-create phiếu nhập theo từng đơn; người giữ khóa batch phải xử lý trên planner và mỗi sản phẩm thiếu chỉ được gán vào một phiếu nhập mở để tránh tách logistics
+- Planner batch cho tick chọn nhiều mặt hàng, chọn NCC từ danh bạ, chỉnh số lượng/giá nhập/giảm giá, rồi gom các mặt hàng cùng NCC vào một phiếu nhập nháp
+- Nếu NCC chưa có trong danh bạ, app hỏi để chuyển sang màn `Nhà cung cấp` tạo mới, lưu xong quay lại planner để chọn tiếp
+- Sau khi tạo phiếu batch, có màn review detail với nút `Trước / Sau` để chỉnh nhanh các phiếu vừa tạo rồi quay lại planner refresh trạng thái
+- Quyền xử lý kỳ gom nhập có thể cấp cho `Master Admin`, user có permission `procurement_batch_manage`, hoặc username nằm trong config `procurement.planner_manager_usernames`
 - Nút `Detail` ở `Giỏ hiện hành` và `Đơn hàng` cho phép bung nhanh metadata phiếu xuất và danh sách dòng hàng mà không phải mở sang chỗ chỉnh sửa
 - Từ màn Khách hàng có thể bấm badge `đơn chờ` / `đơn` để mở danh sách phiếu của đúng khách; nếu khách chỉ có 1 phiếu thì màn Đơn hàng sẽ tự mở detail kể cả với đơn đã xuất hàng hoặc đã thanh toán
 - Màn `Đơn hàng` mặc định ẩn đơn đã hủy; khi cần đối chiếu lịch sử có thể bật checkbox `Hiện đơn đã hủy`

@@ -24,6 +24,7 @@ Liên kết detail hiện có:
 
 - Hiển thị các phiếu/chứng từ: [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 - Thiết kế planned cho workflow `Chốt đơn` / `Đã xuất hàng`: [ISSUE_110_ORDER_COMMIT_DESIGN.md](ISSUE_110_ORDER_COMMIT_DESIGN.md)
+- Thiết kế planned cho `Batch procurement mode` / màn `Xử lý nhập thiếu`: [ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md](ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md)
 
 ## 1. Nguyên tắc UI chung
 
@@ -47,6 +48,7 @@ Liên kết detail hiện có:
   - card sản phẩm
   - danh sách lô còn hàng trong phần detail card
   - badge `Chờ xuất` / `Chờ nhập` có thêm `số phiếu / tổng số lượng` đang chờ theo sản phẩm
+  - nút `Xử lý nhập thiếu` để mở planner batch khi cần gom nhập định kỳ
   - nút `Lịch sử` để nhảy nhanh xuống phần lịch sử
   - lịch sử gần đây
 - hành động chính:
@@ -86,6 +88,7 @@ Liên kết detail hiện có:
   - sau khi đơn đã `Đã xuất hàng` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Giảm giá khuyến mại`; không mở khóa lại dòng hàng
   - khi mở đơn mới cho khách đang có đơn `Chốt đơn`, panel phải hiện lựa chọn `Mở đơn đã chốt` hoặc `Tạo đơn mới`
   - khi chốt đơn bị thiếu hàng khả dụng hoặc khi xuất hàng bị thiếu hàng thực tế, app phải báo trước khi tạo/cập nhật phiếu nhập; nếu đã có phiếu chờ nhập đủ số lượng thì chỉ mở lại phiếu liên quan sau khi user xác nhận cần chỉnh
+  - khi hệ thống đang ở Batch procurement mode, shortage không được auto-create phiếu nhập theo từng cart mà phải chuyển sang màn `procurement-planner`
 
 ### `orders` - Quản lý đơn hàng
 
@@ -171,6 +174,28 @@ Liên kết detail hiện có:
   - các nút đổi trạng thái hoặc xóa phiếu như `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu`, `Xóa phiếu` phải hiện message confirm trước khi app cập nhật
 - tài liệu detail:
   - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
+
+### `procurement-planner` - Xử lý nhập thiếu
+
+- mục tiêu:
+  - gom nhu cầu nhập thiếu từ đơn nháp và đơn đã chốt
+  - cho một người giữ khóa batch tạo phiếu nhập theo mặt hàng
+  - tránh tách cùng một sản phẩm thiếu ra nhiều phiếu nhập mở
+- thành phần chính:
+  - panel trạng thái Daily/Batch mode và người giữ khóa
+  - nút `Làm mới`, `Tạo phiếu đã chọn`, `Review phiếu`, `Bắt đầu kỳ gom`, `Kết thúc kỳ gom`
+  - danh sách mặt hàng thiếu theo tồn, nhu cầu đơn chốt, nhu cầu đơn nháp, chờ nhập, cần nhập và dự kiến sau nhập
+  - review panel detail phiếu nhập batch với nút `Trước / Sau`
+- nguyên tắc UI:
+  - Daily mode vẫn ưu tiên flow nhanh theo đơn ở màn `purchases`
+  - Batch mode chỉ cho user có quyền quản lý batch tạo phiếu nhập từ planner
+  - mỗi dòng mặc định chưa tick; chỉ khi tick mới hiện NCC, số lượng và cảnh báo sau nhập
+  - trên tablet/desktop hiện thêm input `Giá nhập` và `Giảm KM` để tận dụng không gian rộng hơn
+  - các dòng chọn cùng NCC phải gom vào cùng một phiếu nhập batch draft
+  - nếu NCC chưa tồn tại, app hỏi chuyển sang màn `suppliers` để tạo NCC mới rồi quay lại planner
+  - nếu sản phẩm đã được gán vào một phiếu nhập batch mở, dòng planner phải hiện mã phiếu/NCC đang xử lý thay vì cho tạo trùng
+  - cảnh báo `Sau nhập vẫn dưới ngưỡng` chỉ hiện sau khi dòng đã được tick và có số lượng dự kiến; đây là cảnh báo tồn kho, không phải lỗi chặn tạo phiếu
+  - trên mobile, action phụ giữ trong card; không thêm quá nhiều nút trực tiếp vào header
 
 ### `suppliers` - Quản lý nhà cung cấp
 
