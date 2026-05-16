@@ -2413,6 +2413,13 @@ function buildProcurementPlannerQuery(scope = state.procurementPlanner.scope) {
 }
 
 async function refreshProcurementPlanner(scope = state.procurementPlanner.scope) {
+  const currentPlanner = state.procurementPlanner || {};
+  const previousSelections = currentPlanner.selections || {};
+  const previousReviewOpen = Boolean(currentPlanner.reviewOpen);
+  const previousReviewPurchaseIds = Array.isArray(currentPlanner.reviewPurchaseIds)
+    ? currentPlanner.reviewPurchaseIds
+    : [];
+  const previousReviewIndex = Number(currentPlanner.reviewIndex || 0);
   state.procurementPlanner.loading = true;
   renderProcurementPlanner();
   try {
@@ -2426,6 +2433,10 @@ async function refreshProcurementPlanner(scope = state.procurementPlanner.scope)
       rows: Array.isArray(payload.rows) ? payload.rows : [],
       scope: payload.scope || scope || { type: "all", code: "" },
       loading: false,
+      selections: previousSelections,
+      reviewOpen: previousReviewOpen,
+      reviewPurchaseIds: previousReviewPurchaseIds,
+      reviewIndex: previousReviewIndex,
     };
     renderProcurementPlanner();
     return payload;
@@ -2456,6 +2467,9 @@ async function routeShortageToProcurementPlanner(cart, message) {
 
 function getProcurementSelection(productId) {
   const key = String(productId || "");
+  if (!state.procurementPlanner.selections) {
+    state.procurementPlanner.selections = {};
+  }
   if (!state.procurementPlanner.selections[key]) {
     const row = state.procurementPlanner.rows.find((entry) => String(entry.product_id) === key) || {};
     state.procurementPlanner.selections[key] = {
