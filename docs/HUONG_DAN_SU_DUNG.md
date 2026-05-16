@@ -543,10 +543,10 @@ Chỉ người quản trị hệ thống mới nên dùng màn này.
 Từ phiên bản này, màn `Master Admin` cũng là nơi login hệ thống:
 
 - `user` thường: dùng các màn nghiệp vụ chung
-- `Master Admin`: có thêm phần quản trị master data, backup/restore và chỉnh tồn trực tiếp
+- `Master Admin`: có thêm phần quản trị master data, backup/restore, legacy audit và chỉnh tồn trực tiếp
 - nếu `EnableLogin = true` trong `system_config.json`, người dùng phải login thì mới dùng được app
 
-Màn này có 2 nhóm chức năng:
+Màn này có 3 nhóm chức năng:
 
 - export / import file master:
   - mặt hàng
@@ -554,6 +554,10 @@ Màn này có 2 nhóm chức năng:
   - nhà cung cấp
   - định dạng hỗ trợ: `JSON` hoặc `CSV`
 - backup / restore database toàn hệ thống
+- `Legacy Audit` để quét dữ liệu legacy đang dùng:
+  - tách phần `fix an toàn` có thể auto backfill timestamp
+  - liệt kê các record còn phải admin review thủ công
+  - cho gắn lại `receipt_code` hoặc `đơn nguồn` nếu đã đối chiếu chắc chắn
 - trạng thái phiên: nút `Login` / `Logout` nằm ở thanh header nổi; khi đã login sẽ hiện tên user bên cạnh
 
 Lưu ý timeout phiên:
@@ -586,6 +590,30 @@ Lưu ý cấu hình phân trang trong `system_config.json`:
 - backup trước khi chỉnh sửa lớn
 - backup định kỳ để lưu trữ
 - restore khi cần quay lại một trạng thái hệ thống cũ
+
+### Khi nào dùng Legacy Audit
+
+- sau khi restore DB thật từ máy khác hoặc từ server remote về local
+- khi thấy phiếu legacy bị khóa sai do thiếu `NCC`, thiếu `receipt_code`, thiếu `paid_at`, hoặc thiếu link `đơn nguồn`
+- trước khi can thiệp tay vào SQLite
+
+### Cách dùng Legacy Audit
+
+1. Đăng nhập `Master Admin`
+2. Vào màn `Master Admin`
+3. Bấm `Làm mới audit` để quét DB hiện hành
+4. Nếu khối `Fix an toàn` có dữ liệu, bấm `Áp dụng fix an toàn`
+5. Xem khối `Record cần review thủ công`
+6. Với phiếu nhập legacy lỗi workflow:
+   - bấm `Mở phiếu` để sang màn `Nhập hàng`
+   - hoặc gắn lại `receipt_code`
+   - hoặc `Hủy/Xóa` nếu chắc chắn đó là phiếu lỗi không còn giá trị
+7. Với phiếu nhập thiếu link `đơn nguồn`, nhập hoặc chọn `cart_id` rồi bấm `Gắn đơn nguồn`
+
+Nguyên tắc:
+
+- fix an toàn chỉ backfill các mốc thời gian chắc chắn, không tự đoán `receipt_code` hay `cart_id`
+- các thao tác gắn lại receipt / đơn nguồn luôn phải do admin xác nhận sau khi đối chiếu chứng từ thật
 
 ### Cảnh báo
 

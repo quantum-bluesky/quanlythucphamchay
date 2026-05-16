@@ -125,6 +125,10 @@ Mục tiêu:
 | 93 | `UT-SYNC-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_05_committed_cart_locks_customer_but_allows_ship_address_until_completed` |
 | 94 | `UT-ORD-15` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_15_commit_and_ship_cart_order_follow_new_workflow` |
 | 95 | `UT-DB-18` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_10a_ordered_purchase_without_supplier_is_repairable` |
+| 96 | `UT-DB-19` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_13_legacy_audit_reports_safe_and_manual_issues` |
+| 97 | `UT-DB-20` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_14_apply_safe_legacy_fixes_backfills_cart_paid_at_and_purchase_received_at` |
+| 98 | `UT-DB-21` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_16_attach_purchase_receipt_code_repairs_invalid_paid_purchase` |
+| 99 | `UT-DB-22` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_17_attach_purchase_source_cart_repairs_missing_source_code` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

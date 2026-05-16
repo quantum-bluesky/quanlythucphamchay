@@ -272,6 +272,13 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 if not self._require_admin():
                     return
 
+                if route == "/api/admin/legacy-audit":
+                    self._send_json(
+                        HTTPStatus.OK,
+                        store.get_legacy_data_audit(),
+                    )
+                    return
+
                 if route == "/api/admin/backup":
                     backup_path = store.create_database_backup()
                     self._send_binary_file(
@@ -379,6 +386,64 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
             if route.startswith("/api/admin/"):
                 if not self._require_admin():
+                    return
+
+                if route == "/api/admin/legacy-audit/apply-safe-fixes":
+                    result = store.apply_safe_legacy_fixes(
+                        actor=self._get_current_actor_name(),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": result["message"],
+                            "counts": result["counts"],
+                            "audit": result["audit"],
+                        },
+                    )
+                    return
+
+                if route == "/api/admin/legacy-audit/link-purchase-receipt":
+                    try:
+                        payload = self._read_json_body()
+                        result = store.attach_purchase_receipt_code(
+                            payload.get("purchase_id", ""),
+                            payload.get("receipt_code", ""),
+                            actor=self._get_current_actor_name(),
+                        )
+                        self._send_json(
+                            HTTPStatus.OK,
+                            {
+                                "message": result["message"],
+                                "purchase": result["purchase"],
+                                "purchases": result["purchases"],
+                                "audit": result["audit"],
+                                "summary": store.get_summary(),
+                            },
+                        )
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+                if route == "/api/admin/legacy-audit/link-purchase-source":
+                    try:
+                        payload = self._read_json_body()
+                        result = store.attach_purchase_source_cart(
+                            payload.get("purchase_id", ""),
+                            payload.get("cart_id", ""),
+                            actor=self._get_current_actor_name(),
+                        )
+                        self._send_json(
+                            HTTPStatus.OK,
+                            {
+                                "message": result["message"],
+                                "purchase": result["purchase"],
+                                "purchases": result["purchases"],
+                                "audit": result["audit"],
+                                "summary": store.get_summary(),
+                            },
+                        )
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                     return
 
                 import_match = re.fullmatch(r"/api/admin/import/(products|customers|suppliers)", route)

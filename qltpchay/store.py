@@ -3584,7 +3584,7 @@ class InventoryStore:
         if receipt_type:
             return connection.execute(
                 """
-                SELECT id, receipt_code, receipt_type, source_type, source_code, created_at
+                SELECT id, receipt_code, receipt_type, customer_name, supplier_name, source_type, source_code, created_at
                 FROM inventory_receipts
                 WHERE receipt_code = ? AND receipt_type = ?
                 """,
@@ -3592,12 +3592,42 @@ class InventoryStore:
             ).fetchone()
         return connection.execute(
             """
-            SELECT id, receipt_code, receipt_type, source_type, source_code, created_at
+            SELECT id, receipt_code, receipt_type, customer_name, supplier_name, source_type, source_code, created_at
             FROM inventory_receipts
             WHERE receipt_code = ?
             """,
             (clean_receipt_code,),
         ).fetchone()
+
+    @staticmethod
+    def _parse_iso_datetime(value) -> datetime | None:
+        clean_value = str(value or "").strip()
+        if not clean_value:
+            return None
+        try:
+            if clean_value.endswith("Z"):
+                clean_value = f"{clean_value[:-1]}+00:00"
+            return datetime.fromisoformat(clean_value)
+        except ValueError:
+            return None
+
+    def _refresh_sync_collection_cache(
+        self,
+        connection: sqlite3.Connection,
+        state_key: str,
+        *,
+        updated_at: str,
+    ) -> list[dict]:
+        canonical = self._load_sync_collection_from_tables(connection, state_key)
+        connection.execute(
+            """
+            UPDATE app_state
+            SET state_value = ?, updated_at = ?
+            WHERE state_key = ?
+            """,
+            (json.dumps(canonical, ensure_ascii=False), updated_at, state_key),
+        )
+        return canonical
 
     def _is_repairable_invalid_purchase(
         self,
@@ -3625,6 +3655,212 @@ class InventoryStore:
         if status == "ordered" and (not supplier_name or item_count <= 0):
             return True
         return False
+
+    def _get_purchase_receipt_candidates(
+        self,
+        connection: sqlite3.Connection,
+        purchase: dict,
+    ) -> list[dict]:
+        supplier_name = str(purchase.get("supplierName") or purchase.get("supplier_name") or "").strip()
+        purchase_items = purchase.get("items") or []
+        purchase_product_ids = {
+            int(item.get("productId") or item.get("product_id") or 0)
+            for item in purchase_items
+            if int(item.get("productId") or item.get("product_id") or 0) > 0
+        }
+        purchase_updated_at = self._parse_iso_datetime(
+            purchase.get("updatedAt") or purchase.get("updated_at") or purchase.get("createdAt") or purchase.get("created_at")
+        )
+        current_receipt_code = str(purchase.get("receiptCode") or purchase.get("receipt_code") or "").strip()
+
+        used_receipt_codes = {
+            str(row["receipt_code"] or "").strip()
+            for row in connection.execute(
+                """
+                SELECT receipt_code
+                FROM purchases
+                WHERE TRIM(COALESCE(receipt_code, '')) <> ''
+                """
+            ).fetchall()
+        }
+        if current_receipt_code:
+            used_receipt_codes.discard(current_receipt_code)
+
+        candidate_rows = connection.execute(
+            """
+            SELECT id, receipt_code, supplier_name, created_at
+            FROM inventory_receipts
+            WHERE receipt_type = 'purchase'
+            ORDER BY datetime(created_at) DESC, id DESC
+            """
+        ).fetchall()
+        candidate_receipts: list[dict] = []
+        for row in candidate_rows:
+            receipt_code = str(row["receipt_code"] or "").strip()
+            if not receipt_code or receipt_code in used_receipt_codes:
+                continue
+            receipt_supplier = str(row["supplier_name"] or "").strip()
+            supplier_match = bool(supplier_name and normalize_key(receipt_supplier) == normalize_key(supplier_name))
+            receipt_item_rows = connection.execute(
+                """
+                SELECT product_id
+                FROM inventory_receipt_items
+                WHERE receipt_id = ? AND transaction_type = 'in'
+                """,
+                (int(row["id"]),),
+            ).fetchall()
+            receipt_product_ids = {
+                int(item_row["product_id"] or 0)
+                for item_row in receipt_item_rows
+                if int(item_row["product_id"] or 0) > 0
+            }
+            overlap_count = len(purchase_product_ids & receipt_product_ids)
+            if supplier_name:
+                if not supplier_match:
+                    continue
+            elif overlap_count <= 0:
+                continue
+            created_at = self._parse_iso_datetime(row["created_at"])
+            time_distance_seconds = None
+            if purchase_updated_at and created_at:
+                time_distance_seconds = abs((purchase_updated_at - created_at).total_seconds())
+            score = overlap_count * 100
+            if supplier_match:
+                score += 25
+            if time_distance_seconds is not None:
+                score -= min(int(time_distance_seconds // 3600), 72)
+            candidate_receipts.append(
+                {
+                    "receipt_code": receipt_code,
+                    "supplier_name": receipt_supplier,
+                    "created_at": row["created_at"],
+                    "overlap_count": overlap_count,
+                    "score": score,
+                }
+            )
+
+        candidate_receipts.sort(
+            key=lambda entry: (
+                -int(entry.get("score") or 0),
+                -int(entry.get("overlap_count") or 0),
+                str(entry.get("created_at") or ""),
+                str(entry.get("receipt_code") or ""),
+            )
+        )
+        return candidate_receipts[:8]
+
+    def _get_purchase_source_cart_candidates(
+        self,
+        connection: sqlite3.Connection,
+        purchase: dict,
+    ) -> list[dict]:
+        source_name = str(purchase.get("sourceName") or purchase.get("source_name") or "").strip()
+        purchase_items = purchase.get("items") or []
+        purchase_product_ids = {
+            int(item.get("productId") or item.get("product_id") or 0)
+            for item in purchase_items
+            if int(item.get("productId") or item.get("product_id") or 0) > 0
+        }
+        purchase_updated_at = self._parse_iso_datetime(
+            purchase.get("updatedAt") or purchase.get("updated_at") or purchase.get("createdAt") or purchase.get("created_at")
+        )
+        normalized_source_name = normalize_key(source_name)
+        if not normalized_source_name:
+            return []
+
+        cart_rows = connection.execute(
+            """
+            SELECT id, customer_name, status, updated_at, created_at, order_code
+            FROM carts
+            ORDER BY datetime(updated_at) DESC, id DESC
+            """
+        ).fetchall()
+        cart_item_rows = connection.execute(
+            """
+            SELECT cart_id, product_id
+            FROM cart_items
+            """
+        ).fetchall()
+        cart_product_ids: dict[str, set[int]] = {}
+        for row in cart_item_rows:
+            cart_id = str(row["cart_id"] or "").strip()
+            product_id = int(row["product_id"] or 0)
+            if not cart_id or product_id <= 0:
+                continue
+            cart_product_ids.setdefault(cart_id, set()).add(product_id)
+
+        candidates: list[dict] = []
+        for row in cart_rows:
+            cart_id = str(row["id"] or "").strip()
+            customer_name = str(row["customer_name"] or "").strip()
+            normalized_customer_name = normalize_key(customer_name)
+            exact_name_match = normalized_customer_name == normalized_source_name
+            partial_name_match = normalized_source_name and (
+                normalized_source_name in normalized_customer_name
+                or normalized_customer_name in normalized_source_name
+            )
+            overlap_count = len(purchase_product_ids & cart_product_ids.get(cart_id, set()))
+            if not exact_name_match and not partial_name_match and overlap_count <= 0:
+                continue
+            cart_time = self._parse_iso_datetime(row["updated_at"] or row["created_at"])
+            time_distance_seconds = None
+            if purchase_updated_at and cart_time:
+                time_distance_seconds = abs((purchase_updated_at - cart_time).total_seconds())
+            score = overlap_count * 100
+            if exact_name_match:
+                score += 50
+            elif partial_name_match:
+                score += 15
+            if time_distance_seconds is not None:
+                score -= min(int(time_distance_seconds // 3600), 72)
+            candidates.append(
+                {
+                    "cart_id": cart_id,
+                    "customer_name": customer_name,
+                    "status": str(row["status"] or "draft"),
+                    "updated_at": row["updated_at"] or row["created_at"],
+                    "order_code": str(row["order_code"] or "").strip(),
+                    "overlap_count": overlap_count,
+                    "score": score,
+                }
+            )
+
+        candidates.sort(
+            key=lambda entry: (
+                -int(entry.get("score") or 0),
+                -int(entry.get("overlap_count") or 0),
+                str(entry.get("updated_at") or ""),
+                str(entry.get("cart_id") or ""),
+            )
+        )
+        return candidates[:8]
+
+    def _build_legacy_issue_codes_for_purchase(
+        self,
+        connection: sqlite3.Connection,
+        purchase: dict,
+    ) -> list[str]:
+        status = str(purchase.get("status") or "draft").strip()
+        supplier_name = str(purchase.get("supplierName") or purchase.get("supplier_name") or "").strip()
+        receipt_code = str(purchase.get("receiptCode") or purchase.get("receipt_code") or "").strip()
+        receipt_row = self._get_inventory_receipt_by_code(
+            connection,
+            receipt_code,
+            receipt_type="purchase",
+        )
+        received_at = bool(purchase.get("receivedAt") or purchase.get("received_at"))
+        paid_at = bool(purchase.get("paidAt") or purchase.get("paid_at"))
+        item_count = len(purchase.get("items") or [])
+        issue_codes: list[str] = []
+        if status == "ordered" and not supplier_name:
+            issue_codes.append("ordered_missing_supplier")
+        if status == "ordered" and item_count <= 0:
+            issue_codes.append("ordered_missing_items")
+        if status in {"draft", "ordered"} and (received_at or paid_at or bool(receipt_code)):
+            issue_codes.append("open_status_has_processed_markers")
+        if status == "paid" and not receipt_row:
+            issue_codes.append("paid_missing_valid_receipt")
+        return issue_codes
 
     def _clear_inventory_receipt_source_links(
         self,
@@ -3731,10 +3967,10 @@ class InventoryStore:
                     next_purchases.append(updated_purchase)
 
             self._replace_sync_collection_records(connection, "purchases", next_purchases)
-            canonical = self._load_sync_collection_from_tables(connection, "purchases")
-            connection.execute(
-                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
-                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            canonical = self._refresh_sync_collection_cache(
+                connection,
+                "purchases",
+                updated_at=now,
             )
 
             repaired_label = (
@@ -3761,6 +3997,462 @@ class InventoryStore:
             "message": message,
             "purchases": canonical,
             "detached_receipt_codes": detached_receipts,
+        }
+
+    def get_legacy_data_audit(self) -> dict:
+        with self._connect() as connection:
+            purchases = self._load_sync_collection_from_tables(connection, "purchases")
+            carts = self._load_sync_collection_from_tables(connection, "carts")
+
+            safe_cart_paid_at_backfills: list[dict] = []
+            for cart in carts:
+                status = str(cart.get("status") or "draft").strip()
+                payment_status = str(cart.get("paymentStatus") or "unpaid").strip()
+                paid_at = str(cart.get("paidAt") or cart.get("paid_at") or "").strip()
+                if status != "completed" or payment_status != "paid" or paid_at:
+                    continue
+                suggested_paid_at = (
+                    str(cart.get("completedAt") or cart.get("completed_at") or "").strip()
+                    or str(cart.get("updatedAt") or cart.get("updated_at") or "").strip()
+                )
+                safe_cart_paid_at_backfills.append(
+                    {
+                        "cart_id": str(cart.get("id") or ""),
+                        "customer_name": str(cart.get("customerName") or cart.get("customer_name") or "").strip(),
+                        "order_code": str(cart.get("orderCode") or cart.get("order_code") or "").strip(),
+                        "suggested_paid_at": suggested_paid_at,
+                    }
+                )
+
+            safe_purchase_timestamp_backfills: list[dict] = []
+            purchase_rows = connection.execute(
+                """
+                SELECT id, status, supplier_name, updated_at, received_at, paid_at, receipt_code
+                FROM purchases
+                ORDER BY datetime(updated_at) DESC, id DESC
+                """
+            ).fetchall()
+            for purchase_row in purchase_rows:
+                status = str(purchase_row["status"] or "draft").strip()
+                if status not in {"received", "paid"}:
+                    continue
+                purchase_id = str(purchase_row["id"] or "")
+                receipt_code = str(purchase_row["receipt_code"] or "").strip()
+                received_at = str(purchase_row["received_at"] or "").strip()
+                paid_at = str(purchase_row["paid_at"] or "").strip()
+                receipt_row = self._get_inventory_receipt_by_code(
+                    connection,
+                    receipt_code,
+                    receipt_type="purchase",
+                )
+                suggested_received_at = received_at
+                suggested_paid_at = paid_at
+                needs_fix = False
+                if not suggested_received_at:
+                    suggested_received_at = str(
+                        (receipt_row["created_at"] if receipt_row is not None else "")
+                        or purchase_row["updated_at"]
+                        or ""
+                    ).strip()
+                    needs_fix = bool(suggested_received_at)
+                if status == "paid" and not suggested_paid_at:
+                    suggested_paid_at = str(
+                        purchase_row["updated_at"]
+                        or suggested_received_at
+                        or ""
+                    ).strip()
+                    needs_fix = needs_fix or bool(suggested_paid_at)
+                if needs_fix:
+                    safe_purchase_timestamp_backfills.append(
+                        {
+                            "purchase_id": purchase_id,
+                            "status": status,
+                            "receipt_code": receipt_code,
+                            "supplier_name": str(purchase_row["supplier_name"] or "").strip(),
+                            "suggested_received_at": suggested_received_at,
+                            "suggested_paid_at": suggested_paid_at,
+                        }
+                    )
+
+            repairable_purchases: list[dict] = []
+            for purchase in purchases:
+                if not self._is_repairable_invalid_purchase(connection, purchase):
+                    continue
+                purchase_id = str(purchase.get("id") or "")
+                issue_codes = self._build_legacy_issue_codes_for_purchase(connection, purchase)
+                repairable_purchases.append(
+                    {
+                        "purchase_id": purchase_id,
+                        "status": str(purchase.get("status") or "draft"),
+                        "receipt_code": str(purchase.get("receiptCode") or purchase.get("receipt_code") or "").strip(),
+                        "supplier_name": str(purchase.get("supplierName") or purchase.get("supplier_name") or "").strip(),
+                        "source_type": str(purchase.get("sourceType") or purchase.get("source_type") or "").strip(),
+                        "source_code": str(purchase.get("sourceCode") or purchase.get("source_code") or "").strip(),
+                        "source_name": str(purchase.get("sourceName") or purchase.get("source_name") or "").strip(),
+                        "updated_at": str(purchase.get("updatedAt") or purchase.get("updated_at") or "").strip(),
+                        "issue_codes": issue_codes,
+                        "candidate_receipts": self._get_purchase_receipt_candidates(connection, purchase),
+                        "can_cancel": True,
+                        "can_delete": str(purchase.get("status") or "draft") == "draft" or bool(issue_codes),
+                    }
+                )
+
+            purchase_source_link_candidates: list[dict] = []
+            for purchase in purchases:
+                source_type = str(purchase.get("sourceType") or purchase.get("source_type") or "").strip()
+                source_code = str(purchase.get("sourceCode") or purchase.get("source_code") or "").strip()
+                source_name = str(purchase.get("sourceName") or purchase.get("source_name") or "").strip()
+                if source_type != "cart" or source_code or not source_name:
+                    continue
+                purchase_source_link_candidates.append(
+                    {
+                        "purchase_id": str(purchase.get("id") or ""),
+                        "status": str(purchase.get("status") or "draft"),
+                        "supplier_name": str(purchase.get("supplierName") or purchase.get("supplier_name") or "").strip(),
+                        "source_name": source_name,
+                        "updated_at": str(purchase.get("updatedAt") or purchase.get("updated_at") or "").strip(),
+                        "candidate_carts": self._get_purchase_source_cart_candidates(connection, purchase),
+                    }
+                )
+
+        repairable_purchases.sort(
+            key=lambda entry: (
+                0 if "ordered_missing_supplier" in entry["issue_codes"] else 1,
+                str(entry.get("updated_at") or ""),
+                str(entry.get("purchase_id") or ""),
+            )
+        )
+        purchase_source_link_candidates.sort(
+            key=lambda entry: (
+                str(entry.get("updated_at") or ""),
+                str(entry.get("purchase_id") or ""),
+            )
+        )
+
+        return {
+            "generated_at": utc_now_iso(),
+            "summary": {
+                "safe_cart_paid_at_backfills": len(safe_cart_paid_at_backfills),
+                "safe_purchase_timestamp_backfills": len(safe_purchase_timestamp_backfills),
+                "manual_repairable_purchases": len(repairable_purchases),
+                "manual_purchase_source_links": len(purchase_source_link_candidates),
+                "safe_fix_total": len(safe_cart_paid_at_backfills) + len(safe_purchase_timestamp_backfills),
+                "manual_review_total": len(repairable_purchases) + len(purchase_source_link_candidates),
+            },
+            "safe_fixes": {
+                "cart_paid_at_backfills": safe_cart_paid_at_backfills,
+                "purchase_timestamp_backfills": safe_purchase_timestamp_backfills,
+            },
+            "manual_review": {
+                "repairable_purchases": repairable_purchases,
+                "purchase_source_links": purchase_source_link_candidates,
+            },
+        }
+
+    def apply_safe_legacy_fixes(
+        self,
+        *,
+        actor: str = "",
+    ) -> dict:
+        clean_actor = (actor or "").strip() or "Master Admin"
+        now = utc_now_iso()
+        with self._connect() as connection:
+            carts = self._load_sync_collection_from_tables(connection, "carts")
+            cart_paid_fix_count = 0
+            for cart in carts:
+                status = str(cart.get("status") or "draft").strip()
+                payment_status = str(cart.get("paymentStatus") or "unpaid").strip()
+                paid_at = str(cart.get("paidAt") or cart.get("paid_at") or "").strip()
+                if status != "completed" or payment_status != "paid" or paid_at:
+                    continue
+                suggested_paid_at = (
+                    str(cart.get("completedAt") or cart.get("completed_at") or "").strip()
+                    or str(cart.get("updatedAt") or cart.get("updated_at") or "").strip()
+                )
+                if not suggested_paid_at:
+                    continue
+                cursor = connection.execute(
+                    """
+                    UPDATE carts
+                    SET paid_at = ?, updated_at = ?
+                    WHERE id = ? AND TRIM(COALESCE(paid_at, '')) = ''
+                    """,
+                    (suggested_paid_at, now, str(cart.get("id") or "")),
+                )
+                if int(cursor.rowcount or 0) <= 0:
+                    continue
+                cart_paid_fix_count += 1
+                self._record_audit(
+                    connection,
+                    entity_type="cart",
+                    entity_id=str(cart.get("id") or ""),
+                    entity_name=str(cart.get("orderCode") or cart.get("id") or ""),
+                    action="legacy-safe-fix",
+                    actor=clean_actor,
+                    message=f"Tự động backfill paid_at cho đơn đã thanh toán: {suggested_paid_at}.",
+                )
+
+            purchase_timestamp_fix_count = 0
+            purchase_rows = connection.execute(
+                """
+                SELECT id, status, updated_at, received_at, paid_at, receipt_code
+                FROM purchases
+                ORDER BY datetime(updated_at) DESC, id DESC
+                """
+            ).fetchall()
+            for purchase_row in purchase_rows:
+                status = str(purchase_row["status"] or "draft").strip()
+                if status not in {"received", "paid"}:
+                    continue
+                purchase_id = str(purchase_row["id"] or "")
+                receipt_code = str(purchase_row["receipt_code"] or "").strip()
+                receipt_row = self._get_inventory_receipt_by_code(
+                    connection,
+                    receipt_code,
+                    receipt_type="purchase",
+                )
+                next_received_at = str(purchase_row["received_at"] or "").strip()
+                next_paid_at = str(purchase_row["paid_at"] or "").strip()
+                if not next_received_at:
+                    next_received_at = str(
+                        (receipt_row["created_at"] if receipt_row is not None else "")
+                        or purchase_row["updated_at"]
+                        or ""
+                    ).strip()
+                if status == "paid" and not next_paid_at:
+                    next_paid_at = str(
+                        purchase_row["updated_at"]
+                        or next_received_at
+                        or ""
+                    ).strip()
+                current_row = connection.execute(
+                    """
+                    SELECT COALESCE(received_at, '') AS received_at, COALESCE(paid_at, '') AS paid_at
+                    FROM purchases
+                    WHERE id = ?
+                    """,
+                    (purchase_id,),
+                ).fetchone()
+                if current_row is None:
+                    continue
+                if (
+                    str(current_row["received_at"] or "").strip() == next_received_at
+                    and str(current_row["paid_at"] or "").strip() == next_paid_at
+                ):
+                    continue
+                cursor = connection.execute(
+                    """
+                    UPDATE purchases
+                    SET received_at = ?, paid_at = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (next_received_at or None, next_paid_at or None, now, purchase_id),
+                )
+                if int(cursor.rowcount or 0) <= 0:
+                    continue
+                purchase_timestamp_fix_count += 1
+                self._record_audit(
+                    connection,
+                    entity_type="purchase",
+                    entity_id=purchase_id,
+                    entity_name=receipt_code or purchase_id,
+                    action="legacy-safe-fix",
+                    actor=clean_actor,
+                    message=(
+                        "Tự động backfill mốc thời gian legacy cho phiếu nhập."
+                        f" received_at={next_received_at or 'rỗng'} | paid_at={next_paid_at or 'rỗng'}"
+                    ),
+                )
+
+            refreshed = {}
+            if cart_paid_fix_count > 0:
+                refreshed["carts"] = self._refresh_sync_collection_cache(connection, "carts", updated_at=now)
+            if purchase_timestamp_fix_count > 0:
+                refreshed["purchases"] = self._refresh_sync_collection_cache(connection, "purchases", updated_at=now)
+
+        audit = self.get_legacy_data_audit()
+        return {
+            "message": (
+                "Đã áp dụng fix legacy an toàn."
+                f" Cart paid_at: {cart_paid_fix_count}. Purchase timestamp: {purchase_timestamp_fix_count}."
+            ),
+            "counts": {
+                "cart_paid_at_backfills": cart_paid_fix_count,
+                "purchase_timestamp_backfills": purchase_timestamp_fix_count,
+            },
+            "audit": audit,
+        }
+
+    def attach_purchase_receipt_code(
+        self,
+        purchase_id: str,
+        receipt_code: str,
+        *,
+        actor: str = "",
+    ) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        clean_receipt_code = str(receipt_code or "").strip()
+        clean_actor = (actor or "").strip() or "Master Admin"
+        if not clean_purchase_id:
+            raise ValueError("Thiếu mã phiếu nhập cần gắn receipt.")
+        if not clean_receipt_code:
+            raise ValueError("Thiếu receipt_code cần gắn.")
+
+        now = utc_now_iso()
+        with self._connect() as connection:
+            purchases = self._load_sync_collection_from_tables(connection, "purchases")
+            target = next(
+                (purchase for purchase in purchases if str(purchase.get("id") or "") == clean_purchase_id),
+                None,
+            )
+            if not target:
+                raise ValueError("Không tìm thấy phiếu nhập cần gắn receipt.")
+            status = str(target.get("status") or "draft").strip()
+            if status not in {"received", "paid"}:
+                raise ValueError("Chỉ phiếu đã nhập kho hoặc đã thanh toán mới được gắn receipt.")
+
+            receipt_row = self._get_inventory_receipt_by_code(
+                connection,
+                clean_receipt_code,
+                receipt_type="purchase",
+            )
+            if receipt_row is None:
+                raise ValueError("Không tìm thấy receipt nhập kho hợp lệ.")
+
+            owner_row = connection.execute(
+                """
+                SELECT id
+                FROM purchases
+                WHERE receipt_code = ? AND id <> ?
+                """,
+                (clean_receipt_code, clean_purchase_id),
+            ).fetchone()
+            if owner_row is not None:
+                raise ValueError("Receipt này đang thuộc phiếu nhập khác.")
+
+            purchase_supplier = str(target.get("supplierName") or target.get("supplier_name") or "").strip()
+            receipt_supplier = str(receipt_row["supplier_name"] or "").strip()
+            if purchase_supplier and receipt_supplier and normalize_key(purchase_supplier) != normalize_key(receipt_supplier):
+                raise ValueError("Receipt được chọn không khớp nhà cung cấp của phiếu nhập.")
+
+            current_receipt_code = str(target.get("receiptCode") or target.get("receipt_code") or "").strip()
+            current_received_at = str(target.get("receivedAt") or target.get("received_at") or "").strip()
+            current_paid_at = str(target.get("paidAt") or target.get("paid_at") or "").strip()
+            next_received_at = current_received_at or str(receipt_row["created_at"] or "").strip()
+            next_paid_at = current_paid_at
+            if status == "paid" and not next_paid_at:
+                next_paid_at = str(target.get("updatedAt") or target.get("updated_at") or next_received_at or "").strip()
+
+            connection.execute(
+                """
+                UPDATE purchases
+                SET receipt_code = ?, received_at = ?, paid_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    clean_receipt_code,
+                    next_received_at or None,
+                    next_paid_at or None,
+                    now,
+                    clean_purchase_id,
+                ),
+            )
+            canonical = self._refresh_sync_collection_cache(
+                connection,
+                "purchases",
+                updated_at=now,
+            )
+            self._record_audit(
+                connection,
+                entity_type="purchase",
+                entity_id=clean_purchase_id,
+                entity_name=clean_receipt_code,
+                action="legacy-attach-receipt",
+                actor=clean_actor,
+                message=(
+                    f"Gắn receipt {clean_receipt_code} cho phiếu nhập legacy."
+                    + (f" Receipt cũ: {current_receipt_code}." if current_receipt_code else "")
+                ),
+            )
+
+        purchase = next((entry for entry in canonical if str(entry.get("id") or "") == clean_purchase_id), None)
+        return {
+            "message": f"Đã gắn receipt {clean_receipt_code} cho phiếu nhập.",
+            "purchase": purchase,
+            "purchases": canonical,
+            "audit": self.get_legacy_data_audit(),
+        }
+
+    def attach_purchase_source_cart(
+        self,
+        purchase_id: str,
+        cart_id: str,
+        *,
+        actor: str = "",
+    ) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        clean_cart_id = str(cart_id or "").strip()
+        clean_actor = (actor or "").strip() or "Master Admin"
+        if not clean_purchase_id:
+            raise ValueError("Thiếu mã phiếu nhập cần gắn đơn nguồn.")
+        if not clean_cart_id:
+            raise ValueError("Thiếu mã đơn nguồn cần gắn.")
+
+        now = utc_now_iso()
+        with self._connect() as connection:
+            cart_row = connection.execute(
+                """
+                SELECT id, customer_name
+                FROM carts
+                WHERE id = ?
+                """,
+                (clean_cart_id,),
+            ).fetchone()
+            if cart_row is None:
+                raise ValueError("Không tìm thấy đơn nguồn cần gắn.")
+
+            purchases = self._load_sync_collection_from_tables(connection, "purchases")
+            target = next(
+                (purchase for purchase in purchases if str(purchase.get("id") or "") == clean_purchase_id),
+                None,
+            )
+            if not target:
+                raise ValueError("Không tìm thấy phiếu nhập cần gắn đơn nguồn.")
+
+            connection.execute(
+                """
+                UPDATE purchases
+                SET source_type = 'cart', source_code = ?, source_name = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    clean_cart_id,
+                    str(cart_row["customer_name"] or "").strip(),
+                    now,
+                    clean_purchase_id,
+                ),
+            )
+            canonical = self._refresh_sync_collection_cache(
+                connection,
+                "purchases",
+                updated_at=now,
+            )
+            self._record_audit(
+                connection,
+                entity_type="purchase",
+                entity_id=clean_purchase_id,
+                entity_name=str(target.get("receiptCode") or target.get("receipt_code") or clean_purchase_id),
+                action="legacy-attach-source",
+                actor=clean_actor,
+                message=f"Gắn lại đơn nguồn {clean_cart_id} cho phiếu nhập legacy.",
+            )
+
+        purchase = next((entry for entry in canonical if str(entry.get("id") or "") == clean_purchase_id), None)
+        return {
+            "message": f"Đã gắn đơn nguồn {clean_cart_id} cho phiếu nhập.",
+            "purchase": purchase,
+            "purchases": canonical,
+            "audit": self.get_legacy_data_audit(),
         }
 
     def create_inventory_adjustment_receipt(

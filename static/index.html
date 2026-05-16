@@ -903,6 +903,35 @@
               </article>
             </div>
           </section>
+
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
+                <p class="panel-kicker">Legacy Audit</p>
+                <h3>Rà soát và xử lý dữ liệu cũ</h3>
+              </div>
+              <div class="row-actions">
+                <button type="button" id="adminLegacyAuditRefreshButton" class="ghost-button compact-button">Làm mới audit</button>
+                <button type="button" id="adminLegacyApplySafeFixesButton" class="primary-button compact-button">Áp dụng fix an toàn</button>
+              </div>
+            </div>
+            <div class="cart-line-note">Khối này dành cho dữ liệu legacy/restore bị lệch metadata hoặc workflow. Fix an toàn chỉ backfill timestamp chắc chắn; các record còn lại phải do admin review và xác nhận thủ công.</div>
+            <div id="adminLegacyAuditSummary" class="hero-stats"></div>
+            <div class="report-list admin-legacy-list">
+              <article class="report-card">
+                <div class="report-card-head">
+                  <strong>Fix an toàn chờ áp dụng</strong>
+                </div>
+                <div id="adminLegacySafeFixList"></div>
+              </article>
+              <article class="report-card">
+                <div class="report-card-head">
+                  <strong>Record cần review thủ công</strong>
+                </div>
+                <div id="adminLegacyManualReviewList"></div>
+              </article>
+            </div>
+          </section>
         </section>
       </section>
     </section>

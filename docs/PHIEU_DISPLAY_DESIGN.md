@@ -226,6 +226,15 @@ Nhưng:
 - không khôi phục về `nháp`
 - không cho sửa ngược lịch sử như phiếu hợp lệ
 
+### 4.4. Tooling vận hành cho legacy
+
+`Master Admin` có khối `Legacy Audit` để:
+
+- quét DB hiện hành
+- áp dụng `safe fixes` chỉ cho timestamp chắc chắn
+- liệt kê record cần review thủ công
+- cho gắn lại `receipt_code` hoặc `cart_id` sau khi admin đối chiếu đúng chứng từ thật
+
 ## 5. Tìm kiếm mã phiếu tham chiếu
 
 Khối `Audit chứng từ` cần có ô tìm kiếm riêng với datalist để user có thể:

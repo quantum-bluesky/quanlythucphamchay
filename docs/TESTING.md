@@ -198,6 +198,8 @@ Các nhóm kiểm tra chính:
 - `Nhập hàng -> gợi ý NCC`: phiếu chưa có NCC phải tự chọn NCC nếu mặt hàng chỉ có 1 NCC từng nhập thực tế; nếu có nhiều NCC thì datalist NCC phải ưu tiên NCC nhập nhiều hơn nhưng không tự điền
 - `Nhà cung cấp có lịch sử phiếu đã thanh toán`: sửa NCC không được làm vỡ sync hay đụng vào phiếu nhập lịch sử đã khóa
 - `Phiếu nhập legacy`: purchase `received/paid` thiếu timestamp vẫn phải hiển thị được ngày xử lý fallback để không kẹt flow thanh toán
+- `Master Admin -> Legacy Audit`: phải quét ra đúng phần `fix an toàn` và `review thủ công`; apply safe fix xong thì số anomaly tương ứng phải giảm ngay
+- `Legacy manual repair`: gắn lại `receipt_code` hoặc `đơn nguồn` xong thì record phải biến mất khỏi khối review thủ công sau khi refresh
 - `Giảm giá khuyến mại`: đơn đã chốt chưa thanh toán và phiếu đã nhập kho chưa thanh toán phải sửa được tổng giảm giá, đồng thời báo cáo và bản in phải phản ánh số net sau khuyến mại
 - `Báo cáo`: nút shortcut `Audit` phải tự cuộn xuống khung `Audit chứng từ` để xem ngay lịch sử chứng từ
 - `Audit chứng từ`: phải tra cứu được theo mã phiếu và mã tham chiếu nguồn trong kỳ đang xem
@@ -210,6 +212,7 @@ Các nhóm kiểm tra chính:
 - `Sắp xếp tồn kho`: dropdown sort nằm trong phân trang đầu list, không nằm trong search toolbar, và sắp đúng theo tồn, giá trị tồn, ưu tiên, hạn còn lại
 - `Đăng nhập hệ thống`: header `Login/Logout`, user thường, admin, timeout session, role-based access; user thường vẫn xem được detail tồn kho nhưng không thấy panel chỉnh tồn trực tiếp hay action admin như `Phiếu DC` / sửa giá
 - `Master Admin`: login admin, export/import file master (`JSON` + `CSV`), backup, restore
+- `CLI legacy-audit`: `python app.py legacy-audit` và `python app.py legacy-audit --apply-safe-fixes` phải chạy được trên DB thật mà không cần package ngoài
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
 - `Phase B UI`: tạo phiếu điều chỉnh trên màn tồn kho, tạo phiếu trả khách từ đơn cũ hoặc nhập tay, tạo phiếu trả NCC từ phiếu nhập cũ hoặc nhập tay
 - `Phase B.4 report/audit`: báo cáo tháng tách riêng hoàn khách, trả NCC, điều chỉnh tồn và API tra cứu lịch sử chứng từ
@@ -261,6 +264,10 @@ Case mới cho Phase A:
 - `UT-SYNC-05`: backend khóa `customerId/customerName` từ lúc đơn ở `committed`, vẫn cho sửa `ship_address`, và chặn đổi `committed -> completed` qua sync thẳng
 - `UT-ORD-15`: backend `commit_cart_order()` không trừ kho, còn `ship_cart_order()` mới trừ kho và chuyển đơn sang `completed`
 - `UT-DB-18`: backend nhận diện phiếu nhập `ordered` nhưng thiếu NCC là dữ liệu lỗi có thể repair để không khóa chết UI trên DB cũ
+- `UT-DB-19`: backend legacy audit tách đúng `safe fixes` và `manual review`
+- `UT-DB-20`: apply safe legacy fixes backfill được `cart.paid_at` và `purchase.received_at`
+- `UT-DB-21`: admin attach lại `receipt_code` cho purchase legacy `paid` đang thiếu receipt
+- `UT-DB-22`: admin attach lại `source_code` cho purchase legacy sinh từ đơn thiếu hàng
 
 Case mới cho Phase B.4:
 
