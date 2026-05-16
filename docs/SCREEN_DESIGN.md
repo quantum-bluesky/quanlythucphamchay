@@ -24,6 +24,7 @@ Liên kết detail hiện có:
 
 - Hiển thị các phiếu/chứng từ: [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 - Thiết kế planned cho workflow `Chốt đơn` / `Đã xuất hàng`: [ISSUE_110_ORDER_COMMIT_DESIGN.md](ISSUE_110_ORDER_COMMIT_DESIGN.md)
+- Thiết kế planned cho `Batch procurement mode` / màn `Xử lý nhập thiếu`: [ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md](ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md)
 
 ## 1. Nguyên tắc UI chung
 

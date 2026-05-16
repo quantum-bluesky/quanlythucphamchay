@@ -14,6 +14,7 @@ App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/ql
 - Business flow: [docs/BUSINESS_FLOW.md](docs/BUSINESS_FLOW.md)
 - Design hiển thị phiếu: [docs/PHIEU_DISPLAY_DESIGN.md](docs/PHIEU_DISPLAY_DESIGN.md)
 - Thiết kế Issue 110 - Chốt đơn / Đã xuất hàng: [docs/ISSUE_110_ORDER_COMMIT_DESIGN.md](docs/ISSUE_110_ORDER_COMMIT_DESIGN.md)
+- Thiết kế Issue 113 - Batch procurement mode / Xử lý nhập thiếu: [docs/ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md](docs/ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md)
 - Hướng dẫn test: [docs/TESTING.md](docs/TESTING.md)
 - Acceptance checklist: [docs/ACCEPTANCE_CHECKLIST.md](docs/ACCEPTANCE_CHECKLIST.md)
 - Phân tích workflow: [docs/WORKFLOW_REVIEW.md](docs/WORKFLOW_REVIEW.md)
