@@ -330,7 +330,7 @@ test("ACC-SALE-02 shortage checkout for normal user creates purchase suggestion 
     const existingPurchaseDialogMessages = await readInterceptedConfirmMessages(page);
     const existingPurchaseDialogMessage = existingPurchaseDialogMessages[existingPurchaseDialogMessages.length - 1] || "";
     expect(existingPurchaseDialogMessages[0] || "").toContain("Chốt đơn");
-    expect(existingPurchaseDialogMessage).toContain("đã có phiếu chờ nhập đủ số lượng");
+    expect(existingPurchaseDialogMessage).toContain("Đơn chưa đủ hàng khả dụng để chốt");
     expect(existingPurchaseDialogMessage).toContain(shortageProduct.name);
     const existingPurchaseToast = await collectToast(page, runtime, "acc-sale-02-existing-purchase", {
       errorPattern: /^$/,

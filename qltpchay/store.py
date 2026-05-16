@@ -1388,16 +1388,23 @@ class InventoryStore:
                 raw_status = row["status"] or "draft"
                 receipt_code = row["receipt_code"] or ""
                 matched_receipt_created_at = purchase_receipts_by_code.get(str(receipt_code).strip(), "")
+                purchase_items = items_by_purchase.get(str(row["id"]), [])
                 received_at = (
                     row["received_at"]
                     or (matched_receipt_created_at if raw_status in {"received", "paid"} else None)
                     or (row["updated_at"] if raw_status in {"received", "paid"} else None)
                 )
                 paid_at = row["paid_at"] or (row["updated_at"] if raw_status == "paid" else None)
-                is_repairable_invalid = (
-                    raw_status == "paid"
-                    and str(receipt_code).strip() not in purchase_receipt_codes
-                )
+                purchase_payload = {
+                    "id": row["id"],
+                    "supplierName": row["supplier_name"] or "",
+                    "status": raw_status,
+                    "receivedAt": received_at,
+                    "paidAt": paid_at,
+                    "receiptCode": receipt_code,
+                    "items": purchase_items,
+                }
+                is_repairable_invalid = self._is_repairable_invalid_purchase(connection, purchase_payload)
                 purchases.append(
                     {
                         "id": row["id"],
@@ -1423,7 +1430,7 @@ class InventoryStore:
                         "receipt_code": receipt_code,
                         "isRepairableInvalid": is_repairable_invalid,
                         "repairableInvalid": is_repairable_invalid,
-                        "items": items_by_purchase.get(str(row["id"]), []),
+                        "items": purchase_items,
                     }
                 )
             return self._normalize_purchases_for_storage(purchases)
@@ -3598,6 +3605,7 @@ class InventoryStore:
         purchase: dict,
     ) -> bool:
         status = str(purchase.get("status") or "draft")
+        supplier_name = str(purchase.get("supplierName") or purchase.get("supplier_name") or "").strip()
         receipt_code = str(purchase.get("receiptCode") or purchase.get("receipt_code") or "").strip()
         receipt_row = self._get_inventory_receipt_by_code(
             connection,
@@ -3609,9 +3617,12 @@ class InventoryStore:
         has_received_at = bool(purchase.get("receivedAt") or purchase.get("received_at"))
         has_paid_at = bool(purchase.get("paidAt") or purchase.get("paid_at"))
         has_receipt_code = bool(receipt_code)
+        item_count = len(purchase.get("items") or [])
         if status == "paid":
             return True
         if status in {"draft", "ordered"} and (has_received_at or has_paid_at or has_receipt_code):
+            return True
+        if status == "ordered" and (not supplier_name or item_count <= 0):
             return True
         return False
 

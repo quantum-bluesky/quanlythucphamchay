@@ -124,6 +124,7 @@ Mục tiêu:
 | 92 | `UT-DB-17` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_17_received_purchase_expiry_update_syncs_purchase_items_batches_and_receipt_items` |
 | 93 | `UT-SYNC-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_05_committed_cart_locks_customer_but_allows_ship_address_until_completed` |
 | 94 | `UT-ORD-15` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_15_commit_and_ship_cart_order_follow_new_workflow` |
+| 95 | `UT-DB-18` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_10a_ordered_purchase_without_supplier_is_repairable` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

@@ -405,6 +405,55 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(repaired["receiptCode"], "")
         self.assertIn("phiếu lỗi", result["message"])
 
+    def test_ut_db_10a_ordered_purchase_without_supplier_is_repairable(self) -> None:
+        product = self.store.create_product(
+            name="Phiếu ordered thiếu NCC",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        now = "2026-04-19T10:30:00+07:00"
+        with self.store._connect() as connection:
+            self.store._replace_sync_collection_records(
+                connection,
+                "purchases",
+                [
+                    {
+                        "id": "purchase-ordered-broken-01",
+                        "supplierName": "",
+                        "status": "ordered",
+                        "note": "",
+                        "createdAt": "2026-04-19T10:20:00+07:00",
+                        "updatedAt": now,
+                        "items": [
+                            {
+                                "id": "purchase-item-ordered-broken-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 1,
+                                "unitCost": 18000,
+                            }
+                        ],
+                    }
+                ],
+            )
+            canonical = self.store._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            )
+
+        sync_state = self.store.get_sync_state()
+        purchase = next(entry for entry in sync_state["purchases"] if entry["id"] == "purchase-ordered-broken-01")
+        self.assertTrue(purchase["repairableInvalid"])
+
+        result = self.store.repair_purchase_document(
+            "purchase-ordered-broken-01",
+            action="delete",
+            actor="masteradmin",
+        )
+        self.assertEqual(result["purchases"], [])
+
     def test_ut_db_10_legacy_received_purchase_backfills_received_at_from_updated_at(self) -> None:
         product = self.store.create_product(
             name="Phiếu nhập legacy thiếu ngày nhận",
