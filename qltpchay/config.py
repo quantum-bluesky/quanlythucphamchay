@@ -16,6 +16,7 @@ DEFAULT_SYSTEM_SESSION_TIMEOUT_MINUTES = 360
 DEFAULT_ADMIN_SESSION_TIMEOUT_MINUTES = 30
 DEFAULT_ITEMS_PER_PAGE = 10
 DEFAULT_DOCUMENTS_PER_PAGE = 10
+DEFAULT_PROCUREMENT_BATCH_LOCK_TIMEOUT_MINUTES = 180
 DEFAULT_NORMAL_USERS = [
     {
         "username": "staff",
@@ -56,13 +57,66 @@ def _normalize_users(raw_users) -> list[dict]:
         password = str(user.get("password") or "")
         if not username:
             continue
+        raw_permissions = user.get("permissions", [])
+        permissions = []
+        if isinstance(raw_permissions, list):
+            permissions = [
+                str(permission or "").strip()
+                for permission in raw_permissions
+                if str(permission or "").strip()
+            ]
         normalized_users.append(
             {
                 "username": username,
                 "password": password,
+                "permissions": sorted(set(permissions)),
             }
         )
     return normalized_users
+
+
+def _normalize_procurement_config(raw_procurement, defaults: dict | None = None) -> dict:
+    defaults = defaults or {
+        "batch_planner_enabled": True,
+        "batch_lock_timeout_minutes": DEFAULT_PROCUREMENT_BATCH_LOCK_TIMEOUT_MINUTES,
+        "allow_daily_quick_shortage_flow": True,
+        "required_login_for_batch_mode": True,
+        "planner_manager_usernames": [],
+    }
+    raw_procurement = raw_procurement if isinstance(raw_procurement, dict) else {}
+    raw_manager_usernames = raw_procurement.get(
+        "planner_manager_usernames",
+        defaults.get("planner_manager_usernames", []),
+    )
+    manager_usernames = []
+    if isinstance(raw_manager_usernames, list):
+        manager_usernames = [
+            str(username or "").strip()
+            for username in raw_manager_usernames
+            if str(username or "").strip()
+        ]
+    return {
+        "batch_planner_enabled": bool(
+            raw_procurement.get("batch_planner_enabled", defaults["batch_planner_enabled"])
+        ),
+        "batch_lock_timeout_minutes": _normalize_timeout_minutes(
+            raw_procurement.get("batch_lock_timeout_minutes", defaults["batch_lock_timeout_minutes"]),
+            defaults["batch_lock_timeout_minutes"],
+        ),
+        "allow_daily_quick_shortage_flow": bool(
+            raw_procurement.get(
+                "allow_daily_quick_shortage_flow",
+                defaults["allow_daily_quick_shortage_flow"],
+            )
+        ),
+        "required_login_for_batch_mode": bool(
+            raw_procurement.get(
+                "required_login_for_batch_mode",
+                defaults["required_login_for_batch_mode"],
+            )
+        ),
+        "planner_manager_usernames": sorted(set(manager_usernames)),
+    }
 
 
 def build_default_system_config(*, use_env_seed: bool) -> dict:
@@ -87,6 +141,7 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
             "items_per_page": DEFAULT_ITEMS_PER_PAGE,
             "documents_per_page": DEFAULT_DOCUMENTS_PER_PAGE,
         },
+        "procurement": _normalize_procurement_config({}),
     }
     if use_env_seed:
         config["server"]["host"] = os.environ.get("APP_HOST", DEFAULT_HOST)
@@ -162,6 +217,10 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
                 defaults["pagination"]["documents_per_page"],
             ),
         },
+        "procurement": _normalize_procurement_config(
+            raw_config.get("procurement", {}),
+            defaults["procurement"],
+        ),
     }
 
     try:

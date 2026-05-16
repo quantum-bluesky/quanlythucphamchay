@@ -90,6 +90,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - `XH`: Xuất hàng
 - `TK`: Tồn kho
 - `ĐH`: Đơn hàng
+- `XL`: Xử lý nhập thiếu
 - `NCC`: Nhà cung cấp
 - `KH`: Khách hàng
 
@@ -113,6 +114,9 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Phiếu xuất và phiếu nhập có thêm `giảm giá khuyến mại` ở cấp toàn phiếu; app tự tính `Tạm tính / Giảm KM / Cần thanh toán` ngay trên panel, detail và bản in
 - Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm
 - Khi chốt đơn bị thiếu hàng, app sẽ báo trước khi tạo/cập nhật phiếu nhập; nếu đã có phiếu chờ nhập đủ số lượng thì app chỉ thông báo và cho mở lại phiếu đó khi người dùng xác nhận cần chỉnh
+- Màn `Xử lý nhập thiếu` cho phép bật kỳ gom nhập định kỳ, gom nhu cầu của cả đơn nháp và đơn đã chốt theo từng mặt hàng để tạo phiếu nhập batch
+- Trong kỳ gom nhập, shortage flow không auto-create phiếu nhập theo từng đơn; người giữ khóa batch phải xử lý trên planner và mỗi sản phẩm thiếu chỉ được gán vào một phiếu nhập mở để tránh tách logistics
+- Quyền xử lý kỳ gom nhập có thể cấp cho `Master Admin`, user có permission `procurement_batch_manage`, hoặc username nằm trong config `procurement.planner_manager_usernames`
 - Nút `Detail` ở `Giỏ hiện hành` và `Đơn hàng` cho phép bung nhanh metadata phiếu xuất và danh sách dòng hàng mà không phải mở sang chỗ chỉnh sửa
 - Từ màn Khách hàng có thể bấm badge `đơn chờ` / `đơn` để mở danh sách phiếu của đúng khách; nếu khách chỉ có 1 phiếu thì màn Đơn hàng sẽ tự mở detail kể cả với đơn đã xuất hàng hoặc đã thanh toán
 - Màn `Đơn hàng` mặc định ẩn đơn đã hủy; khi cần đối chiếu lịch sử có thể bật checkbox `Hiện đơn đã hủy`

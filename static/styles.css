@@ -2888,17 +2888,19 @@ button:disabled {
   .menu-grid {
     width: fit-content;
     max-width: 100%;
-    grid-template-columns: repeat(5, minmax(var(--desktop-menu-button-min-width), max-content));
+    grid-template-columns: repeat(5, minmax(var(--desktop-menu-button-min-width), 150px));
     justify-content: start;
     gap: 8px;
   }
 
   .menu-button {
-    width: auto;
+    width: 100%;
+    max-width: 150px;
     min-width: var(--desktop-menu-button-min-width);
     min-height: 42px;
     padding: 0 12px;
     text-align: center;
+    white-space: normal;
   }
 
   [data-menu-section="inventory"] .inventory-panel,

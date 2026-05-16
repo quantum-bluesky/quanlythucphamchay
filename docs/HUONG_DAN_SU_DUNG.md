@@ -37,6 +37,7 @@ Nếu gặp các trạng thái hoặc thuật ngữ tiếng Anh như `draft`, `o
 - `XH`: Xuất hàng
 - `TK`: Tồn kho
 - `ĐH`: Đơn hàng
+- `XL`: Xử lý nhập thiếu
 - `NCC`: Nhà cung cấp
 - `KH`: Khách hàng
 
@@ -156,6 +157,7 @@ Nếu thiếu hàng:
 - nếu đã có phiếu chờ nhập với đủ số lượng cho các mặt hàng đang thiếu, app sẽ báo là đã có phiếu nhập và chỉ mở lại phiếu đó nếu bạn xác nhận cần chỉnh
 - với user thường, sau khi xác nhận app mới chuyển sang `Quản lý nhập hàng` để tạo hoặc mở phiếu nhập tương ứng
 - với `Master Admin`, hệ thống mới cho phép chọn sang màn tồn kho để chỉnh trực tiếp nếu thực sự cần
+- nếu đang bật kỳ gom nhập, app sẽ không tạo phiếu nhập tự động theo từng đơn; app chuyển sang màn `Xử lý nhập thiếu` để người giữ khóa xử lý tập trung
 - nếu cần đối chiếu nhanh metadata phiếu xuất hiện hành, bấm `Detail` trong khối `Giỏ hiện hành`
 
 ## 5. Luồng xem lại và hoàn tất đơn hàng
@@ -340,12 +342,44 @@ Lưu ý:
 - Manifest được lưu ở [data/js_asset_versions.json](/D:/QUAN/Program/QuanLyThucPhamChay/data/js_asset_versions.json).
 - Vì các URL module được gắn version tự động, sau khi cập nhật code client chỉ cần reload trang bình thường, không cần `Ctrl+F5`.
 
-## 9. Luồng quản lý nhà cung cấp
+## 9. Luồng xử lý nhập thiếu batch
 
 Vào menu:
 
 ```text
-7. Quản lý nhà cung cấp
+7. Xử lý nhập thiếu
+```
+
+Màn này dùng khi cần gom nhu cầu nhập định kỳ, ví dụ cuối tháng hoặc khi có nhiều đơn cần xử lý cùng lúc.
+
+### Khi nào dùng
+
+- hằng ngày ít người thao tác: cứ dùng flow nhanh ở `Quản lý nhập hàng`
+- khi cần gom nhiều đơn: người quản lý bấm `Bắt đầu kỳ gom`
+- trong kỳ gom, shortage từ `Chốt đơn` hoặc `Xuất hàng` sẽ đi về màn này thay vì tự tạo phiếu nhập theo từng đơn
+
+### Cách xử lý
+
+1. Login bằng `Master Admin` hoặc user được cấp quyền xử lý kỳ gom nhập.
+2. Bấm `Bắt đầu kỳ gom` để giữ khóa xử lý.
+3. Xem từng dòng mặt hàng thiếu: tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập.
+4. Nếu số nhập dự kiến vẫn làm tồn dưới ngưỡng cảnh báo, app chỉ cảnh báo để cân nhắc nhập thêm.
+5. Với mỗi sản phẩm thiếu, nhập hoặc chọn tên NCC rồi bấm tạo phiếu nhập.
+6. Một sản phẩm thiếu chỉ được gán vào một phiếu nhập mở trong kỳ gom; nếu muốn đổi NCC thì xử lý cả dòng, không tách một phần sang phiếu khác.
+7. Khi đã tạo đủ phiếu nhập cần thiết, bấm `Kết thúc kỳ gom` để trả hệ thống về flow nhanh hằng ngày.
+
+Lưu ý:
+
+- tổng nhu cầu tính cả đơn nháp và đơn đã chốt
+- chỉ một người giữ khóa batch tại một thời điểm; user khác nên xem trạng thái để tránh xử lý song song trùng
+- phiếu nhập tạo từ màn này vẫn đi tiếp qua `Quản lý nhập hàng`: `Nháp -> Đã đặt -> Đã nhập kho -> Đã thanh toán`
+
+## 10. Luồng quản lý nhà cung cấp
+
+Vào menu:
+
+```text
+8. Quản lý nhà cung cấp
 ```
 
 Nên lưu:
@@ -364,12 +398,12 @@ Nên lưu:
 5. Nếu đi từ màn `NH` sang bằng nút `NCC`, app sẽ mở sẵn form theo tên đang gõ; thao tác này chỉ dùng được khi phiếu nhập còn là `Nháp`
 6. Có thể bấm `Dùng cho phiếu nhập` để chuyển nhanh sang màn nhập hàng
 
-## 10. Luồng báo cáo tháng
+## 11. Luồng báo cáo tháng
 
 Vào menu:
 
 ```text
-8. Báo cáo tháng
+9. Báo cáo tháng
 ```
 
 Màn này dùng để:
@@ -381,7 +415,7 @@ Màn này dùng để:
 
 ### Cách đọc nhanh
 
-## 11. Luồng điều chỉnh tồn và trả hàng (Phase B)
+## 12. Luồng điều chỉnh tồn và trả hàng (Phase B)
 
 Khi đã chốt đơn hoặc đã nhập kho mà phát hiện sai, không sửa ngược chứng từ cũ.
 
@@ -446,7 +480,7 @@ Dự báo nhập dựa trên:
 - đơn hàng nháp đang chờ
 - phiếu nhập draft / ordered đang mở
 
-## 11. Các tình huống thường gặp
+## 13. Các tình huống thường gặp
 
 ### Khách gọi đặt hàng nhưng chưa chốt ngay
 
@@ -466,6 +500,7 @@ Giỏ sẽ nằm ở trạng thái chờ để mở lại sau.
 Khi đó:
 
 - nếu đã có phiếu chờ nhập đủ số lượng, app sẽ báo để bạn kiểm tra lại phiếu đó trước
+- nếu đang trong kỳ gom nhập: sang `Xử lý nhập thiếu` để tạo phiếu nhập batch, không tạo phiếu tự động theo từng đơn
 - nếu chỉ cần sửa lại số tồn và bạn là `Master Admin`: sang `Kiểm tra tồn kho`
 - nếu thực sự còn thiếu hàng: xác nhận rồi sang `Quản lý nhập hàng`
 
@@ -501,22 +536,24 @@ Vào `Quản lý nhập hàng` rồi bật:
 Hiện phiếu đã hủy
 ```
 
-## 12. Lưu ý sử dụng chung nhiều máy
+## 14. Lưu ý sử dụng chung nhiều máy
 
 - Tất cả thiết bị phải mở cùng một địa chỉ app/server
 - Không nên có nhiều máy cùng sửa đúng một đơn hoặc một phiếu nhập tại cùng một thời điểm
 - Nên có một người chính thao tác nhập kho và một người chính thao tác chốt đơn để tránh đè dữ liệu
+- Khi bật kỳ gom nhập, chỉ người giữ khóa batch xử lý tạo phiếu nhập thiếu; user khác không nên mở song song nhiều flow shortage để tránh trùng logistics
 - Ở phiên bản hiện tại, các màn chính cũng sẽ tự kiểm tra và nạp lại dữ liệu mới khi màn hình đang rảnh thao tác, nên thường không cần `F5`
 - Trong lúc người dùng đang nhập dở vào ô text/number/date, app sẽ tạm hoãn tự refresh để tránh mất nội dung đang gõ
 - Nếu 2 máy cùng lưu vào cùng một giỏ nháp hoặc phiếu nháp, app sẽ báo xung đột đồng bộ và tự tải lại dữ liệu mới nhất để tránh ghi đè lẫn nhau
 
-## 13. Quy trình đề xuất cho cửa hàng nhỏ
+## 15. Quy trình đề xuất cho cửa hàng nhỏ
 
 ### Đầu ngày
 
 1. Vào `Kiểm tra tồn kho`
 2. Xem hàng sắp hết
 3. Vào `Quản lý nhập hàng` nếu cần đặt thêm
+4. Nếu là kỳ gom định kỳ, user quản lý vào `Xử lý nhập thiếu` và giữ khóa batch trước khi tạo phiếu nhập
 
 ### Trong ngày
 
@@ -530,12 +567,12 @@ Hiện phiếu đã hủy
 2. Xem `Báo cáo tháng`
 3. Ghi nhận mặt hàng bán mạnh để chuẩn bị nhập tiếp
 
-## 14. Module Master Admin
+## 16. Module Master Admin
 
 Vào menu:
 
 ```text
-10. Master Admin
+11. Master Admin
 ```
 
 Chỉ người quản trị hệ thống mới nên dùng màn này.
@@ -544,6 +581,7 @@ Từ phiên bản này, màn `Master Admin` cũng là nơi login hệ thống:
 
 - `user` thường: dùng các màn nghiệp vụ chung
 - `Master Admin`: có thêm phần quản trị master data, backup/restore, legacy audit và chỉnh tồn trực tiếp
+- user quản lý kinh doanh có thể được cấp riêng quyền `procurement_batch_manage` để xử lý kỳ gom nhập mà không có quyền chỉnh tồn trực tiếp
 - nếu `EnableLogin = true` trong `system_config.json`, người dùng phải login thì mới dùng được app
 
 Màn này có 3 nhóm chức năng:

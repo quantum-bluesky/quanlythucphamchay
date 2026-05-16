@@ -21,6 +21,7 @@ from .store import SyncConflictError
 def create_handler(store, admin_sessions, system_config: dict | None = None):
     debug_config = (system_config or {}).get("debug", {})
     pagination_config = (system_config or {}).get("pagination", {})
+    procurement_config = (system_config or {}).get("procurement", {})
     auth_enabled = bool((system_config or {}).get("EnableLogin"))
     app_version = str((system_config or {}).get("version") or "").strip() or "2.3.1"
     asset_versions_path = Path((system_config or {}).get("asset_versions_path") or JS_ASSET_VERSIONS_PATH)
@@ -61,6 +62,29 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 "items_per_page": items_per_page,
                 "documents_per_page": documents_per_page,
             }
+
+        @staticmethod
+        def _get_procurement_public_config() -> dict:
+            return {
+                "batch_planner_enabled": bool(procurement_config.get("batch_planner_enabled", True)),
+                "allow_daily_quick_shortage_flow": bool(
+                    procurement_config.get("allow_daily_quick_shortage_flow", True)
+                ),
+                "required_login_for_batch_mode": bool(
+                    procurement_config.get("required_login_for_batch_mode", True)
+                ),
+            }
+
+        @staticmethod
+        def _get_procurement_lock_timeout_minutes() -> int:
+            try:
+                return max(1, int(procurement_config.get("batch_lock_timeout_minutes", 180)))
+            except (TypeError, ValueError):
+                return 180
+
+        @staticmethod
+        def _procurement_requires_login() -> bool:
+            return bool(procurement_config.get("required_login_for_batch_mode", True))
 
         @staticmethod
         def _get_debug_info() -> dict:
@@ -232,6 +256,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "summary": store.get_summary(),
                         "transactions": store.get_transactions(limit=int(limit)),
                         "runtime_version": store.get_runtime_version(),
+                        "procurement": self._build_procurement_status_payload(),
                         **store.get_sync_state(),
                     },
                 )
@@ -247,6 +272,30 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "pagination": self._get_pagination_info(),
                     },
                 )
+                return
+
+            if route == "/api/procurement/status":
+                self._send_json(HTTPStatus.OK, self._build_procurement_status_payload())
+                return
+
+            if route == "/api/procurement/planner":
+                query = parse_qs(parsed.query)
+                try:
+                    planner = store.get_procurement_planner(
+                        scope_type=query.get("scope", ["all"])[0],
+                        scope_code=query.get("scope_code", query.get("cart_id", query.get("product_id", [""])))[0],
+                        lock_timeout_minutes=self._get_procurement_lock_timeout_minutes(),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            **planner,
+                            "config": self._get_procurement_public_config(),
+                            "permissions": self._get_procurement_permission_payload(),
+                        },
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 
             if route == "/api/reports/monthly":
@@ -501,6 +550,87 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     except (ValueError, base64.binascii.Error) as exc:
                         self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                     return
+
+            if route.startswith("/api/procurement/"):
+                if not self._require_procurement_manager():
+                    return
+                try:
+                    payload = self._read_json_body()
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+                try:
+                    if route == "/api/procurement/batch/start":
+                        result = store.start_procurement_batch(
+                            username=self._get_current_username() or "",
+                            role=self._get_current_role(),
+                            lock_timeout_minutes=self._get_procurement_lock_timeout_minutes(),
+                        )
+                        self._send_json(
+                            HTTPStatus.OK,
+                            {
+                                "message": "Đã bắt đầu kỳ gom nhập.",
+                                **self._build_procurement_status_payload(status_override=result),
+                            },
+                        )
+                        return
+
+                    if route == "/api/procurement/batch/finish":
+                        result = store.finish_procurement_batch(
+                            username=self._get_current_username() or "",
+                            role=self._get_current_role(),
+                        )
+                        self._send_json(
+                            HTTPStatus.OK,
+                            {
+                                "message": "Đã kết thúc kỳ gom nhập.",
+                                **self._build_procurement_status_payload(status_override=result),
+                            },
+                        )
+                        return
+
+                    if route == "/api/procurement/batch/refresh-lock":
+                        result = store.refresh_procurement_batch_lock(
+                            username=self._get_current_username() or "",
+                            role=self._get_current_role(),
+                            lock_timeout_minutes=self._get_procurement_lock_timeout_minutes(),
+                        )
+                        self._send_json(
+                            HTTPStatus.OK,
+                            {
+                                "message": "Đã gia hạn khóa kỳ gom nhập.",
+                                **self._build_procurement_status_payload(status_override=result),
+                            },
+                        )
+                        return
+
+                    if route == "/api/procurement/purchases/create-draft":
+                        result = store.create_procurement_purchase_for_product(
+                            product_id=int(payload.get("product_id", 0)),
+                            quantity=payload.get("quantity", 0),
+                            supplier_name=payload.get("supplier_name", ""),
+                            actor=self._get_current_username() or "",
+                            role=self._get_current_role(),
+                            scope_type=payload.get("scope_type", "all"),
+                            scope_code=payload.get("scope_code", ""),
+                        )
+                        self._send_json(
+                            HTTPStatus.CREATED,
+                            {
+                                "message": "Đã tạo phiếu nhập từ kỳ gom nhập.",
+                                "purchase": result["purchase"],
+                                "purchases": result["purchases"],
+                                "planner": result["planner"],
+                                "summary": store.get_summary(),
+                            },
+                        )
+                        return
+
+                    self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
+                except (TypeError, ValueError) as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
 
             restore_match = re.fullmatch(r"/api/products/(\d+)/restore", route)
             if restore_match:
@@ -1131,8 +1261,56 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             session = self._get_current_session(touch=False)
             return str(session.get("role") or "") if session else ""
 
+        def _get_current_permissions(self) -> list[str]:
+            session = self._get_current_session(touch=False)
+            if not session:
+                return []
+            raw_permissions = session.get("permissions") or []
+            if not isinstance(raw_permissions, list):
+                return []
+            return [
+                str(permission or "").strip()
+                for permission in raw_permissions
+                if str(permission or "").strip()
+            ]
+
         def _get_current_actor_name(self) -> str:
             return self._get_current_username() or "Nhân viên"
+
+        def _has_procurement_manage_permission(self) -> bool:
+            if self._get_current_role() == "admin":
+                return True
+            username = self._get_current_username() or ""
+            manager_usernames = procurement_config.get("planner_manager_usernames", [])
+            if isinstance(manager_usernames, list) and username in {str(entry or "").strip() for entry in manager_usernames}:
+                return True
+            return "procurement_batch_manage" in set(self._get_current_permissions())
+
+        def _get_procurement_permission_payload(self) -> dict:
+            return {
+                "can_manage_batch": self._has_procurement_manage_permission(),
+                "is_lock_owner": self._is_current_procurement_lock_owner(),
+            }
+
+        def _build_procurement_status_payload(self, status_override: dict | None = None) -> dict:
+            status = status_override or store.get_procurement_status(
+                lock_timeout_minutes=self._get_procurement_lock_timeout_minutes(),
+            )
+            return {
+                **status,
+                "config": self._get_procurement_public_config(),
+                "permissions": self._get_procurement_permission_payload(),
+            }
+
+        def _is_current_procurement_lock_owner(self) -> bool:
+            username = self._get_current_username() or ""
+            if not username:
+                return False
+            status = store.get_procurement_status(
+                lock_timeout_minutes=self._get_procurement_lock_timeout_minutes(),
+            )
+            lock = status.get("lock") or {}
+            return str(lock.get("owner_username") or "") == username
 
         def _get_session_status_payload(self, session_token: str | None = None) -> dict:
             token = session_token if session_token is not None else self._get_session_token()
@@ -1143,6 +1321,11 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 "authenticated": bool(session),
                 "username": username,
                 "role": role,
+                "permissions": [
+                    str(permission or "").strip()
+                    for permission in ((session or {}).get("permissions") or [])
+                    if str(permission or "").strip()
+                ],
                 "is_admin": role == "admin",
                 "enable_login": auth_enabled,
                 "session_started_at": str(session.get("started_at") or "") if session else "",
@@ -1186,6 +1369,32 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self._send_json(
                 HTTPStatus.UNAUTHORIZED,
                 self._build_auth_required_payload(admin_only=True),
+            )
+            return False
+
+        def _require_procurement_manager(self) -> bool:
+            if self._procurement_requires_login() and self._is_login_enabled():
+                session, expired = self._resolve_current_session()
+                if expired:
+                    self._send_json(
+                        HTTPStatus.UNAUTHORIZED,
+                        self._build_auth_required_payload(session_expired=True),
+                    )
+                    return False
+                if not session:
+                    self._send_json(HTTPStatus.UNAUTHORIZED, self._build_auth_required_payload())
+                    return False
+            if self._procurement_requires_login() and not self._is_login_enabled():
+                self._send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"error": "Batch mode cần bật EnableLogin để xác định người giữ khóa."},
+                )
+                return False
+            if self._has_procurement_manage_permission():
+                return True
+            self._send_json(
+                HTTPStatus.UNAUTHORIZED,
+                {"error": "Tài khoản này không có quyền xử lý kỳ gom nhập."},
             )
             return False
 

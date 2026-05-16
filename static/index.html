@@ -67,10 +67,11 @@
         <button type="button" class="menu-button" data-menu="customers">4. Khách hàng</button>
         <button type="button" class="menu-button" data-menu="products">5. Sản phẩm</button>
         <button type="button" class="menu-button" data-menu="purchases">6. Nhập hàng</button>
-        <button type="button" class="menu-button" data-menu="suppliers">7. Nhà cung cấp</button>
-        <button type="button" class="menu-button" data-menu="reports">8. Báo cáo</button>
-        <button type="button" class="menu-button" data-menu="history">9. Khôi phục</button>
-        <button type="button" class="menu-button" data-menu="admin">10. Admin</button>
+        <button type="button" class="menu-button" data-menu="procurement-planner">7. Xử lý nhập thiếu</button>
+        <button type="button" class="menu-button" data-menu="suppliers">8. Nhà cung cấp</button>
+        <button type="button" class="menu-button" data-menu="reports">9. Báo cáo</button>
+        <button type="button" class="menu-button" data-menu="history">10. Khôi phục</button>
+        <button type="button" class="menu-button" data-menu="admin">11. Admin</button>
       </div>
     </nav>
 
@@ -117,6 +118,7 @@
           </div>
           <div class="inventory-heading-actions">
             <div class="hero-stats" id="summaryCards"></div>
+            <button type="button" class="ghost-button compact-button" data-go-menu="procurement-planner">Xử lý nhập thiếu</button>
             <button type="button" id="inventoryHistoryShortcutButton" class="ghost-button compact-button">Lịch sử</button>
           </div>
         </div>
@@ -599,6 +601,25 @@
             <div id="purchaseOrderList" class="cart-queue-list"></div>
           </section>
         </div>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="procurement-planner">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Batch procurement</p>
+            <h2>Xử lý nhập thiếu</h2>
+            <p class="panel-note">Gom nhu cầu nhập theo mặt hàng, dùng khi cần xử lý batch định kỳ.</p>
+          </div>
+          <div class="inline-menu-actions">
+            <button type="button" class="ghost-button compact-button" id="procurementRefreshButton">Làm mới</button>
+            <button type="button" class="primary-button compact-button" id="procurementStartBatchButton">Bắt đầu kỳ gom</button>
+            <button type="button" class="danger-button compact-button" id="procurementFinishBatchButton">Kết thúc kỳ gom</button>
+          </div>
+        </div>
+        <div id="procurementStatusPanel" class="inline-alert"></div>
+        <div id="procurementPlannerList" class="cart-items-list"></div>
       </section>
     </section>
 

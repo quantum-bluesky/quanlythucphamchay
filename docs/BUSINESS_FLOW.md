@@ -15,6 +15,7 @@ Nguồn tổng hợp:
 Kiểm tra tồn kho
   -> nếu đủ hàng: Tạo đơn xuất hàng -> Quản lý đơn hàng -> Đã thanh toán
   -> nếu thiếu hàng: Quản lý nhập hàng -> Đã đặt -> Đã nhập kho -> Đã thanh toán
+  -> nếu đang gom nhập batch: Xử lý nhập thiếu -> Quản lý nhập hàng -> Đã đặt -> Đã nhập kho
 
 Nếu phát hiện sai sau khi chứng từ đã xử lý
   -> dùng phiếu điều chỉnh tồn / phiếu trả hàng khách / phiếu trả NCC
@@ -73,6 +74,7 @@ Nếu cần can thiệp đặc biệt
 - nếu thiếu tồn:
   - app phải báo trước khi tạo hoặc cập nhật phiếu nhập cho phần còn thiếu
   - nếu đã có phiếu `draft/ordered` đủ số lượng đáp ứng phần thiếu thì chỉ thông báo và cho mở lại phiếu liên quan khi user xác nhận cần chỉnh
+  - nếu đang ở Batch procurement mode thì không tạo/cập nhật phiếu nhập theo từng cart; app chuyển sang màn `Xử lý nhập thiếu` với phạm vi đơn hiện tại
   - user thường được dẫn sang luồng nhập hàng
   - không bypass chỉnh tồn
 
@@ -85,6 +87,7 @@ Nếu cần can thiệp đặc biệt
   - cart chuyển `completed`
 - nếu thiếu tồn thực tế:
   - app báo trước và cho mở/tạo phiếu nhập bù thiếu
+  - nếu đang ở Batch procurement mode thì chuyển sang màn `Xử lý nhập thiếu`, không auto-create phiếu nhập theo đơn
 - không tự động in phiếu sau khi xuất
 
 ### Bước 6: Theo dõi đơn
@@ -148,7 +151,34 @@ ordered -> cancelled
 - `received` chỉ còn cho sửa `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
 - trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
 
-## 5. Luồng sửa sai sau khi đã xử lý chứng từ
+## 5. Luồng xử lý nhập thiếu batch
+
+### Mục tiêu
+
+- dùng cho kỳ gom nhập định kỳ hoặc lúc có nhiều đơn đang thiếu hàng
+- tổng hợp nhu cầu theo sản phẩm từ cả đơn `draft` và `committed`
+- tạo phiếu nhập đủ để đáp ứng nhu cầu xuất dự kiến, đồng thời cảnh báo nếu sau nhập vẫn thấp hơn ngưỡng tồn kho
+
+### Mode vận hành
+
+- Daily mode:
+  - phù hợp 1-3 user thao tác nhanh theo từng đơn
+  - shortage flow vẫn dùng luồng nhanh ở màn `Quản lý nhập hàng`
+- Batch mode:
+  - do `Master Admin` hoặc user có quyền `procurement_batch_manage` bắt đầu
+  - hệ thống tạo `workflow_locks.lock_key = procurement_batch`
+  - chỉ một người giữ khóa xử lý tạo phiếu nhập batch tại một thời điểm
+  - shortage từ chốt/xuất đơn chuyển về màn `Xử lý nhập thiếu`
+
+### Rule gom phiếu
+
+- một sản phẩm thiếu chỉ được có một assignment active tới một phiếu nhập batch mở
+- không tách cùng một sản phẩm thiếu thành nhiều phiếu nhập trong kỳ gom
+- nếu cần đổi nhà cung cấp hoặc số lượng, xử lý trên phiếu đang được gán thay vì tạo phiếu khác
+- phiếu tạo từ planner vẫn là purchase `draft`; workflow sau đó giữ nguyên `draft -> ordered -> received -> paid`
+- khi kết thúc batch, lock được đóng và hệ thống quay về Daily mode
+
+## 6. Luồng sửa sai sau khi đã xử lý chứng từ
 
 ### Phiếu điều chỉnh tồn
 
@@ -172,7 +202,7 @@ ordered -> cancelled
 - không sửa ngược chứng từ cũ
 - tạo chứng từ mới để giữ lịch sử
 
-## 6. Luồng quản lý danh mục
+## 7. Luồng quản lý danh mục
 
 ### Sản phẩm
 
@@ -193,17 +223,18 @@ ordered -> cancelled
 - lưu nguồn hàng
 - tái sử dụng cho phiếu nhập
 
-## 7. Luồng nhiều máy
+## 8. Luồng nhiều máy
 
 - tất cả máy dùng chung cùng server/app
 - state chính cho `customers/suppliers/carts/purchases` lưu ở SQLite
 - app tự refresh khi người dùng đang rảnh
 - khi lưu draft, client gửi version `expected_updated_at`
+- Batch procurement dùng workflow lock ở server để tránh nhiều user cùng gom nhập song song
 - nếu stale:
   - server trả `409`
   - UI phải tải lại để tránh ghi đè
 
-## 8. Luồng báo cáo
+## 9. Luồng báo cáo
 
 - chọn tháng chính hoặc khoảng ngày
 - xem:
@@ -214,7 +245,7 @@ ordered -> cancelled
   - xu hướng tháng
   - forecast nhập hàng
 
-## 9. Luồng quản trị hệ thống
+## 10. Luồng quản trị hệ thống
 
 - màn `admin`
 - đăng nhập bằng cấu hình runtime
@@ -223,10 +254,11 @@ ordered -> cancelled
   - backup database
   - restore database
 
-## 10. Rule business cốt lõi
+## 11. Rule business cốt lõi
 
 - `products.price` là giá nhập mặc định
 - `products.sale_price` là giá bán mặc định
 - tồn kho chuẩn phải đi qua `đơn chờ xuất` hoặc `phiếu chờ nhập`
 - chỉ `Master Admin` mới được bypass quy trình chuẩn để chỉnh tồn trực tiếp
 - sai sót sau khi chứng từ đã xử lý phải đi qua chứng từ điều chỉnh
+- trong Batch procurement mode, không auto-create phiếu nhập theo từng cart và không tách 1 sản phẩm thiếu sang nhiều phiếu nhập mở

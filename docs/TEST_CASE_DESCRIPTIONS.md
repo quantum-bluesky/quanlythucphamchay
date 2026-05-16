@@ -123,3 +123,6 @@ Lưu ý:
 | 95 | `UT-DB-20` | Kiểm tra `apply_safe_legacy_fixes()` backfill được `cart.paid_at` và `purchase.received_at`, đồng thời làm sạch lại số lượng anomaly an toàn trong audit. |
 | 96 | `UT-DB-21` | Kiểm tra admin gắn lại `receipt_code` cho purchase legacy `paid` đang thiếu receipt và record biến mất khỏi nhóm repair lỗi tương ứng. |
 | 97 | `UT-DB-22` | Kiểm tra admin gắn lại `cart_id` nguồn cho purchase legacy thiếu `source_code` và record biến mất khỏi nhóm review link nguồn. |
+| 98 | `UT-PROC-01` | Kiểm tra kỳ gom nhập batch chỉ có một lock active và chỉ owner hiện tại mới kết thúc được lock. |
+| 99 | `UT-PROC-02` | Kiểm tra planner batch gom nhu cầu đơn nháp/chốt theo sản phẩm và chặn tạo nhiều phiếu nhập mở cho cùng một sản phẩm thiếu. |
+| 100 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không phải Master Admin. |

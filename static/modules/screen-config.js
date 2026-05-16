@@ -167,6 +167,24 @@ export const SCREEN_HELP = {
       { menu: "create-order", label: "Quay lại đơn xuất" },
     ],
   },
+  "procurement-planner": {
+    title: "Xử lý nhập thiếu",
+    overview: "Dùng màn này khi cần gom nhu cầu nhập theo mặt hàng trong kỳ batch, có khóa một người xử lý để tránh tạo phiếu nhập trùng.",
+    steps: [
+      "Daily mode giữ flow xử lý nhanh theo đơn; Batch mode gom shortage về planner và tắt auto-create phiếu nhập theo từng cart.",
+      "Người có quyền xử lý batch bấm `Bắt đầu kỳ gom` để giữ khóa. User khác chỉ xem trạng thái và người đang giữ khóa.",
+      "Mỗi dòng hiển thị tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập thêm.",
+      "Trong Batch mode, một mặt hàng chỉ được gán vào một phiếu nhập mở. Nếu cần đổi NCC thì chuyển cả dòng sang phiếu khác ở phase sau, không tách một phần số lượng.",
+      "Cảnh báo `Sau nhập vẫn dưới ngưỡng` chỉ là cảnh báo tồn kho; không chặn tạo phiếu nếu số lượng đã đủ cho nhu cầu đơn.",
+      DESKTOP_MENU_HINT,
+      MOBILE_FLOATING_HINT,
+    ],
+    related: [
+      { menu: "inventory", label: "Quay lại tồn kho" },
+      { menu: "purchases", label: "Xem phiếu nhập" },
+      { menu: "orders", label: "Đối chiếu đơn hàng" },
+    ],
+  },
   suppliers: {
     title: "Quản lý nhà cung cấp",
     overview: "Lưu và tra cứu nhà cung cấp để dùng lại trong phiếu nhập, tránh nhập trùng thông tin nguồn hàng.",
@@ -283,6 +301,10 @@ export const SCREEN_META = {
   purchases: {
     title: "Nhập hàng",
     subtitle: "Lập phiếu nhập, theo dõi tiến trình đặt và nhận hàng.",
+  },
+  "procurement-planner": {
+    title: "Xử lý nhập thiếu",
+    subtitle: "Gom nhu cầu nhập theo mặt hàng trong kỳ batch.",
   },
   suppliers: {
     title: "Nhà cung cấp",

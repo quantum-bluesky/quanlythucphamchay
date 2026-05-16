@@ -2510,6 +2510,85 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(row["source_type"], "cart")
         self.assertEqual(row["source_name"], "Huệ F0604")
 
+    def test_ut_proc_01_batch_lock_allows_single_owner(self) -> None:
+        started = self.store.start_procurement_batch(
+            username="bizmanager",
+            role="user",
+            lock_timeout_minutes=30,
+        )
+        self.assertEqual(started["mode"], "batch")
+        self.assertEqual(started["lock"]["owner_username"], "bizmanager")
+
+        with self.assertRaisesRegex(ValueError, "bizmanager"):
+            self.store.start_procurement_batch(
+                username="staff",
+                role="user",
+                lock_timeout_minutes=30,
+            )
+
+        finished = self.store.finish_procurement_batch(username="bizmanager", role="user")
+        self.assertEqual(finished["mode"], "daily")
+        self.assertIsNone(finished["lock"])
+
+    def test_ut_proc_02_planner_assigns_one_product_to_one_batch_purchase(self) -> None:
+        product = self.store.create_product(
+            name="Mì căn batch",
+            category="Đồ chay",
+            unit="gói",
+            price=12000,
+            sale_price=18000,
+            low_stock_threshold=2,
+        )
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-batch-1",
+                        "customerName": "Khách batch",
+                        "status": "draft",
+                        "items": [
+                            {
+                                "id": "cart-item-batch-1",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 5,
+                                "unitPrice": 18000,
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+        self.store.start_procurement_batch(
+            username="bizmanager",
+            role="user",
+            lock_timeout_minutes=30,
+        )
+
+        planner = self.store.get_procurement_planner(scope_type="all")
+        target = next(row for row in planner["rows"] if row["product_id"] == product["id"])
+        self.assertEqual(target["required_purchase"], 5.0)
+
+        result = self.store.create_procurement_purchase_for_product(
+            product_id=product["id"],
+            quantity=target["required_purchase"],
+            supplier_name="NCC batch",
+            actor="bizmanager",
+            role="user",
+        )
+        self.assertEqual(result["purchase"]["supplierName"], "NCC batch")
+        assigned = next(row for row in result["planner"]["rows"] if row["product_id"] == product["id"])
+        self.assertEqual(assigned["assignment"]["purchase_id"], result["purchase"]["id"])
+
+        with self.assertRaisesRegex(ValueError, "đã được gán"):
+            self.store.create_procurement_purchase_for_product(
+                product_id=product["id"],
+                quantity=1,
+                supplier_name="NCC khác",
+                actor="bizmanager",
+                role="user",
+            )
+
 
 
 if __name__ == "__main__":

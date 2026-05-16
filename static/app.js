@@ -118,6 +118,11 @@ import {
   purchaseOrdersCard,
   showCancelledPurchases,
   showPaidPurchases,
+  procurementStatusPanel,
+  procurementPlannerList,
+  procurementRefreshButton,
+  procurementStartBatchButton,
+  procurementFinishBatchButton,
   supplierOptions,
   supplierForm,
   supplierNameInput,
@@ -1698,6 +1703,29 @@ function updateDebugConfig(payload = {}) {
   state.debug = normalizeDebugConfig(payload);
 }
 
+function normalizeProcurementPayload(payload = {}) {
+  const config = payload.config || {};
+  const permissions = payload.permissions || {};
+  return {
+    mode: String(payload.mode || "daily"),
+    lock: payload.lock || null,
+    lockTimeoutMinutes: normalizePositiveInteger(payload.lock_timeout_minutes ?? payload.lockTimeoutMinutes, 180),
+    config: {
+      batchPlannerEnabled: Boolean(config.batch_planner_enabled ?? config.batchPlannerEnabled ?? true),
+      allowDailyQuickShortageFlow: Boolean(config.allow_daily_quick_shortage_flow ?? config.allowDailyQuickShortageFlow ?? true),
+      requiredLoginForBatchMode: Boolean(config.required_login_for_batch_mode ?? config.requiredLoginForBatchMode ?? true),
+    },
+    permissions: {
+      canManageBatch: Boolean(permissions.can_manage_batch ?? permissions.canManageBatch),
+      isLockOwner: Boolean(permissions.is_lock_owner ?? permissions.isLockOwner),
+    },
+  };
+}
+
+function updateProcurementStatus(payload = {}) {
+  state.procurement = normalizeProcurementPayload(payload);
+}
+
 const LEGACY_AUTO_PURCHASE_NOTE_RE = /^Thiếu hàng cho đơn(?: của)?\s+(.+)$/i;
 
 function extractLegacyPurchaseSourceName(note) {
@@ -1798,7 +1826,7 @@ function saveAndRenderAll(changedCollections = []) {
   return getSyncRuntimeHelpers().saveAndRenderAll(changedCollections, renderAll);
 }
 
-const BUSINESS_FRESHNESS_MENUS = new Set(["inventory", "create-order", "orders", "purchases"]);
+const BUSINESS_FRESHNESS_MENUS = new Set(["inventory", "create-order", "orders", "purchases", "procurement-planner"]);
 
 function scheduleBusinessScreenRefresh(menu) {
   if (!BUSINESS_FRESHNESS_MENUS.has(menu)) {
@@ -1849,6 +1877,11 @@ function switchMenu(menu, { recordHistory = true } = {}) {
   if (menu === "admin" && state.admin?.isAdmin) {
     window.setTimeout(() => {
       void refreshAdminLegacyAudit({ sessionActivity: "passive", showErrorToast: true });
+    }, 0);
+  }
+  if (menu === "procurement-planner") {
+    window.setTimeout(() => {
+      void refreshProcurementPlanner().catch((error) => showToast(error.message, true));
     }, 0);
   }
   scheduleBusinessScreenRefresh(menu);
@@ -2364,6 +2397,134 @@ function getPurchaseSuggestions() {
     .filter((entry) => entry.suggestedQuantity > 0 || entry.product.is_low_stock || entry.demand > 0);
 }
 
+function buildProcurementPlannerQuery(scope = state.procurementPlanner.scope) {
+  const params = new URLSearchParams();
+  const scopeType = String(scope?.type || "all").trim() || "all";
+  const scopeCode = String(scope?.code || "").trim();
+  params.set("scope", scopeType);
+  if (scopeCode) {
+    params.set("scope_code", scopeCode);
+  }
+  return params;
+}
+
+async function refreshProcurementPlanner(scope = state.procurementPlanner.scope) {
+  state.procurementPlanner.loading = true;
+  renderProcurementPlanner();
+  try {
+    const payload = await apiRequest(`/api/procurement/planner?${buildProcurementPlannerQuery(scope).toString()}`);
+    updateProcurementStatus({
+      ...(payload.status || {}),
+      config: payload.config,
+      permissions: payload.permissions,
+    });
+    state.procurementPlanner = {
+      rows: Array.isArray(payload.rows) ? payload.rows : [],
+      scope: payload.scope || scope || { type: "all", code: "" },
+      loading: false,
+    };
+    renderProcurementPlanner();
+    return payload;
+  } catch (error) {
+    state.procurementPlanner.loading = false;
+    renderProcurementPlanner();
+    throw error;
+  }
+}
+
+async function openProcurementPlanner(scope = { type: "all", code: "" }) {
+  state.procurementPlanner.scope = {
+    type: String(scope.type || "all"),
+    code: String(scope.code || ""),
+  };
+  switchMenu("procurement-planner");
+  await refreshProcurementPlanner(state.procurementPlanner.scope);
+}
+
+function isProcurementBatchMode() {
+  return state.procurement?.mode === "batch";
+}
+
+async function routeShortageToProcurementPlanner(cart, message) {
+  await openProcurementPlanner({ type: "cart", code: String(cart?.id || "") });
+  throw new Error(message || "Batch mode đang bật. Hãy xử lý nhập thiếu trong màn Xử lý nhập thiếu.");
+}
+
+function renderProcurementPlanner() {
+  if (!procurementStatusPanel || !procurementPlannerList) {
+    return;
+  }
+  const procurement = state.procurement || {};
+  const mode = procurement.mode === "batch" ? "batch" : "daily";
+  const lock = procurement.lock || null;
+  const permissions = procurement.permissions || {};
+  const isOwner = Boolean(permissions.isLockOwner);
+  const canManage = Boolean(permissions.canManageBatch);
+  const canEditBatch = mode === "batch" && isOwner;
+  const lockOwner = lock?.owner_username || "";
+  const statusClass = mode === "batch" ? "warning" : "draft";
+  const lockText = mode === "batch"
+    ? `Đang khóa bởi ${lockOwner || "không rõ"} đến ${formatDate(lock?.expires_at || lock?.expiresAt || "")}`
+    : "Daily mode: vẫn xử lý nhanh theo từng đơn nếu policy cho phép.";
+
+  procurementStatusPanel.className = `inline-alert ${statusClass}`;
+  procurementStatusPanel.innerHTML = `
+    <strong>${mode === "batch" ? "Batch mode" : "Daily mode"}</strong>
+    <span>${escapeHtml(lockText)}</span>
+  `;
+  if (procurementStartBatchButton) {
+    procurementStartBatchButton.disabled = !canManage || mode === "batch";
+  }
+  if (procurementFinishBatchButton) {
+    procurementFinishBatchButton.disabled = !canManage || mode !== "batch" || (!isOwner && !state.admin?.isAdmin);
+  }
+  if (procurementRefreshButton) {
+    procurementRefreshButton.disabled = Boolean(state.procurementPlanner.loading);
+  }
+
+  if (state.procurementPlanner.loading) {
+    procurementPlannerList.innerHTML = '<div class="empty-state">Đang tải dữ liệu xử lý nhập thiếu...</div>';
+    return;
+  }
+  const rows = Array.isArray(state.procurementPlanner.rows) ? state.procurementPlanner.rows : [];
+  if (!rows.length) {
+    procurementPlannerList.innerHTML = '<div class="empty-state">Chưa có mặt hàng thiếu hoặc cần cảnh báo theo phạm vi hiện tại.</div>';
+    return;
+  }
+
+  procurementPlannerList.innerHTML = rows.map((row) => {
+    const assignment = row.assignment || null;
+    const assignedLabel = assignment
+      ? `Đã gán: ${assignment.supplier_name || "Chưa có NCC"} (${assignment.purchase_status || "draft"})`
+      : "Chưa gán phiếu nhập";
+    const warning = row.below_threshold_after_purchase
+      ? `<span class="pill warning">Sau nhập vẫn dưới ngưỡng</span>`
+      : "";
+    const createButton = canEditBatch && !assignment && Number(row.required_purchase || 0) > 0
+      ? `<button type="button" class="primary-button compact-button" data-procurement-action="create-draft" data-product-id="${escapeHtml(row.product_id)}" data-quantity="${escapeHtml(row.required_purchase)}">Tạo phiếu</button>`
+      : "";
+    return `
+      <article class="cart-item-card">
+        <div class="cart-item-main">
+          <div>
+            <strong>${escapeHtml(row.product_name)}</strong>
+            <p class="meta">${escapeHtml(assignedLabel)}</p>
+          </div>
+          <div class="cart-item-actions">${warning}${createButton}</div>
+        </div>
+        <div class="cart-line-note">
+          Tồn ${escapeHtml(formatQuantity(row.current_stock))} ${escapeHtml(row.unit)}
+          • Chốt ${escapeHtml(formatQuantity(row.committed_demand))}
+          • Nháp ${escapeHtml(formatQuantity(row.draft_demand))}
+          • Chờ nhập ${escapeHtml(formatQuantity(row.incoming_quantity))}
+          • Cần nhập ${escapeHtml(formatQuantity(row.required_purchase))}
+          • Dự kiến còn ${escapeHtml(formatQuantity(row.forecast_after_purchase))}
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
 function addSuggestionToPurchase(productId, quantity, unitCost) {
   return getPurchasesDomainHelpers().addSuggestionToPurchase(productId, quantity, unitCost);
 }
@@ -2844,6 +3005,7 @@ function updateAdminSessionState(payload = {}) {
     authenticated,
     username: String(payload.username || ""),
     role: String(payload.role || ""),
+    permissions: Array.isArray(payload.permissions) ? payload.permissions.map((entry) => String(entry || "").trim()).filter(Boolean) : [],
     isAdmin: Boolean(payload.is_admin ?? payload.isAdmin),
     enableLogin: Boolean(payload.enable_login ?? payload.enableLogin),
     sessionStartedAt,
@@ -2978,6 +3140,7 @@ async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "ac
     updateAppInfo(payload);
     updatePaginationConfig(payload);
     updateDebugConfig(payload);
+    updateProcurementStatus(payload.procurement || {});
     updateRuntimeVersion(payload);
     state.products = payload.products || [];
     state.deletedProducts = deletedProductsPayload.products || [];
@@ -3567,6 +3730,7 @@ function renderAll() {
   renderSupplierReturnSection();
   renderPurchaseSuggestions();
   renderPurchaseOrders();
+  renderProcurementPlanner();
   renderSuppliers();
   renderDeletedProducts();
   renderDeletedCustomers();
@@ -3828,6 +3992,9 @@ async function checkoutActiveCart() {
 
   const shortagePlan = getCartShortagePlan(cart);
   if (shortagePlan.length) {
+    if (isProcurementBatchMode()) {
+      await routeShortageToProcurementPlanner(cart, "Batch mode đang bật. Hãy xử lý nhập thiếu cho đơn này trong màn Xử lý nhập thiếu.");
+    }
     const shortageSummary = shortagePlan.map((entry) => `- ${formatShortagePlanLine(entry)}`).join("\n");
     const hasEnoughPendingPurchases = shortagePlan.every((entry) => entry.incomingQuantity >= entry.shortage);
     if (hasEnoughPendingPurchases) {
@@ -3919,6 +4086,9 @@ async function commitActiveCart() {
     });
 
   if (shortagePlan.length) {
+    if (isProcurementBatchMode()) {
+      await routeShortageToProcurementPlanner(cart, "Batch mode đang bật. Hãy xử lý nhập thiếu trước khi chốt đơn.");
+    }
     const shortageSummary = shortagePlan.map((entry) => {
       const productName = entry.product?.name || entry.item.productName;
       const parts = [
@@ -3935,7 +4105,7 @@ async function commitActiveCart() {
     }).join("\n");
     const hasEnoughPendingPurchases = shortagePlan.every((entry) => entry.incomingQuantity >= entry.shortage);
     if (hasEnoughPendingPurchases) {
-      const shouldOpenRelatedPurchase = window.confirm(`Đơn chưa đủ hàng khả dụng để chốt:\n${shortageSummary}\n\nChọn OK để mở phiếu nhập chờ liên quan nếu cần chỉnh.\nChọn Cancel để quay lại đơn này.`);
+      const shouldOpenRelatedPurchase = window.confirm(`Đơn chưa đủ hàng khả dụng để chốt nhưng đã có phiếu chờ nhập đủ số lượng:\n${shortageSummary}\n\nChọn OK để mở phiếu nhập chờ liên quan nếu cần chỉnh.\nChọn Cancel để quay lại đơn này.`);
       if (shouldOpenRelatedPurchase) {
         openRelatedPurchasesForShortagePlan(cart, shortagePlan);
         throw new Error("Đã mở phiếu nhập chờ liên quan để bạn kiểm tra hoặc chỉnh lại khi cần.");
@@ -3991,6 +4161,9 @@ async function shipActiveCart() {
 
   const shortagePlan = getCartShortagePlan(cart);
   if (shortagePlan.length) {
+    if (isProcurementBatchMode()) {
+      await routeShortageToProcurementPlanner(cart, "Batch mode đang bật. Hãy xử lý nhập thiếu trước khi xuất hàng.");
+    }
     const shortageSummary = shortagePlan.map((entry) => `- ${formatShortagePlanLine(entry)}`).join("\n");
     const hasEnoughPendingPurchases = shortagePlan.every((entry) => entry.incomingQuantity >= entry.shortage);
     if (hasEnoughPendingPurchases) {
@@ -4462,6 +4635,85 @@ registerReportsAdminControllerEvents({
     renderReportSections,
     renderAll,
   },
+});
+
+procurementRefreshButton?.addEventListener("click", async () => {
+  try {
+    await refreshProcurementPlanner();
+    showToast("Đã làm mới màn xử lý nhập thiếu.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+procurementStartBatchButton?.addEventListener("click", async () => {
+  try {
+    const payload = await apiRequest("/api/procurement/batch/start", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    updateProcurementStatus(payload);
+    await refreshProcurementPlanner();
+    showToast(payload.message || "Đã bắt đầu kỳ gom nhập.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+procurementFinishBatchButton?.addEventListener("click", async () => {
+  if (!window.confirm("Kết thúc kỳ gom nhập và trả hệ thống về Daily mode?")) {
+    return;
+  }
+  try {
+    const payload = await apiRequest("/api/procurement/batch/finish", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    updateProcurementStatus(payload);
+    await refreshProcurementPlanner();
+    showToast(payload.message || "Đã kết thúc kỳ gom nhập.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+procurementPlannerList?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-procurement-action]");
+  if (!button) return;
+  if (button.dataset.procurementAction === "create-draft") {
+    const productId = button.dataset.productId;
+    const quantity = Number(button.dataset.quantity || 0);
+    const supplierName = window.prompt("Nhập tên nhà cung cấp cho phiếu nhập này:", "") || "";
+    try {
+      const payload = await apiRequest("/api/procurement/purchases/create-draft", {
+        method: "POST",
+        body: JSON.stringify({
+          product_id: productId,
+          quantity,
+          supplier_name: supplierName.trim(),
+          scope_type: state.procurementPlanner.scope?.type || "all",
+          scope_code: state.procurementPlanner.scope?.code || "",
+        }),
+      });
+      state.purchases = payload.purchases || state.purchases;
+      if (payload.planner) {
+        updateProcurementStatus({
+          ...(payload.planner.status || {}),
+          config: payload.planner.config || state.procurement.config,
+          permissions: payload.planner.permissions || state.procurement.permissions,
+        });
+        state.procurementPlanner.rows = payload.planner.rows || [];
+        state.procurementPlanner.scope = payload.planner.scope || state.procurementPlanner.scope;
+      } else {
+        await refreshProcurementPlanner();
+      }
+      syncSalesState();
+      renderAll();
+      showToast(payload.message || "Đã tạo phiếu nhập từ planner.");
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  }
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
