@@ -164,6 +164,11 @@ import {
   adminBackupButton,
   adminRestoreDbFile,
   adminRestoreButton,
+  adminLegacyAuditRefreshButton,
+  adminLegacyApplySafeFixesButton,
+  adminLegacyAuditSummary,
+  adminLegacySafeFixList,
+  adminLegacyManualReviewList,
   scrollTopButton,
   scrollBottomButton,
   navBackButton,
@@ -936,6 +941,11 @@ function getReportsAdminUi() {
         adminPasswordInput,
         adminSessionUserLabel,
         adminLogoutButton,
+        adminLegacyAuditRefreshButton,
+        adminLegacyApplySafeFixesButton,
+        adminLegacyAuditSummary,
+        adminLegacySafeFixList,
+        adminLegacyManualReviewList,
       },
       escapeHtml,
       formatCurrency,
@@ -1836,6 +1846,11 @@ function switchMenu(menu, { recordHistory = true } = {}) {
       }
     }, 0);
   }
+  if (menu === "admin" && state.admin?.isAdmin) {
+    window.setTimeout(() => {
+      void refreshAdminLegacyAudit({ sessionActivity: "passive", showErrorToast: true });
+    }, 0);
+  }
   scheduleBusinessScreenRefresh(menu);
   return result;
 }
@@ -2693,6 +2708,8 @@ function clearProtectedSessionData() {
   state.transactions = [];
   state.summary = null;
   state.reports = null;
+  state.adminLegacyAudit = null;
+  state.adminLegacyAuditLoading = false;
   state.customers = [];
   state.suppliers = [];
   state.carts = [];
@@ -2881,6 +2898,31 @@ function readFileAsBase64(file) {
   });
 }
 
+async function refreshAdminLegacyAudit({ sessionActivity = "active", showErrorToast = false } = {}) {
+  if (!state.admin?.isAdmin) {
+    state.adminLegacyAudit = null;
+    state.adminLegacyAuditLoading = false;
+    renderAdminSection();
+    return null;
+  }
+  state.adminLegacyAuditLoading = true;
+  renderAdminSection();
+  try {
+    const payload = await apiRequest("/api/admin/legacy-audit", { sessionActivity });
+    state.adminLegacyAudit = payload;
+    renderAdminSection();
+    return payload;
+  } catch (error) {
+    if (showErrorToast) {
+      showToast(error.message, true);
+    }
+    throw error;
+  } finally {
+    state.adminLegacyAuditLoading = false;
+    renderAdminSection();
+  }
+}
+
 async function refreshReportData({ sessionActivity = "active" } = {}) {
   const focusMonth = state.reportFocusMonth || new Date().toISOString().slice(0, 7);
   const rangeMonths = Number(state.reportRangeMonths || 6);
@@ -2926,7 +2968,7 @@ async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "ac
     if (state.productHistoryEndDate) {
       historyParams.set("end_date", `${state.productHistoryEndDate}T23:59:59`);
     }
-    const [payload, deletedProductsPayload, productHistoryPayload] = await Promise.all([
+  const [payload, deletedProductsPayload, productHistoryPayload] = await Promise.all([
       apiRequest("/api/state?transaction_limit=16", { sessionActivity }),
       apiRequest("/api/products/deleted", { sessionActivity }),
       apiRequest(`/api/products/history?${historyParams.toString()}`, { sessionActivity }),
@@ -2947,11 +2989,30 @@ async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "ac
     state.carts = payload.carts || [];
     state.purchases = payload.purchases || [];
     syncSalesState();
+    if (state.admin?.isAdmin && state.activeMenu === "admin") {
+      try {
+        await refreshAdminLegacyAudit({ sessionActivity });
+      } catch {}
+    }
     renderAll();
     return payload;
   } finally {
     isRefreshingState = false;
   }
+}
+
+function openPurchaseDocumentById(purchaseId) {
+  const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
+  if (!purchase) {
+    throw new Error("Không tìm thấy phiếu nhập cần mở.");
+  }
+  state.activePurchaseId = purchase.id;
+  state.purchasePanelCollapsed = false;
+  state.purchaseDetailExpanded = false;
+  state.selectedPurchaseItemsCollapsed = false;
+  switchMenu("purchases");
+  renderAll();
+  focusPurchasePanel();
 }
 
 function renderSummary(summary) {
@@ -3469,7 +3530,7 @@ function renderAll() {
   if (purchaseSupplierMenuButton) {
     purchaseSupplierMenuButton.disabled = Boolean(activePurchase) && !supplierEditable;
     purchaseSupplierMenuButton.title = activePurchase && !supplierEditable
-      ? "Chỉ phiếu nháp mới được đổi nhà cung cấp."
+      ? "Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp."
       : "";
   }
   if (productHistoryActorInput) {
@@ -4378,6 +4439,8 @@ registerReportsAdminControllerEvents({
     adminBackupButton,
     adminRestoreButton,
     adminRestoreDbFile,
+    adminLegacyAuditRefreshButton,
+    adminLegacyApplySafeFixesButton,
   },
   actions: {
     refreshReportData,
@@ -4390,7 +4453,9 @@ registerReportsAdminControllerEvents({
     readFileAsText,
     readFileAsBase64,
     refreshData,
+    refreshAdminLegacyAudit,
     switchMenu,
+    openPurchaseDocumentById,
   },
   renderers: {
     renderReports,

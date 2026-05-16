@@ -119,3 +119,7 @@ Lưu ý:
 | 91 | `UT-SYNC-05` | Kiểm tra đơn `committed` khóa khách hàng nhưng vẫn cho sửa `ship_address`, đồng thời chặn việc đổi thẳng `committed -> completed` qua sync state. |
 | 92 | `UT-ORD-15` | Kiểm tra flow backend `draft -> committed -> completed`: bước `commit` chưa trừ kho, bước `ship` mới trừ kho và cập nhật trạng thái hoàn tất. |
 | 93 | `UT-DB-18` | Kiểm tra phiếu nhập `ordered` nhưng thiếu nhà cung cấp được nhận diện là dữ liệu lỗi có thể repair để UI cho sửa NCC hoặc xóa/hủy. |
+| 94 | `UT-DB-19` | Kiểm tra `legacy audit` tách đúng phần `safe fixes` và `manual review` khi DB có cart thiếu `paid_at`, purchase thiếu timestamp raw, phiếu `ordered` thiếu NCC, và purchase thiếu `source_code`. |
+| 95 | `UT-DB-20` | Kiểm tra `apply_safe_legacy_fixes()` backfill được `cart.paid_at` và `purchase.received_at`, đồng thời làm sạch lại số lượng anomaly an toàn trong audit. |
+| 96 | `UT-DB-21` | Kiểm tra admin gắn lại `receipt_code` cho purchase legacy `paid` đang thiếu receipt và record biến mất khỏi nhóm repair lỗi tương ứng. |
+| 97 | `UT-DB-22` | Kiểm tra admin gắn lại `cart_id` nguồn cho purchase legacy thiếu `source_code` và record biến mất khỏi nhóm review link nguồn. |

@@ -28,6 +28,18 @@ export function registerReportsAdminControllerEvents(contract) {
     }
   }
 
+  async function reloadLegacyAudit({ showSuccess = false } = {}) {
+    try {
+      await actions.refreshAdminLegacyAudit({ showErrorToast: false });
+      renderers.renderAll();
+      if (showSuccess) {
+        actions.showToast("Đã làm mới legacy audit.");
+      }
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  }
+
   dom.reportMonthInput.addEventListener("change", async (event) => {
     state.reportFocusMonth = event.target.value || new Date().toISOString().slice(0, 7);
     try {
@@ -127,6 +139,33 @@ export function registerReportsAdminControllerEvents(contract) {
     actions.switchMenu("admin");
   });
 
+  dom.adminLegacyAuditRefreshButton?.addEventListener("click", async () => {
+    await reloadLegacyAudit({ showSuccess: true });
+  });
+
+  dom.adminLegacyApplySafeFixesButton?.addEventListener("click", async () => {
+    const warning = [
+      "Áp dụng fix legacy an toàn?",
+      "App sẽ chỉ backfill các timestamp chắc chắn như paid_at hoặc received_at/pad_at fallback.",
+      "Không tự gắn receipt hay đơn nguồn nếu chưa có bằng chứng chắc chắn.",
+    ].join("\n");
+    if (!window.confirm(warning)) {
+      return;
+    }
+    try {
+      const data = await actions.apiRequest("/api/admin/legacy-audit/apply-safe-fixes", {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      await actions.refreshData();
+      state.adminLegacyAudit = data.audit || null;
+      renderers.renderAll();
+      actions.showToast(data.message);
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
+
   dom.adminModulePanel.addEventListener("click", async (event) => {
     const formatMap = {
       products: document.getElementById("adminMasterFormatProducts"),
@@ -144,6 +183,117 @@ export function registerReportsAdminControllerEvents(contract) {
       }
       return name.endsWith(".json");
     };
+
+    const legacyActionButton = event.target.closest("[data-admin-legacy-action]");
+    if (legacyActionButton) {
+      const action = legacyActionButton.dataset.adminLegacyAction;
+      const purchaseId = legacyActionButton.dataset.purchaseId || "";
+      if (action === "open-purchase") {
+        try {
+          actions.openPurchaseDocumentById(purchaseId);
+        } catch (error) {
+          actions.showToast(error.message, true);
+        }
+        return;
+      }
+
+      if (action === "repair-cancel" || action === "repair-delete") {
+        const verb = action === "repair-delete" ? "xóa" : "hủy";
+        const warning = [
+          `${verb === "xóa" ? "Xóa" : "Hủy"} phiếu legacy này?`,
+          "Chỉ tiếp tục nếu bạn đã xác nhận đây là record lỗi và không còn giá trị vận hành.",
+        ].join("\n");
+        if (!window.confirm(warning)) {
+          return;
+        }
+        try {
+          const data = await actions.apiRequest("/api/purchases/repair", {
+            method: "POST",
+            body: JSON.stringify({
+              purchase_id: purchaseId,
+              action: action === "repair-delete" ? "delete" : "cancel",
+            }),
+          });
+          await actions.refreshData();
+          await actions.refreshAdminLegacyAudit({ showErrorToast: false });
+          renderers.renderAll();
+          actions.showToast(data.message);
+        } catch (error) {
+          actions.showToast(error.message, true);
+        }
+        return;
+      }
+
+      if (action === "attach-receipt") {
+        const input = dom.adminModulePanel.querySelector(`[data-admin-legacy-receipt-input="${purchaseId}"]`);
+        const receiptCode = String(input?.value || "").trim();
+        if (!receiptCode) {
+          actions.showToast("Hãy nhập receipt_code trước khi gắn.", true);
+          return;
+        }
+        const warning = [
+          `Gắn receipt ${receiptCode} cho phiếu nhập ${purchaseId}?`,
+          "Chỉ tiếp tục nếu đã đối chiếu đúng nhà cung cấp và chứng từ nhập kho tương ứng.",
+        ].join("\n");
+        if (!window.confirm(warning)) {
+          return;
+        }
+        try {
+          const data = await actions.apiRequest("/api/admin/legacy-audit/link-purchase-receipt", {
+            method: "POST",
+            body: JSON.stringify({
+              purchase_id: purchaseId,
+              receipt_code: receiptCode,
+            }),
+          });
+          if (input) {
+            input.value = "";
+          }
+          await actions.refreshData();
+          state.adminLegacyAudit = data.audit || null;
+          renderers.renderAll();
+          actions.showToast(data.message);
+        } catch (error) {
+          actions.showToast(error.message, true);
+        }
+        return;
+      }
+
+      if (action === "attach-source") {
+        const input = dom.adminModulePanel.querySelector(`[data-admin-legacy-source-input="${purchaseId}"]`);
+        const cartId = String(input?.value || "").trim();
+        if (!cartId) {
+          actions.showToast("Hãy nhập cart_id trước khi gắn đơn nguồn.", true);
+          return;
+        }
+        const warning = [
+          `Gắn đơn nguồn ${cartId} cho phiếu nhập ${purchaseId}?`,
+          "Chỉ tiếp tục nếu bạn chắc chắn đây là đơn thiếu hàng đã tạo ra phiếu nhập này.",
+        ].join("\n");
+        if (!window.confirm(warning)) {
+          return;
+        }
+        try {
+          const data = await actions.apiRequest("/api/admin/legacy-audit/link-purchase-source", {
+            method: "POST",
+            body: JSON.stringify({
+              purchase_id: purchaseId,
+              cart_id: cartId,
+            }),
+          });
+          if (input) {
+            input.value = "";
+          }
+          await actions.refreshData();
+          state.adminLegacyAudit = data.audit || null;
+          renderers.renderAll();
+          actions.showToast(data.message);
+        } catch (error) {
+          actions.showToast(error.message, true);
+        }
+        return;
+      }
+    }
 
     const exportButton = event.target.closest("[data-admin-export]");
     if (exportButton) {

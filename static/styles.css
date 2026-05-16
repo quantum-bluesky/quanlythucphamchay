@@ -1427,6 +1427,71 @@ button:disabled {
   background: rgba(255, 255, 255, 0.55);
 }
 
+.admin-legacy-list {
+  margin-top: 16px;
+}
+
+.admin-legacy-block {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-legacy-item {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.admin-legacy-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-legacy-item-head strong {
+  display: block;
+}
+
+.admin-legacy-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-legacy-issue-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.admin-legacy-action-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-legacy-input-row {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-legacy-input-row input,
+.admin-legacy-input-row select {
+  width: 100%;
+}
+
+.admin-legacy-help {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .transaction-kind.in {
   color: var(--accent);
 }

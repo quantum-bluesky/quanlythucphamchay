@@ -683,6 +683,353 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(ordered_purchase["status"], "cancelled")
         self.assertEqual(ordered_purchase["items"][0]["quantity"], 2.0)
 
+    def test_ut_db_13_legacy_audit_reports_safe_and_manual_issues(self) -> None:
+        product = self.store.create_product(
+            name="Legacy audit tổng hợp",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        receipt = self.store.create_purchase_receipt(
+            supplier_name="NCC Legacy Audit",
+            items=[{"product_id": product["id"], "quantity": 2, "unit_cost": 15000}],
+            note="Receipt để backfill timestamp",
+        )
+        sync_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-legacy-paid-01",
+                        "customerId": "customer-legacy-01",
+                        "customerName": "Khách legacy",
+                        "status": "completed",
+                        "paymentStatus": "paid",
+                        "createdAt": "2026-05-01T08:00:00+07:00",
+                        "updatedAt": "2026-05-01T09:00:00+07:00",
+                        "completedAt": "2026-05-01T08:45:00+07:00",
+                        "paidAt": "",
+                        "orderCode": "DH-LEGACY-01",
+                        "items": [
+                            {
+                                "id": "cart-item-legacy-paid-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 1,
+                                "unitPrice": 25000,
+                                "note": "",
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {"carts": sync_state["updated_at"]["carts"]},
+            }
+        )
+        now = "2026-05-01T10:00:00+07:00"
+        with self.store._connect() as connection:
+            self.store._replace_sync_collection_records(
+                connection,
+                "purchases",
+                [
+                    {
+                        "id": "purchase-legacy-audit-ordered",
+                        "supplierName": "",
+                        "status": "ordered",
+                        "note": "",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "items": [
+                            {
+                                "id": "purchase-item-legacy-audit-ordered",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 3,
+                                "unitCost": 16000,
+                            }
+                        ],
+                    },
+                    {
+                        "id": "purchase-legacy-audit-received",
+                        "supplierName": "NCC Legacy Audit",
+                        "status": "received",
+                        "note": "",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "receivedAt": "",
+                        "receiptCode": receipt["receipt_code"],
+                        "items": [
+                            {
+                                "id": "purchase-item-legacy-audit-received",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 15000,
+                            }
+                        ],
+                    },
+                    {
+                        "id": "purchase-legacy-audit-source",
+                        "supplierName": "NCC Legacy Audit",
+                        "status": "paid",
+                        "note": "",
+                        "sourceType": "cart",
+                        "sourceCode": "",
+                        "sourceName": "Khách legacy",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "receivedAt": now,
+                        "paidAt": now,
+                        "receiptCode": receipt["receipt_code"],
+                        "items": [
+                            {
+                                "id": "purchase-item-legacy-audit-source",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 15000,
+                            }
+                        ],
+                    },
+                ],
+            )
+            canonical = self.store._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            )
+
+        audit = self.store.get_legacy_data_audit()
+        self.assertEqual(audit["summary"]["safe_cart_paid_at_backfills"], 1)
+        self.assertEqual(audit["summary"]["safe_purchase_timestamp_backfills"], 1)
+        self.assertEqual(audit["summary"]["manual_repairable_purchases"], 1)
+        self.assertEqual(audit["summary"]["manual_purchase_source_links"], 1)
+
+    def test_ut_db_14_apply_safe_legacy_fixes_backfills_cart_paid_at_and_purchase_received_at(self) -> None:
+        product = self.store.create_product(
+            name="Apply safe fix legacy",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        receipt = self.store.create_purchase_receipt(
+            supplier_name="NCC Safe Fix",
+            items=[{"product_id": product["id"], "quantity": 4, "unit_cost": 18000}],
+            note="Receipt hợp lệ để backfill",
+        )
+        sync_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-safe-fix-01",
+                        "customerId": "customer-safe-fix-01",
+                        "customerName": "Khách safe fix",
+                        "status": "completed",
+                        "paymentStatus": "paid",
+                        "createdAt": "2026-05-02T08:00:00+07:00",
+                        "updatedAt": "2026-05-02T09:00:00+07:00",
+                        "completedAt": "2026-05-02T08:35:00+07:00",
+                        "paidAt": "",
+                        "orderCode": "DH-SAFE-FIX-01",
+                        "items": [
+                            {
+                                "id": "cart-item-safe-fix-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 1,
+                                "unitPrice": 24000,
+                                "note": "",
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {"carts": sync_state["updated_at"]["carts"]},
+            }
+        )
+        now = "2026-05-02T10:00:00+07:00"
+        with self.store._connect() as connection:
+            self.store._replace_sync_collection_records(
+                connection,
+                "purchases",
+                [
+                    {
+                        "id": "purchase-safe-fix-01",
+                        "supplierName": "NCC Safe Fix",
+                        "status": "received",
+                        "note": "",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "receivedAt": "",
+                        "receiptCode": receipt["receipt_code"],
+                        "items": [
+                            {
+                                "id": "purchase-item-safe-fix-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 4,
+                                "unitCost": 18000,
+                            }
+                        ],
+                    }
+                ],
+            )
+            canonical = self.store._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            )
+
+        result = self.store.apply_safe_legacy_fixes(actor="masteradmin")
+        self.assertEqual(result["counts"]["cart_paid_at_backfills"], 1)
+        self.assertEqual(result["counts"]["purchase_timestamp_backfills"], 1)
+        self.assertEqual(result["audit"]["summary"]["safe_fix_total"], 0)
+
+        with self.store._connect() as connection:
+            cart_row = connection.execute(
+                "SELECT paid_at FROM carts WHERE id = ?",
+                ("cart-safe-fix-01",),
+            ).fetchone()
+            purchase_row = connection.execute(
+                "SELECT received_at FROM purchases WHERE id = ?",
+                ("purchase-safe-fix-01",),
+            ).fetchone()
+        self.assertTrue(str(cart_row["paid_at"] or "").strip())
+        self.assertTrue(str(purchase_row["received_at"] or "").strip())
+
+    def test_ut_db_16_attach_purchase_receipt_code_repairs_invalid_paid_purchase(self) -> None:
+        product = self.store.create_product(
+            name="Attach receipt legacy",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        receipt = self.store.create_purchase_receipt(
+            supplier_name="NCC Attach Receipt",
+            items=[{"product_id": product["id"], "quantity": 2, "unit_cost": 19000}],
+            note="Receipt chuẩn để gắn lại",
+        )
+        now = "2026-05-03T10:00:00+07:00"
+        with self.store._connect() as connection:
+            self.store._replace_sync_collection_records(
+                connection,
+                "purchases",
+                [
+                    {
+                        "id": "purchase-attach-receipt-01",
+                        "supplierName": "NCC Attach Receipt",
+                        "status": "paid",
+                        "note": "",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "receivedAt": now,
+                        "paidAt": now,
+                        "receiptCode": "",
+                        "items": [
+                            {
+                                "id": "purchase-item-attach-receipt-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 19000,
+                            }
+                        ],
+                    }
+                ],
+            )
+            canonical = self.store._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            )
+
+        result = self.store.attach_purchase_receipt_code(
+            "purchase-attach-receipt-01",
+            receipt["receipt_code"],
+            actor="masteradmin",
+        )
+        self.assertEqual(result["purchase"]["receiptCode"], receipt["receipt_code"])
+        self.assertEqual(result["audit"]["summary"]["manual_repairable_purchases"], 0)
+
+    def test_ut_db_17_attach_purchase_source_cart_repairs_missing_source_code(self) -> None:
+        product = self.store.create_product(
+            name="Attach source legacy",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=1,
+        )
+        sync_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-source-link-01",
+                        "customerId": "customer-source-link-01",
+                        "customerName": "Khách nguồn legacy",
+                        "status": "completed",
+                        "paymentStatus": "unpaid",
+                        "createdAt": "2026-05-04T08:00:00+07:00",
+                        "updatedAt": "2026-05-04T09:00:00+07:00",
+                        "completedAt": "2026-05-04T08:45:00+07:00",
+                        "orderCode": "DH-SOURCE-LINK-01",
+                        "items": [
+                            {
+                                "id": "cart-item-source-link-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 1,
+                                "unitPrice": 22000,
+                                "note": "",
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {"carts": sync_state["updated_at"]["carts"]},
+            }
+        )
+        now = "2026-05-04T10:00:00+07:00"
+        with self.store._connect() as connection:
+            self.store._replace_sync_collection_records(
+                connection,
+                "purchases",
+                [
+                    {
+                        "id": "purchase-source-link-01",
+                        "supplierName": "NCC Source Link",
+                        "status": "draft",
+                        "note": "",
+                        "sourceType": "cart",
+                        "sourceCode": "",
+                        "sourceName": "Khách nguồn legacy",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "receiptCode": "",
+                        "items": [
+                            {
+                                "id": "purchase-item-source-link-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 17000,
+                            }
+                        ],
+                    }
+                ],
+            )
+            canonical = self.store._load_sync_collection_from_tables(connection, "purchases")
+            connection.execute(
+                "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
+                (json.dumps(canonical, ensure_ascii=False), now, "purchases"),
+            )
+
+        result = self.store.attach_purchase_source_cart(
+            "purchase-source-link-01",
+            "cart-source-link-01",
+            actor="masteradmin",
+        )
+        self.assertEqual(result["purchase"]["sourceCode"], "cart-source-link-01")
+        self.assertEqual(result["purchase"]["sourceName"], "Khách nguồn legacy")
+        self.assertEqual(result["audit"]["summary"]["manual_purchase_source_links"], 0)
+
     def test_ut_db_15_purchase_requires_supplier_before_ordered_or_received(self) -> None:
         product = self.store.create_product(
             name="Phiếu nhập thiếu NCC",
