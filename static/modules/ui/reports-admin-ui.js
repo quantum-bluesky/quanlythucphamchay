@@ -158,6 +158,209 @@ export function createReportsAdminUi(deps) {
     if (!isAuthenticated) {
       dom.adminPasswordInput.value = "";
     }
+
+    if (!isAdmin) {
+      if (dom.adminLegacyAuditSummary) dom.adminLegacyAuditSummary.innerHTML = "";
+      if (dom.adminLegacySafeFixList) dom.adminLegacySafeFixList.innerHTML = "";
+      if (dom.adminLegacyManualReviewList) dom.adminLegacyManualReviewList.innerHTML = "";
+      return;
+    }
+
+    const audit = state.adminLegacyAudit;
+    const loading = Boolean(state.adminLegacyAuditLoading);
+    if (dom.adminLegacyAuditRefreshButton) {
+      dom.adminLegacyAuditRefreshButton.disabled = loading;
+      dom.adminLegacyAuditRefreshButton.textContent = loading ? "Đang audit..." : "Làm mới audit";
+    }
+    if (dom.adminLegacyApplySafeFixesButton) {
+      const safeFixTotal = Number(audit?.summary?.safe_fix_total || 0);
+      dom.adminLegacyApplySafeFixesButton.disabled = loading || safeFixTotal <= 0;
+      dom.adminLegacyApplySafeFixesButton.textContent = safeFixTotal > 0
+        ? `Áp dụng fix an toàn (${safeFixTotal})`
+        : "Không còn fix an toàn";
+    }
+
+    if (!audit) {
+      if (dom.adminLegacyAuditSummary) {
+        dom.adminLegacyAuditSummary.innerHTML = loading
+          ? '<article class="summary-card"><span>Legacy Audit</span><strong>Đang tải...</strong><p class="panel-note">App đang quét dữ liệu cũ trên DB hiện hành.</p></article>'
+          : '<article class="summary-card"><span>Legacy Audit</span><strong>Chưa nạp</strong><p class="panel-note">Bấm Làm mới audit để quét anomaly legacy.</p></article>';
+      }
+      if (dom.adminLegacySafeFixList) {
+        dom.adminLegacySafeFixList.innerHTML = '<div class="empty-state">Chưa có dữ liệu audit để tính fix an toàn.</div>';
+      }
+      if (dom.adminLegacyManualReviewList) {
+        dom.adminLegacyManualReviewList.innerHTML = '<div class="empty-state">Chưa có dữ liệu audit để review thủ công.</div>';
+      }
+      return;
+    }
+
+    const summary = audit.summary || {};
+    if (dom.adminLegacyAuditSummary) {
+      const cards = [
+        {
+          label: "Fix an toàn",
+          value: String(summary.safe_fix_total || 0),
+          hint: `Cart paid_at ${summary.safe_cart_paid_at_backfills || 0} | Purchase timestamp ${summary.safe_purchase_timestamp_backfills || 0}`,
+        },
+        {
+          label: "Review thủ công",
+          value: String(summary.manual_review_total || 0),
+          hint: `Phiếu lỗi ${summary.manual_repairable_purchases || 0} | Link đơn nguồn ${summary.manual_purchase_source_links || 0}`,
+        },
+        {
+          label: "Phiếu lỗi",
+          value: String(summary.manual_repairable_purchases || 0),
+          hint: "Các phiếu nhập legacy đang lệch workflow hoặc thiếu marker bắt buộc.",
+        },
+        {
+          label: "Lần audit",
+          value: formatDate(audit.generated_at) || "Chưa có",
+          hint: "Mốc backend quét anomaly gần nhất.",
+        },
+      ];
+      dom.adminLegacyAuditSummary.innerHTML = cards
+        .map((card) => `<article class="summary-card"><span>${escapeHtml(card.label)}</span><strong>${escapeHtml(card.value)}</strong><p class="panel-note">${escapeHtml(card.hint)}</p></article>`)
+        .join("");
+    }
+
+    const safeFixes = audit.safe_fixes || {};
+    const safeFixItems = [];
+    const cartPaidAtBackfills = Array.isArray(safeFixes.cart_paid_at_backfills) ? safeFixes.cart_paid_at_backfills : [];
+    const purchaseTimestampBackfills = Array.isArray(safeFixes.purchase_timestamp_backfills) ? safeFixes.purchase_timestamp_backfills : [];
+    if (cartPaidAtBackfills.length) {
+      safeFixItems.push(
+        ...cartPaidAtBackfills.map((entry) => `
+          <article class="admin-legacy-item">
+            <div class="admin-legacy-item-head">
+              <div>
+                <strong>${escapeHtml(entry.order_code || entry.cart_id || "Đơn hàng")}</strong>
+                <div class="admin-legacy-help">Đơn đã thanh toán nhưng thiếu paid_at.</div>
+              </div>
+              <span class="status-pill draft">Safe</span>
+            </div>
+            <div class="admin-legacy-item-meta">
+              <span>${escapeHtml(entry.customer_name || "Không có khách")}</span>
+              <span>${escapeHtml(formatDate(entry.suggested_paid_at) || entry.suggested_paid_at || "Không xác định")}</span>
+            </div>
+          </article>
+        `)
+      );
+    }
+    if (purchaseTimestampBackfills.length) {
+      safeFixItems.push(
+        ...purchaseTimestampBackfills.map((entry) => `
+          <article class="admin-legacy-item">
+            <div class="admin-legacy-item-head">
+              <div>
+                <strong>${escapeHtml(entry.receipt_code || entry.purchase_id || "Phiếu nhập")}</strong>
+                <div class="admin-legacy-help">Phiếu đã xử lý nhưng thiếu timestamp legacy trong DB.</div>
+              </div>
+              <span class="status-pill draft">Safe</span>
+            </div>
+            <div class="admin-legacy-item-meta">
+              <span>${escapeHtml(entry.supplier_name || "Chưa có NCC")}</span>
+              <span>${escapeHtml(entry.status || "")}</span>
+              <span>Nhận: ${escapeHtml(formatDate(entry.suggested_received_at) || entry.suggested_received_at || "rỗng")}</span>
+              ${entry.suggested_paid_at ? `<span>Thanh toán: ${escapeHtml(formatDate(entry.suggested_paid_at) || entry.suggested_paid_at)}</span>` : ""}
+            </div>
+          </article>
+        `)
+      );
+    }
+    if (dom.adminLegacySafeFixList) {
+      dom.adminLegacySafeFixList.innerHTML = safeFixItems.length
+        ? `<div class="admin-legacy-block">${safeFixItems.join("")}</div>`
+        : '<div class="empty-state">Không còn fix legacy nào đủ an toàn để tự động áp dụng.</div>';
+    }
+
+    const issueLabels = {
+      ordered_missing_supplier: "Ordered thiếu NCC",
+      ordered_missing_items: "Ordered thiếu item",
+      open_status_has_processed_markers: "Open status có marker xử lý",
+      paid_missing_valid_receipt: "Paid thiếu receipt hợp lệ",
+    };
+    const manualReview = audit.manual_review || {};
+    const repairablePurchases = Array.isArray(manualReview.repairable_purchases) ? manualReview.repairable_purchases : [];
+    const sourceLinks = Array.isArray(manualReview.purchase_source_links) ? manualReview.purchase_source_links : [];
+    const manualItems = [];
+
+    for (const entry of repairablePurchases) {
+      const candidateReceipts = Array.isArray(entry.candidate_receipts) ? entry.candidate_receipts : [];
+      const datalistId = `adminLegacyReceiptOptions-${escapeHtml(entry.purchase_id)}`;
+      manualItems.push(`
+        <article class="admin-legacy-item">
+          <div class="admin-legacy-item-head">
+            <div>
+              <strong>${escapeHtml(entry.receipt_code || entry.purchase_id || "Phiếu nhập legacy")}</strong>
+              <div class="admin-legacy-help">${escapeHtml(entry.supplier_name || "Chưa có NCC")} • ${escapeHtml(entry.status || "")}</div>
+            </div>
+            <span class="status-pill cancelled">Review</span>
+          </div>
+          <div class="admin-legacy-issue-tags">
+            ${(entry.issue_codes || []).map((code) => `<span class="status-pill warning">${escapeHtml(issueLabels[code] || code)}</span>`).join("")}
+          </div>
+          <div class="admin-legacy-action-grid">
+            <div class="row-actions">
+              <button type="button" class="ghost-button compact-button" data-admin-legacy-action="open-purchase" data-purchase-id="${escapeHtml(entry.purchase_id)}">Mở phiếu</button>
+              ${entry.can_cancel ? `<button type="button" class="ghost-button compact-button" data-admin-legacy-action="repair-cancel" data-purchase-id="${escapeHtml(entry.purchase_id)}">Hủy phiếu</button>` : ""}
+              ${entry.can_delete ? `<button type="button" class="danger-button compact-button" data-admin-legacy-action="repair-delete" data-purchase-id="${escapeHtml(entry.purchase_id)}">Xóa phiếu</button>` : ""}
+            </div>
+            <div class="admin-legacy-input-row">
+              <input type="text" placeholder="Gắn receipt_code nếu tìm được phiếu nhập kho đúng" data-admin-legacy-receipt-input="${escapeHtml(entry.purchase_id)}" list="${datalistId}">
+              <datalist id="${datalistId}">
+                ${candidateReceipts.map((candidate) => `<option value="${escapeHtml(candidate.receipt_code)}">${escapeHtml(candidate.supplier_name || "")} • overlap ${escapeHtml(String(candidate.overlap_count || 0))}</option>`).join("")}
+              </datalist>
+              <button type="button" class="primary-button compact-button" data-admin-legacy-action="attach-receipt" data-purchase-id="${escapeHtml(entry.purchase_id)}">Gắn receipt</button>
+            </div>
+            <div class="admin-legacy-help">
+              ${candidateReceipts.length ? `Gợi ý receipt theo NCC/item overlap: ${escapeHtml(candidateReceipts.map((candidate) => candidate.receipt_code).join(", "))}` : "Không có receipt candidate chắc chắn. Nếu không đối chiếu được, nên hủy hoặc xóa phiếu lỗi này."}
+            </div>
+          </div>
+        </article>
+      `);
+    }
+
+    for (const entry of sourceLinks) {
+      const candidateCarts = Array.isArray(entry.candidate_carts) ? entry.candidate_carts : [];
+      const datalistId = `adminLegacySourceOptions-${escapeHtml(entry.purchase_id)}`;
+      manualItems.push(`
+        <article class="admin-legacy-item">
+          <div class="admin-legacy-item-head">
+            <div>
+              <strong>${escapeHtml(entry.purchase_id || "Phiếu nhập legacy")}</strong>
+              <div class="admin-legacy-help">${escapeHtml(entry.supplier_name || "Chưa có NCC")} • thiếu link đơn nguồn của ${escapeHtml(entry.source_name || "khách cũ")}</div>
+            </div>
+            <span class="status-pill draft">Link nguồn</span>
+          </div>
+          <div class="admin-legacy-item-meta">
+            <span>${escapeHtml(entry.status || "")}</span>
+            <span>Candidates: ${escapeHtml(String(candidateCarts.length))}</span>
+          </div>
+          <div class="admin-legacy-action-grid">
+            <div class="row-actions">
+              <button type="button" class="ghost-button compact-button" data-admin-legacy-action="open-purchase" data-purchase-id="${escapeHtml(entry.purchase_id)}">Mở phiếu</button>
+            </div>
+            <div class="admin-legacy-input-row">
+              <input type="text" placeholder="Nhập cart_id để gắn lại đơn nguồn" data-admin-legacy-source-input="${escapeHtml(entry.purchase_id)}" list="${datalistId}">
+              <datalist id="${datalistId}">
+                ${candidateCarts.map((candidate) => `<option value="${escapeHtml(candidate.cart_id)}">${escapeHtml(candidate.customer_name || "")} • ${escapeHtml(candidate.status || "")} • overlap ${escapeHtml(String(candidate.overlap_count || 0))}</option>`).join("")}
+              </datalist>
+              <button type="button" class="primary-button compact-button" data-admin-legacy-action="attach-source" data-purchase-id="${escapeHtml(entry.purchase_id)}">Gắn đơn nguồn</button>
+            </div>
+            <div class="admin-legacy-help">
+              ${candidateCarts.length ? `Gợi ý cart theo tên khách/item overlap: ${escapeHtml(candidateCarts.map((candidate) => candidate.cart_id).join(", "))}` : "Chưa tìm thấy cart candidate đủ gần. Có thể nhập cart_id thủ công nếu đã đối chiếu chắc chắn."}
+            </div>
+          </div>
+        </article>
+      `);
+    }
+
+    if (dom.adminLegacyManualReviewList) {
+      dom.adminLegacyManualReviewList.innerHTML = manualItems.length
+        ? `<div class="admin-legacy-block">${manualItems.join("")}</div>`
+        : '<div class="empty-state">Không còn record legacy nào cần review thủ công.</div>';
+    }
   }
 
   return {

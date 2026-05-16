@@ -211,10 +211,16 @@ Liên kết detail hiện có:
 - mục tiêu:
   - quản trị dữ liệu master
   - backup/restore DB
+  - rà soát và xử lý dữ liệu legacy đang dùng
 - thành phần chính:
   - login panel
   - export/import master
   - backup/restore database
+  - panel `Legacy Audit` gồm:
+    - summary card số lượng anomaly
+    - khối `fix an toàn`
+    - khối `review thủ công`
+    - action gắn `receipt_code`, gắn `đơn nguồn`, mở phiếu, hủy/xóa phiếu lỗi
 
 ### `about` - About ứng dụng
 

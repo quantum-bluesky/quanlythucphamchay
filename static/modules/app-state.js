@@ -26,6 +26,8 @@ export const state = {
   transactions: [],
   summary: null,
   reports: null,
+  adminLegacyAudit: null,
+  adminLegacyAuditLoading: false,
   admin: {
     authenticated: false,
     username: "",

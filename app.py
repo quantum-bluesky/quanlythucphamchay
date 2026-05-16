@@ -1,5 +1,6 @@
 import argparse
 import json
+import sys
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -12,6 +13,11 @@ from qltpchay.store import InventoryStore
 
 create_handler = modular_create_handler
 import_products_from_file = modular_import_products_from_file
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
 
 def run_init_command(
     file_path: str,
@@ -49,6 +55,40 @@ def run_init_command(
     return 0
 
 
+def run_legacy_audit_command(*, apply_safe_fixes: bool, output_json: bool) -> int:
+    store = InventoryStore(DB_PATH)
+    if apply_safe_fixes:
+        result = store.apply_safe_legacy_fixes(actor="cli-legacy-audit")
+        audit = result["audit"]
+        if output_json:
+            print(json.dumps({"result": result, "audit": audit}, ensure_ascii=False, indent=2))
+        else:
+            print(result["message"])
+            print(
+                "Legacy audit after safe fixes: "
+                f"safe_fix_total={audit['summary']['safe_fix_total']}, "
+                f"manual_review_total={audit['summary']['manual_review_total']}, "
+                f"repairable_purchases={audit['summary']['manual_repairable_purchases']}, "
+                f"source_links={audit['summary']['manual_purchase_source_links']}."
+            )
+        return 0
+
+    audit = store.get_legacy_data_audit()
+    if output_json:
+        print(json.dumps(audit, ensure_ascii=False, indent=2))
+    else:
+        print(
+            "Legacy audit: "
+            f"safe_fix_total={audit['summary']['safe_fix_total']}, "
+            f"manual_review_total={audit['summary']['manual_review_total']}, "
+            f"cart_paid_at_backfills={audit['summary']['safe_cart_paid_at_backfills']}, "
+            f"purchase_timestamp_backfills={audit['summary']['safe_purchase_timestamp_backfills']}, "
+            f"repairable_purchases={audit['summary']['manual_repairable_purchases']}, "
+            f"source_links={audit['summary']['manual_purchase_source_links']}."
+        )
+    return 0
+
+
 def build_cli_parser(system_config: dict) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Quản lý tồn kho thực phẩm chay")
     parser.add_argument("--host", default=None, help="Host/IP/domain để bind server")
@@ -65,6 +105,9 @@ def build_cli_parser(system_config: dict) -> argparse.ArgumentParser:
 
     subparsers.add_parser("serve", help="Chạy web server")
     subparsers.add_parser("config", help="Hiện file cấu hình hệ thống đang dùng")
+    legacy_audit_parser = subparsers.add_parser("legacy-audit", help="Rà soát dữ liệu legacy và áp dụng fix an toàn")
+    legacy_audit_parser.add_argument("--apply-safe-fixes", action="store_true", help="Áp dụng các fix legacy an toàn rồi in lại báo cáo")
+    legacy_audit_parser.add_argument("--json", action="store_true", help="In kết quả dưới dạng JSON")
 
     return parser
 
@@ -111,6 +154,12 @@ def main() -> int:
         print(json.dumps(system_config, ensure_ascii=False, indent=2))
         print(f"Config file: {CONFIG_PATH}")
         return 0
+
+    if args.command == "legacy-audit":
+        return run_legacy_audit_command(
+            apply_safe_fixes=bool(args.apply_safe_fixes),
+            output_json=bool(args.json),
+        )
 
     if args.command == "serve":
         run_server(system_config, args.host, args.port)

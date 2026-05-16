@@ -218,6 +218,13 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - phiếu `draft/ordered` còn marker `received_at` / `paid_at` / `receipt_code` không khớp workflow mở
   - phiếu `ordered` nhưng thiếu `supplier_name` hoặc không còn item hợp lệ
 - cờ repair này chỉ dùng để mở đường sửa/xóa/hủy dữ liệu cũ đang lệch, không đổi workflow chuẩn của phiếu nhập mới
+- ngoài cờ repair, backend còn có `legacy audit` để quét:
+  - `carts.completed + payment_status=paid` nhưng thiếu `paid_at`
+  - `purchases.received/paid` nhưng thiếu `received_at` hoặc `paid_at` ở raw DB
+  - `purchases.source_type='cart'` nhưng thiếu `source_code`
+- `legacy audit` phải tách rõ:
+  - `safe fixes`: chỉ backfill timestamp chắc chắn
+  - `manual review`: cần admin đối chiếu rồi gắn `receipt_code` hoặc `cart_id`
 
 ### `purchase_items`
 
@@ -362,6 +369,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 ### Giới hạn
 
 - app vẫn giữ `app_state` làm legacy cache để tương thích ngược
+- mọi thao tác `legacy audit` có mutate DB phải refresh lại `app_state` canonical của collection liên quan sau khi ghi bảng chuẩn
 - `supplier_id` và `customer_id` trong một số receipt cũ có thể chưa backfill đầy đủ nếu dữ liệu lịch sử chỉ có tên
 - reporting sâu cho receipt lịch sử cũ phụ thuộc chất lượng `transactions.note`
 - lô chưa có HSD vẫn quản lý được nhưng không thể tham gia FEFO theo ngày hết hạn thật
