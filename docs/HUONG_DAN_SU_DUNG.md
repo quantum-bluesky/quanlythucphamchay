@@ -363,15 +363,19 @@ Màn này dùng khi cần gom nhu cầu nhập định kỳ, ví dụ cuối th�
 1. Login bằng `Master Admin` hoặc user được cấp quyền xử lý kỳ gom nhập.
 2. Bấm `Bắt đầu kỳ gom` để giữ khóa xử lý.
 3. Xem từng dòng mặt hàng thiếu: tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập.
-4. Nếu số nhập dự kiến vẫn làm tồn dưới ngưỡng cảnh báo, app chỉ cảnh báo để cân nhắc nhập thêm.
-5. Với mỗi sản phẩm thiếu, nhập hoặc chọn tên NCC rồi bấm tạo phiếu nhập.
-6. Một sản phẩm thiếu chỉ được gán vào một phiếu nhập mở trong kỳ gom; nếu muốn đổi NCC thì xử lý cả dòng, không tách một phần sang phiếu khác.
-7. Khi đã tạo đủ phiếu nhập cần thiết, bấm `Kết thúc kỳ gom` để trả hệ thống về flow nhanh hằng ngày.
+4. Tick chọn những dòng cần xử lý. Dòng chưa tick sẽ không hiện cảnh báo sau nhập vì chưa có số lượng dự kiến.
+5. Với từng dòng đã tick, chọn NCC từ danh bạ và nhập số lượng; số lượng mặc định là mức đủ đáp ứng nhu cầu.
+6. Trên tablet/desktop có thể nhập thêm `Giá nhập` và `Giảm KM`; khi nhiều dòng cùng NCC, giảm giá sẽ được gom vào phiếu của NCC đó.
+7. Nếu NCC chưa có trong danh bạ, app sẽ hỏi để chuyển sang màn `Nhà cung cấp` tạo mới. Lưu xong app quay lại planner để chọn tiếp.
+8. Bấm `Tạo phiếu đã chọn`; các dòng cùng NCC sẽ được gom vào cùng một phiếu nhập nháp.
+9. Bấm `Review phiếu` để mở detail các phiếu vừa tạo; dùng `Trước / Sau` để chuyển giữa các phiếu trong list và bấm `Lưu chi tiết` nếu cần sửa thêm.
+10. Bấm `Quay lại batch` để refresh lại planner, kiểm tra trạng thái còn thiếu, rồi bấm `Kết thúc kỳ gom` khi đã xử lý xong.
 
 Lưu ý:
 
 - tổng nhu cầu tính cả đơn nháp và đơn đã chốt
 - chỉ một người giữ khóa batch tại một thời điểm; user khác nên xem trạng thái để tránh xử lý song song trùng
+- nếu một dòng đã tick nhưng chưa chọn NCC, app bỏ qua dòng đó và thông báo rõ
 - phiếu nhập tạo từ màn này vẫn đi tiếp qua `Quản lý nhập hàng`: `Nháp -> Đã đặt -> Đã nhập kho -> Đã thanh toán`
 
 ## 10. Luồng quản lý nhà cung cấp

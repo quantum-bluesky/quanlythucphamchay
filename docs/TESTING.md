@@ -272,6 +272,7 @@ Case mới cho Phase A:
 - `UT-DB-22`: admin attach lại `source_code` cho purchase legacy sinh từ đơn thiếu hàng
 - `UT-PROC-01`: backend chỉ cho một người giữ khóa kỳ gom nhập active
 - `UT-PROC-02`: backend planner gom nhu cầu thiếu và chặn một sản phẩm thiếu bị gán vào nhiều phiếu nhập batch mở
+- `UT-PROC-03`: backend tạo batch nhiều dòng và gom các mặt hàng cùng NCC vào một phiếu nhập batch draft
 - `UT-AUTH-04B`: user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn không có quyền chỉnh tồn trực tiếp
 
 Case mới cho Phase B.4:

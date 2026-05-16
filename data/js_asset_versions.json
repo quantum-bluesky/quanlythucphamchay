@@ -2,20 +2,20 @@
   "app_version": "3.3.1",
   "files": {
     "app.js": {
-      "counter": 4,
-      "sha256": "f58705fb5d13eef9549b62cbfff78b55f9d47fb2d3e4dec0c844366b44c22443"
+      "counter": 5,
+      "sha256": "a62945b50d41073d3e4d02a0076e273fb6f765c183488166d5f2e82846a71246"
     },
     "modules/app-state.js": {
-      "counter": 2,
-      "sha256": "5aa07310f818070d2f5b09f848fafe4c199c490cb10f37ab94db3fac34e3c100"
+      "counter": 3,
+      "sha256": "876f2b1f3f94528be3facb0b2a849184d5dc245d76739e76f627e87047523ac4"
     },
     "modules/controllers/core-controller.js": {
       "counter": 1,
       "sha256": "7f29ae2c2a9f6c5035cc087f36089bc2863607229f72db7f76d181dd4b34e4a7"
     },
     "modules/controllers/entities-controller.js": {
-      "counter": 1,
-      "sha256": "390bbd9d8aed4d36668a3fe30317769ab8890c368c585e4c3f5121c2fc7a4c76"
+      "counter": 2,
+      "sha256": "1a8652f3dbd9f7b7711666351208b385779402a345272c5b7e564700d69fb740"
     },
     "modules/controllers/inventory-controller.js": {
       "counter": 1,
@@ -38,8 +38,8 @@
       "sha256": "b51117ade7aed1b5a61edbe3762a6656d0eba83ee85217ef9be4ba90ed588b80"
     },
     "modules/dom.js": {
-      "counter": 2,
-      "sha256": "ce6789fadf46df36b8d82879898fe12ac8b381d8997f6d88cdea5ca23fde0296"
+      "counter": 3,
+      "sha256": "e6804a28db46242644e9b1e5abacc8dde0620c387413396f45b06ae8f6981631"
     },
     "modules/domain-helpers/inventory-domain.js": {
       "counter": 1,
@@ -62,8 +62,8 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 2,
-      "sha256": "c6e4a6abbe5db51079c2b5358081824794e748919f8efa5958288699ce6f32fb"
+      "counter": 3,
+      "sha256": "a9eed3cc236ade48191a5c78384c546d0898b44c8a920e317e1e66aa354de58d"
     },
     "modules/sync-runtime.js": {
       "counter": 1,

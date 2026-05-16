@@ -2541,6 +2541,10 @@ class InventoryStoreTests(unittest.TestCase):
         )
         self.store.save_sync_state(
             {
+                "suppliers": [
+                    {"id": "supplier-batch", "name": "NCC batch"},
+                    {"id": "supplier-batch-other", "name": "NCC khác"},
+                ],
                 "carts": [
                     {
                         "id": "cart-batch-1",
@@ -2588,6 +2592,78 @@ class InventoryStoreTests(unittest.TestCase):
                 actor="bizmanager",
                 role="user",
             )
+
+    def test_ut_proc_03_batch_create_groups_products_by_supplier(self) -> None:
+        product_one = self.store.create_product(
+            name="Chả batch 1",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=0,
+        )
+        product_two = self.store.create_product(
+            name="Chả batch 2",
+            category="Đồ chay",
+            unit="gói",
+            price=12000,
+            sale_price=17000,
+            low_stock_threshold=0,
+        )
+        self.store.save_sync_state(
+            {
+                "suppliers": [{"id": "supplier-group-batch", "name": "NCC gom batch"}],
+                "carts": [
+                    {
+                        "id": "cart-batch-group",
+                        "customerName": "Khách batch group",
+                        "status": "draft",
+                        "items": [
+                            {
+                                "id": "cart-item-batch-group-1",
+                                "productId": product_one["id"],
+                                "productName": product_one["name"],
+                                "quantity": 3,
+                                "unitPrice": 15000,
+                            },
+                            {
+                                "id": "cart-item-batch-group-2",
+                                "productId": product_two["id"],
+                                "productName": product_two["name"],
+                                "quantity": 4,
+                                "unitPrice": 17000,
+                            },
+                        ],
+                    }
+                ],
+            }
+        )
+        self.store.start_procurement_batch(
+            username="bizmanager",
+            role="user",
+            lock_timeout_minutes=30,
+        )
+
+        result = self.store.create_procurement_purchases(
+            lines=[
+                {"product_id": product_one["id"], "quantity": 3, "supplier_name": "NCC gom batch"},
+                {"product_id": product_two["id"], "quantity": 4, "supplier_name": "NCC gom batch"},
+            ],
+            actor="bizmanager",
+            role="user",
+        )
+
+        self.assertEqual(len(result["created_purchases"]), 1)
+        purchase = result["created_purchases"][0]
+        self.assertEqual(purchase["supplierName"], "NCC gom batch")
+        self.assertEqual({item["productId"] for item in purchase["items"]}, {product_one["id"], product_two["id"]})
+        assignments = {
+            row["product_id"]: row["assignment"]["purchase_id"]
+            for row in result["planner"]["rows"]
+            if row.get("assignment")
+        }
+        self.assertEqual(assignments[product_one["id"]], purchase["id"])
+        self.assertEqual(assignments[product_two["id"]], purchase["id"])
 
 
 

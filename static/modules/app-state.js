@@ -58,6 +58,10 @@ export const state = {
     rows: [],
     scope: { type: "all", code: "" },
     loading: false,
+    selections: {},
+    reviewOpen: false,
+    reviewPurchaseIds: [],
+    reviewIndex: 0,
   },
   paginationConfig: {
     itemsPerPage: 10,
@@ -158,6 +162,8 @@ export const state = {
   selectedPurchaseItemsCollapsed: true,
   pendingPurchaseSupplierFlow: false,
   pendingPurchaseSupplierName: "",
+  pendingProcurementSupplierFlow: false,
+  pendingProcurementSupplierName: "",
   editingSupplierFormId: null,
   supplierFormCollapsed: true,
   pagination: {

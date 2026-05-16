@@ -125,4 +125,5 @@ Lưu ý:
 | 97 | `UT-DB-22` | Kiểm tra admin gắn lại `cart_id` nguồn cho purchase legacy thiếu `source_code` và record biến mất khỏi nhóm review link nguồn. |
 | 98 | `UT-PROC-01` | Kiểm tra kỳ gom nhập batch chỉ có một lock active và chỉ owner hiện tại mới kết thúc được lock. |
 | 99 | `UT-PROC-02` | Kiểm tra planner batch gom nhu cầu đơn nháp/chốt theo sản phẩm và chặn tạo nhiều phiếu nhập mở cho cùng một sản phẩm thiếu. |
-| 100 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không phải Master Admin. |
+| 100 | `UT-PROC-03` | Kiểm tra backend tạo batch nhiều dòng và gom các sản phẩm chọn cùng NCC vào một phiếu nhập batch draft. |
+| 101 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không phải Master Admin. |

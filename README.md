@@ -116,6 +116,9 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Khi chốt đơn bị thiếu hàng, app sẽ báo trước khi tạo/cập nhật phiếu nhập; nếu đã có phiếu chờ nhập đủ số lượng thì app chỉ thông báo và cho mở lại phiếu đó khi người dùng xác nhận cần chỉnh
 - Màn `Xử lý nhập thiếu` cho phép bật kỳ gom nhập định kỳ, gom nhu cầu của cả đơn nháp và đơn đã chốt theo từng mặt hàng để tạo phiếu nhập batch
 - Trong kỳ gom nhập, shortage flow không auto-create phiếu nhập theo từng đơn; người giữ khóa batch phải xử lý trên planner và mỗi sản phẩm thiếu chỉ được gán vào một phiếu nhập mở để tránh tách logistics
+- Planner batch cho tick chọn nhiều mặt hàng, chọn NCC từ danh bạ, chỉnh số lượng/giá nhập/giảm giá, rồi gom các mặt hàng cùng NCC vào một phiếu nhập nháp
+- Nếu NCC chưa có trong danh bạ, app hỏi để chuyển sang màn `Nhà cung cấp` tạo mới, lưu xong quay lại planner để chọn tiếp
+- Sau khi tạo phiếu batch, có màn review detail với nút `Trước / Sau` để chỉnh nhanh các phiếu vừa tạo rồi quay lại planner refresh trạng thái
 - Quyền xử lý kỳ gom nhập có thể cấp cho `Master Admin`, user có permission `procurement_batch_manage`, hoặc username nằm trong config `procurement.planner_manager_usernames`
 - Nút `Detail` ở `Giỏ hiện hành` và `Đơn hàng` cho phép bung nhanh metadata phiếu xuất và danh sách dòng hàng mà không phải mở sang chỗ chỉnh sửa
 - Từ màn Khách hàng có thể bấm badge `đơn chờ` / `đơn` để mở danh sách phiếu của đúng khách; nếu khách chỉ có 1 phiếu thì màn Đơn hàng sẽ tự mở detail kể cả với đơn đã xuất hàng hoặc đã thanh toán

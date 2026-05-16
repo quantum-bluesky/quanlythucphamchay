@@ -5395,6 +5395,24 @@ class InventoryStore:
         }
 
     @staticmethod
+    def _normalize_procurement_supplier_key(name: str) -> str:
+        return " ".join(str(name or "").strip().lower().split())
+
+    def _get_active_supplier_by_name(self, connection: sqlite3.Connection, supplier_name: str) -> sqlite3.Row | None:
+        clean_name = str(supplier_name or "").strip()
+        if not clean_name:
+            return None
+        return connection.execute(
+            """
+            SELECT id, name
+            FROM suppliers
+            WHERE deleted_at IS NULL
+              AND lower(name) = lower(?)
+            """,
+            (clean_name,),
+        ).fetchone()
+
+    @staticmethod
     def _sum_item_quantities_by_product(records: list[dict], statuses: set[str]) -> dict[int, float]:
         result: dict[int, float] = {}
         for record in records:
@@ -5508,96 +5526,215 @@ class InventoryStore:
         scope_type: str = "all",
         scope_code: str = "",
     ) -> dict:
+        result = self.create_procurement_purchases(
+            lines=[
+                {
+                    "product_id": product_id,
+                    "quantity": quantity,
+                    "supplier_name": supplier_name,
+                }
+            ],
+            actor=actor,
+            role=role,
+            scope_type=scope_type,
+            scope_code=scope_code,
+        )
+        if not result["created_purchases"]:
+            skipped_message = result["skipped"][0]["reason"] if result["skipped"] else "Không tạo được phiếu nhập."
+            raise ValueError(skipped_message)
+        purchase = result["created_purchases"][0]
+        return {
+            "purchase": purchase,
+            "purchases": result["purchases"],
+            "planner": result["planner"],
+        }
+
+    def create_procurement_purchases(
+        self,
+        *,
+        lines: list[dict],
+        actor: str = "",
+        role: str = "",
+        scope_type: str = "all",
+        scope_code: str = "",
+    ) -> dict:
         clean_actor = str(actor or "").strip()
-        clean_supplier_name = str(supplier_name or "").strip()
         clean_scope_type = str(scope_type or "all").strip() or "all"
         clean_scope_code = str(scope_code or "").strip()
         if clean_scope_type not in {"all", "cart", "product"}:
             raise ValueError("Phạm vi xử lý nhập thiếu không hợp lệ.")
-        target_quantity = parse_positive_decimal(quantity, "Số lượng cần nhập")
+        if not isinstance(lines, list) or not lines:
+            raise ValueError("Cần chọn ít nhất một mặt hàng để tạo phiếu nhập.")
         now = utc_now_iso()
-        purchase_id = f"purchase_{secrets.token_urlsafe(8)}"
-        item_id = f"purchase_item_{secrets.token_urlsafe(8)}"
+        skipped: list[dict] = []
+        touched_purchase_ids: set[str] = set()
         with self._connect() as connection:
             active = self._get_active_workflow_lock(connection, "procurement_batch")
             if not active:
                 raise ValueError("Chỉ được tạo phiếu từ planner khi đang ở Batch mode.")
             if active["owner_username"] != clean_actor and str(role or "") != "admin":
                 raise ValueError("Chỉ người đang giữ khóa gom nhập mới được tạo phiếu từ planner.")
-            product = self._get_product_or_raise(connection, int(product_id))
-            existing_assignment = connection.execute(
+
+            purchases_by_supplier: dict[str, str] = {}
+            existing_rows = connection.execute(
                 """
-                SELECT id, purchase_id
-                FROM procurement_assignments
-                WHERE product_id = ?
-                  AND mode = 'batch'
-                  AND status = 'active'
-                """,
-                (int(product_id),),
-            ).fetchone()
-            if existing_assignment:
-                raise ValueError("Mặt hàng này đã được gán vào một phiếu nhập trong kỳ gom nhập.")
-            connection.execute(
+                SELECT id, supplier_id, supplier_name
+                FROM purchases
+                WHERE source_type = 'procurement_batch'
+                  AND status = 'draft'
+                ORDER BY datetime(updated_at) DESC, id
                 """
-                INSERT INTO purchases(
-                    id, supplier_id, supplier_name, note, source_type, source_code, source_name,
-                    status, discount_amount, created_at, updated_at, received_at, paid_at, receipt_code
+            ).fetchall()
+            for row in existing_rows:
+                key = str(row["supplier_id"] or "").strip() or self._normalize_procurement_supplier_key(row["supplier_name"])
+                if key and key not in purchases_by_supplier:
+                    purchases_by_supplier[key] = str(row["id"])
+
+            for raw_line in lines:
+                product_id = int(raw_line.get("product_id") or raw_line.get("productId") or 0)
+                supplier_name = str(raw_line.get("supplier_name") or raw_line.get("supplierName") or "").strip()
+                product_name_for_skip = ""
+                try:
+                    product = self._get_product_or_raise(connection, product_id)
+                    product_name_for_skip = str(product["name"] or "")
+                    target_quantity = parse_positive_decimal(raw_line.get("quantity"), "Số lượng cần nhập")
+                    unit_cost = parse_non_negative_decimal(raw_line.get("unit_cost", raw_line.get("unitCost", product["price"] or 0)), "Giá nhập")
+                    line_discount = parse_non_negative_decimal(raw_line.get("discount_amount", raw_line.get("discountAmount", 0)), "Giảm giá khuyến mại")
+                except ValueError as exc:
+                    skipped.append({"product_id": product_id, "product_name": product_name_for_skip, "reason": str(exc)})
+                    continue
+                supplier = self._get_active_supplier_by_name(connection, supplier_name)
+                if not supplier:
+                    skipped.append({
+                        "product_id": product_id,
+                        "product_name": product_name_for_skip,
+                        "reason": "Chưa chọn nhà cung cấp hợp lệ.",
+                    })
+                    continue
+                existing_assignment = connection.execute(
+                    """
+                    SELECT id, purchase_id
+                    FROM procurement_assignments
+                    WHERE product_id = ?
+                      AND mode = 'batch'
+                      AND status = 'active'
+                    """,
+                    (product_id,),
+                ).fetchone()
+                if existing_assignment:
+                    skipped.append({
+                        "product_id": product_id,
+                        "product_name": product_name_for_skip,
+                        "reason": "Mặt hàng này đã được gán vào một phiếu nhập trong kỳ gom nhập.",
+                    })
+                    continue
+
+                supplier_id = str(supplier["id"])
+                supplier_display_name = str(supplier["name"])
+                supplier_key = supplier_id or self._normalize_procurement_supplier_key(supplier_display_name)
+                purchase_id = purchases_by_supplier.get(supplier_key)
+                if not purchase_id:
+                    purchase_id = f"purchase_{secrets.token_urlsafe(8)}"
+                    purchases_by_supplier[supplier_key] = purchase_id
+                    connection.execute(
+                        """
+                        INSERT INTO purchases(
+                            id, supplier_id, supplier_name, note, source_type, source_code, source_name,
+                            status, discount_amount, created_at, updated_at, received_at, paid_at, receipt_code
+                        )
+                        VALUES(?, ?, ?, '', 'procurement_batch', ?, 'Kỳ gom nhập', 'draft', 0, ?, ?, NULL, NULL, '')
+                        """,
+                        (purchase_id, supplier_id, supplier_display_name, clean_scope_code, now, now),
+                    )
+
+                item_count = connection.execute(
+                    "SELECT COUNT(*) AS count FROM purchase_items WHERE purchase_id = ?",
+                    (purchase_id,),
+                ).fetchone()["count"]
+                connection.execute(
+                    """
+                    INSERT INTO purchase_items(
+                        id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code,
+                        expiry_input_mode, manufacture_date, expiry_date, sort_order
+                    )
+                    VALUES(?, ?, ?, ?, ?, ?, '', 'direct', NULL, NULL, ?)
+                    """,
+                    (
+                        f"purchase_item_{secrets.token_urlsafe(8)}",
+                        purchase_id,
+                        product_id,
+                        product["name"],
+                        round(float(target_quantity), 2),
+                        round(float(unit_cost), 2),
+                        int(item_count or 0),
+                    ),
                 )
-                VALUES(?, '', ?, '', 'procurement_batch', ?, 'Kỳ gom nhập', 'draft', 0, ?, ?, NULL, NULL, '')
-                """,
-                (purchase_id, clean_supplier_name, clean_scope_code, now, now),
-            )
-            connection.execute(
-                """
-                INSERT INTO purchase_items(
-                    id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code,
-                    expiry_input_mode, manufacture_date, expiry_date, sort_order
+                current_purchase = connection.execute(
+                    """
+                    SELECT discount_amount
+                    FROM purchases
+                    WHERE id = ?
+                    """,
+                    (purchase_id,),
+                ).fetchone()
+                next_discount = Decimal(str(current_purchase["discount_amount"] or 0)) + line_discount
+                next_subtotal = connection.execute(
+                    """
+                    SELECT COALESCE(SUM(quantity * unit_cost), 0) AS subtotal
+                    FROM purchase_items
+                    WHERE purchase_id = ?
+                    """,
+                    (purchase_id,),
+                ).fetchone()["subtotal"]
+                if next_discount > Decimal(str(next_subtotal or 0)):
+                    raise ValueError(f"Giảm giá của phiếu {supplier_display_name} không được lớn hơn tạm tính.")
+                connection.execute(
+                    """
+                    UPDATE purchases
+                    SET discount_amount = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (round(float(next_discount), 2), now, purchase_id),
                 )
-                VALUES(?, ?, ?, ?, ?, ?, '', 'direct', NULL, NULL, 0)
-                """,
-                (
-                    item_id,
-                    purchase_id,
-                    int(product_id),
-                    product["name"],
-                    round(float(target_quantity), 2),
-                    round(float(product["price"] or 0), 2),
-                ),
-            )
-            connection.execute(
-                """
-                INSERT INTO procurement_assignments(
-                    product_id, purchase_id, mode, scope_type, scope_code, assigned_quantity,
-                    assigned_by, assigned_at, released_at, status
+                connection.execute(
+                    """
+                    INSERT INTO procurement_assignments(
+                        product_id, purchase_id, mode, scope_type, scope_code, assigned_quantity,
+                        assigned_by, assigned_at, released_at, status
+                    )
+                    VALUES(?, ?, 'batch', ?, ?, ?, ?, ?, NULL, 'active')
+                    """,
+                    (
+                        product_id,
+                        purchase_id,
+                        clean_scope_type,
+                        clean_scope_code,
+                        round(float(target_quantity), 2),
+                        clean_actor,
+                        now,
+                    ),
                 )
-                VALUES(?, ?, 'batch', ?, ?, ?, ?, ?, NULL, 'active')
-                """,
-                (
-                    int(product_id),
-                    purchase_id,
-                    clean_scope_type,
-                    clean_scope_code,
-                    round(float(target_quantity), 2),
-                    clean_actor,
-                    now,
-                ),
-            )
+                touched_purchase_ids.add(purchase_id)
+                self._record_audit(
+                    connection,
+                    entity_type="procurement_assignment",
+                    entity_id=str(product_id),
+                    entity_name=str(product["name"]),
+                    action="assign",
+                    actor=clean_actor,
+                    message=f"Gán mặt hàng vào phiếu nhập batch {purchase_id}.",
+                )
+
             purchases = self._refresh_sync_collection_cache(connection, "purchases", updated_at=now)
-            purchase = next((entry for entry in purchases if str(entry.get("id") or "") == purchase_id), None)
-            if not purchase:
-                raise ValueError("Không tìm thấy phiếu nhập vừa tạo.")
-            self._record_audit(
-                connection,
-                entity_type="procurement_assignment",
-                entity_id=str(product_id),
-                entity_name=str(product["name"]),
-                action="assign",
-                actor=clean_actor,
-                message=f"Gán mặt hàng vào phiếu nhập batch {purchase_id}.",
-            )
+            created_purchases = [
+                entry for entry in purchases
+                if str(entry.get("id") or "") in touched_purchase_ids
+            ]
 
         return {
-            "purchase": purchase,
+            "created_purchases": created_purchases,
+            "created_purchase_ids": sorted(touched_purchase_ids),
+            "skipped": skipped,
             "purchases": purchases,
             "planner": self.get_procurement_planner(
                 scope_type=clean_scope_type,

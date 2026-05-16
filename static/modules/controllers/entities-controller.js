@@ -129,6 +129,7 @@ export function registerEntitiesControllerEvents(contract) {
     try {
       const editingSupplierId = state.editingSupplierFormId;
       const isPurchaseSupplierFlow = state.pendingPurchaseSupplierFlow;
+      const isProcurementSupplierFlow = state.pendingProcurementSupplierFlow;
       const savedSupplierName = dom.supplierNameInput.value.trim();
       const activePurchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
       const canApplySupplierToActiveDraft = Boolean(activePurchase && activePurchase.status === "draft");
@@ -154,6 +155,13 @@ export function registerEntitiesControllerEvents(contract) {
       state.editingSupplierFormId = null;
       state.supplierFormCollapsed = true;
       renderers.renderEntityForms();
+      if (isProcurementSupplierFlow) {
+        state.pendingProcurementSupplierFlow = false;
+        state.pendingProcurementSupplierName = "";
+        actions.switchMenu("procurement-planner");
+        actions.showToast("Đã lưu nhà cung cấp. Hãy chọn lại NCC trong màn Xử lý nhập thiếu.");
+        return;
+      }
       if (isPurchaseSupplierFlow) {
         state.pendingPurchaseSupplierFlow = false;
         actions.switchMenu("purchases");
@@ -205,6 +213,20 @@ export function registerEntitiesControllerEvents(contract) {
       return;
     }
     if (button.dataset.supplierAction === "use") {
+      if (state.pendingProcurementSupplierFlow) {
+        const pendingName = state.pendingProcurementSupplierName || "";
+        const normalizeSupplierName = (value) => String(value || "").trim().toLowerCase();
+        Object.values(state.procurementPlanner.selections || {}).forEach((selection) => {
+          if (selection && (!pendingName || normalizeSupplierName(selection.supplierName) === normalizeSupplierName(pendingName))) {
+            selection.supplierName = supplier.name;
+          }
+        });
+        state.pendingProcurementSupplierFlow = false;
+        state.pendingProcurementSupplierName = "";
+        actions.switchMenu("procurement-planner");
+        actions.showToast("Đã chọn nhà cung cấp cho màn Xử lý nhập thiếu.");
+        return;
+      }
       dom.purchaseSupplierInput.value = supplier.name;
       state.pendingPurchaseSupplierFlow = false;
       state.pendingPurchaseSupplierName = supplier.name;

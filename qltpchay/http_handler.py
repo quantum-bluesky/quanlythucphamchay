@@ -627,6 +627,29 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         )
                         return
 
+                    if route == "/api/procurement/purchases/create-drafts":
+                        result = store.create_procurement_purchases(
+                            lines=payload.get("lines", []),
+                            actor=self._get_current_username() or "",
+                            role=self._get_current_role(),
+                            scope_type=payload.get("scope_type", "all"),
+                            scope_code=payload.get("scope_code", ""),
+                        )
+                        created_count = len(result.get("created_purchases") or [])
+                        self._send_json(
+                            HTTPStatus.CREATED,
+                            {
+                                "message": f"Đã tạo/cập nhật {created_count} phiếu nhập từ kỳ gom nhập.",
+                                "created_purchases": result["created_purchases"],
+                                "created_purchase_ids": result["created_purchase_ids"],
+                                "skipped": result["skipped"],
+                                "purchases": result["purchases"],
+                                "planner": result["planner"],
+                                "summary": store.get_summary(),
+                            },
+                        )
+                        return
+
                     self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
                 except (TypeError, ValueError) as exc:
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})

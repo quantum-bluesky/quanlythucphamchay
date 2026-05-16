@@ -269,6 +269,8 @@ Rule lọc:
 
 - card planner hiển thị trạng thái gán phiếu batch cho từng sản phẩm thiếu
 - nếu một sản phẩm đã có assignment active, màn này chỉ hiển thị phiếu đang xử lý, không cho tạo thêm phiếu nhập mở thứ hai cho cùng sản phẩm
+- dòng planner chưa tick không hiện cảnh báo sau nhập; sau khi tick mới hiện input NCC, số lượng và cảnh báo theo số lượng dự kiến
+- các phiếu batch vừa tạo có review panel detail ở phía trên và list phiếu ở phía dưới, kèm nút `Trước / Sau` để duyệt nhanh
 
 ### Màn `Báo cáo`
 

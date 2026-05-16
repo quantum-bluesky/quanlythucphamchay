@@ -131,7 +131,8 @@ Mục tiêu:
 | 99 | `UT-DB-22` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_17_attach_purchase_source_cart_repairs_missing_source_code` |
 | 100 | `UT-PROC-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_01_batch_lock_allows_single_owner` |
 | 101 | `UT-PROC-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_02_planner_assigns_one_product_to_one_batch_purchase` |
-| 102 | `UT-AUTH-04B` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_04b_procurement_permission_user_can_start_batch_without_admin` |
+| 102 | `UT-PROC-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_03_batch_create_groups_products_by_supplier` |
+| 103 | `UT-AUTH-04B` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_04b_procurement_permission_user_can_start_batch_without_admin` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

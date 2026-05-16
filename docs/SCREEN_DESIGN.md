@@ -183,14 +183,18 @@ Liên kết detail hiện có:
   - tránh tách cùng một sản phẩm thiếu ra nhiều phiếu nhập mở
 - thành phần chính:
   - panel trạng thái Daily/Batch mode và người giữ khóa
-  - nút `Làm mới`, `Bắt đầu kỳ gom`, `Kết thúc kỳ gom`
+  - nút `Làm mới`, `Tạo phiếu đã chọn`, `Review phiếu`, `Bắt đầu kỳ gom`, `Kết thúc kỳ gom`
   - danh sách mặt hàng thiếu theo tồn, nhu cầu đơn chốt, nhu cầu đơn nháp, chờ nhập, cần nhập và dự kiến sau nhập
+  - review panel detail phiếu nhập batch với nút `Trước / Sau`
 - nguyên tắc UI:
   - Daily mode vẫn ưu tiên flow nhanh theo đơn ở màn `purchases`
   - Batch mode chỉ cho user có quyền quản lý batch tạo phiếu nhập từ planner
-  - mỗi dòng sản phẩm chỉ có một action chính để tạo phiếu nhập; không tách một phần số lượng sang phiếu khác ngay trên planner
+  - mỗi dòng mặc định chưa tick; chỉ khi tick mới hiện NCC, số lượng và cảnh báo sau nhập
+  - trên tablet/desktop hiện thêm input `Giá nhập` và `Giảm KM` để tận dụng không gian rộng hơn
+  - các dòng chọn cùng NCC phải gom vào cùng một phiếu nhập batch draft
+  - nếu NCC chưa tồn tại, app hỏi chuyển sang màn `suppliers` để tạo NCC mới rồi quay lại planner
   - nếu sản phẩm đã được gán vào một phiếu nhập batch mở, dòng planner phải hiện mã phiếu/NCC đang xử lý thay vì cho tạo trùng
-  - cảnh báo `Sau nhập vẫn dưới ngưỡng` chỉ là cảnh báo tồn kho, không phải lỗi chặn tạo phiếu
+  - cảnh báo `Sau nhập vẫn dưới ngưỡng` chỉ hiện sau khi dòng đã được tick và có số lượng dự kiến; đây là cảnh báo tồn kho, không phải lỗi chặn tạo phiếu
   - trên mobile, action phụ giữ trong card; không thêm quá nhiều nút trực tiếp vào header
 
 ### `suppliers` - Quản lý nhà cung cấp

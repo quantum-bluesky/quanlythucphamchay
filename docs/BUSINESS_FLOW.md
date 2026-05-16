@@ -174,7 +174,12 @@ ordered -> cancelled
 
 - một sản phẩm thiếu chỉ được có một assignment active tới một phiếu nhập batch mở
 - không tách cùng một sản phẩm thiếu thành nhiều phiếu nhập trong kỳ gom
-- nếu cần đổi nhà cung cấp hoặc số lượng, xử lý trên phiếu đang được gán thay vì tạo phiếu khác
+- người xử lý tick chọn nhiều dòng, chọn NCC từ danh bạ và nhập số lượng dự kiến trước khi tạo phiếu
+- dòng chưa chọn NCC hợp lệ bị bỏ qua và phải thông báo rõ cho user
+- nếu NCC chưa có trong danh bạ, user được chuyển sang màn `Nhà cung cấp` để tạo mới rồi quay lại planner
+- các dòng chọn cùng một NCC phải gom vào cùng một phiếu nhập batch `draft`
+- sau khi tạo phiếu, user review/chỉnh detail các phiếu nhập batch bằng luồng detail/list rồi quay lại planner refresh trạng thái
+- nếu cần đổi nhà cung cấp hoặc số lượng sau khi đã tạo, xử lý trên phiếu đang được gán thay vì tạo phiếu khác
 - phiếu tạo từ planner vẫn là purchase `draft`; workflow sau đó giữ nguyên `draft -> ordered -> received -> paid`
 - khi kết thúc batch, lock được đóng và hệ thống quay về Daily mode
 
