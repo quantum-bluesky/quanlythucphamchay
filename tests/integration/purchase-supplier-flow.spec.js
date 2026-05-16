@@ -155,6 +155,7 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
 });
 
 test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the existing draft when supplier repeats", async ({ page, request }) => {
+  test.setTimeout(90000);
   const runtime = attachRuntimeTracking(page);
   const timestamp = Date.now();
   const supplierA = `NCC A ${timestamp}`;
@@ -170,6 +171,10 @@ test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the exis
 
     await switchMenu(page, "purchases");
     await expectScreenTitle(page, "Nhập hàng");
+    if (await page.locator("#purchaseSupplierInput").isDisabled()) {
+      await page.locator("#createPurchaseDraftButton").click();
+      await expect(page.locator("#purchaseSupplierInput")).toBeEnabled();
+    }
 
     const purchaseSuggestions = page.locator("#purchaseSuggestionList .sales-product-row");
     await expect(purchaseSuggestions.first()).toBeVisible();

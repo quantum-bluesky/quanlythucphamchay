@@ -101,11 +101,13 @@ Thông tin nên hiện trong detail:
 Nguồn màn hình:
 
 - `purchases`
+- `procurement-planner`
 
 Mục đích:
 
 - lập phiếu nhập theo nhà cung cấp
 - theo dõi đặt hàng, nhập kho và thanh toán
+- nhận phiếu nháp được tạo từ kỳ gom nhập batch nếu cần gom nhu cầu thiếu theo sản phẩm
 
 Thông tin nên hiện trong detail:
 
@@ -118,6 +120,7 @@ Thông tin nên hiện trong detail:
 - ngày nhập kho
 - ngày thanh toán
 - cập nhật cuối
+- nếu phiếu được tạo từ planner batch, detail nên giữ nguồn `procurement_batch` để đối chiếu với màn xử lý nhập thiếu; ghi chú vẫn dành cho nội dung user nhập tay
 
 #### Phiếu điều chỉnh tồn
 
@@ -260,6 +263,14 @@ Rule lọc:
 - detail phiếu thêm khối `Ngày xử lý và mã phiếu`
 - detail phiếu thêm trường `Tạm tính / Giảm KM / Cần thanh toán`
 - phiếu legacy thiếu timestamp nhưng có status xử lý sẽ không còn bị kẹt thanh toán chỉ vì thiếu `receivedAt`
+- phiếu nháp tạo từ `Xử lý nhập thiếu` vẫn hiển thị trong danh sách nhập hàng và đi tiếp theo workflow chuẩn
+
+### Màn `Xử lý nhập thiếu`
+
+- card planner hiển thị trạng thái gán phiếu batch cho từng sản phẩm thiếu
+- nếu một sản phẩm đã có assignment active, màn này chỉ hiển thị phiếu đang xử lý, không cho tạo thêm phiếu nhập mở thứ hai cho cùng sản phẩm
+- dòng planner chưa tick không hiện cảnh báo sau nhập; sau khi tick mới hiện input NCC, số lượng và cảnh báo theo số lượng dự kiến
+- các phiếu batch vừa tạo có review panel detail ở phía trên và list phiếu ở phía dưới, kèm nút `Trước / Sau` để duyệt nhanh
 
 ### Màn `Báo cáo`
 

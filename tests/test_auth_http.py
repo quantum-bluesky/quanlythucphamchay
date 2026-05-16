@@ -216,6 +216,59 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(payload["username"], "masteradmin")
         self.assertTrue(payload["is_admin"])
 
+    def test_ut_auth_04b_procurement_permission_user_can_start_batch_without_admin(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [
+                {
+                    "username": "bizmanager",
+                    "password": "biz12345",
+                    "permissions": ["procurement_batch_manage"],
+                }
+            ],
+            "debug": {"sync_state": False},
+            "procurement": {
+                "batch_planner_enabled": True,
+                "batch_lock_timeout_minutes": 30,
+                "allow_daily_quick_shortage_flow": True,
+                "required_login_for_batch_mode": True,
+                "planner_manager_usernames": [],
+            },
+        }
+        self._start_server(config)
+
+        login_status, login_payload, login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "bizmanager", "password": "biz12345"},
+        )
+        self.assertEqual(login_status, 200)
+        self.assertFalse(login_payload["is_admin"])
+        self.assertIn("procurement_batch_manage", login_payload["permissions"])
+        cookie = self._extract_cookie(login_headers)
+
+        start_status, start_payload, _ = self._request_json(
+            "POST",
+            "/api/procurement/batch/start",
+            payload={},
+            cookie=cookie,
+        )
+        self.assertEqual(start_status, 200)
+        self.assertEqual(start_payload["mode"], "batch")
+        self.assertEqual(start_payload["lock"]["owner_username"], "bizmanager")
+
+        adjust_status, adjust_payload, _ = self._request_json(
+            "POST",
+            "/api/transactions",
+            payload={"product_id": 1, "transaction_type": "in", "quantity": 1},
+            cookie=cookie,
+        )
+        self.assertEqual(adjust_status, 401)
+        self.assertIn("Master Admin", adjust_payload["error"])
+
     def test_ut_auth_05_logout_clears_session_and_relocks_system(self) -> None:
         config = {
             "EnableLogin": True,

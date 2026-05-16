@@ -167,6 +167,27 @@ export const SCREEN_HELP = {
       { menu: "create-order", label: "Quay lại đơn xuất" },
     ],
   },
+  "procurement-planner": {
+    title: "Xử lý nhập thiếu",
+    overview: "Dùng màn này khi cần gom nhu cầu nhập theo mặt hàng trong kỳ batch, có khóa một người xử lý để tránh tạo phiếu nhập trùng.",
+    steps: [
+      "Daily mode giữ flow xử lý nhanh theo đơn; Batch mode gom shortage về planner và tắt auto-create phiếu nhập theo từng cart.",
+      "Người có quyền xử lý batch bấm `Bắt đầu kỳ gom` để giữ khóa. User khác chỉ xem trạng thái và người đang giữ khóa.",
+      "Mỗi dòng hiển thị tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập thêm.",
+      "Tick chọn các mặt hàng cần tạo phiếu, chọn NCC từ danh bạ và chỉnh số lượng; số lượng mặc định là mức đủ đáp ứng nhu cầu.",
+      "Nếu NCC chưa có trong danh bạ, app sẽ hỏi để chuyển sang màn Nhà cung cấp tạo mới, lưu xong quay lại planner để chọn tiếp.",
+      "Các mặt hàng chọn cùng một NCC sẽ được gom vào cùng một phiếu nhập batch thay vì tạo nhiều phiếu riêng.",
+      "Cảnh báo `Sau nhập vẫn dưới ngưỡng` chỉ hiện sau khi dòng đã được tick và có số lượng nhập; đây là cảnh báo tồn kho, không chặn tạo phiếu nếu số lượng đã đủ cho nhu cầu đơn.",
+      "Sau khi tạo phiếu, bấm Review phiếu để chỉnh detail các phiếu nhập batch bằng nút Trước/Sau, rồi quay lại planner và làm mới trạng thái.",
+      DESKTOP_MENU_HINT,
+      MOBILE_FLOATING_HINT,
+    ],
+    related: [
+      { menu: "inventory", label: "Quay lại tồn kho" },
+      { menu: "purchases", label: "Xem phiếu nhập" },
+      { menu: "orders", label: "Đối chiếu đơn hàng" },
+    ],
+  },
   suppliers: {
     title: "Quản lý nhà cung cấp",
     overview: "Lưu và tra cứu nhà cung cấp để dùng lại trong phiếu nhập, tránh nhập trùng thông tin nguồn hàng.",
@@ -283,6 +304,10 @@ export const SCREEN_META = {
   purchases: {
     title: "Nhập hàng",
     subtitle: "Lập phiếu nhập, theo dõi tiến trình đặt và nhận hàng.",
+  },
+  "procurement-planner": {
+    title: "Xử lý nhập thiếu",
+    subtitle: "Gom nhu cầu nhập theo mặt hàng trong kỳ batch.",
   },
   suppliers: {
     title: "Nhà cung cấp",

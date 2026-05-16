@@ -63,6 +63,11 @@ class SessionManager:
                 "username": str(user.get("username") or "").strip(),
                 "password": str(user.get("password") or ""),
                 "role": "user",
+                "permissions": [
+                    str(permission or "").strip()
+                    for permission in (user.get("permissions") or [])
+                    if str(permission or "").strip()
+                ],
             }
             for user in (users or [])
             if str(user.get("username") or "").strip()
@@ -93,11 +98,12 @@ class SessionManager:
     def _get_timeout_minutes_for_role(self, role: str) -> int:
         return self.admin_timeout_minutes if str(role or "") == "admin" else self.user_timeout_minutes
 
-    def _build_session_payload(self, *, username: str, role: str) -> dict[str, str]:
+    def _build_session_payload(self, *, username: str, role: str, permissions: list[str] | None = None) -> dict[str, str | list[str]]:
         now_iso = self._utc_now_iso()
         return {
             "username": username,
             "role": role,
+            "permissions": sorted(set(permissions or [])),
             "started_at": now_iso,
             "last_activity_at": now_iso,
         }
@@ -109,6 +115,7 @@ class SessionManager:
                 "username": self.admin_username,
                 "password": self.admin_password,
                 "role": "admin",
+                "permissions": ["procurement_batch_manage"],
             }
         for user in self._users:
             if user["username"] == clean_username:
@@ -123,7 +130,11 @@ class SessionManager:
             raise ValueError("Tài khoản này không có quyền Master Admin.")
 
         token = secrets.token_urlsafe(32)
-        session = self._build_session_payload(username=user["username"], role=user["role"])
+        session = self._build_session_payload(
+            username=user["username"],
+            role=user["role"],
+            permissions=user.get("permissions") or [],
+        )
         self._sessions[token] = session
         return {
             "token": token,

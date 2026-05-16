@@ -118,6 +118,14 @@ import {
   purchaseOrdersCard,
   showCancelledPurchases,
   showPaidPurchases,
+  procurementStatusPanel,
+  procurementPlannerList,
+  procurementReviewPanel,
+  procurementRefreshButton,
+  procurementCreateSelectedButton,
+  procurementReviewButton,
+  procurementStartBatchButton,
+  procurementFinishBatchButton,
   supplierOptions,
   supplierForm,
   supplierNameInput,
@@ -1017,6 +1025,7 @@ function openSupplierForm({ focus = false } = {}) {
 function clearPendingPurchaseSupplierFlow() {
   state.pendingPurchaseSupplierFlow = false;
   state.pendingPurchaseSupplierName = "";
+  clearPendingProcurementSupplierFlow();
 }
 
 function fillSupplierForm(supplier = {}) {
@@ -1698,6 +1707,29 @@ function updateDebugConfig(payload = {}) {
   state.debug = normalizeDebugConfig(payload);
 }
 
+function normalizeProcurementPayload(payload = {}) {
+  const config = payload.config || {};
+  const permissions = payload.permissions || {};
+  return {
+    mode: String(payload.mode || "daily"),
+    lock: payload.lock || null,
+    lockTimeoutMinutes: normalizePositiveInteger(payload.lock_timeout_minutes ?? payload.lockTimeoutMinutes, 180),
+    config: {
+      batchPlannerEnabled: Boolean(config.batch_planner_enabled ?? config.batchPlannerEnabled ?? true),
+      allowDailyQuickShortageFlow: Boolean(config.allow_daily_quick_shortage_flow ?? config.allowDailyQuickShortageFlow ?? true),
+      requiredLoginForBatchMode: Boolean(config.required_login_for_batch_mode ?? config.requiredLoginForBatchMode ?? true),
+    },
+    permissions: {
+      canManageBatch: Boolean(permissions.can_manage_batch ?? permissions.canManageBatch),
+      isLockOwner: Boolean(permissions.is_lock_owner ?? permissions.isLockOwner),
+    },
+  };
+}
+
+function updateProcurementStatus(payload = {}) {
+  state.procurement = normalizeProcurementPayload(payload);
+}
+
 const LEGACY_AUTO_PURCHASE_NOTE_RE = /^Thiếu hàng cho đơn(?: của)?\s+(.+)$/i;
 
 function extractLegacyPurchaseSourceName(note) {
@@ -1798,7 +1830,7 @@ function saveAndRenderAll(changedCollections = []) {
   return getSyncRuntimeHelpers().saveAndRenderAll(changedCollections, renderAll);
 }
 
-const BUSINESS_FRESHNESS_MENUS = new Set(["inventory", "create-order", "orders", "purchases"]);
+const BUSINESS_FRESHNESS_MENUS = new Set(["inventory", "create-order", "orders", "purchases", "procurement-planner"]);
 
 function scheduleBusinessScreenRefresh(menu) {
   if (!BUSINESS_FRESHNESS_MENUS.has(menu)) {
@@ -1849,6 +1881,11 @@ function switchMenu(menu, { recordHistory = true } = {}) {
   if (menu === "admin" && state.admin?.isAdmin) {
     window.setTimeout(() => {
       void refreshAdminLegacyAudit({ sessionActivity: "passive", showErrorToast: true });
+    }, 0);
+  }
+  if (menu === "procurement-planner") {
+    window.setTimeout(() => {
+      void refreshProcurementPlanner().catch((error) => showToast(error.message, true));
     }, 0);
   }
   scheduleBusinessScreenRefresh(menu);
@@ -2364,6 +2401,365 @@ function getPurchaseSuggestions() {
     .filter((entry) => entry.suggestedQuantity > 0 || entry.product.is_low_stock || entry.demand > 0);
 }
 
+function buildProcurementPlannerQuery(scope = state.procurementPlanner.scope) {
+  const params = new URLSearchParams();
+  const scopeType = String(scope?.type || "all").trim() || "all";
+  const scopeCode = String(scope?.code || "").trim();
+  params.set("scope", scopeType);
+  if (scopeCode) {
+    params.set("scope_code", scopeCode);
+  }
+  return params;
+}
+
+async function refreshProcurementPlanner(scope = state.procurementPlanner.scope) {
+  state.procurementPlanner.loading = true;
+  renderProcurementPlanner();
+  try {
+    const payload = await apiRequest(`/api/procurement/planner?${buildProcurementPlannerQuery(scope).toString()}`);
+    updateProcurementStatus({
+      ...(payload.status || {}),
+      config: payload.config,
+      permissions: payload.permissions,
+    });
+    state.procurementPlanner = {
+      rows: Array.isArray(payload.rows) ? payload.rows : [],
+      scope: payload.scope || scope || { type: "all", code: "" },
+      loading: false,
+    };
+    renderProcurementPlanner();
+    return payload;
+  } catch (error) {
+    state.procurementPlanner.loading = false;
+    renderProcurementPlanner();
+    throw error;
+  }
+}
+
+async function openProcurementPlanner(scope = { type: "all", code: "" }) {
+  state.procurementPlanner.scope = {
+    type: String(scope.type || "all"),
+    code: String(scope.code || ""),
+  };
+  switchMenu("procurement-planner");
+  await refreshProcurementPlanner(state.procurementPlanner.scope);
+}
+
+function isProcurementBatchMode() {
+  return state.procurement?.mode === "batch";
+}
+
+async function routeShortageToProcurementPlanner(cart, message) {
+  await openProcurementPlanner({ type: "cart", code: String(cart?.id || "") });
+  throw new Error(message || "Batch mode đang bật. Hãy xử lý nhập thiếu trong màn Xử lý nhập thiếu.");
+}
+
+function getProcurementSelection(productId) {
+  const key = String(productId || "");
+  if (!state.procurementPlanner.selections[key]) {
+    const row = state.procurementPlanner.rows.find((entry) => String(entry.product_id) === key) || {};
+    state.procurementPlanner.selections[key] = {
+      selected: false,
+      supplierName: "",
+      quantity: row.required_purchase ? String(row.required_purchase) : "",
+      unitCost: row.unit_cost ? String(row.unit_cost) : "0",
+      discountAmount: "0",
+    };
+  }
+  return state.procurementPlanner.selections[key];
+}
+
+function normalizeProcurementSelectionDefaults() {
+  const validKeys = new Set((state.procurementPlanner.rows || []).map((row) => String(row.product_id)));
+  Object.keys(state.procurementPlanner.selections || {}).forEach((key) => {
+    if (!validKeys.has(key)) {
+      delete state.procurementPlanner.selections[key];
+    }
+  });
+  (state.procurementPlanner.rows || []).forEach((row) => {
+    const selection = getProcurementSelection(row.product_id);
+    if (!selection.quantity) {
+      selection.quantity = String(row.required_purchase || "");
+    }
+    if (!selection.unitCost) {
+      selection.unitCost = String(row.unit_cost || 0);
+    }
+    if (!selection.discountAmount) {
+      selection.discountAmount = "0";
+    }
+  });
+}
+
+function findActiveSupplierByName(name) {
+  const normalized = normalizeText(name);
+  if (!normalized) {
+    return null;
+  }
+  return getActiveSuppliers().find((supplier) => normalizeText(supplier.name) === normalized) || null;
+}
+
+function getProcurementAssignedPurchaseIds() {
+  const ids = (state.procurementPlanner.rows || [])
+    .map((row) => row.assignment?.purchase_id || "")
+    .filter(Boolean);
+  return [...new Set(ids)];
+}
+
+function getProcurementReviewPurchaseIds() {
+  const ids = state.procurementPlanner.reviewPurchaseIds?.length
+    ? state.procurementPlanner.reviewPurchaseIds
+    : getProcurementAssignedPurchaseIds();
+  return ids.filter((id) => state.purchases.some((purchase) => purchase.id === id));
+}
+
+function beginSupplierCreateFromProcurement(supplierName) {
+  const cleanName = String(supplierName || "").trim();
+  state.pendingProcurementSupplierFlow = true;
+  state.pendingProcurementSupplierName = cleanName;
+  state.supplierSearchTerm = "";
+  state.pagination.suppliers = 1;
+  switchMenu("suppliers");
+  supplierForm?.reset();
+  state.editingSupplierFormId = null;
+  supplierNameInput.value = cleanName;
+  openSupplierForm({ focus: true });
+  showToast("Hãy tạo nhà cung cấp mới. Lưu xong app sẽ quay lại màn Xử lý nhập thiếu.");
+}
+
+function clearPendingProcurementSupplierFlow() {
+  state.pendingProcurementSupplierFlow = false;
+  state.pendingProcurementSupplierName = "";
+}
+
+function buildProcurementCreateLines() {
+  const skipped = [];
+  const lines = [];
+  const rowsById = new Map((state.procurementPlanner.rows || []).map((row) => [String(row.product_id), row]));
+  Object.entries(state.procurementPlanner.selections || {}).forEach(([productId, selection]) => {
+    if (!selection?.selected) {
+      return;
+    }
+    const row = rowsById.get(productId);
+    if (!row || row.assignment) {
+      return;
+    }
+    const supplierName = String(selection.supplierName || "").trim();
+    if (!supplierName) {
+      skipped.push(`${row.product_name}: chưa chọn NCC`);
+      return;
+    }
+    const supplier = findActiveSupplierByName(supplierName);
+    if (!supplier) {
+      const shouldCreate = window.confirm(`NCC "${supplierName}" chưa có trong danh bạ.\n\nChọn OK để sang màn Nhà cung cấp tạo mới, lưu xong sẽ quay lại Xử lý nhập thiếu.`);
+      if (shouldCreate) {
+        beginSupplierCreateFromProcurement(supplierName);
+        throw new Error("Đang chuyển sang màn Nhà cung cấp để tạo NCC mới.");
+      }
+      skipped.push(`${row.product_name}: NCC chưa có trong danh bạ`);
+      return;
+    }
+    const quantity = Number(selection.quantity);
+    const requiredPurchase = Number(row.required_purchase || 0);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      skipped.push(`${row.product_name}: số lượng không hợp lệ`);
+      return;
+    }
+    if (quantity < requiredPurchase) {
+      skipped.push(`${row.product_name}: số lượng nhập chưa đáp ứng đủ yêu cầu`);
+      return;
+    }
+    const unitCost = Number(selection.unitCost || 0);
+    const discountAmount = Number(selection.discountAmount || 0);
+    if (!Number.isFinite(unitCost) || unitCost < 0) {
+      skipped.push(`${row.product_name}: giá nhập không hợp lệ`);
+      return;
+    }
+    if (!Number.isFinite(discountAmount) || discountAmount < 0) {
+      skipped.push(`${row.product_name}: giảm giá không hợp lệ`);
+      return;
+    }
+    lines.push({
+      product_id: Number(productId),
+      supplier_name: supplier.name,
+      quantity,
+      unit_cost: unitCost,
+      discount_amount: discountAmount,
+    });
+  });
+  return { lines, skipped };
+}
+
+function renderProcurementReviewPanel() {
+  if (!procurementReviewPanel) {
+    return;
+  }
+  const reviewIds = getProcurementReviewPurchaseIds();
+  state.procurementPlanner.reviewPurchaseIds = reviewIds;
+  if (!state.procurementPlanner.reviewOpen || !reviewIds.length) {
+    procurementReviewPanel.hidden = true;
+    procurementReviewPanel.innerHTML = "";
+    return;
+  }
+  procurementReviewPanel.hidden = false;
+  state.procurementPlanner.reviewIndex = Math.min(
+    Math.max(0, Number(state.procurementPlanner.reviewIndex || 0)),
+    reviewIds.length - 1
+  );
+  const purchaseId = reviewIds[state.procurementPlanner.reviewIndex];
+  const purchase = state.purchases.find((entry) => entry.id === purchaseId);
+  if (!purchase) {
+    procurementReviewPanel.innerHTML = '<div class="empty-state">Không tìm thấy phiếu nhập cần review.</div>';
+    return;
+  }
+  const purchaseTotal = (purchase.items || []).reduce(
+    (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitCost || item.unit_cost || 0),
+    0
+  );
+  procurementReviewPanel.innerHTML = `
+    <div class="subheading">
+      <div>
+        <p class="panel-kicker">Review phiếu nhập batch</p>
+        <h3>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</h3>
+        <p class="panel-note">Phiếu ${escapeHtml(String(state.procurementPlanner.reviewIndex + 1))}/${escapeHtml(String(reviewIds.length))} · Tạm tính ${escapeHtml(formatCurrency(purchaseTotal))}</p>
+      </div>
+      <div class="inline-menu-actions">
+        <button type="button" class="ghost-button compact-button" data-procurement-review-action="prev" ${state.procurementPlanner.reviewIndex <= 0 ? "disabled" : ""}>Trước</button>
+        <button type="button" class="ghost-button compact-button" data-procurement-review-action="next" ${state.procurementPlanner.reviewIndex >= reviewIds.length - 1 ? "disabled" : ""}>Sau</button>
+        <button type="button" class="primary-button compact-button" data-procurement-review-action="save">Lưu chi tiết</button>
+        <button type="button" class="ghost-button compact-button" data-procurement-review-action="back">Quay lại batch</button>
+      </div>
+    </div>
+    <div class="procurement-review-grid">
+      <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(purchase.supplierName || "")}" data-procurement-review-field="supplier"></label>
+      <label><span>Giảm KM phiếu</span><input type="number" min="0" step="1000" value="${escapeHtml(purchase.discountAmount || 0)}" data-procurement-review-field="discount"></label>
+      <label class="wide-field"><span>Ghi chú</span><input type="text" value="${escapeHtml(purchase.note || "")}" data-procurement-review-field="note"></label>
+    </div>
+    <div class="cart-items-list">
+      ${(purchase.items || []).map((item) => `
+        <article class="cart-item">
+          <div class="cart-item-main">
+            <strong>${escapeHtml(item.productName)}</strong>
+            <span>${escapeHtml(item.unit || "")}</span>
+          </div>
+          <div class="procurement-review-grid">
+            <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(item.quantity)}" data-procurement-item-field="quantity" data-item-id="${escapeHtml(item.id)}"></label>
+            <label><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(item.unitCost || item.unit_cost || 0)}" data-procurement-item-field="unitCost" data-item-id="${escapeHtml(item.id)}"></label>
+          </div>
+        </article>
+      `).join("")}
+    </div>
+    <div class="cart-queue-list">
+      ${reviewIds.map((id, index) => {
+        const entry = state.purchases.find((purchaseEntry) => purchaseEntry.id === id);
+        return `<button type="button" class="ghost-button compact-button ${index === state.procurementPlanner.reviewIndex ? "is-active" : ""}" data-procurement-review-action="open" data-purchase-id="${escapeHtml(id)}">${escapeHtml(entry?.supplierName || id)}</button>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderProcurementPlanner() {
+  if (!procurementStatusPanel || !procurementPlannerList) {
+    return;
+  }
+  normalizeProcurementSelectionDefaults();
+  const procurement = state.procurement || {};
+  const mode = procurement.mode === "batch" ? "batch" : "daily";
+  const lock = procurement.lock || null;
+  const permissions = procurement.permissions || {};
+  const isOwner = Boolean(permissions.isLockOwner);
+  const canManage = Boolean(permissions.canManageBatch);
+  const canEditBatch = mode === "batch" && isOwner;
+  const lockOwner = lock?.owner_username || "";
+  const statusClass = mode === "batch" ? "warning" : "draft";
+  const lockText = mode === "batch"
+    ? `Đang khóa bởi ${lockOwner || "không rõ"} đến ${formatDate(lock?.expires_at || lock?.expiresAt || "")}`
+    : "Daily mode: vẫn xử lý nhanh theo từng đơn nếu policy cho phép.";
+
+  procurementStatusPanel.className = `inline-alert ${statusClass}`;
+  procurementStatusPanel.innerHTML = `
+    <strong>${mode === "batch" ? "Batch mode" : "Daily mode"}</strong>
+    <span>${escapeHtml(lockText)}</span>
+  `;
+  if (procurementStartBatchButton) {
+    procurementStartBatchButton.disabled = !canManage || mode === "batch";
+  }
+  if (procurementFinishBatchButton) {
+    procurementFinishBatchButton.disabled = !canManage || mode !== "batch" || (!isOwner && !state.admin?.isAdmin);
+  }
+  if (procurementRefreshButton) {
+    procurementRefreshButton.disabled = Boolean(state.procurementPlanner.loading);
+  }
+  if (procurementCreateSelectedButton) {
+    procurementCreateSelectedButton.disabled = !canEditBatch || Boolean(state.procurementPlanner.loading);
+  }
+  const reviewIds = getProcurementReviewPurchaseIds();
+  if (procurementReviewButton) {
+    procurementReviewButton.hidden = reviewIds.length === 0;
+    procurementReviewButton.disabled = reviewIds.length === 0;
+  }
+  renderProcurementReviewPanel();
+
+  if (state.procurementPlanner.loading) {
+    procurementPlannerList.innerHTML = '<div class="empty-state">Đang tải dữ liệu xử lý nhập thiếu...</div>';
+    return;
+  }
+  const rows = Array.isArray(state.procurementPlanner.rows) ? state.procurementPlanner.rows : [];
+  if (!rows.length) {
+    procurementPlannerList.innerHTML = '<div class="empty-state">Chưa có mặt hàng thiếu hoặc cần cảnh báo theo phạm vi hiện tại.</div>';
+    return;
+  }
+
+  procurementPlannerList.innerHTML = rows.map((row) => {
+    const assignment = row.assignment || null;
+    const selection = getProcurementSelection(row.product_id);
+    const isSelected = Boolean(selection.selected);
+    const selectedQuantity = Number(selection.quantity || 0);
+    const selectedForecast = Number((Number(row.current_stock || 0) + Number(row.incoming_quantity || 0) + selectedQuantity - Number(row.gross_demand || 0)).toFixed(2));
+    const assignedLabel = assignment
+      ? `Đã gán: ${assignment.supplier_name || "Chưa có NCC"} (${assignment.purchase_status || "draft"})`
+      : "Chưa gán phiếu nhập";
+    const warning = isSelected && selectedForecast < Number(row.low_stock_threshold || 0)
+      ? `<span class="pill warning">Sau nhập vẫn dưới ngưỡng</span>`
+      : "";
+    const quantityWarning = isSelected && selectedQuantity < Number(row.required_purchase || 0)
+      ? `<span class="pill warning">SL chưa đủ yêu cầu</span>`
+      : "";
+    const inputBlock = canEditBatch && isSelected && !assignment
+      ? `
+        <div class="procurement-input-grid">
+          <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(selection.supplierName || "")}" data-procurement-field="supplier" data-product-id="${escapeHtml(row.product_id)}"></label>
+          <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(selection.quantity || row.required_purchase || "")}" data-procurement-field="quantity" data-product-id="${escapeHtml(row.product_id)}"></label>
+          <label class="desktop-only-field"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(selection.unitCost || row.unit_cost || 0)}" data-procurement-field="unitCost" data-product-id="${escapeHtml(row.product_id)}"></label>
+          <label class="desktop-only-field"><span>Giảm KM</span><input type="number" min="0" step="1000" value="${escapeHtml(selection.discountAmount || 0)}" data-procurement-field="discountAmount" data-product-id="${escapeHtml(row.product_id)}"></label>
+        </div>
+      `
+      : "";
+    return `
+      <article class="cart-item-card">
+        <div class="cart-item-main">
+          <div>
+            <label class="toggle-inline">
+              <input type="checkbox" data-procurement-action="toggle-row" data-product-id="${escapeHtml(row.product_id)}" ${isSelected ? "checked" : ""} ${!canEditBatch || assignment || Number(row.required_purchase || 0) <= 0 ? "disabled" : ""}>
+              <strong>${escapeHtml(row.product_name)}</strong>
+            </label>
+            <p class="meta">${escapeHtml(assignedLabel)}</p>
+          </div>
+          <div class="cart-item-actions">${warning}${quantityWarning}</div>
+        </div>
+        ${inputBlock}
+        <div class="cart-line-note">
+          Tồn ${escapeHtml(formatQuantity(row.current_stock))} ${escapeHtml(row.unit)}
+          • Chốt ${escapeHtml(formatQuantity(row.committed_demand))}
+          • Nháp ${escapeHtml(formatQuantity(row.draft_demand))}
+          • Chờ nhập ${escapeHtml(formatQuantity(row.incoming_quantity))}
+          • Cần nhập ${escapeHtml(formatQuantity(row.required_purchase))}
+          • Dự kiến còn ${escapeHtml(formatQuantity(row.forecast_after_purchase))}
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
 function addSuggestionToPurchase(productId, quantity, unitCost) {
   return getPurchasesDomainHelpers().addSuggestionToPurchase(productId, quantity, unitCost);
 }
@@ -2844,6 +3240,7 @@ function updateAdminSessionState(payload = {}) {
     authenticated,
     username: String(payload.username || ""),
     role: String(payload.role || ""),
+    permissions: Array.isArray(payload.permissions) ? payload.permissions.map((entry) => String(entry || "").trim()).filter(Boolean) : [],
     isAdmin: Boolean(payload.is_admin ?? payload.isAdmin),
     enableLogin: Boolean(payload.enable_login ?? payload.enableLogin),
     sessionStartedAt,
@@ -2978,6 +3375,7 @@ async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "ac
     updateAppInfo(payload);
     updatePaginationConfig(payload);
     updateDebugConfig(payload);
+    updateProcurementStatus(payload.procurement || {});
     updateRuntimeVersion(payload);
     state.products = payload.products || [];
     state.deletedProducts = deletedProductsPayload.products || [];
@@ -3567,6 +3965,7 @@ function renderAll() {
   renderSupplierReturnSection();
   renderPurchaseSuggestions();
   renderPurchaseOrders();
+  renderProcurementPlanner();
   renderSuppliers();
   renderDeletedProducts();
   renderDeletedCustomers();
@@ -3828,6 +4227,9 @@ async function checkoutActiveCart() {
 
   const shortagePlan = getCartShortagePlan(cart);
   if (shortagePlan.length) {
+    if (isProcurementBatchMode()) {
+      await routeShortageToProcurementPlanner(cart, "Batch mode đang bật. Hãy xử lý nhập thiếu cho đơn này trong màn Xử lý nhập thiếu.");
+    }
     const shortageSummary = shortagePlan.map((entry) => `- ${formatShortagePlanLine(entry)}`).join("\n");
     const hasEnoughPendingPurchases = shortagePlan.every((entry) => entry.incomingQuantity >= entry.shortage);
     if (hasEnoughPendingPurchases) {
@@ -3919,6 +4321,9 @@ async function commitActiveCart() {
     });
 
   if (shortagePlan.length) {
+    if (isProcurementBatchMode()) {
+      await routeShortageToProcurementPlanner(cart, "Batch mode đang bật. Hãy xử lý nhập thiếu trước khi chốt đơn.");
+    }
     const shortageSummary = shortagePlan.map((entry) => {
       const productName = entry.product?.name || entry.item.productName;
       const parts = [
@@ -3935,7 +4340,7 @@ async function commitActiveCart() {
     }).join("\n");
     const hasEnoughPendingPurchases = shortagePlan.every((entry) => entry.incomingQuantity >= entry.shortage);
     if (hasEnoughPendingPurchases) {
-      const shouldOpenRelatedPurchase = window.confirm(`Đơn chưa đủ hàng khả dụng để chốt:\n${shortageSummary}\n\nChọn OK để mở phiếu nhập chờ liên quan nếu cần chỉnh.\nChọn Cancel để quay lại đơn này.`);
+      const shouldOpenRelatedPurchase = window.confirm(`Đơn chưa đủ hàng khả dụng để chốt nhưng đã có phiếu chờ nhập đủ số lượng:\n${shortageSummary}\n\nChọn OK để mở phiếu nhập chờ liên quan nếu cần chỉnh.\nChọn Cancel để quay lại đơn này.`);
       if (shouldOpenRelatedPurchase) {
         openRelatedPurchasesForShortagePlan(cart, shortagePlan);
         throw new Error("Đã mở phiếu nhập chờ liên quan để bạn kiểm tra hoặc chỉnh lại khi cần.");
@@ -3991,6 +4396,9 @@ async function shipActiveCart() {
 
   const shortagePlan = getCartShortagePlan(cart);
   if (shortagePlan.length) {
+    if (isProcurementBatchMode()) {
+      await routeShortageToProcurementPlanner(cart, "Batch mode đang bật. Hãy xử lý nhập thiếu trước khi xuất hàng.");
+    }
     const shortageSummary = shortagePlan.map((entry) => `- ${formatShortagePlanLine(entry)}`).join("\n");
     const hasEnoughPendingPurchases = shortagePlan.every((entry) => entry.incomingQuantity >= entry.shortage);
     if (hasEnoughPendingPurchases) {
@@ -4462,6 +4870,250 @@ registerReportsAdminControllerEvents({
     renderReportSections,
     renderAll,
   },
+});
+
+procurementRefreshButton?.addEventListener("click", async () => {
+  try {
+    await refreshProcurementPlanner();
+    showToast("Đã làm mới màn xử lý nhập thiếu.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+procurementCreateSelectedButton?.addEventListener("click", async () => {
+  let buildResult;
+  try {
+    buildResult = buildProcurementCreateLines();
+  } catch (error) {
+    showToast(error.message, !String(error.message || "").includes("Đang chuyển"));
+    return;
+  }
+  const { lines, skipped } = buildResult;
+  if (!lines.length) {
+    showToast(skipped.length ? `Chưa tạo phiếu. ${skipped.join("; ")}` : "Chưa chọn mặt hàng hợp lệ để tạo phiếu.", true);
+    return;
+  }
+  try {
+    const payload = await apiRequest("/api/procurement/purchases/create-drafts", {
+      method: "POST",
+      body: JSON.stringify({
+        lines,
+        scope_type: state.procurementPlanner.scope?.type || "all",
+        scope_code: state.procurementPlanner.scope?.code || "",
+      }),
+    });
+    state.purchases = payload.purchases || state.purchases;
+    const createdIds = Array.isArray(payload.created_purchase_ids) ? payload.created_purchase_ids : [];
+    state.procurementPlanner.reviewPurchaseIds = createdIds.length ? createdIds : state.procurementPlanner.reviewPurchaseIds;
+    state.procurementPlanner.reviewIndex = 0;
+    (payload.created_purchases || []).forEach((purchase) => {
+      (purchase.items || []).forEach((item) => {
+        const key = String(item.productId || item.product_id || "");
+        if (key) {
+          delete state.procurementPlanner.selections[key];
+        }
+      });
+    });
+    if (payload.planner) {
+      updateProcurementStatus({
+        ...(payload.planner.status || {}),
+        config: payload.planner.config || state.procurement.config,
+        permissions: payload.planner.permissions || state.procurement.permissions,
+      });
+      state.procurementPlanner.rows = payload.planner.rows || [];
+      state.procurementPlanner.scope = payload.planner.scope || state.procurementPlanner.scope;
+    } else {
+      await refreshProcurementPlanner();
+    }
+    syncSalesState();
+    renderAll();
+    const skipMessages = [...skipped, ...((payload.skipped || []).map((entry) => `${entry.product_name || entry.product_id}: ${entry.reason}`))];
+    const suffix = skipMessages.length ? ` Bỏ qua: ${skipMessages.join("; ")}` : "";
+    showToast(`${payload.message || "Đã tạo phiếu nhập từ planner."}${suffix}`);
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+procurementReviewButton?.addEventListener("click", () => {
+  const reviewIds = getProcurementReviewPurchaseIds();
+  if (!reviewIds.length) {
+    showToast("Chưa có phiếu nhập batch để review.", true);
+    return;
+  }
+  state.procurementPlanner.reviewOpen = true;
+  state.procurementPlanner.reviewPurchaseIds = reviewIds;
+  state.procurementPlanner.reviewIndex = 0;
+  renderProcurementPlanner();
+  procurementReviewPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+  showToast("Đã chuyển sang màn detail phiếu nhập batch. Dùng Trước/Sau để duyệt các phiếu.");
+});
+
+procurementStartBatchButton?.addEventListener("click", async () => {
+  try {
+    const payload = await apiRequest("/api/procurement/batch/start", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    updateProcurementStatus(payload);
+    await refreshProcurementPlanner();
+    showToast(payload.message || "Đã bắt đầu kỳ gom nhập.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+procurementFinishBatchButton?.addEventListener("click", async () => {
+  if (!window.confirm("Kết thúc kỳ gom nhập và trả hệ thống về Daily mode?")) {
+    return;
+  }
+  try {
+    const payload = await apiRequest("/api/procurement/batch/finish", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    updateProcurementStatus(payload);
+    await refreshProcurementPlanner();
+    showToast(payload.message || "Đã kết thúc kỳ gom nhập.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
+procurementPlannerList?.addEventListener("click", async (event) => {
+  const target = event.target.closest("[data-procurement-action]");
+  if (!target) return;
+  if (target.dataset.procurementAction === "toggle-row") {
+    const productId = target.dataset.productId;
+    const selection = getProcurementSelection(productId);
+    selection.selected = Boolean(target.checked);
+    if (selection.selected) {
+      const row = state.procurementPlanner.rows.find((entry) => String(entry.product_id) === String(productId)) || {};
+      selection.quantity = selection.quantity || String(row.required_purchase || "");
+      selection.unitCost = selection.unitCost || String(row.unit_cost || 0);
+      selection.discountAmount = selection.discountAmount || "0";
+    }
+    renderProcurementPlanner();
+  }
+});
+
+procurementPlannerList?.addEventListener("input", (event) => {
+  const input = event.target.closest("[data-procurement-field]");
+  if (!input) return;
+  const selection = getProcurementSelection(input.dataset.productId);
+  const field = input.dataset.procurementField;
+  if (field === "supplier") selection.supplierName = input.value;
+  if (field === "quantity") selection.quantity = input.value;
+  if (field === "unitCost") selection.unitCost = input.value;
+  if (field === "discountAmount") selection.discountAmount = input.value;
+});
+
+procurementPlannerList?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-procurement-field]");
+  if (!input) return;
+  const selection = getProcurementSelection(input.dataset.productId);
+  const field = input.dataset.procurementField;
+  if (field === "supplier") selection.supplierName = input.value;
+  if (field === "quantity") selection.quantity = input.value;
+  if (field === "unitCost") selection.unitCost = input.value;
+  if (field === "discountAmount") selection.discountAmount = input.value;
+  renderProcurementPlanner();
+});
+
+procurementReviewPanel?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-procurement-review-action]");
+  if (!button) return;
+  const action = button.dataset.procurementReviewAction;
+  const reviewIds = getProcurementReviewPurchaseIds();
+  if (action === "prev") {
+    state.procurementPlanner.reviewIndex = Math.max(0, state.procurementPlanner.reviewIndex - 1);
+    renderProcurementPlanner();
+    return;
+  }
+  if (action === "next") {
+    state.procurementPlanner.reviewIndex = Math.min(reviewIds.length - 1, state.procurementPlanner.reviewIndex + 1);
+    renderProcurementPlanner();
+    return;
+  }
+  if (action === "open") {
+    const index = reviewIds.indexOf(button.dataset.purchaseId);
+    if (index >= 0) {
+      state.procurementPlanner.reviewIndex = index;
+      renderProcurementPlanner();
+    }
+    return;
+  }
+  if (action === "back") {
+    state.procurementPlanner.reviewOpen = false;
+    try {
+      await refreshProcurementPlanner();
+      showToast("Đã quay lại màn batch và làm mới trạng thái.");
+    } catch (error) {
+      showToast(error.message, true);
+    }
+    return;
+  }
+  if (action === "save") {
+    const purchaseId = reviewIds[state.procurementPlanner.reviewIndex];
+    const purchase = state.purchases.find((entry) => entry.id === purchaseId);
+    if (!purchase) {
+      showToast("Không tìm thấy phiếu nhập cần lưu.", true);
+      return;
+    }
+    const supplierName = procurementReviewPanel.querySelector('[data-procurement-review-field="supplier"]')?.value?.trim() || "";
+    const supplier = findActiveSupplierByName(supplierName);
+    if (!supplier) {
+      showToast("Nhà cung cấp của phiếu review chưa có trong danh bạ.", true);
+      return;
+    }
+    const discountAmount = Number(procurementReviewPanel.querySelector('[data-procurement-review-field="discount"]')?.value || 0);
+    const note = procurementReviewPanel.querySelector('[data-procurement-review-field="note"]')?.value || "";
+    if (!Number.isFinite(discountAmount) || discountAmount < 0) {
+      showToast("Giảm giá khuyến mại không hợp lệ.", true);
+      return;
+    }
+    try {
+      updatePurchase(purchase.id, (currentPurchase) => {
+        const nextItems = (currentPurchase.items || []).map((item) => {
+          const quantityInput = procurementReviewPanel.querySelector(`[data-procurement-item-field="quantity"][data-item-id="${CSS.escape(item.id)}"]`);
+          const unitCostInput = procurementReviewPanel.querySelector(`[data-procurement-item-field="unitCost"][data-item-id="${CSS.escape(item.id)}"]`);
+          const quantity = Number(quantityInput?.value || 0);
+          const unitCost = Number(unitCostInput?.value || 0);
+          if (!Number.isFinite(quantity) || quantity <= 0) {
+            throw new Error(`Số lượng của ${item.productName} không hợp lệ.`);
+          }
+          if (!Number.isFinite(unitCost) || unitCost < 0) {
+            throw new Error(`Giá nhập của ${item.productName} không hợp lệ.`);
+          }
+          return {
+            ...item,
+            quantity: Number(quantity.toFixed(2)),
+            unitCost: Number(unitCost.toFixed(2)),
+          };
+        });
+        const subtotal = nextItems.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unitCost || 0), 0);
+        if (discountAmount > subtotal) {
+          throw new Error("Giảm giá khuyến mại không được lớn hơn tạm tính của phiếu.");
+        }
+        return {
+          supplierId: supplier.id || currentPurchase.supplierId || "",
+          supplierName: supplier.name,
+          note,
+          discountAmount: Number(discountAmount.toFixed(2)),
+          items: nextItems,
+          updatedAt: nowIso(),
+        };
+      });
+      await persistCollections(["purchases"]);
+      await refreshData();
+      state.procurementPlanner.reviewOpen = true;
+      state.procurementPlanner.reviewPurchaseIds = reviewIds;
+      showToast("Đã lưu chi tiết phiếu nhập batch.");
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  }
 });
 
 window.addEventListener("DOMContentLoaded", async () => {

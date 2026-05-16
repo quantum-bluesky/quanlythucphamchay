@@ -337,6 +337,39 @@ class InventoryStore:
 
                 CREATE INDEX IF NOT EXISTS idx_inventory_batch_allocations_transaction
                 ON inventory_batch_allocations(transaction_id, id);
+
+                CREATE TABLE IF NOT EXISTS workflow_locks (
+                    lock_key TEXT PRIMARY KEY,
+                    owner_username TEXT NOT NULL,
+                    owner_role TEXT NOT NULL DEFAULT '',
+                    acquired_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    note TEXT NOT NULL DEFAULT ''
+                );
+
+                CREATE TABLE IF NOT EXISTS procurement_assignments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    product_id INTEGER NOT NULL,
+                    purchase_id TEXT NOT NULL,
+                    mode TEXT NOT NULL DEFAULT 'batch',
+                    scope_type TEXT NOT NULL DEFAULT 'all',
+                    scope_code TEXT NOT NULL DEFAULT '',
+                    assigned_quantity REAL NOT NULL DEFAULT 0,
+                    assigned_by TEXT NOT NULL DEFAULT '',
+                    assigned_at TEXT NOT NULL,
+                    released_at TEXT,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    FOREIGN KEY (product_id) REFERENCES products(id),
+                    FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE
+                );
+
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_procurement_assignments_active_product
+                ON procurement_assignments(product_id, mode)
+                WHERE status = 'active';
+
+                CREATE INDEX IF NOT EXISTS idx_procurement_assignments_purchase
+                ON procurement_assignments(purchase_id, status, id);
                 """
             )
             columns = {
@@ -5187,6 +5220,527 @@ class InventoryStore:
 
         collections["updated_at"] = updated_at
         return collections
+
+    def _serialize_workflow_lock_row(self, row: sqlite3.Row | None) -> dict | None:
+        if not row:
+            return None
+        return {
+            "lock_key": row["lock_key"],
+            "owner_username": row["owner_username"],
+            "owner_role": row["owner_role"] or "",
+            "acquired_at": row["acquired_at"],
+            "expires_at": row["expires_at"],
+            "updated_at": row["updated_at"],
+            "note": row["note"] or "",
+        }
+
+    def _get_active_workflow_lock(
+        self,
+        connection: sqlite3.Connection,
+        lock_key: str,
+    ) -> dict | None:
+        row = connection.execute(
+            """
+            SELECT lock_key, owner_username, owner_role, acquired_at, expires_at, updated_at, note
+            FROM workflow_locks
+            WHERE lock_key = ?
+            """,
+            (lock_key,),
+        ).fetchone()
+        lock = self._serialize_workflow_lock_row(row)
+        if not lock:
+            return None
+        expires_at = self._parse_iso_datetime(lock["expires_at"])
+        if expires_at and datetime.now(timezone.utc) >= expires_at:
+            connection.execute("DELETE FROM workflow_locks WHERE lock_key = ?", (lock_key,))
+            return None
+        return lock
+
+    @staticmethod
+    def _build_lock_expiry(now: datetime, timeout_minutes: int) -> str:
+        try:
+            minutes = max(1, int(timeout_minutes))
+        except (TypeError, ValueError):
+            minutes = 180
+        return (now + timedelta(minutes=minutes)).isoformat(timespec="seconds")
+
+    def get_procurement_status(self, *, lock_timeout_minutes: int = 180) -> dict:
+        with self._connect() as connection:
+            lock = self._get_active_workflow_lock(connection, "procurement_batch")
+        return {
+            "mode": "batch" if lock else "daily",
+            "lock": lock,
+            "lock_timeout_minutes": max(1, int(lock_timeout_minutes or 180)),
+        }
+
+    def start_procurement_batch(
+        self,
+        *,
+        username: str,
+        role: str = "",
+        lock_timeout_minutes: int = 180,
+    ) -> dict:
+        clean_username = str(username or "").strip()
+        if not clean_username:
+            raise ValueError("Cần đăng nhập để bắt đầu kỳ gom nhập.")
+        now_dt = datetime.now(timezone.utc)
+        now = now_dt.isoformat(timespec="seconds")
+        expires_at = self._build_lock_expiry(now_dt, lock_timeout_minutes)
+        with self._connect() as connection:
+            current = self._get_active_workflow_lock(connection, "procurement_batch")
+            if current and current["owner_username"] != clean_username and str(role or "") != "admin":
+                raise ValueError(f"Kỳ gom nhập đang được xử lý bởi {current['owner_username']}.")
+            connection.execute(
+                """
+                INSERT INTO workflow_locks(lock_key, owner_username, owner_role, acquired_at, expires_at, updated_at, note)
+                VALUES('procurement_batch', ?, ?, ?, ?, ?, '')
+                ON CONFLICT(lock_key) DO UPDATE SET
+                    owner_username = excluded.owner_username,
+                    owner_role = excluded.owner_role,
+                    expires_at = excluded.expires_at,
+                    updated_at = excluded.updated_at
+                """,
+                (clean_username, str(role or ""), now, expires_at, now),
+            )
+            lock = self._get_active_workflow_lock(connection, "procurement_batch")
+        return {"mode": "batch", "lock": lock}
+
+    def refresh_procurement_batch_lock(
+        self,
+        *,
+        username: str,
+        role: str = "",
+        lock_timeout_minutes: int = 180,
+    ) -> dict:
+        clean_username = str(username or "").strip()
+        now_dt = datetime.now(timezone.utc)
+        now = now_dt.isoformat(timespec="seconds")
+        expires_at = self._build_lock_expiry(now_dt, lock_timeout_minutes)
+        with self._connect() as connection:
+            current = self._get_active_workflow_lock(connection, "procurement_batch")
+            if not current:
+                raise ValueError("Kỳ gom nhập chưa được khóa.")
+            if current["owner_username"] != clean_username and str(role or "") != "admin":
+                raise ValueError("Chỉ người đang giữ khóa mới được gia hạn kỳ gom nhập.")
+            connection.execute(
+                """
+                UPDATE workflow_locks
+                SET expires_at = ?, updated_at = ?
+                WHERE lock_key = 'procurement_batch'
+                """,
+                (expires_at, now),
+            )
+            lock = self._get_active_workflow_lock(connection, "procurement_batch")
+        return {"mode": "batch", "lock": lock}
+
+    def finish_procurement_batch(self, *, username: str, role: str = "") -> dict:
+        clean_username = str(username or "").strip()
+        with self._connect() as connection:
+            current = self._get_active_workflow_lock(connection, "procurement_batch")
+            if not current:
+                return {"mode": "daily", "lock": None}
+            if current["owner_username"] != clean_username and str(role or "") != "admin":
+                raise ValueError("Chỉ người đang giữ khóa hoặc Master Admin mới được kết thúc kỳ gom nhập.")
+            connection.execute("DELETE FROM workflow_locks WHERE lock_key = 'procurement_batch'")
+        return {"mode": "daily", "lock": None}
+
+    def _load_procurement_products(self, connection: sqlite3.Connection) -> list[dict]:
+        rows = connection.execute(
+            """
+            SELECT
+                p.id, p.name, p.category, p.unit, p.price, p.sale_price,
+                p.low_stock_threshold, p.shelf_life_days, p.storage_life_days,
+                p.is_deleted, p.deleted_at, p.created_at, p.updated_at,
+                COALESCE(SUM(CASE WHEN t.transaction_type = 'in' THEN t.quantity ELSE -t.quantity END), 0) AS current_stock
+            FROM products p
+            LEFT JOIN transactions t ON t.product_id = p.id
+            WHERE p.is_deleted = 0
+            GROUP BY p.id
+            ORDER BY p.name COLLATE NOCASE ASC
+            """
+        ).fetchall()
+        return self._serialize_product_rows(connection, rows)
+
+    def _load_active_procurement_assignments(self, connection: sqlite3.Connection) -> dict[int, dict]:
+        rows = connection.execute(
+            """
+            SELECT
+                pa.id, pa.product_id, pa.purchase_id, pa.mode, pa.scope_type, pa.scope_code,
+                pa.assigned_quantity, pa.assigned_by, pa.assigned_at, pa.status,
+                p.supplier_name, p.status AS purchase_status, p.updated_at AS purchase_updated_at
+            FROM procurement_assignments pa
+            JOIN purchases p ON p.id = pa.purchase_id
+            WHERE pa.status = 'active'
+              AND pa.mode = 'batch'
+            ORDER BY pa.id
+            """
+        ).fetchall()
+        return {
+            int(row["product_id"]): {
+                "id": int(row["id"]),
+                "product_id": int(row["product_id"]),
+                "purchase_id": row["purchase_id"],
+                "mode": row["mode"],
+                "scope_type": row["scope_type"],
+                "scope_code": row["scope_code"] or "",
+                "assigned_quantity": round(float(row["assigned_quantity"] or 0), 2),
+                "assigned_by": row["assigned_by"] or "",
+                "assigned_at": row["assigned_at"],
+                "status": row["status"],
+                "supplier_name": row["supplier_name"] or "",
+                "purchase_status": row["purchase_status"] or "",
+                "purchase_updated_at": row["purchase_updated_at"] or "",
+            }
+            for row in rows
+        }
+
+    @staticmethod
+    def _normalize_procurement_supplier_key(name: str) -> str:
+        return " ".join(str(name or "").strip().lower().split())
+
+    def _get_active_supplier_by_name(self, connection: sqlite3.Connection, supplier_name: str) -> sqlite3.Row | None:
+        clean_name = str(supplier_name or "").strip()
+        if not clean_name:
+            return None
+        return connection.execute(
+            """
+            SELECT id, name
+            FROM suppliers
+            WHERE deleted_at IS NULL
+              AND lower(name) = lower(?)
+            """,
+            (clean_name,),
+        ).fetchone()
+
+    @staticmethod
+    def _sum_item_quantities_by_product(records: list[dict], statuses: set[str]) -> dict[int, float]:
+        result: dict[int, float] = {}
+        for record in records:
+            if str(record.get("status") or "draft") not in statuses:
+                continue
+            for item in record.get("items") or []:
+                product_id = int(item.get("productId") or item.get("product_id") or 0)
+                if not product_id:
+                    continue
+                result[product_id] = result.get(product_id, 0.0) + max(0.0, float(item.get("quantity") or 0))
+        return result
+
+    def get_procurement_planner(
+        self,
+        *,
+        scope_type: str = "all",
+        scope_code: str = "",
+        lock_timeout_minutes: int = 180,
+    ) -> dict:
+        clean_scope_type = str(scope_type or "all").strip() or "all"
+        clean_scope_code = str(scope_code or "").strip()
+        if clean_scope_type not in {"all", "cart", "product"}:
+            raise ValueError("Phạm vi xử lý nhập thiếu không hợp lệ.")
+
+        with self._connect() as connection:
+            status = {
+                "mode": "batch" if self._get_active_workflow_lock(connection, "procurement_batch") else "daily",
+                "lock": self._get_active_workflow_lock(connection, "procurement_batch"),
+                "lock_timeout_minutes": max(1, int(lock_timeout_minutes or 180)),
+            }
+            products = self._load_procurement_products(connection)
+            carts = self._load_sync_collection_from_tables(connection, "carts")
+            purchases = self._load_sync_collection_from_tables(connection, "purchases")
+            assignments = self._load_active_procurement_assignments(connection)
+
+        draft_demand = self._sum_item_quantities_by_product(carts, {"draft"})
+        committed_demand = self._sum_item_quantities_by_product(carts, {"committed"})
+        incoming = self._sum_item_quantities_by_product(purchases, {"draft", "ordered"})
+
+        scoped_product_ids: set[int] | None = None
+        if clean_scope_type == "cart" and clean_scope_code:
+            scoped_product_ids = {
+                int(item.get("productId") or item.get("product_id") or 0)
+                for cart in carts
+                if str(cart.get("id") or "") == clean_scope_code
+                for item in (cart.get("items") or [])
+                if int(item.get("productId") or item.get("product_id") or 0)
+            }
+        elif clean_scope_type == "product" and clean_scope_code:
+            try:
+                scoped_product_ids = {int(clean_scope_code)}
+            except ValueError:
+                scoped_product_ids = set()
+
+        rows = []
+        for product in products:
+            product_id = int(product["id"])
+            if scoped_product_ids is not None and product_id not in scoped_product_ids:
+                continue
+            draft_qty = round(float(draft_demand.get(product_id, 0.0)), 2)
+            committed_qty = round(float(committed_demand.get(product_id, 0.0)), 2)
+            incoming_qty = round(float(incoming.get(product_id, 0.0)), 2)
+            gross_demand = round(draft_qty + committed_qty, 2)
+            current_stock = round(float(product.get("current_stock") or 0), 2)
+            required_purchase = round(max(0.0, gross_demand - current_stock - incoming_qty), 2)
+            forecast_after_purchase = round(current_stock + incoming_qty + required_purchase - gross_demand, 2)
+            low_stock_threshold = round(float(product.get("low_stock_threshold") or 0), 2)
+            assignment = assignments.get(product_id)
+            if required_purchase <= 0 and gross_demand <= 0 and not product.get("is_low_stock") and not assignment:
+                continue
+            rows.append(
+                {
+                    "product_id": product_id,
+                    "product_name": product["name"],
+                    "unit": product["unit"],
+                    "unit_cost": product["price"],
+                    "current_stock": current_stock,
+                    "draft_demand": draft_qty,
+                    "committed_demand": committed_qty,
+                    "gross_demand": gross_demand,
+                    "incoming_quantity": incoming_qty,
+                    "required_purchase": required_purchase,
+                    "forecast_after_purchase": forecast_after_purchase,
+                    "low_stock_threshold": low_stock_threshold,
+                    "below_threshold_after_purchase": forecast_after_purchase < low_stock_threshold,
+                    "assignment": assignment,
+                }
+            )
+        rows.sort(
+            key=lambda row: (
+                0 if row["committed_demand"] > 0 else 1,
+                -float(row["required_purchase"]),
+                -float(row["gross_demand"]),
+                row["product_name"].lower(),
+            )
+        )
+        return {
+            "status": status,
+            "scope": {"type": clean_scope_type, "code": clean_scope_code},
+            "rows": rows,
+        }
+
+    def create_procurement_purchase_for_product(
+        self,
+        *,
+        product_id: int,
+        quantity,
+        supplier_name: str = "",
+        actor: str = "",
+        role: str = "",
+        scope_type: str = "all",
+        scope_code: str = "",
+    ) -> dict:
+        result = self.create_procurement_purchases(
+            lines=[
+                {
+                    "product_id": product_id,
+                    "quantity": quantity,
+                    "supplier_name": supplier_name,
+                }
+            ],
+            actor=actor,
+            role=role,
+            scope_type=scope_type,
+            scope_code=scope_code,
+        )
+        if not result["created_purchases"]:
+            skipped_message = result["skipped"][0]["reason"] if result["skipped"] else "Không tạo được phiếu nhập."
+            raise ValueError(skipped_message)
+        purchase = result["created_purchases"][0]
+        return {
+            "purchase": purchase,
+            "purchases": result["purchases"],
+            "planner": result["planner"],
+        }
+
+    def create_procurement_purchases(
+        self,
+        *,
+        lines: list[dict],
+        actor: str = "",
+        role: str = "",
+        scope_type: str = "all",
+        scope_code: str = "",
+    ) -> dict:
+        clean_actor = str(actor or "").strip()
+        clean_scope_type = str(scope_type or "all").strip() or "all"
+        clean_scope_code = str(scope_code or "").strip()
+        if clean_scope_type not in {"all", "cart", "product"}:
+            raise ValueError("Phạm vi xử lý nhập thiếu không hợp lệ.")
+        if not isinstance(lines, list) or not lines:
+            raise ValueError("Cần chọn ít nhất một mặt hàng để tạo phiếu nhập.")
+        now = utc_now_iso()
+        skipped: list[dict] = []
+        touched_purchase_ids: set[str] = set()
+        with self._connect() as connection:
+            active = self._get_active_workflow_lock(connection, "procurement_batch")
+            if not active:
+                raise ValueError("Chỉ được tạo phiếu từ planner khi đang ở Batch mode.")
+            if active["owner_username"] != clean_actor and str(role or "") != "admin":
+                raise ValueError("Chỉ người đang giữ khóa gom nhập mới được tạo phiếu từ planner.")
+
+            purchases_by_supplier: dict[str, str] = {}
+            existing_rows = connection.execute(
+                """
+                SELECT id, supplier_id, supplier_name
+                FROM purchases
+                WHERE source_type = 'procurement_batch'
+                  AND status = 'draft'
+                ORDER BY datetime(updated_at) DESC, id
+                """
+            ).fetchall()
+            for row in existing_rows:
+                key = str(row["supplier_id"] or "").strip() or self._normalize_procurement_supplier_key(row["supplier_name"])
+                if key and key not in purchases_by_supplier:
+                    purchases_by_supplier[key] = str(row["id"])
+
+            for raw_line in lines:
+                product_id = int(raw_line.get("product_id") or raw_line.get("productId") or 0)
+                supplier_name = str(raw_line.get("supplier_name") or raw_line.get("supplierName") or "").strip()
+                product_name_for_skip = ""
+                try:
+                    product = self._get_product_or_raise(connection, product_id)
+                    product_name_for_skip = str(product["name"] or "")
+                    target_quantity = parse_positive_decimal(raw_line.get("quantity"), "Số lượng cần nhập")
+                    unit_cost = parse_non_negative_decimal(raw_line.get("unit_cost", raw_line.get("unitCost", product["price"] or 0)), "Giá nhập")
+                    line_discount = parse_non_negative_decimal(raw_line.get("discount_amount", raw_line.get("discountAmount", 0)), "Giảm giá khuyến mại")
+                except ValueError as exc:
+                    skipped.append({"product_id": product_id, "product_name": product_name_for_skip, "reason": str(exc)})
+                    continue
+                supplier = self._get_active_supplier_by_name(connection, supplier_name)
+                if not supplier:
+                    skipped.append({
+                        "product_id": product_id,
+                        "product_name": product_name_for_skip,
+                        "reason": "Chưa chọn nhà cung cấp hợp lệ.",
+                    })
+                    continue
+                existing_assignment = connection.execute(
+                    """
+                    SELECT id, purchase_id
+                    FROM procurement_assignments
+                    WHERE product_id = ?
+                      AND mode = 'batch'
+                      AND status = 'active'
+                    """,
+                    (product_id,),
+                ).fetchone()
+                if existing_assignment:
+                    skipped.append({
+                        "product_id": product_id,
+                        "product_name": product_name_for_skip,
+                        "reason": "Mặt hàng này đã được gán vào một phiếu nhập trong kỳ gom nhập.",
+                    })
+                    continue
+
+                supplier_id = str(supplier["id"])
+                supplier_display_name = str(supplier["name"])
+                supplier_key = supplier_id or self._normalize_procurement_supplier_key(supplier_display_name)
+                purchase_id = purchases_by_supplier.get(supplier_key)
+                if not purchase_id:
+                    purchase_id = f"purchase_{secrets.token_urlsafe(8)}"
+                    purchases_by_supplier[supplier_key] = purchase_id
+                    connection.execute(
+                        """
+                        INSERT INTO purchases(
+                            id, supplier_id, supplier_name, note, source_type, source_code, source_name,
+                            status, discount_amount, created_at, updated_at, received_at, paid_at, receipt_code
+                        )
+                        VALUES(?, ?, ?, '', 'procurement_batch', ?, 'Kỳ gom nhập', 'draft', 0, ?, ?, NULL, NULL, '')
+                        """,
+                        (purchase_id, supplier_id, supplier_display_name, clean_scope_code, now, now),
+                    )
+
+                item_count = connection.execute(
+                    "SELECT COUNT(*) AS count FROM purchase_items WHERE purchase_id = ?",
+                    (purchase_id,),
+                ).fetchone()["count"]
+                connection.execute(
+                    """
+                    INSERT INTO purchase_items(
+                        id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code,
+                        expiry_input_mode, manufacture_date, expiry_date, sort_order
+                    )
+                    VALUES(?, ?, ?, ?, ?, ?, '', 'direct', NULL, NULL, ?)
+                    """,
+                    (
+                        f"purchase_item_{secrets.token_urlsafe(8)}",
+                        purchase_id,
+                        product_id,
+                        product["name"],
+                        round(float(target_quantity), 2),
+                        round(float(unit_cost), 2),
+                        int(item_count or 0),
+                    ),
+                )
+                current_purchase = connection.execute(
+                    """
+                    SELECT discount_amount
+                    FROM purchases
+                    WHERE id = ?
+                    """,
+                    (purchase_id,),
+                ).fetchone()
+                next_discount = Decimal(str(current_purchase["discount_amount"] or 0)) + line_discount
+                next_subtotal = connection.execute(
+                    """
+                    SELECT COALESCE(SUM(quantity * unit_cost), 0) AS subtotal
+                    FROM purchase_items
+                    WHERE purchase_id = ?
+                    """,
+                    (purchase_id,),
+                ).fetchone()["subtotal"]
+                if next_discount > Decimal(str(next_subtotal or 0)):
+                    raise ValueError(f"Giảm giá của phiếu {supplier_display_name} không được lớn hơn tạm tính.")
+                connection.execute(
+                    """
+                    UPDATE purchases
+                    SET discount_amount = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (round(float(next_discount), 2), now, purchase_id),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO procurement_assignments(
+                        product_id, purchase_id, mode, scope_type, scope_code, assigned_quantity,
+                        assigned_by, assigned_at, released_at, status
+                    )
+                    VALUES(?, ?, 'batch', ?, ?, ?, ?, ?, NULL, 'active')
+                    """,
+                    (
+                        product_id,
+                        purchase_id,
+                        clean_scope_type,
+                        clean_scope_code,
+                        round(float(target_quantity), 2),
+                        clean_actor,
+                        now,
+                    ),
+                )
+                touched_purchase_ids.add(purchase_id)
+                self._record_audit(
+                    connection,
+                    entity_type="procurement_assignment",
+                    entity_id=str(product_id),
+                    entity_name=str(product["name"]),
+                    action="assign",
+                    actor=clean_actor,
+                    message=f"Gán mặt hàng vào phiếu nhập batch {purchase_id}.",
+                )
+
+            purchases = self._refresh_sync_collection_cache(connection, "purchases", updated_at=now)
+            created_purchases = [
+                entry for entry in purchases
+                if str(entry.get("id") or "") in touched_purchase_ids
+            ]
+
+        return {
+            "created_purchases": created_purchases,
+            "created_purchase_ids": sorted(touched_purchase_ids),
+            "skipped": skipped,
+            "purchases": purchases,
+            "planner": self.get_procurement_planner(
+                scope_type=clean_scope_type,
+                scope_code=clean_scope_code,
+            ),
+        }
 
     def save_sync_state(self, payload: dict) -> dict:
         allowed_keys = set(self.SYNC_COLLECTION_KEYS)

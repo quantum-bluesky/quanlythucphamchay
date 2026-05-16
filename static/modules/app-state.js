@@ -41,6 +41,28 @@ export const state = {
   debug: {
     syncState: false,
   },
+  procurement: {
+    mode: "daily",
+    lock: null,
+    config: {
+      batchPlannerEnabled: true,
+      allowDailyQuickShortageFlow: true,
+      requiredLoginForBatchMode: true,
+    },
+    permissions: {
+      canManageBatch: false,
+      isLockOwner: false,
+    },
+  },
+  procurementPlanner: {
+    rows: [],
+    scope: { type: "all", code: "" },
+    loading: false,
+    selections: {},
+    reviewOpen: false,
+    reviewPurchaseIds: [],
+    reviewIndex: 0,
+  },
   paginationConfig: {
     itemsPerPage: 10,
     documentsPerPage: 10,
@@ -140,6 +162,8 @@ export const state = {
   selectedPurchaseItemsCollapsed: true,
   pendingPurchaseSupplierFlow: false,
   pendingPurchaseSupplierName: "",
+  pendingProcurementSupplierFlow: false,
+  pendingProcurementSupplierName: "",
   editingSupplierFormId: null,
   supplierFormCollapsed: true,
   pagination: {
