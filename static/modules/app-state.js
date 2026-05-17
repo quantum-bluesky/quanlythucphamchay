@@ -61,6 +61,7 @@ export const state = {
     selections: {},
     extraRows: [],
     extraExpanded: false,
+    extraSearchTerm: "",
     startConflicts: [],
     reviewOpen: false,
     reviewPurchaseIds: [],

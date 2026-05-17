@@ -120,7 +120,8 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Trước khi bắt đầu kỳ gom nhập, app sẽ audit nhanh các phiếu nhập mở; nếu một sản phẩm đang bị cover bởi nhiều phiếu mở thì phải dọn conflict trước khi acquire lock
 - Khi bị chặn vì conflict đầu kỳ gom, màn planner sẽ hiện ngay danh sách sản phẩm và các mã phiếu nhập mở liên quan để bấm sang màn `Nhập hàng` xử lý
 - Planner batch cho tick chọn nhiều mặt hàng, chọn NCC từ danh bạ, chỉnh số lượng/giá nhập/giảm giá, rồi gom các mặt hàng cùng NCC vào một phiếu nhập nháp
-- Trong Batch mode, người giữ khóa còn có thể mở khối `Chọn thêm sản phẩm khác` để thêm vài mặt hàng ngoài nhu cầu đơn vào cùng kỳ gom; các dòng này có badge `Ngoài nhu cầu đơn`, không tham gia tính `Cần nhập`, nhưng vẫn được gom chung theo NCC
+- Trong Batch mode, người giữ khóa còn có thể mở khối `Chọn thêm sản phẩm khác` để tick chọn nhanh các mặt hàng ngoài nhu cầu đơn trên một danh sách riêng; khối này ưu tiên các sản phẩm đã có trên planner nhưng `Cần nhập = 0`, sau đó hiện tiếp toàn bộ sản phẩm active còn lại ngoài planner
+- Các dòng extra được tick sẽ có badge `Ngoài nhu cầu đơn`, không tham gia tính `Cần nhập`, nhưng vẫn được gom chung theo NCC
 - Các dòng `Ngoài nhu cầu đơn` không tạo `procurement_assignment`; rule `mỗi sản phẩm thiếu chỉ có một assignment active` chỉ tiếp tục áp dụng cho các dòng shortage
 - Nếu owner rời các màn trong flow xử lý batch sang màn ngoài flow khi kỳ gom vẫn còn mở, app sẽ hỏi có muốn `Kết thúc kỳ gom` ngay hay không; chọn `OK` sẽ release lock trước khi điều hướng, chọn `Cancel` sẽ giữ nguyên batch mode
 - Nếu NCC chưa có trong danh bạ, app hỏi để chuyển sang màn `Nhà cung cấp` tạo mới, lưu xong quay lại planner để chọn tiếp
