@@ -273,12 +273,27 @@ let lastResponsiveViewportWidth = window.innerWidth;
 let lastResponsiveViewportHeight = window.innerHeight;
 let deferredResponsivePaginationRender = false;
 let deferredResponsivePaginationRenderTimer = 0;
+const procurementLockAlertNodes = new Map();
 window.__QLTPCHAY_APP_READY = false;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
 const PROCUREMENT_LOCK_HEARTBEAT_INTERVAL_MS = 60000;
 const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
 const PAGINATION_PAGE_SIZE_OPTIONS = [25, 50, 100];
 const GLOBAL_SAVING_UI_MESSAGE = "Đang lưu thay đổi...";
+const PROCUREMENT_LOCK_ALERT_TARGETS = {
+  inventory: '[data-menu-section="inventory"] .inventory-panel',
+  "create-order": '[data-menu-section="create-order"] .sales-panel',
+  orders: '[data-menu-section="orders"] .orders-panel',
+  purchases: '[data-menu-section="purchases"] .purchases-panel',
+  suppliers: '[data-menu-section="suppliers"] .suppliers-panel',
+};
+const PROCUREMENT_LOCK_ALERT_MESSAGES = {
+  inventory: "Các luồng thiếu hàng sẽ được điều hướng sang màn Xử lý nhập thiếu cho tới khi kỳ gom kết thúc.",
+  "create-order": "Nếu đơn đang thiếu hàng, app sẽ đưa bạn sang màn Xử lý nhập thiếu thay vì tạo phiếu nhập nhanh theo từng đơn.",
+  orders: "Nếu cần xử lý thiếu hàng cho đơn, app sẽ đưa bạn sang màn Xử lý nhập thiếu cho tới khi kỳ gom kết thúc.",
+  purchases: "Màn này đang siết quyền tạo mới và sửa cấu trúc phiếu Nháp/Đã đặt theo owner của lock batch.",
+  suppliers: "Nếu đang bổ sung NCC cho kỳ gom, bạn có thể quay lại planner hoặc màn Nhập hàng mà vẫn giữ nguyên batch mode.",
+};
 const PAGINATION_GROUP_MAP = {
   inventory: "items",
   productManage: "items",
@@ -2021,6 +2036,70 @@ function canCurrentUserFinishActiveProcurementBatch() {
   );
 }
 
+function getProcurementLockAlertNode(menu) {
+  const cleanMenu = String(menu || "").trim();
+  if (!cleanMenu || !PROCUREMENT_LOCK_ALERT_TARGETS[cleanMenu]) {
+    return null;
+  }
+  const cachedNode = procurementLockAlertNodes.get(cleanMenu);
+  if (cachedNode && cachedNode.isConnected) {
+    return cachedNode;
+  }
+  const panel = document.querySelector(PROCUREMENT_LOCK_ALERT_TARGETS[cleanMenu]);
+  if (!panel) {
+    return null;
+  }
+  let node = panel.querySelector(`[data-procurement-lock-alert="${cleanMenu}"]`);
+  if (!node) {
+    node = document.createElement("article");
+    node.className = "inline-alert warning";
+    node.dataset.procurementLockAlert = cleanMenu;
+    node.hidden = true;
+    const panelHeading = panel.querySelector(".panel-heading");
+    if (panelHeading?.nextSibling) {
+      panel.insertBefore(node, panelHeading.nextSibling);
+    } else {
+      panel.append(node);
+    }
+  }
+  procurementLockAlertNodes.set(cleanMenu, node);
+  return node;
+}
+
+function renderProcurementLockAlerts() {
+  const isBatchMode = state.procurement?.mode === "batch";
+  const lock = state.procurement?.lock || null;
+  const lockOwner = String(lock?.owner_username || "").trim();
+  const expiryText = formatDate(lock?.expires_at || lock?.expiresAt || "");
+  const canManageBatch = Boolean(state.procurement?.permissions?.canManageBatch);
+  const isLockOwner = Boolean(state.procurement?.permissions?.isLockOwner);
+  Object.keys(PROCUREMENT_LOCK_ALERT_TARGETS).forEach((menu) => {
+    const node = getProcurementLockAlertNode(menu);
+    if (!node) {
+      return;
+    }
+    if (!isBatchMode) {
+      node.hidden = true;
+      node.innerHTML = "";
+      return;
+    }
+    const roleMessage = isLockOwner
+      ? "Bạn đang là người giữ khóa batch này."
+      : (canManageBatch
+        ? "Batch mode đang được giữ bởi user khác, nên các màn liên quan có thể bị siết quyền thao tác."
+        : "Bạn đang ở chế độ theo dõi khi batch mode còn active lock.");
+    const ownerText = lockOwner ? `Lock đang do ${escapeHtml(lockOwner)} giữ` : "Lock batch đang active";
+    const expirySuffix = expiryText ? ` tới ${escapeHtml(expiryText)}` : "";
+    const menuMessage = PROCUREMENT_LOCK_ALERT_MESSAGES[menu] || "";
+    node.hidden = false;
+    node.innerHTML = `
+      <strong>Kỳ gom nhập đang active lock</strong><br>
+      <span>${ownerText}${expirySuffix}.</span><br>
+      <span>${escapeHtml(roleMessage)} ${escapeHtml(menuMessage)}</span>
+    `;
+  });
+}
+
 function executeMenuSwitch(menu, { recordHistory = true } = {}) {
   if (state.admin?.enableLogin && !state.admin?.authenticated && menu !== "login") {
     showToast("Cần login trước khi dùng hệ thống.", true);
@@ -2048,6 +2127,7 @@ function executeMenuSwitch(menu, { recordHistory = true } = {}) {
     }, 0);
   }
   scheduleBusinessScreenRefresh(menu);
+  renderProcurementLockAlerts();
   return result;
 }
 
@@ -2071,9 +2151,22 @@ function requestProcurementFlowExitIfNeeded({
     return true;
   }
   const shouldFinishBatch = window.confirm(
-    "Kỳ gom nhập vẫn đang bật.\n\nChọn OK để kết thúc kỳ gom và rời flow Xử lý nhập thiếu.\nChọn Cancel để quay lại và giữ nguyên batch mode."
+    "Kỳ gom nhập vẫn đang bật.\n\nChọn OK để kết thúc kỳ gom và rời flow Xử lý nhập thiếu.\nChọn Cancel để giữ nguyên batch mode và chọn tiếp có ở lại hay chuyển màn."
   );
   if (!shouldFinishBatch) {
+    const shouldStayInCurrentScreen = window.confirm(
+      "Batch mode vẫn đang active lock.\n\nChọn OK để ở lại màn hiện tại.\nChọn Cancel để chuyển sang màn khác nhưng vẫn giữ nguyên batch mode."
+    );
+    if (shouldStayInCurrentScreen) {
+      return true;
+    }
+    if (Number.isInteger(targetHistoryIndex) && targetHistoryIndex >= 0) {
+      state.menuHistoryIndex = targetHistoryIndex;
+      executeMenuSwitch(cleanTargetMenu, { recordHistory: false });
+    } else {
+      executeMenuSwitch(cleanTargetMenu, { recordHistory });
+    }
+    showToast("Đã chuyển màn khác và giữ nguyên batch mode đang active.");
     return true;
   }
   procurementBatchExitInFlight = true;
@@ -4703,6 +4796,7 @@ function renderAll() {
   renderViewSections();
   renderScreenHeader();
   renderAppVersion();
+  renderProcurementLockAlerts();
   renderInventoryDirectEditAccess();
   renderSummary(state.summary);
   renderProductOptions();

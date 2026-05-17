@@ -2,8 +2,8 @@
   "app_version": "3.5.6",
   "files": {
     "app.js": {
-      "counter": 1,
-      "sha256": "6d9458834261e31e0c6e0fbf13870220b52714aa634978bde39e91269be9138c"
+      "counter": 3,
+      "sha256": "13d5acbe1a60084fd8822c9bff4f96951b3e794a415237c96988a17d46b30129"
     },
     "modules/app-state.js": {
       "counter": 1,
@@ -62,8 +62,8 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 1,
-      "sha256": "87af3bd1c91eb8f95db4f1f85e0506a5f876e9f4a543264a8ff3c08e38fe17fb"
+      "counter": 2,
+      "sha256": "1e81445f0303792d1cd1f41c2de0179adb6f4401983bb1aec9cbe0ac5217e733"
     },
     "modules/sync-runtime.js": {
       "counter": 1,

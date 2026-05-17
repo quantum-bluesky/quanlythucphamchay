@@ -466,7 +466,7 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
   expectNoRuntimeErrors(runtime);
 });
 
-test("IT-PROC-04 leaving procurement flow prompts to finish batch and only exits after owner confirms", async ({ page, request }) => {
+test("IT-PROC-04 leaving procurement flow prompts to finish batch and offers stay-or-switch while lock stays active", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
   const managerCookie = await autoLoginProcurementManagerRequest(request);
   let batchStarted = false;
@@ -488,14 +488,49 @@ test("IT-PROC-04 leaving procurement flow prompts to finish batch and only exits
     await switchMenu(page, "purchases");
     await expectScreenTitle(page, "Nhập hàng");
 
-    let cancelDialogMessage = "";
-    page.once("dialog", async (dialog) => {
-      cancelDialogMessage = dialog.message();
-      await dialog.dismiss();
-    });
+    const stayDialogMessages = [];
+    const stayDialogHandler = async (dialog) => {
+      stayDialogMessages.push(dialog.message());
+      if (stayDialogMessages.length === 1) {
+        await dialog.dismiss();
+        return;
+      }
+      await dialog.accept();
+    };
+    page.on("dialog", stayDialogHandler);
     await switchMenu(page, "inventory");
-    await page.waitForTimeout(600);
-    expect(cancelDialogMessage).toContain("Kỳ gom nhập vẫn đang bật");
+    await page.waitForTimeout(800);
+    page.off("dialog", stayDialogHandler);
+    expect(stayDialogMessages[0]).toContain("Kỳ gom nhập vẫn đang bật");
+    expect(stayDialogMessages[1]).toContain("Batch mode vẫn đang active lock");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    const keepBatchDialogMessages = [];
+    const keepBatchDialogHandler = async (dialog) => {
+      keepBatchDialogMessages.push(dialog.message());
+      await dialog.dismiss();
+    };
+    page.on("dialog", keepBatchDialogHandler);
+    await switchMenu(page, "inventory");
+    await page.waitForTimeout(800);
+    page.off("dialog", keepBatchDialogHandler);
+    expect(keepBatchDialogMessages[0]).toContain("Kỳ gom nhập vẫn đang bật");
+    expect(keepBatchDialogMessages[1]).toContain("Batch mode vẫn đang active lock");
+    await expectScreenTitle(page, "Kiểm tra tồn kho");
+
+    const activeLockBanner = page.locator('[data-procurement-lock-alert="inventory"]');
+    await expect(activeLockBanner).toBeVisible();
+    await expect(activeLockBanner).toContainText("Kỳ gom nhập đang active lock");
+    await expect(activeLockBanner).toContainText("Xử lý nhập thiếu");
+
+    const batchStatusResponse = await request.get("/api/procurement/status", {
+      headers: { Cookie: managerCookie },
+    });
+    expect(batchStatusResponse.ok()).toBeTruthy();
+    const batchStatusPayload = await batchStatusResponse.json();
+    expect(batchStatusPayload.mode).toBe("batch");
+
+    await switchMenu(page, "purchases");
     await expectScreenTitle(page, "Nhập hàng");
 
     let acceptDialogMessage = "";
