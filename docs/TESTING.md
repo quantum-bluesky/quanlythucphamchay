@@ -67,6 +67,7 @@ Phù hợp khi sửa:
 - sync state `purchases`, đặc biệt rule không lưu phiếu nhập nháp nếu chưa có mặt hàng
 - workflow phiếu nhập: thiếu NCC thì không được `Đã đặt hàng` hoặc `Nhập kho`
 - workflow gom nhập batch: chỉ một user giữ khóa, user có permission batch không có quyền chỉnh tồn trực tiếp, và một sản phẩm thiếu chỉ được gán vào một phiếu nhập batch mở
+- lock màn `Nhập hàng` trong Batch mode: user không giữ khóa không được tạo/sửa phiếu `draft/ordered`, nhưng vẫn đi tiếp được các bước hậu cần như `received/paid`
 - lock workflow của `giảm giá khuyến mại` trước/sau thanh toán ở đơn xuất và phiếu nhập
 - audit actor cho import master và message diff chi tiết ở lịch sử sản phẩm
 
@@ -190,7 +191,9 @@ Các nhóm kiểm tra chính:
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, thiếu hàng của user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu chờ đủ
 - `Reload số lượng sau đổi trạng thái`: sau `Xuất kho` hoặc `Nhập kho`, các màn `Tồn kho`, `Xuất hàng`, `Nhập hàng` phải nạp lại dữ liệu server mới mà không cần F5
-- `Xử lý nhập thiếu batch`: bật batch mode từ user có quyền, kiểm tra planner gom cả đơn nháp/đơn chốt và không cho tạo trùng phiếu nhập cho cùng sản phẩm thiếu
+- `Xử lý nhập thiếu batch`: bật batch mode từ user có quyền, kiểm tra planner gom cả đơn nháp/đơn chốt, chặn bắt đầu kỳ gom khi đang có conflict phiếu nhập mở, và không cho tạo trùng phiếu nhập cho cùng sản phẩm thiếu
+- `Conflict đầu kỳ gom`: khi app chặn `Bắt đầu kỳ gom`, màn planner phải hiện danh sách conflict có thể bấm mở thẳng các phiếu nhập liên quan
+- `Khóa màn Nhập hàng theo batch owner`: user không giữ khóa phải bị khóa create/edit `draft/ordered`, nhưng vẫn thấy các bước hậu cần hợp lệ như `Nhập kho`
 - `Confirm đổi trạng thái/xóa chứng từ`: trước khi `Xuất`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa` app phải hiện dialog confirm
 - `Version cache-busting client JS`: HTML entrypoint và các module import phải được serve kèm query `?v=version-chính.N`, counter phải tăng đúng khi file `.js` đổi nội dung và không tăng nếu chỉ đổi line ending `CRLF/LF`
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
@@ -273,6 +276,8 @@ Case mới cho Phase A:
 - `UT-PROC-01`: backend chỉ cho một người giữ khóa kỳ gom nhập active
 - `UT-PROC-02`: backend planner gom nhu cầu thiếu và chặn một sản phẩm thiếu bị gán vào nhiều phiếu nhập batch mở
 - `UT-PROC-03`: backend tạo batch nhiều dòng và gom các mặt hàng cùng NCC vào một phiếu nhập batch draft
+- `UT-PROC-04`: backend khóa tạo/sửa phiếu `draft/ordered` trên màn `Nhập hàng` cho user không giữ khóa batch, nhưng vẫn cho tiếp bước `received/paid`
+- `UT-PROC-05`: assignment batch tự release khi phiếu batch bị hủy hoặc đã chuyển sang `received`
 - `UT-AUTH-04B`: user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn không có quyền chỉnh tồn trực tiếp
 
 Case mới cho Phase B.4:

@@ -166,6 +166,7 @@ Liên kết detail hiện có:
   - khi phiếu `draft` chưa có NCC, thêm mặt hàng vào phiếu được phép tự chọn NCC nếu lịch sử nhập thực tế của mặt hàng chỉ có 1 NCC; nếu có nhiều NCC thì datalist của ô NCC phải ưu tiên NCC có tổng số lượng/số lần nhập mặt hàng đó cao hơn
   - phiếu `draft` đang trống vẫn phải cho `Xóa phiếu` ngay trên UI dù chưa persist xuống DB
   - nút `Nhập kho` chỉ hiện khi phiếu đã ở trạng thái `Đã đặt`; phiếu `Nháp` vẫn còn chỉnh sửa được nhưng chưa cho nhập kho
+  - khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `Nháp/Đã đặt`; user khác chỉ tiếp tục bước `Nhập kho` hoặc `Đã thanh toán`
   - nếu chưa có `Nhà cung cấp`, button `Đã đặt hàng` và `Nhập kho` phải bị khóa; UI cần hiện cảnh báo ngắn để user biết thiếu dữ liệu gì
   - ô NCC và nút `NCC` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
   - khi phiếu còn `Nháp`, bấm nút `NCC` từ một phiếu đã có NCC vẫn phải cho sang danh sách NCC để đổi sang NCC khác, không được kẹt ở chế độ sửa NCC hiện tại
@@ -189,6 +190,9 @@ Liên kết detail hiện có:
 - nguyên tắc UI:
   - Daily mode vẫn ưu tiên flow nhanh theo đơn ở màn `purchases`
   - Batch mode chỉ cho user có quyền quản lý batch tạo phiếu nhập từ planner
+  - trước khi acquire lock batch, backend phải audit nhanh conflict phiếu nhập mở theo sản phẩm và chặn vào batch nếu còn cover trùng
+  - khi bị chặn bởi conflict đầu kỳ gom, màn planner phải hiện ngay danh sách sản phẩm và các phiếu nhập mở liên quan để user bấm mở xử lý
+  - khi Batch mode đang bật, màn `purchases` phải bị khóa phần tạo/sửa cấu trúc phiếu `Nháp/Đã đặt` cho user không giữ khóa để tránh bypass planner
   - mỗi dòng mặc định chưa tick; chỉ khi tick mới hiện NCC, số lượng và cảnh báo sau nhập
   - trên tablet/desktop hiện thêm input `Giá nhập` và `Giảm KM` để tận dụng không gian rộng hơn
   - các dòng chọn cùng NCC phải gom vào cùng một phiếu nhập batch draft

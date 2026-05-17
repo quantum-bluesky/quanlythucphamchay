@@ -245,6 +245,9 @@ const APP_ROOT_URL = new URL("../", import.meta.url);
 let autoRefreshTimer = null;
 let autoRefreshInFlight = false;
 let skipNextPurchaseSupplierChangePersist = false;
+let procurementLockHeartbeatTimer = null;
+let procurementLockHeartbeatInFlight = false;
+let procurementLockHeartbeatFailureNotified = false;
 let coreUi = null;
 let productsUi = null;
 let inventoryUi = null;
@@ -267,6 +270,7 @@ let deferredResponsivePaginationRender = false;
 let deferredResponsivePaginationRenderTimer = 0;
 window.__QLTPCHAY_APP_READY = false;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
+const PROCUREMENT_LOCK_HEARTBEAT_INTERVAL_MS = 60000;
 const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
 const PAGINATION_PAGE_SIZE_OPTIONS = [25, 50, 100];
 const PAGINATION_GROUP_MAP = {
@@ -878,6 +882,9 @@ function getPurchasesUi() {
       canMarkPurchasePaid,
       isLockedPurchase,
       isRepairableInvalidPurchase,
+      isPurchaseStructureLockedByProcurementBatch,
+      canManageProcurementBatchStructure,
+      isProcurementBatchModeActive,
       getPurchaseSuggestions,
       resolvePurchaseItemExpiryMeta,
       isSearchResultMode,
@@ -1546,6 +1553,18 @@ function canCancelPurchase(purchase) {
 
 function isLockedPurchase(purchase) {
   return getPurchasesDomainHelpers().isLockedPurchase(purchase);
+}
+
+function isPurchaseStructureLockedByProcurementBatch(purchase) {
+  return getPurchasesDomainHelpers().isPurchaseStructureLockedByProcurementBatch(purchase);
+}
+
+function canManageProcurementBatchStructure() {
+  return getPurchasesDomainHelpers().canManageProcurementBatchStructure();
+}
+
+function isProcurementBatchModeActive() {
+  return getPurchasesDomainHelpers().isProcurementBatchModeActive();
 }
 
 function getInventoryAdjustmentReason(productId) {
@@ -2415,6 +2434,9 @@ function buildProcurementPlannerQuery(scope = state.procurementPlanner.scope) {
 async function refreshProcurementPlanner(scope = state.procurementPlanner.scope) {
   const currentPlanner = state.procurementPlanner || {};
   const previousSelections = currentPlanner.selections || {};
+  const previousStartConflicts = Array.isArray(currentPlanner.startConflicts)
+    ? currentPlanner.startConflicts
+    : [];
   const previousReviewOpen = Boolean(currentPlanner.reviewOpen);
   const previousReviewPurchaseIds = Array.isArray(currentPlanner.reviewPurchaseIds)
     ? currentPlanner.reviewPurchaseIds
@@ -2434,6 +2456,7 @@ async function refreshProcurementPlanner(scope = state.procurementPlanner.scope)
       scope: payload.scope || scope || { type: "all", code: "" },
       loading: false,
       selections: previousSelections,
+      startConflicts: previousStartConflicts,
       reviewOpen: previousReviewOpen,
       reviewPurchaseIds: previousReviewPurchaseIds,
       reviewIndex: previousReviewIndex,
@@ -2445,6 +2468,47 @@ async function refreshProcurementPlanner(scope = state.procurementPlanner.scope)
     renderProcurementPlanner();
     throw error;
   }
+}
+
+function shouldRefreshProcurementBatchLockHeartbeat() {
+  return Boolean(
+    state.admin?.authenticated
+    && state.activeMenu === "procurement-planner"
+    && state.procurement?.mode === "batch"
+    && state.procurement?.permissions?.isLockOwner
+  );
+}
+
+async function refreshProcurementBatchLockHeartbeat() {
+  if (!shouldRefreshProcurementBatchLockHeartbeat() || procurementLockHeartbeatInFlight) {
+    return;
+  }
+  procurementLockHeartbeatInFlight = true;
+  try {
+    const payload = await apiRequest("/api/procurement/batch/refresh-lock", {
+      method: "POST",
+      body: JSON.stringify({}),
+      sessionActivity: "active",
+    });
+    procurementLockHeartbeatFailureNotified = false;
+    updateProcurementStatus(payload);
+  } catch (error) {
+    if (!procurementLockHeartbeatFailureNotified && state.activeMenu === "procurement-planner") {
+      showToast(`Không thể gia hạn khóa kỳ gom nhập: ${error.message}`, true);
+      procurementLockHeartbeatFailureNotified = true;
+    }
+  } finally {
+    procurementLockHeartbeatInFlight = false;
+  }
+}
+
+function startProcurementLockHeartbeatLoop() {
+  if (procurementLockHeartbeatTimer) {
+    window.clearInterval(procurementLockHeartbeatTimer);
+  }
+  procurementLockHeartbeatTimer = window.setInterval(() => {
+    void refreshProcurementBatchLockHeartbeat();
+  }, PROCUREMENT_LOCK_HEARTBEAT_INTERVAL_MS);
 }
 
 async function openProcurementPlanner(scope = { type: "all", code: "" }) {
@@ -2524,6 +2588,38 @@ function getProcurementReviewPurchaseIds() {
     ? state.procurementPlanner.reviewPurchaseIds
     : getProcurementAssignedPurchaseIds();
   return ids.filter((id) => state.purchases.some((purchase) => purchase.id === id));
+}
+
+function getVisibleProcurementStartConflicts() {
+  return (Array.isArray(state.procurementPlanner.startConflicts) ? state.procurementPlanner.startConflicts : [])
+    .map((conflict) => {
+      const purchaseIds = Array.isArray(conflict?.purchase_ids)
+        ? conflict.purchase_ids.map((id) => String(id || "").trim()).filter(Boolean)
+        : [];
+      const purchaseCodes = Array.isArray(conflict?.purchase_codes)
+        ? conflict.purchase_codes.map((code) => String(code || "").trim())
+        : [];
+      const purchases = purchaseIds.map((purchaseId, index) => {
+        const entry = state.purchases.find((purchase) => purchase.id === purchaseId) || null;
+        const purchaseCode = purchaseCodes[index] || entry?.code || purchaseId;
+        const purchaseStatus = entry?.status || "";
+        const isOpen = ["draft", "ordered"].includes(String(purchaseStatus || "").trim());
+        return {
+          id: purchaseId,
+          code: purchaseCode,
+          status: purchaseStatus,
+          exists: Boolean(entry),
+          isOpen,
+        };
+      });
+      return {
+        productId: String(conflict?.product_id || "").trim(),
+        productName: String(conflict?.product_name || "").trim() || `SP #${String(conflict?.product_id || "").trim()}`,
+        hasCartSourceOverlap: Boolean(conflict?.has_cart_source_overlap),
+        purchases,
+      };
+    })
+    .filter((conflict) => conflict.purchases.length > 1);
 }
 
 function beginSupplierCreateFromProcurement(supplierName) {
@@ -2684,15 +2780,57 @@ function renderProcurementPlanner() {
   const canManage = Boolean(permissions.canManageBatch);
   const canEditBatch = mode === "batch" && isOwner;
   const lockOwner = lock?.owner_username || "";
+  const startConflicts = getVisibleProcurementStartConflicts();
   const statusClass = mode === "batch" ? "warning" : "draft";
   const lockText = mode === "batch"
     ? `Đang khóa bởi ${lockOwner || "không rõ"} đến ${formatDate(lock?.expires_at || lock?.expiresAt || "")}`
     : "Daily mode: vẫn xử lý nhanh theo từng đơn nếu policy cho phép.";
+  const conflictMarkup = startConflicts.length ? `
+    <div class="stack-block" data-procurement-start-conflicts>
+      <div class="subheading">
+        <div>
+          <p class="panel-kicker">Conflict phiếu nhập mở</p>
+          <h3>Cần dọn trước khi bắt đầu kỳ gom</h3>
+          <p class="panel-note">Một sản phẩm đang bị cover bởi nhiều phiếu nhập mở. Bấm vào mã phiếu để mở và xử lý.</p>
+        </div>
+        <div class="inline-menu-actions">
+          <button type="button" class="ghost-button compact-button" data-procurement-conflict-action="dismiss">Ẩn danh sách</button>
+        </div>
+      </div>
+      ${startConflicts.map((conflict) => `
+        <article class="cart-item-card">
+          <div class="cart-item-main">
+            <div>
+              <strong>${escapeHtml(conflict.productName)}</strong>
+              <p class="meta">${escapeHtml(conflict.hasCartSourceOverlap ? "Có chồng lấn với ít nhất một phiếu nguồn từ đơn hàng." : "Đang có nhiều phiếu draft/ordered cùng cover sản phẩm này.")}</p>
+            </div>
+            <div class="cart-item-actions">
+              <span class="pill warning">${escapeHtml(String(conflict.purchases.length))} phiếu mở</span>
+            </div>
+          </div>
+          <div class="cart-queue-list">
+            ${conflict.purchases.map((purchase) => `
+              <button
+                type="button"
+                class="ghost-button compact-button"
+                data-procurement-conflict-action="open-purchase"
+                data-purchase-id="${escapeHtml(purchase.id)}"
+                ${!purchase.exists || !purchase.isOpen ? "disabled" : ""}
+              >
+                ${escapeHtml(`${purchase.code}${purchase.status ? ` · ${purchase.status}` : ""}`)}
+              </button>
+            `).join("")}
+          </div>
+        </article>
+      `).join("")}
+    </div>
+  ` : "";
 
   procurementStatusPanel.className = `inline-alert ${statusClass}`;
   procurementStatusPanel.innerHTML = `
     <strong>${mode === "batch" ? "Batch mode" : "Daily mode"}</strong>
     <span>${escapeHtml(lockText)}</span>
+    ${conflictMarkup}
   `;
   if (procurementStartBatchButton) {
     procurementStartBatchButton.disabled = !canManage || mode === "batch";
@@ -4970,10 +5108,16 @@ procurementStartBatchButton?.addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({}),
     });
+    state.procurementPlanner.startConflicts = [];
     updateProcurementStatus(payload);
     await refreshProcurementPlanner();
     showToast(payload.message || "Đã bắt đầu kỳ gom nhập.");
   } catch (error) {
+    if (error?.payload?.code === "procurement_batch_start_conflicts") {
+      state.procurementPlanner.startConflicts = Array.isArray(error.payload.conflicts) ? error.payload.conflicts : [];
+      renderProcurementPlanner();
+      procurementStatusPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
     showToast(error.message, true);
   }
 });
@@ -5147,6 +5291,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       state.menuHistoryIndex = 0;
       renderAll();
       startAutoRefreshLoop();
+      startProcurementLockHeartbeatLoop();
       return;
     }
     const payload = await refreshData({ sessionAlreadyLoaded: true });
@@ -5158,7 +5303,27 @@ window.addEventListener("DOMContentLoaded", async () => {
       await refreshData();
     }
     startAutoRefreshLoop();
+    startProcurementLockHeartbeatLoop();
   } catch (error) {
     showToast(error.message, true);
+  }
+});
+
+procurementStatusPanel?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-procurement-conflict-action]");
+  if (!button) return;
+  const action = button.dataset.procurementConflictAction;
+  if (action === "dismiss") {
+    state.procurementPlanner.startConflicts = [];
+    renderProcurementPlanner();
+    return;
+  }
+  if (action === "open-purchase") {
+    try {
+      openPurchaseDocumentById(button.dataset.purchaseId);
+      showToast("Đã mở phiếu nhập cần dọn conflict.");
+    } catch (error) {
+      showToast(error.message, true);
+    }
   }
 });

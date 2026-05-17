@@ -59,6 +59,7 @@ export const state = {
     scope: { type: "all", code: "" },
     loading: false,
     selections: {},
+    startConflicts: [],
     reviewOpen: false,
     reviewPurchaseIds: [],
     reviewIndex: 0,

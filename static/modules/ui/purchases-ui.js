@@ -19,6 +19,9 @@ export function createPurchasesUi(deps) {
     canReceivePurchase,
     isLockedPurchase,
     isRepairableInvalidPurchase,
+    isPurchaseStructureLockedByProcurementBatch,
+    canManageProcurementBatchStructure,
+    isProcurementBatchModeActive,
     getPurchaseSuggestions,
     resolvePurchaseItemExpiryMeta,
     isSearchResultMode,
@@ -58,10 +61,15 @@ export function createPurchasesUi(deps) {
   function renderPurchaseEntryState() {
     const activePurchase = getActivePurchase();
     const compactActive = mobileQuery.matches && Boolean(activePurchase);
+    const structureLocked = isPurchaseStructureLockedByProcurementBatch(activePurchase);
     dom.purchasesSection?.classList.toggle("has-active-purchase", compactActive);
     dom.purchaseCustomerCard?.classList.toggle("is-compact-active", compactActive);
     if (dom.createPurchaseDraftButton) {
       dom.createPurchaseDraftButton.textContent = compactActive ? "Đổi phiếu" : (mobileQuery.matches ? "Tạo phiếu" : "Tạo phiếu nháp");
+      dom.createPurchaseDraftButton.disabled = structureLocked;
+      dom.createPurchaseDraftButton.title = structureLocked
+        ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo/sửa phiếu nhập nháp hoặc đã đặt."
+        : "";
     }
   }
 
@@ -85,12 +93,24 @@ export function createPurchasesUi(deps) {
   function renderPurchasePanel() {
     dom.createPurchaseDraftButton.textContent = mobileQuery.matches ? "Tạo phiếu" : "Tạo phiếu nháp";
     const purchase = getActivePurchase();
+    const structureLocked = isPurchaseStructureLockedByProcurementBatch(purchase);
+    const procurementBatchReadOnly = isProcurementBatchModeActive() && !canManageProcurementBatchStructure();
     const purchaseSupplierEditable = canEditPurchaseSupplier(purchase);
+    if (dom.createPurchaseDraftButton) {
+      dom.createPurchaseDraftButton.disabled = structureLocked;
+      dom.createPurchaseDraftButton.title = structureLocked
+        ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo/sửa phiếu nhập nháp hoặc đã đặt."
+        : "";
+    }
     if (dom.purchaseSupplierMenuButton) {
       dom.purchaseSupplierMenuButton.textContent = mobileQuery.matches ? "NCC" : "Nhà cung cấp";
       dom.purchaseSupplierMenuButton.disabled = Boolean(purchase) && !purchaseSupplierEditable;
       dom.purchaseSupplierMenuButton.title = purchase && !purchaseSupplierEditable
-        ? "Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp."
+        ? (
+          structureLocked
+            ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được sửa phiếu nhập nháp hoặc đã đặt."
+            : "Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp."
+        )
         : "";
     }
     dom.togglePurchasePanelButton.textContent = mobileQuery.matches
@@ -107,7 +127,7 @@ export function createPurchasesUi(deps) {
       return;
     }
     if (!purchase) {
-      dom.purchasePanel.innerHTML = `<div class="empty-state">Chưa có phiếu nhập nào đang mở.<div class="row-actions"><button type="button" class="ghost-button compact-button" data-purchase-panel-action="create">Tạo phiếu nhập nháp</button></div></div>`;
+      dom.purchasePanel.innerHTML = `<div class="empty-state">Chưa có phiếu nhập nào đang mở.<div class="row-actions"><button type="button" class="ghost-button compact-button" data-purchase-panel-action="create" ${structureLocked ? "disabled" : ""}>Tạo phiếu nhập nháp</button></div>${structureLocked ? '<div class="cart-line-note">Batch mode đang bật: chỉ người giữ khóa batch hoặc Master Admin mới được tạo phiếu nhập nháp/đã đặt.</div>' : ""}</div>`;
       return;
     }
     const purchaseStatusMeta = getPurchaseStatusMeta(purchase);
@@ -206,6 +226,7 @@ export function createPurchasesUi(deps) {
             </article>
           </div>
         ` : ""}
+        ${procurementBatchReadOnly && ["draft", "ordered"].includes(purchase.status) ? `<article class="inline-alert warning">Batch mode đang bật. Bạn chỉ được xem phiếu nháp/đã đặt này; tạo mới, đổi NCC, sửa dòng, đổi giảm giá, hủy hoặc xóa chỉ dành cho người giữ khóa batch hoặc Master Admin. Nếu cần tiếp tục logistics, bạn vẫn có thể dùng bước Nhập kho khi phiếu đã Đã đặt.</article>` : ""}
         ${repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đang ở trạng thái lỗi dữ liệu: marker xử lý và trạng thái hiện tại không còn khớp nhau. Có thể hủy hoặc xóa để dọn dữ liệu lỗi, app sẽ không khôi phục lại thành nháp.</article>` : ""}
         ${purchaseLocked && !repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
         <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">
@@ -262,7 +283,7 @@ export function createPurchasesUi(deps) {
             <span>SL</span>
             <input class="qty-input" type="number" min="0.01" step="0.01" value="${entry.suggestedQuantity || entry.shortageFromOrders || 1}" data-purchase-suggestion-qty-input="${entry.product.id}" aria-label="Số lượng thêm vào phiếu cho ${escapeHtml(entry.product.name)}">
           </label>
-          <button type="button" class="ghost-button compact-button" data-purchase-suggestion-action="add" data-product-id="${entry.product.id}" data-quantity="${entry.suggestedQuantity || entry.shortageFromOrders || 1}">+ Phiếu</button>
+          <button type="button" class="ghost-button compact-button" data-purchase-suggestion-action="add" data-product-id="${entry.product.id}" data-quantity="${entry.suggestedQuantity || entry.shortageFromOrders || 1}" ${isPurchaseStructureLockedByProcurementBatch() ? "disabled" : ""}>+ Phiếu</button>
         </div>
       </article>
     `).join("") + bottomPagination;

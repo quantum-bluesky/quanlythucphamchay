@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
 from .constants import ADMIN_SESSION_COOKIE, APP_NAME, JS_ASSET_VERSIONS_PATH, STATIC_DIR
 from .js_asset_versions import JavaScriptAssetVersionManager
-from .store import SyncConflictError
+from .store import ProcurementBatchStartConflictError, SyncConflictError
 
 
 def create_handler(store, admin_sessions, system_config: dict | None = None):
@@ -562,11 +562,22 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
                 try:
                     if route == "/api/procurement/batch/start":
-                        result = store.start_procurement_batch(
-                            username=self._get_current_username() or "",
-                            role=self._get_current_role(),
-                            lock_timeout_minutes=self._get_procurement_lock_timeout_minutes(),
-                        )
+                        try:
+                            result = store.start_procurement_batch(
+                                username=self._get_current_username() or "",
+                                role=self._get_current_role(),
+                                lock_timeout_minutes=self._get_procurement_lock_timeout_minutes(),
+                            )
+                        except ProcurementBatchStartConflictError as exc:
+                            self._send_json(
+                                HTTPStatus.BAD_REQUEST,
+                                {
+                                    "error": str(exc),
+                                    "code": "procurement_batch_start_conflicts",
+                                    "conflicts": exc.conflicts,
+                                },
+                            )
+                            return
                         self._send_json(
                             HTTPStatus.OK,
                             {
@@ -907,7 +918,11 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     payload = self._read_json_body()
                     payload["actor"] = payload.get("actor") or self._get_current_actor_name()
                     self._log_sync_debug("PUT /api/state received", payload)
-                    sync_state = store.save_sync_state(payload)
+                    sync_state = store.save_sync_state(
+                        payload,
+                        actor_username=self._get_current_username() or "",
+                        actor_role=self._get_current_role(),
+                    )
                     self._log_sync_debug("PUT /api/state saved", payload)
                     self._send_json(
                         HTTPStatus.OK,

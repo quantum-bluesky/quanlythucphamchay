@@ -87,6 +87,33 @@ export function createPurchasesDomainHelpers(deps) {
     return state.purchases.find((purchase) => purchase.id === state.activePurchaseId) || null;
   }
 
+  function isProcurementBatchModeActive() {
+    return state.procurement?.mode === "batch";
+  }
+
+  function canManageProcurementBatchStructure() {
+    return Boolean(state.admin?.isAdmin || state.procurement?.permissions?.isLockOwner);
+  }
+
+  function isPurchaseStructureLockedByProcurementBatch(purchase = null) {
+    const targetPurchase = purchase || getActivePurchase();
+    if (!targetPurchase) {
+      return isProcurementBatchModeActive() && !canManageProcurementBatchStructure();
+    }
+    return isProcurementBatchModeActive()
+      && !canManageProcurementBatchStructure()
+      && ["draft", "ordered"].includes(String(targetPurchase.status || "").trim());
+  }
+
+  function assertCanMutatePurchaseStructure(message) {
+    if (!isPurchaseStructureLockedByProcurementBatch()) {
+      return;
+    }
+    throw new Error(
+      message || "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo/sửa phiếu nhập nháp hoặc đã đặt."
+    );
+  }
+
   function normalizeSupplierName(value) {
     const cleanValue = String(value || "").trim();
     if (!cleanValue) {
@@ -185,17 +212,33 @@ export function createPurchasesDomainHelpers(deps) {
   }
 
   function canEditPurchase(purchase) {
-    return Boolean(purchase && ["draft", "ordered"].includes(purchase.status));
+    return Boolean(
+      purchase
+      && ["draft", "ordered"].includes(purchase.status)
+      && !isPurchaseStructureLockedByProcurementBatch(purchase)
+    );
   }
 
   function canEditPurchaseExpiryMetadata(purchase) {
-    return Boolean(purchase && ["draft", "ordered", "received"].includes(purchase.status));
+    return Boolean(
+      purchase
+      && (
+        purchase.status === "received"
+        || (
+          ["draft", "ordered"].includes(purchase.status)
+          && !isPurchaseStructureLockedByProcurementBatch(purchase)
+        )
+      )
+    );
   }
 
   function canEditPurchaseDiscount(purchase) {
     return Boolean(
       purchase && (
-        ["draft", "ordered"].includes(purchase.status) ||
+        (
+          ["draft", "ordered"].includes(purchase.status)
+          && !isPurchaseStructureLockedByProcurementBatch(purchase)
+        ) ||
         purchase.status === "received"
       )
     );
@@ -204,18 +247,28 @@ export function createPurchasesDomainHelpers(deps) {
   function canEditPurchaseSupplier(purchase) {
     return Boolean(
       purchase && (
-        purchase.status === "draft" ||
-        (purchase.status === "ordered" && isRepairableInvalidPurchase(purchase))
+        !isPurchaseStructureLockedByProcurementBatch(purchase) && (
+          purchase.status === "draft" ||
+          (purchase.status === "ordered" && isRepairableInvalidPurchase(purchase))
+        )
       )
     );
   }
 
   function canDeletePurchase(purchase) {
-    return Boolean(purchase && (purchase.status === "draft" || isRepairableInvalidPurchase(purchase)));
+    return Boolean(
+      purchase
+      && !isPurchaseStructureLockedByProcurementBatch(purchase)
+      && (purchase.status === "draft" || isRepairableInvalidPurchase(purchase))
+    );
   }
 
   function canCancelPurchase(purchase) {
-    return Boolean(purchase && (["draft", "ordered"].includes(purchase.status) || isRepairableInvalidPurchase(purchase)));
+    return Boolean(
+      purchase
+      && !isPurchaseStructureLockedByProcurementBatch(purchase)
+      && (["draft", "ordered"].includes(purchase.status) || isRepairableInvalidPurchase(purchase))
+    );
   }
 
   function isLockedPurchase(purchase) {
@@ -449,6 +502,7 @@ export function createPurchasesDomainHelpers(deps) {
   }
 
   function deletePurchaseDraftLocally(purchaseId) {
+    assertCanMutatePurchaseStructure();
     const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
     if (!isUnsavedEmptyDraftPurchase(purchase)) {
       throw new Error("Chỉ phiếu nháp tạm đang trống mới được xóa trực tiếp trên màn hình.");
@@ -543,6 +597,7 @@ export function createPurchasesDomainHelpers(deps) {
   }
 
   function createPurchaseDraftIfMissing(options = {}) {
+    assertCanMutatePurchaseStructure();
     const {
       preferredSupplierName = String(purchaseSupplierInput?.value || "").trim(),
       sourceType = "",
@@ -589,6 +644,7 @@ export function createPurchasesDomainHelpers(deps) {
   }
 
   function applySupplierToActiveDraft(supplierName, options = {}) {
+    assertCanMutatePurchaseStructure();
     const cleanSupplier = String(supplierName || "").trim();
     const nextNote = String(options.note ?? purchaseNoteInput?.value ?? "").trim();
     const activeDraft = state.purchases.find((purchase) => purchase.id === state.activePurchaseId && isDraftPurchase(purchase)) || null;
@@ -742,6 +798,7 @@ export function createPurchasesDomainHelpers(deps) {
   }
 
   function addSuggestionToPurchase(productId, quantity, unitCost, options = {}) {
+    assertCanMutatePurchaseStructure();
     const product = getProductById(productId);
     if (!product) throw new Error("Không tìm thấy sản phẩm.");
     const purchase = createPurchaseDraftIfMissing({
@@ -805,6 +862,7 @@ export function createPurchasesDomainHelpers(deps) {
       showToast("Mặt hàng này đang có nhiều phiếu nhập chờ. Hãy chọn đúng phiếu bên dưới.");
       return;
     }
+    assertCanMutatePurchaseStructure("Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo phiếu nhập mới từ màn Nhập hàng.");
     addSuggestionToPurchase(
       product.id,
       Math.max(1, product.low_stock_threshold || 1),
@@ -837,6 +895,9 @@ export function createPurchasesDomainHelpers(deps) {
     isUnsavedEmptyDraftPurchase,
     canCancelPurchase,
     isLockedPurchase,
+    isPurchaseStructureLockedByProcurementBatch,
+    canManageProcurementBatchStructure,
+    isProcurementBatchModeActive,
     updatePurchase,
     getIncomingPurchaseByProductId,
     getOpenPurchaseCountByProductId,

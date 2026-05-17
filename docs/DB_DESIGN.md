@@ -327,6 +327,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS audit_logs` trong `qltpchay/store.py`.
 
 - unique partial index trên `(product_id, mode)` khi `released_at IS NULL`, nên một sản phẩm thiếu chỉ có một assignment active trong batch mode
 - khi tạo purchase từ planner, backend gom các dòng cùng NCC vào cùng purchase `draft`, tạo assignment trong cùng transaction và reuse purchase batch `draft` đang mở của NCC đó nếu có
+- assignment active sẽ được release khi phiếu batch chuyển `received`, bị `cancelled`, bị xóa, hoặc dòng sản phẩm bị gỡ khỏi phiếu batch
 - assignment chỉ đại diện cho logistics gom nhập; tồn kho thật vẫn chỉ tăng khi purchase đi qua bước `Nhập kho`
 
 ## 11. Cách tính tồn kho
@@ -391,6 +392,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - Batch procurement mode được suy ra từ `workflow_locks.lock_key = procurement_batch` còn hiệu lực
 - `procurement_assignments` chặn tạo trùng nhiều phiếu nhập mở cho cùng một sản phẩm thiếu trong batch mode
 - phiếu nhập batch có `source_type = procurement_batch`; nhiều assignment có thể cùng trỏ tới một purchase nếu cùng NCC
+- khi Batch procurement mode còn hiệu lực, chỉ lock owner hoặc `Master Admin` mới được mutate cấu trúc `purchases` ở trạng thái `draft/ordered`; user khác chỉ được phép đi tiếp các bước hậu cần đã chốt như `received/paid`
 
 ## 14. Config liên quan
 

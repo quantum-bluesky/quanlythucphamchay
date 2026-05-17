@@ -97,33 +97,38 @@ Lưu ý:
 | 71 | `UT-JSVER-01` | Kiểm tra manifest version của từng file `.js` tăng đúng theo lần đổi nội dung và tự reset về `1` khi version chính đổi. |
 | 72 | `UT-AUD-04` | Kiểm tra import master sản phẩm ghi đúng actor cho các log `restore` và `update`. |
 | 73 | `UT-HIS-03` | Kiểm tra lịch sử sản phẩm ghi rõ từng field đổi và giá trị cũ/mới khi sửa inline. |
-| 72 | `UT-JSVER-02` | Kiểm tra entrypoint HTML và các import module con đều được rewrite sang URL có query `?v=version-chính.N`. |
-| 73 | `UT-JSVER-03` | Kiểm tra manifest client JS đang dùng đúng `version` chính lấy từ `data/system_config.json`. |
-| 74 | `UT-JSVER-04` | Kiểm tra thay đổi line ending `LF <-> CRLF` không làm tăng counter version của file `.js`. |
-| 75 | `UT-JSVER-05` | Kiểm tra manifest cũ lưu raw hash `CRLF` được migrate sang hash chuẩn hóa line ending mà vẫn giữ nguyên counter. |
-| 76 | `UT-INVSORT-01` | Kiểm tra metadata hạn dùng/bảo quản, score ưu tiên chuẩn hóa, urgency tier và hạn còn lại ước tính ở backend. |
-| 77 | `UT-INVSORT-02` | Kiểm tra master CSV và seed pipe-format hỗ trợ field hạn dùng/bảo quản mới nhưng vẫn tương thích file cũ. |
-| 78 | `IT-INV-SORT-01` | Kiểm tra dropdown sort ở màn tồn kho nằm trong pagination mobile và sắp đúng theo tồn, ưu tiên, hạn còn lại. |
-| 79 | `IT-INV-SORT-02` | Kiểm tra dropdown sort ở màn tồn kho vẫn nằm trong pagination desktop cùng page-size picker. |
-| 80 | `IT-PROD-LIFE-01` | Kiểm tra màn Sản phẩm lưu được metadata hạn dùng/bảo quản từ inline edit và render lại đúng nhãn. |
-| 81 | `UT-SYNC-03` | Kiểm tra đơn đã chốt chưa thanh toán và phiếu nhập đã nhận chưa thanh toán vẫn sửa được `giảm giá khuyến mại`, nhưng sau khi đánh dấu thanh toán thì field này bị khóa lại. |
-| 82 | `UT-DB-12` | Kiểm tra backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `ordered`, và chặn xóa trực tiếp phiếu `ordered`. |
-| 83 | `UT-SYNC-04` | Kiểm tra đơn hàng chặn `draft -> paid`, cho `draft -> cancelled`, cho `completed -> paid`, rồi khóa nhánh mở lại/hạ thanh toán sau khi đã `cancelled/paid`. |
-| 84 | `UT-DB-13` | Kiểm tra backend khi xuất kho sẽ trừ đúng thứ tự FEFO theo HSD thật của các lô và tính lại giá vốn bình quân theo các lô đã bị trừ. |
-| 85 | `UT-DB-14` | Kiểm tra backend phiếu trả NCC có thể chỉ rõ `Mã lô` để trừ đúng lô đó thay vì lấy FEFO chung. |
-| 86 | `UT-DB-15` | Kiểm tra backend chặn phiếu nhập chuyển sang `Đã đặt` hoặc `Đã nhập kho` nếu chưa có nhà cung cấp. |
-| 87 | `ACC-PUR-05` | Kiểm tra UI và API đều chặn phiếu nhập chưa có nhà cung cấp chuyển sang `Đã đặt hàng` hoặc `Nhập kho`. |
-| 88 | `IT-PUR-01` | Kiểm tra card gợi ý ở màn `Nhập hàng` cho đổi nhanh ô `SL` trước khi bấm `+ Phiếu`, và phiếu nháp nhận đúng số lượng vừa nhập. |
-| 89 | `UT-DB-16` | Kiểm tra backend tự tính HSD của dòng phiếu nhập từ `ngày nhập kho + thời gian bảo quản` hoặc từ `ngày sản xuất + thời gian bảo quản`, đồng thời lưu đúng liên kết `purchase_item_id` ở receipt item. |
-| 90 | `UT-DB-17` | Kiểm tra backend cho cập nhật lại HSD/NSX của dòng phiếu `received` và đồng bộ đúng sang `purchase_items`, `inventory_batches`, `inventory_receipt_items` và note transaction. |
-| 91 | `UT-SYNC-05` | Kiểm tra đơn `committed` khóa khách hàng nhưng vẫn cho sửa `ship_address`, đồng thời chặn việc đổi thẳng `committed -> completed` qua sync state. |
-| 92 | `UT-ORD-15` | Kiểm tra flow backend `draft -> committed -> completed`: bước `commit` chưa trừ kho, bước `ship` mới trừ kho và cập nhật trạng thái hoàn tất. |
-| 93 | `UT-DB-18` | Kiểm tra phiếu nhập `ordered` nhưng thiếu nhà cung cấp được nhận diện là dữ liệu lỗi có thể repair để UI cho sửa NCC hoặc xóa/hủy. |
-| 94 | `UT-DB-19` | Kiểm tra `legacy audit` tách đúng phần `safe fixes` và `manual review` khi DB có cart thiếu `paid_at`, purchase thiếu timestamp raw, phiếu `ordered` thiếu NCC, và purchase thiếu `source_code`. |
-| 95 | `UT-DB-20` | Kiểm tra `apply_safe_legacy_fixes()` backfill được `cart.paid_at` và `purchase.received_at`, đồng thời làm sạch lại số lượng anomaly an toàn trong audit. |
-| 96 | `UT-DB-21` | Kiểm tra admin gắn lại `receipt_code` cho purchase legacy `paid` đang thiếu receipt và record biến mất khỏi nhóm repair lỗi tương ứng. |
-| 97 | `UT-DB-22` | Kiểm tra admin gắn lại `cart_id` nguồn cho purchase legacy thiếu `source_code` và record biến mất khỏi nhóm review link nguồn. |
-| 98 | `UT-PROC-01` | Kiểm tra kỳ gom nhập batch chỉ có một lock active và chỉ owner hiện tại mới kết thúc được lock. |
-| 99 | `UT-PROC-02` | Kiểm tra planner batch gom nhu cầu đơn nháp/chốt theo sản phẩm và chặn tạo nhiều phiếu nhập mở cho cùng một sản phẩm thiếu. |
-| 100 | `UT-PROC-03` | Kiểm tra backend tạo batch nhiều dòng và gom các sản phẩm chọn cùng NCC vào một phiếu nhập batch draft. |
-| 101 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không phải Master Admin. |
+| 74 | `UT-JSVER-02` | Kiểm tra entrypoint HTML và các import module con đều được rewrite sang URL có query `?v=version-chính.N`. |
+| 75 | `UT-JSVER-03` | Kiểm tra manifest client JS đang dùng đúng `version` chính lấy từ `data/system_config.json`. |
+| 76 | `UT-JSVER-04` | Kiểm tra thay đổi line ending `LF <-> CRLF` không làm tăng counter version của file `.js`. |
+| 77 | `UT-JSVER-05` | Kiểm tra manifest cũ lưu raw hash `CRLF` được migrate sang hash chuẩn hóa line ending mà vẫn giữ nguyên counter. |
+| 78 | `UT-INVSORT-01` | Kiểm tra metadata hạn dùng/bảo quản, score ưu tiên chuẩn hóa, urgency tier và hạn còn lại ước tính ở backend. |
+| 79 | `UT-INVSORT-02` | Kiểm tra master CSV và seed pipe-format hỗ trợ field hạn dùng/bảo quản mới nhưng vẫn tương thích file cũ. |
+| 80 | `IT-INV-SORT-01` | Kiểm tra dropdown sort ở màn tồn kho nằm trong pagination mobile và sắp đúng theo tồn, ưu tiên, hạn còn lại. |
+| 81 | `IT-INV-SORT-02` | Kiểm tra dropdown sort ở màn tồn kho vẫn nằm trong pagination desktop cùng page-size picker. |
+| 82 | `IT-PROD-LIFE-01` | Kiểm tra màn Sản phẩm lưu được metadata hạn dùng/bảo quản từ inline edit và render lại đúng nhãn. |
+| 83 | `UT-SYNC-03` | Kiểm tra đơn đã chốt chưa thanh toán và phiếu nhập đã nhận chưa thanh toán vẫn sửa được `giảm giá khuyến mại`, nhưng sau khi đánh dấu thanh toán thì field này bị khóa lại. |
+| 84 | `UT-DB-12` | Kiểm tra backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `ordered`, và chặn xóa trực tiếp phiếu `ordered`. |
+| 85 | `UT-SYNC-04` | Kiểm tra đơn hàng chặn `draft -> paid`, cho `draft -> cancelled`, cho `completed -> paid`, rồi khóa nhánh mở lại/hạ thanh toán sau khi đã `cancelled/paid`. |
+| 86 | `UT-DB-13` | Kiểm tra backend khi xuất kho sẽ trừ đúng thứ tự FEFO theo HSD thật của các lô và tính lại giá vốn bình quân theo các lô đã bị trừ. |
+| 87 | `UT-DB-14` | Kiểm tra backend phiếu trả NCC có thể chỉ rõ `Mã lô` để trừ đúng lô đó thay vì lấy FEFO chung. |
+| 88 | `UT-DB-15` | Kiểm tra backend chặn phiếu nhập chuyển sang `Đã đặt` hoặc `Đã nhập kho` nếu chưa có nhà cung cấp. |
+| 89 | `ACC-PUR-05` | Kiểm tra UI và API đều chặn phiếu nhập chưa có nhà cung cấp chuyển sang `Đã đặt hàng` hoặc `Nhập kho`. |
+| 90 | `IT-PUR-01` | Kiểm tra card gợi ý ở màn `Nhập hàng` cho đổi nhanh ô `SL` trước khi bấm `+ Phiếu`, và phiếu nháp nhận đúng số lượng vừa nhập. |
+| 91 | `UT-DB-16` | Kiểm tra backend tự tính HSD của dòng phiếu nhập từ `ngày nhập kho + thời gian bảo quản` hoặc từ `ngày sản xuất + thời gian bảo quản`, đồng thời lưu đúng liên kết `purchase_item_id` ở receipt item. |
+| 92 | `UT-DB-17` | Kiểm tra backend cho cập nhật lại HSD/NSX của dòng phiếu `received` và đồng bộ đúng sang `purchase_items`, `inventory_batches`, `inventory_receipt_items` và note transaction. |
+| 93 | `UT-SYNC-05` | Kiểm tra đơn `committed` khóa khách hàng nhưng vẫn cho sửa `ship_address`, đồng thời chặn việc đổi thẳng `committed -> completed` qua sync state. |
+| 94 | `UT-ORD-15` | Kiểm tra flow backend `draft -> committed -> completed`: bước `commit` chưa trừ kho, bước `ship` mới trừ kho và cập nhật trạng thái hoàn tất. |
+| 95 | `UT-DB-18` | Kiểm tra phiếu nhập `ordered` nhưng thiếu nhà cung cấp được nhận diện là dữ liệu lỗi có thể repair để UI cho sửa NCC hoặc xóa/hủy. |
+| 96 | `UT-DB-19` | Kiểm tra `legacy audit` tách đúng phần `safe fixes` và `manual review` khi DB có cart thiếu `paid_at`, purchase thiếu timestamp raw, phiếu `ordered` thiếu NCC, và purchase thiếu `source_code`. |
+| 97 | `UT-DB-20` | Kiểm tra `apply_safe_legacy_fixes()` backfill được `cart.paid_at` và `purchase.received_at`, đồng thời làm sạch lại số lượng anomaly an toàn trong audit. |
+| 98 | `UT-DB-21` | Kiểm tra admin gắn lại `receipt_code` cho purchase legacy `paid` đang thiếu receipt và record biến mất khỏi nhóm repair lỗi tương ứng. |
+| 99 | `UT-DB-22` | Kiểm tra admin gắn lại `cart_id` nguồn cho purchase legacy thiếu `source_code` và record biến mất khỏi nhóm review link nguồn. |
+| 100 | `UT-PROC-01` | Kiểm tra kỳ gom nhập batch chỉ có một lock active và chỉ owner hiện tại mới kết thúc được lock. |
+| 101 | `UT-PROC-02` | Kiểm tra planner batch gom nhu cầu đơn nháp/chốt theo sản phẩm và chặn tạo nhiều phiếu nhập mở cho cùng một sản phẩm thiếu. |
+| 102 | `UT-PROC-03` | Kiểm tra backend tạo batch nhiều dòng và gom các sản phẩm chọn cùng NCC vào một phiếu nhập batch draft. |
+| 103 | `UT-PROC-04` | Kiểm tra user không giữ khóa batch bị chặn sửa phiếu nhập `draft/ordered`, nhưng vẫn được đi tiếp các bước hậu cần `received/paid` khi phiếu đã chốt đúng workflow. |
+| 104 | `UT-PROC-05` | Kiểm tra assignment batch tự release khi phiếu batch bị hủy hoặc đã chuyển sang trạng thái `received`. |
+| 105 | `UT-PROC-06` | Kiểm tra backend chặn `Bắt đầu kỳ gom nhập` nếu đang có nhiều phiếu nhập mở cover cùng một sản phẩm, đặc biệt khi có phiếu nguồn từ đơn hàng chồng lấn với phiếu khác. |
+| 106 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không phải Master Admin. |
+| 107 | `IT-PROC-01` | Kiểm tra UI planner khi bị chặn `Bắt đầu kỳ gom` sẽ hiện danh sách conflict và cho bấm mở đúng các phiếu nhập mở liên quan để dọn. |
+| 108 | `IT-PROC-02` | Kiểm tra user không giữ khóa batch vào màn `Nhập hàng` sẽ bị khóa create/edit cấu trúc phiếu `draft/ordered`, nhưng vẫn thấy bước hậu cần hợp lệ như `Nhập kho`. |
