@@ -209,15 +209,18 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 
 - header phiếu nhập
 - cột chính:
-  - `id`, `supplier_id`, `supplier_name`
-  - `note`, `source_type`, `source_code`, `source_name`, `status`, `discount_amount`
-  - `created_at`, `updated_at`, `received_at`, `paid_at`
-  - `receipt_code`
+- `id`, `supplier_id`, `supplier_name`
+- `note`, `source_type`, `source_code`, `source_name`, `status`, `discount_amount`
+- `created_at`, `updated_at`, `ordered_at`, `received_at`, `paid_at`
+- `receipt_code`
 
 ### Vai trò nghiệp vụ bổ sung
 
 - `discount_amount` là giảm giá khuyến mại ở cấp toàn phiếu nhập
 - không đổi tồn kho đã nhận hay từng dòng nhập, chỉ ảnh hưởng số tiền thực trả NCC và báo cáo chi nhập net
+- `ordered_at` giữ mốc phiếu chuyển sang `ordered` lần đầu để các rule batch mode vẫn nhận diện đúng phiếu đã đặt từ trước, kể cả khi owner/admin sửa phiếu sau đó làm `updated_at` thay đổi
+- với DB cũ chưa có `ordered_at`, migration sẽ ưu tiên backfill từ audit status-change; nếu vẫn không có dấu vết đặt hàng thì chỉ fallback về `created_at` cho các phiếu còn dấu hiệu đã đi vào nhánh `ordered/received/paid`
+- phiếu `draft -> cancelled` chưa từng qua `ordered` không được tự sinh `ordered_at` chỉ vì đang ở trạng thái `cancelled`
 - khi load sync state, backend phải suy ra thêm cờ repair cho phiếu nhập legacy lỗi dữ liệu, tối thiểu gồm:
   - phiếu `paid` nhưng không tìm được receipt nhập kho hợp lệ
   - phiếu `draft/ordered` còn marker `received_at` / `paid_at` / `receipt_code` không khớp workflow mở

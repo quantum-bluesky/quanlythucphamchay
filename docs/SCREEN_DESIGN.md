@@ -19,6 +19,7 @@ Tài liệu common liên quan:
 
 - [DB_DESIGN.md](DB_DESIGN.md)
 - [BUSINESS_FLOW.md](BUSINESS_FLOW.md)
+- [STATUS_TRANSITION_TABLE.md](STATUS_TRANSITION_TABLE.md)
 
 Liên kết detail hiện có:
 
@@ -34,6 +35,7 @@ Liên kết detail hiện có:
 - popup/help phải đóng được và có liên kết qua lại giữa các màn liên quan
 - luồng chính ưu tiên thao tác nhanh cho cửa hàng nhỏ
 - với action có ghi dữ liệu lên server hoặc đồng bộ SQLite/state, UI phải hiện loading overlay toàn cục và khóa tạm thao tác còn lại cho tới khi trạng thái mới render xong để tránh bấm chồng
+- khi Batch procurement mode còn active lock, các màn liên quan như `inventory`, `create-order`, `orders`, `purchases`, `suppliers`, `procurement-planner` phải hiện cảnh báo ngắn cho biết owner của lock, thời điểm hết hạn gần nhất và impact chính trên màn hiện tại
 
 ## 2. Danh sách màn hình
 
@@ -63,6 +65,7 @@ Liên kết detail hiện có:
   - mode `Hạn còn ít` hiển thị theo HSD thật của lô gần nhất nếu có; chỉ fallback về ước tính sản phẩm khi chưa có lô nào có HSD
   - khối `Lịch sử gần đây` mặc định thu gọn, có nút `Mở lịch sử/Thu gọn`
   - nếu dòng lịch sử có mã `DH/PN/DC/THK/TNCC` thì mã đó là link nội bộ để mở đúng chứng từ liên quan
+  - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết thiếu hàng sẽ đi qua planner batch thay vì flow nhập thiếu nhanh
 
 ### `create-order` - Tạo đơn xuất hàng
 
@@ -91,6 +94,7 @@ Liên kết detail hiện có:
   - khi chốt đơn, hệ thống được phép tính thêm phần hàng đã nằm trong phiếu nhập `Đã đặt`; chỉ khi phần thiếu còn lại chưa được `Đã đặt` cover đủ thì app mới báo trước khi tạo/cập nhật phiếu nhập
   - nếu phần thiếu mới đang nằm ở phiếu nhập `Nháp` hoặc phiếu mở chưa đặt đủ thì app chỉ mở lại phiếu liên quan sau khi user xác nhận cần chỉnh
   - khi hệ thống đang ở Batch procurement mode, shortage không được auto-create phiếu nhập theo từng cart mà phải chuyển sang màn `procurement-planner`
+  - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết đơn thiếu hàng sẽ được đẩy sang planner batch
 
 ### `orders` - Quản lý đơn hàng
 
@@ -112,6 +116,7 @@ Liên kết detail hiện có:
   - card đơn `completed` chưa thanh toán chỉ còn hiện input `Giảm giá khuyến mại` trong detail
   - trên mobile, `Chốt đơn`, `Xuất hàng` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
   - các nút đổi trạng thái hoặc xóa phiếu như `Chốt đơn`, `Xuất hàng`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
+  - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết các case thiếu hàng sẽ được xử lý tập trung ở planner batch
 
 ### `customers` - Quản lý khách hàng
 
@@ -169,6 +174,7 @@ Liên kết detail hiện có:
   - phiếu `draft` đang trống vẫn phải cho `Xóa phiếu` ngay trên UI dù chưa persist xuống DB
   - nút `Nhập kho` chỉ hiện khi phiếu đã ở trạng thái `Đã đặt`; phiếu `Nháp` vẫn còn chỉnh sửa được nhưng chưa cho nhập kho
   - khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `Nháp/Đã đặt`; user khác chỉ được tiếp tục `Nhập kho` với phiếu không phải batch đã `Đã đặt` trước lúc batch hiện tại bắt đầu, rồi đi tiếp `Đã thanh toán`
+  - màn này phải có cảnh báo active lock riêng để user biết ai đang giữ batch mode và vì sao phiếu `Nháp/Đã đặt` đang bị siết quyền
   - nếu chưa có `Nhà cung cấp`, button `Đã đặt hàng` và `Nhập kho` phải bị khóa; UI cần hiện cảnh báo ngắn để user biết thiếu dữ liệu gì
   - ô NCC và nút `NCC` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
   - khi phiếu còn `Nháp`, bấm nút `NCC` từ một phiếu đã có NCC vẫn phải cho sang danh sách NCC để đổi sang NCC khác, không được kẹt ở chế độ sửa NCC hiện tại
@@ -196,7 +202,7 @@ Liên kết detail hiện có:
   - trước khi acquire lock batch, backend phải audit nhanh conflict phiếu nhập mở theo sản phẩm và chặn vào batch nếu còn cover trùng
   - khi bị chặn bởi conflict đầu kỳ gom, màn planner phải hiện ngay danh sách sản phẩm và các phiếu nhập mở liên quan để user bấm mở xử lý
   - khi Batch mode đang bật, màn `purchases` phải bị khóa phần tạo/sửa cấu trúc phiếu `Nháp/Đã đặt` cho user không giữ khóa để tránh bypass planner
-  - nếu owner rời `procurement-planner`, `purchases` hoặc `suppliers` sang màn ngoài flow khi batch còn active, UI phải hỏi có muốn `Kết thúc kỳ gom` ngay hay không; `OK` thì release lock rồi mới điều hướng, `Cancel` thì ở lại flow
+  - nếu owner rời `procurement-planner`, `purchases` hoặc `suppliers` sang màn ngoài flow khi batch còn active, UI phải hỏi có muốn `Kết thúc kỳ gom` ngay hay không; nếu user không kết thúc batch thì phải hỏi tiếp để chọn `ở lại` hoặc `đi tiếp mà vẫn giữ batch mode`
   - mỗi dòng mặc định chưa tick; chỉ khi tick mới hiện NCC, số lượng và cảnh báo sau nhập
   - trên tablet/desktop hiện thêm input `Giá nhập` và `Giảm KM` để tận dụng không gian rộng hơn
   - khối `Chọn thêm sản phẩm khác` chỉ hiện khi đang ở Batch mode và user là lock owner hoặc `Master Admin`
@@ -218,6 +224,8 @@ Liên kết detail hiện có:
   - search NCC
   - danh sách NCC
   - form tạo/sửa thu gọn
+- nguyên tắc UI:
+  - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo để user biết đang tạo/sửa NCC trong bối cảnh batch mode còn mở
 
 ### `reports` - Báo cáo
 

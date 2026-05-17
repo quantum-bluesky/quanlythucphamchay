@@ -7,7 +7,12 @@ Nguồn tổng hợp:
 - `README.md`
 - `docs/HUONG_DAN_SU_DUNG.md`
 - `docs/WORKFLOW_REVIEW.md`
+- `docs/STATUS_TRANSITION_TABLE.md`
 - `static/modules/screen-config.js`
+
+Tài liệu này mô tả flow theo ngữ cảnh vận hành.
+
+Khi cần confirm nhanh một nhánh `được chuyển / không được chuyển`, ưu tiên tra bảng ở [STATUS_TRANSITION_TABLE.md](STATUS_TRANSITION_TABLE.md) trước.
 
 ## 1. Luồng tổng quát
 
@@ -188,7 +193,8 @@ ordered -> cancelled
 - phiếu tạo từ planner vẫn là purchase `draft`; workflow sau đó giữ nguyên `draft -> ordered -> received -> paid`
 - assignment active của phiếu batch sẽ tự release khi phiếu chuyển sang `received`, bị `cancelled`, bị xóa, hoặc dòng sản phẩm bị gỡ khỏi phiếu
 - khi kết thúc batch, lock được đóng và hệ thống quay về Daily mode
-- nếu owner rời các màn trong flow batch (`procurement-planner`, `purchases`, `suppliers`) sang màn ngoài flow khi lock còn active, UI phải hỏi có muốn kết thúc batch ngay không; `OK` sẽ finish batch và release lock trước khi điều hướng, `Cancel` giữ nguyên batch mode
+- khi lock batch còn active, các màn `inventory`, `create-order`, `orders`, `purchases`, `suppliers`, `procurement-planner` phải hiện cảnh báo cho biết owner của lock và impact chính trên màn hiện tại
+- nếu owner rời các màn trong flow batch (`procurement-planner`, `purchases`, `suppliers`) sang màn ngoài flow khi lock còn active, UI phải hỏi có muốn kết thúc batch ngay không; nếu user không kết thúc batch thì phải hỏi tiếp để chọn `ở lại` hay `chuyển sang màn khác mà vẫn giữ nguyên batch mode`
 
 ## 6. Luồng sửa sai sau khi đã xử lý chứng từ
 

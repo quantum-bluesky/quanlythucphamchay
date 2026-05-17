@@ -235,6 +235,7 @@ class InventoryStore:
                     discount_amount REAL NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
+                    ordered_at TEXT,
                     received_at TEXT,
                     paid_at TEXT,
                     receipt_code TEXT NOT NULL DEFAULT ''
@@ -470,6 +471,41 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE purchases ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0"
                 )
+            if "ordered_at" not in purchase_columns:
+                connection.execute(
+                    "ALTER TABLE purchases ADD COLUMN ordered_at TEXT"
+                )
+            connection.execute(
+                """
+                UPDATE purchases
+                SET ordered_at = (
+                    SELECT MIN(al.created_at)
+                    FROM audit_logs al
+                    WHERE al.entity_type = 'purchase'
+                      AND al.entity_id = purchases.id
+                      AND al.action = 'status-change'
+                      AND al.message LIKE 'Trạng thái phiếu nhập đổi từ % sang ordered.%'
+                )
+                WHERE TRIM(COALESCE(ordered_at, '')) = ''
+                  AND status IN ('ordered', 'received', 'paid', 'cancelled')
+                  AND EXISTS (
+                    SELECT 1
+                    FROM audit_logs al
+                    WHERE al.entity_type = 'purchase'
+                      AND al.entity_id = purchases.id
+                      AND al.action = 'status-change'
+                      AND al.message LIKE 'Trạng thái phiếu nhập đổi từ % sang ordered.%'
+                  )
+                """
+            )
+            connection.execute(
+                """
+                UPDATE purchases
+                SET ordered_at = created_at
+                WHERE TRIM(COALESCE(ordered_at, '')) = ''
+                  AND status IN ('ordered', 'received', 'paid')
+                """
+            )
             if "batch_code" not in purchase_item_columns:
                 connection.execute(
                     "ALTER TABLE purchase_items ADD COLUMN batch_code TEXT NOT NULL DEFAULT ''"
@@ -1417,11 +1453,25 @@ class InventoryStore:
             purchase_rows = connection.execute(
                 """
                 SELECT id, supplier_id, supplier_name, note, source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
-                       received_at, paid_at, receipt_code
+                       ordered_at, received_at, paid_at, receipt_code
                 FROM purchases
                 ORDER BY datetime(updated_at) DESC, id
                 """
             ).fetchall()
+            purchase_ordered_at_by_id = {
+                str(row["entity_id"] or "").strip(): str(row["ordered_at"] or "").strip()
+                for row in connection.execute(
+                    """
+                    SELECT entity_id, MIN(created_at) AS ordered_at
+                    FROM audit_logs
+                    WHERE entity_type = 'purchase'
+                      AND action = 'status-change'
+                      AND message LIKE 'Trạng thái phiếu nhập đổi từ % sang ordered.%'
+                    GROUP BY entity_id
+                    """
+                ).fetchall()
+                if str(row["entity_id"] or "").strip()
+            }
             purchase_receipts_by_code = {
                 str(row["receipt_code"] or "").strip(): row["created_at"]
                 for row in connection.execute(
@@ -1450,6 +1500,11 @@ class InventoryStore:
             for row in purchase_rows:
                 raw_status = row["status"] or "draft"
                 receipt_code = row["receipt_code"] or ""
+                ordered_at = str(row["ordered_at"] or "").strip()
+                if not ordered_at:
+                    ordered_at = purchase_ordered_at_by_id.get(str(row["id"]) or "", "")
+                if not ordered_at and raw_status in {"ordered", "received", "paid"}:
+                    ordered_at = str(row["created_at"] or row["updated_at"] or "").strip()
                 matched_receipt_created_at = purchase_receipts_by_code.get(str(receipt_code).strip(), "")
                 purchase_items = items_by_purchase.get(str(row["id"]), [])
                 received_at = (
@@ -1485,6 +1540,8 @@ class InventoryStore:
                         "discount_amount": round(float(row["discount_amount"] or 0), 2),
                         "createdAt": row["created_at"],
                         "updatedAt": row["updated_at"],
+                        "orderedAt": ordered_at,
+                        "ordered_at": ordered_at,
                         "receivedAt": received_at,
                         "received_at": received_at,
                         "paidAt": paid_at,
@@ -1614,9 +1671,9 @@ class InventoryStore:
                     """
                     INSERT INTO purchases(
                         id, supplier_id, supplier_name, note, source_type, source_code, source_name,
-                        status, discount_amount, created_at, updated_at, received_at, paid_at, receipt_code
+                        status, discount_amount, created_at, updated_at, ordered_at, received_at, paid_at, receipt_code
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         purchase_id,
@@ -1630,6 +1687,7 @@ class InventoryStore:
                         discount_amount,
                         str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
                         str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
+                        str(record.get("orderedAt") or record.get("ordered_at") or ""),
                         record.get("receivedAt") or record.get("received_at"),
                         record.get("paidAt") or record.get("paid_at"),
                         str(record.get("receiptCode") or record.get("receipt_code") or ""),
@@ -3698,6 +3756,18 @@ class InventoryStore:
             return datetime.fromisoformat(clean_value)
         except ValueError:
             return None
+
+    def _resolve_purchase_ordered_at_for_batch_check(self, purchase: dict | None) -> datetime | None:
+        target = purchase or {}
+        return self._parse_iso_datetime(
+            target.get("orderedAt")
+            or target.get("ordered_at")
+            or target.get("updatedAt")
+            or target.get("updated_at")
+            or target.get("createdAt")
+            or target.get("created_at")
+            or ""
+        )
 
     def _refresh_sync_collection_cache(
         self,
@@ -6158,6 +6228,10 @@ class InventoryStore:
                 )
 
             if "purchases" in to_update:
+                to_update["purchases"] = self._preserve_purchase_ordered_timestamps(
+                    existing_collections.get("purchases", []),
+                    to_update["purchases"],
+                )
                 self._audit_purchase_changes(
                     connection,
                     existing_collections.get("purchases", []),
@@ -6227,6 +6301,56 @@ class InventoryStore:
     @staticmethod
     def _get_cart_ship_address(cart: dict) -> str:
         return str(cart.get("shipAddress") or cart.get("ship_address") or "").strip()
+
+    @staticmethod
+    def _get_purchase_ordered_timestamp_text(purchase: dict | None) -> str:
+        target = purchase or {}
+        return str(
+            target.get("orderedAt")
+            or target.get("ordered_at")
+            or ""
+        ).strip()
+
+    def _preserve_purchase_ordered_timestamps(
+        self,
+        existing_purchases: list[dict],
+        incoming_purchases: list[dict],
+    ) -> list[dict]:
+        existing_by_id = {
+            str(purchase.get("id") or ""): purchase
+            for purchase in existing_purchases
+            if purchase.get("id")
+        }
+        prepared: list[dict] = []
+        for purchase in incoming_purchases:
+            next_purchase = dict(purchase)
+            purchase_id = str(next_purchase.get("id") or "").strip()
+            previous = existing_by_id.get(purchase_id)
+            previous_status = str((previous or {}).get("status") or "").strip()
+            next_status = str(next_purchase.get("status") or "draft").strip()
+            previous_ordered_at = self._get_purchase_ordered_timestamp_text(previous)
+            incoming_ordered_at = self._get_purchase_ordered_timestamp_text(next_purchase)
+            fallback_ordered_at = str(
+                next_purchase.get("updatedAt")
+                or next_purchase.get("updated_at")
+                or next_purchase.get("createdAt")
+                or next_purchase.get("created_at")
+                or ""
+            ).strip()
+            resolved_ordered_at = incoming_ordered_at
+            if next_status == "ordered":
+                if previous_status == "ordered":
+                    resolved_ordered_at = previous_ordered_at or incoming_ordered_at or fallback_ordered_at
+                else:
+                    resolved_ordered_at = incoming_ordered_at or fallback_ordered_at
+            elif next_status in {"received", "paid", "cancelled"}:
+                resolved_ordered_at = previous_ordered_at or incoming_ordered_at or fallback_ordered_at
+            else:
+                resolved_ordered_at = previous_ordered_at or incoming_ordered_at
+            next_purchase["orderedAt"] = resolved_ordered_at
+            next_purchase["ordered_at"] = resolved_ordered_at
+            prepared.append(next_purchase)
+        return prepared
 
     def _audit_purchase_changes(
         self,
@@ -6402,13 +6526,7 @@ class InventoryStore:
         if not active_lock:
             return False
         lock_started_at = self._parse_iso_datetime(active_lock.get("acquired_at") or "")
-        purchase_ordered_at = self._parse_iso_datetime(
-            (previous_purchase or {}).get("updatedAt")
-            or (previous_purchase or {}).get("updated_at")
-            or (previous_purchase or {}).get("createdAt")
-            or (previous_purchase or {}).get("created_at")
-            or ""
-        )
+        purchase_ordered_at = self._resolve_purchase_ordered_at_for_batch_check(previous_purchase)
         if not lock_started_at or not purchase_ordered_at or purchase_ordered_at >= lock_started_at:
             return False
         if self._snapshot_purchase_for_receive_lock(previous_purchase or {}) != self._snapshot_purchase_for_receive_lock(next_purchase or {}):

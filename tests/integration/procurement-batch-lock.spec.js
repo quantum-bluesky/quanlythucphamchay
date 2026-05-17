@@ -195,6 +195,8 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
   const prebatchSupplierName = `NCC Batch Lock Manual ${timestamp}`;
   const batchPurchaseId = `purchase_batch_lock_batch_${timestamp}`;
   const prebatchPurchaseId = `purchase_batch_lock_manual_${timestamp}`;
+  const prebatchDraftCreatedAt = "2026-05-16T06:30:00+00:00";
+  const prebatchOrderedAt = "2026-05-16T07:00:00+00:00";
 
   const seededBatchPurchase = {
     id: batchPurchaseId,
@@ -221,10 +223,10 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     id: prebatchPurchaseId,
     supplierName: prebatchSupplierName,
     note: "IT-PROC-02 manual ordered purchase before batch",
-    status: "ordered",
+    status: "draft",
     sourceType: "manual",
-    createdAt: "2026-05-16T07:00:00+00:00",
-    updatedAt: "2026-05-16T07:00:00+00:00",
+    createdAt: prebatchDraftCreatedAt,
+    updatedAt: prebatchDraftCreatedAt,
     items: [
       {
         id: `purchase_batch_lock_manual_item_${timestamp}`,
@@ -249,6 +251,23 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     });
     expect(seedResponse.ok()).toBeTruthy();
 
+    const orderedSeedResponse = await request.put("/api/state", {
+      headers: { Cookie: managerCookie },
+      data: {
+        purchases: [
+          ...(restoredState.purchases || []),
+          seededBatchPurchase,
+          {
+            ...seededPrebatchManualPurchase,
+            status: "ordered",
+            updatedAt: prebatchOrderedAt,
+          },
+        ],
+      },
+    });
+    const orderedSeedPayload = await orderedSeedResponse.json();
+    expect(orderedSeedResponse.ok(), JSON.stringify(orderedSeedPayload)).toBeTruthy();
+
     const startResponse = await request.post("/api/procurement/batch/start", {
       headers: { Cookie: managerCookie },
       data: {},
@@ -256,6 +275,23 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     const startPayload = await startResponse.json();
     expect(startResponse.ok(), JSON.stringify(startPayload)).toBeTruthy();
     batchStarted = true;
+
+    const ownerUpdatedStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
+    expect(ownerUpdatedStateResponse.ok()).toBeTruthy();
+    const ownerUpdatedState = await ownerUpdatedStateResponse.json();
+    const ownerUpdatedPurchases = (ownerUpdatedState.purchases || []).map((purchase) => (
+      purchase.id === prebatchPurchaseId
+        ? { ...purchase, note: "IT-PROC-02 owner updated note after batch started" }
+        : purchase
+    ));
+    const ownerUpdatedResponse = await request.put("/api/state", {
+      headers: { Cookie: managerCookie },
+      data: {
+        purchases: ownerUpdatedPurchases,
+      },
+    });
+    const ownerUpdatedPayload = await ownerUpdatedResponse.json();
+    expect(ownerUpdatedResponse.ok(), JSON.stringify(ownerUpdatedPayload)).toBeTruthy();
 
     await gotoWithRetry(page, "/");
     await page.waitForLoadState("networkidle");
@@ -290,6 +326,11 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     }
     await expect(page.locator("#purchasePanel")).toContainText(prebatchSupplierName);
     await expect(page.locator('[data-purchase-action="receive"]')).toBeEnabled();
+    await page.locator('[data-purchase-action="receive"]').click();
+    await expect(page.locator("#purchasePanel")).toContainText("Đã nhập kho");
+    await expect(page.locator('[data-purchase-action="mark-paid"]')).toBeEnabled();
+    await page.locator('[data-purchase-action="mark-paid"]').click();
+    await expect(page.locator("#purchasePanel")).toContainText("Đã thanh toán");
 
     await switchMenu(page, "procurement-planner");
     await expectScreenTitle(page, "Xử lý nhập thiếu");
@@ -425,7 +466,7 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
   expectNoRuntimeErrors(runtime);
 });
 
-test("IT-PROC-04 leaving procurement flow prompts to finish batch and only exits after owner confirms", async ({ page, request }) => {
+test("IT-PROC-04 leaving procurement flow prompts to finish batch and offers stay-or-switch while lock stays active", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
   const managerCookie = await autoLoginProcurementManagerRequest(request);
   let batchStarted = false;
@@ -447,14 +488,49 @@ test("IT-PROC-04 leaving procurement flow prompts to finish batch and only exits
     await switchMenu(page, "purchases");
     await expectScreenTitle(page, "Nhập hàng");
 
-    let cancelDialogMessage = "";
-    page.once("dialog", async (dialog) => {
-      cancelDialogMessage = dialog.message();
-      await dialog.dismiss();
-    });
+    const stayDialogMessages = [];
+    const stayDialogHandler = async (dialog) => {
+      stayDialogMessages.push(dialog.message());
+      if (stayDialogMessages.length === 1) {
+        await dialog.dismiss();
+        return;
+      }
+      await dialog.accept();
+    };
+    page.on("dialog", stayDialogHandler);
     await switchMenu(page, "inventory");
-    await page.waitForTimeout(600);
-    expect(cancelDialogMessage).toContain("Kỳ gom nhập vẫn đang bật");
+    await page.waitForTimeout(800);
+    page.off("dialog", stayDialogHandler);
+    expect(stayDialogMessages[0]).toContain("Kỳ gom nhập vẫn đang bật");
+    expect(stayDialogMessages[1]).toContain("Batch mode vẫn đang active lock");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    const keepBatchDialogMessages = [];
+    const keepBatchDialogHandler = async (dialog) => {
+      keepBatchDialogMessages.push(dialog.message());
+      await dialog.dismiss();
+    };
+    page.on("dialog", keepBatchDialogHandler);
+    await switchMenu(page, "inventory");
+    await page.waitForTimeout(800);
+    page.off("dialog", keepBatchDialogHandler);
+    expect(keepBatchDialogMessages[0]).toContain("Kỳ gom nhập vẫn đang bật");
+    expect(keepBatchDialogMessages[1]).toContain("Batch mode vẫn đang active lock");
+    await expectScreenTitle(page, "Kiểm tra tồn kho");
+
+    const activeLockBanner = page.locator('[data-procurement-lock-alert="inventory"]');
+    await expect(activeLockBanner).toBeVisible();
+    await expect(activeLockBanner).toContainText("Kỳ gom nhập đang active lock");
+    await expect(activeLockBanner).toContainText("Xử lý nhập thiếu");
+
+    const batchStatusResponse = await request.get("/api/procurement/status", {
+      headers: { Cookie: managerCookie },
+    });
+    expect(batchStatusResponse.ok()).toBeTruthy();
+    const batchStatusPayload = await batchStatusResponse.json();
+    expect(batchStatusPayload.mode).toBe("batch");
+
+    await switchMenu(page, "purchases");
     await expectScreenTitle(page, "Nhập hàng");
 
     let acceptDialogMessage = "";

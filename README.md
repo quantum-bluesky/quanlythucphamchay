@@ -12,6 +12,7 @@ App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/ql
 - Design màn hình chung: [docs/SCREEN_DESIGN.md](docs/SCREEN_DESIGN.md)
 - Design database: [docs/DB_DESIGN.md](docs/DB_DESIGN.md)
 - Business flow: [docs/BUSINESS_FLOW.md](docs/BUSINESS_FLOW.md)
+- Bảng chuyển trạng thái: [docs/STATUS_TRANSITION_TABLE.md](docs/STATUS_TRANSITION_TABLE.md)
 - Design hiển thị phiếu: [docs/PHIEU_DISPLAY_DESIGN.md](docs/PHIEU_DISPLAY_DESIGN.md)
 - Thiết kế Issue 110 - Chốt đơn / Đã xuất hàng: [docs/ISSUE_110_ORDER_COMMIT_DESIGN.md](docs/ISSUE_110_ORDER_COMMIT_DESIGN.md)
 - Thiết kế Issue 113 - Batch procurement mode / Xử lý nhập thiếu: [docs/ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md](docs/ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md)
@@ -121,10 +122,11 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Trước khi bắt đầu kỳ gom nhập, app sẽ audit nhanh các phiếu nhập mở; nếu một sản phẩm đang bị cover bởi nhiều phiếu mở thì phải dọn conflict trước khi acquire lock
 - Khi bị chặn vì conflict đầu kỳ gom, màn planner sẽ hiện ngay danh sách sản phẩm và các mã phiếu nhập mở liên quan để bấm sang màn `Nhập hàng` xử lý
 - Planner batch cho tick chọn nhiều mặt hàng, chọn NCC từ danh bạ, chỉnh số lượng/giá nhập/giảm giá, rồi gom các mặt hàng cùng NCC vào một phiếu nhập nháp
+- Khi kỳ gom nhập còn active lock, các màn `Tồn kho`, `Xuất hàng`, `Đơn hàng`, `Nhập hàng`, `Nhà cung cấp` sẽ hiện cảnh báo đang ở Batch mode, ai đang giữ lock và màn đó bị ảnh hưởng gì
 - Trong Batch mode, người giữ khóa còn có thể mở khối `Chọn thêm sản phẩm khác` để tick chọn nhanh các mặt hàng ngoài nhu cầu đơn trên một danh sách riêng; khối này ưu tiên các sản phẩm đã có trên planner nhưng `Cần nhập = 0`, sau đó hiện tiếp toàn bộ sản phẩm active còn lại ngoài planner
 - Các dòng extra được tick sẽ có badge `Ngoài nhu cầu đơn`, không tham gia tính `Cần nhập`, nhưng vẫn được gom chung theo NCC
 - Các dòng `Ngoài nhu cầu đơn` không tạo `procurement_assignment`; rule `mỗi sản phẩm thiếu chỉ có một assignment active` chỉ tiếp tục áp dụng cho các dòng shortage
-- Nếu owner rời các màn trong flow xử lý batch sang màn ngoài flow khi kỳ gom vẫn còn mở, app sẽ hỏi có muốn `Kết thúc kỳ gom` ngay hay không; chọn `OK` sẽ release lock trước khi điều hướng, chọn `Cancel` sẽ giữ nguyên batch mode
+- Nếu owner rời các màn trong flow xử lý batch sang màn ngoài flow khi kỳ gom vẫn còn mở, app sẽ hỏi có muốn `Kết thúc kỳ gom` ngay hay không; nếu không kết thúc thì app hỏi tiếp để chọn `ở lại` hoặc `chuyển sang màn khác mà vẫn giữ nguyên batch mode`
 - Nếu NCC chưa có trong danh bạ, app hỏi để chuyển sang màn `Nhà cung cấp` tạo mới, lưu xong quay lại planner để chọn tiếp
 - Sau khi tạo phiếu batch, có màn review detail với nút `Trước / Sau` để chỉnh nhanh các phiếu vừa tạo rồi quay lại planner refresh trạng thái
 - Quyền xử lý kỳ gom nhập có thể cấp cho `Master Admin`, user có permission `procurement_batch_manage`, hoặc username nằm trong config `procurement.planner_manager_usernames`
