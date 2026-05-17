@@ -2665,6 +2665,219 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(assignments[product_one["id"]], purchase["id"])
         self.assertEqual(assignments[product_two["id"]], purchase["id"])
 
+    def test_ut_proc_04_non_owner_cannot_edit_batch_purchase_draft_but_can_receive_and_pay(self) -> None:
+        product = self.store.create_product(
+            name="Đậu hũ lock batch",
+            category="Đồ chay",
+            unit="gói",
+            price=15000,
+            sale_price=22000,
+            low_stock_threshold=0,
+        )
+        self.store.save_sync_state(
+            {
+                "suppliers": [{"id": "supplier-lock-batch", "name": "NCC lock batch"}],
+                "carts": [
+                    {
+                        "id": "cart-lock-batch",
+                        "customerName": "Khách lock batch",
+                        "status": "draft",
+                        "items": [
+                            {
+                                "id": "cart-item-lock-batch",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 4,
+                                "unitPrice": 22000,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        self.store.start_procurement_batch(
+            username="bizmanager",
+            role="user",
+            lock_timeout_minutes=30,
+        )
+        created = self.store.create_procurement_purchase_for_product(
+            product_id=product["id"],
+            quantity=4,
+            supplier_name="NCC lock batch",
+            actor="bizmanager",
+            role="user",
+        )
+
+        sync_state = self.store.get_sync_state()
+        edited_purchases = copy.deepcopy(sync_state["purchases"])
+        edited_purchases[0]["items"][0]["quantity"] = 6
+        with self.assertRaisesRegex(ValueError, "Chỉ người giữ khóa batch"):
+            self.store.save_sync_state(
+                {"purchases": edited_purchases},
+                actor_username="staff",
+                actor_role="user",
+            )
+
+        ordered_purchases = copy.deepcopy(sync_state["purchases"])
+        ordered_purchases[0]["status"] = "ordered"
+        self.store.save_sync_state(
+            {"purchases": ordered_purchases},
+            actor_username="bizmanager",
+            actor_role="user",
+        )
+
+        received_sync_state = self.store.get_sync_state()
+        received_purchases = copy.deepcopy(received_sync_state["purchases"])
+        received_purchases[0]["status"] = "received"
+        received_purchases[0]["receivedAt"] = "2026-05-17T09:00:00+00:00"
+        received_purchases[0]["received_at"] = "2026-05-17T09:00:00+00:00"
+        self.store.save_sync_state(
+            {"purchases": received_purchases},
+            actor_username="warehouse",
+            actor_role="user",
+        )
+
+        planner_after_receive = self.store.get_procurement_planner(scope_type="all")
+        row_after_receive = next(
+            row for row in planner_after_receive["rows"]
+            if row["product_id"] == product["id"]
+        )
+        self.assertIsNone(row_after_receive["assignment"])
+
+        paid_sync_state = self.store.get_sync_state()
+        paid_purchases = copy.deepcopy(paid_sync_state["purchases"])
+        paid_purchases[0]["status"] = "paid"
+        paid_purchases[0]["paidAt"] = "2026-05-17T10:00:00+00:00"
+        paid_purchases[0]["paid_at"] = "2026-05-17T10:00:00+00:00"
+        self.store.save_sync_state(
+            {"purchases": paid_purchases},
+            actor_username="cashier",
+            actor_role="user",
+        )
+
+        final_state = self.store.get_sync_state()
+        final_purchase = next(
+            purchase for purchase in final_state["purchases"]
+            if purchase["id"] == created["purchase"]["id"]
+        )
+        self.assertEqual(final_purchase["status"], "paid")
+
+    def test_ut_proc_05_assignment_releases_when_batch_purchase_is_cancelled(self) -> None:
+        product = self.store.create_product(
+            name="Chả hủy batch",
+            category="Đồ chay",
+            unit="gói",
+            price=11000,
+            sale_price=17000,
+            low_stock_threshold=0,
+        )
+        self.store.save_sync_state(
+            {
+                "suppliers": [{"id": "supplier-cancel-batch", "name": "NCC hủy batch"}],
+                "carts": [
+                    {
+                        "id": "cart-cancel-batch",
+                        "customerName": "Khách hủy batch",
+                        "status": "draft",
+                        "items": [
+                            {
+                                "id": "cart-item-cancel-batch",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 3,
+                                "unitPrice": 17000,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        self.store.start_procurement_batch(
+            username="bizmanager",
+            role="user",
+            lock_timeout_minutes=30,
+        )
+        created = self.store.create_procurement_purchase_for_product(
+            product_id=product["id"],
+            quantity=3,
+            supplier_name="NCC hủy batch",
+            actor="bizmanager",
+            role="user",
+        )
+
+        self.store.repair_purchase_document(
+            created["purchase"]["id"],
+            action="cancel",
+            actor="bizmanager",
+        )
+
+        planner = self.store.get_procurement_planner(scope_type="all")
+        row = next(
+            entry for entry in planner["rows"]
+            if entry["product_id"] == product["id"]
+        )
+        self.assertIsNone(row["assignment"])
+
+    def test_ut_proc_06_start_batch_rejects_existing_open_purchase_conflicts(self) -> None:
+        product = self.store.create_product(
+            name="Mì căn conflict batch",
+            category="Đồ chay",
+            unit="gói",
+            price=18000,
+            sale_price=26000,
+            low_stock_threshold=0,
+        )
+        now = "2026-05-17T08:00:00+00:00"
+        self.store.save_sync_state(
+            {
+                "suppliers": [{"id": "supplier-conflict-batch", "name": "NCC conflict batch"}],
+                "purchases": [
+                    {
+                        "id": "purchase-conflict-cart",
+                        "supplierName": "NCC conflict batch",
+                        "status": "draft",
+                        "sourceType": "cart",
+                        "sourceCode": "cart-conflict-batch",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "items": [
+                            {
+                                "id": "purchase-conflict-cart-item",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitPrice": 18000,
+                            }
+                        ],
+                    },
+                    {
+                        "id": "purchase-conflict-manual",
+                        "supplierName": "NCC conflict batch",
+                        "status": "ordered",
+                        "sourceType": "manual",
+                        "createdAt": now,
+                        "updatedAt": now,
+                        "items": [
+                            {
+                                "id": "purchase-conflict-manual-item",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 3,
+                                "unitPrice": 18000,
+                            }
+                        ],
+                    },
+                ],
+            }
+        )
+
+        with self.assertRaisesRegex(ValueError, "Cần dọn conflict trước khi bắt đầu kỳ gom nhập"):
+            self.store.start_procurement_batch(
+                username="bizmanager",
+                role="user",
+                lock_timeout_minutes=30,
+            )
+
 
 
 if __name__ == "__main__":

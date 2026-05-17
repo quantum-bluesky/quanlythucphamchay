@@ -907,7 +907,11 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     payload = self._read_json_body()
                     payload["actor"] = payload.get("actor") or self._get_current_actor_name()
                     self._log_sync_debug("PUT /api/state received", payload)
-                    sync_state = store.save_sync_state(payload)
+                    sync_state = store.save_sync_state(
+                        payload,
+                        actor_username=self._get_current_username() or "",
+                        actor_role=self._get_current_role(),
+                    )
                     self._log_sync_debug("PUT /api/state saved", payload)
                     self._send_json(
                         HTTPStatus.OK,

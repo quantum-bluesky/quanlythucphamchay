@@ -103,36 +103,39 @@ Mục tiêu:
 | 73 | `UT-JSVER-01` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_01_versions_increment_per_changed_file_and_reset_when_main_version_changes` |
 | 74 | `UT-AUD-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_aud_04_product_master_import_logs_actor_for_restore_and_update` |
 | 75 | `UT-HIS-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_his_03_product_history_lists_changed_fields_for_inline_update` |
-| 74 | `UT-JSVER-02` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_02_index_and_module_imports_receive_version_query` |
-| 75 | `UT-JSVER-03` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_03_manifest_version_matches_system_config_version` |
-| 76 | `UT-JSVER-04` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_04_line_ending_only_changes_do_not_increment_file_counter` |
-| 77 | `UT-JSVER-05` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_05_legacy_raw_crlf_hash_migrates_without_incrementing_counter` |
-| 78 | `UT-INVSORT-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_invsort_01_product_life_fields_and_priority_metrics_are_normalized` |
-| 79 | `UT-INVSORT-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_invsort_02_master_csv_and_seed_import_accept_life_fields` |
-| 80 | `IT-INV-SORT-01` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-INV-SORT-01"` |
-| 81 | `IT-INV-SORT-02` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-INV-SORT-02"` |
-| 82 | `IT-PROD-LIFE-01` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-PROD-LIFE-01"` |
-| 83 | `UT-SYNC-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_03_discount_updates_are_allowed_before_paid_and_locked_after_paid` |
-| 84 | `UT-DB-12` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_12_repair_purchase_document_allows_regular_draft_delete_and_ordered_cancel_but_rejects_ordered_delete` |
-| 85 | `UT-SYNC-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_04_cart_workflow_supports_draft_cancel_and_completed_paid_locks` |
-| 86 | `UT-DB-13` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_13_checkout_order_consumes_real_expiry_lots_in_fefo_order` |
-| 87 | `UT-DB-14` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_14_supplier_return_can_target_a_specific_batch` |
-| 88 | `UT-DB-15` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_15_purchase_requires_supplier_before_ordered_or_received` |
-| 89 | `ACC-PUR-05` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "ACC-PUR-05"` |
-| 90 | `IT-PUR-01` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "IT-PUR-01"` |
-| 91 | `UT-DB-16` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_16_purchase_receipt_auto_calculates_expiry_from_received_date_or_manufacture_date` |
-| 92 | `UT-DB-17` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_17_received_purchase_expiry_update_syncs_purchase_items_batches_and_receipt_items` |
-| 93 | `UT-SYNC-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_05_committed_cart_locks_customer_but_allows_ship_address_until_completed` |
-| 94 | `UT-ORD-15` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_15_commit_and_ship_cart_order_follow_new_workflow` |
-| 95 | `UT-DB-18` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_10a_ordered_purchase_without_supplier_is_repairable` |
-| 96 | `UT-DB-19` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_13_legacy_audit_reports_safe_and_manual_issues` |
-| 97 | `UT-DB-20` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_14_apply_safe_legacy_fixes_backfills_cart_paid_at_and_purchase_received_at` |
-| 98 | `UT-DB-21` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_16_attach_purchase_receipt_code_repairs_invalid_paid_purchase` |
-| 99 | `UT-DB-22` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_17_attach_purchase_source_cart_repairs_missing_source_code` |
-| 100 | `UT-PROC-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_01_batch_lock_allows_single_owner` |
-| 101 | `UT-PROC-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_02_planner_assigns_one_product_to_one_batch_purchase` |
-| 102 | `UT-PROC-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_03_batch_create_groups_products_by_supplier` |
-| 103 | `UT-AUTH-04B` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_04b_procurement_permission_user_can_start_batch_without_admin` |
+| 76 | `UT-JSVER-02` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_02_index_and_module_imports_receive_version_query` |
+| 77 | `UT-JSVER-03` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_03_manifest_version_matches_system_config_version` |
+| 78 | `UT-JSVER-04` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_04_line_ending_only_changes_do_not_increment_file_counter` |
+| 79 | `UT-JSVER-05` | `tests/test_js_asset_versions.py` | `python -m unittest tests.test_js_asset_versions.JavaScriptAssetVersionManagerTests.test_ut_jsver_05_legacy_raw_crlf_hash_migrates_without_incrementing_counter` |
+| 80 | `UT-INVSORT-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_invsort_01_product_life_fields_and_priority_metrics_are_normalized` |
+| 81 | `UT-INVSORT-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_invsort_02_master_csv_and_seed_import_accept_life_fields` |
+| 82 | `IT-INV-SORT-01` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-INV-SORT-01"` |
+| 83 | `IT-INV-SORT-02` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-INV-SORT-02"` |
+| 84 | `IT-PROD-LIFE-01` | `tests/integration/inventory-sort.spec.js` | `npx playwright test tests/integration/inventory-sort.spec.js --grep "IT-PROD-LIFE-01"` |
+| 85 | `UT-SYNC-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_03_discount_updates_are_allowed_before_paid_and_locked_after_paid` |
+| 86 | `UT-DB-12` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_12_repair_purchase_document_allows_regular_draft_delete_and_ordered_cancel_but_rejects_ordered_delete` |
+| 87 | `UT-SYNC-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_04_cart_workflow_supports_draft_cancel_and_completed_paid_locks` |
+| 88 | `UT-DB-13` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_13_checkout_order_consumes_real_expiry_lots_in_fefo_order` |
+| 89 | `UT-DB-14` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_14_supplier_return_can_target_a_specific_batch` |
+| 90 | `UT-DB-15` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_15_purchase_requires_supplier_before_ordered_or_received` |
+| 91 | `ACC-PUR-05` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "ACC-PUR-05"` |
+| 92 | `IT-PUR-01` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "IT-PUR-01"` |
+| 93 | `UT-DB-16` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_16_purchase_receipt_auto_calculates_expiry_from_received_date_or_manufacture_date` |
+| 94 | `UT-DB-17` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_17_received_purchase_expiry_update_syncs_purchase_items_batches_and_receipt_items` |
+| 95 | `UT-SYNC-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_05_committed_cart_locks_customer_but_allows_ship_address_until_completed` |
+| 96 | `UT-ORD-15` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_15_commit_and_ship_cart_order_follow_new_workflow` |
+| 97 | `UT-DB-18` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_10a_ordered_purchase_without_supplier_is_repairable` |
+| 98 | `UT-DB-19` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_13_legacy_audit_reports_safe_and_manual_issues` |
+| 99 | `UT-DB-20` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_14_apply_safe_legacy_fixes_backfills_cart_paid_at_and_purchase_received_at` |
+| 100 | `UT-DB-21` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_16_attach_purchase_receipt_code_repairs_invalid_paid_purchase` |
+| 101 | `UT-DB-22` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_17_attach_purchase_source_cart_repairs_missing_source_code` |
+| 102 | `UT-PROC-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_01_batch_lock_allows_single_owner` |
+| 103 | `UT-PROC-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_02_planner_assigns_one_product_to_one_batch_purchase` |
+| 104 | `UT-PROC-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_03_batch_create_groups_products_by_supplier` |
+| 105 | `UT-PROC-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_04_non_owner_cannot_edit_batch_purchase_draft_but_can_receive_and_pay` |
+| 106 | `UT-PROC-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_05_assignment_releases_when_batch_purchase_is_cancelled` |
+| 107 | `UT-PROC-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_06_start_batch_rejects_existing_open_purchase_conflicts` |
+| 108 | `UT-AUTH-04B` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_04b_procurement_permission_user_can_start_batch_without_admin` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

@@ -245,6 +245,9 @@ const APP_ROOT_URL = new URL("../", import.meta.url);
 let autoRefreshTimer = null;
 let autoRefreshInFlight = false;
 let skipNextPurchaseSupplierChangePersist = false;
+let procurementLockHeartbeatTimer = null;
+let procurementLockHeartbeatInFlight = false;
+let procurementLockHeartbeatFailureNotified = false;
 let coreUi = null;
 let productsUi = null;
 let inventoryUi = null;
@@ -267,6 +270,7 @@ let deferredResponsivePaginationRender = false;
 let deferredResponsivePaginationRenderTimer = 0;
 window.__QLTPCHAY_APP_READY = false;
 const AUTO_REFRESH_INTERVAL_MS = 8000;
+const PROCUREMENT_LOCK_HEARTBEAT_INTERVAL_MS = 60000;
 const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
 const PAGINATION_PAGE_SIZE_OPTIONS = [25, 50, 100];
 const PAGINATION_GROUP_MAP = {
@@ -878,6 +882,9 @@ function getPurchasesUi() {
       canMarkPurchasePaid,
       isLockedPurchase,
       isRepairableInvalidPurchase,
+      isPurchaseStructureLockedByProcurementBatch,
+      canManageProcurementBatchStructure,
+      isProcurementBatchModeActive,
       getPurchaseSuggestions,
       resolvePurchaseItemExpiryMeta,
       isSearchResultMode,
@@ -1546,6 +1553,18 @@ function canCancelPurchase(purchase) {
 
 function isLockedPurchase(purchase) {
   return getPurchasesDomainHelpers().isLockedPurchase(purchase);
+}
+
+function isPurchaseStructureLockedByProcurementBatch(purchase) {
+  return getPurchasesDomainHelpers().isPurchaseStructureLockedByProcurementBatch(purchase);
+}
+
+function canManageProcurementBatchStructure() {
+  return getPurchasesDomainHelpers().canManageProcurementBatchStructure();
+}
+
+function isProcurementBatchModeActive() {
+  return getPurchasesDomainHelpers().isProcurementBatchModeActive();
 }
 
 function getInventoryAdjustmentReason(productId) {
@@ -2445,6 +2464,47 @@ async function refreshProcurementPlanner(scope = state.procurementPlanner.scope)
     renderProcurementPlanner();
     throw error;
   }
+}
+
+function shouldRefreshProcurementBatchLockHeartbeat() {
+  return Boolean(
+    state.admin?.authenticated
+    && state.activeMenu === "procurement-planner"
+    && state.procurement?.mode === "batch"
+    && state.procurement?.permissions?.isLockOwner
+  );
+}
+
+async function refreshProcurementBatchLockHeartbeat() {
+  if (!shouldRefreshProcurementBatchLockHeartbeat() || procurementLockHeartbeatInFlight) {
+    return;
+  }
+  procurementLockHeartbeatInFlight = true;
+  try {
+    const payload = await apiRequest("/api/procurement/batch/refresh-lock", {
+      method: "POST",
+      body: JSON.stringify({}),
+      sessionActivity: "active",
+    });
+    procurementLockHeartbeatFailureNotified = false;
+    updateProcurementStatus(payload);
+  } catch (error) {
+    if (!procurementLockHeartbeatFailureNotified && state.activeMenu === "procurement-planner") {
+      showToast(`Không thể gia hạn khóa kỳ gom nhập: ${error.message}`, true);
+      procurementLockHeartbeatFailureNotified = true;
+    }
+  } finally {
+    procurementLockHeartbeatInFlight = false;
+  }
+}
+
+function startProcurementLockHeartbeatLoop() {
+  if (procurementLockHeartbeatTimer) {
+    window.clearInterval(procurementLockHeartbeatTimer);
+  }
+  procurementLockHeartbeatTimer = window.setInterval(() => {
+    void refreshProcurementBatchLockHeartbeat();
+  }, PROCUREMENT_LOCK_HEARTBEAT_INTERVAL_MS);
 }
 
 async function openProcurementPlanner(scope = { type: "all", code: "" }) {
@@ -5147,6 +5207,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       state.menuHistoryIndex = 0;
       renderAll();
       startAutoRefreshLoop();
+      startProcurementLockHeartbeatLoop();
       return;
     }
     const payload = await refreshData({ sessionAlreadyLoaded: true });
@@ -5158,6 +5219,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       await refreshData();
     }
     startAutoRefreshLoop();
+    startProcurementLockHeartbeatLoop();
   } catch (error) {
     showToast(error.message, true);
   }

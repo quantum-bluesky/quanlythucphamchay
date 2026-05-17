@@ -149,6 +149,7 @@ ordered -> cancelled
 - `Legacy Audit` chỉ auto-fix các mốc thời gian chắc chắn; các thao tác gắn `receipt_code` hoặc `đơn nguồn` luôn cần admin xác nhận thủ công
 - chỉ `received` mới được `paid`
 - `received` chỉ còn cho sửa `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
+- khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `draft/ordered`; user khác chỉ tiếp tục các bước hậu cần đã chốt như `ordered -> received` hoặc `received -> paid`
 - trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
 
 ## 5. Luồng xử lý nhập thiếu batch
@@ -181,6 +182,7 @@ ordered -> cancelled
 - sau khi tạo phiếu, user review/chỉnh detail các phiếu nhập batch bằng luồng detail/list rồi quay lại planner refresh trạng thái
 - nếu cần đổi nhà cung cấp hoặc số lượng sau khi đã tạo, xử lý trên phiếu đang được gán thay vì tạo phiếu khác
 - phiếu tạo từ planner vẫn là purchase `draft`; workflow sau đó giữ nguyên `draft -> ordered -> received -> paid`
+- assignment active của phiếu batch sẽ tự release khi phiếu chuyển sang `received`, bị `cancelled`, bị xóa, hoặc dòng sản phẩm bị gỡ khỏi phiếu
 - khi kết thúc batch, lock được đóng và hệ thống quay về Daily mode
 
 ## 6. Luồng sửa sai sau khi đã xử lý chứng từ
@@ -267,3 +269,4 @@ ordered -> cancelled
 - chỉ `Master Admin` mới được bypass quy trình chuẩn để chỉnh tồn trực tiếp
 - sai sót sau khi chứng từ đã xử lý phải đi qua chứng từ điều chỉnh
 - trong Batch procurement mode, không auto-create phiếu nhập theo từng cart và không tách 1 sản phẩm thiếu sang nhiều phiếu nhập mở
+- trước khi bật Batch procurement mode, backend phải audit nhanh các phiếu nhập `draft/ordered`; nếu một sản phẩm đang bị cover bởi nhiều phiếu mở thì chặn acquire lock và yêu cầu dọn conflict trước
