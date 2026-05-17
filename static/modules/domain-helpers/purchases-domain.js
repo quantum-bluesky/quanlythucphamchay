@@ -197,6 +197,7 @@ export function createPurchasesDomainHelpers(deps) {
       ? Math.max(0, Math.min(rawDiscountAmount, subtotalAmount))
       : 0;
     const totalAmount = Math.max(0, subtotalAmount - discountAmount);
+    const orderedAt = getPurchaseOrderedAt(purchase);
     return {
       ...purchase,
       id: purchase.id || createId("purchase"),
@@ -209,8 +210,8 @@ export function createPurchasesDomainHelpers(deps) {
       totalAmount: Number(totalAmount.toFixed(2)),
       createdAt: purchase.createdAt || nowIso(),
       updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
-      orderedAt: getPurchaseOrderedAt(purchase),
-      ordered_at: getPurchaseOrderedAt(purchase),
+      orderedAt,
+      ordered_at: orderedAt,
       receivedAt: purchase.receivedAt || purchase.received_at || null,
       paidAt: purchase.paidAt || purchase.paid_at || null,
       receiptCode: purchase.receiptCode || purchase.receipt_code || "",

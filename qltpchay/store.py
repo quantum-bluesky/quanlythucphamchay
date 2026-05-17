@@ -475,6 +475,37 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE purchases ADD COLUMN ordered_at TEXT"
                 )
+            connection.execute(
+                """
+                UPDATE purchases
+                SET ordered_at = (
+                    SELECT MIN(al.created_at)
+                    FROM audit_logs al
+                    WHERE al.entity_type = 'purchase'
+                      AND al.entity_id = purchases.id
+                      AND al.action = 'status-change'
+                      AND al.message LIKE 'Trạng thái phiếu nhập đổi từ % sang ordered.%'
+                )
+                WHERE TRIM(COALESCE(ordered_at, '')) = ''
+                  AND status IN ('ordered', 'received', 'paid', 'cancelled')
+                  AND EXISTS (
+                    SELECT 1
+                    FROM audit_logs al
+                    WHERE al.entity_type = 'purchase'
+                      AND al.entity_id = purchases.id
+                      AND al.action = 'status-change'
+                      AND al.message LIKE 'Trạng thái phiếu nhập đổi từ % sang ordered.%'
+                  )
+                """
+            )
+            connection.execute(
+                """
+                UPDATE purchases
+                SET ordered_at = created_at
+                WHERE TRIM(COALESCE(ordered_at, '')) = ''
+                  AND status IN ('ordered', 'received', 'paid')
+                """
+            )
             if "batch_code" not in purchase_item_columns:
                 connection.execute(
                     "ALTER TABLE purchase_items ADD COLUMN batch_code TEXT NOT NULL DEFAULT ''"
@@ -1472,8 +1503,8 @@ class InventoryStore:
                 ordered_at = str(row["ordered_at"] or "").strip()
                 if not ordered_at:
                     ordered_at = purchase_ordered_at_by_id.get(str(row["id"]) or "", "")
-                if not ordered_at and raw_status == "ordered":
-                    ordered_at = str(row["updated_at"] or row["created_at"] or "").strip()
+                if not ordered_at and raw_status in {"ordered", "received", "paid"}:
+                    ordered_at = str(row["created_at"] or row["updated_at"] or "").strip()
                 matched_receipt_created_at = purchase_receipts_by_code.get(str(receipt_code).strip(), "")
                 purchase_items = items_by_purchase.get(str(row["id"]), [])
                 received_at = (

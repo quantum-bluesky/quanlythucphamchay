@@ -7,7 +7,12 @@ Nguồn tổng hợp:
 - `README.md`
 - `docs/HUONG_DAN_SU_DUNG.md`
 - `docs/WORKFLOW_REVIEW.md`
+- `docs/STATUS_TRANSITION_TABLE.md`
 - `static/modules/screen-config.js`
+
+Tài liệu này mô tả flow theo ngữ cảnh vận hành.
+
+Khi cần confirm nhanh một nhánh `được chuyển / không được chuyển`, ưu tiên tra bảng ở [STATUS_TRANSITION_TABLE.md](STATUS_TRANSITION_TABLE.md) trước.
 
 ## 1. Luồng tổng quát
 

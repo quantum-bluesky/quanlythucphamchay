@@ -12,6 +12,7 @@ App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/ql
 - Design màn hình chung: [docs/SCREEN_DESIGN.md](docs/SCREEN_DESIGN.md)
 - Design database: [docs/DB_DESIGN.md](docs/DB_DESIGN.md)
 - Business flow: [docs/BUSINESS_FLOW.md](docs/BUSINESS_FLOW.md)
+- Bảng chuyển trạng thái: [docs/STATUS_TRANSITION_TABLE.md](docs/STATUS_TRANSITION_TABLE.md)
 - Design hiển thị phiếu: [docs/PHIEU_DISPLAY_DESIGN.md](docs/PHIEU_DISPLAY_DESIGN.md)
 - Thiết kế Issue 110 - Chốt đơn / Đã xuất hàng: [docs/ISSUE_110_ORDER_COMMIT_DESIGN.md](docs/ISSUE_110_ORDER_COMMIT_DESIGN.md)
 - Thiết kế Issue 113 - Batch procurement mode / Xử lý nhập thiếu: [docs/ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md](docs/ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md)
