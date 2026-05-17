@@ -369,14 +369,15 @@ Màn này dùng khi cần gom nhu cầu nhập định kỳ, ví dụ cuối th�
 6. Xem từng dòng mặt hàng thiếu: tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập.
 7. Tick chọn những dòng cần xử lý. Dòng chưa tick sẽ không hiện cảnh báo sau nhập vì chưa có số lượng dự kiến.
 8. Với từng dòng đã tick, chọn NCC từ danh bạ và nhập số lượng; số lượng mặc định là mức đủ đáp ứng nhu cầu.
-9. Nếu cần gom thêm vài mặt hàng ngoài nhu cầu đơn, mở khối `Chọn thêm sản phẩm khác`, tìm sản phẩm theo tên rồi bấm `+ Thêm vào danh sách nhập`.
-10. Mỗi dòng thêm tay sẽ có badge `Ngoài nhu cầu đơn`; bạn nhập NCC, số lượng, giá nhập, giảm KM hoặc ghi chú nếu cần. Các dòng này không tham gia tính `Cần nhập`, nhưng vẫn được gom vào phiếu batch theo NCC.
-11. Trên tablet/desktop có thể nhập thêm `Giá nhập` và `Giảm KM`; khi nhiều dòng cùng NCC, giảm giá sẽ được gom vào phiếu của NCC đó.
-12. Nếu NCC chưa có trong danh bạ, app sẽ hỏi để chuyển sang màn `Nhà cung cấp` tạo mới. Lưu xong app quay lại planner để chọn tiếp.
-13. Bấm `Tạo phiếu đã chọn`; các dòng shortage và các dòng `Ngoài nhu cầu đơn` hợp lệ cùng NCC sẽ được gom vào cùng một phiếu nhập nháp.
-14. Bấm `Review phiếu` để mở detail các phiếu vừa tạo; dùng `Trước / Sau` để chuyển giữa các phiếu trong list và bấm `Lưu chi tiết` nếu cần sửa thêm.
-15. Bấm `Quay lại batch` để refresh lại planner, kiểm tra trạng thái còn thiếu, rồi bấm `Kết thúc kỳ gom` khi đã xử lý xong.
-16. Nếu đang là owner mà bấm sang màn ngoài flow batch như `Tồn kho`, app sẽ hỏi có muốn kết thúc kỳ gom ngay không. Chọn `OK` để release lock và rời flow; chọn `Cancel` để ở lại và giữ nguyên batch mode.
+9. Nếu cần gom thêm vài mặt hàng ngoài nhu cầu đơn, mở khối `Chọn thêm sản phẩm khác`. Khối này sẽ hiện trước các sản phẩm đã có trên planner nhưng `Cần nhập = 0`, rồi hiện tiếp các sản phẩm active còn lại ngoài planner.
+10. Gõ tên vào ô lọc nếu cần, rồi tick chọn nhanh ngay trên dòng sản phẩm muốn nhập thêm. Khi tick, dòng đó sẽ bung sẵn ô NCC, số lượng, giá nhập, giảm KM và ghi chú.
+11. Mỗi dòng thêm tay sẽ có badge `Ngoài nhu cầu đơn`; các dòng này không tham gia tính `Cần nhập`, nhưng vẫn được gom vào phiếu batch theo NCC.
+12. Trên tablet/desktop có thể nhập thêm `Giá nhập` và `Giảm KM`; khi nhiều dòng cùng NCC, giảm giá sẽ được gom vào phiếu của NCC đó.
+13. Nếu NCC chưa có trong danh bạ, app sẽ hỏi để chuyển sang màn `Nhà cung cấp` tạo mới. Lưu xong app quay lại planner để chọn tiếp.
+14. Bấm `Tạo phiếu đã chọn`; các dòng shortage và các dòng `Ngoài nhu cầu đơn` hợp lệ cùng NCC sẽ được gom vào cùng một phiếu nhập nháp.
+15. Bấm `Review phiếu` để mở detail các phiếu vừa tạo; dùng `Trước / Sau` để chuyển giữa các phiếu trong list và bấm `Lưu chi tiết` nếu cần sửa thêm.
+16. Bấm `Quay lại batch` để refresh lại planner, kiểm tra trạng thái còn thiếu, rồi bấm `Kết thúc kỳ gom` khi đã xử lý xong.
+17. Nếu đang là owner mà bấm sang màn ngoài flow batch như `Tồn kho`, app sẽ hỏi có muốn kết thúc kỳ gom ngay không. Chọn `OK` để release lock và rời flow; chọn `Cancel` để ở lại và giữ nguyên batch mode.
 
 Lưu ý:
 
