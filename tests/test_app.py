@@ -1956,6 +1956,91 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertTrue(shipped["cart"]["completedAt"])
         self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 3.0)
 
+    def test_ut_ord_16_commit_can_use_ordered_purchase_coverage_without_double_reserve(self) -> None:
+        product = self.store.create_product(
+            name="Đơn chờ phiếu đã đặt",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=1,
+        )
+        initial_state = self.store.get_sync_state()
+        timestamp = "2026-05-06T09:00:00+07:00"
+        self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-ordered-cover-01",
+                        "receiptCode": "PN-ORDER-COVER-01",
+                        "supplierName": "NCC đã đặt",
+                        "status": "ordered",
+                        "createdAt": timestamp,
+                        "updatedAt": timestamp,
+                        "items": [
+                            {
+                                "id": "purchase-item-ordered-cover-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "unit": product["unit"],
+                                "quantity": 5,
+                                "unitCost": 10000,
+                            }
+                        ],
+                    }
+                ],
+                "carts": [
+                    {
+                        "id": "cart-ordered-cover-01",
+                        "customerId": "customer-ordered-cover-01",
+                        "customerName": "Khách được cover",
+                        "status": "draft",
+                        "paymentStatus": "unpaid",
+                        "createdAt": timestamp,
+                        "updatedAt": timestamp,
+                        "items": [
+                            {
+                                "id": "cart-item-ordered-cover-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 4,
+                                "unitPrice": 15000,
+                            }
+                        ],
+                    },
+                    {
+                        "id": "cart-ordered-cover-02",
+                        "customerId": "customer-ordered-cover-02",
+                        "customerName": "Khách vượt cover",
+                        "status": "draft",
+                        "paymentStatus": "unpaid",
+                        "createdAt": timestamp,
+                        "updatedAt": timestamp,
+                        "items": [
+                            {
+                                "id": "cart-item-ordered-cover-02",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitPrice": 15000,
+                            }
+                        ],
+                    },
+                ],
+                "expected_updated_at": {
+                    "purchases": initial_state["updated_at"]["purchases"],
+                    "carts": initial_state["updated_at"]["carts"],
+                },
+            }
+        )
+
+        committed = self.store.commit_cart_order("cart-ordered-cover-01", actor="tester")
+        self.assertEqual(committed["cart"]["status"], "committed")
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 0.0)
+
+        with self.assertRaisesRegex(ValueError, "Không đủ hàng để chốt đơn"):
+            self.store.commit_cart_order("cart-ordered-cover-02", actor="tester")
+
     def test_ut_aud_01_save_sync_state_logs_cart_status_changes_with_actor(self) -> None:
         self.store.save_sync_state(
             {

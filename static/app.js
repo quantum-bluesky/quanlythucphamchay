@@ -3499,6 +3499,24 @@ function getOpenIncomingQuantityForProduct(productId, excludePurchaseId = "") {
   }, 0).toFixed(2));
 }
 
+function getOrderedIncomingQuantityForProduct(productId, excludePurchaseId = "") {
+  return Number(getOpenPurchasesForProduct(productId).reduce((sum, purchase) => {
+    if (purchase.status !== "ordered") {
+      return sum;
+    }
+    if (excludePurchaseId && purchase.id === excludePurchaseId) {
+      return sum;
+    }
+    const incoming = Array.isArray(purchase.items)
+      ? purchase.items.reduce(
+          (itemSum, item) => itemSum + (Number(item.productId) === Number(productId) ? Number(item.quantity || 0) : 0),
+          0
+        )
+      : 0;
+    return sum + incoming;
+  }, 0).toFixed(2));
+}
+
 function getCartShortagePlan(cart) {
   const sourcePurchase = getSourcePurchaseForCart(cart);
   return getCartShortages(cart)
@@ -3668,13 +3686,17 @@ function getCartCommitShortages(cart) {
       const product = getProductById(item.productId);
       const reservedByCommitted = getCommittedReservedQuantityForProduct(item.productId);
       const availableQuantity = Math.max(0, Number(product?.current_stock || 0) - reservedByCommitted);
-      const shortage = Math.max(0, Number(item.quantity) - availableQuantity);
+      const orderedIncomingQuantity = getOrderedIncomingQuantityForProduct(item.productId);
+      const commitAvailableQuantity = Math.max(0, availableQuantity + orderedIncomingQuantity);
+      const shortage = Math.max(0, Number(item.quantity) - commitAvailableQuantity);
       return {
         item,
         product,
         shortage,
         availableQuantity,
         reservedByCommitted,
+        orderedIncomingQuantity,
+        commitAvailableQuantity,
       };
     });
 }
@@ -5050,11 +5072,15 @@ async function commitActiveCart() {
     .filter((entry) => entry.shortage > 0 && entry.product)
     .map((entry) => {
       const incomingQuantity = getOpenIncomingQuantityForProduct(entry.product.id);
+      const orderedIncomingQuantity = Number(entry.orderedIncomingQuantity || 0);
+      const draftIncomingQuantity = Math.max(0, Number((incomingQuantity - orderedIncomingQuantity).toFixed(2)));
       return {
         ...entry,
         incomingQuantity,
+        orderedIncomingQuantity,
+        draftIncomingQuantity,
         otherIncomingQuantity: incomingQuantity,
-        requiredFromSource: Math.max(0, Number((entry.shortage - incomingQuantity).toFixed(2))),
+        requiredFromSource: Math.max(0, Number((entry.shortage - draftIncomingQuantity).toFixed(2))),
       };
     });
 
@@ -5071,19 +5097,22 @@ async function commitActiveCart() {
       if (entry.reservedByCommitted > 0) {
         parts.push(`đã giữ ${formatQuantity(entry.reservedByCommitted)}`);
       }
-      if (entry.incomingQuantity > 0) {
-        parts.push(`chờ nhập ${formatQuantity(entry.incomingQuantity)}`);
+      if (entry.orderedIncomingQuantity > 0) {
+        parts.push(`đã đặt chờ nhập ${formatQuantity(entry.orderedIncomingQuantity)}`);
+      }
+      if (entry.draftIncomingQuantity > 0) {
+        parts.push(`nháp chờ đặt ${formatQuantity(entry.draftIncomingQuantity)}`);
       }
       return `- ${parts.join(", ")}`;
     }).join("\n");
-    const hasEnoughPendingPurchases = shortagePlan.every((entry) => entry.incomingQuantity >= entry.shortage);
-    if (hasEnoughPendingPurchases) {
-      const shouldOpenRelatedPurchase = window.confirm(`Đơn chưa đủ hàng khả dụng để chốt nhưng đã có phiếu chờ nhập đủ số lượng:\n${shortageSummary}\n\nChọn OK để mở phiếu nhập chờ liên quan nếu cần chỉnh.\nChọn Cancel để quay lại đơn này.`);
+    const hasEnoughDraftCoverage = shortagePlan.every((entry) => entry.draftIncomingQuantity >= entry.shortage);
+    if (hasEnoughDraftCoverage) {
+      const shouldOpenRelatedPurchase = window.confirm(`Đơn chưa đủ hàng khả dụng để chốt vì phần còn thiếu mới đang nằm ở phiếu nhập nháp/chờ đặt:\n${shortageSummary}\n\nChọn OK để mở phiếu nhập liên quan và chuyển tiếp sang Đã đặt khi phù hợp.\nChọn Cancel để quay lại đơn này.`);
       if (shouldOpenRelatedPurchase) {
         openRelatedPurchasesForShortagePlan(cart, shortagePlan);
         throw new Error("Đã mở phiếu nhập chờ liên quan để bạn kiểm tra hoặc chỉnh lại khi cần.");
       }
-      throw new Error("Đơn chưa đủ hàng khả dụng để chốt. Kiểm tra hàng về hoặc điều chỉnh lại các đơn đã chốt.");
+      throw new Error("Đơn chưa đủ hàng khả dụng để chốt. Hãy chuyển phiếu nhập liên quan sang Đã đặt hoặc bổ sung thêm số lượng.");
     }
 
     if (state.admin?.isAdmin) {

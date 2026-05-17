@@ -131,6 +131,7 @@ Trước khi đổi trạng thái sang `Chốt đơn`, app sẽ hiện message c
 
 Nếu đủ hàng:
 
+- trong bước `Chốt đơn`, `đủ hàng` được hiểu là đủ từ `tồn hiện tại + số lượng đã được NCC xác nhận ở phiếu nhập Đã đặt`, sau khi trừ phần đã giữ cho các đơn đã chốt khác
 - hệ thống giữ hàng logic cho đơn này nhưng chưa trừ kho thật
 - đơn chuyển sang trạng thái `Chốt đơn`
 - khóa khách hàng của đơn, không cho xóa phiếu
@@ -155,7 +156,8 @@ Nếu đủ hàng:
 Nếu thiếu hàng:
 
 - app sẽ báo thiếu hàng khả dụng trước khi chốt hoặc thiếu hàng thực tế trước khi xuất
-- nếu đã có phiếu chờ nhập với đủ số lượng cho các mặt hàng đang thiếu, app sẽ báo là đã có phiếu nhập và chỉ mở lại phiếu đó nếu bạn xác nhận cần chỉnh
+- nếu phần thiếu khi `Chốt đơn` đã được cover đủ bởi phiếu nhập `Đã đặt`, app vẫn cho chốt đơn; tới bước `Xuất hàng` vẫn phải chờ hàng nhập kho thật
+- nếu mới chỉ có phiếu `Nháp` hoặc phiếu nhập mở chưa đủ số lượng cho các mặt hàng đang thiếu, app sẽ báo và chỉ mở lại phiếu đó nếu bạn xác nhận cần chỉnh
 - với user thường, sau khi xác nhận app mới chuyển sang `Quản lý nhập hàng` để tạo hoặc mở phiếu nhập tương ứng
 - với `Master Admin`, hệ thống mới cho phép chọn sang màn tồn kho để chỉnh trực tiếp nếu thực sự cần
 - nếu đang bật kỳ gom nhập, app sẽ không tạo phiếu nhập tự động theo từng đơn; app chuyển sang màn `Xử lý nhập thiếu` để người giữ khóa xử lý tập trung
@@ -513,11 +515,11 @@ Giỏ sẽ nằm ở trạng thái chờ để mở lại sau.
 
 ### Thiếu hàng khi đang chốt đơn
 
-Ứng dụng sẽ báo thiếu.
+Ứng dụng chỉ báo thiếu khi phần còn thiếu chưa được phiếu nhập `Đã đặt` cover đủ.
 
 Khi đó:
 
-- nếu đã có phiếu chờ nhập đủ số lượng, app sẽ báo để bạn kiểm tra lại phiếu đó trước
+- nếu phần còn thiếu đang nằm ở phiếu nhập `Nháp` hoặc phiếu mở chưa đặt đủ, app sẽ báo để bạn kiểm tra lại phiếu đó trước rồi chuyển sang `Đã đặt` khi phù hợp
 - nếu đang trong kỳ gom nhập: sang `Xử lý nhập thiếu` để tạo phiếu nhập batch, không tạo phiếu tự động theo từng đơn
 - nếu chỉ cần sửa lại số tồn và bạn là `Master Admin`: sang `Kiểm tra tồn kho`
 - nếu thực sự còn thiếu hàng: xác nhận rồi sang `Quản lý nhập hàng`

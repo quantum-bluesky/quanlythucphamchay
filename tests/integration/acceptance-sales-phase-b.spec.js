@@ -222,7 +222,7 @@ test("ACC-SALE-01 complete checkout updates stock and order history", async ({ r
   }
 });
 
-test("ACC-SALE-02 shortage checkout for normal user creates purchase suggestion instead of stock bypass", async ({ page, request }) => {
+test("ACC-SALE-02 shortage commit allows ordered purchase coverage and otherwise creates purchase suggestion", async ({ page, request }) => {
   const snapshot = await createBackupSnapshot(request);
   const runtime = { errors: [], toasts: [] };
   page.on("pageerror", (error) => {
@@ -318,56 +318,74 @@ test("ACC-SALE-02 shortage checkout for normal user creates purchase suggestion 
       ).toBeTruthy();
     }
 
-    await switchMenu(page, "create-order");
+    const requiredShortageQuantity = shortageQuantity - Number(shortageProduct.current_stock);
+    const coveragePurchaseId = createdLinkedPurchase
+      ? linkedPurchases[0].id
+      : `purchase_ordered_cover_${Date.now()}`;
+    const coverageItemId = createdLinkedPurchase
+      ? String(
+        linkedPurchases[0].items.find((item) => Number(item.productId) === Number(shortageProduct.id))?.id
+        || `purchase_item_ordered_cover_${Date.now()}`
+      )
+      : `purchase_item_ordered_cover_${Date.now()}`;
+    const nextPurchases = Array.isArray(syncState.purchases) ? syncState.purchases.map((purchase) => ({ ...purchase })) : [];
+    const coveragePurchaseIndex = nextPurchases.findIndex((purchase) => String(purchase.id) === coveragePurchaseId);
+    const orderedCoveragePurchase = {
+      ...(coveragePurchaseIndex >= 0 ? nextPurchases[coveragePurchaseIndex] : {}),
+      id: coveragePurchaseId,
+      receiptCode: String((coveragePurchaseIndex >= 0 ? nextPurchases[coveragePurchaseIndex]?.receiptCode : "") || "PN-ORDER-COVER-ACC-SALE-02"),
+      supplierName: String((coveragePurchaseIndex >= 0 ? nextPurchases[coveragePurchaseIndex]?.supplierName : "") || "NCC test ordered"),
+      status: "ordered",
+      note: "",
+      sourceType: "cart",
+      sourceCode: seededCart.id,
+      sourceName: customerName,
+      items: [
+        {
+          id: coverageItemId,
+          productId: shortageProduct.id,
+          productName: shortageProduct.name,
+          unit: shortageProduct.unit,
+          quantity: requiredShortageQuantity,
+          unitCost: Number(shortageProduct.price || 0) || 1000,
+          note: "",
+        },
+      ],
+    };
+    if (coveragePurchaseIndex >= 0) {
+      nextPurchases[coveragePurchaseIndex] = orderedCoveragePurchase;
+    } else {
+      nextPurchases.unshift(orderedCoveragePurchase);
+    }
+    const orderedCoverageResponse = await request.put("/api/state", {
+      headers: { Cookie: adminCookie },
+      data: {
+        purchases: nextPurchases,
+      },
+    });
+    expect(orderedCoverageResponse.ok()).toBeTruthy();
+
+    await page.reload({ waitUntil: "networkidle" });
+    await openDraftCartFromOrders(page, customerName, seededCart.id);
     await expectScreenTitle(page, "Tạo đơn xuất hàng");
     await expect(page.locator("#customerLookupInput")).toHaveValue(customerName);
     await ensureActiveCartPanelOpen(page);
 
     await interceptConfirm(page, true);
     await page.locator('#activeCartPanel [data-cart-action="commit"]').click();
-
-    await expectScreenTitle(page, "Nhập hàng");
-    const existingPurchaseDialogMessages = await readInterceptedConfirmMessages(page);
-    const existingPurchaseDialogMessage = existingPurchaseDialogMessages[existingPurchaseDialogMessages.length - 1] || "";
-    expect(existingPurchaseDialogMessages[0] || "").toContain("Chốt đơn");
-    expect(existingPurchaseDialogMessage).toContain("Đơn chưa đủ hàng khả dụng để chốt");
-    expect(existingPurchaseDialogMessage).toContain(shortageProduct.name);
-    const existingPurchaseToast = await collectToast(page, runtime, "acc-sale-02-existing-purchase", {
+    await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    const commitWithOrderedMessages = await readInterceptedConfirmMessages(page);
+    expect(commitWithOrderedMessages).toHaveLength(1);
+    expect(commitWithOrderedMessages[0] || "").toContain("Chốt đơn");
+    const commitWithOrderedToast = await collectToast(page, runtime, "acc-sale-02-ordered-cover", {
       errorPattern: /^$/,
     });
-    expect(existingPurchaseToast).toContain("Đã mở phiếu nhập chờ liên quan");
-    await expect(page.locator("#purchaseNoteInput")).toHaveValue("");
+    expect(commitWithOrderedToast).toContain("Đã chốt đơn");
 
     syncState = await fetchSyncState(request, adminCookie);
-    const linkedPurchasesAfterRetry = (syncState.purchases || []).filter((purchase) =>
-      purchase.status === "draft" &&
-      String(purchase.note || "") === "" &&
-      String(purchase.sourceType || purchase.source_type || "") === "cart" &&
-      String(purchase.sourceCode || purchase.source_code || "") === seededCart.id &&
-      String(purchase.sourceName || purchase.source_name || "") === customerName &&
-      Array.isArray(purchase.items)
-    );
-    if (createdLinkedPurchase) {
-      expect(linkedPurchasesAfterRetry).toHaveLength(1);
-      expect(
-        linkedPurchasesAfterRetry[0].items.filter((item) => Number(item.productId) === Number(shortageProduct.id))
-      ).toHaveLength(1);
-      expect(
-        Number(
-          linkedPurchasesAfterRetry[0].items.find((item) => Number(item.productId) === Number(shortageProduct.id))?.quantity || 0
-        )
-      ).toBeCloseTo(shortageQuantity - Number(shortageProduct.current_stock), 2);
-    } else {
-      expect(
-        (syncState.purchases || []).some((purchase) =>
-          ["draft", "ordered"].includes(String(purchase.status || "")) &&
-          Array.isArray(purchase.items) &&
-          purchase.items.some(
-            (item) => Number(item.productId) === Number(shortageProduct.id) && Number(item.quantity || 0) >= shortageQuantity - Number(shortageProduct.current_stock)
-          )
-        )
-      ).toBeTruthy();
-    }
+    const committedCart = (syncState.carts || []).find((cart) => String(cart.id) === seededCart.id);
+    expect(committedCart).toBeTruthy();
+    expect(committedCart.status).toBe("committed");
   } finally {
     await restoreBackupSnapshot(request, snapshot);
   }

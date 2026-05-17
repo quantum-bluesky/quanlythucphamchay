@@ -189,7 +189,7 @@ Mỗi lần chạy Playwright sẽ tự khởi động lại test server fixture
 Các nhóm kiểm tra chính:
 
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
-- `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, thiếu hàng của user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu chờ đủ
+- `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, cho phép chốt khi phần thiếu đã được phiếu nhập `Đã đặt` cover đủ, còn với thiếu hàng chưa đặt đủ thì user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu mở liên quan
 - `Reload số lượng sau đổi trạng thái`: sau `Xuất kho` hoặc `Nhập kho`, các màn `Tồn kho`, `Xuất hàng`, `Nhập hàng` phải nạp lại dữ liệu server mới mà không cần F5
 - `Xử lý nhập thiếu batch`: bật batch mode từ user có quyền, kiểm tra planner gom cả đơn nháp/đơn chốt, chặn bắt đầu kỳ gom khi đang có conflict phiếu nhập mở, và không cho tạo trùng phiếu nhập cho cùng sản phẩm thiếu
 - `Conflict đầu kỳ gom`: khi app chặn `Bắt đầu kỳ gom`, màn planner phải hiện danh sách conflict có thể bấm mở thẳng các phiếu nhập liên quan

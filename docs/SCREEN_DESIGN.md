@@ -88,7 +88,8 @@ Liên kết detail hiện có:
   - sau khi đơn đã `Chốt đơn`, app khóa khách hàng nhưng vẫn cho sửa dòng hàng, địa chỉ giao và `Giảm giá khuyến mại`
   - sau khi đơn đã `Đã xuất hàng` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Giảm giá khuyến mại`; không mở khóa lại dòng hàng
   - khi mở đơn mới cho khách đang có đơn `Chốt đơn`, panel phải hiện lựa chọn `Mở đơn đã chốt` hoặc `Tạo đơn mới`
-  - khi chốt đơn bị thiếu hàng khả dụng hoặc khi xuất hàng bị thiếu hàng thực tế, app phải báo trước khi tạo/cập nhật phiếu nhập; nếu đã có phiếu chờ nhập đủ số lượng thì chỉ mở lại phiếu liên quan sau khi user xác nhận cần chỉnh
+  - khi chốt đơn, hệ thống được phép tính thêm phần hàng đã nằm trong phiếu nhập `Đã đặt`; chỉ khi phần thiếu còn lại chưa được `Đã đặt` cover đủ thì app mới báo trước khi tạo/cập nhật phiếu nhập
+  - nếu phần thiếu mới đang nằm ở phiếu nhập `Nháp` hoặc phiếu mở chưa đặt đủ thì app chỉ mở lại phiếu liên quan sau khi user xác nhận cần chỉnh
   - khi hệ thống đang ở Batch procurement mode, shortage không được auto-create phiếu nhập theo từng cart mà phải chuyển sang màn `procurement-planner`
 
 ### `orders` - Quản lý đơn hàng
