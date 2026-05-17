@@ -2775,6 +2775,8 @@ class InventoryStoreTests(unittest.TestCase):
             sale_price=25000,
             low_stock_threshold=0,
         )
+        prebatch_created_at = "2026-05-16T06:30:00+00:00"
+        prebatch_ordered_at = "2026-05-16T07:00:00+00:00"
         self.store.save_sync_state(
             {
                 "suppliers": [{"id": "supplier-lock-batch", "name": "NCC lock batch"}],
@@ -2782,10 +2784,10 @@ class InventoryStoreTests(unittest.TestCase):
                     {
                         "id": "purchase-manual-prebatch",
                         "supplierName": "NCC lock batch",
-                        "status": "ordered",
+                        "status": "draft",
                         "sourceType": "manual",
-                        "createdAt": "2026-05-16T07:00:00+00:00",
-                        "updatedAt": "2026-05-16T07:00:00+00:00",
+                        "createdAt": prebatch_created_at,
+                        "updatedAt": prebatch_created_at,
                         "items": [
                             {
                                 "id": "purchase-manual-prebatch-item",
@@ -2814,6 +2816,18 @@ class InventoryStoreTests(unittest.TestCase):
                     }
                 ],
             }
+        )
+        prebatch_ordered_state = copy.deepcopy(self.store.get_sync_state()["purchases"])
+        prebatch_ordered_index = next(
+            index for index, purchase in enumerate(prebatch_ordered_state)
+            if purchase["id"] == "purchase-manual-prebatch"
+        )
+        prebatch_ordered_state[prebatch_ordered_index]["status"] = "ordered"
+        prebatch_ordered_state[prebatch_ordered_index]["updatedAt"] = prebatch_ordered_at
+        self.store.save_sync_state(
+            {"purchases": prebatch_ordered_state},
+            actor_username="staff",
+            actor_role="user",
         )
         self.store.start_procurement_batch(
             username="bizmanager",
@@ -2854,8 +2868,25 @@ class InventoryStoreTests(unittest.TestCase):
             actor_role="user",
         )
 
+        owner_updated_prebatch_state = copy.deepcopy(self.store.get_sync_state()["purchases"])
+        owner_updated_prebatch_index = next(
+            index for index, purchase in enumerate(owner_updated_prebatch_state)
+            if purchase["id"] == "purchase-manual-prebatch"
+        )
+        owner_updated_prebatch_state[owner_updated_prebatch_index]["note"] = "Owner cập nhật ghi chú sau khi bật batch"
+        self.store.save_sync_state(
+            {"purchases": owner_updated_prebatch_state},
+            actor_username="bizmanager",
+            actor_role="user",
+        )
+
         postbatch_state = self.store.get_sync_state()
         postbatch_purchases = copy.deepcopy(postbatch_state["purchases"])
+        refreshed_prebatch_purchase = next(
+            purchase for purchase in postbatch_purchases
+            if purchase["id"] == "purchase-manual-prebatch"
+        )
+        self.assertEqual(refreshed_prebatch_purchase["orderedAt"], prebatch_ordered_at)
         postbatch_purchases.append(
             {
                 "id": "purchase-manual-postbatch",
