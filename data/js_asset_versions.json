@@ -1,12 +1,12 @@
 {
-  "app_version": "3.4.3",
+  "app_version": "3.5.1",
   "files": {
     "app.js": {
-      "counter": 4,
+      "counter": 1,
       "sha256": "2f5b89297a0526beb674723a0a677a9a2eefb8e50f7653eb76e3a0f977136c6b"
     },
     "modules/app-state.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "57822fca4d6ee7c94126bbb07b34d8239ca0047994b9c7d75fbee46f87b361d1"
     },
     "modules/controllers/core-controller.js": {
@@ -38,7 +38,7 @@
       "sha256": "b51117ade7aed1b5a61edbe3762a6656d0eba83ee85217ef9be4ba90ed588b80"
     },
     "modules/dom.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "93ccd74664c8a77b2a304e49c550cd3969f13f74514558ecb36081f6609ae5c4"
     },
     "modules/domain-helpers/inventory-domain.js": {
@@ -62,7 +62,7 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "e399d2e72d7fd140759263ca191f96906a8729123c64d1a0568ce887cf56c92e"
     },
     "modules/sync-runtime.js": {
