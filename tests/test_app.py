@@ -2878,6 +2878,198 @@ class InventoryStoreTests(unittest.TestCase):
                 lock_timeout_minutes=30,
             )
 
+    def test_ut_proc_07_batch_create_supports_mixed_shortage_and_extra_lines(self) -> None:
+        shortage_product = self.store.create_product(
+            name="Nấm shortage batch",
+            category="Đồ chay",
+            unit="gói",
+            price=14000,
+            sale_price=21000,
+            low_stock_threshold=0,
+        )
+        extra_product = self.store.create_product(
+            name="Chà bông extra batch",
+            category="Đồ chay",
+            unit="hộp",
+            price=22000,
+            sale_price=32000,
+            low_stock_threshold=0,
+        )
+        self.store.save_sync_state(
+            {
+                "suppliers": [{"id": "supplier-mixed-batch", "name": "NCC mixed batch"}],
+                "carts": [
+                    {
+                        "id": "cart-mixed-batch",
+                        "customerName": "Khách mixed batch",
+                        "status": "draft",
+                        "items": [
+                            {
+                                "id": "cart-item-mixed-batch",
+                                "productId": shortage_product["id"],
+                                "productName": shortage_product["name"],
+                                "quantity": 5,
+                                "unitPrice": 21000,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        self.store.start_procurement_batch(
+            username="bizmanager",
+            role="user",
+            lock_timeout_minutes=30,
+        )
+
+        result = self.store.create_procurement_purchases(
+            lines=[
+                {
+                    "product_id": shortage_product["id"],
+                    "quantity": 5,
+                    "supplier_name": "NCC mixed batch",
+                    "source_kind": "shortage",
+                },
+                {
+                    "product_id": extra_product["id"],
+                    "quantity": 2,
+                    "supplier_name": "NCC mixed batch",
+                    "source_kind": "extra",
+                    "source_note": "Ngoài nhu cầu đơn",
+                },
+            ],
+            actor="bizmanager",
+            role="user",
+        )
+
+        self.assertEqual(len(result["created_purchases"]), 1)
+        purchase = result["created_purchases"][0]
+        self.assertEqual(purchase["supplierName"], "NCC mixed batch")
+        source_kinds_by_product = {
+            item["productId"]: item["sourceKind"]
+            for item in purchase["items"]
+        }
+        self.assertEqual(source_kinds_by_product[shortage_product["id"]], "shortage")
+        self.assertEqual(source_kinds_by_product[extra_product["id"]], "extra")
+
+        planner_row = next(
+            row for row in result["planner"]["rows"]
+            if row["product_id"] == shortage_product["id"]
+        )
+        self.assertEqual(planner_row["assignment"]["purchase_id"], purchase["id"])
+
+        with self.store._connect() as connection:
+            assignments = connection.execute(
+                """
+                SELECT product_id, purchase_id
+                FROM procurement_assignments
+                WHERE status = 'active'
+                ORDER BY product_id
+                """
+            ).fetchall()
+            purchase_item_rows = connection.execute(
+                """
+                SELECT product_id, source_kind
+                FROM purchase_items
+                WHERE purchase_id = ?
+                ORDER BY product_id, source_kind
+                """,
+                (purchase["id"],),
+            ).fetchall()
+
+        self.assertEqual(len(assignments), 1)
+        self.assertEqual(assignments[0]["product_id"], shortage_product["id"])
+        self.assertEqual(assignments[0]["purchase_id"], purchase["id"])
+        self.assertEqual(
+            {(row["product_id"], row["source_kind"]) for row in purchase_item_rows},
+            {
+                (shortage_product["id"], "shortage"),
+                (extra_product["id"], "extra"),
+            },
+        )
+
+    def test_ut_proc_08_extra_line_for_same_product_merges_into_existing_batch_purchase_without_extra_assignment(self) -> None:
+        product = self.store.create_product(
+            name="Tàu hũ ky mixed same product",
+            category="Đồ chay",
+            unit="gói",
+            price=16000,
+            sale_price=23000,
+            low_stock_threshold=0,
+        )
+        self.store.save_sync_state(
+            {
+                "suppliers": [{"id": "supplier-same-product-batch", "name": "NCC same product batch"}],
+                "carts": [
+                    {
+                        "id": "cart-same-product-batch",
+                        "customerName": "Khách same product batch",
+                        "status": "draft",
+                        "items": [
+                            {
+                                "id": "cart-item-same-product-batch",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 4,
+                                "unitPrice": 23000,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        self.store.start_procurement_batch(
+            username="bizmanager",
+            role="user",
+            lock_timeout_minutes=30,
+        )
+
+        result = self.store.create_procurement_purchases(
+            lines=[
+                {
+                    "product_id": product["id"],
+                    "quantity": 2,
+                    "supplier_name": "NCC same product batch",
+                    "source_kind": "extra",
+                    "source_note": "Ngoài nhu cầu đơn",
+                },
+                {
+                    "product_id": product["id"],
+                    "quantity": 4,
+                    "supplier_name": "NCC same product batch",
+                    "source_kind": "shortage",
+                },
+            ],
+            actor="bizmanager",
+            role="user",
+        )
+
+        self.assertEqual(len(result["created_purchases"]), 1)
+        purchase = result["created_purchases"][0]
+        product_items = [item for item in purchase["items"] if item["productId"] == product["id"]]
+        self.assertEqual(len(product_items), 2)
+        self.assertEqual({item["sourceKind"] for item in product_items}, {"extra", "shortage"})
+
+        planner_row = next(
+            row for row in result["planner"]["rows"]
+            if row["product_id"] == product["id"]
+        )
+        self.assertEqual(planner_row["assignment"]["purchase_id"], purchase["id"])
+
+        with self.store._connect() as connection:
+            assignments = connection.execute(
+                """
+                SELECT product_id, purchase_id
+                FROM procurement_assignments
+                WHERE status = 'active'
+                  AND product_id = ?
+                """,
+                (product["id"],),
+            ).fetchall()
+
+        self.assertEqual(len(assignments), 1)
+        self.assertEqual(assignments[0]["purchase_id"], purchase["id"])
+
 
 
 if __name__ == "__main__":

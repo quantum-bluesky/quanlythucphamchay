@@ -120,6 +120,7 @@ import {
   showPaidPurchases,
   procurementStatusPanel,
   procurementPlannerList,
+  procurementExtraPanel,
   procurementReviewPanel,
   procurementRefreshButton,
   procurementCreateSelectedButton,
@@ -2434,6 +2435,10 @@ function buildProcurementPlannerQuery(scope = state.procurementPlanner.scope) {
 async function refreshProcurementPlanner(scope = state.procurementPlanner.scope) {
   const currentPlanner = state.procurementPlanner || {};
   const previousSelections = currentPlanner.selections || {};
+  const previousExtraRows = Array.isArray(currentPlanner.extraRows)
+    ? currentPlanner.extraRows
+    : [];
+  const previousExtraExpanded = Boolean(currentPlanner.extraExpanded);
   const previousStartConflicts = Array.isArray(currentPlanner.startConflicts)
     ? currentPlanner.startConflicts
     : [];
@@ -2456,6 +2461,8 @@ async function refreshProcurementPlanner(scope = state.procurementPlanner.scope)
       scope: payload.scope || scope || { type: "all", code: "" },
       loading: false,
       selections: previousSelections,
+      extraRows: previousExtraRows,
+      extraExpanded: previousExtraExpanded,
       startConflicts: previousStartConflicts,
       reviewOpen: previousReviewOpen,
       reviewPurchaseIds: previousReviewPurchaseIds,
@@ -2566,6 +2573,33 @@ function normalizeProcurementSelectionDefaults() {
       selection.discountAmount = "0";
     }
   });
+  const seenExtraProductIds = new Set();
+  state.procurementPlanner.extraRows = (Array.isArray(state.procurementPlanner.extraRows) ? state.procurementPlanner.extraRows : [])
+    .filter((row) => {
+      const productId = Number(row?.productId || 0);
+      if (!productId || seenExtraProductIds.has(productId)) {
+        return false;
+      }
+      const product = state.products.find((entry) => Number(entry.id) === productId);
+      if (!product || isDeletedEntity(product)) {
+        return false;
+      }
+      seenExtraProductIds.add(productId);
+      return true;
+    })
+    .map((row) => {
+      const product = state.products.find((entry) => Number(entry.id) === Number(row.productId));
+      return {
+        id: String(row.id || createId("procurement_extra")),
+        productId: Number(row.productId || 0),
+        productName: String(row.productName || product?.name || "").trim(),
+        supplierName: String(row.supplierName || "").trim(),
+        quantity: String(row.quantity || "1"),
+        unitCost: String(row.unitCost ?? product?.price ?? 0),
+        discountAmount: String(row.discountAmount ?? "0"),
+        sourceNote: String(row.sourceNote || "Ngoài nhu cầu đơn").trim() || "Ngoài nhu cầu đơn",
+      };
+    });
 }
 
 function findActiveSupplierByName(name) {
@@ -2574,6 +2608,14 @@ function findActiveSupplierByName(name) {
     return null;
   }
   return getActiveSuppliers().find((supplier) => normalizeText(supplier.name) === normalized) || null;
+}
+
+function findActiveProductByName(name) {
+  const normalized = normalizeText(name);
+  if (!normalized) {
+    return null;
+  }
+  return state.products.find((product) => !isDeletedEntity(product) && normalizeText(product.name) === normalized) || null;
 }
 
 function getProcurementAssignedPurchaseIds() {
@@ -2641,6 +2683,61 @@ function clearPendingProcurementSupplierFlow() {
   state.pendingProcurementSupplierName = "";
 }
 
+function addProcurementExtraRowByProduct(product) {
+  if (!product || isDeletedEntity(product)) {
+    throw new Error("Không tìm thấy sản phẩm hợp lệ để thêm vào danh sách nhập.");
+  }
+  const productId = Number(product.id || 0);
+  const existingRow = (state.procurementPlanner.extraRows || []).find((row) => Number(row.productId) === productId);
+  if (existingRow) {
+    showToast(`Sản phẩm ${product.name} đã nằm trong khối Chọn thêm sản phẩm khác.`);
+    state.procurementPlanner.extraExpanded = true;
+    renderProcurementPlanner();
+    return;
+  }
+  state.procurementPlanner.extraRows = [
+    ...(state.procurementPlanner.extraRows || []),
+    {
+      id: createId("procurement_extra"),
+      productId,
+      productName: product.name,
+      supplierName: "",
+      quantity: "1",
+      unitCost: String(product.price ?? 0),
+      discountAmount: "0",
+      sourceNote: "Ngoài nhu cầu đơn",
+    },
+  ];
+  state.procurementPlanner.extraExpanded = true;
+  renderProcurementPlanner();
+}
+
+function addProcurementExtraRowByName(productName) {
+  const cleanName = String(productName || "").trim();
+  if (!cleanName) {
+    throw new Error("Cần chọn sản phẩm trước khi thêm vào danh sách nhập.");
+  }
+  const product = findActiveProductByName(cleanName);
+  if (!product) {
+    throw new Error(`Không tìm thấy sản phẩm "${cleanName}" trong danh mục đang dùng.`);
+  }
+  addProcurementExtraRowByProduct(product);
+}
+
+function getProcurementExtraRowSignals(extraRow) {
+  const productId = Number(extraRow?.productId || 0);
+  const shortageRow = (state.procurementPlanner.rows || []).find((row) => Number(row.product_id) === productId) || null;
+  const externalOpenPurchases = getOpenPurchasesForProduct(productId).filter(
+    (purchase) => String(purchase?.sourceType || purchase?.source_type || "").trim() !== "procurement_batch"
+  );
+  return {
+    shortageRow,
+    hasShortageRow: Boolean(shortageRow),
+    externalOpenPurchases,
+    hasExternalOpenPurchases: externalOpenPurchases.length > 0,
+  };
+}
+
 function buildProcurementCreateLines() {
   const skipped = [];
   const lines = [];
@@ -2694,6 +2791,55 @@ function buildProcurementCreateLines() {
       quantity,
       unit_cost: unitCost,
       discount_amount: discountAmount,
+      source_kind: "shortage",
+    });
+  });
+  (state.procurementPlanner.extraRows || []).forEach((extraRow) => {
+    const productId = Number(extraRow?.productId || 0);
+    const product = state.products.find((entry) => Number(entry.id) === productId && !isDeletedEntity(entry));
+    const productName = String(extraRow?.productName || product?.name || "").trim() || `SP #${productId}`;
+    if (!productId || !product) {
+      skipped.push(`${productName}: sản phẩm không còn hợp lệ`);
+      return;
+    }
+    const supplierName = String(extraRow.supplierName || "").trim();
+    if (!supplierName) {
+      skipped.push(`${productName}: chưa chọn NCC`);
+      return;
+    }
+    const supplier = findActiveSupplierByName(supplierName);
+    if (!supplier) {
+      const shouldCreate = window.confirm(`NCC "${supplierName}" chưa có trong danh bạ.\n\nChọn OK để sang màn Nhà cung cấp tạo mới, lưu xong sẽ quay lại Xử lý nhập thiếu.`);
+      if (shouldCreate) {
+        beginSupplierCreateFromProcurement(supplierName);
+        throw new Error("Đang chuyển sang màn Nhà cung cấp để tạo NCC mới.");
+      }
+      skipped.push(`${productName}: NCC chưa có trong danh bạ`);
+      return;
+    }
+    const quantity = Number(extraRow.quantity);
+    const unitCost = Number(extraRow.unitCost || 0);
+    const discountAmount = Number(extraRow.discountAmount || 0);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      skipped.push(`${productName}: số lượng không hợp lệ`);
+      return;
+    }
+    if (!Number.isFinite(unitCost) || unitCost < 0) {
+      skipped.push(`${productName}: giá nhập không hợp lệ`);
+      return;
+    }
+    if (!Number.isFinite(discountAmount) || discountAmount < 0) {
+      skipped.push(`${productName}: giảm giá không hợp lệ`);
+      return;
+    }
+    lines.push({
+      product_id: productId,
+      supplier_name: supplier.name,
+      quantity,
+      unit_cost: unitCost,
+      discount_amount: discountAmount,
+      source_kind: "extra",
+      source_note: String(extraRow.sourceNote || "Ngoài nhu cầu đơn").trim() || "Ngoài nhu cầu đơn",
     });
   });
   return { lines, skipped };
@@ -2763,6 +2909,75 @@ function renderProcurementReviewPanel() {
         const entry = state.purchases.find((purchaseEntry) => purchaseEntry.id === id);
         return `<button type="button" class="ghost-button compact-button ${index === state.procurementPlanner.reviewIndex ? "is-active" : ""}" data-procurement-review-action="open" data-purchase-id="${escapeHtml(id)}">${escapeHtml(entry?.supplierName || id)}</button>`;
       }).join("")}
+    </div>
+  `;
+}
+
+function renderProcurementExtraPanel(canEditBatch) {
+  if (!procurementExtraPanel) {
+    return;
+  }
+  if (!canEditBatch) {
+    procurementExtraPanel.hidden = true;
+    procurementExtraPanel.innerHTML = "";
+    return;
+  }
+  procurementExtraPanel.hidden = false;
+  const extraRows = Array.isArray(state.procurementPlanner.extraRows) ? state.procurementPlanner.extraRows : [];
+  const bodyHidden = !state.procurementPlanner.extraExpanded;
+  procurementExtraPanel.innerHTML = `
+    <div class="subheading">
+      <div>
+        <p class="panel-kicker">Nhập thêm ngoài shortage</p>
+        <h3>Chọn thêm sản phẩm khác</h3>
+        <p class="panel-note">Ngoài các mặt hàng thiếu, người giữ khóa batch cũng có thể chọn thêm sản phẩm khác để gom nhập cùng kỳ.</p>
+      </div>
+      <div class="inline-menu-actions">
+        <button type="button" class="ghost-button compact-button" data-procurement-extra-action="toggle">${bodyHidden ? "Mở" : "Thu gọn"}</button>
+      </div>
+    </div>
+    <div ${bodyHidden ? "hidden" : ""}>
+      <div class="procurement-input-grid">
+        <label class="wide-field">
+          <span>Sản phẩm thêm tay</span>
+          <input type="text" list="productOptions" value="" placeholder="Gõ tên sản phẩm rồi bấm Thêm" data-procurement-extra-input="productName">
+        </label>
+      </div>
+      <div class="line-actions">
+        <button type="button" class="ghost-button compact-button" data-procurement-extra-action="add">+ Thêm vào danh sách nhập</button>
+      </div>
+      <div class="cart-line-note">Các dòng dưới đây được đánh dấu là ngoài nhu cầu đơn, không tham gia tính Cần nhập của list shortage.</div>
+      <div class="cart-items-list">
+        ${extraRows.length ? extraRows.map((extraRow) => {
+          const signals = getProcurementExtraRowSignals(extraRow);
+          return `
+            <article class="cart-item-card" data-procurement-extra-row="${escapeHtml(extraRow.id)}">
+              <div class="cart-item-main">
+                <div>
+                  <strong>${escapeHtml(extraRow.productName)}</strong>
+                  <p class="meta">Tồn hiện tại ${escapeHtml(formatQuantity(state.products.find((entry) => Number(entry.id) === Number(extraRow.productId))?.currentStock || state.products.find((entry) => Number(entry.id) === Number(extraRow.productId))?.current_stock || 0))}</p>
+                </div>
+                <div class="cart-item-actions">
+                  <span class="pill draft">Ngoài nhu cầu đơn</span>
+                  ${signals.hasShortageRow ? '<span class="pill warning">Cũng đang có ở danh sách thiếu</span>' : ""}
+                </div>
+              </div>
+              <div class="procurement-input-grid">
+                <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(extraRow.supplierName || "")}" data-procurement-extra-field="supplierName" data-extra-row-id="${escapeHtml(extraRow.id)}"></label>
+                <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(extraRow.quantity || "1")}" data-procurement-extra-field="quantity" data-extra-row-id="${escapeHtml(extraRow.id)}"></label>
+                <label class="desktop-only-field"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(extraRow.unitCost || "0")}" data-procurement-extra-field="unitCost" data-extra-row-id="${escapeHtml(extraRow.id)}"></label>
+                <label class="desktop-only-field"><span>Giảm KM</span><input type="number" min="0" step="1000" value="${escapeHtml(extraRow.discountAmount || "0")}" data-procurement-extra-field="discountAmount" data-extra-row-id="${escapeHtml(extraRow.id)}"></label>
+                <label class="wide-field"><span>Ghi chú dòng</span><input type="text" value="${escapeHtml(extraRow.sourceNote || "Ngoài nhu cầu đơn")}" data-procurement-extra-field="sourceNote" data-extra-row-id="${escapeHtml(extraRow.id)}"></label>
+              </div>
+              <div class="cart-line-note">Dòng này không đến từ nhu cầu đơn, không tham gia tính cần nhập.</div>
+              ${signals.hasExternalOpenPurchases ? `<article class="inline-alert warning">Mặt hàng này đang có phiếu nhập mở khác, cần kiểm tra trước khi tạo thêm.</article>` : ""}
+              <div class="line-actions">
+                <button type="button" class="ghost-button compact-button" data-procurement-extra-action="remove" data-extra-row-id="${escapeHtml(extraRow.id)}">Bỏ dòng</button>
+              </div>
+            </article>
+          `;
+        }).join("") : '<div class="empty-state">Chưa có mặt hàng ngoài shortage nào được thêm vào kỳ gom này.</div>'}
+      </div>
     </div>
   `;
 }
@@ -2850,6 +3065,7 @@ function renderProcurementPlanner() {
     procurementReviewButton.disabled = reviewIds.length === 0;
   }
   renderProcurementReviewPanel();
+  renderProcurementExtraPanel(canEditBatch);
 
   if (state.procurementPlanner.loading) {
     procurementPlannerList.innerHTML = '<div class="empty-state">Đang tải dữ liệu xử lý nhập thiếu...</div>';
@@ -5059,6 +5275,7 @@ procurementCreateSelectedButton?.addEventListener("click", async () => {
     const createdIds = Array.isArray(payload.created_purchase_ids) ? payload.created_purchase_ids : [];
     state.procurementPlanner.reviewPurchaseIds = createdIds.length ? createdIds : state.procurementPlanner.reviewPurchaseIds;
     state.procurementPlanner.reviewIndex = 0;
+    state.procurementPlanner.extraRows = [];
     (payload.created_purchases || []).forEach((purchase) => {
       (purchase.items || []).forEach((item) => {
         const key = String(item.productId || item.product_id || "");
@@ -5109,6 +5326,8 @@ procurementStartBatchButton?.addEventListener("click", async () => {
       body: JSON.stringify({}),
     });
     state.procurementPlanner.startConflicts = [];
+    state.procurementPlanner.extraRows = [];
+    state.procurementPlanner.extraExpanded = false;
     updateProcurementStatus(payload);
     await refreshProcurementPlanner();
     showToast(payload.message || "Đã bắt đầu kỳ gom nhập.");
@@ -5131,6 +5350,8 @@ procurementFinishBatchButton?.addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({}),
     });
+    state.procurementPlanner.extraRows = [];
+    state.procurementPlanner.extraExpanded = false;
     updateProcurementStatus(payload);
     await refreshProcurementPlanner();
     showToast(payload.message || "Đã kết thúc kỳ gom nhập.");
@@ -5176,7 +5397,57 @@ procurementPlannerList?.addEventListener("change", (event) => {
   if (field === "quantity") selection.quantity = input.value;
   if (field === "unitCost") selection.unitCost = input.value;
   if (field === "discountAmount") selection.discountAmount = input.value;
-  renderProcurementPlanner();
+  window.setTimeout(() => {
+    renderProcurementPlanner();
+  }, 0);
+});
+
+procurementExtraPanel?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-procurement-extra-action]");
+  if (!button) return;
+  const action = String(button.dataset.procurementExtraAction || "");
+  if (action === "toggle") {
+    state.procurementPlanner.extraExpanded = !state.procurementPlanner.extraExpanded;
+    renderProcurementPlanner();
+    return;
+  }
+  if (action === "add") {
+    try {
+      const productName = procurementExtraPanel.querySelector('[data-procurement-extra-input="productName"]')?.value || "";
+      addProcurementExtraRowByName(productName);
+    } catch (error) {
+      showToast(error.message, true);
+    }
+    return;
+  }
+  if (action === "remove") {
+    const rowId = String(button.dataset.extraRowId || "");
+    state.procurementPlanner.extraRows = (state.procurementPlanner.extraRows || []).filter((row) => String(row.id) !== rowId);
+    renderProcurementPlanner();
+  }
+});
+
+procurementExtraPanel?.addEventListener("input", (event) => {
+  const input = event.target.closest("[data-procurement-extra-field]");
+  if (!input) return;
+  const rowId = String(input.dataset.extraRowId || "");
+  const field = String(input.dataset.procurementExtraField || "");
+  const targetRow = (state.procurementPlanner.extraRows || []).find((row) => String(row.id) === rowId);
+  if (!targetRow || !field) return;
+  targetRow[field] = input.value;
+});
+
+procurementExtraPanel?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-procurement-extra-field]");
+  if (!input) return;
+  const rowId = String(input.dataset.extraRowId || "");
+  const field = String(input.dataset.procurementExtraField || "");
+  const targetRow = (state.procurementPlanner.extraRows || []).find((row) => String(row.id) === rowId);
+  if (!targetRow || !field) return;
+  targetRow[field] = input.value;
+  window.setTimeout(() => {
+    renderProcurementPlanner();
+  }, 0);
 });
 
 procurementReviewPanel?.addEventListener("click", async (event) => {

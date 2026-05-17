@@ -248,6 +248,8 @@ class InventoryStore:
                     purchase_id TEXT NOT NULL,
                     product_id INTEGER NOT NULL DEFAULT 0,
                     product_name TEXT NOT NULL DEFAULT '',
+                    source_kind TEXT NOT NULL DEFAULT 'shortage',
+                    source_note TEXT NOT NULL DEFAULT '',
                     quantity REAL NOT NULL DEFAULT 0,
                     unit_cost REAL NOT NULL DEFAULT 0,
                     batch_code TEXT NOT NULL DEFAULT '',
@@ -471,6 +473,14 @@ class InventoryStore:
             if "batch_code" not in purchase_item_columns:
                 connection.execute(
                     "ALTER TABLE purchase_items ADD COLUMN batch_code TEXT NOT NULL DEFAULT ''"
+                )
+            if "source_kind" not in purchase_item_columns:
+                connection.execute(
+                    "ALTER TABLE purchase_items ADD COLUMN source_kind TEXT NOT NULL DEFAULT 'shortage'"
+                )
+            if "source_note" not in purchase_item_columns:
+                connection.execute(
+                    "ALTER TABLE purchase_items ADD COLUMN source_note TEXT NOT NULL DEFAULT ''"
                 )
             if "expiry_input_mode" not in purchase_item_columns:
                 connection.execute(
@@ -1209,6 +1219,10 @@ class InventoryStore:
             "productId": int(row["product_id"] or 0),
             "product_id": int(row["product_id"] or 0),
             "productName": row["product_name"] or "",
+            "sourceKind": row["source_kind"] or "shortage",
+            "source_kind": row["source_kind"] or "shortage",
+            "sourceNote": row["source_note"] or "",
+            "source_note": row["source_note"] or "",
             "quantity": round(float(row["quantity"] or 0), 2),
             "unitCost": round(float(row["unit_cost"] or 0), 2),
             "unit_cost": round(float(row["unit_cost"] or 0), 2),
@@ -1423,7 +1437,7 @@ class InventoryStore:
             item_rows = connection.execute(
                 """
                 SELECT
-                    id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code,
+                    id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
                     expiry_input_mode, manufacture_date, expiry_date, sort_order
                 FROM purchase_items
                 ORDER BY purchase_id, sort_order, id
@@ -1648,16 +1662,18 @@ class InventoryStore:
                     connection.execute(
                         """
                         INSERT INTO purchase_items(
-                            id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code,
+                            id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
                             expiry_input_mode, manufacture_date, expiry_date, sort_order
                         )
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),
                             purchase_id,
                             product_id,
                             str(item.get("productName") or item.get("product_name") or "").strip(),
+                            str(item.get("sourceKind") or item.get("source_kind") or "shortage").strip() or "shortage",
+                            str(item.get("sourceNote") or item.get("source_note") or "").strip(),
                             float(item.get("quantity") or 0),
                             float(item.get("unitCost") or item.get("unit_cost") or 0),
                             str(item.get("batchCode") or item.get("batch_code") or "").strip(),
@@ -5500,6 +5516,11 @@ class InventoryStore:
     def _normalize_procurement_supplier_key(name: str) -> str:
         return " ".join(str(name or "").strip().lower().split())
 
+    @staticmethod
+    def _normalize_procurement_source_kind(value) -> str:
+        clean_value = str(value or "shortage").strip().lower()
+        return clean_value if clean_value in {"shortage", "extra"} else "shortage"
+
     def _get_active_supplier_by_name(self, connection: sqlite3.Connection, supplier_name: str) -> sqlite3.Row | None:
         clean_name = str(supplier_name or "").strip()
         if not clean_name:
@@ -5695,6 +5716,12 @@ class InventoryStore:
             for raw_line in lines:
                 product_id = int(raw_line.get("product_id") or raw_line.get("productId") or 0)
                 supplier_name = str(raw_line.get("supplier_name") or raw_line.get("supplierName") or "").strip()
+                source_kind = self._normalize_procurement_source_kind(
+                    raw_line.get("source_kind") or raw_line.get("sourceKind") or "shortage"
+                )
+                source_note = str(raw_line.get("source_note") or raw_line.get("sourceNote") or "").strip()
+                if source_kind == "extra" and not source_note:
+                    source_note = "Ngoài nhu cầu đơn"
                 product_name_for_skip = ""
                 try:
                     product = self._get_product_or_raise(connection, product_id)
@@ -5713,28 +5740,92 @@ class InventoryStore:
                         "reason": "Chưa chọn nhà cung cấp hợp lệ.",
                     })
                     continue
+                supplier_id = str(supplier["id"])
+                supplier_display_name = str(supplier["name"])
+                supplier_key = supplier_id or self._normalize_procurement_supplier_key(supplier_display_name)
+                target_purchase_id = ""
+
                 existing_assignment = connection.execute(
                     """
-                    SELECT id, purchase_id
-                    FROM procurement_assignments
-                    WHERE product_id = ?
-                      AND mode = 'batch'
-                      AND status = 'active'
+                    SELECT
+                        pa.id,
+                        pa.purchase_id,
+                        p.status AS purchase_status,
+                        p.source_type,
+                        p.supplier_id,
+                        p.supplier_name
+                    FROM procurement_assignments pa
+                    JOIN purchases p ON p.id = pa.purchase_id
+                    WHERE pa.product_id = ?
+                      AND pa.mode = 'batch'
+                      AND pa.status = 'active'
                     """,
                     (product_id,),
                 ).fetchone()
                 if existing_assignment:
-                    skipped.append({
-                        "product_id": product_id,
-                        "product_name": product_name_for_skip,
-                        "reason": "Mặt hàng này đã được gán vào một phiếu nhập trong kỳ gom nhập.",
-                    })
-                    continue
+                    assigned_supplier_id = str(existing_assignment["supplier_id"] or "").strip()
+                    assigned_supplier_name = str(existing_assignment["supplier_name"] or "").strip()
+                    if source_kind == "extra":
+                        if (
+                            str(existing_assignment["purchase_status"] or "").strip() == "draft"
+                            and str(existing_assignment["source_type"] or "").strip() == "procurement_batch"
+                            and (
+                                assigned_supplier_id == supplier_id
+                                or self._normalize_procurement_supplier_key(assigned_supplier_name)
+                                == self._normalize_procurement_supplier_key(supplier_display_name)
+                            )
+                        ):
+                            target_purchase_id = str(existing_assignment["purchase_id"] or "").strip()
+                        else:
+                            skipped.append({
+                                "product_id": product_id,
+                                "product_name": product_name_for_skip,
+                                "reason": "Mặt hàng này đang được xử lý ở phiếu batch khác, không thể tách sang NCC khác.",
+                            })
+                            continue
+                    else:
+                        skipped.append({
+                            "product_id": product_id,
+                            "product_name": product_name_for_skip,
+                            "reason": "Mặt hàng này đã được gán vào một phiếu nhập trong kỳ gom nhập.",
+                        })
+                        continue
 
-                supplier_id = str(supplier["id"])
-                supplier_display_name = str(supplier["name"])
-                supplier_key = supplier_id or self._normalize_procurement_supplier_key(supplier_display_name)
-                purchase_id = purchases_by_supplier.get(supplier_key)
+                if not target_purchase_id:
+                    existing_batch_item = connection.execute(
+                        """
+                        SELECT
+                            p.id AS purchase_id,
+                            p.supplier_id,
+                            p.supplier_name
+                        FROM purchase_items pi
+                        JOIN purchases p ON p.id = pi.purchase_id
+                        WHERE pi.product_id = ?
+                          AND p.source_type = 'procurement_batch'
+                          AND p.status = 'draft'
+                        ORDER BY datetime(p.updated_at) DESC, p.id
+                        LIMIT 1
+                        """,
+                        (product_id,),
+                    ).fetchone()
+                    if existing_batch_item:
+                        existing_supplier_id = str(existing_batch_item["supplier_id"] or "").strip()
+                        existing_supplier_name = str(existing_batch_item["supplier_name"] or "").strip()
+                        if (
+                            existing_supplier_id == supplier_id
+                            or self._normalize_procurement_supplier_key(existing_supplier_name)
+                            == self._normalize_procurement_supplier_key(supplier_display_name)
+                        ):
+                            target_purchase_id = str(existing_batch_item["purchase_id"] or "").strip()
+                        else:
+                            skipped.append({
+                                "product_id": product_id,
+                                "product_name": product_name_for_skip,
+                                "reason": "Mặt hàng này đã nằm trong một phiếu batch draft khác, cần dùng cùng NCC để gom chung.",
+                            })
+                            continue
+
+                purchase_id = target_purchase_id or purchases_by_supplier.get(supplier_key)
                 if not purchase_id:
                     purchase_id = f"purchase_{secrets.token_urlsafe(8)}"
                     purchases_by_supplier[supplier_key] = purchase_id
@@ -5748,6 +5839,8 @@ class InventoryStore:
                         """,
                         (purchase_id, supplier_id, supplier_display_name, clean_scope_code, now, now),
                     )
+                elif supplier_key and supplier_key not in purchases_by_supplier:
+                    purchases_by_supplier[supplier_key] = purchase_id
 
                 item_count = connection.execute(
                     "SELECT COUNT(*) AS count FROM purchase_items WHERE purchase_id = ?",
@@ -5756,16 +5849,18 @@ class InventoryStore:
                 connection.execute(
                     """
                     INSERT INTO purchase_items(
-                        id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code,
+                        id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
                         expiry_input_mode, manufacture_date, expiry_date, sort_order
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, '', 'direct', NULL, NULL, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, '', 'direct', NULL, NULL, ?)
                     """,
                     (
                         f"purchase_item_{secrets.token_urlsafe(8)}",
                         purchase_id,
                         product_id,
                         product["name"],
+                        source_kind,
+                        source_note,
                         round(float(target_quantity), 2),
                         round(float(unit_cost), 2),
                         int(item_count or 0),
@@ -5798,34 +5893,35 @@ class InventoryStore:
                     """,
                     (round(float(next_discount), 2), now, purchase_id),
                 )
-                connection.execute(
-                    """
-                    INSERT INTO procurement_assignments(
-                        product_id, purchase_id, mode, scope_type, scope_code, assigned_quantity,
-                        assigned_by, assigned_at, released_at, status
+                if source_kind == "shortage":
+                    connection.execute(
+                        """
+                        INSERT INTO procurement_assignments(
+                            product_id, purchase_id, mode, scope_type, scope_code, assigned_quantity,
+                            assigned_by, assigned_at, released_at, status
+                        )
+                        VALUES(?, ?, 'batch', ?, ?, ?, ?, ?, NULL, 'active')
+                        """,
+                        (
+                            product_id,
+                            purchase_id,
+                            clean_scope_type,
+                            clean_scope_code,
+                            round(float(target_quantity), 2),
+                            clean_actor,
+                            now,
+                        ),
                     )
-                    VALUES(?, ?, 'batch', ?, ?, ?, ?, ?, NULL, 'active')
-                    """,
-                    (
-                        product_id,
-                        purchase_id,
-                        clean_scope_type,
-                        clean_scope_code,
-                        round(float(target_quantity), 2),
-                        clean_actor,
-                        now,
-                    ),
-                )
+                    self._record_audit(
+                        connection,
+                        entity_type="procurement_assignment",
+                        entity_id=str(product_id),
+                        entity_name=str(product["name"]),
+                        action="assign",
+                        actor=clean_actor,
+                        message=f"Gán mặt hàng vào phiếu nhập batch {purchase_id}.",
+                    )
                 touched_purchase_ids.add(purchase_id)
-                self._record_audit(
-                    connection,
-                    entity_type="procurement_assignment",
-                    entity_id=str(product_id),
-                    entity_name=str(product["name"]),
-                    action="assign",
-                    actor=clean_actor,
-                    message=f"Gán mặt hàng vào phiếu nhập batch {purchase_id}.",
-                )
 
             purchases = self._refresh_sync_collection_cache(connection, "purchases", updated_at=now)
             created_purchases = [
@@ -6460,6 +6556,8 @@ class InventoryStore:
                     {
                         "id": str(item.get("id") or ""),
                         "productId": int(item.get("productId") or 0),
+                        "sourceKind": str(item.get("sourceKind") or item.get("source_kind") or "shortage"),
+                        "sourceNote": str(item.get("sourceNote") or item.get("source_note") or ""),
                         "quantity": round(float(item.get("quantity") or 0), 2),
                         "unitCost": round(float(item.get("unitCost") or 0), 2),
                         "batchCode": str(item.get("batchCode") or item.get("batch_code") or ""),
@@ -6486,6 +6584,8 @@ class InventoryStore:
                     {
                         "id": str(item.get("id") or ""),
                         "productId": int(item.get("productId") or 0),
+                        "sourceKind": str(item.get("sourceKind") or item.get("source_kind") or "shortage"),
+                        "sourceNote": str(item.get("sourceNote") or item.get("source_note") or ""),
                         "quantity": round(float(item.get("quantity") or 0), 2),
                         "unitCost": round(float(item.get("unitCost") or 0), 2),
                         "batchCode": str(item.get("batchCode") or item.get("batch_code") or ""),
