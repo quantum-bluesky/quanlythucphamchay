@@ -369,11 +369,13 @@ Màn này dùng khi cần gom nhu cầu nhập định kỳ, ví dụ cuối th�
 6. Xem từng dòng mặt hàng thiếu: tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập.
 7. Tick chọn những dòng cần xử lý. Dòng chưa tick sẽ không hiện cảnh báo sau nhập vì chưa có số lượng dự kiến.
 8. Với từng dòng đã tick, chọn NCC từ danh bạ và nhập số lượng; số lượng mặc định là mức đủ đáp ứng nhu cầu.
-9. Trên tablet/desktop có thể nhập thêm `Giá nhập` và `Giảm KM`; khi nhiều dòng cùng NCC, giảm giá sẽ được gom vào phiếu của NCC đó.
-10. Nếu NCC chưa có trong danh bạ, app sẽ hỏi để chuyển sang màn `Nhà cung cấp` tạo mới. Lưu xong app quay lại planner để chọn tiếp.
-11. Bấm `Tạo phiếu đã chọn`; các dòng cùng NCC sẽ được gom vào cùng một phiếu nhập nháp.
-12. Bấm `Review phiếu` để mở detail các phiếu vừa tạo; dùng `Trước / Sau` để chuyển giữa các phiếu trong list và bấm `Lưu chi tiết` nếu cần sửa thêm.
-13. Bấm `Quay lại batch` để refresh lại planner, kiểm tra trạng thái còn thiếu, rồi bấm `Kết thúc kỳ gom` khi đã xử lý xong.
+9. Nếu cần gom thêm vài mặt hàng ngoài nhu cầu đơn, mở khối `Chọn thêm sản phẩm khác`, tìm sản phẩm theo tên rồi bấm `+ Thêm vào danh sách nhập`.
+10. Mỗi dòng thêm tay sẽ có badge `Ngoài nhu cầu đơn`; bạn nhập NCC, số lượng, giá nhập, giảm KM hoặc ghi chú nếu cần. Các dòng này không tham gia tính `Cần nhập`, nhưng vẫn được gom vào phiếu batch theo NCC.
+11. Trên tablet/desktop có thể nhập thêm `Giá nhập` và `Giảm KM`; khi nhiều dòng cùng NCC, giảm giá sẽ được gom vào phiếu của NCC đó.
+12. Nếu NCC chưa có trong danh bạ, app sẽ hỏi để chuyển sang màn `Nhà cung cấp` tạo mới. Lưu xong app quay lại planner để chọn tiếp.
+13. Bấm `Tạo phiếu đã chọn`; các dòng shortage và các dòng `Ngoài nhu cầu đơn` hợp lệ cùng NCC sẽ được gom vào cùng một phiếu nhập nháp.
+14. Bấm `Review phiếu` để mở detail các phiếu vừa tạo; dùng `Trước / Sau` để chuyển giữa các phiếu trong list và bấm `Lưu chi tiết` nếu cần sửa thêm.
+15. Bấm `Quay lại batch` để refresh lại planner, kiểm tra trạng thái còn thiếu, rồi bấm `Kết thúc kỳ gom` khi đã xử lý xong.
 
 Lưu ý:
 
@@ -382,6 +384,8 @@ Lưu ý:
 - nếu app báo conflict trước lúc bắt đầu kỳ gom, cần dọn các phiếu nhập mở đang cover trùng cùng sản phẩm rồi mới vào batch mode
 - trong lúc kỳ gom còn hiệu lực, màn `Quản lý nhập hàng` cũng bị siết theo khóa này: user không giữ khóa không được tự tạo mới hay sửa phiếu `Nháp/Đã đặt` ngoài planner
 - nếu một dòng đã tick nhưng chưa chọn NCC, app bỏ qua dòng đó và thông báo rõ
+- khối `Chọn thêm sản phẩm khác` chỉ hiện cho người đang giữ khóa batch hoặc `Master Admin`; user khác không được dùng để tránh bypass planner
+- các dòng `Ngoài nhu cầu đơn` không tạo assignment shortage; nếu sản phẩm đó đang có phiếu batch draft khác hoặc đang được gán vào phiếu batch cùng kỳ, app sẽ chỉ cho gom tiếp vào đúng phiếu/NCC đang xử lý thay vì tách phiếu mới
 - phiếu nhập tạo từ màn này vẫn đi tiếp qua `Quản lý nhập hàng`: `Nháp -> Đã đặt -> Đã nhập kho -> Đã thanh toán`
 
 ## 10. Luồng quản lý nhà cung cấp

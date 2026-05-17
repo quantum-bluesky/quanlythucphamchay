@@ -170,7 +170,7 @@ export const SCREEN_HELP = {
   },
   "procurement-planner": {
     title: "Xử lý nhập thiếu",
-    overview: "Dùng màn này khi cần gom nhu cầu nhập theo mặt hàng trong kỳ batch, có khóa một người xử lý để tránh tạo phiếu nhập trùng.",
+    overview: "Dùng màn này khi cần gom nhu cầu nhập theo mặt hàng trong kỳ batch, có khóa một người xử lý để tránh tạo phiếu nhập trùng và có thể thêm vài mặt hàng ngoài nhu cầu đơn vào cùng kỳ gom.",
     steps: [
       "Daily mode giữ flow xử lý nhanh theo đơn; Batch mode gom shortage về planner và tắt auto-create phiếu nhập theo từng cart.",
       "Người có quyền xử lý batch bấm `Bắt đầu kỳ gom` để giữ khóa. User khác chỉ xem trạng thái và người đang giữ khóa.",
@@ -178,6 +178,8 @@ export const SCREEN_HELP = {
       "Trong lúc owner còn ở màn này, app sẽ tự gia hạn khóa định kỳ để tránh hết hạn giữa chừng khi đang xử lý batch dài.",
       "Mỗi dòng hiển thị tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập thêm.",
       "Tick chọn các mặt hàng cần tạo phiếu, chọn NCC từ danh bạ và chỉnh số lượng; số lượng mặc định là mức đủ đáp ứng nhu cầu.",
+      "Ngoài các mặt hàng thiếu, người giữ khóa batch còn có thể mở khối `Chọn thêm sản phẩm khác` để thêm các dòng ngoài nhu cầu đơn vào cùng kỳ gom.",
+      "Các dòng thêm tay sẽ có badge `Ngoài nhu cầu đơn`, không tham gia tính `Cần nhập`, nhưng vẫn được gom chung vào phiếu batch theo NCC nếu hợp lệ.",
       "Nếu NCC chưa có trong danh bạ, app sẽ hỏi để chuyển sang màn Nhà cung cấp tạo mới, lưu xong quay lại planner để chọn tiếp.",
       "Các mặt hàng chọn cùng một NCC sẽ được gom vào cùng một phiếu nhập batch thay vì tạo nhiều phiếu riêng.",
       "Trong lúc Batch mode còn hiệu lực, màn `Quản lý nhập hàng` chỉ cho người giữ khóa batch hoặc Master Admin sửa phiếu `Nháp/Đã đặt`; các user khác chỉ nên tiếp tục các bước hậu cần như `Nhập kho` hoặc `Đã thanh toán` khi cần phân vai.",

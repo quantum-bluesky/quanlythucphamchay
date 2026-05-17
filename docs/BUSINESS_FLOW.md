@@ -176,9 +176,12 @@ ordered -> cancelled
 - một sản phẩm thiếu chỉ được có một assignment active tới một phiếu nhập batch mở
 - không tách cùng một sản phẩm thiếu thành nhiều phiếu nhập trong kỳ gom
 - người xử lý tick chọn nhiều dòng, chọn NCC từ danh bạ và nhập số lượng dự kiến trước khi tạo phiếu
+- người giữ khóa batch có thể thêm extra rows trong khối `Chọn thêm sản phẩm khác` để gom vài mặt hàng ngoài nhu cầu đơn vào cùng kỳ nhập
 - dòng chưa chọn NCC hợp lệ bị bỏ qua và phải thông báo rõ cho user
 - nếu NCC chưa có trong danh bạ, user được chuyển sang màn `Nhà cung cấp` để tạo mới rồi quay lại planner
 - các dòng chọn cùng một NCC phải gom vào cùng một phiếu nhập batch `draft`
+- extra rows không tạo assignment shortage; chúng chỉ đi qua check chuẩn của purchase draft và được merge vào đúng phiếu batch draft đang có nếu cùng NCC
+- nếu extra row trùng sản phẩm đang có assignment batch active hoặc đã nằm trong purchase batch draft khác, hệ thống không tách phiếu mới mà buộc dùng cùng NCC/phiếu đang xử lý
 - sau khi tạo phiếu, user review/chỉnh detail các phiếu nhập batch bằng luồng detail/list rồi quay lại planner refresh trạng thái
 - nếu cần đổi nhà cung cấp hoặc số lượng sau khi đã tạo, xử lý trên phiếu đang được gán thay vì tạo phiếu khác
 - phiếu tạo từ planner vẫn là purchase `draft`; workflow sau đó giữ nguyên `draft -> ordered -> received -> paid`

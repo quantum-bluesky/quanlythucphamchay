@@ -236,6 +236,8 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - cột chính:
   - `id`, `purchase_id`
   - `product_id`, `product_name`
+  - `source_kind`: `shortage` hoặc `extra`
+  - `source_note`: ghi chú nhẹ cho dòng `extra`, mặc định có thể là `Ngoài nhu cầu đơn`
   - `quantity`, `unit_cost`
   - `batch_code`
   - `expiry_input_mode`: `direct`, `manufacture`, hoặc `received_fallback`
@@ -369,6 +371,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - thêm bảng `inventory_receipts` và `inventory_receipt_items`
 - backfill receipt lịch sử từ `transactions.note` khi nhận diện được mã `PN/DC/THK/TNCC`
 - thêm `batch_code`, `expiry_date` vào `purchase_items`
+- thêm `source_kind`, `source_note` vào `purchase_items` để phân biệt dòng shortage với dòng extra của planner batch
 - thêm `batch_id`, `batch_code`, `expiry_date` vào `inventory_receipt_items`
 - thêm bảng `inventory_batches` và `inventory_batch_allocations`
 - backfill mềm lô từ transaction/receipt cũ khi schema mới được khởi tạo trên DB đang dùng
@@ -392,6 +395,8 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - Batch procurement mode được suy ra từ `workflow_locks.lock_key = procurement_batch` còn hiệu lực
 - `procurement_assignments` chặn tạo trùng nhiều phiếu nhập mở cho cùng một sản phẩm thiếu trong batch mode
 - phiếu nhập batch có `source_type = procurement_batch`; nhiều assignment có thể cùng trỏ tới một purchase nếu cùng NCC
+- các dòng `purchase_items.source_kind = 'extra'` là dòng được thêm tay ngoài nhu cầu đơn, không tạo `procurement_assignment`
+- nếu `source_kind = 'extra'` trùng sản phẩm đã có assignment batch active hoặc đã nằm trong purchase batch draft, backend chỉ cho merge vào đúng phiếu/NCC tương ứng thay vì tách phiếu batch mới
 - khi Batch procurement mode còn hiệu lực, chỉ lock owner hoặc `Master Admin` mới được mutate cấu trúc `purchases` ở trạng thái `draft/ordered`; user khác chỉ được phép đi tiếp các bước hậu cần đã chốt như `received/paid`
 
 ## 14. Config liên quan
@@ -425,7 +430,7 @@ User thường có thể có permission `procurement_batch_manage`; quyền này
 - `supplier_id` và `customer_id` trong một số receipt cũ có thể chưa backfill đầy đủ nếu dữ liệu lịch sử chỉ có tên
 - reporting sâu cho receipt lịch sử cũ phụ thuộc chất lượng `transactions.note`
 - lô chưa có HSD vẫn quản lý được nhưng không thể tham gia FEFO theo ngày hết hạn thật
-- planner batch hiện tạo phiếu nhập theo từng sản phẩm; việc chuyển assignment giữa NCC/phiếu là hướng mở rộng sau
+- planner batch hiện ưu tiên theo shortage rows và chỉ cho thêm extra rows khi đang có lock batch; việc chuyển assignment giữa NCC/phiếu khác vẫn chưa mở tự do
 
 ## 16. Định hướng nếu mở rộng sau này
 
