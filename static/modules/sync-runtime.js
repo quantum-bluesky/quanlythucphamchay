@@ -26,11 +26,13 @@ export function createSyncRuntimeHelpers(deps) {
     setAutoRefreshTimer,
     getAutoRefreshTimer,
     autoRefreshIntervalMs,
+    beginSavingUi,
     isSyncDebugEnabled,
     logSyncDebug,
   } = deps;
   let queuedPersistTimer = null;
   let persistInFlightPromise = null;
+  let queuedPersistBusyRelease = null;
 
   function buildCollectionSummary(payload = {}) {
     const purchases = Array.isArray(payload.purchases) ? payload.purchases : [];
@@ -203,7 +205,20 @@ export function createSyncRuntimeHelpers(deps) {
     }
   }
 
-  async function persistCollections(keys = syncCollectionKeys) {
+  function ensureQueuedPersistBusyLock() {
+    if (!queuedPersistBusyRelease && typeof beginSavingUi === "function") {
+      queuedPersistBusyRelease = beginSavingUi();
+    }
+  }
+
+  function releaseQueuedPersistBusyLock() {
+    if (typeof queuedPersistBusyRelease === "function") {
+      queuedPersistBusyRelease();
+    }
+    queuedPersistBusyRelease = null;
+  }
+
+  async function persistCollections(keys = syncCollectionKeys, requestOptions = {}) {
     const uniqueKeys = [...new Set(keys)].filter((key) => syncCollectionKeys.includes(key));
     if (!uniqueKeys.length) return;
     const syncPayload = getSyncPayload(uniqueKeys);
@@ -213,6 +228,7 @@ export function createSyncRuntimeHelpers(deps) {
     const response = await apiRequest("/api/state", {
       method: "PUT",
       body: JSON.stringify(syncPayload),
+      ...requestOptions,
     });
     if (isSyncDebugEnabled()) {
       logSyncDebug("persistCollections -> success", {
@@ -224,7 +240,7 @@ export function createSyncRuntimeHelpers(deps) {
     updateRuntimeVersion(response);
   }
 
-  async function persistCollectionsWithoutConflictCheck(keys = syncCollectionKeys) {
+  async function persistCollectionsWithoutConflictCheck(keys = syncCollectionKeys, requestOptions = {}) {
     const uniqueKeys = [...new Set(keys)].filter((key) => syncCollectionKeys.includes(key));
     if (!uniqueKeys.length) return;
     const syncPayload = getSyncPayload(uniqueKeys);
@@ -235,6 +251,7 @@ export function createSyncRuntimeHelpers(deps) {
     const response = await apiRequest("/api/state", {
       method: "PUT",
       body: JSON.stringify(syncPayload),
+      ...requestOptions,
     });
     if (isSyncDebugEnabled()) {
       logSyncDebug("persistCollectionsWithoutConflictCheck -> success", {
@@ -254,10 +271,13 @@ export function createSyncRuntimeHelpers(deps) {
     const keysToPersist = [...pendingPersistCollections];
     pendingPersistCollections.clear();
     setPersistScheduled(false);
-    if (!keysToPersist.length) return;
+    if (!keysToPersist.length) {
+      releaseQueuedPersistBusyLock();
+      return;
+    }
     persistInFlightPromise = (async () => {
       try {
-        await persistCollections(keysToPersist);
+        await persistCollections(keysToPersist, { deferBusyRelease: false });
       } catch (error) {
         if (isSyncDebugEnabled()) {
           logSyncDebug("queuePersistCollections -> error", {
@@ -275,6 +295,7 @@ export function createSyncRuntimeHelpers(deps) {
         showToast(`Lưu đồng bộ thất bại: ${error.message}`, true);
         try { await refreshData(); } catch {}
       } finally {
+        releaseQueuedPersistBusyLock();
         persistInFlightPromise = null;
       }
     })();
@@ -284,6 +305,7 @@ export function createSyncRuntimeHelpers(deps) {
   function queuePersistCollections(keys = []) {
     keys.filter((key) => syncCollectionKeys.includes(key)).forEach((key) => pendingPersistCollections.add(key));
     if (getPersistScheduled() || !pendingPersistCollections.size) return;
+    ensureQueuedPersistBusyLock();
     setPersistScheduled(true);
     queuedPersistTimer = window.setTimeout(() => {
       queuedPersistTimer = null;

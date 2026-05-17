@@ -27,6 +27,7 @@ Nếu gặp các trạng thái hoặc thuật ngữ tiếng Anh như `draft`, `o
 - Nếu có máy khác vừa cập nhật dữ liệu, app sẽ tự nạp lại khi bạn không còn gõ dở ở ô nhập hiện tại
 - Khi đổi màn hình bằng menu, app vẫn giữ lịch sử `Quay lại / Tiến tới`, nên có thể nhảy qua lại giữa các màn đang xử lý mà không cần tìm lại từ đầu
 - Ô `Tìm kiếm nhanh` nổi sẽ tự bám theo màn hiện tại; khi đổi màn, app sẽ tự nối lại đúng ô tìm kiếm của màn đó
+- Khi bấm các action có lưu thay đổi như `Lưu`, `Chốt đơn`, `Xuất hàng`, `Nhập kho`, `Đã thanh toán`, app sẽ hiện `Loading` và khóa tạm thao tác khác tới khi trạng thái mới cập nhật xong; không cần bấm lặp lại
 
 ## 2.1. Viết tắt màn hình
 

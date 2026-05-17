@@ -33,6 +33,7 @@ Liên kết detail hiện có:
 - mỗi màn có search nhanh riêng
 - popup/help phải đóng được và có liên kết qua lại giữa các màn liên quan
 - luồng chính ưu tiên thao tác nhanh cho cửa hàng nhỏ
+- với action có ghi dữ liệu lên server hoặc đồng bộ SQLite/state, UI phải hiện loading overlay toàn cục và khóa tạm thao tác còn lại cho tới khi trạng thái mới render xong để tránh bấm chồng
 
 ## 2. Danh sách màn hình
 
