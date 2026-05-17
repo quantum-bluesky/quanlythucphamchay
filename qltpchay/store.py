@@ -66,6 +66,12 @@ class SyncConflictError(ValueError):
         )
 
 
+class ProcurementBatchStartConflictError(ValueError):
+    def __init__(self, message: str, *, conflicts: list[dict] | None = None):
+        self.conflicts = conflicts or []
+        super().__init__(message)
+
+
 class InventoryStore:
     SYNC_COLLECTION_KEYS = ("customers", "suppliers", "carts", "purchases")
 
@@ -1300,6 +1306,16 @@ class InventoryStore:
             "sourceName": clean_source_name,
             "source_name": clean_source_name,
         }
+
+    @staticmethod
+    def _get_purchase_source_type(purchase: dict | None) -> str:
+        if not isinstance(purchase, dict):
+            return ""
+        return str(purchase.get("sourceType") or purchase.get("source_type") or "").strip()
+
+    @classmethod
+    def _is_procurement_batch_purchase(cls, purchase: dict | None) -> bool:
+        return cls._get_purchase_source_type(purchase) == "procurement_batch"
 
     @classmethod
     def _normalize_purchases_for_storage(cls, purchases: list[dict]) -> list[dict]:
@@ -3999,6 +4015,13 @@ class InventoryStore:
                         updated_purchase["receipt_code"] = ""
                     next_purchases.append(updated_purchase)
 
+            self._sync_procurement_assignments_for_purchases(
+                connection,
+                purchases,
+                next_purchases,
+                actor=actor,
+                updated_at=now,
+            )
             self._replace_sync_collection_records(connection, "purchases", next_purchases)
             canonical = self._refresh_sync_collection_cache(
                 connection,
@@ -5273,6 +5296,78 @@ class InventoryStore:
             "lock_timeout_minutes": max(1, int(lock_timeout_minutes or 180)),
         }
 
+    def _collect_procurement_batch_start_conflicts(
+        self,
+        connection: sqlite3.Connection,
+    ) -> list[dict]:
+        purchases = self._load_sync_collection_from_tables(connection, "purchases")
+        product_open_purchases: dict[int, dict[str, dict]] = {}
+        for purchase in purchases:
+            purchase_id = str(purchase.get("id") or "").strip()
+            if not purchase_id:
+                continue
+            status = str(purchase.get("status") or "draft").strip()
+            if status not in {"draft", "ordered"}:
+                continue
+            source_type = self._get_purchase_source_type(purchase)
+            purchase_code = str(purchase.get("code") or purchase_id).strip() or purchase_id
+            seen_product_ids: set[int] = set()
+            for item in purchase.get("items") or []:
+                product_id = int(item.get("productId") or item.get("product_id") or 0)
+                if product_id <= 0 or product_id in seen_product_ids:
+                    continue
+                seen_product_ids.add(product_id)
+                product_name = str(item.get("productName") or item.get("product_name") or "").strip()
+                product_open_purchases.setdefault(product_id, {})[purchase_id] = {
+                    "purchase_id": purchase_id,
+                    "purchase_code": purchase_code,
+                    "purchase_status": status,
+                    "source_type": source_type,
+                    "product_name": product_name or f"SP #{product_id}",
+                }
+
+        conflicts: list[dict] = []
+        for product_id, purchase_map in product_open_purchases.items():
+            if len(purchase_map) <= 1:
+                continue
+            purchases_for_product = sorted(
+                purchase_map.values(),
+                key=lambda entry: (entry["purchase_code"], entry["purchase_id"]),
+            )
+            conflicts.append(
+                {
+                    "product_id": product_id,
+                    "product_name": purchases_for_product[0]["product_name"],
+                    "purchase_ids": [entry["purchase_id"] for entry in purchases_for_product],
+                    "purchase_codes": [entry["purchase_code"] for entry in purchases_for_product],
+                    "has_cart_source_overlap": any(
+                        entry["source_type"] == "cart" for entry in purchases_for_product
+                    ),
+                }
+            )
+        conflicts.sort(key=lambda entry: (entry["product_name"], entry["product_id"]))
+        return conflicts
+
+    @staticmethod
+    def _format_procurement_batch_start_conflicts(conflicts: list[dict]) -> str:
+        if not conflicts:
+            return ""
+        samples: list[str] = []
+        for conflict in conflicts[:3]:
+            purchase_refs = ", ".join(conflict.get("purchase_codes") or conflict.get("purchase_ids") or [])
+            product_name = conflict.get("product_name") or f"SP #{conflict.get('product_id') or ''}"
+            detail = (
+                f"{product_name} đang nằm trong nhiều phiếu mở ({purchase_refs})."
+            )
+            if conflict.get("has_cart_source_overlap"):
+                detail += " Có ít nhất một phiếu nguồn từ đơn hàng."
+            samples.append(detail)
+        suffix = ""
+        remaining = len(conflicts) - len(samples)
+        if remaining > 0:
+            suffix = f" Còn {remaining} sản phẩm xung đột khác."
+        return "Cần dọn conflict trước khi bắt đầu kỳ gom nhập. " + " ".join(samples) + suffix
+
     def start_procurement_batch(
         self,
         *,
@@ -5290,6 +5385,13 @@ class InventoryStore:
             current = self._get_active_workflow_lock(connection, "procurement_batch")
             if current and current["owner_username"] != clean_username and str(role or "") != "admin":
                 raise ValueError(f"Kỳ gom nhập đang được xử lý bởi {current['owner_username']}.")
+            if not current:
+                conflicts = self._collect_procurement_batch_start_conflicts(connection)
+                if conflicts:
+                    raise ProcurementBatchStartConflictError(
+                        self._format_procurement_batch_start_conflicts(conflicts),
+                        conflicts=conflicts,
+                    )
             connection.execute(
                 """
                 INSERT INTO workflow_locks(lock_key, owner_username, owner_role, acquired_at, expires_at, updated_at, note)
@@ -5742,7 +5844,151 @@ class InventoryStore:
             ),
         }
 
-    def save_sync_state(self, payload: dict) -> dict:
+    def _release_procurement_assignments(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        purchase_id: str = "",
+        product_ids: set[int] | None = None,
+        released_at: str,
+        actor: str = "",
+        reason: str = "",
+    ) -> int:
+        clean_purchase_id = str(purchase_id or "").strip()
+        if not clean_purchase_id:
+            return 0
+
+        query = """
+            SELECT id, product_id
+            FROM procurement_assignments
+            WHERE purchase_id = ?
+              AND mode = 'batch'
+              AND status = 'active'
+        """
+        params: list = [clean_purchase_id]
+        clean_product_ids = {
+            int(product_id)
+            for product_id in (product_ids or set())
+            if int(product_id) > 0
+        }
+        if clean_product_ids:
+            placeholders = ",".join("?" for _ in clean_product_ids)
+            query += f" AND product_id IN ({placeholders})"
+            params.extend(sorted(clean_product_ids))
+
+        rows = connection.execute(query, tuple(params)).fetchall()
+        if not rows:
+            return 0
+
+        for row in rows:
+            assignment_id = int(row["id"])
+            product_id = int(row["product_id"] or 0)
+            connection.execute(
+                """
+                UPDATE procurement_assignments
+                SET status = 'released', released_at = ?
+                WHERE id = ?
+                """,
+                (released_at, assignment_id),
+            )
+            self._record_audit(
+                connection,
+                entity_type="procurement_assignment",
+                entity_id=str(product_id or assignment_id),
+                entity_name=str(product_id or assignment_id),
+                action="release",
+                actor=actor,
+                message=reason or f"Release assignment khỏi phiếu nhập batch {clean_purchase_id}.",
+            )
+        return len(rows)
+
+    def _sync_procurement_assignments_for_purchases(
+        self,
+        connection: sqlite3.Connection,
+        existing_purchases: list[dict],
+        incoming_purchases: list[dict],
+        *,
+        actor: str = "",
+        updated_at: str,
+    ) -> None:
+        existing_by_id = {
+            str(purchase.get("id") or ""): purchase
+            for purchase in existing_purchases
+            if purchase.get("id")
+        }
+        incoming_by_id = {
+            str(purchase.get("id") or ""): purchase
+            for purchase in incoming_purchases
+            if purchase.get("id")
+        }
+
+        for purchase_id, previous_purchase in existing_by_id.items():
+            if not purchase_id:
+                continue
+            next_purchase = incoming_by_id.get(purchase_id)
+            previous_is_batch = self._is_procurement_batch_purchase(previous_purchase)
+            next_is_batch = self._is_procurement_batch_purchase(next_purchase)
+            if not previous_is_batch and not next_is_batch:
+                continue
+
+            if next_purchase is None:
+                self._release_procurement_assignments(
+                    connection,
+                    purchase_id=purchase_id,
+                    released_at=updated_at,
+                    actor=actor,
+                    reason=f"Release assignment vì phiếu nhập batch {purchase_id} bị xóa khỏi danh sách phiếu mở.",
+                )
+                continue
+
+            next_status = str(next_purchase.get("status") or "draft").strip()
+            if previous_is_batch and (not next_is_batch or next_status in {"received", "cancelled"}):
+                release_reason = (
+                    f"Release assignment vì phiếu nhập batch {purchase_id} đã nhập kho."
+                    if next_status == "received"
+                    else (
+                        f"Release assignment vì phiếu nhập batch {purchase_id} đã bị hủy."
+                        if next_status == "cancelled"
+                        else f"Release assignment vì phiếu {purchase_id} không còn thuộc flow batch procurement."
+                    )
+                )
+                self._release_procurement_assignments(
+                    connection,
+                    purchase_id=purchase_id,
+                    released_at=updated_at,
+                    actor=actor,
+                    reason=release_reason,
+                )
+                continue
+
+            previous_product_ids = {
+                int(item.get("productId") or item.get("product_id") or 0)
+                for item in (previous_purchase.get("items") or [])
+                if int(item.get("productId") or item.get("product_id") or 0) > 0
+            }
+            next_product_ids = {
+                int(item.get("productId") or item.get("product_id") or 0)
+                for item in (next_purchase.get("items") or [])
+                if int(item.get("productId") or item.get("product_id") or 0) > 0
+            }
+            removed_product_ids = previous_product_ids - next_product_ids
+            if removed_product_ids:
+                self._release_procurement_assignments(
+                    connection,
+                    purchase_id=purchase_id,
+                    product_ids=removed_product_ids,
+                    released_at=updated_at,
+                    actor=actor,
+                    reason=f"Release assignment vì dòng hàng đã bị gỡ khỏi phiếu nhập batch {purchase_id}.",
+                )
+
+    def save_sync_state(
+        self,
+        payload: dict,
+        *,
+        actor_username: str = "",
+        actor_role: str = "",
+    ) -> dict:
         allowed_keys = set(self.SYNC_COLLECTION_KEYS)
         to_update = {
             key: payload[key]
@@ -5800,8 +6046,18 @@ class InventoryStore:
                     actor=actor,
                 )
                 self._validate_purchase_workflow_locks(
+                    connection,
                     existing_collections.get("purchases", []),
                     to_update["purchases"],
+                    actor_username=actor_username,
+                    actor_role=actor_role,
+                )
+                self._sync_procurement_assignments_for_purchases(
+                    connection,
+                    existing_collections.get("purchases", []),
+                    to_update["purchases"],
+                    actor=actor,
+                    updated_at=now,
                 )
 
             for key, value in to_update.items():
@@ -5996,10 +6252,38 @@ class InventoryStore:
                 if next_payment_status != previous_payment_status:
                     raise ValueError("Giỏ hàng đã hủy không thể đổi trạng thái thanh toán.")
 
+    def _is_procurement_batch_structure_locked_for_actor(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        actor_username: str = "",
+        actor_role: str = "",
+    ) -> bool:
+        active_lock = self._get_active_workflow_lock(connection, "procurement_batch")
+        if not active_lock:
+            return False
+        if str(actor_role or "").strip() == "admin":
+            return False
+        clean_actor_username = str(actor_username or "").strip()
+        return clean_actor_username != str(active_lock.get("owner_username") or "").strip()
+
+    @staticmethod
+    def _can_non_owner_mutate_purchase_during_procurement_batch(
+        previous_purchase: dict | None,
+        next_purchase: dict | None,
+    ) -> bool:
+        previous_status = str((previous_purchase or {}).get("status") or "").strip()
+        next_status = str((next_purchase or {}).get("status") or "").strip()
+        return previous_status == "ordered" and next_status == "received"
+
     def _validate_purchase_workflow_locks(
         self,
+        connection: sqlite3.Connection,
         existing_purchases: list[dict],
         incoming_purchases: list[dict],
+        *,
+        actor_username: str = "",
+        actor_role: str = "",
     ) -> None:
         incoming_ids = {
             str(purchase.get("id"))
@@ -6081,6 +6365,62 @@ class InventoryStore:
 
             if previous_status not in {"received", "paid"}:
                 raise ValueError("Phiếu nhập chỉ được chuyển sang đã thanh toán sau khi đã nhập kho.")
+
+        if not self._is_procurement_batch_structure_locked_for_actor(
+            connection,
+            actor_username=actor_username,
+            actor_role=actor_role,
+        ):
+            return
+
+        for purchase in existing_purchases:
+            purchase_id = str(purchase.get("id") or "")
+            if not purchase_id or purchase_id in incoming_ids:
+                continue
+            if str(purchase.get("status") or "draft") in {"draft", "ordered"}:
+                raise ValueError(
+                    "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được xóa phiếu nhập nháp/đã đặt."
+                )
+
+        existing_by_id = {
+            str(purchase.get("id")): purchase
+            for purchase in existing_purchases
+            if purchase.get("id")
+        }
+        for purchase in incoming_purchases:
+            purchase_id = str(purchase.get("id") or "")
+            next_status = str(purchase.get("status") or "draft").strip()
+            previous = existing_by_id.get(purchase_id)
+            previous_status = str(previous.get("status") or "").strip() if previous else ""
+
+            if previous is None:
+                if next_status in {"draft", "ordered"}:
+                    raise ValueError(
+                        "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo phiếu nhập nháp/đã đặt."
+                    )
+                continue
+
+            if self._can_non_owner_mutate_purchase_during_procurement_batch(previous, purchase):
+                continue
+
+            involves_open_purchase = (
+                previous_status in {"draft", "ordered"}
+                or next_status in {"draft", "ordered", "cancelled"}
+            )
+            if not involves_open_purchase:
+                continue
+
+            if (
+                previous_status == next_status
+                and previous_status in {"draft", "ordered"}
+                and self._snapshot_purchase_for_lock(previous) == self._snapshot_purchase_for_lock(purchase)
+                and self._get_purchase_discount_amount(previous) == self._get_purchase_discount_amount(purchase)
+            ):
+                continue
+
+            raise ValueError(
+                "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo/sửa cấu trúc phiếu nhập nháp/đã đặt."
+            )
 
     def _snapshot_cart_for_lock(self, cart: dict) -> dict:
         return {

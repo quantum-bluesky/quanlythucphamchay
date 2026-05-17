@@ -241,6 +241,20 @@ async function autoLoginUserRequest(request) {
   throw lastError || new Error("Unable to auto login request context as normal user.");
 }
 
+async function autoLoginProcurementManager(page, request) {
+  await autoLogin(page, request, {
+    username: "bizmanager",
+    password: "biz12345",
+  });
+}
+
+async function autoLoginProcurementManagerRequest(request) {
+  return autoLoginRequest(request, {
+    username: "bizmanager",
+    password: "biz12345",
+  });
+}
+
 function expectNoRuntimeErrors(runtime) {
   expect(runtime.errors, runtime.errors.join("\n")).toEqual([]);
 }
@@ -250,6 +264,8 @@ module.exports = {
   autoLogin,
   autoLoginAdmin,
   autoLoginAdminRequest,
+  autoLoginProcurementManager,
+  autoLoginProcurementManagerRequest,
   autoLoginUser,
   autoLoginUserRequest,
   collectToast,
