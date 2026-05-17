@@ -1888,6 +1888,7 @@ function resetProcurementPlannerBatchSessionState() {
   state.procurementPlanner.startConflicts = [];
   state.procurementPlanner.extraRows = [];
   state.procurementPlanner.extraExpanded = false;
+  state.procurementPlanner.extraSearchTerm = "";
   state.procurementPlanner.reviewOpen = false;
   state.procurementPlanner.reviewPurchaseIds = [];
   state.procurementPlanner.reviewIndex = 0;
@@ -2551,6 +2552,7 @@ async function refreshProcurementPlanner(scope = state.procurementPlanner.scope)
     ? currentPlanner.extraRows
     : [];
   const previousExtraExpanded = Boolean(currentPlanner.extraExpanded);
+  const previousExtraSearchTerm = String(currentPlanner.extraSearchTerm || "");
   const previousStartConflicts = Array.isArray(currentPlanner.startConflicts)
     ? currentPlanner.startConflicts
     : [];
@@ -2575,6 +2577,7 @@ async function refreshProcurementPlanner(scope = state.procurementPlanner.scope)
       selections: previousSelections,
       extraRows: previousExtraRows,
       extraExpanded: previousExtraExpanded,
+      extraSearchTerm: previousExtraSearchTerm,
       startConflicts: previousStartConflicts,
       reviewOpen: previousReviewOpen,
       reviewPurchaseIds: previousReviewPurchaseIds,
@@ -2692,6 +2695,10 @@ function normalizeProcurementSelectionDefaults() {
       if (!productId || seenExtraProductIds.has(productId)) {
         return false;
       }
+      const shortageRow = (state.procurementPlanner.rows || []).find((entry) => Number(entry.product_id) === productId);
+      if (shortageRow && Number(shortageRow.required_purchase || 0) > 0) {
+        return false;
+      }
       const product = state.products.find((entry) => Number(entry.id) === productId);
       if (!product || isDeletedEntity(product)) {
         return false;
@@ -2712,6 +2719,7 @@ function normalizeProcurementSelectionDefaults() {
         sourceNote: String(row.sourceNote || "Ngoài nhu cầu đơn").trim() || "Ngoài nhu cầu đơn",
       };
     });
+  state.procurementPlanner.extraSearchTerm = String(state.procurementPlanner.extraSearchTerm || "");
 }
 
 function findActiveSupplierByName(name) {
@@ -2720,14 +2728,6 @@ function findActiveSupplierByName(name) {
     return null;
   }
   return getActiveSuppliers().find((supplier) => normalizeText(supplier.name) === normalized) || null;
-}
-
-function findActiveProductByName(name) {
-  const normalized = normalizeText(name);
-  if (!normalized) {
-    return null;
-  }
-  return state.products.find((product) => !isDeletedEntity(product) && normalizeText(product.name) === normalized) || null;
 }
 
 function getProcurementAssignedPurchaseIds() {
@@ -2795,45 +2795,124 @@ function clearPendingProcurementSupplierFlow() {
   state.pendingProcurementSupplierName = "";
 }
 
-function addProcurementExtraRowByProduct(product) {
+function getProductCurrentStock(product) {
+  return Number(product?.currentStock ?? product?.current_stock ?? 0);
+}
+
+function getProcurementExtraRowByProductId(productId) {
+  return (state.procurementPlanner.extraRows || []).find((row) => Number(row?.productId || 0) === Number(productId)) || null;
+}
+
+function removeProcurementExtraRowByProductId(productId) {
+  state.procurementPlanner.extraRows = (state.procurementPlanner.extraRows || []).filter(
+    (row) => Number(row?.productId || 0) !== Number(productId)
+  );
+}
+
+function ensureProcurementExtraRowByProduct(product) {
   if (!product || isDeletedEntity(product)) {
     throw new Error("Không tìm thấy sản phẩm hợp lệ để thêm vào danh sách nhập.");
   }
   const productId = Number(product.id || 0);
-  const existingRow = (state.procurementPlanner.extraRows || []).find((row) => Number(row.productId) === productId);
+  const existingRow = getProcurementExtraRowByProductId(productId);
   if (existingRow) {
-    showToast(`Sản phẩm ${product.name} đã nằm trong khối Chọn thêm sản phẩm khác.`);
-    state.procurementPlanner.extraExpanded = true;
-    renderProcurementPlanner();
-    return;
+    return existingRow;
   }
+  const createdRow = {
+    id: createId("procurement_extra"),
+    productId,
+    productName: String(product.name || "").trim(),
+    supplierName: "",
+    quantity: "1",
+    unitCost: String(product.price ?? 0),
+    discountAmount: "0",
+    sourceNote: "Ngoài nhu cầu đơn",
+  };
   state.procurementPlanner.extraRows = [
     ...(state.procurementPlanner.extraRows || []),
-    {
-      id: createId("procurement_extra"),
-      productId,
-      productName: product.name,
-      supplierName: "",
-      quantity: "1",
-      unitCost: String(product.price ?? 0),
-      discountAmount: "0",
-      sourceNote: "Ngoài nhu cầu đơn",
-    },
+    createdRow,
   ];
-  state.procurementPlanner.extraExpanded = true;
-  renderProcurementPlanner();
+  return createdRow;
 }
 
-function addProcurementExtraRowByName(productName) {
-  const cleanName = String(productName || "").trim();
-  if (!cleanName) {
-    throw new Error("Cần chọn sản phẩm trước khi thêm vào danh sách nhập.");
+function setProcurementExtraProductSelected(product, selected) {
+  if (selected) {
+    ensureProcurementExtraRowByProduct(product);
+    state.procurementPlanner.extraExpanded = true;
+    return;
   }
-  const product = findActiveProductByName(cleanName);
-  if (!product) {
-    throw new Error(`Không tìm thấy sản phẩm "${cleanName}" trong danh mục đang dùng.`);
+  removeProcurementExtraRowByProductId(product?.id || 0);
+}
+
+function buildProcurementExtraCandidateGroups() {
+  const plannerRows = Array.isArray(state.procurementPlanner.rows) ? state.procurementPlanner.rows : [];
+  const plannerProductIds = new Set(
+    plannerRows
+      .map((row) => Number(row?.product_id || 0))
+      .filter((productId) => Number.isFinite(productId) && productId > 0)
+  );
+  const zeroNeedCandidates = plannerRows
+    .filter((row) => Number(row?.required_purchase || 0) <= 0)
+    .map((row) => {
+      const productId = Number(row.product_id || 0);
+      const product = state.products.find((entry) => Number(entry.id) === productId) || null;
+      return {
+        productId,
+        productName: String(row.product_name || product?.name || "").trim(),
+        unit: String(row.unit || product?.unit || "").trim(),
+        currentStock: Number(row.current_stock || 0),
+        incomingQuantity: Number(row.incoming_quantity || 0),
+        requiredPurchase: Number(row.required_purchase || 0),
+        sourceGroup: "zero-need",
+      };
+    });
+  const otherCandidates = state.products
+    .filter((product) => !isDeletedEntity(product) && !plannerProductIds.has(Number(product.id || 0)))
+    .map((product) => ({
+      productId: Number(product.id || 0),
+      productName: String(product.name || "").trim(),
+      unit: String(product.unit || "").trim(),
+      currentStock: getProductCurrentStock(product),
+      incomingQuantity: 0,
+      requiredPurchase: 0,
+      sourceGroup: "other",
+    }));
+  const compareByName = (left, right) => String(left.productName || "").localeCompare(String(right.productName || ""), "vi");
+  zeroNeedCandidates.sort(compareByName);
+  otherCandidates.sort(compareByName);
+  return {
+    zeroNeedCandidates,
+    otherCandidates,
+  };
+}
+
+function applyProcurementExtraSearchFilter() {
+  if (!procurementExtraPanel || procurementExtraPanel.hidden) {
+    return;
   }
-  addProcurementExtraRowByProduct(product);
+  const filterTerm = normalizeText(state.procurementPlanner.extraSearchTerm || "");
+  let visibleCount = 0;
+  procurementExtraPanel.querySelectorAll("[data-procurement-extra-section]").forEach((section) => {
+    let sectionVisibleCount = 0;
+    section.querySelectorAll("[data-procurement-extra-candidate]").forEach((candidate) => {
+      const candidateName = String(candidate.dataset.procurementExtraCandidateName || "");
+      const isSelected = Boolean(candidate.querySelector("[data-procurement-extra-select]:checked"));
+      const matches = isSelected || !filterTerm || candidateName.includes(filterTerm);
+      candidate.hidden = !matches;
+      if (matches) {
+        sectionVisibleCount += 1;
+        visibleCount += 1;
+      }
+    });
+    const emptyState = section.querySelector("[data-procurement-extra-empty]");
+    if (emptyState) {
+      emptyState.hidden = sectionVisibleCount > 0 || !filterTerm;
+    }
+  });
+  const globalEmptyState = procurementExtraPanel.querySelector("[data-procurement-extra-empty-global]");
+  if (globalEmptyState) {
+    globalEmptyState.hidden = visibleCount > 0 || !filterTerm;
+  }
 }
 
 function getProcurementExtraRowSignals(extraRow) {
@@ -3037,61 +3116,111 @@ function renderProcurementExtraPanel(canEditBatch) {
   procurementExtraPanel.hidden = false;
   const extraRows = Array.isArray(state.procurementPlanner.extraRows) ? state.procurementPlanner.extraRows : [];
   const bodyHidden = !state.procurementPlanner.extraExpanded;
+  const extraSearchTerm = String(state.procurementPlanner.extraSearchTerm || "");
+  const candidateGroups = buildProcurementExtraCandidateGroups();
+  const selectedCount = extraRows.length;
+  const renderCandidateSection = (title, note, candidates) => {
+    if (!candidates.length) {
+      return "";
+    }
+    return `
+      <section class="stack-block" data-procurement-extra-section>
+        <div class="subheading">
+          <div>
+            <h4>${escapeHtml(title)}</h4>
+            <p class="panel-note">${escapeHtml(note)}</p>
+          </div>
+          <div class="cart-item-actions">
+            <span class="pill">${escapeHtml(String(candidates.length))} SP</span>
+          </div>
+        </div>
+        <div class="cart-items-list">
+          ${candidates.map((candidate) => {
+            const product = state.products.find((entry) => Number(entry.id) === Number(candidate.productId)) || null;
+            const selectedRow = getProcurementExtraRowByProductId(candidate.productId);
+            const signals = getProcurementExtraRowSignals(selectedRow || {
+              productId: candidate.productId,
+              productName: candidate.productName,
+            });
+            const isSelected = Boolean(selectedRow);
+            const metaText = candidate.sourceGroup === "zero-need"
+              ? `Tồn ${formatQuantity(candidate.currentStock)} ${candidate.unit} • Chờ nhập ${formatQuantity(candidate.incomingQuantity)} • Cần nhập ${formatQuantity(candidate.requiredPurchase)}`
+              : `Tồn hiện tại ${formatQuantity(candidate.currentStock)} ${candidate.unit}`;
+            const inputBlock = isSelected ? `
+              <div class="procurement-input-grid">
+                <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(selectedRow?.supplierName || "")}" data-procurement-extra-field="supplierName" data-product-id="${escapeHtml(candidate.productId)}"></label>
+                <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(selectedRow?.quantity || "1")}" data-procurement-extra-field="quantity" data-product-id="${escapeHtml(candidate.productId)}"></label>
+                <label class="desktop-only-field"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(selectedRow?.unitCost || String(product?.price ?? 0))}" data-procurement-extra-field="unitCost" data-product-id="${escapeHtml(candidate.productId)}"></label>
+                <label class="desktop-only-field"><span>Giảm KM</span><input type="number" min="0" step="1000" value="${escapeHtml(selectedRow?.discountAmount || "0")}" data-procurement-extra-field="discountAmount" data-product-id="${escapeHtml(candidate.productId)}"></label>
+                <label class="wide-field"><span>Ghi chú dòng</span><input type="text" value="${escapeHtml(selectedRow?.sourceNote || "Ngoài nhu cầu đơn")}" data-procurement-extra-field="sourceNote" data-product-id="${escapeHtml(candidate.productId)}"></label>
+              </div>
+            ` : "";
+            return `
+              <article class="cart-item-card" data-procurement-extra-candidate data-procurement-extra-candidate-name="${escapeHtml(normalizeText(candidate.productName))}" data-product-id="${escapeHtml(candidate.productId)}">
+                <div class="cart-item-main">
+                  <div>
+                    <label class="toggle-inline">
+                      <input type="checkbox" data-procurement-extra-select data-product-id="${escapeHtml(candidate.productId)}" ${isSelected ? "checked" : ""}>
+                      <strong>${escapeHtml(candidate.productName)}</strong>
+                    </label>
+                    <p class="meta">${escapeHtml(metaText)}</p>
+                  </div>
+                  <div class="cart-item-actions">
+                    <span class="pill draft">Ngoài nhu cầu đơn</span>
+                    ${candidate.sourceGroup === "zero-need" ? '<span class="pill warning">Đang có trên planner (cần nhập 0)</span>' : ""}
+                  </div>
+                </div>
+                ${inputBlock}
+                ${isSelected ? '<div class="cart-line-note">Dòng này không đến từ nhu cầu đơn, không tham gia tính cần nhập.</div>' : ""}
+                ${isSelected && signals.hasExternalOpenPurchases ? `<article class="inline-alert warning">Mặt hàng này đang có phiếu nhập mở khác, cần kiểm tra trước khi tạo thêm.</article>` : ""}
+                ${isSelected ? `
+                  <div class="line-actions">
+                    <button type="button" class="ghost-button compact-button" data-procurement-extra-action="remove" data-product-id="${escapeHtml(candidate.productId)}">Bỏ chọn</button>
+                  </div>
+                ` : ""}
+              </article>
+            `;
+          }).join("")}
+          <div class="empty-state" data-procurement-extra-empty hidden>Không có sản phẩm nào trong nhóm này khớp với từ khóa đang lọc.</div>
+        </div>
+      </section>
+    `;
+  };
   procurementExtraPanel.innerHTML = `
     <div class="subheading">
       <div>
         <p class="panel-kicker">Nhập thêm ngoài shortage</p>
         <h3>Chọn thêm sản phẩm khác</h3>
-        <p class="panel-note">Ngoài các mặt hàng thiếu, người giữ khóa batch cũng có thể chọn thêm sản phẩm khác để gom nhập cùng kỳ.</p>
+        <p class="panel-note">Ngoài các mặt hàng thiếu, người giữ khóa batch cũng có thể tick chọn nhanh thêm sản phẩm khác để gom nhập cùng kỳ.</p>
       </div>
       <div class="inline-menu-actions">
+        ${selectedCount ? `<span class="pill">${escapeHtml(String(selectedCount))} dòng đã chọn</span>` : ""}
         <button type="button" class="ghost-button compact-button" data-procurement-extra-action="toggle">${bodyHidden ? "Mở" : "Thu gọn"}</button>
       </div>
     </div>
     <div ${bodyHidden ? "hidden" : ""}>
       <div class="procurement-input-grid">
         <label class="wide-field">
-          <span>Sản phẩm thêm tay</span>
-          <input type="text" list="productOptions" value="" placeholder="Gõ tên sản phẩm rồi bấm Thêm" data-procurement-extra-input="productName">
+          <span>Tìm nhanh sản phẩm</span>
+          <input type="text" value="${escapeHtml(extraSearchTerm)}" placeholder="Gõ tên để lọc danh sách thêm ngoài shortage" data-procurement-extra-input="searchTerm">
         </label>
       </div>
-      <div class="line-actions">
-        <button type="button" class="ghost-button compact-button" data-procurement-extra-action="add">+ Thêm vào danh sách nhập</button>
-      </div>
-      <div class="cart-line-note">Các dòng dưới đây được đánh dấu là ngoài nhu cầu đơn, không tham gia tính Cần nhập của list shortage.</div>
-      <div class="cart-items-list">
-        ${extraRows.length ? extraRows.map((extraRow) => {
-          const signals = getProcurementExtraRowSignals(extraRow);
-          return `
-            <article class="cart-item-card" data-procurement-extra-row="${escapeHtml(extraRow.id)}">
-              <div class="cart-item-main">
-                <div>
-                  <strong>${escapeHtml(extraRow.productName)}</strong>
-                  <p class="meta">Tồn hiện tại ${escapeHtml(formatQuantity(state.products.find((entry) => Number(entry.id) === Number(extraRow.productId))?.currentStock || state.products.find((entry) => Number(entry.id) === Number(extraRow.productId))?.current_stock || 0))}</p>
-                </div>
-                <div class="cart-item-actions">
-                  <span class="pill draft">Ngoài nhu cầu đơn</span>
-                  ${signals.hasShortageRow ? '<span class="pill warning">Cũng đang có ở danh sách thiếu</span>' : ""}
-                </div>
-              </div>
-              <div class="procurement-input-grid">
-                <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(extraRow.supplierName || "")}" data-procurement-extra-field="supplierName" data-extra-row-id="${escapeHtml(extraRow.id)}"></label>
-                <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(extraRow.quantity || "1")}" data-procurement-extra-field="quantity" data-extra-row-id="${escapeHtml(extraRow.id)}"></label>
-                <label class="desktop-only-field"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(extraRow.unitCost || "0")}" data-procurement-extra-field="unitCost" data-extra-row-id="${escapeHtml(extraRow.id)}"></label>
-                <label class="desktop-only-field"><span>Giảm KM</span><input type="number" min="0" step="1000" value="${escapeHtml(extraRow.discountAmount || "0")}" data-procurement-extra-field="discountAmount" data-extra-row-id="${escapeHtml(extraRow.id)}"></label>
-                <label class="wide-field"><span>Ghi chú dòng</span><input type="text" value="${escapeHtml(extraRow.sourceNote || "Ngoài nhu cầu đơn")}" data-procurement-extra-field="sourceNote" data-extra-row-id="${escapeHtml(extraRow.id)}"></label>
-              </div>
-              <div class="cart-line-note">Dòng này không đến từ nhu cầu đơn, không tham gia tính cần nhập.</div>
-              ${signals.hasExternalOpenPurchases ? `<article class="inline-alert warning">Mặt hàng này đang có phiếu nhập mở khác, cần kiểm tra trước khi tạo thêm.</article>` : ""}
-              <div class="line-actions">
-                <button type="button" class="ghost-button compact-button" data-procurement-extra-action="remove" data-extra-row-id="${escapeHtml(extraRow.id)}">Bỏ dòng</button>
-              </div>
-            </article>
-          `;
-        }).join("") : '<div class="empty-state">Chưa có mặt hàng ngoài shortage nào được thêm vào kỳ gom này.</div>'}
-      </div>
+      <div class="cart-line-note">Các dòng dưới đây được đánh dấu là ngoài nhu cầu đơn, không tham gia tính Cần nhập của list shortage. Tick dòng nào thì dòng đó mới bung ô nhập nhanh.</div>
+      ${renderCandidateSection(
+        "Đang có trên planner nhưng Cần nhập = 0",
+        "Nhóm này giúp xử lý nhanh các mặt hàng đã hiện sẵn trên danh sách thiếu nhưng hiện không còn shortage thực tế.",
+        candidateGroups.zeroNeedCandidates
+      )}
+      ${renderCandidateSection(
+        "Các sản phẩm còn lại ngoài planner",
+        "Nhóm này hiển thị toàn bộ sản phẩm active chưa nằm trên planner shortage hiện tại để bạn gom nhập cùng kỳ.",
+        candidateGroups.otherCandidates
+      )}
+      ${!candidateGroups.zeroNeedCandidates.length && !candidateGroups.otherCandidates.length ? '<div class="empty-state">Không còn sản phẩm active nào khả dụng để thêm ngoài shortage ở kỳ gom hiện tại.</div>' : ""}
+      <div class="empty-state" data-procurement-extra-empty-global hidden>Không có sản phẩm nào khớp với từ khóa đang lọc.</div>
     </div>
   `;
+  applyProcurementExtraSearchFilter();
 }
 
 function renderProcurementPlanner() {
@@ -5388,6 +5517,7 @@ procurementCreateSelectedButton?.addEventListener("click", async () => {
     state.procurementPlanner.reviewPurchaseIds = createdIds.length ? createdIds : state.procurementPlanner.reviewPurchaseIds;
     state.procurementPlanner.reviewIndex = 0;
     state.procurementPlanner.extraRows = [];
+    state.procurementPlanner.extraSearchTerm = "";
     (payload.created_purchases || []).forEach((purchase) => {
       (purchase.items || []).forEach((item) => {
         const key = String(item.productId || item.product_id || "");
@@ -5516,38 +5646,48 @@ procurementExtraPanel?.addEventListener("click", (event) => {
     renderProcurementPlanner();
     return;
   }
-  if (action === "add") {
-    try {
-      const productName = procurementExtraPanel.querySelector('[data-procurement-extra-input="productName"]')?.value || "";
-      addProcurementExtraRowByName(productName);
-    } catch (error) {
-      showToast(error.message, true);
-    }
-    return;
-  }
   if (action === "remove") {
-    const rowId = String(button.dataset.extraRowId || "");
-    state.procurementPlanner.extraRows = (state.procurementPlanner.extraRows || []).filter((row) => String(row.id) !== rowId);
+    const productId = Number(button.dataset.productId || 0);
+    removeProcurementExtraRowByProductId(productId);
     renderProcurementPlanner();
   }
 });
 
 procurementExtraPanel?.addEventListener("input", (event) => {
+  const searchInput = event.target.closest('[data-procurement-extra-input="searchTerm"]');
+  if (searchInput) {
+    state.procurementPlanner.extraSearchTerm = searchInput.value;
+    applyProcurementExtraSearchFilter();
+    return;
+  }
   const input = event.target.closest("[data-procurement-extra-field]");
   if (!input) return;
-  const rowId = String(input.dataset.extraRowId || "");
+  const productId = Number(input.dataset.productId || 0);
   const field = String(input.dataset.procurementExtraField || "");
-  const targetRow = (state.procurementPlanner.extraRows || []).find((row) => String(row.id) === rowId);
+  const targetRow = getProcurementExtraRowByProductId(productId);
   if (!targetRow || !field) return;
   targetRow[field] = input.value;
 });
 
 procurementExtraPanel?.addEventListener("change", (event) => {
+  const selectInput = event.target.closest("[data-procurement-extra-select]");
+  if (selectInput) {
+    const productId = Number(selectInput.dataset.productId || 0);
+    const product = state.products.find((entry) => Number(entry.id) === productId && !isDeletedEntity(entry));
+    if (!product) {
+      showToast("Không tìm thấy sản phẩm hợp lệ để thêm vào kỳ gom.", true);
+      renderProcurementPlanner();
+      return;
+    }
+    setProcurementExtraProductSelected(product, Boolean(selectInput.checked));
+    renderProcurementPlanner();
+    return;
+  }
   const input = event.target.closest("[data-procurement-extra-field]");
   if (!input) return;
-  const rowId = String(input.dataset.extraRowId || "");
+  const productId = Number(input.dataset.productId || 0);
   const field = String(input.dataset.procurementExtraField || "");
-  const targetRow = (state.procurementPlanner.extraRows || []).find((row) => String(row.id) === rowId);
+  const targetRow = getProcurementExtraRowByProductId(productId);
   if (!targetRow || !field) return;
   targetRow[field] = input.value;
   window.setTimeout(() => {

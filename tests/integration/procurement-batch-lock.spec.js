@@ -386,14 +386,14 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
 
     await expect(page.locator("#procurementExtraPanel")).toBeVisible();
     await page.locator('#procurementExtraPanel [data-procurement-extra-action="toggle"]').click();
-    await page.locator('#procurementExtraPanel [data-procurement-extra-input="productName"]').fill(extraProduct.name);
-    await page.locator('#procurementExtraPanel [data-procurement-extra-action="add"]').click();
+    await expect(page.locator("#procurementExtraPanel")).toContainText("Đang có trên planner nhưng Cần nhập = 0");
 
-    const extraRow = page.locator('#procurementExtraPanel [data-procurement-extra-row]').filter({ hasText: extraProduct.name }).first();
+    const extraRow = page.locator(`#procurementExtraPanel [data-procurement-extra-candidate][data-product-id="${extraProduct.id}"]`).first();
     await expect(extraRow).toBeVisible();
+    await extraRow.locator('[data-procurement-extra-select]').check();
     await expect(extraRow).toContainText("Ngoài nhu cầu đơn");
-    await extraRow.locator('[data-procurement-extra-field="supplierName"]').fill(supplierName);
-    await extraRow.locator('[data-procurement-extra-field="quantity"]').fill("2");
+    await extraRow.locator(`[data-procurement-extra-field="supplierName"][data-product-id="${extraProduct.id}"]`).fill(supplierName);
+    await extraRow.locator(`[data-procurement-extra-field="quantity"][data-product-id="${extraProduct.id}"]`).fill("2");
 
     await page.locator("#procurementCreateSelectedButton").click();
     const createToast = await collectToast(page, runtime, "it-proc-03-create");
