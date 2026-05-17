@@ -190,6 +190,9 @@ import {
   helpModal,
   helpModalBody,
   closeHelpButton,
+  globalBusyOverlay,
+  globalBusyCard,
+  globalBusyLabel,
   activeScreenBarTitle,
   appVersionButton,
   appVersionLabel,
@@ -275,6 +278,7 @@ const AUTO_REFRESH_INTERVAL_MS = 8000;
 const PROCUREMENT_LOCK_HEARTBEAT_INTERVAL_MS = 60000;
 const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
 const PAGINATION_PAGE_SIZE_OPTIONS = [25, 50, 100];
+const GLOBAL_SAVING_UI_MESSAGE = "Đang lưu thay đổi...";
 const PAGINATION_GROUP_MAP = {
   inventory: "items",
   productManage: "items",
@@ -291,6 +295,90 @@ const PAGINATION_GROUP_MAP = {
   purchaseOrders: "documents",
   reportReceipts: "documents",
 };
+let savingUiLockCount = 0;
+const pendingSavingUiReleases = [];
+const savingUiInertNodes = new Set();
+
+function setBusyPageInert(active) {
+  if (!globalBusyOverlay) {
+    return;
+  }
+  if (!active) {
+    savingUiInertNodes.forEach((node) => {
+      node.inert = false;
+    });
+    savingUiInertNodes.clear();
+    return;
+  }
+  if (savingUiInertNodes.size) {
+    return;
+  }
+  Array.from(document.body.children).forEach((node) => {
+    if (!(node instanceof HTMLElement) || node === globalBusyOverlay || node.inert) {
+      return;
+    }
+    node.inert = true;
+    savingUiInertNodes.add(node);
+  });
+}
+
+function applySavingUiState(message = GLOBAL_SAVING_UI_MESSAGE) {
+  const isBusy = savingUiLockCount > 0;
+  if (globalBusyLabel) {
+    globalBusyLabel.textContent = message || GLOBAL_SAVING_UI_MESSAGE;
+  }
+  if (globalBusyOverlay) {
+    globalBusyOverlay.hidden = !isBusy;
+  }
+  document.body.classList.toggle("app-is-busy", isBusy);
+  document.body.setAttribute("aria-busy", isBusy ? "true" : "false");
+  setBusyPageInert(isBusy);
+  if (isBusy) {
+    globalBusyCard?.focus({ preventScroll: true });
+  }
+}
+
+function beginSavingUi(message = GLOBAL_SAVING_UI_MESSAGE) {
+  let released = false;
+  savingUiLockCount += 1;
+  applySavingUiState(message);
+  return () => {
+    if (released) {
+      return;
+    }
+    released = true;
+    savingUiLockCount = Math.max(0, savingUiLockCount - 1);
+    applySavingUiState();
+  };
+}
+
+function queuePendingSavingUiRelease(release) {
+  if (typeof release !== "function") {
+    return;
+  }
+  const entry = {
+    release,
+    timer: window.setTimeout(() => {
+      const index = pendingSavingUiReleases.indexOf(entry);
+      if (index >= 0) {
+        pendingSavingUiReleases.splice(index, 1);
+      }
+      release();
+    }, 5000),
+  };
+  pendingSavingUiReleases.push(entry);
+}
+
+function settlePendingSavingUiReleases() {
+  if (!pendingSavingUiReleases.length) {
+    return;
+  }
+  const releases = pendingSavingUiReleases.splice(0);
+  releases.forEach((entry) => {
+    window.clearTimeout(entry.timer);
+    entry.release();
+  });
+}
 function attachSearchClearButton(input, container) {
   if (!input || !container || container.querySelector(".search-clear-button")) {
     return;
@@ -755,6 +843,7 @@ function getSyncRuntimeHelpers() {
       setAutoRefreshTimer: (value) => { autoRefreshTimer = value; },
       getAutoRefreshTimer: () => autoRefreshTimer,
       autoRefreshIntervalMs: AUTO_REFRESH_INTERVAL_MS,
+      beginSavingUi,
       isSyncDebugEnabled: () => Boolean(state.debug?.syncState),
       logSyncDebug: (message, details = null) => {
         if (!state.debug?.syncState) {
@@ -1827,12 +1916,12 @@ async function migrateLegacyCollectionsIfNeeded(serverPayload) {
   return getSyncRuntimeHelpers().migrateLegacyCollectionsIfNeeded(serverPayload);
 }
 
-async function persistCollections(keys = SYNC_COLLECTION_KEYS) {
-  return getSyncRuntimeHelpers().persistCollections(keys);
+async function persistCollections(keys = SYNC_COLLECTION_KEYS, options = {}) {
+  return getSyncRuntimeHelpers().persistCollections(keys, options);
 }
 
-async function persistCollectionsWithoutConflictCheck(keys = SYNC_COLLECTION_KEYS) {
-  return getSyncRuntimeHelpers().persistCollectionsWithoutConflictCheck(keys);
+async function persistCollectionsWithoutConflictCheck(keys = SYNC_COLLECTION_KEYS, options = {}) {
+  return getSyncRuntimeHelpers().persistCollectionsWithoutConflictCheck(keys, options);
 }
 
 function queuePersistCollections(keys = []) {
@@ -2584,6 +2673,7 @@ async function refreshProcurementPlanner(scope = state.procurementPlanner.scope)
       reviewIndex: previousReviewIndex,
     };
     renderProcurementPlanner();
+    settlePendingSavingUiReleases();
     return payload;
   } catch (error) {
     state.procurementPlanner.loading = false;
@@ -2611,6 +2701,7 @@ async function refreshProcurementBatchLockHeartbeat() {
       method: "POST",
       body: JSON.stringify({}),
       sessionActivity: "active",
+      showBusy: false,
     });
     procurementLockHeartbeatFailureNotified = false;
     updateProcurementStatus(payload);
@@ -3661,32 +3752,61 @@ async function apiRequest(path, options = {}) {
   const {
     headers: customHeaders = {},
     sessionActivity = "active",
+    showBusy,
+    deferBusyRelease,
     ...fetchOptions
   } = options;
-  const response = await fetch(resolveAppUrl(path), {
-    headers: {
-      "Content-Type": "application/json",
-      "X-Session-Activity": sessionActivity,
-      ...customHeaders,
-    },
-    ...fetchOptions,
-  });
+  const method = String(fetchOptions.method || "GET").trim().toUpperCase() || "GET";
+  const shouldShowBusy = typeof showBusy === "boolean"
+    ? showBusy
+    : !["GET", "HEAD", "OPTIONS"].includes(method);
+  const shouldDeferBusyRelease = shouldShowBusy && (
+    typeof deferBusyRelease === "boolean"
+      ? deferBusyRelease
+      : !["GET", "HEAD", "OPTIONS"].includes(method)
+  );
+  let releaseBusyUi = shouldShowBusy ? beginSavingUi() : null;
+  try {
+    const response = await fetch(resolveAppUrl(path), {
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Activity": sessionActivity,
+        ...customHeaders,
+      },
+      ...fetchOptions,
+    });
 
-  const data = await response.json();
-  if (!response.ok) {
-    if (response.status === 401 && state.admin?.enableLogin) {
-      redirectToLoginScreen({
-        rememberMenu: true,
-        message: data?.session_expired ? "" : "Cần đăng nhập để sử dụng hệ thống.",
-      });
+    const data = await response.json();
+    if (!response.ok) {
+      if (response.status === 401 && state.admin?.enableLogin) {
+        redirectToLoginScreen({
+          rememberMenu: true,
+          message: data?.session_expired ? "" : "Cần đăng nhập để sử dụng hệ thống.",
+        });
+      }
+      const error = new Error(data.error || "Có lỗi xảy ra.");
+      error.status = response.status;
+      error.payload = data;
+      throw error;
     }
-    const error = new Error(data.error || "Có lỗi xảy ra.");
-    error.status = response.status;
-    error.payload = data;
+
+    if (releaseBusyUi) {
+      if (shouldDeferBusyRelease) {
+        queuePendingSavingUiRelease(releaseBusyUi);
+      } else {
+        releaseBusyUi();
+      }
+      releaseBusyUi = null;
+    }
+
+    return data;
+  } catch (error) {
+    if (releaseBusyUi) {
+      releaseBusyUi();
+      releaseBusyUi = null;
+    }
     throw error;
   }
-
-  return data;
 }
 
 async function refreshSessionStatus({ sessionActivity = "passive" } = {}) {
@@ -4590,6 +4710,7 @@ function renderAll() {
   renderFloatingSearchDock();
   refreshSearchClearButtons();
   scheduleStickyLayoutMetricsUpdate();
+  settlePendingSavingUiReleases();
   window.__QLTPCHAY_APP_READY = true;
 }
 
