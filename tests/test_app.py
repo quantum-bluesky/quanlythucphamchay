@@ -2986,6 +2986,159 @@ class InventoryStoreTests(unittest.TestCase):
         )
         self.assertEqual(final_purchase["status"], "paid")
 
+    def test_ut_proc_04b_non_owner_can_receive_legacy_prebatch_purchase_without_ordered_at(self) -> None:
+        product = self.store.create_product(
+            name="Mì căn legacy prebatch",
+            category="Đồ chay",
+            unit="gói",
+            price=18000,
+            sale_price=26000,
+            low_stock_threshold=0,
+        )
+        self.store.save_sync_state(
+            {
+                "suppliers": [{"id": "supplier-legacy-prebatch", "name": "NCC legacy prebatch"}],
+                "purchases": [
+                    {
+                        "id": "purchase-legacy-prebatch",
+                        "supplierName": "NCC legacy prebatch",
+                        "status": "ordered",
+                        "sourceType": "manual",
+                        "createdAt": "2026-05-16T07:00:00+00:00",
+                        "updatedAt": "2026-05-16T07:00:00+00:00",
+                        "items": [
+                            {
+                                "id": "purchase-legacy-prebatch-item",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 3,
+                                "unitCost": 18000,
+                            }
+                        ],
+                    }
+                ],
+            },
+            actor_username="staff",
+            actor_role="user",
+        )
+        self.store.start_procurement_batch(
+            username="bizmanager",
+            role="user",
+            lock_timeout_minutes=30,
+        )
+        with self.store._connect() as connection:
+            connection.execute(
+                """
+                UPDATE purchases
+                SET ordered_at = NULL,
+                    updated_at = ?,
+                    note = ?
+                WHERE id = ?
+                """,
+                (
+                    "2026-05-17T12:00:00+00:00",
+                    "Legacy note updated after batch without ordered_at",
+                    "purchase-legacy-prebatch",
+                ),
+            )
+            connection.execute(
+                """
+                DELETE FROM audit_logs
+                WHERE entity_type = 'purchase'
+                  AND entity_id = ?
+                  AND action = 'status-change'
+                """,
+                ("purchase-legacy-prebatch",),
+            )
+
+        legacy_state = self.store.get_sync_state()
+        legacy_purchase = next(
+            purchase for purchase in legacy_state["purchases"]
+            if purchase["id"] == "purchase-legacy-prebatch"
+        )
+        self.assertEqual(legacy_purchase["orderedAt"], "2026-05-16T07:00:00+00:00")
+
+        received_purchases = copy.deepcopy(legacy_state["purchases"])
+        target_index = next(
+            index for index, purchase in enumerate(received_purchases)
+            if purchase["id"] == "purchase-legacy-prebatch"
+        )
+        received_purchases[target_index]["status"] = "received"
+        received_purchases[target_index]["receivedAt"] = "2026-05-17T12:30:00+00:00"
+        received_purchases[target_index]["received_at"] = "2026-05-17T12:30:00+00:00"
+        self.store.save_sync_state(
+            {"purchases": received_purchases},
+            actor_username="warehouse",
+            actor_role="user",
+        )
+
+        final_state = self.store.get_sync_state()
+        final_purchase = next(
+            purchase for purchase in final_state["purchases"]
+            if purchase["id"] == "purchase-legacy-prebatch"
+        )
+        self.assertEqual(final_purchase["status"], "received")
+
+    def test_ut_proc_04c_cancelled_purchase_from_draft_does_not_backfill_ordered_at(self) -> None:
+        product = self.store.create_product(
+            name="Đậu hũ cancelled from draft",
+            category="Đồ chay",
+            unit="gói",
+            price=15000,
+            sale_price=22000,
+            low_stock_threshold=0,
+        )
+        self.store.save_sync_state(
+            {
+                "suppliers": [{"id": "supplier-cancelled-draft", "name": "NCC cancelled draft"}],
+                "purchases": [
+                    {
+                        "id": "purchase-cancelled-draft",
+                        "supplierName": "NCC cancelled draft",
+                        "status": "cancelled",
+                        "sourceType": "manual",
+                        "createdAt": "2026-05-16T07:00:00+00:00",
+                        "updatedAt": "2026-05-17T08:00:00+00:00",
+                        "items": [
+                            {
+                                "id": "purchase-cancelled-draft-item",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitCost": 15000,
+                            }
+                        ],
+                        "cancelledAt": "2026-05-17T08:00:00+00:00",
+                        "cancelled_at": "2026-05-17T08:00:00+00:00",
+                    }
+                ],
+            },
+            actor_username="staff",
+            actor_role="user",
+        )
+        with self.store._connect() as connection:
+            connection.execute(
+                "UPDATE purchases SET ordered_at = NULL WHERE id = ?",
+                ("purchase-cancelled-draft",),
+            )
+            connection.execute(
+                """
+                DELETE FROM audit_logs
+                WHERE entity_type = 'purchase'
+                  AND entity_id = ?
+                  AND action = 'status-change'
+                """,
+                ("purchase-cancelled-draft",),
+            )
+
+        cancelled_state = self.store.get_sync_state()
+        cancelled_purchase = next(
+            purchase for purchase in cancelled_state["purchases"]
+            if purchase["id"] == "purchase-cancelled-draft"
+        )
+        self.assertEqual(cancelled_purchase["status"], "cancelled")
+        self.assertEqual(cancelled_purchase["orderedAt"], "")
+
     def test_ut_proc_05_assignment_releases_when_batch_purchase_is_cancelled(self) -> None:
         product = self.store.create_product(
             name="Chả hủy batch",

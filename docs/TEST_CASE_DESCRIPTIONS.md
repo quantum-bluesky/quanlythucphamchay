@@ -127,7 +127,7 @@ Lưu ý:
 | 101 | `UT-PROC-01` | Kiểm tra kỳ gom nhập batch chỉ có một lock active và chỉ owner hiện tại mới kết thúc được lock. |
 | 102 | `UT-PROC-02` | Kiểm tra planner batch gom nhu cầu đơn nháp/chốt theo sản phẩm và chặn tạo nhiều phiếu nhập mở cho cùng một sản phẩm thiếu. |
 | 103 | `UT-PROC-03` | Kiểm tra backend tạo batch nhiều dòng và gom các sản phẩm chọn cùng NCC vào một phiếu nhập batch draft. |
-| 104 | `UT-PROC-04` | Kiểm tra user không giữ khóa batch bị chặn sửa phiếu nhập `draft/ordered`, không được nhận phiếu batch hay phiếu thường phát sinh sau lock, nhưng vẫn được đi tiếp `received/paid` với phiếu không phải batch đã `ordered` từ trước lúc kỳ gom bắt đầu, kể cả khi owner đã sửa lại phiếu sau đó làm `updated_at` thay đổi. |
+| 104 | `UT-PROC-04` | Kiểm tra user không giữ khóa batch bị chặn sửa phiếu nhập `draft/ordered`, không được nhận phiếu batch hay phiếu thường phát sinh sau lock, nhưng vẫn được đi tiếp `received/paid` với phiếu không phải batch đã `ordered` từ trước lúc kỳ gom bắt đầu, kể cả khi owner đã sửa lại phiếu sau đó làm `updated_at` thay đổi hoặc dữ liệu legacy còn thiếu `ordered_at`. |
 | 105 | `UT-PROC-05` | Kiểm tra assignment batch tự release khi phiếu batch bị hủy hoặc đã chuyển sang trạng thái `received`. |
 | 106 | `UT-PROC-06` | Kiểm tra backend chặn `Bắt đầu kỳ gom nhập` nếu đang có nhiều phiếu nhập mở cover cùng một sản phẩm, đặc biệt khi có phiếu nguồn từ đơn hàng chồng lấn với phiếu khác. |
 | 107 | `UT-PROC-07` | Kiểm tra backend tạo được purchase batch mixed lines `shortage + extra`, vẫn gom đúng theo NCC và chỉ tạo assignment cho dòng shortage. |

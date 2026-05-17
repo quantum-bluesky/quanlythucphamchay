@@ -19,6 +19,7 @@ Tài liệu common liên quan:
 
 - [DB_DESIGN.md](DB_DESIGN.md)
 - [BUSINESS_FLOW.md](BUSINESS_FLOW.md)
+- [STATUS_TRANSITION_TABLE.md](STATUS_TRANSITION_TABLE.md)
 
 Liên kết detail hiện có:
 
