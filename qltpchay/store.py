@@ -2822,6 +2822,23 @@ class InventoryStore:
         row = connection.execute(query, tuple(params)).fetchone()
         return Decimal(str(row["reserved_quantity"] or 0))
 
+    def _get_ordered_incoming_quantity_for_product(
+        self,
+        connection: sqlite3.Connection,
+        product_id: int,
+    ) -> Decimal:
+        row = connection.execute(
+            """
+            SELECT COALESCE(SUM(pi.quantity), 0) AS ordered_incoming_quantity
+            FROM purchases p
+            JOIN purchase_items pi ON pi.purchase_id = p.id
+            WHERE p.status = 'ordered'
+              AND pi.product_id = ?
+            """,
+            (int(product_id),),
+        ).fetchone()
+        return Decimal(str(row["ordered_incoming_quantity"] or 0))
+
     def _validate_sale_items_against_committed_availability(
         self,
         connection: sqlite3.Connection,
@@ -2840,11 +2857,17 @@ class InventoryStore:
                 product_id,
                 exclude_cart_id=exclude_cart_id,
             )
-            available_quantity = current_stock - reserved_quantity
-            if item["quantity"] > available_quantity:
+            ordered_incoming_quantity = self._get_ordered_incoming_quantity_for_product(
+                connection,
+                product_id,
+            )
+            available_quantity = current_stock + ordered_incoming_quantity - reserved_quantity
+            safe_available_quantity = max(Decimal("0"), available_quantity)
+            if item["quantity"] > safe_available_quantity:
                 raise ValueError(
-                    f"Không đủ tồn khả dụng để chốt đơn cho {product['name']}. "
-                    f"Tồn thực tế {float(current_stock):g}, đã giữ {float(reserved_quantity):g}, khả dụng {float(available_quantity):g}."
+                    f"Không đủ hàng để chốt đơn cho {product['name']}. "
+                    f"Tồn thực tế {float(current_stock):g}, đã giữ {float(reserved_quantity):g}, "
+                    f"đã đặt nhập {float(ordered_incoming_quantity):g}, khả dụng để chốt {float(safe_available_quantity):g}."
                 )
             products_by_id[product_id] = product
             current_stock_by_id[product_id] = current_stock

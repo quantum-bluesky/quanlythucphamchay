@@ -178,7 +178,7 @@ Theo tiêu chuẩn nghiệp vụ hiện đại, nên tách:
 
 Hệ quả:
 
-- lúc `Chốt đơn`, app phải check tồn khả dụng sau khi trừ các đơn `committed` khác
+- lúc `Chốt đơn`, app phải check tồn khả dụng theo `tồn hiện tại + lượng hàng đã nằm trong phiếu nhập ordered - reserved của các đơn committed khác`
 - lúc `Xuất hàng`, app phải check lại lần cuối vì tồn vật lý có thể đã thay đổi trong lúc chờ giao
 
 Đây là điểm quan trọng nhất để tránh oversell khi nhiều máy cùng thao tác.

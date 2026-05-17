@@ -67,13 +67,14 @@ Nếu cần can thiệp đặc biệt
 ### Bước 4: Chốt đơn
 
 - nếu đủ tồn:
-  - kiểm tra tồn khả dụng sau khi trừ phần đã giữ cho các đơn `committed` khác
+  - kiểm tra tồn khả dụng để chốt theo công thức `tồn hiện tại + hàng đã đặt nhập - phần đã giữ cho các đơn committed khác`
   - cart chuyển `committed`
   - phát sinh `order_code` và `committed_at`
   - chưa trừ kho thật
 - nếu thiếu tồn:
   - app phải báo trước khi tạo hoặc cập nhật phiếu nhập cho phần còn thiếu
-  - nếu đã có phiếu `draft/ordered` đủ số lượng đáp ứng phần thiếu thì chỉ thông báo và cho mở lại phiếu liên quan khi user xác nhận cần chỉnh
+  - nếu đã có phiếu `ordered` đủ số lượng đáp ứng phần thiếu thì vẫn cho `Chốt đơn`; tới bước `Xuất hàng` vẫn phải đợi hàng nhập kho thật
+  - nếu phần thiếu mới đang nằm ở phiếu `draft` hoặc phiếu mở chưa đặt đủ thì chỉ thông báo và cho mở lại phiếu liên quan khi user xác nhận cần chỉnh
   - nếu đang ở Batch procurement mode thì không tạo/cập nhật phiếu nhập theo từng cart; app chuyển sang màn `Xử lý nhập thiếu` với phạm vi đơn hiện tại
   - user thường được dẫn sang luồng nhập hàng
   - không bypass chỉnh tồn

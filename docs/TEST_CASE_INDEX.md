@@ -124,24 +124,25 @@ Mục tiêu:
 | 94 | `UT-DB-17` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_17_received_purchase_expiry_update_syncs_purchase_items_batches_and_receipt_items` |
 | 95 | `UT-SYNC-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_05_committed_cart_locks_customer_but_allows_ship_address_until_completed` |
 | 96 | `UT-ORD-15` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_15_commit_and_ship_cart_order_follow_new_workflow` |
-| 97 | `UT-DB-18` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_10a_ordered_purchase_without_supplier_is_repairable` |
-| 98 | `UT-DB-19` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_13_legacy_audit_reports_safe_and_manual_issues` |
-| 99 | `UT-DB-20` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_14_apply_safe_legacy_fixes_backfills_cart_paid_at_and_purchase_received_at` |
-| 100 | `UT-DB-21` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_16_attach_purchase_receipt_code_repairs_invalid_paid_purchase` |
-| 101 | `UT-DB-22` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_17_attach_purchase_source_cart_repairs_missing_source_code` |
-| 102 | `UT-PROC-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_01_batch_lock_allows_single_owner` |
-| 103 | `UT-PROC-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_02_planner_assigns_one_product_to_one_batch_purchase` |
-| 104 | `UT-PROC-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_03_batch_create_groups_products_by_supplier` |
-| 105 | `UT-PROC-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_04_non_owner_cannot_edit_batch_purchase_draft_but_only_receives_prebatch_non_batch_purchase_and_pay` |
-| 106 | `UT-PROC-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_05_assignment_releases_when_batch_purchase_is_cancelled` |
-| 107 | `UT-PROC-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_06_start_batch_rejects_existing_open_purchase_conflicts` |
-| 108 | `UT-PROC-07` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_07_batch_create_supports_mixed_shortage_and_extra_lines` |
-| 109 | `UT-PROC-08` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_08_extra_line_for_same_product_merges_into_existing_batch_purchase_without_extra_assignment` |
-| 110 | `UT-AUTH-04B` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_04b_procurement_permission_user_can_start_batch_without_admin` |
-| 111 | `IT-PROC-01` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-01"` |
-| 112 | `IT-PROC-02` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-02"` |
-| 113 | `IT-PROC-03` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-03"` |
-| 114 | `IT-PROC-04` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-04"` |
+| 97 | `UT-ORD-16` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_16_commit_can_use_ordered_purchase_coverage_without_double_reserve` |
+| 98 | `UT-DB-18` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_10a_ordered_purchase_without_supplier_is_repairable` |
+| 99 | `UT-DB-19` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_13_legacy_audit_reports_safe_and_manual_issues` |
+| 100 | `UT-DB-20` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_14_apply_safe_legacy_fixes_backfills_cart_paid_at_and_purchase_received_at` |
+| 101 | `UT-DB-21` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_16_attach_purchase_receipt_code_repairs_invalid_paid_purchase` |
+| 102 | `UT-DB-22` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_17_attach_purchase_source_cart_repairs_missing_source_code` |
+| 103 | `UT-PROC-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_01_batch_lock_allows_single_owner` |
+| 104 | `UT-PROC-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_02_planner_assigns_one_product_to_one_batch_purchase` |
+| 105 | `UT-PROC-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_03_batch_create_groups_products_by_supplier` |
+| 106 | `UT-PROC-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_04_non_owner_cannot_edit_batch_purchase_draft_but_only_receives_prebatch_non_batch_purchase_and_pay` |
+| 107 | `UT-PROC-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_05_assignment_releases_when_batch_purchase_is_cancelled` |
+| 108 | `UT-PROC-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_06_start_batch_rejects_existing_open_purchase_conflicts` |
+| 109 | `UT-PROC-07` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_07_batch_create_supports_mixed_shortage_and_extra_lines` |
+| 110 | `UT-PROC-08` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_08_extra_line_for_same_product_merges_into_existing_batch_purchase_without_extra_assignment` |
+| 111 | `UT-AUTH-04B` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_04b_procurement_permission_user_can_start_batch_without_admin` |
+| 112 | `IT-PROC-01` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-01"` |
+| 113 | `IT-PROC-02` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-02"` |
+| 114 | `IT-PROC-03` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-03"` |
+| 115 | `IT-PROC-04` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-04"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 
