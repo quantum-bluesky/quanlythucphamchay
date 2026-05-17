@@ -249,6 +249,7 @@ let skipNextPurchaseSupplierChangePersist = false;
 let procurementLockHeartbeatTimer = null;
 let procurementLockHeartbeatInFlight = false;
 let procurementLockHeartbeatFailureNotified = false;
+let procurementBatchExitInFlight = false;
 let coreUi = null;
 let productsUi = null;
 let inventoryUi = null;
@@ -1851,6 +1852,7 @@ function saveAndRenderAll(changedCollections = []) {
 }
 
 const BUSINESS_FRESHNESS_MENUS = new Set(["inventory", "create-order", "orders", "purchases", "procurement-planner"]);
+const PROCUREMENT_FLOW_RELATED_MENUS = new Set(["procurement-planner", "purchases", "suppliers"]);
 
 function scheduleBusinessScreenRefresh(menu) {
   if (!BUSINESS_FRESHNESS_MENUS.has(menu)) {
@@ -1882,7 +1884,48 @@ function scheduleBusinessScreenRefresh(menu) {
   }, 0);
 }
 
-function switchMenu(menu, { recordHistory = true } = {}) {
+function resetProcurementPlannerBatchSessionState() {
+  state.procurementPlanner.startConflicts = [];
+  state.procurementPlanner.extraRows = [];
+  state.procurementPlanner.extraExpanded = false;
+  state.procurementPlanner.reviewOpen = false;
+  state.procurementPlanner.reviewPurchaseIds = [];
+  state.procurementPlanner.reviewIndex = 0;
+}
+
+async function finishActiveProcurementBatch({
+  refreshPlanner = false,
+  showToastMessage = false,
+  toastMessage = "",
+} = {}) {
+  const payload = await apiRequest("/api/procurement/batch/finish", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  resetProcurementPlannerBatchSessionState();
+  updateProcurementStatus(payload);
+  if (refreshPlanner) {
+    await refreshProcurementPlanner();
+  }
+  if (showToastMessage) {
+    showToast(toastMessage || payload.message || "Đã kết thúc kỳ gom nhập.");
+  }
+  return payload;
+}
+
+function isProcurementFlowRelatedMenu(menu) {
+  return PROCUREMENT_FLOW_RELATED_MENUS.has(String(menu || "").trim());
+}
+
+function canCurrentUserFinishActiveProcurementBatch() {
+  return Boolean(
+    state.admin?.authenticated
+    && state.procurement?.mode === "batch"
+    && state.procurement?.permissions?.isLockOwner
+  );
+}
+
+function executeMenuSwitch(menu, { recordHistory = true } = {}) {
   if (state.admin?.enableLogin && !state.admin?.authenticated && menu !== "login") {
     showToast("Cần login trước khi dùng hệ thống.", true);
     menu = "login";
@@ -1912,7 +1955,76 @@ function switchMenu(menu, { recordHistory = true } = {}) {
   return result;
 }
 
+function requestProcurementFlowExitIfNeeded({
+  targetMenu,
+  recordHistory = true,
+  targetHistoryIndex = null,
+} = {}) {
+  const cleanTargetMenu = String(targetMenu || "").trim();
+  if (
+    !cleanTargetMenu
+    || cleanTargetMenu === state.activeMenu
+    || !canCurrentUserFinishActiveProcurementBatch()
+    || !isProcurementFlowRelatedMenu(state.activeMenu)
+    || isProcurementFlowRelatedMenu(cleanTargetMenu)
+  ) {
+    return false;
+  }
+  if (procurementBatchExitInFlight) {
+    showToast("Đang kết thúc kỳ gom nhập. Vui lòng chờ một chút.", true);
+    return true;
+  }
+  const shouldFinishBatch = window.confirm(
+    "Kỳ gom nhập vẫn đang bật.\n\nChọn OK để kết thúc kỳ gom và rời flow Xử lý nhập thiếu.\nChọn Cancel để quay lại và giữ nguyên batch mode."
+  );
+  if (!shouldFinishBatch) {
+    return true;
+  }
+  procurementBatchExitInFlight = true;
+  window.setTimeout(async () => {
+    try {
+      await finishActiveProcurementBatch({
+        showToastMessage: true,
+        toastMessage: "Đã kết thúc kỳ gom nhập trước khi rời flow xử lý nhập thiếu.",
+      });
+      if (Number.isInteger(targetHistoryIndex) && targetHistoryIndex >= 0) {
+        state.menuHistoryIndex = targetHistoryIndex;
+        executeMenuSwitch(cleanTargetMenu, { recordHistory: false });
+      } else {
+        executeMenuSwitch(cleanTargetMenu, { recordHistory });
+      }
+    } catch (error) {
+      showToast(error.message, true);
+    } finally {
+      procurementBatchExitInFlight = false;
+    }
+  }, 0);
+  return true;
+}
+
+function switchMenu(menu, { recordHistory = true } = {}) {
+  const cleanMenu = String(menu || "").trim();
+  if (requestProcurementFlowExitIfNeeded({ targetMenu: cleanMenu, recordHistory })) {
+    return { blocked: true };
+  }
+  return executeMenuSwitch(cleanMenu, { recordHistory });
+}
+
 function navigateMenuHistory(direction) {
+  if (direction === "back" && state.menuHistoryIndex > 0) {
+    const targetHistoryIndex = state.menuHistoryIndex - 1;
+    const targetMenu = state.menuHistory[targetHistoryIndex];
+    if (requestProcurementFlowExitIfNeeded({ targetMenu, targetHistoryIndex })) {
+      return { blocked: true };
+    }
+  }
+  if (direction === "forward" && state.menuHistoryIndex < state.menuHistory.length - 1) {
+    const targetHistoryIndex = state.menuHistoryIndex + 1;
+    const targetMenu = state.menuHistory[targetHistoryIndex];
+    if (requestProcurementFlowExitIfNeeded({ targetMenu, targetHistoryIndex })) {
+      return { blocked: true };
+    }
+  }
   return getNavigationRuntimeHelpers().navigateMenuHistory(direction);
 }
 
@@ -5325,9 +5437,7 @@ procurementStartBatchButton?.addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({}),
     });
-    state.procurementPlanner.startConflicts = [];
-    state.procurementPlanner.extraRows = [];
-    state.procurementPlanner.extraExpanded = false;
+    resetProcurementPlannerBatchSessionState();
     updateProcurementStatus(payload);
     await refreshProcurementPlanner();
     showToast(payload.message || "Đã bắt đầu kỳ gom nhập.");
@@ -5346,15 +5456,10 @@ procurementFinishBatchButton?.addEventListener("click", async () => {
     return;
   }
   try {
-    const payload = await apiRequest("/api/procurement/batch/finish", {
-      method: "POST",
-      body: JSON.stringify({}),
+    await finishActiveProcurementBatch({
+      refreshPlanner: true,
+      showToastMessage: true,
     });
-    state.procurementPlanner.extraRows = [];
-    state.procurementPlanner.extraExpanded = false;
-    updateProcurementStatus(payload);
-    await refreshProcurementPlanner();
-    showToast(payload.message || "Đã kết thúc kỳ gom nhập.");
   } catch (error) {
     showToast(error.message, true);
   }

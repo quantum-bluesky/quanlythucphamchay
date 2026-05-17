@@ -6363,14 +6363,36 @@ class InventoryStore:
         clean_actor_username = str(actor_username or "").strip()
         return clean_actor_username != str(active_lock.get("owner_username") or "").strip()
 
-    @staticmethod
     def _can_non_owner_mutate_purchase_during_procurement_batch(
+        self,
+        connection: sqlite3.Connection,
         previous_purchase: dict | None,
         next_purchase: dict | None,
     ) -> bool:
         previous_status = str((previous_purchase or {}).get("status") or "").strip()
         next_status = str((next_purchase or {}).get("status") or "").strip()
-        return previous_status == "ordered" and next_status == "received"
+        if previous_status != "ordered" or next_status != "received":
+            return False
+        if self._is_procurement_batch_purchase(previous_purchase):
+            return False
+        active_lock = self._get_active_workflow_lock(connection, "procurement_batch")
+        if not active_lock:
+            return False
+        lock_started_at = self._parse_iso_datetime(active_lock.get("acquired_at") or "")
+        purchase_ordered_at = self._parse_iso_datetime(
+            (previous_purchase or {}).get("updatedAt")
+            or (previous_purchase or {}).get("updated_at")
+            or (previous_purchase or {}).get("createdAt")
+            or (previous_purchase or {}).get("created_at")
+            or ""
+        )
+        if not lock_started_at or not purchase_ordered_at or purchase_ordered_at >= lock_started_at:
+            return False
+        if self._snapshot_purchase_for_receive_lock(previous_purchase or {}) != self._snapshot_purchase_for_receive_lock(next_purchase or {}):
+            return False
+        if self._get_purchase_discount_amount(previous_purchase or {}) != self._get_purchase_discount_amount(next_purchase or {}):
+            return False
+        return True
 
     def _validate_purchase_workflow_locks(
         self,
@@ -6496,7 +6518,7 @@ class InventoryStore:
                     )
                 continue
 
-            if self._can_non_owner_mutate_purchase_during_procurement_batch(previous, purchase):
+            if self._can_non_owner_mutate_purchase_during_procurement_batch(connection, previous, purchase):
                 continue
 
             involves_open_purchase = (

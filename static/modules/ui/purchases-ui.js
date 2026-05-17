@@ -226,7 +226,7 @@ export function createPurchasesUi(deps) {
             </article>
           </div>
         ` : ""}
-        ${procurementBatchReadOnly && ["draft", "ordered"].includes(purchase.status) ? `<article class="inline-alert warning">Batch mode đang bật. Bạn chỉ được xem phiếu nháp/đã đặt này; tạo mới, đổi NCC, sửa dòng, đổi giảm giá, hủy hoặc xóa chỉ dành cho người giữ khóa batch hoặc Master Admin. Nếu cần tiếp tục logistics, bạn vẫn có thể dùng bước Nhập kho khi phiếu đã Đã đặt.</article>` : ""}
+        ${procurementBatchReadOnly && ["draft", "ordered"].includes(purchase.status) ? `<article class="inline-alert warning">Batch mode đang bật. Bạn chỉ được xem phiếu nháp/đã đặt này; tạo mới, đổi NCC, sửa dòng, đổi giảm giá, hủy hoặc xóa chỉ dành cho người giữ khóa batch hoặc Master Admin. Bước Nhập kho chỉ còn mở cho phiếu không phải batch và đã được Đã đặt trước khi kỳ gom hiện tại bắt đầu.</article>` : ""}
         ${repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đang ở trạng thái lỗi dữ liệu: marker xử lý và trạng thái hiện tại không còn khớp nhau. Có thể hủy hoặc xóa để dọn dữ liệu lỗi, app sẽ không khôi phục lại thành nháp.</article>` : ""}
         ${purchaseLocked && !repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
         <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">

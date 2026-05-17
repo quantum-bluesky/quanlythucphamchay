@@ -2665,8 +2665,8 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(assignments[product_one["id"]], purchase["id"])
         self.assertEqual(assignments[product_two["id"]], purchase["id"])
 
-    def test_ut_proc_04_non_owner_cannot_edit_batch_purchase_draft_but_can_receive_and_pay(self) -> None:
-        product = self.store.create_product(
+    def test_ut_proc_04_non_owner_cannot_edit_batch_purchase_draft_but_only_receives_prebatch_non_batch_purchase_and_pay(self) -> None:
+        batch_product = self.store.create_product(
             name="Đậu hũ lock batch",
             category="Đồ chay",
             unit="gói",
@@ -2674,9 +2674,44 @@ class InventoryStoreTests(unittest.TestCase):
             sale_price=22000,
             low_stock_threshold=0,
         )
+        prebatch_manual_product = self.store.create_product(
+            name="Mì căn ordered trước batch",
+            category="Đồ chay",
+            unit="gói",
+            price=18000,
+            sale_price=26000,
+            low_stock_threshold=0,
+        )
+        postbatch_manual_product = self.store.create_product(
+            name="Nấm ordered sau batch",
+            category="Đồ chay",
+            unit="gói",
+            price=17000,
+            sale_price=25000,
+            low_stock_threshold=0,
+        )
         self.store.save_sync_state(
             {
                 "suppliers": [{"id": "supplier-lock-batch", "name": "NCC lock batch"}],
+                "purchases": [
+                    {
+                        "id": "purchase-manual-prebatch",
+                        "supplierName": "NCC lock batch",
+                        "status": "ordered",
+                        "sourceType": "manual",
+                        "createdAt": "2026-05-16T07:00:00+00:00",
+                        "updatedAt": "2026-05-16T07:00:00+00:00",
+                        "items": [
+                            {
+                                "id": "purchase-manual-prebatch-item",
+                                "productId": prebatch_manual_product["id"],
+                                "productName": prebatch_manual_product["name"],
+                                "quantity": 5,
+                                "unitCost": 18000,
+                            }
+                        ],
+                    }
+                ],
                 "carts": [
                     {
                         "id": "cart-lock-batch",
@@ -2685,8 +2720,8 @@ class InventoryStoreTests(unittest.TestCase):
                         "items": [
                             {
                                 "id": "cart-item-lock-batch",
-                                "productId": product["id"],
-                                "productName": product["name"],
+                                "productId": batch_product["id"],
+                                "productName": batch_product["name"],
                                 "quantity": 4,
                                 "unitPrice": 22000,
                             }
@@ -2701,7 +2736,7 @@ class InventoryStoreTests(unittest.TestCase):
             lock_timeout_minutes=30,
         )
         created = self.store.create_procurement_purchase_for_product(
-            product_id=product["id"],
+            product_id=batch_product["id"],
             quantity=4,
             supplier_name="NCC lock batch",
             actor="bizmanager",
@@ -2710,7 +2745,11 @@ class InventoryStoreTests(unittest.TestCase):
 
         sync_state = self.store.get_sync_state()
         edited_purchases = copy.deepcopy(sync_state["purchases"])
-        edited_purchases[0]["items"][0]["quantity"] = 6
+        batch_purchase_index = next(
+            index for index, purchase in enumerate(edited_purchases)
+            if purchase["id"] == created["purchase"]["id"]
+        )
+        edited_purchases[batch_purchase_index]["items"][0]["quantity"] = 6
         with self.assertRaisesRegex(ValueError, "Chỉ người giữ khóa batch"):
             self.store.save_sync_state(
                 {"purchases": edited_purchases},
@@ -2719,36 +2758,105 @@ class InventoryStoreTests(unittest.TestCase):
             )
 
         ordered_purchases = copy.deepcopy(sync_state["purchases"])
-        ordered_purchases[0]["status"] = "ordered"
+        batch_purchase_index = next(
+            index for index, purchase in enumerate(ordered_purchases)
+            if purchase["id"] == created["purchase"]["id"]
+        )
+        ordered_purchases[batch_purchase_index]["status"] = "ordered"
         self.store.save_sync_state(
             {"purchases": ordered_purchases},
             actor_username="bizmanager",
             actor_role="user",
         )
 
+        postbatch_state = self.store.get_sync_state()
+        postbatch_purchases = copy.deepcopy(postbatch_state["purchases"])
+        postbatch_purchases.append(
+            {
+                "id": "purchase-manual-postbatch",
+                "supplierName": "NCC lock batch",
+                "status": "ordered",
+                "sourceType": "manual",
+                "createdAt": datetime.now().astimezone().isoformat(timespec="seconds"),
+                "updatedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
+                "items": [
+                    {
+                        "id": "purchase-manual-postbatch-item",
+                        "productId": postbatch_manual_product["id"],
+                        "productName": postbatch_manual_product["name"],
+                        "quantity": 2,
+                        "unitCost": 17000,
+                    }
+                ],
+            }
+        )
+        self.store.save_sync_state(
+            {"purchases": postbatch_purchases},
+            actor_username="bizmanager",
+            actor_role="user",
+        )
+
         received_sync_state = self.store.get_sync_state()
         received_purchases = copy.deepcopy(received_sync_state["purchases"])
-        received_purchases[0]["status"] = "received"
-        received_purchases[0]["receivedAt"] = "2026-05-17T09:00:00+00:00"
-        received_purchases[0]["received_at"] = "2026-05-17T09:00:00+00:00"
+        batch_purchase_index = next(
+            index for index, purchase in enumerate(received_purchases)
+            if purchase["id"] == created["purchase"]["id"]
+        )
+        received_purchases[batch_purchase_index]["status"] = "received"
+        received_purchases[batch_purchase_index]["receivedAt"] = "2026-05-17T09:00:00+00:00"
+        received_purchases[batch_purchase_index]["received_at"] = "2026-05-17T09:00:00+00:00"
+        with self.assertRaisesRegex(ValueError, "Chỉ người giữ khóa batch"):
+            self.store.save_sync_state(
+                {"purchases": received_purchases},
+                actor_username="warehouse",
+                actor_role="user",
+            )
+
+        manual_prebatch_received = copy.deepcopy(received_sync_state["purchases"])
+        prebatch_purchase_index = next(
+            index for index, purchase in enumerate(manual_prebatch_received)
+            if purchase["id"] == "purchase-manual-prebatch"
+        )
+        manual_prebatch_received[prebatch_purchase_index]["status"] = "received"
+        manual_prebatch_received[prebatch_purchase_index]["receivedAt"] = "2026-05-17T09:15:00+00:00"
+        manual_prebatch_received[prebatch_purchase_index]["received_at"] = "2026-05-17T09:15:00+00:00"
         self.store.save_sync_state(
-            {"purchases": received_purchases},
+            {"purchases": manual_prebatch_received},
             actor_username="warehouse",
             actor_role="user",
         )
 
-        planner_after_receive = self.store.get_procurement_planner(scope_type="all")
-        row_after_receive = next(
-            row for row in planner_after_receive["rows"]
-            if row["product_id"] == product["id"]
+        manual_postbatch_received = copy.deepcopy(self.store.get_sync_state()["purchases"])
+        postbatch_purchase_index = next(
+            index for index, purchase in enumerate(manual_postbatch_received)
+            if purchase["id"] == "purchase-manual-postbatch"
         )
-        self.assertIsNone(row_after_receive["assignment"])
+        manual_postbatch_received[postbatch_purchase_index]["status"] = "received"
+        manual_postbatch_received[postbatch_purchase_index]["receivedAt"] = "2026-05-17T09:20:00+00:00"
+        manual_postbatch_received[postbatch_purchase_index]["received_at"] = "2026-05-17T09:20:00+00:00"
+        with self.assertRaisesRegex(ValueError, "Chỉ người giữ khóa batch"):
+            self.store.save_sync_state(
+                {"purchases": manual_postbatch_received},
+                actor_username="warehouse",
+                actor_role="user",
+            )
+
+        current_state_after_manual_receive = self.store.get_sync_state()
+        batch_purchase_after_manual_receive = next(
+            purchase for purchase in current_state_after_manual_receive["purchases"]
+            if purchase["id"] == created["purchase"]["id"]
+        )
+        self.assertEqual(batch_purchase_after_manual_receive["status"], "ordered")
 
         paid_sync_state = self.store.get_sync_state()
         paid_purchases = copy.deepcopy(paid_sync_state["purchases"])
-        paid_purchases[0]["status"] = "paid"
-        paid_purchases[0]["paidAt"] = "2026-05-17T10:00:00+00:00"
-        paid_purchases[0]["paid_at"] = "2026-05-17T10:00:00+00:00"
+        prebatch_purchase_index = next(
+            index for index, purchase in enumerate(paid_purchases)
+            if purchase["id"] == "purchase-manual-prebatch"
+        )
+        paid_purchases[prebatch_purchase_index]["status"] = "paid"
+        paid_purchases[prebatch_purchase_index]["paidAt"] = "2026-05-17T10:00:00+00:00"
+        paid_purchases[prebatch_purchase_index]["paid_at"] = "2026-05-17T10:00:00+00:00"
         self.store.save_sync_state(
             {"purchases": paid_purchases},
             actor_username="cashier",
@@ -2758,7 +2866,7 @@ class InventoryStoreTests(unittest.TestCase):
         final_state = self.store.get_sync_state()
         final_purchase = next(
             purchase for purchase in final_state["purchases"]
-            if purchase["id"] == created["purchase"]["id"]
+            if purchase["id"] == "purchase-manual-prebatch"
         )
         self.assertEqual(final_purchase["status"], "paid")
 

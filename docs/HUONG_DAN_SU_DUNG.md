@@ -321,7 +321,7 @@ Lưu ý:
 
 - mặc định danh sách không hiện phiếu đã hủy; chỉ bật checkbox `Hiện phiếu đã hủy` khi cần tra cứu lại lịch sử hủy
 - chỉ `Nháp` và `Đã đặt` mới được sửa trực tiếp số lượng, giá, mã lô và cấu trúc dòng hàng
-- khi `Batch mode` đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, đổi NCC, sửa cấu trúc, đổi giảm giá, hủy hoặc xóa phiếu `Nháp/Đã đặt`; user khác vẫn có thể tiếp tục bước `Nhập kho` hoặc `Đã thanh toán` nếu được phân vai hậu cần
+- khi `Batch mode` đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, đổi NCC, sửa cấu trúc, đổi giảm giá, hủy hoặc xóa phiếu `Nháp/Đã đặt`; user khác chỉ còn được bấm `Nhập kho` với phiếu không phải batch và đã ở trạng thái `Đã đặt` từ trước lúc kỳ gom hiện tại bắt đầu, sau đó vẫn đi tiếp `Đã thanh toán` như bình thường
 - nếu chưa có nhà cung cấp thì không được chuyển sang `Đã đặt` hoặc `Nhập kho`
 - nếu phiếu nháp chưa có NCC, app chỉ tự chọn NCC khi các mặt hàng liên quan suy ra đúng một NCC từ lịch sử `Đã nhập kho/Đã thanh toán`; nếu có nhiều NCC thì chỉ ưu tiên thứ tự trong gợi ý, không tự đổi
 - mỗi nhà cung cấp chỉ có 1 phiếu `Nháp` đang mở; chọn lại đúng NCC sẽ mở phiếu đó, còn chọn NCC khác sẽ giữ nguyên phiếu cũ và tạo/mở nháp riêng cho NCC mới
@@ -376,6 +376,7 @@ Màn này dùng khi cần gom nhu cầu nhập định kỳ, ví dụ cuối th�
 13. Bấm `Tạo phiếu đã chọn`; các dòng shortage và các dòng `Ngoài nhu cầu đơn` hợp lệ cùng NCC sẽ được gom vào cùng một phiếu nhập nháp.
 14. Bấm `Review phiếu` để mở detail các phiếu vừa tạo; dùng `Trước / Sau` để chuyển giữa các phiếu trong list và bấm `Lưu chi tiết` nếu cần sửa thêm.
 15. Bấm `Quay lại batch` để refresh lại planner, kiểm tra trạng thái còn thiếu, rồi bấm `Kết thúc kỳ gom` khi đã xử lý xong.
+16. Nếu đang là owner mà bấm sang màn ngoài flow batch như `Tồn kho`, app sẽ hỏi có muốn kết thúc kỳ gom ngay không. Chọn `OK` để release lock và rời flow; chọn `Cancel` để ở lại và giữ nguyên batch mode.
 
 Lưu ý:
 
@@ -383,6 +384,7 @@ Lưu ý:
 - chỉ một người giữ khóa batch tại một thời điểm; user khác nên xem trạng thái để tránh xử lý song song trùng
 - nếu app báo conflict trước lúc bắt đầu kỳ gom, cần dọn các phiếu nhập mở đang cover trùng cùng sản phẩm rồi mới vào batch mode
 - trong lúc kỳ gom còn hiệu lực, màn `Quản lý nhập hàng` cũng bị siết theo khóa này: user không giữ khóa không được tự tạo mới hay sửa phiếu `Nháp/Đã đặt` ngoài planner
+- ngoại lệ duy nhất cho user không giữ khóa là bước `Nhập kho` trên phiếu không phải batch đã `Đã đặt` từ trước lúc kỳ gom hiện tại bắt đầu; phiếu batch hoặc phiếu `Đã đặt` phát sinh sau thời điểm lock vẫn bị khóa
 - nếu một dòng đã tick nhưng chưa chọn NCC, app bỏ qua dòng đó và thông báo rõ
 - khối `Chọn thêm sản phẩm khác` chỉ hiện cho người đang giữ khóa batch hoặc `Master Admin`; user khác không được dùng để tránh bypass planner
 - các dòng `Ngoài nhu cầu đơn` không tạo assignment shortage; nếu sản phẩm đó đang có phiếu batch draft khác hoặc đang được gán vào phiếu batch cùng kỳ, app sẽ chỉ cho gom tiếp vào đúng phiếu/NCC đang xử lý thay vì tách phiếu mới

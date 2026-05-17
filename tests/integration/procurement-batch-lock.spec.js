@@ -14,6 +14,10 @@ const {
 function stripProcurementBatchTestPurchases(state) {
   return {
     ...state,
+    carts: (state.carts || []).filter((cart) => {
+      const id = String(cart?.id || "");
+      return !id.startsWith("cart_proc114_batch_");
+    }),
     purchases: (state.purchases || []).filter((purchase) => {
       const id = String(purchase?.id || "");
       return !id.startsWith("purchase_conflict_batch_") && !id.startsWith("purchase_batch_lock_");
@@ -173,15 +177,28 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
   const productsResponse = await request.get("/api/products", { headers: { Cookie: managerCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
-  const product = productsPayload.products?.[0];
-  expect(product).toBeTruthy();
+  const openPurchaseProductIds = new Set(
+    (restoredState.purchases || [])
+      .filter((purchase) => ["draft", "ordered"].includes(String(purchase?.status || "").trim()))
+      .flatMap((purchase) => (purchase.items || []).map((item) => Number(item?.productId || 0)))
+      .filter((productId) => Number.isFinite(productId) && productId > 0)
+  );
+  const availableProducts = (productsPayload.products || []).filter(
+    (product) => !openPurchaseProductIds.has(Number(product?.id || 0))
+  );
+  const batchProduct = availableProducts[0];
+  const prebatchManualProduct = availableProducts[1];
+  expect(batchProduct).toBeTruthy();
+  expect(prebatchManualProduct).toBeTruthy();
   const timestamp = Date.now();
-  const supplierName = `NCC Batch Lock ${timestamp}`;
-  const purchaseId = `purchase_batch_lock_${timestamp}`;
+  const batchSupplierName = `NCC Batch Lock Batch ${timestamp}`;
+  const prebatchSupplierName = `NCC Batch Lock Manual ${timestamp}`;
+  const batchPurchaseId = `purchase_batch_lock_batch_${timestamp}`;
+  const prebatchPurchaseId = `purchase_batch_lock_manual_${timestamp}`;
 
-  const seededPurchase = {
-    id: purchaseId,
-    supplierName,
+  const seededBatchPurchase = {
+    id: batchPurchaseId,
+    supplierName: batchSupplierName,
     note: "IT-PROC-02 batch ordered purchase",
     status: "ordered",
     sourceType: "procurement_batch",
@@ -191,12 +208,31 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     updatedAt: new Date().toISOString(),
     items: [
       {
-        id: `purchase_batch_lock_item_${timestamp}`,
-        productId: product.id,
-        productName: product.name,
-        unit: product.unit,
+        id: `purchase_batch_lock_batch_item_${timestamp}`,
+        productId: batchProduct.id,
+        productName: batchProduct.name,
+        unit: batchProduct.unit,
         quantity: 2,
-        unitCost: Number(product.price || 0) || 1000,
+        unitCost: Number(batchProduct.price || 0) || 1000,
+      },
+    ],
+  };
+  const seededPrebatchManualPurchase = {
+    id: prebatchPurchaseId,
+    supplierName: prebatchSupplierName,
+    note: "IT-PROC-02 manual ordered purchase before batch",
+    status: "ordered",
+    sourceType: "manual",
+    createdAt: "2026-05-16T07:00:00+00:00",
+    updatedAt: "2026-05-16T07:00:00+00:00",
+    items: [
+      {
+        id: `purchase_batch_lock_manual_item_${timestamp}`,
+        productId: prebatchManualProduct.id,
+        productName: prebatchManualProduct.name,
+        unit: prebatchManualProduct.unit,
+        quantity: 3,
+        unitCost: Number(prebatchManualProduct.price || 0) || 1000,
       },
     ],
   };
@@ -208,7 +244,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     const seedResponse = await request.put("/api/state", {
       headers: { Cookie: managerCookie },
       data: {
-        purchases: [...(restoredState.purchases || []), seededPurchase],
+        purchases: [...(restoredState.purchases || []), seededBatchPurchase, seededPrebatchManualPurchase],
       },
     });
     expect(seedResponse.ok()).toBeTruthy();
@@ -230,15 +266,30 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
 
     await expect(page.locator("#createPurchaseDraftButton")).toBeDisabled();
 
-    const purchaseCard = page.locator(".cart-queue-item", { hasText: supplierName }).first();
+    const purchaseCard = page.locator(".cart-queue-item", { hasText: batchSupplierName }).first();
     await purchaseCard.locator('[data-purchase-list-action="open"]').click();
     await page.waitForTimeout(300);
+    if (await page.locator("#purchasePanel").getByText("Phiếu nhập đang được thu gọn.").count()) {
+      await page.locator("#togglePurchasePanelButton").click();
+      await page.waitForTimeout(300);
+    }
 
     await expect(page.locator("#purchasePanel")).toContainText("Batch mode đang bật. Bạn chỉ được xem phiếu nháp/đã đặt này");
+    await expect(page.locator("#purchasePanel")).toContainText(batchSupplierName);
     await expect(page.locator('[data-go-menu="suppliers"]').first()).toBeDisabled();
-    await expect(page.locator('[data-purchase-action="receive"]')).toBeEnabled();
+    await expect(page.locator('[data-purchase-action="receive"]')).toHaveCount(0);
     await expect(page.locator('[data-purchase-action="cancel"]')).toHaveCount(0);
     await expect(page.locator('[data-purchase-item-action="remove"]')).toHaveCount(0);
+
+    const prebatchManualPurchaseCard = page.locator(".cart-queue-item", { hasText: prebatchSupplierName }).first();
+    await prebatchManualPurchaseCard.locator('[data-purchase-list-action="open"]').click();
+    await page.waitForTimeout(300);
+    if (await page.locator("#purchasePanel").getByText("Phiếu nhập đang được thu gọn.").count()) {
+      await page.locator("#togglePurchasePanelButton").click();
+      await page.waitForTimeout(300);
+    }
+    await expect(page.locator("#purchasePanel")).toContainText(prebatchSupplierName);
+    await expect(page.locator('[data-purchase-action="receive"]')).toBeEnabled();
 
     await switchMenu(page, "procurement-planner");
     await expectScreenTitle(page, "Xử lý nhập thiếu");
@@ -248,7 +299,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
       await request.post("/api/procurement/batch/finish", {
         headers: { Cookie: managerCookie },
         data: {},
-      });
+      }).catch(() => null);
     }
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
     await request.put("/api/state", {
@@ -259,7 +310,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
         carts: restoredState.carts,
         purchases: restoredState.purchases,
       },
-    });
+    }).catch(() => null);
   }
 
   expectNoRuntimeErrors(runtime);
@@ -271,6 +322,7 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
   const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
+  const restoredState = stripProcurementBatchTestPurchases(originalState);
   const productsResponse = await request.get("/api/products", { headers: { Cookie: managerCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
@@ -279,15 +331,24 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
   expect(shortageProduct).toBeTruthy();
   expect(extraProduct).toBeTruthy();
   const timestamp = Date.now();
-  const supplierName = "NCC Hương Sen";
+  const supplierName = `NCC Proc114 ${timestamp}`;
   let batchStarted = false;
 
   try {
+    await cleanupProcurementBatchTestPurchases(request, managerCookie);
+
     const seedResponse = await request.put("/api/state", {
       headers: { Cookie: managerCookie },
       data: {
+        suppliers: [
+          ...(restoredState.suppliers || []),
+          {
+            id: `supplier_proc114_${timestamp}`,
+            name: supplierName,
+          },
+        ],
         carts: [
-          ...(originalState.carts || []),
+          ...(restoredState.carts || []),
           {
             id: `cart_proc114_batch_${timestamp}`,
             customerName: "Khách proc114",
@@ -319,7 +380,8 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
     expect(batchToast).toContain("Đã bắt đầu kỳ gom nhập");
     batchStarted = true;
 
-    await page.locator(`[data-procurement-action="toggle-row"][data-product-id="${shortageProduct.id}"]`).check();
+    await page.locator(`[data-procurement-action="toggle-row"][data-product-id="${shortageProduct.id}"]`).click();
+    await expect(page.locator(`[data-procurement-field="supplier"][data-product-id="${shortageProduct.id}"]`)).toBeVisible();
     await page.locator(`[data-procurement-field="supplier"][data-product-id="${shortageProduct.id}"]`).fill(supplierName);
 
     await expect(page.locator("#procurementExtraPanel")).toBeVisible();
@@ -346,17 +408,82 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
       await request.post("/api/procurement/batch/finish", {
         headers: { Cookie: managerCookie },
         data: {},
-      });
+      }).catch(() => null);
     }
+    await cleanupProcurementBatchTestPurchases(request, managerCookie);
     await request.put("/api/state", {
       headers: { Cookie: managerCookie },
       data: {
-        customers: originalState.customers,
-        suppliers: originalState.suppliers,
-        carts: originalState.carts,
-        purchases: originalState.purchases,
+        customers: restoredState.customers,
+        suppliers: restoredState.suppliers,
+        carts: restoredState.carts,
+        purchases: restoredState.purchases,
       },
+    }).catch(() => null);
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-PROC-04 leaving procurement flow prompts to finish batch and only exits after owner confirms", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
+  const managerCookie = await autoLoginProcurementManagerRequest(request);
+  let batchStarted = false;
+  try {
+    await cleanupProcurementBatchTestPurchases(request, managerCookie);
+
+    await gotoWithRetry(page, "/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginProcurementManager(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+    await switchMenu(page, "procurement-planner");
+    await expectScreenTitle(page, "Xử lý nhập thiếu");
+
+    await page.locator("#procurementStartBatchButton").click();
+    const batchToast = await collectToast(page, runtime, "it-proc-04-start-batch");
+    expect(batchToast).toContain("Đã bắt đầu kỳ gom nhập");
+    batchStarted = true;
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    let cancelDialogMessage = "";
+    page.once("dialog", async (dialog) => {
+      cancelDialogMessage = dialog.message();
+      await dialog.dismiss();
     });
+    await switchMenu(page, "inventory");
+    await page.waitForTimeout(600);
+    expect(cancelDialogMessage).toContain("Kỳ gom nhập vẫn đang bật");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    let acceptDialogMessage = "";
+    page.once("dialog", async (dialog) => {
+      acceptDialogMessage = dialog.message();
+      await dialog.accept();
+    });
+    await switchMenu(page, "inventory");
+    await page.waitForTimeout(1200);
+    expect(acceptDialogMessage).toContain("Chọn OK để kết thúc kỳ gom");
+    await expectScreenTitle(page, "Kiểm tra tồn kho");
+
+    const exitToast = await collectToast(page, runtime, "it-proc-04-exit-flow");
+    expect(exitToast).toContain("Đã kết thúc kỳ gom nhập trước khi rời flow xử lý nhập thiếu.");
+    batchStarted = false;
+
+    const statusResponse = await request.get("/api/procurement/status", {
+      headers: { Cookie: managerCookie },
+    });
+    expect(statusResponse.ok()).toBeTruthy();
+    const statusPayload = await statusResponse.json();
+    expect(statusPayload.mode).toBe("daily");
+  } finally {
+    if (batchStarted) {
+      await request.post("/api/procurement/batch/finish", {
+        headers: { Cookie: managerCookie },
+        data: {},
+      }).catch(() => null);
+    }
   }
 
   expectNoRuntimeErrors(runtime);

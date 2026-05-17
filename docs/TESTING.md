@@ -194,7 +194,8 @@ Các nhóm kiểm tra chính:
 - `Xử lý nhập thiếu batch`: bật batch mode từ user có quyền, kiểm tra planner gom cả đơn nháp/đơn chốt, chặn bắt đầu kỳ gom khi đang có conflict phiếu nhập mở, và không cho tạo trùng phiếu nhập cho cùng sản phẩm thiếu
 - `Conflict đầu kỳ gom`: khi app chặn `Bắt đầu kỳ gom`, màn planner phải hiện danh sách conflict có thể bấm mở thẳng các phiếu nhập liên quan
 - `Extra rows trong planner batch`: batch owner thêm được mặt hàng `Ngoài nhu cầu đơn`, gom chung theo NCC với shortage rows, nhưng không tạo assignment shortage
-- `Khóa màn Nhập hàng theo batch owner`: user không giữ khóa phải bị khóa create/edit `draft/ordered`, nhưng vẫn thấy các bước hậu cần hợp lệ như `Nhập kho`
+- `Khóa màn Nhập hàng theo batch owner`: user không giữ khóa phải bị khóa create/edit `draft/ordered`; ngoại lệ duy nhất là vẫn được `Nhập kho` với phiếu không phải batch đã `Đã đặt` từ trước lúc kỳ gom hiện tại bắt đầu
+- `Thoát flow batch khi còn khóa`: owner rời `Xử lý nhập thiếu` sang màn ngoài flow phải thấy dialog hỏi kết thúc kỳ gom; `Cancel` giữ nguyên batch, `OK` release lock rồi mới điều hướng
 - `Confirm đổi trạng thái/xóa chứng từ`: trước khi `Xuất`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa` app phải hiện dialog confirm
 - `Version cache-busting client JS`: HTML entrypoint và các module import phải được serve kèm query `?v=version-chính.N`, counter phải tăng đúng khi file `.js` đổi nội dung và không tăng nếu chỉ đổi line ending `CRLF/LF`
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
