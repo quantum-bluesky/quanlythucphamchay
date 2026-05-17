@@ -46,8 +46,8 @@
       "sha256": "045d553f4af91187fcca855f98838f538b806f40b56e8aa0967db16697c7aab0"
     },
     "modules/domain-helpers/purchases-domain.js": {
-      "counter": 1,
-      "sha256": "c7e983e298d345e289e19d85d85b5ba064e4ff1ff03f3066f87d790485676442"
+      "counter": 2,
+      "sha256": "438cfe1ec5767a40aff00d2cc88650a18bd532c6122745fff060997381c68e70"
     },
     "modules/domain-helpers/sales-domain.js": {
       "counter": 1,

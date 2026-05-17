@@ -195,6 +195,8 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
   const prebatchSupplierName = `NCC Batch Lock Manual ${timestamp}`;
   const batchPurchaseId = `purchase_batch_lock_batch_${timestamp}`;
   const prebatchPurchaseId = `purchase_batch_lock_manual_${timestamp}`;
+  const prebatchDraftCreatedAt = "2026-05-16T06:30:00+00:00";
+  const prebatchOrderedAt = "2026-05-16T07:00:00+00:00";
 
   const seededBatchPurchase = {
     id: batchPurchaseId,
@@ -221,10 +223,10 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     id: prebatchPurchaseId,
     supplierName: prebatchSupplierName,
     note: "IT-PROC-02 manual ordered purchase before batch",
-    status: "ordered",
+    status: "draft",
     sourceType: "manual",
-    createdAt: "2026-05-16T07:00:00+00:00",
-    updatedAt: "2026-05-16T07:00:00+00:00",
+    createdAt: prebatchDraftCreatedAt,
+    updatedAt: prebatchDraftCreatedAt,
     items: [
       {
         id: `purchase_batch_lock_manual_item_${timestamp}`,
@@ -249,6 +251,23 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     });
     expect(seedResponse.ok()).toBeTruthy();
 
+    const orderedSeedResponse = await request.put("/api/state", {
+      headers: { Cookie: managerCookie },
+      data: {
+        purchases: [
+          ...(restoredState.purchases || []),
+          seededBatchPurchase,
+          {
+            ...seededPrebatchManualPurchase,
+            status: "ordered",
+            updatedAt: prebatchOrderedAt,
+          },
+        ],
+      },
+    });
+    const orderedSeedPayload = await orderedSeedResponse.json();
+    expect(orderedSeedResponse.ok(), JSON.stringify(orderedSeedPayload)).toBeTruthy();
+
     const startResponse = await request.post("/api/procurement/batch/start", {
       headers: { Cookie: managerCookie },
       data: {},
@@ -256,6 +275,23 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     const startPayload = await startResponse.json();
     expect(startResponse.ok(), JSON.stringify(startPayload)).toBeTruthy();
     batchStarted = true;
+
+    const ownerUpdatedStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
+    expect(ownerUpdatedStateResponse.ok()).toBeTruthy();
+    const ownerUpdatedState = await ownerUpdatedStateResponse.json();
+    const ownerUpdatedPurchases = (ownerUpdatedState.purchases || []).map((purchase) => (
+      purchase.id === prebatchPurchaseId
+        ? { ...purchase, note: "IT-PROC-02 owner updated note after batch started" }
+        : purchase
+    ));
+    const ownerUpdatedResponse = await request.put("/api/state", {
+      headers: { Cookie: managerCookie },
+      data: {
+        purchases: ownerUpdatedPurchases,
+      },
+    });
+    const ownerUpdatedPayload = await ownerUpdatedResponse.json();
+    expect(ownerUpdatedResponse.ok(), JSON.stringify(ownerUpdatedPayload)).toBeTruthy();
 
     await gotoWithRetry(page, "/");
     await page.waitForLoadState("networkidle");
@@ -290,6 +326,11 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     }
     await expect(page.locator("#purchasePanel")).toContainText(prebatchSupplierName);
     await expect(page.locator('[data-purchase-action="receive"]')).toBeEnabled();
+    await page.locator('[data-purchase-action="receive"]').click();
+    await expect(page.locator("#purchasePanel")).toContainText("Đã nhập kho");
+    await expect(page.locator('[data-purchase-action="mark-paid"]')).toBeEnabled();
+    await page.locator('[data-purchase-action="mark-paid"]').click();
+    await expect(page.locator("#purchasePanel")).toContainText("Đã thanh toán");
 
     await switchMenu(page, "procurement-planner");
     await expectScreenTitle(page, "Xử lý nhập thiếu");

@@ -127,13 +127,13 @@ Lưu ý:
 | 101 | `UT-PROC-01` | Kiểm tra kỳ gom nhập batch chỉ có một lock active và chỉ owner hiện tại mới kết thúc được lock. |
 | 102 | `UT-PROC-02` | Kiểm tra planner batch gom nhu cầu đơn nháp/chốt theo sản phẩm và chặn tạo nhiều phiếu nhập mở cho cùng một sản phẩm thiếu. |
 | 103 | `UT-PROC-03` | Kiểm tra backend tạo batch nhiều dòng và gom các sản phẩm chọn cùng NCC vào một phiếu nhập batch draft. |
-| 104 | `UT-PROC-04` | Kiểm tra user không giữ khóa batch bị chặn sửa phiếu nhập `draft/ordered`, không được nhận phiếu batch hay phiếu thường phát sinh sau lock, nhưng vẫn được đi tiếp `received/paid` với phiếu không phải batch đã `ordered` từ trước lúc kỳ gom bắt đầu. |
+| 104 | `UT-PROC-04` | Kiểm tra user không giữ khóa batch bị chặn sửa phiếu nhập `draft/ordered`, không được nhận phiếu batch hay phiếu thường phát sinh sau lock, nhưng vẫn được đi tiếp `received/paid` với phiếu không phải batch đã `ordered` từ trước lúc kỳ gom bắt đầu, kể cả khi owner đã sửa lại phiếu sau đó làm `updated_at` thay đổi. |
 | 105 | `UT-PROC-05` | Kiểm tra assignment batch tự release khi phiếu batch bị hủy hoặc đã chuyển sang trạng thái `received`. |
 | 106 | `UT-PROC-06` | Kiểm tra backend chặn `Bắt đầu kỳ gom nhập` nếu đang có nhiều phiếu nhập mở cover cùng một sản phẩm, đặc biệt khi có phiếu nguồn từ đơn hàng chồng lấn với phiếu khác. |
 | 107 | `UT-PROC-07` | Kiểm tra backend tạo được purchase batch mixed lines `shortage + extra`, vẫn gom đúng theo NCC và chỉ tạo assignment cho dòng shortage. |
 | 108 | `UT-PROC-08` | Kiểm tra extra row cùng sản phẩm với shortage row sẽ merge vào đúng phiếu batch/NCC đang xử lý và không tạo thêm assignment ngoài shortage. |
 | 109 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không phải Master Admin. |
 | 110 | `IT-PROC-01` | Kiểm tra UI planner khi bị chặn `Bắt đầu kỳ gom` sẽ hiện danh sách conflict và cho bấm mở đúng các phiếu nhập mở liên quan để dọn. |
-| 111 | `IT-PROC-02` | Kiểm tra user không giữ khóa batch vào màn `Nhập hàng` sẽ bị khóa create/edit cấu trúc phiếu `draft/ordered`; phiếu batch không còn nút `Nhập kho`, còn ngoại lệ phiếu thường đã `ordered` từ trước lúc batch bắt đầu vẫn được nhận hàng. |
+| 111 | `IT-PROC-02` | Kiểm tra user không giữ khóa batch vào màn `Nhập hàng` sẽ bị khóa create/edit cấu trúc phiếu `draft/ordered`; phiếu batch không còn nút `Nhập kho`, còn ngoại lệ phiếu thường đã `ordered` từ trước lúc batch bắt đầu vẫn được `Nhập kho` rồi `Đã thanh toán`, kể cả khi owner đã sửa lại ghi chú phiếu sau lúc batch mở. |
 | 112 | `IT-PROC-03` | Kiểm tra batch owner thêm được extra product có badge `Ngoài nhu cầu đơn`, tạo phiếu batch mixed lines thành công và review chung với shortage row cùng NCC. |
 | 113 | `IT-PROC-04` | Kiểm tra owner đang ở flow batch khi bấm sang màn ngoài flow sẽ thấy dialog nhắc kết thúc kỳ gom; `Cancel` giữ nguyên batch và `OK` sẽ finish batch, release lock rồi mới điều hướng. |

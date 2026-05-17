@@ -114,13 +114,27 @@ export function createPurchasesDomainHelpers(deps) {
       || ""
     );
     const purchaseOrderedAt = parseIsoTimestamp(
-      purchase?.updatedAt
+      purchase?.orderedAt
+      || purchase?.ordered_at
+      || purchase?.updatedAt
       || purchase?.updated_at
       || purchase?.createdAt
       || purchase?.created_at
       || ""
     );
     return Number.isFinite(lockStartedAt) && Number.isFinite(purchaseOrderedAt) && purchaseOrderedAt < lockStartedAt;
+  }
+
+  function getPurchaseOrderedAt(purchase) {
+    return String(
+      purchase?.orderedAt
+      || purchase?.ordered_at
+      || purchase?.updatedAt
+      || purchase?.updated_at
+      || purchase?.createdAt
+      || purchase?.created_at
+      || ""
+    );
   }
 
   function isPurchaseStructureLockedByProcurementBatch(purchase = null) {
@@ -195,6 +209,8 @@ export function createPurchasesDomainHelpers(deps) {
       totalAmount: Number(totalAmount.toFixed(2)),
       createdAt: purchase.createdAt || nowIso(),
       updatedAt: purchase.updatedAt || purchase.createdAt || nowIso(),
+      orderedAt: getPurchaseOrderedAt(purchase),
+      ordered_at: getPurchaseOrderedAt(purchase),
       receivedAt: purchase.receivedAt || purchase.received_at || null,
       paidAt: purchase.paidAt || purchase.paid_at || null,
       receiptCode: purchase.receiptCode || purchase.receipt_code || "",
