@@ -118,6 +118,7 @@ export const showCancelledPurchases = document.getElementById("showCancelledPurc
 export const showPaidPurchases = document.getElementById("showPaidPurchases");
 export const procurementStatusPanel = document.getElementById("procurementStatusPanel");
 export const procurementPlannerList = document.getElementById("procurementPlannerList");
+export const procurementExtraPanel = document.getElementById("procurementExtraPanel");
 export const procurementReviewPanel = document.getElementById("procurementReviewPanel");
 export const procurementRefreshButton = document.getElementById("procurementRefreshButton");
 export const procurementCreateSelectedButton = document.getElementById("procurementCreateSelectedButton");

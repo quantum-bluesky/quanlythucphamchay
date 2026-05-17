@@ -186,6 +186,7 @@ Liên kết detail hiện có:
   - panel trạng thái Daily/Batch mode và người giữ khóa
   - nút `Làm mới`, `Tạo phiếu đã chọn`, `Review phiếu`, `Bắt đầu kỳ gom`, `Kết thúc kỳ gom`
   - danh sách mặt hàng thiếu theo tồn, nhu cầu đơn chốt, nhu cầu đơn nháp, chờ nhập, cần nhập và dự kiến sau nhập
+  - khối phụ `Chọn thêm sản phẩm khác` dạng collapse cho batch owner thêm dòng ngoài nhu cầu đơn
   - review panel detail phiếu nhập batch với nút `Trước / Sau`
 - nguyên tắc UI:
   - Daily mode vẫn ưu tiên flow nhanh theo đơn ở màn `purchases`
@@ -195,7 +196,10 @@ Liên kết detail hiện có:
   - khi Batch mode đang bật, màn `purchases` phải bị khóa phần tạo/sửa cấu trúc phiếu `Nháp/Đã đặt` cho user không giữ khóa để tránh bypass planner
   - mỗi dòng mặc định chưa tick; chỉ khi tick mới hiện NCC, số lượng và cảnh báo sau nhập
   - trên tablet/desktop hiện thêm input `Giá nhập` và `Giảm KM` để tận dụng không gian rộng hơn
+  - khối `Chọn thêm sản phẩm khác` chỉ hiện khi đang ở Batch mode và user là lock owner hoặc `Master Admin`
+  - extra rows phải tách khỏi list shortage chính, có badge `Ngoài nhu cầu đơn`, không dùng lại các cột `Cần nhập / Dự kiến sau nhập`
   - các dòng chọn cùng NCC phải gom vào cùng một phiếu nhập batch draft
+  - extra rows vẫn được gom chung vào phiếu batch theo NCC với shortage rows, nhưng không tạo assignment shortage
   - nếu NCC chưa tồn tại, app hỏi chuyển sang màn `suppliers` để tạo NCC mới rồi quay lại planner
   - nếu sản phẩm đã được gán vào một phiếu nhập batch mở, dòng planner phải hiện mã phiếu/NCC đang xử lý thay vì cho tạo trùng
   - cảnh báo `Sau nhập vẫn dưới ngưỡng` chỉ hiện sau khi dòng đã được tick và có số lượng dự kiến; đây là cảnh báo tồn kho, không phải lỗi chặn tạo phiếu
