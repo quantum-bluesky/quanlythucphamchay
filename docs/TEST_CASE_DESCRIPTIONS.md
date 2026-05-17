@@ -21,7 +21,7 @@ Lưu ý:
 | 2 | `ACC-INV-01` | Kiểm tra shortcut ở màn tồn kho mở đúng luồng nhập hàng và tạo đơn xuất. |
 | 3 | `ACC-INV-02` | Kiểm tra các màn tồn kho, nhập hàng, bán hàng và sản phẩm hoạt động ổn định khi điều hướng qua lại. |
 | 4 | `ACC-SALE-01` | Kiểm tra chốt đơn hoàn chỉnh làm giảm tồn kho và ghi nhận đúng lịch sử đơn hàng. |
-| 5 | `ACC-SALE-02` | Kiểm tra user thường gặp thiếu hàng khi chốt đơn sẽ được báo trước khi tạo/cập nhật phiếu nhập, đồng thời không tạo trùng nếu đã có phiếu chờ nhập đủ số lượng. |
+| 5 | `ACC-SALE-02` | Kiểm tra user thường khi chốt đơn sẽ vẫn chốt được nếu phần thiếu đã được cover bởi phiếu nhập `Đã đặt`, còn nếu chưa đặt đủ thì app mới báo trước để mở hoặc tạo phiếu nhập phù hợp. |
 | 6 | `ACC-ORD-01` | Kiểm tra màn đơn hàng render ổn định và các thao tác chính không làm vỡ màn quản lý. |
 | 7 | `ACC-CUS-01` | Kiểm tra màn khách hàng render ổn định và các thao tác cơ bản hoạt động bình thường. |
 | 8 | `ACC-PROD-01` | Kiểm tra màn sản phẩm và luồng sửa nhanh hoạt động ổn định cùng các màn nghiệp vụ liên quan. |
@@ -118,21 +118,22 @@ Lưu ý:
 | 92 | `UT-DB-17` | Kiểm tra backend cho cập nhật lại HSD/NSX của dòng phiếu `received` và đồng bộ đúng sang `purchase_items`, `inventory_batches`, `inventory_receipt_items` và note transaction. |
 | 93 | `UT-SYNC-05` | Kiểm tra đơn `committed` khóa khách hàng nhưng vẫn cho sửa `ship_address`, đồng thời chặn việc đổi thẳng `committed -> completed` qua sync state. |
 | 94 | `UT-ORD-15` | Kiểm tra flow backend `draft -> committed -> completed`: bước `commit` chưa trừ kho, bước `ship` mới trừ kho và cập nhật trạng thái hoàn tất. |
-| 95 | `UT-DB-18` | Kiểm tra phiếu nhập `ordered` nhưng thiếu nhà cung cấp được nhận diện là dữ liệu lỗi có thể repair để UI cho sửa NCC hoặc xóa/hủy. |
-| 96 | `UT-DB-19` | Kiểm tra `legacy audit` tách đúng phần `safe fixes` và `manual review` khi DB có cart thiếu `paid_at`, purchase thiếu timestamp raw, phiếu `ordered` thiếu NCC, và purchase thiếu `source_code`. |
-| 97 | `UT-DB-20` | Kiểm tra `apply_safe_legacy_fixes()` backfill được `cart.paid_at` và `purchase.received_at`, đồng thời làm sạch lại số lượng anomaly an toàn trong audit. |
-| 98 | `UT-DB-21` | Kiểm tra admin gắn lại `receipt_code` cho purchase legacy `paid` đang thiếu receipt và record biến mất khỏi nhóm repair lỗi tương ứng. |
-| 99 | `UT-DB-22` | Kiểm tra admin gắn lại `cart_id` nguồn cho purchase legacy thiếu `source_code` và record biến mất khỏi nhóm review link nguồn. |
-| 100 | `UT-PROC-01` | Kiểm tra kỳ gom nhập batch chỉ có một lock active và chỉ owner hiện tại mới kết thúc được lock. |
-| 101 | `UT-PROC-02` | Kiểm tra planner batch gom nhu cầu đơn nháp/chốt theo sản phẩm và chặn tạo nhiều phiếu nhập mở cho cùng một sản phẩm thiếu. |
-| 102 | `UT-PROC-03` | Kiểm tra backend tạo batch nhiều dòng và gom các sản phẩm chọn cùng NCC vào một phiếu nhập batch draft. |
-| 103 | `UT-PROC-04` | Kiểm tra user không giữ khóa batch bị chặn sửa phiếu nhập `draft/ordered`, không được nhận phiếu batch hay phiếu thường phát sinh sau lock, nhưng vẫn được đi tiếp `received/paid` với phiếu không phải batch đã `ordered` từ trước lúc kỳ gom bắt đầu. |
-| 104 | `UT-PROC-05` | Kiểm tra assignment batch tự release khi phiếu batch bị hủy hoặc đã chuyển sang trạng thái `received`. |
-| 105 | `UT-PROC-06` | Kiểm tra backend chặn `Bắt đầu kỳ gom nhập` nếu đang có nhiều phiếu nhập mở cover cùng một sản phẩm, đặc biệt khi có phiếu nguồn từ đơn hàng chồng lấn với phiếu khác. |
-| 106 | `UT-PROC-07` | Kiểm tra backend tạo được purchase batch mixed lines `shortage + extra`, vẫn gom đúng theo NCC và chỉ tạo assignment cho dòng shortage. |
-| 107 | `UT-PROC-08` | Kiểm tra extra row cùng sản phẩm với shortage row sẽ merge vào đúng phiếu batch/NCC đang xử lý và không tạo thêm assignment ngoài shortage. |
-| 108 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không phải Master Admin. |
-| 109 | `IT-PROC-01` | Kiểm tra UI planner khi bị chặn `Bắt đầu kỳ gom` sẽ hiện danh sách conflict và cho bấm mở đúng các phiếu nhập mở liên quan để dọn. |
-| 110 | `IT-PROC-02` | Kiểm tra user không giữ khóa batch vào màn `Nhập hàng` sẽ bị khóa create/edit cấu trúc phiếu `draft/ordered`; phiếu batch không còn nút `Nhập kho`, còn ngoại lệ phiếu thường đã `ordered` từ trước lúc batch bắt đầu vẫn được nhận hàng. |
-| 111 | `IT-PROC-03` | Kiểm tra batch owner thêm được extra product có badge `Ngoài nhu cầu đơn`, tạo phiếu batch mixed lines thành công và review chung với shortage row cùng NCC. |
-| 112 | `IT-PROC-04` | Kiểm tra owner đang ở flow batch khi bấm sang màn ngoài flow sẽ thấy dialog nhắc kết thúc kỳ gom; `Cancel` giữ nguyên batch và `OK` sẽ finish batch, release lock rồi mới điều hướng. |
+| 95 | `UT-ORD-16` | Kiểm tra backend cho `commit` dùng phần hàng đã nằm trong phiếu nhập `ordered`, đồng thời không cho hai đơn cùng giữ vượt quá lượng cover đó. |
+| 96 | `UT-DB-18` | Kiểm tra phiếu nhập `ordered` nhưng thiếu nhà cung cấp được nhận diện là dữ liệu lỗi có thể repair để UI cho sửa NCC hoặc xóa/hủy. |
+| 97 | `UT-DB-19` | Kiểm tra `legacy audit` tách đúng phần `safe fixes` và `manual review` khi DB có cart thiếu `paid_at`, purchase thiếu timestamp raw, phiếu `ordered` thiếu NCC, và purchase thiếu `source_code`. |
+| 98 | `UT-DB-20` | Kiểm tra `apply_safe_legacy_fixes()` backfill được `cart.paid_at` và `purchase.received_at`, đồng thời làm sạch lại số lượng anomaly an toàn trong audit. |
+| 99 | `UT-DB-21` | Kiểm tra admin gắn lại `receipt_code` cho purchase legacy `paid` đang thiếu receipt và record biến mất khỏi nhóm repair lỗi tương ứng. |
+| 100 | `UT-DB-22` | Kiểm tra admin gắn lại `cart_id` nguồn cho purchase legacy thiếu `source_code` và record biến mất khỏi nhóm review link nguồn. |
+| 101 | `UT-PROC-01` | Kiểm tra kỳ gom nhập batch chỉ có một lock active và chỉ owner hiện tại mới kết thúc được lock. |
+| 102 | `UT-PROC-02` | Kiểm tra planner batch gom nhu cầu đơn nháp/chốt theo sản phẩm và chặn tạo nhiều phiếu nhập mở cho cùng một sản phẩm thiếu. |
+| 103 | `UT-PROC-03` | Kiểm tra backend tạo batch nhiều dòng và gom các sản phẩm chọn cùng NCC vào một phiếu nhập batch draft. |
+| 104 | `UT-PROC-04` | Kiểm tra user không giữ khóa batch bị chặn sửa phiếu nhập `draft/ordered`, không được nhận phiếu batch hay phiếu thường phát sinh sau lock, nhưng vẫn được đi tiếp `received/paid` với phiếu không phải batch đã `ordered` từ trước lúc kỳ gom bắt đầu. |
+| 105 | `UT-PROC-05` | Kiểm tra assignment batch tự release khi phiếu batch bị hủy hoặc đã chuyển sang trạng thái `received`. |
+| 106 | `UT-PROC-06` | Kiểm tra backend chặn `Bắt đầu kỳ gom nhập` nếu đang có nhiều phiếu nhập mở cover cùng một sản phẩm, đặc biệt khi có phiếu nguồn từ đơn hàng chồng lấn với phiếu khác. |
+| 107 | `UT-PROC-07` | Kiểm tra backend tạo được purchase batch mixed lines `shortage + extra`, vẫn gom đúng theo NCC và chỉ tạo assignment cho dòng shortage. |
+| 108 | `UT-PROC-08` | Kiểm tra extra row cùng sản phẩm với shortage row sẽ merge vào đúng phiếu batch/NCC đang xử lý và không tạo thêm assignment ngoài shortage. |
+| 109 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không phải Master Admin. |
+| 110 | `IT-PROC-01` | Kiểm tra UI planner khi bị chặn `Bắt đầu kỳ gom` sẽ hiện danh sách conflict và cho bấm mở đúng các phiếu nhập mở liên quan để dọn. |
+| 111 | `IT-PROC-02` | Kiểm tra user không giữ khóa batch vào màn `Nhập hàng` sẽ bị khóa create/edit cấu trúc phiếu `draft/ordered`; phiếu batch không còn nút `Nhập kho`, còn ngoại lệ phiếu thường đã `ordered` từ trước lúc batch bắt đầu vẫn được nhận hàng. |
+| 112 | `IT-PROC-03` | Kiểm tra batch owner thêm được extra product có badge `Ngoài nhu cầu đơn`, tạo phiếu batch mixed lines thành công và review chung với shortage row cùng NCC. |
+| 113 | `IT-PROC-04` | Kiểm tra owner đang ở flow batch khi bấm sang màn ngoài flow sẽ thấy dialog nhắc kết thúc kỳ gom; `Cancel` giữ nguyên batch và `OK` sẽ finish batch, release lock rồi mới điều hướng. |

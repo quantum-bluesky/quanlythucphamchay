@@ -190,6 +190,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - không đổi số lượng tồn kho hay line item, chỉ ảnh hưởng số tiền cần thu và báo cáo doanh thu net
 - `ship_address` là snapshot địa chỉ giao ở cấp đơn; không phụ thuộc động vào hồ sơ khách hàng
 - `committed_at` là mốc đơn được chốt để giữ hàng logic trước khi xuất thật
+- khả dụng để `commit` được suy ra từ `tồn hiện tại + số lượng của phiếu nhập ordered - phần đã giữ cho các đơn committed khác`; bước `ship` vẫn chỉ dựa trên tồn vật lý đã nhập kho
 - `status` hiện dùng theo workflow:
   - `draft`: đơn nháp
   - `committed`: đã chốt, khóa khách hàng nhưng chưa trừ kho
