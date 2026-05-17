@@ -333,7 +333,13 @@ function applySavingUiState(message = GLOBAL_SAVING_UI_MESSAGE) {
   document.body.classList.toggle("app-is-busy", isBusy);
   document.body.setAttribute("aria-busy", isBusy ? "true" : "false");
   setBusyPageInert(isBusy);
-  if (isBusy) {
+  const shouldKeepLoginFocus = Boolean(
+    isBusy &&
+    state.admin?.enableLogin &&
+    !state.admin?.authenticated &&
+    state.activeMenu === "login"
+  );
+  if (isBusy && !shouldKeepLoginFocus) {
     globalBusyCard?.focus({ preventScroll: true });
   }
 }
@@ -3885,6 +3891,8 @@ function setLoginReturnMenu(menu) {
 
 function isLoginScreenTarget(target) {
   return Boolean(
+    globalBusyOverlay?.contains(target) ||
+    globalBusyCard?.contains(target) ||
     adminLoginPanel?.contains(target) ||
     adminLoginForm?.contains(target)
   );
