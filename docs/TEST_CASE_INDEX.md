@@ -136,6 +136,8 @@ Mục tiêu:
 | 106 | `UT-PROC-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_05_assignment_releases_when_batch_purchase_is_cancelled` |
 | 107 | `UT-PROC-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_proc_06_start_batch_rejects_existing_open_purchase_conflicts` |
 | 108 | `UT-AUTH-04B` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_04b_procurement_permission_user_can_start_batch_without_admin` |
+| 109 | `IT-PROC-01` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-01"` |
+| 110 | `IT-PROC-02` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-02"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

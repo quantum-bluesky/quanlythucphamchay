@@ -174,6 +174,7 @@ export const SCREEN_HELP = {
     steps: [
       "Daily mode giữ flow xử lý nhanh theo đơn; Batch mode gom shortage về planner và tắt auto-create phiếu nhập theo từng cart.",
       "Người có quyền xử lý batch bấm `Bắt đầu kỳ gom` để giữ khóa. User khác chỉ xem trạng thái và người đang giữ khóa.",
+      "Nếu app phát hiện conflict phiếu nhập mở trước lúc vào batch mode, màn này sẽ hiện danh sách sản phẩm/mã phiếu liên quan để bấm mở và dọn ngay.",
       "Trong lúc owner còn ở màn này, app sẽ tự gia hạn khóa định kỳ để tránh hết hạn giữa chừng khi đang xử lý batch dài.",
       "Mỗi dòng hiển thị tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập thêm.",
       "Tick chọn các mặt hàng cần tạo phiếu, chọn NCC từ danh bạ và chỉnh số lượng; số lượng mặc định là mức đủ đáp ứng nhu cầu.",

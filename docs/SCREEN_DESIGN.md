@@ -191,6 +191,7 @@ Liên kết detail hiện có:
   - Daily mode vẫn ưu tiên flow nhanh theo đơn ở màn `purchases`
   - Batch mode chỉ cho user có quyền quản lý batch tạo phiếu nhập từ planner
   - trước khi acquire lock batch, backend phải audit nhanh conflict phiếu nhập mở theo sản phẩm và chặn vào batch nếu còn cover trùng
+  - khi bị chặn bởi conflict đầu kỳ gom, màn planner phải hiện ngay danh sách sản phẩm và các phiếu nhập mở liên quan để user bấm mở xử lý
   - khi Batch mode đang bật, màn `purchases` phải bị khóa phần tạo/sửa cấu trúc phiếu `Nháp/Đã đặt` cho user không giữ khóa để tránh bypass planner
   - mỗi dòng mặc định chưa tick; chỉ khi tick mới hiện NCC, số lượng và cảnh báo sau nhập
   - trên tablet/desktop hiện thêm input `Giá nhập` và `Giảm KM` để tận dụng không gian rộng hơn

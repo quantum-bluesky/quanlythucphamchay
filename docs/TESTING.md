@@ -192,6 +192,8 @@ Các nhóm kiểm tra chính:
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, thiếu hàng của user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu chờ đủ
 - `Reload số lượng sau đổi trạng thái`: sau `Xuất kho` hoặc `Nhập kho`, các màn `Tồn kho`, `Xuất hàng`, `Nhập hàng` phải nạp lại dữ liệu server mới mà không cần F5
 - `Xử lý nhập thiếu batch`: bật batch mode từ user có quyền, kiểm tra planner gom cả đơn nháp/đơn chốt, chặn bắt đầu kỳ gom khi đang có conflict phiếu nhập mở, và không cho tạo trùng phiếu nhập cho cùng sản phẩm thiếu
+- `Conflict đầu kỳ gom`: khi app chặn `Bắt đầu kỳ gom`, màn planner phải hiện danh sách conflict có thể bấm mở thẳng các phiếu nhập liên quan
+- `Khóa màn Nhập hàng theo batch owner`: user không giữ khóa phải bị khóa create/edit `draft/ordered`, nhưng vẫn thấy các bước hậu cần hợp lệ như `Nhập kho`
 - `Confirm đổi trạng thái/xóa chứng từ`: trước khi `Xuất`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa` app phải hiện dialog confirm
 - `Version cache-busting client JS`: HTML entrypoint và các module import phải được serve kèm query `?v=version-chính.N`, counter phải tăng đúng khi file `.js` đổi nội dung và không tăng nếu chỉ đổi line ending `CRLF/LF`
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`

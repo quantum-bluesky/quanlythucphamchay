@@ -66,6 +66,12 @@ class SyncConflictError(ValueError):
         )
 
 
+class ProcurementBatchStartConflictError(ValueError):
+    def __init__(self, message: str, *, conflicts: list[dict] | None = None):
+        self.conflicts = conflicts or []
+        super().__init__(message)
+
+
 class InventoryStore:
     SYNC_COLLECTION_KEYS = ("customers", "suppliers", "carts", "purchases")
 
@@ -5382,7 +5388,10 @@ class InventoryStore:
             if not current:
                 conflicts = self._collect_procurement_batch_start_conflicts(connection)
                 if conflicts:
-                    raise ValueError(self._format_procurement_batch_start_conflicts(conflicts))
+                    raise ProcurementBatchStartConflictError(
+                        self._format_procurement_batch_start_conflicts(conflicts),
+                        conflicts=conflicts,
+                    )
             connection.execute(
                 """
                 INSERT INTO workflow_locks(lock_key, owner_username, owner_role, acquired_at, expires_at, updated_at, note)

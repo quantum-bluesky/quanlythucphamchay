@@ -270,3 +270,4 @@ ordered -> cancelled
 - sai sót sau khi chứng từ đã xử lý phải đi qua chứng từ điều chỉnh
 - trong Batch procurement mode, không auto-create phiếu nhập theo từng cart và không tách 1 sản phẩm thiếu sang nhiều phiếu nhập mở
 - trước khi bật Batch procurement mode, backend phải audit nhanh các phiếu nhập `draft/ordered`; nếu một sản phẩm đang bị cover bởi nhiều phiếu mở thì chặn acquire lock và yêu cầu dọn conflict trước
+- khi bị chặn vì conflict đầu kỳ gom, app phải hiện ngay danh sách phiếu nhập mở liên quan để user mở đúng chứng từ và dọn conflict

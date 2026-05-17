@@ -118,6 +118,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Trong kỳ gom nhập, shortage flow không auto-create phiếu nhập theo từng đơn; người giữ khóa batch phải xử lý trên planner và mỗi sản phẩm thiếu chỉ được gán vào một phiếu nhập mở để tránh tách logistics
 - Khi kỳ gom nhập còn hiệu lực, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới hay sửa cấu trúc phiếu nhập `Nháp/Đã đặt`; user khác chỉ tiếp tục các bước hậu cần như `Nhập kho` hoặc `Đã thanh toán`
 - Trước khi bắt đầu kỳ gom nhập, app sẽ audit nhanh các phiếu nhập mở; nếu một sản phẩm đang bị cover bởi nhiều phiếu mở thì phải dọn conflict trước khi acquire lock
+- Khi bị chặn vì conflict đầu kỳ gom, màn planner sẽ hiện ngay danh sách sản phẩm và các mã phiếu nhập mở liên quan để bấm sang màn `Nhập hàng` xử lý
 - Planner batch cho tick chọn nhiều mặt hàng, chọn NCC từ danh bạ, chỉnh số lượng/giá nhập/giảm giá, rồi gom các mặt hàng cùng NCC vào một phiếu nhập nháp
 - Nếu NCC chưa có trong danh bạ, app hỏi để chuyển sang màn `Nhà cung cấp` tạo mới, lưu xong quay lại planner để chọn tiếp
 - Sau khi tạo phiếu batch, có màn review detail với nút `Trước / Sau` để chỉnh nhanh các phiếu vừa tạo rồi quay lại planner refresh trạng thái

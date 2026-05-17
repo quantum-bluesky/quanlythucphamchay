@@ -364,15 +364,16 @@ Màn này dùng khi cần gom nhu cầu nhập định kỳ, ví dụ cuối th�
 1. Login bằng `Master Admin` hoặc user được cấp quyền xử lý kỳ gom nhập.
 2. Bấm `Bắt đầu kỳ gom` để giữ khóa xử lý.
 3. Trước khi bật batch mode, app sẽ quét nhanh các phiếu nhập mở; nếu cùng một sản phẩm đang nằm trong nhiều phiếu mở thì app chặn và yêu cầu dọn conflict trước.
-4. Nếu đang xử lý lâu trên màn này, app sẽ tự gia hạn khóa định kỳ cho đúng user đang giữ khóa.
-5. Xem từng dòng mặt hàng thiếu: tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập.
-6. Tick chọn những dòng cần xử lý. Dòng chưa tick sẽ không hiện cảnh báo sau nhập vì chưa có số lượng dự kiến.
-7. Với từng dòng đã tick, chọn NCC từ danh bạ và nhập số lượng; số lượng mặc định là mức đủ đáp ứng nhu cầu.
-8. Trên tablet/desktop có thể nhập thêm `Giá nhập` và `Giảm KM`; khi nhiều dòng cùng NCC, giảm giá sẽ được gom vào phiếu của NCC đó.
-9. Nếu NCC chưa có trong danh bạ, app sẽ hỏi để chuyển sang màn `Nhà cung cấp` tạo mới. Lưu xong app quay lại planner để chọn tiếp.
-10. Bấm `Tạo phiếu đã chọn`; các dòng cùng NCC sẽ được gom vào cùng một phiếu nhập nháp.
-11. Bấm `Review phiếu` để mở detail các phiếu vừa tạo; dùng `Trước / Sau` để chuyển giữa các phiếu trong list và bấm `Lưu chi tiết` nếu cần sửa thêm.
-12. Bấm `Quay lại batch` để refresh lại planner, kiểm tra trạng thái còn thiếu, rồi bấm `Kết thúc kỳ gom` khi đã xử lý xong.
+4. Khi bị chặn vì conflict, ngay trên màn này sẽ hiện danh sách sản phẩm và các mã phiếu nhập mở liên quan; bấm vào từng mã phiếu để sang `Quản lý nhập hàng` xử lý.
+5. Nếu đang xử lý lâu trên màn này, app sẽ tự gia hạn khóa định kỳ cho đúng user đang giữ khóa.
+6. Xem từng dòng mặt hàng thiếu: tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập.
+7. Tick chọn những dòng cần xử lý. Dòng chưa tick sẽ không hiện cảnh báo sau nhập vì chưa có số lượng dự kiến.
+8. Với từng dòng đã tick, chọn NCC từ danh bạ và nhập số lượng; số lượng mặc định là mức đủ đáp ứng nhu cầu.
+9. Trên tablet/desktop có thể nhập thêm `Giá nhập` và `Giảm KM`; khi nhiều dòng cùng NCC, giảm giá sẽ được gom vào phiếu của NCC đó.
+10. Nếu NCC chưa có trong danh bạ, app sẽ hỏi để chuyển sang màn `Nhà cung cấp` tạo mới. Lưu xong app quay lại planner để chọn tiếp.
+11. Bấm `Tạo phiếu đã chọn`; các dòng cùng NCC sẽ được gom vào cùng một phiếu nhập nháp.
+12. Bấm `Review phiếu` để mở detail các phiếu vừa tạo; dùng `Trước / Sau` để chuyển giữa các phiếu trong list và bấm `Lưu chi tiết` nếu cần sửa thêm.
+13. Bấm `Quay lại batch` để refresh lại planner, kiểm tra trạng thái còn thiếu, rồi bấm `Kết thúc kỳ gom` khi đã xử lý xong.
 
 Lưu ý:
 

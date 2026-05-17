@@ -130,3 +130,5 @@ Lưu ý:
 | 104 | `UT-PROC-05` | Kiểm tra assignment batch tự release khi phiếu batch bị hủy hoặc đã chuyển sang trạng thái `received`. |
 | 105 | `UT-PROC-06` | Kiểm tra backend chặn `Bắt đầu kỳ gom nhập` nếu đang có nhiều phiếu nhập mở cover cùng một sản phẩm, đặc biệt khi có phiếu nguồn từ đơn hàng chồng lấn với phiếu khác. |
 | 106 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không phải Master Admin. |
+| 107 | `IT-PROC-01` | Kiểm tra UI planner khi bị chặn `Bắt đầu kỳ gom` sẽ hiện danh sách conflict và cho bấm mở đúng các phiếu nhập mở liên quan để dọn. |
+| 108 | `IT-PROC-02` | Kiểm tra user không giữ khóa batch vào màn `Nhập hàng` sẽ bị khóa create/edit cấu trúc phiếu `draft/ordered`, nhưng vẫn thấy bước hậu cần hợp lệ như `Nhập kho`. |
