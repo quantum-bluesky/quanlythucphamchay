@@ -397,7 +397,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - phiếu nhập batch có `source_type = procurement_batch`; nhiều assignment có thể cùng trỏ tới một purchase nếu cùng NCC
 - các dòng `purchase_items.source_kind = 'extra'` là dòng được thêm tay ngoài nhu cầu đơn, không tạo `procurement_assignment`
 - nếu `source_kind = 'extra'` trùng sản phẩm đã có assignment batch active hoặc đã nằm trong purchase batch draft, backend chỉ cho merge vào đúng phiếu/NCC tương ứng thay vì tách phiếu batch mới
-- khi Batch procurement mode còn hiệu lực, chỉ lock owner hoặc `Master Admin` mới được mutate cấu trúc `purchases` ở trạng thái `draft/ordered`; user khác chỉ được phép đi tiếp các bước hậu cần đã chốt như `received/paid`
+- khi Batch procurement mode còn hiệu lực, chỉ lock owner hoặc `Master Admin` mới được mutate cấu trúc `purchases` ở trạng thái `draft/ordered`; user khác chỉ được phép đổi `ordered -> received` nếu phiếu không phải batch và timestamp `ordered` của phiếu cũ nhỏ hơn `workflow_locks.acquired_at` của lock đang active, sau đó mới đi tiếp `received -> paid`
 
 ## 14. Config liên quan
 

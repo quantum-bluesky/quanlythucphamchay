@@ -95,6 +95,34 @@ export function createPurchasesDomainHelpers(deps) {
     return Boolean(state.admin?.isAdmin || state.procurement?.permissions?.isLockOwner);
   }
 
+  function parseIsoTimestamp(value) {
+    const cleanValue = String(value || "").trim();
+    if (!cleanValue) {
+      return null;
+    }
+    const parsedValue = Date.parse(cleanValue);
+    return Number.isFinite(parsedValue) ? parsedValue : null;
+  }
+
+  function isPurchaseOrderedBeforeActiveProcurementBatch(purchase) {
+    if (!purchase || !isProcurementBatchModeActive()) {
+      return false;
+    }
+    const lockStartedAt = parseIsoTimestamp(
+      state.procurement?.lock?.acquiredAt
+      || state.procurement?.lock?.acquired_at
+      || ""
+    );
+    const purchaseOrderedAt = parseIsoTimestamp(
+      purchase?.updatedAt
+      || purchase?.updated_at
+      || purchase?.createdAt
+      || purchase?.created_at
+      || ""
+    );
+    return Number.isFinite(lockStartedAt) && Number.isFinite(purchaseOrderedAt) && purchaseOrderedAt < lockStartedAt;
+  }
+
   function isPurchaseStructureLockedByProcurementBatch(purchase = null) {
     const targetPurchase = purchase || getActivePurchase();
     if (!targetPurchase) {
@@ -183,7 +211,17 @@ export function createPurchasesDomainHelpers(deps) {
   }
 
   function canReceivePurchase(purchase) {
-    return Boolean(purchase && purchase.status === "ordered");
+    if (!purchase || purchase.status !== "ordered") {
+      return false;
+    }
+    if (!isProcurementBatchModeActive() || canManageProcurementBatchStructure()) {
+      return true;
+    }
+    const sourceType = String(purchase.sourceType || purchase.source_type || "").trim();
+    if (sourceType === "procurement_batch") {
+      return false;
+    }
+    return isPurchaseOrderedBeforeActiveProcurementBatch(purchase);
   }
 
   function isRepairableInvalidPurchase(purchase) {

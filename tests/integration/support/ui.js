@@ -1,6 +1,6 @@
 const { expect } = require("@playwright/test");
 
-function attachRuntimeTracking(page) {
+function attachRuntimeTracking(page, { autoAcceptDialogs = true } = {}) {
   const state = {
     errors: [],
     toasts: [],
@@ -17,9 +17,11 @@ function attachRuntimeTracking(page) {
     }
   });
 
-  page.on("dialog", async (dialog) => {
-    await dialog.accept();
-  });
+  if (autoAcceptDialogs) {
+    page.on("dialog", async (dialog) => {
+      await dialog.accept();
+    });
+  }
 
   return state;
 }
