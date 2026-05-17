@@ -149,7 +149,7 @@ ordered -> cancelled
 - `Legacy Audit` chỉ auto-fix các mốc thời gian chắc chắn; các thao tác gắn `receipt_code` hoặc `đơn nguồn` luôn cần admin xác nhận thủ công
 - chỉ `received` mới được `paid`
 - `received` chỉ còn cho sửa `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
-- khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `draft/ordered`; user khác chỉ tiếp tục các bước hậu cần đã chốt như `ordered -> received` hoặc `received -> paid`
+- khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `draft/ordered`; user khác chỉ được đi tiếp `ordered -> received` nếu phiếu không phải batch và đã `ordered` trước lúc lock hiện tại được acquire, rồi mới đi tiếp `received -> paid`
 - trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
 
 ## 5. Luồng xử lý nhập thiếu batch
@@ -187,6 +187,7 @@ ordered -> cancelled
 - phiếu tạo từ planner vẫn là purchase `draft`; workflow sau đó giữ nguyên `draft -> ordered -> received -> paid`
 - assignment active của phiếu batch sẽ tự release khi phiếu chuyển sang `received`, bị `cancelled`, bị xóa, hoặc dòng sản phẩm bị gỡ khỏi phiếu
 - khi kết thúc batch, lock được đóng và hệ thống quay về Daily mode
+- nếu owner rời các màn trong flow batch (`procurement-planner`, `purchases`, `suppliers`) sang màn ngoài flow khi lock còn active, UI phải hỏi có muốn kết thúc batch ngay không; `OK` sẽ finish batch và release lock trước khi điều hướng, `Cancel` giữ nguyên batch mode
 
 ## 6. Luồng sửa sai sau khi đã xử lý chứng từ
 
