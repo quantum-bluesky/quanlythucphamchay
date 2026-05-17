@@ -58,3 +58,43 @@ test("ACC-LOG-01 normal user and admin login update header state and permissions
 
   expectNoRuntimeErrors(runtime);
 });
+
+test("IT-LOG-02 login form submit does not trigger login guard dialog while busy overlay is active", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
+  const dialogMessages = [];
+  const candidates = [
+    { username: "user", password: "user12345" },
+    { username: "staff", password: "staff12345" },
+  ];
+
+  page.on("dialog", async (dialog) => {
+    dialogMessages.push(dialog.message());
+    await dialog.dismiss();
+  });
+
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  let loginCandidate = null;
+  for (const candidate of candidates) {
+    const response = await request.post("/api/session/login", {
+      data: candidate,
+    });
+    if (response.ok()) {
+      loginCandidate = candidate;
+      break;
+    }
+  }
+  expect(loginCandidate).toBeTruthy();
+
+  await expect(page.locator('[data-menu-section="login"]')).toHaveClass(/is-active/);
+  await page.locator("#adminUsernameInput").fill(loginCandidate.username);
+  await page.locator("#adminPasswordInput").fill(loginCandidate.password);
+  await page.locator('#adminLoginForm button[type="submit"]').click();
+
+  await expect(page.locator("#adminLogoutButton")).toHaveText("Logout");
+  await expect(page.locator("#globalBusyOverlay")).toBeHidden();
+  await expect(page.locator('[data-menu-section="login"]')).not.toHaveClass(/is-active/);
+  expect(dialogMessages).toEqual([]);
+  expectNoRuntimeErrors(runtime);
+});
