@@ -3276,12 +3276,15 @@ class InventoryStore:
                 },
             }
 
-    def create_purchase_receipt(
+    def _create_purchase_receipt_in_connection(
         self,
+        connection: sqlite3.Connection,
+        *,
         items: list[dict],
         note: str = "",
         supplier_name: str = "",
         discount_amount=0,
+        created_at: str = "",
     ) -> dict:
         clean_note = (note or "").strip()
         clean_supplier_name = (supplier_name or "").strip()
@@ -3307,158 +3310,156 @@ class InventoryStore:
                 }
             )
 
-        now = utc_now_iso()
+        now = str(created_at or utc_now_iso()).strip() or utc_now_iso()
         receipt_suffix = hashlib.sha1(f"{clean_supplier_name}-{clean_note}-{now}".encode("utf-8")).hexdigest()[:6]
         receipt_code = f"PN-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{receipt_suffix}"
-
-        with self._connect() as connection:
-            normalized_items: list[dict] = []
-            grouped_items: dict[tuple[int, str, str, str, str], dict] = {}
-            for raw_item in parsed_items:
-                product_id = int(raw_item["product_id"])
-                product = self._get_product_or_raise(connection, product_id)
-                expiry_metadata = self._resolve_purchase_item_expiry_metadata(
-                    raw_item=raw_item,
-                    product=product,
-                    received_at=now,
-                    field_prefix=f'Dòng nhập của "{product["name"]}"',
-                )
-                normalized_item = {
-                    "purchase_item_id": str(raw_item.get("purchase_item_id") or "").strip(),
-                    "product_id": product_id,
-                    "product_name": str(raw_item.get("product_name") or product["name"]).strip() or str(product["name"]),
-                    "quantity": raw_item["quantity"],
-                    "unit_cost": raw_item["unit_cost"],
-                    "batch_code": str(raw_item.get("batch_code") or "").strip(),
-                    "expiry_input_mode": expiry_metadata["expiry_input_mode"],
-                    "manufacture_date": expiry_metadata["manufacture_date"],
-                    "expiry_date": expiry_metadata["expiry_date"],
-                }
-                if normalized_item["purchase_item_id"]:
-                    normalized_items.append(normalized_item)
-                    continue
-                item_key = (
-                    normalized_item["product_id"],
-                    normalized_item["batch_code"],
-                    normalized_item["expiry_input_mode"],
-                    normalized_item["manufacture_date"] or "",
-                    normalized_item["expiry_date"] or "",
-                )
-                existing = grouped_items.get(item_key)
-                if existing:
-                    existing["quantity"] += normalized_item["quantity"]
-                    existing["unit_cost"] = normalized_item["unit_cost"]
-                else:
-                    grouped_items[item_key] = normalized_item
-            normalized_items.extend(grouped_items.values())
-
-            transactions = []
-            subtotal_amount = Decimal("0")
-            total_quantity = Decimal("0")
-            validated_discount_amount = self._validate_discount_amount(
-                discount_amount,
-                sum(
-                    item["quantity"] * item["unit_cost"]
-                    for item in normalized_items
-                ),
-                "Giảm giá khuyến mại phiếu nhập",
+        normalized_items: list[dict] = []
+        grouped_items: dict[tuple[int, str, str, str, str], dict] = {}
+        for raw_item in parsed_items:
+            product_id = int(raw_item["product_id"])
+            product = self._get_product_or_raise(connection, product_id)
+            expiry_metadata = self._resolve_purchase_item_expiry_metadata(
+                raw_item=raw_item,
+                product=product,
+                received_at=now,
+                field_prefix=f'Dòng nhập của "{product["name"]}"',
             )
-            receipt_id = self._insert_inventory_receipt(
+            normalized_item = {
+                "purchase_item_id": str(raw_item.get("purchase_item_id") or "").strip(),
+                "product_id": product_id,
+                "product_name": str(raw_item.get("product_name") or product["name"]).strip() or str(product["name"]),
+                "quantity": raw_item["quantity"],
+                "unit_cost": raw_item["unit_cost"],
+                "batch_code": str(raw_item.get("batch_code") or "").strip(),
+                "expiry_input_mode": expiry_metadata["expiry_input_mode"],
+                "manufacture_date": expiry_metadata["manufacture_date"],
+                "expiry_date": expiry_metadata["expiry_date"],
+            }
+            if normalized_item["purchase_item_id"]:
+                normalized_items.append(normalized_item)
+                continue
+            item_key = (
+                normalized_item["product_id"],
+                normalized_item["batch_code"],
+                normalized_item["expiry_input_mode"],
+                normalized_item["manufacture_date"] or "",
+                normalized_item["expiry_date"] or "",
+            )
+            existing = grouped_items.get(item_key)
+            if existing:
+                existing["quantity"] += normalized_item["quantity"]
+                existing["unit_cost"] = normalized_item["unit_cost"]
+            else:
+                grouped_items[item_key] = normalized_item
+        normalized_items.extend(grouped_items.values())
+
+        transactions = []
+        subtotal_amount = Decimal("0")
+        total_quantity = Decimal("0")
+        validated_discount_amount = self._validate_discount_amount(
+            discount_amount,
+            sum(
+                item["quantity"] * item["unit_cost"]
+                for item in normalized_items
+            ),
+            "Giảm giá khuyến mại phiếu nhập",
+        )
+        receipt_id = self._insert_inventory_receipt(
+            connection,
+            receipt_code=receipt_code,
+            receipt_type="purchase",
+            supplier_name=clean_supplier_name,
+            note=clean_note,
+            discount_amount=validated_discount_amount,
+            created_at=now,
+        )
+
+        for line_index, item in enumerate(normalized_items, start=1):
+            product_id = int(item["product_id"])
+            product = self._get_product_or_raise(connection, product_id)
+            line_total = item["quantity"] * item["unit_cost"]
+            subtotal_amount += line_total
+            total_quantity += item["quantity"]
+            resolved_batch_code = self._resolve_batch_code(
+                item.get("batch_code", ""),
+                f"{receipt_code}-L{line_index}",
+            )
+            resolved_expiry_date = item.get("expiry_date")
+
+            transaction_note = f"Phiếu nhập {receipt_code}"
+            if clean_supplier_name:
+                transaction_note += f" | NCC: {clean_supplier_name}"
+            if validated_discount_amount > 0:
+                transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
+            if clean_note:
+                transaction_note += f" | {clean_note}"
+            transaction_note += f" | Giá nhập: {float(item['unit_cost']):.0f}"
+            transaction_note += f" | Lô nhập: {resolved_batch_code} {float(item['quantity']):g}"
+            if resolved_expiry_date:
+                transaction_note += f" HSD {resolved_expiry_date}"
+
+            cursor = connection.execute(
+                """
+                INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                VALUES(?, 'in', ?, ?, ?)
+                """,
+                (product_id, float(item["quantity"]), transaction_note, now),
+            )
+            created_batch = self._create_inventory_batch(
                 connection,
-                receipt_code=receipt_code,
-                receipt_type="purchase",
-                supplier_name=clean_supplier_name,
+                product=product,
+                quantity=item["quantity"],
+                unit_cost=item["unit_cost"],
+                received_at=now,
+                source_receipt_code=receipt_code,
+                source_receipt_type="purchase",
+                source_transaction_id=int(cursor.lastrowid),
+                transaction_id=int(cursor.lastrowid),
+                batch_code=resolved_batch_code,
+                expiry_date=resolved_expiry_date,
                 note=clean_note,
-                discount_amount=validated_discount_amount,
-                created_at=now,
+                fallback_batch_code=resolved_batch_code,
             )
 
-            for line_index, item in enumerate(normalized_items, start=1):
-                product_id = int(item["product_id"])
-                product = self._get_product_or_raise(connection, product_id)
-                line_total = item["quantity"] * item["unit_cost"]
-                subtotal_amount += line_total
-                total_quantity += item["quantity"]
-                resolved_batch_code = self._resolve_batch_code(
-                    item.get("batch_code", ""),
-                    f"{receipt_code}-L{line_index}",
-                )
-                resolved_expiry_date = item.get("expiry_date")
+            connection.execute(
+                "UPDATE products SET price = ?, updated_at = ? WHERE id = ?",
+                (float(item["unit_cost"]), now, product_id),
+            )
 
-                transaction_note = f"Phiếu nhập {receipt_code}"
-                if clean_supplier_name:
-                    transaction_note += f" | NCC: {clean_supplier_name}"
-                if validated_discount_amount > 0:
-                    transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
-                if clean_note:
-                    transaction_note += f" | {clean_note}"
-                transaction_note += f" | Giá nhập: {float(item['unit_cost']):.0f}"
-                transaction_note += f" | Lô nhập: {resolved_batch_code} {float(item['quantity']):g}"
-                if resolved_expiry_date:
-                    transaction_note += f" HSD {resolved_expiry_date}"
-
-                cursor = connection.execute(
-                    """
-                    INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
-                    VALUES(?, 'in', ?, ?, ?)
-                    """,
-                    (product_id, float(item["quantity"]), transaction_note, now),
-                )
-                created_batch = self._create_inventory_batch(
-                    connection,
-                    product=product,
-                    quantity=item["quantity"],
-                    unit_cost=item["unit_cost"],
-                    received_at=now,
-                    source_receipt_code=receipt_code,
-                    source_receipt_type="purchase",
-                    source_transaction_id=int(cursor.lastrowid),
-                    transaction_id=int(cursor.lastrowid),
-                    batch_code=resolved_batch_code,
-                    expiry_date=resolved_expiry_date,
-                    note=clean_note,
-                    fallback_batch_code=resolved_batch_code,
-                )
-
-                connection.execute(
-                    "UPDATE products SET price = ?, updated_at = ? WHERE id = ?",
-                    (float(item["unit_cost"]), now, product_id),
-                )
-
-                current_stock = self._get_stock_for_product(connection, product_id)
-                transactions.append(
-                    {
-                        "id": cursor.lastrowid,
-                        "product_id": product_id,
-                        "product_name": product["name"],
-                        "unit": product["unit"],
-                        "quantity": float(item["quantity"]),
-                        "unit_cost": float(item["unit_cost"]),
-                        "line_total": round(float(line_total), 2),
-                        "current_stock": round(float(current_stock), 2),
-                        "batch_code": created_batch["batch_code"],
-                        "expiry_date": created_batch["expiry_date"],
-                        "expiry_input_mode": item["expiry_input_mode"],
-                        "manufacture_date": item["manufacture_date"] or "",
-                    }
-                )
-                self._insert_inventory_receipt_item(
-                    connection,
-                    receipt_id=receipt_id,
-                    product_id=product_id,
-                    product_name=product["name"],
-                    unit=product["unit"],
-                    transaction_type="in",
-                    quantity=round(float(item["quantity"]), 2),
-                    unit_amount=round(float(item["unit_cost"]), 2),
-                    line_total=round(float(line_total), 2),
-                    stock_after=round(float(current_stock), 2),
-                    transaction_id=cursor.lastrowid,
-                    purchase_item_id=item["purchase_item_id"],
-                    batch_id=int(created_batch["id"]),
-                    batch_code=created_batch["batch_code"],
-                    expiry_date=created_batch["expiry_date"],
-                )
+            current_stock = self._get_stock_for_product(connection, product_id)
+            transactions.append(
+                {
+                    "id": cursor.lastrowid,
+                    "product_id": product_id,
+                    "product_name": product["name"],
+                    "unit": product["unit"],
+                    "quantity": float(item["quantity"]),
+                    "unit_cost": float(item["unit_cost"]),
+                    "line_total": round(float(line_total), 2),
+                    "current_stock": round(float(current_stock), 2),
+                    "batch_code": created_batch["batch_code"],
+                    "expiry_date": created_batch["expiry_date"],
+                    "expiry_input_mode": item["expiry_input_mode"],
+                    "manufacture_date": item["manufacture_date"] or "",
+                }
+            )
+            self._insert_inventory_receipt_item(
+                connection,
+                receipt_id=receipt_id,
+                product_id=product_id,
+                product_name=product["name"],
+                unit=product["unit"],
+                transaction_type="in",
+                quantity=round(float(item["quantity"]), 2),
+                unit_amount=round(float(item["unit_cost"]), 2),
+                line_total=round(float(line_total), 2),
+                stock_after=round(float(current_stock), 2),
+                transaction_id=cursor.lastrowid,
+                purchase_item_id=item["purchase_item_id"],
+                batch_id=int(created_batch["id"]),
+                batch_code=created_batch["batch_code"],
+                expiry_date=created_batch["expiry_date"],
+            )
 
         net_total_amount = subtotal_amount - Decimal(str(validated_discount_amount))
 
@@ -3471,6 +3472,240 @@ class InventoryStore:
             "subtotal_amount": round(float(subtotal_amount), 2),
             "discount_amount": round(float(validated_discount_amount), 2),
             "total_amount": round(float(net_total_amount), 2),
+        }
+
+    def create_purchase_receipt(
+        self,
+        items: list[dict],
+        note: str = "",
+        supplier_name: str = "",
+        discount_amount=0,
+    ) -> dict:
+        with self._connect() as connection:
+            return self._create_purchase_receipt_in_connection(
+                connection,
+                items=items,
+                note=note,
+                supplier_name=supplier_name,
+                discount_amount=discount_amount,
+            )
+
+    def receive_purchase(
+        self,
+        purchase_id: str,
+        *,
+        discount_amount=None,
+        actor_username: str = "",
+        actor_role: str = "",
+    ) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        if not clean_purchase_id:
+            raise ValueError("Thiếu mã phiếu nhập cần nhập kho.")
+
+        actor = str(actor_username or "").strip()
+        with self._connect() as connection:
+            purchases = self._load_sync_collection_from_tables(connection, "purchases")
+            target = next(
+                (purchase for purchase in purchases if str(purchase.get("id") or "") == clean_purchase_id),
+                None,
+            )
+            if target is None:
+                raise ValueError("Không tìm thấy phiếu nhập cần nhập kho.")
+
+            current_status = str(target.get("status") or "draft").strip()
+            if current_status != "ordered":
+                raise ValueError("Chỉ phiếu đã đặt hàng mới được nhập kho.")
+            if not str(target.get("supplierName") or "").strip():
+                raise ValueError("Phiếu nhập phải có nhà cung cấp trước khi nhập kho.")
+            if not self._purchase_has_items(target):
+                raise ValueError("Phiếu nhập đang trống.")
+
+            next_discount_amount = (
+                self._get_purchase_discount_amount(target)
+                if discount_amount is None
+                else self._validate_discount_amount(
+                    discount_amount,
+                    self._get_purchase_subtotal_amount(target),
+                    "Giảm giá khuyến mại phiếu nhập",
+                )
+            )
+            received_at = utc_now_iso()
+            preview_purchase = {
+                **target,
+                "status": "received",
+                "discountAmount": next_discount_amount,
+                "discount_amount": next_discount_amount,
+                "receivedAt": received_at,
+                "received_at": received_at,
+                "updatedAt": received_at,
+                "updated_at": received_at,
+            }
+            preview_purchases = [
+                preview_purchase if str(purchase.get("id") or "") == clean_purchase_id else purchase
+                for purchase in purchases
+            ]
+            preview_purchases = self._preserve_purchase_ordered_timestamps(purchases, preview_purchases)
+            self._validate_purchase_workflow_locks(
+                connection,
+                purchases,
+                preview_purchases,
+                actor_username=actor_username,
+                actor_role=actor_role,
+            )
+
+            receipt = self._create_purchase_receipt_in_connection(
+                connection,
+                items=[
+                    {
+                        "purchase_item_id": str(item.get("id") or "").strip(),
+                        "product_id": item.get("productId") or item.get("product_id"),
+                        "product_name": item.get("productName") or item.get("product_name") or "",
+                        "quantity": item.get("quantity"),
+                        "unit_cost": item.get("unitCost", item.get("unit_cost", 0)),
+                        "batch_code": item.get("batchCode") or item.get("batch_code") or "",
+                        "expiry_input_mode": item.get("expiryInputMode") or item.get("expiry_input_mode") or "direct",
+                        "manufacture_date": item.get("manufactureDate") or item.get("manufacture_date") or "",
+                        "expiry_date": item.get("expiryDate") or item.get("expiry_date") or "",
+                    }
+                    for item in (target.get("items") or [])
+                ],
+                note=str(target.get("note") or "").strip(),
+                supplier_name=str(target.get("supplierName") or "").strip(),
+                discount_amount=next_discount_amount,
+                created_at=received_at,
+            )
+
+            next_purchases = []
+            for purchase in purchases:
+                if str(purchase.get("id") or "") != clean_purchase_id:
+                    next_purchases.append(purchase)
+                    continue
+                next_purchases.append(
+                    {
+                        **purchase,
+                        "status": "received",
+                        "discountAmount": next_discount_amount,
+                        "discount_amount": next_discount_amount,
+                        "receivedAt": receipt["created_at"],
+                        "received_at": receipt["created_at"],
+                        "receiptCode": receipt["receipt_code"],
+                        "receipt_code": receipt["receipt_code"],
+                        "updatedAt": receipt["created_at"],
+                        "updated_at": receipt["created_at"],
+                    }
+                )
+            next_purchases = self._preserve_purchase_ordered_timestamps(purchases, next_purchases)
+            self._audit_purchase_changes(connection, purchases, next_purchases, actor=actor)
+            self._validate_purchase_workflow_locks(
+                connection,
+                purchases,
+                next_purchases,
+                actor_username=actor_username,
+                actor_role=actor_role,
+            )
+            self._sync_procurement_assignments_for_purchases(
+                connection,
+                purchases,
+                next_purchases,
+                actor=actor,
+                updated_at=receipt["created_at"],
+            )
+            self._replace_sync_collection_records(connection, "purchases", next_purchases)
+            canonical = self._refresh_sync_collection_cache(
+                connection,
+                "purchases",
+                updated_at=receipt["created_at"],
+            )
+
+        purchase = next((entry for entry in canonical if str(entry.get("id") or "") == clean_purchase_id), None)
+        return {
+            "message": "Đã nhập hàng vào kho.",
+            "receipt": receipt,
+            "purchase": purchase,
+            "purchases": canonical,
+        }
+
+    def mark_purchase_paid(
+        self,
+        purchase_id: str,
+        *,
+        discount_amount=None,
+        actor_username: str = "",
+        actor_role: str = "",
+    ) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        if not clean_purchase_id:
+            raise ValueError("Thiếu mã phiếu nhập cần đánh dấu đã thanh toán.")
+
+        actor = str(actor_username or "").strip()
+        paid_at = utc_now_iso()
+        with self._connect() as connection:
+            purchases = self._load_sync_collection_from_tables(connection, "purchases")
+            target = next(
+                (purchase for purchase in purchases if str(purchase.get("id") or "") == clean_purchase_id),
+                None,
+            )
+            if target is None:
+                raise ValueError("Không tìm thấy phiếu nhập cần đánh dấu đã thanh toán.")
+
+            current_status = str(target.get("status") or "draft").strip()
+            if current_status != "received":
+                raise ValueError("Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho.")
+
+            next_discount_amount = (
+                self._get_purchase_discount_amount(target)
+                if discount_amount is None
+                else self._validate_discount_amount(
+                    discount_amount,
+                    self._get_purchase_subtotal_amount(target),
+                    "Giảm giá khuyến mại phiếu nhập",
+                )
+            )
+            next_purchases = []
+            for purchase in purchases:
+                if str(purchase.get("id") or "") != clean_purchase_id:
+                    next_purchases.append(purchase)
+                    continue
+                next_purchases.append(
+                    {
+                        **purchase,
+                        "status": "paid",
+                        "discountAmount": next_discount_amount,
+                        "discount_amount": next_discount_amount,
+                        "paidAt": paid_at,
+                        "paid_at": paid_at,
+                        "updatedAt": paid_at,
+                        "updated_at": paid_at,
+                    }
+                )
+            next_purchases = self._preserve_purchase_ordered_timestamps(purchases, next_purchases)
+            self._audit_purchase_changes(connection, purchases, next_purchases, actor=actor)
+            self._validate_purchase_workflow_locks(
+                connection,
+                purchases,
+                next_purchases,
+                actor_username=actor_username,
+                actor_role=actor_role,
+            )
+            self._sync_procurement_assignments_for_purchases(
+                connection,
+                purchases,
+                next_purchases,
+                actor=actor,
+                updated_at=paid_at,
+            )
+            self._replace_sync_collection_records(connection, "purchases", next_purchases)
+            canonical = self._refresh_sync_collection_cache(
+                connection,
+                "purchases",
+                updated_at=paid_at,
+            )
+
+        purchase = next((entry for entry in canonical if str(entry.get("id") or "") == clean_purchase_id), None)
+        return {
+            "message": "Đã cập nhật phiếu nhập là đã thanh toán.",
+            "purchase": purchase,
+            "purchases": canonical,
         }
 
     @staticmethod
