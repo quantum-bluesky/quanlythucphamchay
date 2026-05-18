@@ -137,6 +137,8 @@ export const SCREEN_HELP = {
       "Bắt buộc chọn `Nhà cung cấp` trước khi chuyển phiếu sang `Đã đặt hàng`; nếu chưa có NCC thì app sẽ khóa luôn bước `Nhập kho`.",
       "Mỗi nhà cung cấp chỉ giữ 1 phiếu nhập nháp riêng: nếu chọn lại đúng NCC đã có nháp thì app mở lại phiếu đó để nhập tiếp, còn nếu chọn NCC khác thì app giữ nguyên phiếu cũ và mở nháp riêng cho NCC mới.",
       "Nếu phiếu nháp chưa có NCC, app tự chọn NCC khi mặt hàng vừa thêm chỉ từng nhập từ đúng một NCC; nếu từng nhập từ nhiều NCC thì ô NCC vẫn cho nhập tự do nhưng danh sách gợi ý sẽ đưa NCC nhập nhiều hơn lên trước.",
+      "Nếu khi bấm `+ Phiếu` mà mặt hàng đang nằm ở phiếu `Nháp/Đã đặt` của NCC khác, app sẽ hiện cảnh báo; chọn `OK` để mở danh sách phiếu liên quan và review, hoặc chọn `Cancel` để giữ nguyên hiện trạng rồi thêm tiếp vào phiếu hiện tại.",
+      "Trong khối review phiếu liên quan, bạn có thể mở từng phiếu để dồn lại về một NCC nếu phù hợp; nếu sau khi review mà vẫn còn nhiều NCC cho cùng mặt hàng thì app chỉ giữ cảnh báo để bạn biết tình trạng hiện tại.",
       "Phiếu nháp đang trống vẫn có thể `Xóa phiếu` ngay trên màn hình mà không cần lưu xuống DB trước.",
       "Nhà cung cấp chỉ đổi được khi phiếu còn `Nháp`; từ `Đã đặt` trở đi, ô NCC và nút `NCC` sẽ bị khóa trên mọi thiết bị.",
       "Ngay trên từng card gợi ý nhập có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`.",

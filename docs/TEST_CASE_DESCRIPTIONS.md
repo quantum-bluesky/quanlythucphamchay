@@ -58,6 +58,7 @@ Lưu ý:
 | 37 | `IT-PURSUP-04` | Kiểm tra phiếu nhập nháp trống có thể `Xóa phiếu` ngay trên UI, đồng thời nút `NCC` trên phiếu `Nháp` vẫn cho sang danh sách NCC để đổi sang nhà cung cấp khác trước khi đặt hàng. |
 | 38 | `IT-PURSUP-05` | Kiểm tra màn nhập hàng tự chọn NCC khi mặt hàng thêm vào phiếu chưa có NCC chỉ từng nhập từ một NCC. |
 | 39 | `IT-PURSUP-06` | Kiểm tra màn nhập hàng không tự điền NCC khi mặt hàng có nhiều NCC lịch sử, nhưng datalist NCC ưu tiên NCC có lịch sử nhập nhiều hơn. |
+| 40 | `IT-PURSUP-07` | Kiểm tra màn nhập hàng cảnh báo khi một mặt hàng đang nằm ở phiếu mở của NCC khác, mở được danh sách phiếu liên quan để review, và vẫn cho user giữ nguyên hiện trạng nếu muốn. |
 | 40 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
 | 41 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
 | 42 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |

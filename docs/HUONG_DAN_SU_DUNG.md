@@ -283,29 +283,31 @@ Màn này có 2 phần:
 3. Bấm `+ Phiếu` để thêm đúng số lượng đó vào phiếu nhập
 4. Các mặt hàng đã thêm sẽ tự ẩn khỏi danh sách gợi ý phía dưới và được gom vào phần tóm tắt `Phiếu nhập hiện hành`; bấm `...` để sổ danh sách dòng đã chọn ra nếu cần sửa nhanh
 5. Nếu phiếu chưa có NCC, app sẽ tự điền NCC khi mặt hàng vừa thêm chỉ từng nhập từ một NCC; nếu có nhiều NCC từng nhập mặt hàng đó, ô NCC vẫn để trống nhưng danh sách gợi ý sẽ đưa NCC nhập nhiều hơn lên trước
-6. Chọn nhà cung cấp nếu app không tự chọn hoặc bạn muốn nhập NCC khác
-7. Ghi chú phiếu nếu cần
-8. Mỗi NCC sẽ giữ 1 phiếu nháp riêng: nếu bạn chọn lại đúng NCC đã có phiếu nháp thì app mở lại phiếu đó để nhập tiếp và báo đang tiếp tục trên phiếu nháp hiện có; nếu chọn NCC khác thì phiếu cũ được giữ nguyên và app mở một phiếu nháp riêng cho NCC mới
-9. Sửa trực tiếp số lượng, giá nhập, `Mã lô` và thông tin `Hạn dùng` của từng dòng
-10. Với mỗi dòng, mặc định app để cách nhập HSD là nhập trực tiếp `Hạn dùng`; nếu muốn nhập gián tiếp thì đổi sang `Ngày sản xuất` để app tự tính `HSD = NSX + thời gian bảo quản`
-11. Nếu cùng một sản phẩm về nhiều lô khác nhau, bấm `+ Lô` để nhân dòng đó thành dòng mới rồi nhập lại `Mã lô` / `HSD` hoặc `NSX` riêng
-12. Bấm `Lưu dòng` nếu có chỉnh
-13. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
-14. Nếu có khuyến mại cho cả phiếu, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
-15. Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; nếu phiếu đang trống thì app chỉ giữ trạng thái mở tạm trên màn hình
-16. Nếu đổi ý ngay lúc phiếu nháp còn trống, có thể bấm `Xóa phiếu` để đóng phiếu nháp tạm mà không cần lưu xuống DB
-17. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, chỉ khi phiếu còn `Nháp` mới bấm được `NCC` để mở form nhà cung cấp với tên đang nhập; nếu muốn đổi sang NCC khác đã có sẵn thì cũng dùng chính nút này để sang danh sách NCC và chọn lại
-18. Lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
-19. Chỉ khi phiếu đã có `Nhà cung cấp`, app mới cho bấm `Đã đặt hàng`
-20. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`; từ lúc này phiếu vẫn còn chỉnh được nếu nhà cung cấp yêu cầu đổi số lượng hoặc giá, nhưng không còn được đổi NCC
-21. Khi hàng về thực tế và phiếu đã là `Đã đặt`, bấm `Nhập kho`
-22. Nếu chưa có `Nhà cung cấp`, app cũng sẽ chặn luôn bước `Nhập kho`
-23. Nếu bỏ trống `Mã lô`, app sẽ tự sinh mã lô lúc nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang giá trị tự tính `ngày nhập kho + thời gian bảo quản`
-24. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
-25. Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Giảm giá khuyến mại` và cập nhật lại `Hạn dùng` hoặc `Ngày sản xuất`; app không mở khóa lại số lượng, giá, mã lô hay NCC
-26. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
-27. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`
-28. Trước khi đổi trạng thái `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu` hoặc `Xóa phiếu`, app sẽ hiện message confirm để tránh thao tác nhầm
+6. Nếu mặt hàng đang nằm ở phiếu `Nháp/Đã đặt` của NCC khác, app sẽ hiện cảnh báo; chọn `OK` để mở danh sách phiếu liên quan và review, hoặc chọn `Cancel` để giữ nguyên hiện trạng rồi thêm tiếp vào phiếu hiện tại
+7. Sau khi chọn `OK`, ngay trong màn `Nhập hàng` sẽ hiện khối review các phiếu chờ nhập của đúng mặt hàng đó; có thể bấm `Mở phiếu` để vào từng phiếu sửa đặt hàng, dồn lại về một NCC nếu phù hợp, hoặc bấm `Giữ hiện trạng`
+8. Chọn nhà cung cấp nếu app không tự chọn hoặc bạn muốn nhập NCC khác
+9. Ghi chú phiếu nếu cần
+10. Mỗi NCC sẽ giữ 1 phiếu nháp riêng: nếu bạn chọn lại đúng NCC đã có phiếu nháp thì app mở lại phiếu đó để nhập tiếp và báo đang tiếp tục trên phiếu nháp hiện có; nếu chọn NCC khác thì phiếu cũ được giữ nguyên và app mở một phiếu nháp riêng cho NCC mới
+11. Sửa trực tiếp số lượng, giá nhập, `Mã lô` và thông tin `Hạn dùng` của từng dòng
+12. Với mỗi dòng, mặc định app để cách nhập HSD là nhập trực tiếp `Hạn dùng`; nếu muốn nhập gián tiếp thì đổi sang `Ngày sản xuất` để app tự tính `HSD = NSX + thời gian bảo quản`
+13. Nếu cùng một sản phẩm về nhiều lô khác nhau, bấm `+ Lô` để nhân dòng đó thành dòng mới rồi nhập lại `Mã lô` / `HSD` hoặc `NSX` riêng
+14. Bấm `Lưu dòng` nếu có chỉnh
+15. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
+16. Nếu có khuyến mại cho cả phiếu, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
+17. Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; nếu phiếu đang trống thì app chỉ giữ trạng thái mở tạm trên màn hình
+18. Nếu đổi ý ngay lúc phiếu nháp còn trống, có thể bấm `Xóa phiếu` để đóng phiếu nháp tạm mà không cần lưu xuống DB
+19. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, chỉ khi phiếu còn `Nháp` mới bấm được `NCC` để mở form nhà cung cấp với tên đang nhập; nếu muốn đổi sang NCC khác đã có sẵn thì cũng dùng chính nút này để sang danh sách NCC và chọn lại
+20. Lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
+21. Chỉ khi phiếu đã có `Nhà cung cấp`, app mới cho bấm `Đã đặt hàng`
+22. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`; từ lúc này phiếu vẫn còn chỉnh được nếu nhà cung cấp yêu cầu đổi số lượng hoặc giá, nhưng không còn được đổi NCC
+23. Khi hàng về thực tế và phiếu đã là `Đã đặt`, bấm `Nhập kho`
+24. Nếu chưa có `Nhà cung cấp`, app cũng sẽ chặn luôn bước `Nhập kho`
+25. Nếu bỏ trống `Mã lô`, app sẽ tự sinh mã lô lúc nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang giá trị tự tính `ngày nhập kho + thời gian bảo quản`
+26. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
+27. Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Giảm giá khuyến mại` và cập nhật lại `Hạn dùng` hoặc `Ngày sản xuất`; app không mở khóa lại số lượng, giá, mã lô hay NCC
+28. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
+29. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`
+30. Trước khi đổi trạng thái `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu` hoặc `Xóa phiếu`, app sẽ hiện message confirm để tránh thao tác nhầm
 
 Nếu phiếu được tạo từ một đơn đang thiếu hàng:
 
@@ -327,6 +329,7 @@ Lưu ý:
 - khi `Batch mode` đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, đổi NCC, sửa cấu trúc, đổi giảm giá, hủy hoặc xóa phiếu `Nháp/Đã đặt`; user khác chỉ còn được bấm `Nhập kho` với phiếu không phải batch và đã ở trạng thái `Đã đặt` từ trước lúc kỳ gom hiện tại bắt đầu, sau đó vẫn đi tiếp `Đã thanh toán` như bình thường
 - nếu chưa có nhà cung cấp thì không được chuyển sang `Đã đặt` hoặc `Nhập kho`
 - nếu phiếu nháp chưa có NCC, app chỉ tự chọn NCC khi các mặt hàng liên quan suy ra đúng một NCC từ lịch sử `Đã nhập kho/Đã thanh toán`; nếu có nhiều NCC thì chỉ ưu tiên thứ tự trong gợi ý, không tự đổi
+- nếu một mặt hàng vẫn còn đang nằm ở phiếu mở của nhiều NCC khác nhau sau khi review, app chỉ hiện cảnh báo để user biết tình trạng hiện tại; không bắt buộc phải dồn ngay về một NCC
 - mỗi nhà cung cấp chỉ có 1 phiếu `Nháp` đang mở; chọn lại đúng NCC sẽ mở phiếu đó, còn chọn NCC khác sẽ giữ nguyên phiếu cũ và tạo/mở nháp riêng cho NCC mới
 - chỉ `Nháp` mới được đổi nhà cung cấp; từ `Đã đặt` trở đi ô NCC và nút `NCC` sẽ bị khóa
 - ngoại lệ: nếu app nhận diện một phiếu `Đã đặt` trên DB cũ đang bị lỗi dữ liệu, ví dụ thiếu NCC hoặc marker trạng thái lệch, app sẽ mở lại thao tác sửa NCC hoặc xóa/hủy để cứu phiếu đó

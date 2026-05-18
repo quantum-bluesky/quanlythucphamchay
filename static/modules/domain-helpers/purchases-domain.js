@@ -374,6 +374,83 @@ export function createPurchasesDomainHelpers(deps) {
     );
   }
 
+  function getOpenPurchaseSupplierConflictInsight(productId, options = {}) {
+    const targetProductId = Number(productId);
+    if (!Number.isFinite(targetProductId) || targetProductId <= 0) {
+      return {
+        productId: null,
+        targetPurchaseId: "",
+        targetSupplierName: "",
+        productName: "",
+        openPurchases: [],
+        distinctOpenSuppliers: [],
+        distinctProjectedSuppliers: [],
+        otherSupplierPurchases: [],
+        hasOtherSupplierConflict: false,
+        hasMultiSupplierOpenState: false,
+      };
+    }
+    const targetPurchaseId = String(options.targetPurchaseId || "").trim();
+    const targetSupplierName = String(options.targetSupplierName || "").trim();
+    const openPurchases = getOpenPurchasesForProduct(targetProductId)
+      .map((purchase) => {
+        const matchedItem = (Array.isArray(purchase.items) ? purchase.items : []).find(
+          (item) => Number(item.productId) === targetProductId
+        );
+        return {
+          id: String(purchase.id || "").trim(),
+          purchase,
+          supplierName: String(purchase.supplierName || "").trim(),
+          status: String(purchase.status || "").trim(),
+          productQuantity: Number(matchedItem?.quantity || 0),
+          productName: String(matchedItem?.productName || "").trim(),
+          note: String(purchase.note || "").trim(),
+        };
+      });
+    const productName = openPurchases.find((entry) => entry.productName)?.productName
+      || String(getProductById(targetProductId)?.name || "").trim();
+    const distinctOpenSuppliers = [];
+    const openSupplierKeys = new Set();
+    openPurchases.forEach((entry) => {
+      const supplierName = String(entry.supplierName || "").trim();
+      const supplierKey = normalizeSupplierName(supplierName);
+      if (!supplierKey || openSupplierKeys.has(supplierKey)) {
+        return;
+      }
+      openSupplierKeys.add(supplierKey);
+      distinctOpenSuppliers.push(supplierName);
+    });
+    const targetSupplierKey = normalizeSupplierName(targetSupplierName);
+    const distinctProjectedSuppliers = [...distinctOpenSuppliers];
+    if (targetSupplierKey && !openSupplierKeys.has(targetSupplierKey)) {
+      distinctProjectedSuppliers.push(targetSupplierName);
+    }
+    const otherSupplierPurchases = openPurchases.filter((entry) => {
+      if (!entry.supplierName) {
+        return false;
+      }
+      if (targetPurchaseId && entry.id === targetPurchaseId) {
+        return false;
+      }
+      if (!targetSupplierKey) {
+        return true;
+      }
+      return normalizeSupplierName(entry.supplierName) !== targetSupplierKey;
+    });
+    return {
+      productId: targetProductId,
+      targetPurchaseId,
+      targetSupplierName,
+      productName,
+      openPurchases,
+      distinctOpenSuppliers,
+      distinctProjectedSuppliers,
+      otherSupplierPurchases,
+      hasOtherSupplierConflict: otherSupplierPurchases.length > 0,
+      hasMultiSupplierOpenState: distinctProjectedSuppliers.length > 1,
+    };
+  }
+
   function getPurchaseSourceMeta(purchase = {}) {
     return {
       sourceType: String(purchase.sourceType || purchase.source_type || "").trim(),
@@ -957,6 +1034,7 @@ export function createPurchasesDomainHelpers(deps) {
     getIncomingPurchaseByProductId,
     getOpenPurchaseCountByProductId,
     getOpenPurchasesForProduct,
+    getOpenPurchaseSupplierConflictInsight,
     getSupplierHistoryForProduct,
     getSupplierHistoryForProducts,
     getSupplierSuggestionsForPurchase,

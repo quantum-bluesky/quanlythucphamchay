@@ -166,6 +166,12 @@ export const state = {
   selectedPurchaseItemsCollapsed: true,
   pendingPurchaseSupplierFlow: false,
   pendingPurchaseSupplierName: "",
+  purchaseConflictReview: {
+    productId: null,
+    productName: "",
+    targetPurchaseId: "",
+    targetSupplierName: "",
+  },
   pendingProcurementSupplierFlow: false,
   pendingProcurementSupplierName: "",
   editingSupplierFormId: null,
