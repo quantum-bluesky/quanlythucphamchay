@@ -279,7 +279,7 @@ Case mới cho Phase A:
 - `UT-PROC-01`: backend chỉ cho một người giữ khóa kỳ gom nhập active
 - `UT-PROC-02`: backend planner gom nhu cầu thiếu và chặn một sản phẩm thiếu bị gán vào nhiều phiếu nhập batch mở
 - `UT-PROC-03`: backend tạo batch nhiều dòng và gom các mặt hàng cùng NCC vào một phiếu nhập batch draft
-- `UT-PROC-04`: backend khóa tạo/sửa phiếu `draft/ordered` trên màn `Nhập hàng` cho user không giữ khóa batch, nhưng vẫn cho tiếp bước `received/paid`
+- `UT-PROC-04`: backend khóa tạo/sửa phiếu `draft/ordered` trên màn `Nhập hàng` cho user không giữ khóa batch, nhưng vẫn cho tiếp bước `received/paid` cả ở nhánh sync state lẫn action trực tiếp từng phiếu
 - `UT-PROC-05`: assignment batch tự release khi phiếu batch bị hủy hoặc đã chuyển sang `received`
 - `UT-PROC-07`: batch create hỗ trợ mixed lines `shortage + extra`, vẫn gom đúng theo NCC và chỉ tạo assignment cho dòng shortage
 - `UT-PROC-08`: extra row cùng sản phẩm với shortage row phải merge vào cùng phiếu batch/NCC đang xử lý, không tạo extra assignment
