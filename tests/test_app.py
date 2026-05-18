@@ -2912,47 +2912,24 @@ class InventoryStoreTests(unittest.TestCase):
             actor_role="user",
         )
 
-        received_sync_state = self.store.get_sync_state()
-        received_purchases = copy.deepcopy(received_sync_state["purchases"])
-        batch_purchase_index = next(
-            index for index, purchase in enumerate(received_purchases)
-            if purchase["id"] == created["purchase"]["id"]
-        )
-        received_purchases[batch_purchase_index]["status"] = "received"
-        received_purchases[batch_purchase_index]["receivedAt"] = "2026-05-17T09:00:00+00:00"
-        received_purchases[batch_purchase_index]["received_at"] = "2026-05-17T09:00:00+00:00"
         with self.assertRaisesRegex(ValueError, "Chỉ người giữ khóa batch"):
-            self.store.save_sync_state(
-                {"purchases": received_purchases},
+            self.store.receive_purchase(
+                created["purchase"]["id"],
                 actor_username="warehouse",
                 actor_role="user",
             )
 
-        manual_prebatch_received = copy.deepcopy(received_sync_state["purchases"])
-        prebatch_purchase_index = next(
-            index for index, purchase in enumerate(manual_prebatch_received)
-            if purchase["id"] == "purchase-manual-prebatch"
-        )
-        manual_prebatch_received[prebatch_purchase_index]["status"] = "received"
-        manual_prebatch_received[prebatch_purchase_index]["receivedAt"] = "2026-05-17T09:15:00+00:00"
-        manual_prebatch_received[prebatch_purchase_index]["received_at"] = "2026-05-17T09:15:00+00:00"
-        self.store.save_sync_state(
-            {"purchases": manual_prebatch_received},
+        receive_result = self.store.receive_purchase(
+            "purchase-manual-prebatch",
             actor_username="warehouse",
             actor_role="user",
         )
+        self.assertEqual(receive_result["purchase"]["status"], "received")
+        self.assertTrue(receive_result["purchase"]["receiptCode"])
 
-        manual_postbatch_received = copy.deepcopy(self.store.get_sync_state()["purchases"])
-        postbatch_purchase_index = next(
-            index for index, purchase in enumerate(manual_postbatch_received)
-            if purchase["id"] == "purchase-manual-postbatch"
-        )
-        manual_postbatch_received[postbatch_purchase_index]["status"] = "received"
-        manual_postbatch_received[postbatch_purchase_index]["receivedAt"] = "2026-05-17T09:20:00+00:00"
-        manual_postbatch_received[postbatch_purchase_index]["received_at"] = "2026-05-17T09:20:00+00:00"
         with self.assertRaisesRegex(ValueError, "Chỉ người giữ khóa batch"):
-            self.store.save_sync_state(
-                {"purchases": manual_postbatch_received},
+            self.store.receive_purchase(
+                "purchase-manual-postbatch",
                 actor_username="warehouse",
                 actor_role="user",
             )
@@ -2964,20 +2941,12 @@ class InventoryStoreTests(unittest.TestCase):
         )
         self.assertEqual(batch_purchase_after_manual_receive["status"], "ordered")
 
-        paid_sync_state = self.store.get_sync_state()
-        paid_purchases = copy.deepcopy(paid_sync_state["purchases"])
-        prebatch_purchase_index = next(
-            index for index, purchase in enumerate(paid_purchases)
-            if purchase["id"] == "purchase-manual-prebatch"
-        )
-        paid_purchases[prebatch_purchase_index]["status"] = "paid"
-        paid_purchases[prebatch_purchase_index]["paidAt"] = "2026-05-17T10:00:00+00:00"
-        paid_purchases[prebatch_purchase_index]["paid_at"] = "2026-05-17T10:00:00+00:00"
-        self.store.save_sync_state(
-            {"purchases": paid_purchases},
+        paid_result = self.store.mark_purchase_paid(
+            "purchase-manual-prebatch",
             actor_username="cashier",
             actor_role="user",
         )
+        self.assertEqual(paid_result["purchase"]["status"], "paid")
 
         final_state = self.store.get_sync_state()
         final_purchase = next(
@@ -3058,19 +3027,13 @@ class InventoryStoreTests(unittest.TestCase):
         )
         self.assertEqual(legacy_purchase["orderedAt"], "2026-05-16T07:00:00+00:00")
 
-        received_purchases = copy.deepcopy(legacy_state["purchases"])
-        target_index = next(
-            index for index, purchase in enumerate(received_purchases)
-            if purchase["id"] == "purchase-legacy-prebatch"
-        )
-        received_purchases[target_index]["status"] = "received"
-        received_purchases[target_index]["receivedAt"] = "2026-05-17T12:30:00+00:00"
-        received_purchases[target_index]["received_at"] = "2026-05-17T12:30:00+00:00"
-        self.store.save_sync_state(
-            {"purchases": received_purchases},
+        receive_result = self.store.receive_purchase(
+            "purchase-legacy-prebatch",
             actor_username="warehouse",
             actor_role="user",
         )
+        self.assertEqual(receive_result["purchase"]["status"], "received")
+        self.assertTrue(receive_result["purchase"]["receiptCode"])
 
         final_state = self.store.get_sync_state()
         final_purchase = next(

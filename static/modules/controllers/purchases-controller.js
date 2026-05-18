@@ -592,10 +592,21 @@ export function registerPurchasesControllerEvents(contract) {
       if (!confirmPurchaseStatusAction(purchase, "mark-paid")) {
         return;
       }
-      await actions.flushPendingPersistCollections();
-      actions.updatePurchase(latestPurchase.id, () => ({ status: "paid", paidAt: utils.nowIso(), supplierName: dom.purchaseSupplierInput.value.trim(), note: dom.purchaseNoteInput.value.trim() }));
-      actions.saveAndRenderAll();
-      await persistPurchaseStatusChange("Đã cập nhật phiếu nhập là đã thanh toán.");
+      try {
+        await actions.flushPendingPersistCollections();
+        const data = await actions.apiRequest("/api/purchases/mark-paid", {
+          method: "POST",
+          body: JSON.stringify({
+            purchase_id: latestPurchase.id,
+            discount_amount: latestPurchase.discountAmount || 0,
+          }),
+        });
+        await actions.refreshData();
+        state.activePurchaseId = latestPurchase.id;
+        actions.showToast(data.message);
+      } catch (error) {
+        await refreshAfterPurchaseStatusError(error);
+      }
       return;
     }
     if (actionButton.dataset.purchaseAction === "save-discount") {
@@ -633,26 +644,12 @@ export function registerPurchasesControllerEvents(contract) {
         const data = await actions.apiRequest("/api/purchases/receive", {
           method: "POST",
           body: JSON.stringify({
-            supplier_name: dom.purchaseSupplierInput.value.trim(),
-            note: dom.purchaseNoteInput.value.trim(),
+            purchase_id: latestPurchase.id,
             discount_amount: latestPurchase.discountAmount || 0,
-            items: latestPurchase.items.map((item) => ({
-              id: item.id,
-              product_id: item.productId,
-              quantity: item.quantity,
-              unit_cost: item.unitCost,
-              batch_code: item.batchCode || "",
-              expiry_input_mode: item.expiryInputMode || "direct",
-              manufacture_date: item.manufactureDate || "",
-              expiry_date: item.expiryDate || "",
-            })),
           }),
         });
         await actions.refreshData();
-        state.purchases = state.purchases.map((entry) => entry.id === latestPurchase.id ? { ...entry, status: "received", receiptCode: data.receipt?.receipt_code || "", receivedAt: data.receipt?.created_at || utils.nowIso(), updatedAt: data.receipt?.created_at || utils.nowIso() } : entry);
         state.activePurchaseId = latestPurchase.id;
-        await actions.persistCollectionsWithoutConflictCheck(["purchases"]);
-        await actions.refreshData();
         actions.showToast(data.message);
       } catch (error) {
         await refreshAfterPurchaseStatusError(error);
