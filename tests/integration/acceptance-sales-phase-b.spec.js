@@ -530,6 +530,7 @@ test("ACC-PHB-04 reports and receipt audit track phase B receipts separately", a
 
   try {
     const adminCookie = await loginAdminApi(request);
+    const originalState = await fetchSyncState(request, adminCookie);
     const focusMonth = new Date().toISOString().slice(0, 7);
     const reportBefore = await fetchMonthlyReport(request, adminCookie, focusMonth);
     const beforeFocus = reportBefore.focus_summary || {};
@@ -547,19 +548,44 @@ test("ACC-PHB-04 reports and receipt audit track phase B receipts separately", a
       () => true,
       "Không tìm thấy sản phẩm để kiểm thử báo cáo Phase B."
     );
+    const timestamp = Date.now();
+    const purchaseId = `purchase_acc_phb_04_${timestamp}`;
+    const supplierName = "NCC ACC PHB 04";
+    const now = new Date().toISOString();
+
+    const seedPurchaseResponse = await request.put("/api/state", {
+      headers: { Cookie: adminCookie },
+      data: {
+        purchases: [
+          {
+            id: purchaseId,
+            supplierName,
+            note: "ACC-PHB-04 purchase",
+            status: "ordered",
+            createdAt: now,
+            updatedAt: now,
+            orderedAt: now,
+            items: [
+              {
+                id: `purchase_item_acc_phb_04_${timestamp}`,
+                productId: product.id,
+                productName: product.name,
+                unit: product.unit,
+                quantity: 5,
+                unitCost: 12000,
+              },
+            ],
+          },
+          ...(originalState.purchases || []),
+        ],
+      },
+    });
+    expect(seedPurchaseResponse.ok()).toBeTruthy();
 
     const purchaseResponse = await request.post("/api/purchases/receive", {
       headers: { Cookie: adminCookie },
       data: {
-        supplier_name: "NCC ACC PHB 04",
-        note: "ACC-PHB-04 purchase",
-        items: [
-          {
-            product_id: product.id,
-            quantity: 5,
-            unit_cost: 12000,
-          },
-        ],
+        purchase_id: purchaseId,
       },
     });
     expect(purchaseResponse.status()).toBe(201);
@@ -604,7 +630,7 @@ test("ACC-PHB-04 reports and receipt audit track phase B receipts separately", a
     const supplierReturnResponse = await request.post("/api/returns/suppliers", {
       headers: { Cookie: adminCookie },
       data: {
-        supplier_name: "NCC ACC PHB 04",
+        supplier_name: supplierName,
         source_type: "purchase",
         source_code: purchasePayload.receipt.receipt_code,
         note: "ACC-PHB-04 supplier-return",
