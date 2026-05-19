@@ -12,6 +12,28 @@ export function registerSalesControllerEvents(contract) {
     return cart.orderCode || cart.customerName || "giỏ hàng này";
   }
 
+  function normalizeCustomerKey(value) {
+    return String(value || "").trim().toLocaleLowerCase("vi");
+  }
+
+  function findExistingDraftForSameCustomer(sourceCart) {
+    const sourceCartId = String(sourceCart?.id || "").trim();
+    const customerId = String(sourceCart?.customerId || "").trim();
+    const customerNameKey = normalizeCustomerKey(sourceCart?.customerName);
+    return state.carts.find((cart) => {
+      if (String(cart?.id || "").trim() === sourceCartId) {
+        return false;
+      }
+      if (String(cart?.status || "").trim() !== "draft") {
+        return false;
+      }
+      if (customerId && String(cart?.customerId || "").trim() === customerId) {
+        return true;
+      }
+      return customerNameKey && normalizeCustomerKey(cart?.customerName) === customerNameKey;
+    }) || null;
+  }
+
   function confirmCartStatusAction(cart, action) {
     const label = getCartDisplayName(cart);
     const messages = {
@@ -508,6 +530,27 @@ export function registerSalesControllerEvents(contract) {
     }
     if (action === "print") {
       actions.printCart(cart.id);
+      return;
+    }
+    if (action === "repeat") {
+      try {
+        await actions.flushPendingPersistCollections();
+        const existingDraft = findExistingDraftForSameCustomer(cart);
+        let mergeIntoExistingDraft = false;
+        if (existingDraft) {
+          mergeIntoExistingDraft = window.confirm(
+            `Khách "${cart.customerName || getCartDisplayName(cart)}" đang có một đơn nháp.\n\nChọn OK để dồn thêm vào đơn nháp hiện có và giảm số lần gửi hàng.\nChọn Cancel để tạo một đơn nháp mới riêng.`
+          );
+        }
+        const result = actions.repeatCompletedCart(cart.id, { mergeIntoExistingDraft });
+        actions.showToast(
+          result?.reusedDraft
+            ? "Đã dồn thêm vào đơn nháp hiện có của khách."
+            : "Đã tạo đơn nháp mới từ phiếu xuất đã chọn."
+        );
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
       return;
     }
     if (action === "save-discount") {

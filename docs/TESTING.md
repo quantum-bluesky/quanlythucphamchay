@@ -199,6 +199,7 @@ Các nhóm kiểm tra chính:
 - `Confirm đổi trạng thái/xóa chứng từ`: trước khi `Xuất`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa` app phải hiện dialog confirm
 - `Version cache-busting client JS`: HTML entrypoint và các module import phải được serve kèm query `?v=version-chính.N`, counter phải tăng đúng khi file `.js` đổi nội dung và không tăng nếu chỉ đổi line ending `CRLF/LF`
 - `Đơn hàng -> Khách hàng -> Nhà cung cấp -> Báo cáo -> Lịch sử & khôi phục`
+- `Xuất lại / Nhập lại`: từ đơn đã `Đã xuất hàng` tạo được đơn nháp mới cùng nội dung, và từ phiếu đã `Đã nhập kho` tạo được phiếu nháp mới cùng NCC/nội dung nhưng reset metadata lô
 - `Nhập hàng -> NCC mới`: mở form nhà cung cấp từ phiếu nhập, lưu xong quay lại áp vào phiếu
 - `Nhập hàng theo NCC`: mỗi NCC chỉ có 1 phiếu nháp riêng; chọn lại cùng NCC phải mở nháp sẵn có và không được tạo trùng khi đổi qua lại giữa các NCC
 - `Nhập hàng -> nháp tạm`: phiếu nháp còn trống phải xóa được ngay trên UI, và nút `NCC` vẫn phải cho đổi sang NCC khác khi phiếu còn `Nháp`
@@ -243,6 +244,7 @@ Ngoài click thao tác, suite còn kiểm tra:
   - `tests/integration/core-workflows.spec.js`
   - `tests/integration/management-screens.spec.js`
   - `tests/integration/detail-scroll.spec.js`
+  - `tests/integration/orders-actions.spec.js`
   - `tests/integration/reports-shortcuts.spec.js`
   - `tests/integration/purchase-supplier-flow.spec.js`
   - `tests/integration/pagination-settings.spec.js`
@@ -260,18 +262,21 @@ Ngoài click thao tác, suite còn kiểm tra:
 
 Case mới cho Phase A:
 
-- `ACC-PUR-03`: phiếu nhập nháp phải được đặt hàng trước khi nhập kho, phiếu đã đặt hàng vẫn còn chỉnh sửa được trước khi nhận hàng, và tồn kho phải cập nhật ngay trên màn `Tồn kho` sau khi nhập kho mà không cần F5
+- `ACC-PUR-03`: phiếu nhập nháp phải được đặt hàng trước khi nhập kho, phiếu đã đặt hàng vẫn còn chỉnh sửa được trước khi nhận hàng gồm cả thêm mặt hàng mới vào đúng phiếu đang mở, và tồn kho phải cập nhật ngay trên màn `Tồn kho` sau khi nhập kho mà không cần F5
 - `IT-PUR-01`: card gợi ý ở màn `Nhập hàng` cho đổi nhanh ô `SL` trước khi bấm `+ Phiếu`; nếu mặt hàng có cảnh báo nhiều NCC thì test chọn giữ hiện trạng, và phiếu nháp vẫn phải nhận đúng số lượng vừa nhập
 - `IT-PURSUP-01`: tạo nhà cung cấp từ màn nhập hàng rồi quay lại phiếu nhập vẫn giữ được giá trị NCC trên UI, nhưng phiếu nháp rỗng không còn persist
 - `IT-PURSUP-05`: kiểm tra gợi ý NCC khi thêm hàng vào phiếu nhập chưa có NCC sẽ tự chọn nếu chỉ có 1 NCC lịch sử
 - `IT-PURSUP-06`: kiểm tra gợi ý NCC khi có nhiều NCC lịch sử sẽ ưu tiên thứ tự datalist nhưng không tự điền NCC
 - `IT-PURSUP-07`: kiểm tra cảnh báo khi một mặt hàng đang nằm ở phiếu mở của NCC khác, cho mở danh sách phiếu liên quan để review và vẫn giữ được hiện trạng nếu user muốn
-- `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp rồi mới chuyển sang `received`
+- `IT-PURSUP-08`: kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC/nội dung nhưng reset `Mã lô` / `HSD` / `NSX`
+- `IT-ORD-03`: kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được đơn nháp mới cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng
+- `IT-ORD-04`: kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hỏi có dồn thêm vào nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đang có
+- `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp kể cả thêm dòng hàng mới rồi mới chuyển sang `received`
 - `UT-DB-12`: backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `draft/ordered`, và chặn xóa trực tiếp phiếu `ordered`
 - `UT-DB-16`: backend tự tính HSD của phiếu nhập theo `ngày nhập kho + thời gian bảo quản` hoặc `ngày sản xuất + thời gian bảo quản`
 - `UT-DB-17`: backend cho cập nhật lại HSD/NSX của dòng phiếu `received`, đồng thời đồng bộ lại `purchase_items`, `inventory_batches`, `inventory_receipt_items`
 - `UT-SYNC-04`: backend chặn `draft -> paid` ở đơn hàng, cho `draft -> cancelled`, cho `completed -> paid`, rồi khóa hẳn nhánh mở lại/hạ trạng thái sau khi đã `cancelled/paid`
-- `UT-SYNC-05`: backend khóa `customerId/customerName` từ lúc đơn ở `committed`, vẫn cho sửa `ship_address`, và chặn đổi `committed -> completed` qua sync thẳng
+- `UT-SYNC-05`: backend khóa `customerId/customerName` từ lúc đơn ở `committed`, vẫn cho sửa `ship_address` và thêm dòng hàng trước khi xuất, đồng thời chặn đổi `committed -> completed` qua sync thẳng
 - `UT-ORD-15`: backend `commit_cart_order()` không trừ kho, còn `ship_cart_order()` mới trừ kho và chuyển đơn sang `completed`
 - `UT-DB-18`: backend nhận diện phiếu nhập `ordered` nhưng thiếu NCC là dữ liệu lỗi có thể repair để không khóa chết UI trên DB cũ
 - `UT-DB-19`: backend legacy audit tách đúng `safe fixes` và `manual review`
@@ -296,7 +301,7 @@ Case mới cho Phase B.4:
 - `UT-NORM-04`: sync state không persist phiếu nhập nháp rỗng, chỉ lưu draft khi đã có ít nhất một mặt hàng
 - `UT-SYNC-03`: chỉ cho sửa `giảm giá khuyến mại` trước thanh toán, và khóa lại sau khi chứng từ đã được đánh dấu thanh toán
 - `UT-SYNC-04`: đơn hàng chỉ được thanh toán sau khi đã `Đã xuất hàng`, vẫn cho hủy khi còn `draft`, và khóa luôn nhánh mở lại/hạ thanh toán sau khi đã `cancelled/paid`
-- `UT-SYNC-05`: đơn `Chốt đơn` khóa khách hàng nhưng còn sửa được `Địa chỉ giao`; sync thẳng không được phép tự đổi sang `Đã xuất hàng`
+- `UT-SYNC-05`: đơn `Chốt đơn` khóa khách hàng nhưng còn sửa được `Địa chỉ giao` và dòng hàng; sync thẳng không được phép tự đổi sang `Đã xuất hàng`
 - `UT-ORD-15`: test trực tiếp API backend cho flow `draft -> committed -> completed`
 - `IT-STS-01`: sau `Chốt đơn -> Xuất hàng`, test chuyển sang `Tồn kho` và kiểm tra số lượng mới hiển thị ngay, đồng thời vẫn bắt confirm cho các action trạng thái/xóa/hủy
 

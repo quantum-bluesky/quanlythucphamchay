@@ -2641,6 +2641,10 @@ function maybeApplySupplierSuggestionToPurchase(purchaseId, productIds = []) {
   return getPurchasesDomainHelpers().maybeApplySupplierSuggestionToPurchase(purchaseId, productIds);
 }
 
+function repeatCompletedPurchase(purchaseId) {
+  return getPurchasesDomainHelpers().repeatCompletedPurchase(purchaseId);
+}
+
 function deletePurchaseDraftLocally(purchaseId) {
   return getPurchasesDomainHelpers().deletePurchaseDraftLocally(purchaseId);
 }
@@ -2651,6 +2655,14 @@ function isUnsavedEmptyDraftPurchase(purchase) {
 
 function updatePurchase(purchaseId, updater) {
   return getPurchasesDomainHelpers().updatePurchase(purchaseId, updater);
+}
+
+function repeatCompletedCart(cartId, options = {}) {
+  return getSalesDomainHelpers().repeatCompletedCart(cartId, options);
+}
+
+function findDraftCartForCustomer(cart) {
+  return getSalesDomainHelpers().findDraftCartForCustomer(cart);
 }
 
 function getDraftDemandByProductId() {
@@ -5539,6 +5551,8 @@ registerSalesControllerEvents({
     toggleProductInActiveCart,
     updateCartItem,
     removeCartItem,
+    repeatCompletedCart,
+    findDraftCartForCustomer,
     setActiveCart,
     createNewDraftForPendingMergeCustomer,
     clearPendingCartMergePrompt,
@@ -5692,6 +5706,7 @@ registerPurchasesControllerEvents({
     focusSupplierReturnSection,
     switchMenu,
     addSuggestionToPurchase,
+    repeatCompletedPurchase,
     openPurchaseConflictReview,
     clearPurchaseConflictReview,
     openPurchaseDocumentById,

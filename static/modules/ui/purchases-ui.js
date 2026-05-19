@@ -208,6 +208,8 @@ export function createPurchasesUi(deps) {
     const purchaseLocked = isLockedPurchase(purchase);
     const repairableInvalidPurchase = isRepairableInvalidPurchase(purchase);
     const purchaseHasSupplier = hasPurchaseSupplier(purchase);
+    const canRepeatPurchase = ["received", "paid"].includes(String(purchase?.status || "").trim());
+    const repeatPurchaseDisabled = isPurchaseStructureLockedByProcurementBatch();
     if (state.purchasePanelCollapsed) {
       dom.purchasePanel.innerHTML = `<article class="empty-state">Phiếu nhập đang được thu gọn.</article>`;
       return;
@@ -332,6 +334,7 @@ export function createPurchasesUi(deps) {
           ${purchase.status === "draft" ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Đã đặt hàng</button>` : ""}
           ${canReceivePurchase(purchase) ? `<button type="button" class="primary-button" data-purchase-action="receive" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Nhập kho</button>` : ""}
           ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
+          ${canRepeatPurchase ? `<button type="button" class="ghost-button" data-purchase-action="repeat" ${repeatPurchaseDisabled ? "disabled" : ""} title="${repeatPurchaseDisabled ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo lại phiếu nhập." : ""}">Nhập lại</button>` : ""}
           ${["received", "paid"].includes(purchase.status) && !repairableInvalidPurchase ? `<button type="button" class="ghost-button" data-purchase-action="supplier-return">Trả NCC</button>` : ""}
           ${purchaseCancellable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
           ${canDeletePurchase(purchase) ? `<button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>` : ""}
@@ -390,6 +393,7 @@ export function createPurchasesUi(deps) {
   }
 
   function renderPurchaseOrders() {
+    const repeatPurchaseDisabled = isPurchaseStructureLockedByProcurementBatch();
     const visiblePurchases = state.purchases
       .filter((purchase) => {
         if (!state.showCancelledPurchases && purchase.status === "cancelled") {
@@ -426,6 +430,7 @@ export function createPurchasesUi(deps) {
         </div>
         <div class="queue-actions">
           <button type="button" class="ghost-button compact-button" data-purchase-list-action="open" data-purchase-id="${purchase.id}">Mở</button>
+          ${["received", "paid"].includes(String(purchase.status || "").trim()) ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="repeat" data-purchase-id="${purchase.id}" ${repeatPurchaseDisabled ? "disabled" : ""} title="${repeatPurchaseDisabled ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo lại phiếu nhập." : ""}">Nhập lại</button>` : ""}
         </div>
       </article>
     `).join("") + bottomPagination;

@@ -504,6 +504,12 @@ class InventoryStoreTests(unittest.TestCase):
             unit="gói",
             low_stock_threshold=1,
         )
+        extra_product = self.store.create_product(
+            name="Phiếu nhập ordered flow thêm dòng",
+            category="Đồ khô",
+            unit="gói",
+            low_stock_threshold=1,
+        )
         now = "2026-04-19T12:15:00+07:00"
         draft_purchase = {
             "id": "purchase-ordered-flow-01",
@@ -566,6 +572,15 @@ class InventoryStoreTests(unittest.TestCase):
         editable_ordered_purchase["note"] = "Đã đặt hàng, chỉnh tiếp dòng"
         editable_ordered_purchase["items"][0]["quantity"] = 3
         editable_ordered_purchase["items"][0]["unitCost"] = 20000
+        editable_ordered_purchase["items"].append(
+            {
+                "id": "purchase-item-ordered-flow-02",
+                "productId": extra_product["id"],
+                "productName": extra_product["name"],
+                "quantity": 2,
+                "unitCost": 22000,
+            }
+        )
 
         self.store.save_sync_state(
             {
@@ -593,6 +608,8 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(purchase["status"], "received")
         self.assertEqual(purchase["receivedAt"], "2026-04-19T12:20:00+07:00")
         self.assertEqual(purchase["receiptCode"], "PN-ORDERED-FLOW-01")
+        self.assertEqual(len(purchase["items"]), 2)
+        self.assertEqual(purchase["items"][1]["productId"], extra_product["id"])
 
     def test_ut_db_12_repair_purchase_document_allows_regular_draft_delete_and_ordered_cancel_but_rejects_ordered_delete(self) -> None:
         product = self.store.create_product(
@@ -1843,6 +1860,14 @@ class InventoryStoreTests(unittest.TestCase):
             sale_price=15000,
             low_stock_threshold=1,
         )
+        extra_product = self.store.create_product(
+            name="Đơn committed thêm dòng",
+            category="Đông lạnh",
+            unit="gói",
+            price=12000,
+            sale_price=18000,
+            low_stock_threshold=1,
+        )
         initial_state = self.store.get_sync_state()
         self.store.save_sync_state(
             {
@@ -1896,14 +1921,34 @@ class InventoryStoreTests(unittest.TestCase):
         )
         self.assertEqual(updated_state["carts"][0]["shipAddress"], "99 Lê Lợi")
 
-        direct_complete_payload = copy.deepcopy(updated_state["carts"])
+        add_item_payload = copy.deepcopy(updated_state["carts"])
+        add_item_payload[0]["updatedAt"] = "2026-05-06T08:25:00+07:00"
+        add_item_payload[0]["items"].append(
+            {
+                "id": "cart-item-status-committed-02",
+                "productId": extra_product["id"],
+                "productName": extra_product["name"],
+                "quantity": 2,
+                "unitPrice": 18000,
+            }
+        )
+        item_updated_state = self.store.save_sync_state(
+            {
+                "carts": add_item_payload,
+                "expected_updated_at": {"carts": updated_state["updated_at"]["carts"]},
+            }
+        )
+        self.assertEqual(len(item_updated_state["carts"][0]["items"]), 2)
+        self.assertEqual(item_updated_state["carts"][0]["items"][1]["productId"], extra_product["id"])
+
+        direct_complete_payload = copy.deepcopy(item_updated_state["carts"])
         direct_complete_payload[0]["status"] = "completed"
         direct_complete_payload[0]["completedAt"] = "2026-05-06T08:30:00+07:00"
         with self.assertRaisesRegex(ValueError, "Đơn đã chốt phải xuất hàng qua API xuất hàng."):
             self.store.save_sync_state(
                 {
                     "carts": direct_complete_payload,
-                    "expected_updated_at": {"carts": updated_state["updated_at"]["carts"]},
+                    "expected_updated_at": {"carts": item_updated_state["updated_at"]["carts"]},
                 }
             )
 

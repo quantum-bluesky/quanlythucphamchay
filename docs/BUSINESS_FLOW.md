@@ -100,6 +100,7 @@ Nếu cần can thiệp đặc biệt
 
 - màn `orders`
 - chỉ xem/in/thanh toán/hủy theo rule
+- từ đơn `completed/paid`, có thể bấm `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng của phiếu đã chọn; nếu khách đã có đơn `draft` thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có để giảm số lần gửi hàng hay tạo nháp mới riêng
 - nếu đi từ màn `customers`, app có thể lọc danh sách đơn đúng theo khách; nếu khách chỉ có 1 phiếu thì mở sẵn detail để xem ngay kể cả với đơn đã `completed/paid`
 - đơn `draft` có nút `Chốt đơn`, đơn `committed` có nút `Xuất hàng`
 - đơn `committed` vẫn cho sửa dòng hàng, địa chỉ giao và giảm giá; không đổi được khách, không được xóa
@@ -157,6 +158,8 @@ ordered -> cancelled
 - `Legacy Audit` chỉ auto-fix các mốc thời gian chắc chắn; các thao tác gắn `receipt_code` hoặc `đơn nguồn` luôn cần admin xác nhận thủ công
 - chỉ `received` mới được `paid`
 - `received` chỉ còn cho sửa `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
+- từ phiếu `received/paid`, có thể bấm `Nhập lại` để tạo nhanh một phiếu nháp mới cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có để không tạo draft thứ hai
+- khi `Nhập lại`, app chỉ sao chép nội dung đặt hàng; metadata lô như `batchCode`, `expiryDate`, `manufactureDate` phải reset về trống để nhập lại theo lô mới
 - khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `draft/ordered`; user khác chỉ được đi tiếp `ordered -> received` nếu phiếu không phải batch và đã `ordered` trước lúc lock hiện tại được acquire, rồi mới đi tiếp `received -> paid`
 - trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
 
