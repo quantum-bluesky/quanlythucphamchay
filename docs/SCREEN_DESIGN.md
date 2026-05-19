@@ -97,6 +97,29 @@ Liên kết detail hiện có:
   - khi hệ thống đang ở Batch procurement mode, shortage không được auto-create phiếu nhập theo từng cart mà phải chuyển sang màn `procurement-planner`
   - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết đơn thiếu hàng sẽ được đẩy sang planner batch
 
+### `bulk-orders` - Tạo nhiều đơn / Xuất nhanh
+
+- mục tiêu:
+  - thêm nhiều khách trong một màn
+  - mỗi khách có nhiều mặt hàng riêng
+  - lưu nháp hàng loạt hoặc chốt các đơn hợp lệ
+- thành phần chính:
+  - ô thêm khách nhanh
+  - list card theo khách
+  - item picker sản phẩm
+  - thanh kết quả batch
+  - footer action cố định
+- nguyên tắc UI:
+  - ưu tiên mobile-first, dùng card theo khách; không dùng bảng nhiều cột làm giao diện chính
+  - mỗi card phải hiển thị ngắn gọn `khách`, `tổng món`, `cần thanh toán`, `địa chỉ giao`, `trạng thái kiểm tra`
+  - action trực tiếp trên card chỉ giữ các thao tác gọn như `Sửa`, `Thêm hàng`, `Xóa khách`
+  - cuối màn chỉ có đúng 2 CTA chính: `Lưu nháp` và `Chốt đơn hợp lệ`
+  - `Lưu nháp` chỉ tạo/cập nhật cart `draft`; không giữ hàng, không trừ kho và không nhảy thẳng sang `completed`
+  - `Chốt đơn hợp lệ` phải kiểm từng khách theo đúng rule availability của bước `Chốt đơn` hiện tại; đơn đủ điều kiện sang `committed`, đơn lỗi giữ nguyên ở màn để user sửa tiếp
+  - lỗi phải hiển thị được theo từng khách và từng sản phẩm, ví dụ `Thiếu ...: cần ..., còn ...`
+  - nếu khách đã có đơn nháp trên server, card phải cho user chọn `dồn vào nháp hiện có` hoặc `tạo nháp mới riêng`
+  - import Excel nếu có chỉ là action phụ; dữ liệu sau import vẫn phải đổ về list card để user review/sửa trước khi lưu hoặc chốt
+
 ### `orders` - Quản lý đơn hàng
 
 - mục tiêu:

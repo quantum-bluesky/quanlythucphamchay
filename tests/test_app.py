@@ -2086,6 +2086,126 @@ class InventoryStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Không đủ hàng để chốt đơn"):
             self.store.commit_cart_order("cart-ordered-cover-02", actor="tester")
 
+    def test_ut_ord_17_bulk_create_orders_commit_valid_is_partial_and_idempotent(self) -> None:
+        ok_product = self.store.create_product(
+            name="Chả quế bulk",
+            category="Đông lạnh",
+            unit="gói",
+            price=40000,
+            sale_price=55000,
+            low_stock_threshold=1,
+        )
+        shortage_product = self.store.create_product(
+            name="Đậu hũ non bulk",
+            category="Đồ tươi",
+            unit="hộp",
+            price=10000,
+            sale_price=14000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(ok_product["id"], "in", 8, "Tồn đầu test bulk")
+        self.store.create_transaction(shortage_product["id"], "in", 6, "Tồn đầu test bulk thiếu")
+
+        result = self.store.bulk_create_orders(
+            mode="commit_valid",
+            request_id="bulk-request-001",
+            actor="tester",
+            orders=[
+                {
+                    "client_order_id": "bulk-order-1",
+                    "customer_name": "Khách bulk hợp lệ",
+                    "ship_address": "1 Nguyễn Trãi",
+                    "items": [
+                        {
+                            "product_id": ok_product["id"],
+                            "quantity": 2,
+                            "unit_price": 55000,
+                        }
+                    ],
+                },
+                {
+                    "client_order_id": "bulk-order-2",
+                    "customer_name": "Khách bulk thiếu hàng",
+                    "ship_address": "2 Trần Phú",
+                    "items": [
+                        {
+                            "product_id": shortage_product["id"],
+                            "quantity": 10,
+                            "unit_price": 14000,
+                        }
+                    ],
+                },
+            ],
+        )
+
+        self.assertEqual(result["summary"], {"total_orders": 2, "success": 1, "failed": 1})
+        result_by_id = {entry["client_order_id"]: entry for entry in result["results"]}
+        success_entry = result_by_id["bulk-order-1"]
+        failed_entry = result_by_id["bulk-order-2"]
+
+        self.assertEqual(success_entry["status"], "success")
+        self.assertEqual(success_entry["order_status"], "committed")
+        self.assertTrue(success_entry["order_code"].startswith("DH-"))
+        self.assertFalse(success_entry["saved_as_draft"])
+
+        self.assertEqual(failed_entry["status"], "failed")
+        self.assertEqual(failed_entry["order_status"], "draft")
+        self.assertTrue(failed_entry["saved_as_draft"])
+        self.assertTrue(failed_entry["cart_id"])
+        self.assertIn("Thiếu Đậu hũ non bulk: cần 10, còn 6", failed_entry["message"])
+        self.assertEqual(failed_entry["errors"][0]["product_name"], "Đậu hũ non bulk")
+
+        carts = self.store.get_sync_state()["carts"]
+        committed_cart = next(cart for cart in carts if cart["id"] == success_entry["cart_id"])
+        failed_cart = next(cart for cart in carts if cart["id"] == failed_entry["cart_id"])
+        self.assertEqual(committed_cart["status"], "committed")
+        self.assertEqual(failed_cart["status"], "draft")
+        self.assertEqual(self.store.get_product_by_id(ok_product["id"])["current_stock"], 8.0)
+        self.assertEqual(self.store.get_product_by_id(shortage_product["id"])["current_stock"], 6.0)
+
+        replay = self.store.bulk_create_orders(
+            mode="commit_valid",
+            request_id="bulk-request-001",
+            actor="tester",
+            orders=[
+                {
+                    "client_order_id": "bulk-order-1",
+                    "customer_name": "Khách bulk hợp lệ",
+                    "items": [{"product_id": ok_product["id"], "quantity": 2, "unit_price": 55000}],
+                }
+            ],
+        )
+        self.assertTrue(replay["idempotent_replay"])
+        self.assertEqual(replay["summary"], result["summary"])
+        self.assertEqual(len(self.store.get_sync_state()["carts"]), 2)
+
+        with self.store._connect() as connection:
+            batch_row = connection.execute(
+                """
+                SELECT total_orders, success_count, failed_count
+                FROM bulk_order_batches
+                WHERE request_id = ?
+                """,
+                ("bulk-request-001",),
+            ).fetchone()
+            audit_row = connection.execute(
+                """
+                SELECT actor, message
+                FROM audit_logs
+                WHERE entity_type = 'bulk_order_batch'
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+
+        self.assertIsNotNone(batch_row)
+        self.assertEqual(batch_row["total_orders"], 2)
+        self.assertEqual(batch_row["success_count"], 1)
+        self.assertEqual(batch_row["failed_count"], 1)
+        self.assertIsNotNone(audit_row)
+        self.assertEqual(audit_row["actor"], "tester")
+        self.assertIn("Tổng 2 đơn, thành công 1, lỗi 1.", audit_row["message"])
+
     def test_ut_aud_01_save_sync_state_logs_cart_status_changes_with_actor(self) -> None:
         self.store.save_sync_state(
             {

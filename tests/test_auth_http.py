@@ -458,6 +458,92 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(state_status, 200)
         self.assertIn("products", state_payload)
 
+    def test_ut_auth_09_bulk_order_permissions_split_draft_and_commit(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [
+                {
+                    "username": "bulkstaff",
+                    "password": "bulk12345",
+                    "permissions": ["bulk_order_create"],
+                }
+            ],
+            "debug": {"sync_state": False},
+        }
+        self._start_server(config)
+
+        product = self.store.create_product(
+            name="Sản phẩm bulk auth",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 5, "Tồn đầu auth bulk")
+
+        login_status, login_payload, login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "bulkstaff", "password": "bulk12345"},
+        )
+        self.assertEqual(login_status, 200)
+        self.assertIn("bulk_order_create", login_payload["permissions"])
+        cookie = self._extract_cookie(login_headers)
+
+        draft_status, draft_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-create",
+            cookie=cookie,
+            payload={
+                "mode": "draft",
+                "request_id": "bulk-auth-draft-001",
+                "orders": [
+                    {
+                        "client_order_id": "bulk-auth-1",
+                        "customer_name": "Khách auth nháp",
+                        "items": [
+                            {
+                                "product_id": product["id"],
+                                "quantity": 1,
+                                "unit_price": 15000,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(draft_status, 200)
+        self.assertEqual(draft_payload["summary"]["success"], 1)
+
+        commit_status, commit_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-create",
+            cookie=cookie,
+            payload={
+                "mode": "commit_valid",
+                "request_id": "bulk-auth-commit-001",
+                "orders": [
+                    {
+                        "client_order_id": "bulk-auth-2",
+                        "customer_name": "Khách auth chốt",
+                        "items": [
+                            {
+                                "product_id": product["id"],
+                                "quantity": 1,
+                                "unit_price": 15000,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(commit_status, 401)
+        self.assertIn("quyền chốt nhiều đơn", commit_payload["error"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -41,6 +41,19 @@ import {
   salesSearchInput,
   salesProductList,
   activeCartPanel,
+  bulkCustomerLookupInput,
+  bulkAddCustomerButton,
+  bulkOrderSearchInput,
+  bulkOrderSummaryBar,
+  bulkOrderPermissionNotice,
+  bulkOrderResultSummary,
+  bulkOrderList,
+  bulkOrderSaveDraftButton,
+  bulkOrderCommitValidButton,
+  bulkItemPickerModal,
+  bulkItemPickerCloseButton,
+  bulkItemPickerSearchInput,
+  bulkItemPickerList,
   selectedCartSection,
   selectedCartToggleButton,
   selectedCartSummaryNote,
@@ -215,6 +228,7 @@ import { createSyncRuntimeHelpers } from "./modules/sync-runtime.js";
 import { createEntityProductMutationHelpers } from "./modules/entity-product-mutations.js";
 import { createNavigationRuntimeHelpers } from "./modules/navigation-runtime.js";
 import { createSalesUi } from "./modules/ui/sales-ui.js";
+import { createBulkOrdersUi } from "./modules/ui/bulk-orders-ui.js";
 import { createPurchasesUi } from "./modules/ui/purchases-ui.js";
 import { createEntitiesUi } from "./modules/ui/entities-ui.js";
 import { createReportsAdminUi } from "./modules/ui/reports-admin-ui.js";
@@ -222,6 +236,7 @@ import { registerCoreControllerEvents } from "./modules/controllers/core-control
 import { registerProductsControllerEvents } from "./modules/controllers/products-controller.js";
 import { registerInventoryControllerEvents } from "./modules/controllers/inventory-controller.js";
 import { registerSalesControllerEvents } from "./modules/controllers/sales-controller.js";
+import { registerBulkOrdersControllerEvents } from "./modules/controllers/bulk-orders-controller.js";
 import { registerPurchasesControllerEvents } from "./modules/controllers/purchases-controller.js";
 import { registerEntitiesControllerEvents } from "./modules/controllers/entities-controller.js";
 import { registerReportsAdminControllerEvents } from "./modules/controllers/reports-admin-controller.js";
@@ -263,6 +278,7 @@ let syncRuntimeHelpers = null;
 let entityProductMutationHelpers = null;
 let navigationRuntimeHelpers = null;
 let salesUi = null;
+let bulkOrdersUi = null;
 let purchasesUi = null;
 let entitiesUi = null;
 let reportsAdminUi = null;
@@ -313,6 +329,11 @@ const PAGINATION_GROUP_MAP = {
 let savingUiLockCount = 0;
 const pendingSavingUiReleases = [];
 const savingUiInertNodes = new Set();
+const bulkOrderUiHelpers = {
+  getCustomerDraftHint: () => null,
+  getCanCreateBulkDraft: () => true,
+  getCanCommitBulkOrders: () => true,
+};
 
 function setBusyPageInert(active) {
   if (!globalBusyOverlay) {
@@ -963,6 +984,35 @@ function getSalesUi() {
   return salesUi;
 }
 
+function getBulkOrdersUi() {
+  if (!bulkOrdersUi) {
+    bulkOrdersUi = createBulkOrdersUi({
+      state,
+      dom: {
+        bulkCustomerLookupInput,
+        bulkOrderSearchInput,
+        bulkOrderSummaryBar,
+        bulkOrderPermissionNotice,
+        bulkOrderResultSummary,
+        bulkOrderList,
+        bulkOrderSaveDraftButton,
+        bulkOrderCommitValidButton,
+        bulkItemPickerModal,
+        bulkItemPickerSearchInput,
+        bulkItemPickerList,
+      },
+      escapeHtml,
+      formatCurrency,
+      formatQuantity,
+      normalizeText,
+      getCustomerDraftHint: (entry) => bulkOrderUiHelpers.getCustomerDraftHint(entry),
+      getCanCreateBulkDraft: () => bulkOrderUiHelpers.getCanCreateBulkDraft(),
+      getCanCommitBulkOrders: () => bulkOrderUiHelpers.getCanCommitBulkOrders(),
+    });
+  }
+  return bulkOrdersUi;
+}
+
 function getPurchasesUi() {
   if (!purchasesUi) {
     purchasesUi = createPurchasesUi({
@@ -1545,6 +1595,14 @@ function nowIso() {
 
 function createId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createRequestId(prefix = "request") {
+  const cleanPrefix = String(prefix || "request").trim() || "request";
+  if (window.crypto?.randomUUID) {
+    return `${cleanPrefix}_${window.crypto.randomUUID()}`;
+  }
+  return `${cleanPrefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function isDeletedEntity(entity) {
@@ -4001,6 +4059,17 @@ function clearProtectedSessionData() {
     expiryDate: "",
     items: [],
   };
+  state.bulkOrderSearchTerm = "";
+  state.bulkOrderDraft = {
+    customerText: "",
+    entries: [],
+    expandedEntryId: "",
+    itemPickerOpen: false,
+    itemPickerEntryId: "",
+    itemPickerSearchTerm: "",
+    lastSubmission: null,
+    submitting: false,
+  };
   state.supplierReturnDraft = {
     collapsed: true,
     sourcePurchaseId: "",
@@ -4721,6 +4790,10 @@ function renderCartQueue() {
   getSalesUi().renderCartQueue();
 }
 
+function renderBulkOrdersScreen() {
+  getBulkOrdersUi().renderBulkOrdersScreen();
+}
+
 function renderCustomers() {
   getEntitiesUi().renderCustomers();
 }
@@ -4858,6 +4931,7 @@ function renderAll() {
   renderProductSections();
   renderTransactions();
   renderActiveCartPanel();
+  renderBulkOrdersScreen();
   renderSalesProductList();
   renderCartItems();
   renderCustomerReturnSection();
@@ -5680,6 +5754,46 @@ registerSalesControllerEvents({
   utils: {
     formatCurrency,
     nowIso,
+  },
+});
+
+registerBulkOrdersControllerEvents({
+  state,
+  dom: {
+    bulkCustomerLookupInput,
+    bulkAddCustomerButton,
+    bulkOrderSearchInput,
+    bulkOrderList,
+    bulkOrderSaveDraftButton,
+    bulkOrderCommitValidButton,
+    bulkItemPickerModal,
+    bulkItemPickerCloseButton,
+    bulkItemPickerSearchInput,
+    bulkItemPickerList,
+  },
+  actions: {
+    apiRequest,
+    refreshData,
+    showToast,
+    createId,
+    createRequestId,
+    registerBulkOrderHelpers: (helpers = {}) => {
+      if (typeof helpers.getCustomerDraftHint === "function") {
+        bulkOrderUiHelpers.getCustomerDraftHint = helpers.getCustomerDraftHint;
+      }
+      if (typeof helpers.getCanCreateBulkDraft === "function") {
+        bulkOrderUiHelpers.getCanCreateBulkDraft = helpers.getCanCreateBulkDraft;
+      }
+      if (typeof helpers.getCanCommitBulkOrders === "function") {
+        bulkOrderUiHelpers.getCanCommitBulkOrders = helpers.getCanCommitBulkOrders;
+      }
+    },
+  },
+  renderers: {
+    renderBulkOrdersScreen,
+  },
+  utils: {
+    normalizeText,
   },
 });
 
