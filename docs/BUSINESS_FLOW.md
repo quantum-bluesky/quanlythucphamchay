@@ -68,6 +68,7 @@ Nếu cần can thiệp đặc biệt
 - nếu cần, cập nhật luôn giá bán mặc định
 - trong lúc đơn còn `draft` hoặc `committed`, vẫn có thể thêm bớt dòng và chỉnh số lượng/giá; chỉ sau `completed` mới khóa nội dung
 - từ `committed` trở đi, khách hàng của đơn bị khóa và không được đổi nữa
+- đơn xuất có thể được in từ lúc còn `draft` cho tới khi `paid`
 
 ### Bước 4: Chốt đơn
 
@@ -100,6 +101,7 @@ Nếu cần can thiệp đặc biệt
 
 - màn `orders`
 - chỉ xem/in/thanh toán/hủy theo rule
+- ở list đơn, nút `In` hiện cho các phiếu chưa thanh toán; với phiếu đã thanh toán thì mở detail để in lại
 - từ đơn `completed/paid`, có thể bấm `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng của phiếu đã chọn; nếu khách đã có đơn `draft` thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có để giảm số lần gửi hàng hay tạo nháp mới riêng
 - nếu đi từ màn `customers`, app có thể lọc danh sách đơn đúng theo khách; nếu khách chỉ có 1 phiếu thì mở sẵn detail để xem ngay kể cả với đơn đã `completed/paid`
 - đơn `draft` có nút `Chốt đơn`, đơn `committed` có nút `Xuất hàng`
@@ -132,6 +134,7 @@ Nếu cần can thiệp đặc biệt
 - nếu cùng một sản phẩm về nhiều lô khác nhau thì tách thành nhiều dòng riêng
 - bắt buộc có nhà cung cấp trước khi chuyển phiếu sang `ordered`
 - có thể nhập thêm `giảm giá khuyến mại` cho toàn phiếu để phản ánh số tiền thực trả NCC
+- phiếu nhập có thể được in từ lúc còn `draft` cho tới khi `paid`; ở list phiếu, nút `In` được ẩn khi phiếu đã thanh toán để giao diện gọn hơn
 - có thể đổi giá nhập mặc định
 - nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB; nếu phiếu đang là `draft` và đã có NCC thì bấm nút `NCC` vẫn phải cho chọn NCC khác
 - nhà cung cấp chỉ được đổi khi phiếu còn `draft`; từ `ordered` trở đi phải giữ nguyên NCC đã chốt

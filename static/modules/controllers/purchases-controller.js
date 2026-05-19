@@ -539,6 +539,10 @@ export function registerPurchasesControllerEvents(contract) {
       renderers.renderPurchasePanel();
       return;
     }
+    if (actionButton.dataset.purchaseAction === "print") {
+      actions.printPurchase(purchase.id);
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "collapse") {
       state.purchasePanelCollapsed = true;
       renderers.renderPurchasePanel();
@@ -755,6 +759,10 @@ export function registerPurchasesControllerEvents(contract) {
       state.purchaseDetailExpanded = false;
       actions.saveAndRenderAll();
       actions.focusPurchasePanel();
+      return;
+    }
+    if (button.dataset.purchaseListAction === "print") {
+      actions.printPurchase(button.dataset.purchaseId);
       return;
     }
     if (button.dataset.purchaseListAction === "repeat") {

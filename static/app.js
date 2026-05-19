@@ -4887,7 +4887,73 @@ function renderAll() {
   window.__QLTPCHAY_APP_READY = true;
 }
 
-function buildPrintMarkup(cart) {
+function buildDocumentPrintMarkup({ title, metadata = [], rows = "", headers = [], subtotalAmount = 0, discountAmount = 0, totalAmount = 0 }) {
+  const metadataMarkup = metadata
+    .filter((entry) => String(entry?.value || "").trim())
+    .map((entry) => `<p class="meta">${escapeHtml(entry.label)}: ${escapeHtml(entry.value)}</p>`)
+    .join("");
+  const headerMarkup = headers.map((label) => `<th>${escapeHtml(label)}</th>`).join("");
+  return `
+    <!doctype html>
+    <html lang="vi">
+    <head>
+      <meta charset="utf-8">
+      <title>${escapeHtml(title)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 24px; color: #243127; }
+        h1, p { margin: 0; }
+        .meta { margin-top: 8px; color: #5a6a60; }
+        table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+        th, td { border: 1px solid #cfd8cf; padding: 10px; text-align: left; vertical-align: top; }
+        th { background: #eef4ef; }
+        .subtext { display: block; margin-top: 4px; color: #5a6a60; font-size: 12px; }
+        .total { margin-top: 18px; font-size: 18px; font-weight: 700; }
+      </style>
+    </head>
+    <body>
+      <h1>${escapeHtml(title)}</h1>
+      ${metadataMarkup}
+      <table>
+        <thead>
+          <tr>${headerMarkup}</tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p class="meta">Tạm tính: ${escapeHtml(formatCurrency(subtotalAmount || 0))}</p>
+      <p class="meta">Giảm giá khuyến mại: ${escapeHtml(formatCurrency(discountAmount || 0))}</p>
+      <p class="total">Cần thanh toán: ${escapeHtml(formatCurrency(totalAmount || 0))}</p>
+    </body>
+    </html>
+  `;
+}
+
+function getCartPrintStatusLabel(cart) {
+  if (cart.paymentStatus === "paid") {
+    return "Đã thanh toán";
+  }
+  if (cart.status === "completed") {
+    return "Đã xuất hàng";
+  }
+  if (cart.status === "committed") {
+    return "Chốt đơn";
+  }
+  return "Nháp";
+}
+
+function getPurchasePrintStatusLabel(purchase) {
+  if (purchase.status === "paid") {
+    return "Đã thanh toán";
+  }
+  if (purchase.status === "received") {
+    return "Đã nhập kho";
+  }
+  if (purchase.status === "ordered") {
+    return "Đã đặt";
+  }
+  return "Nháp";
+}
+
+function buildCartPrintMarkup(cart) {
   const rows = cart.items
     .map(
       (item, index) => `
@@ -4901,46 +4967,70 @@ function buildPrintMarkup(cart) {
       `
     )
     .join("");
+  return buildDocumentPrintMarkup({
+    title: cart.orderCode || "Phiếu xuất hàng",
+    metadata: [
+      { label: "Khách hàng", value: cart.customerName || "Chưa có" },
+      { label: "Địa chỉ giao", value: cart.shipAddress || "Chưa có" },
+      { label: "Trạng thái", value: getCartPrintStatusLabel(cart) },
+      { label: "Thời gian", value: formatDate(cart.paidAt || cart.completedAt || cart.committedAt || cart.updatedAt || cart.createdAt) || "Chưa có" },
+    ],
+    headers: ["STT", "Mặt hàng", "Số lượng", "Giá bán", "Thành tiền"],
+    rows,
+    subtotalAmount: cart.subtotalAmount || 0,
+    discountAmount: cart.discountAmount || 0,
+    totalAmount: cart.totalAmount || 0,
+  });
+}
 
-  return `
-    <!doctype html>
-    <html lang="vi">
-    <head>
-      <meta charset="utf-8">
-      <title>${escapeHtml(cart.orderCode || "Giỏ hàng xuất")}</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 24px; color: #243127; }
-        h1, p { margin: 0; }
-        .meta { margin-top: 8px; color: #5a6a60; }
-        table { width: 100%; border-collapse: collapse; margin-top: 24px; }
-        th, td { border: 1px solid #cfd8cf; padding: 10px; text-align: left; }
-        th { background: #eef4ef; }
-        .total { margin-top: 18px; font-size: 18px; font-weight: 700; }
-      </style>
-    </head>
-    <body>
-      <h1>${escapeHtml(cart.orderCode || "Giỏ hàng xuất")}</h1>
-      <p class="meta">Khách hàng: ${escapeHtml(cart.customerName)}</p>
-      <p class="meta">Địa chỉ giao: ${escapeHtml(cart.shipAddress || "Chưa có")}</p>
-      <p class="meta">Thời gian: ${escapeHtml(formatDate(cart.completedAt || cart.committedAt || cart.updatedAt || cart.createdAt))}</p>
-      <table>
-        <thead>
-          <tr>
-            <th>STT</th>
-            <th>Mặt hàng</th>
-            <th>Số lượng</th>
-            <th>Giá bán</th>
-            <th>Thành tiền</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <p class="meta">Tạm tính: ${escapeHtml(formatCurrency(cart.subtotalAmount || 0))}</p>
-      <p class="meta">Giảm giá khuyến mại: ${escapeHtml(formatCurrency(cart.discountAmount || 0))}</p>
-      <p class="total">Cần thanh toán: ${escapeHtml(formatCurrency(cart.totalAmount))}</p>
-    </body>
-    </html>
-  `;
+function buildPurchasePrintMarkup(purchase) {
+  const rows = purchase.items
+    .map((item, index) => {
+      const detailHints = [
+        item.batchCode ? `Lô ${item.batchCode}` : "",
+        item.expiryDate ? `HSD ${item.expiryDate}` : "",
+      ].filter(Boolean);
+      return `
+        <tr>
+          <td>${index + 1}</td>
+          <td>
+            ${escapeHtml(item.productName)}
+            ${detailHints.length ? `<span class="subtext">${escapeHtml(detailHints.join(" • "))}</span>` : ""}
+          </td>
+          <td>${formatQuantity(item.quantity)} ${escapeHtml(item.unit)}</td>
+          <td>${formatCurrency(item.unitCost)}</td>
+          <td>${formatCurrency(item.lineTotal)}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  return buildDocumentPrintMarkup({
+    title: purchase.receiptCode || "Phiếu đặt hàng NCC",
+    metadata: [
+      { label: "Nhà cung cấp", value: purchase.supplierName || "Chưa có" },
+      { label: "Trạng thái", value: getPurchasePrintStatusLabel(purchase) },
+      { label: "Ghi chú", value: purchase.note || "" },
+      { label: "Thời gian", value: formatDate(purchase.paidAt || purchase.receivedAt || purchase.updatedAt || purchase.createdAt) || "Chưa có" },
+    ],
+    headers: ["STT", "Mặt hàng", "Số lượng", "Giá nhập", "Thành tiền"],
+    rows,
+    subtotalAmount: purchase.subtotalAmount || 0,
+    discountAmount: purchase.discountAmount || 0,
+    totalAmount: purchase.totalAmount || 0,
+  });
+}
+
+function openPrintPopup(markup, missingPopupMessage) {
+  const popup = window.open("", "_blank", "width=960,height=720");
+  if (!popup) {
+    showToast(missingPopupMessage, true);
+    return;
+  }
+  popup.document.open();
+  popup.document.write(markup);
+  popup.document.close();
+  popup.focus();
+  window.setTimeout(() => popup.print(), 250);
 }
 
 function printCart(cartId) {
@@ -4949,18 +5039,16 @@ function printCart(cartId) {
     showToast("Không tìm thấy giỏ hàng để in.", true);
     return;
   }
+  openPrintPopup(buildCartPrintMarkup(cart), "Trình duyệt đang chặn cửa sổ in phiếu xuất.");
+}
 
-  const popup = window.open("", "_blank", "width=960,height=720");
-  if (!popup) {
-    showToast("Trình duyệt đang chặn cửa sổ in.", true);
+function printPurchase(purchaseId) {
+  const purchase = state.purchases.find((entry) => String(entry.id) === String(purchaseId));
+  if (!purchase) {
+    showToast("Không tìm thấy phiếu nhập để in.", true);
     return;
   }
-
-  popup.document.open();
-  popup.document.write(buildPrintMarkup(cart));
-  popup.document.close();
-  popup.focus();
-  window.setTimeout(() => popup.print(), 250);
+  openPrintPopup(buildPurchasePrintMarkup(purchase), "Trình duyệt đang chặn cửa sổ in phiếu nhập.");
 }
 
 function prefillProduct(productId) {
@@ -5707,6 +5795,7 @@ registerPurchasesControllerEvents({
     switchMenu,
     addSuggestionToPurchase,
     repeatCompletedPurchase,
+    printPurchase,
     openPurchaseConflictReview,
     clearPurchaseConflictReview,
     openPurchaseDocumentById,
