@@ -124,6 +124,7 @@ Nếu cần can thiệp đặc biệt
 - gán nhà cung cấp
 - mỗi nhà cung cấp chỉ giữ tối đa 1 phiếu `draft`; nếu chọn lại đúng NCC đã có nháp thì app mở lại phiếu đó để nhập tiếp, còn nếu chọn NCC khác thì phiếu cũ được giữ nguyên và app mở nháp riêng cho NCC mới
 - nếu phiếu `draft` chưa có NCC, app được tự gán NCC khi các mặt hàng vừa thêm chỉ từng nhập thực tế từ đúng 1 NCC; nếu có nhiều NCC từng nhập thì chỉ sắp xếp gợi ý NCC theo tổng số lượng/số lần nhập, không tự đổi NCC
+- nếu khi chọn mặt hàng vào phiếu mà mặt hàng đó đang nằm ở phiếu `draft/ordered` của NCC khác, app phải cảnh báo ngay và cho user chọn mở danh sách các phiếu liên quan để review trước khi quyết định dồn về một NCC hay giữ nguyên hiện trạng
 - phiếu `draft` đang trống vẫn có thể xóa ngay trên UI mà không cần lưu xuống DB
 - nếu phiếu được tạo từ đơn thiếu hàng, app giữ liên kết nguồn đơn riêng trong metadata của phiếu, không nhét sẵn vào ô ghi chú
 - sửa số lượng, giá nhập, mã lô và HSD của từng dòng; mặc định nhập trực tiếp HSD, hoặc có thể chuyển sang nhập gián tiếp bằng `Ngày sản xuất` để app tự tính HSD theo thời gian bảo quản
@@ -150,6 +151,7 @@ ordered -> cancelled
 - `ordered` mới được nhập kho và vẫn cho sửa trực tiếp để thêm bớt theo biến động thực tế
 - nếu chưa có nhà cung cấp thì không được chuyển `draft -> ordered` hoặc `ordered -> received`
 - từ `ordered` trở đi không được đổi `supplierName`; UI phải khóa ô NCC và nút `NCC` trên mọi thiết bị
+- nếu sau khi review mà một mặt hàng vẫn còn nằm ở nhiều NCC mở khác nhau thì đây chỉ là cảnh báo nghiệp vụ cho user biết, không phải lỗi chặn workflow
 - ngoại lệ duy nhất là phiếu legacy bị đánh dấu `repairableInvalid`; trường hợp này UI mở lại thao tác sửa NCC hoặc xóa/hủy để cứu dữ liệu cũ, nhưng không coi là workflow chuẩn hằng ngày
 - các metadata legacy khác như thiếu `paid_at`, thiếu `received_at` raw DB, hoặc thiếu `source_code` của phiếu nhập sinh ra từ đơn thiếu hàng phải đi qua khối `Legacy Audit` ở `Master Admin`
 - `Legacy Audit` chỉ auto-fix các mốc thời gian chắc chắn; các thao tác gắn `receipt_code` hoặc `đơn nguồn` luôn cần admin xác nhận thủ công

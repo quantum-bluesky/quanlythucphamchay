@@ -998,6 +998,7 @@ function getPurchasesUi() {
       canManageProcurementBatchStructure,
       isProcurementBatchModeActive,
       getPurchaseSuggestions,
+      getOpenPurchaseSupplierConflictInsight,
       resolvePurchaseItemExpiryMeta,
       isSearchResultMode,
       paginateItems,
@@ -2700,6 +2701,10 @@ function getOpenPurchasesForProduct(productId) {
   return getPurchasesDomainHelpers().getOpenPurchasesForProduct(productId);
 }
 
+function getOpenPurchaseSupplierConflictInsight(productId, options = {}) {
+  return getPurchasesDomainHelpers().getOpenPurchaseSupplierConflictInsight(productId, options);
+}
+
 function getInventoryProductSignals(product, demandMaps, incomingMap) {
   return getInventoryDomainHelpers().getInventoryProductSignals(product, demandMaps, incomingMap);
 }
@@ -4265,6 +4270,38 @@ function openPurchaseDocumentById(purchaseId) {
   focusPurchasePanel();
 }
 
+function openPurchaseConflictReview(productId, options = {}) {
+  const product = getProductById(productId);
+  state.purchaseConflictReview = {
+    productId: Number(productId),
+    productName: String(options.productName || product?.name || "").trim(),
+    targetPurchaseId: String(options.targetPurchaseId || "").trim(),
+    targetSupplierName: String(options.targetSupplierName || "").trim(),
+  };
+  const productName = String(options.productName || product?.name || "").trim();
+  if (productName) {
+    state.purchaseSearchTerm = productName;
+    if (purchaseSearchInput) {
+      purchaseSearchInput.value = productName;
+    }
+  }
+  state.pagination.purchaseSuggestions = 1;
+  state.pagination.purchaseOrders = 1;
+  switchMenu("purchases");
+  renderAll();
+  focusPurchaseOrders();
+}
+
+function clearPurchaseConflictReview() {
+  state.purchaseConflictReview = {
+    productId: null,
+    productName: "",
+    targetPurchaseId: "",
+    targetSupplierName: "",
+  };
+  renderPurchaseOrders();
+}
+
 function renderSummary(summary) {
   getInventoryUi().renderSummary(summary);
 }
@@ -5655,6 +5692,9 @@ registerPurchasesControllerEvents({
     focusSupplierReturnSection,
     switchMenu,
     addSuggestionToPurchase,
+    openPurchaseConflictReview,
+    clearPurchaseConflictReview,
+    openPurchaseDocumentById,
     openSupplierReturnDraftFromPurchase,
     addSupplierReturnDraftItem,
     resetSupplierReturnDraft,
@@ -5680,6 +5720,7 @@ registerPurchasesControllerEvents({
     isUnsavedEmptyDraftPurchase,
     canMarkPurchasePaid,
     isRepairableInvalidPurchase,
+    getOpenPurchaseSupplierConflictInsight,
     getSkipNextPurchaseSupplierChangePersist: () => skipNextPurchaseSupplierChangePersist,
   },
   utils: {

@@ -169,8 +169,10 @@ Liên kết detail hiện có:
   - metadata phiếu nhập được bung/thu gọn bằng button `Detail` thay vì badge tĩnh để phần đầu phiếu gọn hơn
   - nếu phiếu nhập sinh ra từ một đơn đang thiếu hàng, phần metadata `Detail` phải hiện nguồn đơn thiếu riêng; không dùng ô ghi chú để nhét sẵn nội dung này
   - nếu shortage từ màn xuất hàng đã được cover bởi phiếu `draft/ordered` hiện có, màn nhập hàng chỉ mở lại phiếu liên quan khi user xác nhận; không tự tạo thêm phiếu trùng
+  - nếu khi chọn mặt hàng vào phiếu mà mặt hàng đó đang nằm ở phiếu `draft/ordered` của NCC khác, UI phải hiện cảnh báo và cho user chọn mở danh sách các phiếu liên quan để review; từ danh sách này user có thể mở từng phiếu để dồn lại về một NCC hoặc giữ nguyên hiện trạng
   - mỗi nhà cung cấp chỉ giữ tối đa 1 phiếu `draft`; nếu user chọn lại đúng NCC đã có nháp thì màn nhập hàng phải mở lại phiếu đó để nhập tiếp, còn nếu chọn NCC khác thì phải giữ nguyên phiếu cũ và mở nháp riêng cho NCC mới
   - khi phiếu `draft` chưa có NCC, thêm mặt hàng vào phiếu được phép tự chọn NCC nếu lịch sử nhập thực tế của mặt hàng chỉ có 1 NCC; nếu có nhiều NCC thì datalist của ô NCC phải ưu tiên NCC có tổng số lượng/số lần nhập mặt hàng đó cao hơn
+  - nếu sau khi review mà một mặt hàng vẫn còn đang nằm ở nhiều NCC mở khác nhau thì UI chỉ cần giữ cảnh báo ngắn cho user biết tình trạng hiện tại, không bắt buộc phải chặn tiếp
   - phiếu `draft` đang trống vẫn phải cho `Xóa phiếu` ngay trên UI dù chưa persist xuống DB
   - nút `Nhập kho` chỉ hiện khi phiếu đã ở trạng thái `Đã đặt`; phiếu `Nháp` vẫn còn chỉnh sửa được nhưng chưa cho nhập kho
   - khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `Nháp/Đã đặt`; user khác chỉ được tiếp tục `Nhập kho` với phiếu không phải batch đã `Đã đặt` trước lúc batch hiện tại bắt đầu, rồi đi tiếp `Đã thanh toán`

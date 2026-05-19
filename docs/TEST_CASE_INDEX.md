@@ -62,6 +62,7 @@ Mục tiêu:
 | 36 | `IT-PURSUP-04` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-04"` |
 | 37 | `IT-PURSUP-05` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-05"` |
 | 38 | `IT-PURSUP-06` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-06"` |
+| 39 | `IT-PURSUP-07` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-07"` |
 | 39 | `IT-MOB-01` | `tests/integration/mobile-floating-ui.spec.js` | `npx playwright test tests/integration/mobile-floating-ui.spec.js --grep "IT-MOB-01"` |
 | 40 | `IT-MOB-02` | `tests/integration/mobile-floating-ui.spec.js` | `npx playwright test tests/integration/mobile-floating-ui.spec.js --grep "IT-MOB-02"` |
 | 41 | `IT-NAV-01` | `tests/integration/detail-scroll.spec.js` | `npx playwright test tests/integration/detail-scroll.spec.js --grep "IT-NAV-01"` |

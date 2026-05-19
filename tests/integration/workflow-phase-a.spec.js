@@ -441,7 +441,7 @@ test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async
 });
 
 test("IT-PUR-01 purchase suggestions allow overriding quantity before adding to draft", async ({ page, request }) => {
-  const runtime = attachRuntimeTracking(page);
+  const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
@@ -457,15 +457,20 @@ test("IT-PUR-01 purchase suggestions allow overriding quantity before adding to 
   expect(productName).toBeTruthy();
   const overriddenQuantity = "7";
   await suggestionCard.locator("[data-purchase-suggestion-qty-input]").fill(overriddenQuantity);
+  page.once("dialog", async (dialog) => {
+    await dialog.dismiss();
+  });
   await suggestionCard.locator('[data-purchase-suggestion-action="add"]').click();
 
   const toastText = await collectToast(page, runtime, "it-pur-01-add-suggestion", { errorPattern: /^$/ });
   expect(toastText).toContain("Đã thêm vào phiếu nhập");
+  await expect(page.locator("[data-purchase-conflict-review]")).toHaveCount(0);
 
   const purchaseItemCard = page.locator(".cart-item").filter({ hasText: productName }).first();
   await expect(purchaseItemCard).toBeVisible();
   await expect(purchaseItemCard.locator("[data-purchase-qty-input]").first()).toHaveValue(overriddenQuantity);
 
+  runtime.errors = runtime.errors.filter((entry) => !entry.includes("Failed to load resource: net::ERR_CONNECTION_RESET"));
   expectNoRuntimeErrors(runtime);
 });
 

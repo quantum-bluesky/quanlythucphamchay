@@ -1,13 +1,13 @@
 {
-  "app_version": "3.5.8",
+  "app_version": "3.5.9",
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "13d5acbe1a60084fd8822c9bff4f96951b3e794a415237c96988a17d46b30129"
+      "sha256": "a4bbb4b8eb530bdb190b22b3ab3c97328aadf786bcd0c6ec9dda5f25aabc58b1"
     },
     "modules/app-state.js": {
       "counter": 1,
-      "sha256": "39ec9fef1975e504b57a6db3e8f3bb97a218dbae95c038531704fa4b8b7766ab"
+      "sha256": "e47f68c671d7c0d2dbdd1d31cec6cc1e3c30800e78311fe49c513e6c40965946"
     },
     "modules/controllers/core-controller.js": {
       "counter": 1,
@@ -27,7 +27,7 @@
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
-      "sha256": "7babc350aa50d344ffbb11153462b434452fa2038208184e8de3409c4851216c"
+      "sha256": "65b3ba2cb5eef4a998dda1897c07fc58fa2de188406a79bc6f23fedf103e1cfa"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
@@ -47,7 +47,7 @@
     },
     "modules/domain-helpers/purchases-domain.js": {
       "counter": 1,
-      "sha256": "6289650075361e4684be231d68b7259f545202389730dbcfe2826fa6fe0bf70f"
+      "sha256": "07ff2d936279ad6376b9602d5d73f9d8d7cb1e6eb837baa46ef7f1b349c66c84"
     },
     "modules/domain-helpers/sales-domain.js": {
       "counter": 1,
@@ -63,7 +63,7 @@
     },
     "modules/screen-config.js": {
       "counter": 1,
-      "sha256": "1e81445f0303792d1cd1f41c2de0179adb6f4401983bb1aec9cbe0ac5217e733"
+      "sha256": "65526de89a93a54813dd63f8afcc474b9b41b5d9caf511835f52c79eeff4d623"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -87,7 +87,7 @@
     },
     "modules/ui/purchases-ui.js": {
       "counter": 1,
-      "sha256": "52f82e1b43aaea643176aad78ebaf26854d2f2e6063070ed547382be6e24638e"
+      "sha256": "b862ddff75e2741d83797ee97d85c9a8c1a8708c04d47a78161284d553b84839"
     },
     "modules/ui/reports-admin-ui.js": {
       "counter": 1,
