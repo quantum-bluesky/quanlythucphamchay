@@ -258,8 +258,11 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
+  const extraProduct = productsPayload.products?.find((entry) => Number(entry.id) !== Number(product?.id));
   expect(product).toBeTruthy();
+  expect(extraProduct).toBeTruthy();
   const startingStock = Number(product.current_stock || 0);
+  const extraStartingStock = Number(extraProduct.current_stock || 0);
 
   const draftPurchase = {
     id: purchaseId,
@@ -315,16 +318,40 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
     await expect(qtyInput).toBeEnabled();
     await qtyInput.fill("2");
     await page.locator('[data-purchase-item-action="save"]').first().click();
+    await page.evaluate(() => {
+      window.confirm = () => false;
+    });
+    await page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${extraProduct.id}"]`).first().click();
 
+    await expect.poll(async () => {
+      const syncResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+      expect(syncResponse.ok()).toBeTruthy();
+      const syncPayload = await syncResponse.json();
+      const orderedPurchase = (syncPayload.purchases || []).find((entry) => entry.id === purchaseId);
+      return orderedPurchase?.items?.length || 0;
+    }).toBe(2);
+
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
     await page.locator('[data-purchase-action="receive"]').click();
-    const receiveToast = await collectToast(page, runtime, "acc-pur-03-receive", { errorPattern: /^$/ });
-    expect(receiveToast).toContain("Đã nhập hàng vào kho");
+    await expect.poll(async () => {
+      const syncResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+      expect(syncResponse.ok()).toBeTruthy();
+      const syncPayload = await syncResponse.json();
+      const receivedPurchase = (syncPayload.purchases || []).find((entry) => entry.id === purchaseId);
+      return String(receivedPurchase?.status || "");
+    }).toBe("received");
 
     await switchMenu(page, "inventory");
     await expectScreenTitle(page, "Kiểm tra tồn kho");
     await setFloatingSearch(page, product.name);
     const inventoryCard = page.locator(".product-row", { hasText: product.name }).first();
     await expect(inventoryCard.locator(".product-row-stock").first()).toContainText(expectedQuantityText(startingStock + 2));
+
+    await setFloatingSearch(page, extraProduct.name);
+    const extraInventoryCard = page.locator(".product-row", { hasText: extraProduct.name }).first();
+    await expect(extraInventoryCard.locator(".product-row-stock").first()).toContainText(expectedQuantityText(extraStartingStock + Number(extraProduct.low_stock_threshold || 1)));
   } finally {
     await request.put("/api/state", {
       headers: { Cookie: userCookie },

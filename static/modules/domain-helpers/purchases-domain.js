@@ -1017,7 +1017,16 @@ export function createPurchasesDomainHelpers(deps) {
     assertCanMutatePurchaseStructure();
     const product = getProductById(productId);
     if (!product) throw new Error("Không tìm thấy sản phẩm.");
-    const purchase = createPurchaseDraftIfMissing({
+    const activeEditableOrderedPurchase = (() => {
+      const activePurchase = getActivePurchase();
+      if (!activePurchase || String(activePurchase.status || "").trim() !== "ordered") {
+        return null;
+      }
+      return canEditPurchase(activePurchase)
+        ? (activatePurchaseState(activePurchase.id) || activePurchase)
+        : null;
+    })();
+    const purchase = activeEditableOrderedPurchase || createPurchaseDraftIfMissing({
       preferredSupplierName: Object.prototype.hasOwnProperty.call(options, "preferredSupplierName")
         ? options.preferredSupplierName
         : String(purchaseSupplierInput?.value || "").trim(),
