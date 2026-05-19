@@ -30,8 +30,8 @@
       "sha256": "6b18cb42cd722bc94de96e4fb007f295c0ccac7e6f83b465ce484e5dcaaad05f"
     },
     "modules/controllers/purchases-controller.js": {
-      "counter": 1,
-      "sha256": "877229963cab6ffb3d9d39820a10f9f46a71f4c47e03e2e6d32d9e8dd825b84c"
+      "counter": 2,
+      "sha256": "a642844a7978753125d33027032625e8bfbd58b8f4815c4841c40de2708a5c6c"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
