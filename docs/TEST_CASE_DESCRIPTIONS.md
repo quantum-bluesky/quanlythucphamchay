@@ -59,11 +59,14 @@ Lưu ý:
 | 38 | `IT-PURSUP-05` | Kiểm tra màn nhập hàng tự chọn NCC khi mặt hàng thêm vào phiếu chưa có NCC chỉ từng nhập từ một NCC. |
 | 39 | `IT-PURSUP-06` | Kiểm tra màn nhập hàng không tự điền NCC khi mặt hàng có nhiều NCC lịch sử, nhưng datalist NCC ưu tiên NCC có lịch sử nhập nhiều hơn. |
 | 40 | `IT-PURSUP-07` | Kiểm tra màn nhập hàng cảnh báo khi một mặt hàng đang nằm ở phiếu mở của NCC khác, mở được danh sách phiếu liên quan để review, và vẫn cho user giữ nguyên hiện trạng nếu muốn. |
-| 40 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
+| 41 | `IT-PURSUP-08` | Kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC, ghi chú, giảm giá và dòng hàng, nhưng reset `Mã lô`, `HSD` và `NSX` để nhập lại theo lô mới. |
+| 42 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
 | 41 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
 | 42 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |
 | 43 | `IT-ORD-01` | Kiểm tra màn đơn hàng hỗ trợ mở rộng chi tiết, đánh dấu đã thanh toán và mở lại giỏ nháp. |
-| 44 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
+| 44 | `IT-ORD-03` | Kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng. |
+| 45 | `IT-ORD-04` | Kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hiện hỏi có dồn thêm vào đơn nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đó thay vì tạo draft mới. |
+| 46 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
 | 45 | `IT-NAV-02` | Kiểm tra menu trên PC/tablet bung ra từ nút `Mở menu`, tự thu gọn khi rê chuột hoặc bấm ra ngoài, đồng thời giữ chiều rộng menu gọn. |
 | 46 | `IT-NAV-03` | Kiểm tra sau khi xoay giữa màn hình dọc và ngang thì vẫn bấm được các item trong menu nghiệp vụ để chuyển màn bình thường. |
 | 47 | `IT-NAV-04` | Kiểm tra trên Tablet touch thật vừa login xong vẫn tap được nút `Mở menu` và chuyển màn bằng item menu bình thường, không bị header menu chặn touch. |

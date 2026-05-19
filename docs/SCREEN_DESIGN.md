@@ -114,6 +114,7 @@ Liên kết detail hiện có:
   - khi đi từ màn `customers`, list có thể tự lọc đúng theo `customerId`; nếu chỉ còn 1 phiếu phù hợp thì detail của phiếu đó phải tự mở kể cả với đơn `Đã xuất hàng` hoặc `Đã thanh toán`
   - card đơn `committed` có thể hiện thêm input `Địa chỉ giao` và `Giảm giá khuyến mại` trong detail
   - card đơn `completed` chưa thanh toán chỉ còn hiện input `Giảm giá khuyến mại` trong detail
+  - card đơn `completed` hoặc `paid` có action `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và danh sách dòng hàng của phiếu đã chọn; nếu khách đã có đơn `draft` thì UI phải hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
   - trên mobile, `Chốt đơn`, `Xuất hàng` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
   - các nút đổi trạng thái hoặc xóa phiếu như `Chốt đơn`, `Xuất hàng`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
   - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết các case thiếu hàng sẽ được xử lý tập trung ở planner batch
@@ -182,6 +183,8 @@ Liên kết detail hiện có:
   - khi phiếu còn `Nháp`, bấm nút `NCC` từ một phiếu đã có NCC vẫn phải cho sang danh sách NCC để đổi sang NCC khác, không được kẹt ở chế độ sửa NCC hiện tại
   - nếu bỏ trống `Mã lô`, app tự sinh batch code khi nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` để FEFO vẫn có mốc hạn
   - sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, chỉ cho sửa `Giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; không mở khóa lại số lượng, giá, mã lô, NCC hay cấu trúc dòng nhập
+  - phiếu `received/paid` có action `Nhập lại` để tạo nhanh phiếu nháp mới với cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đó đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có thay vì tạo draft thứ hai
+  - khi `Nhập lại`, metadata theo lô như `Mã lô`, `Hạn dùng`, `Ngày sản xuất` phải được reset về trống để user nhập lại theo lô hàng mới
   - các nút đổi trạng thái hoặc xóa phiếu như `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu`, `Xóa phiếu` phải hiện message confirm trước khi app cập nhật
 - tài liệu detail:
   - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)

@@ -374,6 +374,117 @@ test("IT-PURSUP-04 empty purchase draft can be deleted and supplier button can s
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-PURSUP-08 purchases can repeat a received purchase into a new draft with cleared lot metadata", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const supplierName = `NCC lap NH ${timestamp}`;
+  const purchaseId = `purchase_repeat_${timestamp}`;
+  const discountAmount = 6000;
+  const now = new Date().toISOString();
+  const originalState = await fetchSyncState(request, userCookie);
+  const products = await fetchProducts(request, userCookie);
+  const product = products[0];
+  expect(product).toBeTruthy();
+
+  const receivedPurchase = {
+    id: purchaseId,
+    supplierName,
+    note: "Nhập lại từ phiếu cũ",
+    status: "received",
+    discountAmount,
+    createdAt: now,
+    updatedAt: now,
+    receivedAt: now,
+    receiptCode: `PN-REPEAT-${timestamp}`,
+    items: [
+      {
+        id: `purchase_repeat_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 3,
+        unitCost: Number(product.price || 0) || 1000,
+        batchCode: `LO-${timestamp}`,
+        expiryInputMode: "direct",
+        expiryDate: "2026-12-31",
+        manufactureDate: "",
+      },
+    ],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: [receivedPurchase, ...(originalState.purchases || [])],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+    await setFloatingSearch(page, supplierName);
+
+    const purchaseCard = page.locator(".cart-queue-item", { hasText: supplierName }).first();
+    await expect(purchaseCard).toBeVisible();
+    await purchaseCard.locator('[data-purchase-list-action="repeat"]').click();
+
+    const repeatToast = await collectToast(page, runtime, "it-pursup-08-repeat-purchase", { errorPattern: /^$/ });
+    expect(repeatToast).toContain("Đã tạo phiếu nhập nháp mới");
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierName);
+    await expect(page.locator("#purchaseNoteInput")).toHaveValue(receivedPurchase.note);
+    await expect(page.locator('[data-purchase-discount-input]')).toHaveValue(String(discountAmount));
+    await expect(page.locator('[data-purchase-qty-input]').first()).toHaveValue("3");
+    await expect(page.locator('[data-purchase-cost-input]').first()).toHaveValue(String(Number(receivedPurchase.items[0].unitCost)));
+    await expect(page.locator('[data-purchase-batch-input]').first()).toHaveValue("");
+    await expect(page.locator('[data-purchase-expiry-input]').first()).toHaveValue("");
+    await expect(page.locator('[data-purchase-manufacture-input]').first()).toHaveValue("");
+
+    const latestState = await fetchSyncState(request, userCookie);
+    const repeatedDrafts = (latestState.purchases || []).filter((purchase) =>
+      purchase.id !== purchaseId &&
+      purchase.status === "draft" &&
+      purchase.supplierName === supplierName
+    );
+    expect(repeatedDrafts).toHaveLength(1);
+    const repeatedDraft = repeatedDrafts[0];
+    expect(String(repeatedDraft.receiptCode || repeatedDraft.receipt_code || "")).toBe("");
+    expect(String(repeatedDraft.sourceType || repeatedDraft.source_type || "")).toBe("");
+    expect(String(repeatedDraft.sourceCode || repeatedDraft.source_code || "")).toBe("");
+    expect(String(repeatedDraft.sourceName || repeatedDraft.source_name || "")).toBe("");
+    expect(String(repeatedDraft.note || "")).toBe(receivedPurchase.note);
+    expect(Number(repeatedDraft.discountAmount || repeatedDraft.discount_amount || 0)).toBe(discountAmount);
+    expect(repeatedDraft.items || []).toHaveLength(1);
+    expect(Number(repeatedDraft.items[0].productId)).toBe(Number(product.id));
+    expect(Number(repeatedDraft.items[0].quantity)).toBe(3);
+    expect(Number(repeatedDraft.items[0].unitCost || repeatedDraft.items[0].unit_cost || 0)).toBe(Number(receivedPurchase.items[0].unitCost));
+    expect(String(repeatedDraft.items[0].batchCode || repeatedDraft.items[0].batch_code || "")).toBe("");
+    expect(String(repeatedDraft.items[0].expiryDate || repeatedDraft.items[0].expiry_date || "")).toBe("");
+    expect(String(repeatedDraft.items[0].manufactureDate || repeatedDraft.items[0].manufacture_date || "")).toBe("");
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical supplier", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const timestamp = Date.now();
