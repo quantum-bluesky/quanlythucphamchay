@@ -100,7 +100,7 @@ Nếu cần can thiệp đặc biệt
 
 - màn `orders`
 - chỉ xem/in/thanh toán/hủy theo rule
-- từ đơn `completed/paid`, có thể bấm `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng của phiếu đã chọn
+- từ đơn `completed/paid`, có thể bấm `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng của phiếu đã chọn; nếu khách đã có đơn `draft` thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có để giảm số lần gửi hàng hay tạo nháp mới riêng
 - nếu đi từ màn `customers`, app có thể lọc danh sách đơn đúng theo khách; nếu khách chỉ có 1 phiếu thì mở sẵn detail để xem ngay kể cả với đơn đã `completed/paid`
 - đơn `draft` có nút `Chốt đơn`, đơn `committed` có nút `Xuất hàng`
 - đơn `committed` vẫn cho sửa dòng hàng, địa chỉ giao và giảm giá; không đổi được khách, không được xóa

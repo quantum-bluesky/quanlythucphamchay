@@ -201,7 +201,7 @@ Lưu ý:
 - một khách có thể có nhiều đơn `Chốt đơn`; khi mở đơn mới cho khách mà khách chưa có đơn nháp nhưng đang có đơn đã chốt, app sẽ hiện khối chọn để `Mở đơn đã chốt` hoặc `Tạo đơn mới`
 - đơn đã `Chốt đơn` không đổi được khách hàng và không được xóa, nhưng vẫn hủy được nếu khách không lấy nữa
 - đơn đã `Đã xuất hàng` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao
-- nếu khách cần mua lại gần giống một đơn cũ, bấm `Xuất lại`; app sẽ tạo một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng của phiếu đã chọn
+- nếu khách cần mua lại gần giống một đơn cũ, bấm `Xuất lại`; app sẽ tạo một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng của phiếu đã chọn. Nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
 - trước khi `Đã thanh toán`, vẫn được sửa riêng `Giảm giá khuyến mại` của cả đơn; riêng địa chỉ giao chỉ được sửa tới trước `Đã xuất hàng`
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
 - kể cả `Master Admin` cũng không được xóa hoặc hủy ngược đơn đã chốt

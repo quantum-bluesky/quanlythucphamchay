@@ -2657,8 +2657,12 @@ function updatePurchase(purchaseId, updater) {
   return getPurchasesDomainHelpers().updatePurchase(purchaseId, updater);
 }
 
-function repeatCompletedCart(cartId) {
-  return getSalesDomainHelpers().repeatCompletedCart(cartId);
+function repeatCompletedCart(cartId, options = {}) {
+  return getSalesDomainHelpers().repeatCompletedCart(cartId, options);
+}
+
+function findDraftCartForCustomer(cart) {
+  return getSalesDomainHelpers().findDraftCartForCustomer(cart);
 }
 
 function getDraftDemandByProductId() {
@@ -5548,6 +5552,7 @@ registerSalesControllerEvents({
     updateCartItem,
     removeCartItem,
     repeatCompletedCart,
+    findDraftCartForCustomer,
     setActiveCart,
     createNewDraftForPendingMergeCustomer,
     clearPendingCartMergePrompt,

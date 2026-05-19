@@ -270,6 +270,7 @@ Case mới cho Phase A:
 - `IT-PURSUP-07`: kiểm tra cảnh báo khi một mặt hàng đang nằm ở phiếu mở của NCC khác, cho mở danh sách phiếu liên quan để review và vẫn giữ được hiện trạng nếu user muốn
 - `IT-PURSUP-08`: kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC/nội dung nhưng reset `Mã lô` / `HSD` / `NSX`
 - `IT-ORD-03`: kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được đơn nháp mới cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng
+- `IT-ORD-04`: kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hỏi có dồn thêm vào nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đang có
 - `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp rồi mới chuyển sang `received`
 - `UT-DB-12`: backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `draft/ordered`, và chặn xóa trực tiếp phiếu `ordered`
 - `UT-DB-16`: backend tự tính HSD của phiếu nhập theo `ngày nhập kho + thời gian bảo quản` hoặc `ngày sản xuất + thời gian bảo quản`

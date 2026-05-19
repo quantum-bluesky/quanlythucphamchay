@@ -302,7 +302,12 @@ export function createSalesDomainHelpers(deps) {
   function findDraftCartForCustomer(sourceCart) {
     const customerId = String(sourceCart?.customerId || "").trim();
     if (customerId) {
-      return state.carts.find((cart) => cart.status === "draft" && String(cart.customerId || "").trim() === customerId) || null;
+      const exactCustomerDraft = state.carts.find(
+        (cart) => cart.status === "draft" && String(cart.customerId || "").trim() === customerId
+      ) || null;
+      if (exactCustomerDraft) {
+        return exactCustomerDraft;
+      }
     }
     const customerNameKey = normalizeText(String(sourceCart?.customerName || "").trim());
     if (!customerNameKey) {

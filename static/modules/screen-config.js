@@ -74,7 +74,7 @@ export const SCREEN_HELP = {
       "Nút `Detail` trên card đơn dùng để bung nhanh metadata và danh sách dòng hàng của phiếu mà không cần mở sang chỗ chỉnh sửa.",
       "Đơn `Chốt đơn` vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá khuyến mại, nhưng không đổi được khách hàng và không được xóa.",
       "Đơn `Đã xuất hàng` không còn cho sửa trực tiếp mặt hàng, số lượng, địa chỉ giao hay giá; trước thanh toán chỉ còn được sửa `Giảm giá khuyến mại` của toàn đơn.",
-      "Nếu khách cần mua lại gần giống một đơn đã `Đã xuất hàng`, bấm `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và các dòng hàng của phiếu đã chọn.",
+      "Nếu khách cần mua lại gần giống một đơn đã `Đã xuất hàng`, bấm `Xuất lại`; app sẽ tạo nhanh đơn nháp mới cùng khách, địa chỉ giao, giảm giá và các dòng hàng. Nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay không để giảm số lần gửi hàng.",
       "Nếu kỳ gom nhập đang active lock, màn này sẽ hiện cảnh báo lock batch và các trường hợp thiếu hàng sẽ được điều hướng sang `Xử lý nhập thiếu` để xử lý tập trung.",
       "Nếu phát hiện sai sau khi đã `Đã xuất hàng`, bấm Trả hàng trên đúng đơn để tạo sẵn phiếu trả khách, hoặc mở khối Phiếu trả hàng khách để nhập tay từng dòng độc lập.",
       "Master Admin cũng không được xóa hoặc hủy ngược đơn đã xuất; các đơn đó phải được điều chỉnh bằng phiếu mới để giữ audit.",

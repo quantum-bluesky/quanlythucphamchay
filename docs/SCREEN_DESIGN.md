@@ -114,7 +114,7 @@ Liên kết detail hiện có:
   - khi đi từ màn `customers`, list có thể tự lọc đúng theo `customerId`; nếu chỉ còn 1 phiếu phù hợp thì detail của phiếu đó phải tự mở kể cả với đơn `Đã xuất hàng` hoặc `Đã thanh toán`
   - card đơn `committed` có thể hiện thêm input `Địa chỉ giao` và `Giảm giá khuyến mại` trong detail
   - card đơn `completed` chưa thanh toán chỉ còn hiện input `Giảm giá khuyến mại` trong detail
-  - card đơn `completed` hoặc `paid` có action `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và danh sách dòng hàng của phiếu đã chọn
+  - card đơn `completed` hoặc `paid` có action `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và danh sách dòng hàng của phiếu đã chọn; nếu khách đã có đơn `draft` thì UI phải hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
   - trên mobile, `Chốt đơn`, `Xuất hàng` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
   - các nút đổi trạng thái hoặc xóa phiếu như `Chốt đơn`, `Xuất hàng`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
   - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết các case thiếu hàng sẽ được xử lý tập trung ở planner batch

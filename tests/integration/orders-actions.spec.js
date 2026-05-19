@@ -358,3 +358,152 @@ test("IT-ORD-03 orders screen can repeat a completed order into a new draft cart
 
   expectNoRuntimeErrors(runtime);
 });
+
+test("IT-ORD-04 orders screen asks to merge repeat items into an existing draft cart of the same customer", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const customerId = `customer_repeat_merge_${timestamp}`;
+  const customerName = `Khách dồn nháp ${timestamp}`;
+  const completedCartId = `order_repeat_merge_source_${timestamp}`;
+  const draftCartId = `order_repeat_merge_target_${timestamp}`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const firstProduct = productsPayload.products?.[0];
+  expect(firstProduct).toBeTruthy();
+
+  const completedCart = {
+    id: completedCartId,
+    customerId,
+    customerName,
+    status: "completed",
+    paymentStatus: "unpaid",
+    discountAmount: 5000,
+    shipAddress: `Địa chỉ completed ${timestamp}`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+    orderCode: `DH-REPEAT-MERGE-${timestamp}`,
+    items: [
+      {
+        id: `order_repeat_merge_item_source_${timestamp}`,
+        productId: firstProduct.id,
+        productName: firstProduct.name,
+        unit: firstProduct.unit,
+        quantity: 2,
+        unitPrice: Number(firstProduct.sale_price || firstProduct.price || 0) || 1000,
+        note: "",
+      },
+    ],
+  };
+
+  const existingDraftCart = {
+    id: draftCartId,
+    customerId,
+    customerName,
+    status: "draft",
+    paymentStatus: "unpaid",
+    discountAmount: 2000,
+    shipAddress: `Địa chỉ draft ${timestamp}`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    orderCode: "",
+    items: [
+      {
+        id: `order_repeat_merge_item_target_${timestamp}`,
+        productId: firstProduct.id,
+        productName: firstProduct.name,
+        unit: firstProduct.unit,
+        quantity: 1,
+        unitPrice: Number(firstProduct.sale_price || firstProduct.price || 0) || 1000,
+        note: "",
+      },
+    ],
+  };
+  const customer = {
+    id: customerId,
+    name: customerName,
+    phone: "",
+    address: existingDraftCart.shipAddress,
+    zaloUrl: "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: [...(originalState.customers || []), customer],
+        carts: [existingDraftCart, completedCart, ...(originalState.carts || [])],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "orders");
+    await expectScreenTitle(page, "Đơn hàng");
+    await page.locator("#showArchivedCarts").check();
+    await page.waitForTimeout(300);
+    await setFloatingSearch(page, customerName);
+
+    const completedOrderCard = page.locator(".cart-queue-item", { hasText: completedCart.orderCode }).first();
+    await expect(completedOrderCard).toBeVisible();
+    page.once("dialog", async (dialog) => {
+      expect(dialog.message()).toContain("đang có một đơn nháp");
+      await dialog.accept();
+    });
+    const inlineRepeatButton = completedOrderCard.locator('[data-queue-action="repeat"]').first();
+    if (await inlineRepeatButton.count()) {
+      await inlineRepeatButton.click();
+    } else {
+      await completedOrderCard.locator('[data-queue-action="toggle-detail"]').click();
+      await completedOrderCard.locator('[data-queue-action="repeat"]').click();
+    }
+
+    const repeatToast = await collectToast(page, runtime, "it-ord-04-repeat-order-merge", { errorPattern: /^$/ });
+    expect(repeatToast).toContain("Đã dồn thêm vào đơn nháp hiện có");
+    await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    await expect(page.locator("#customerLookupInput")).toHaveValue(customerName);
+
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(latestStateResponse.ok()).toBeTruthy();
+    const latestState = await latestStateResponse.json();
+    const repeatedDrafts = (latestState.carts || []).filter((cart) =>
+      cart.status === "draft" &&
+      cart.customerName === customerName
+    );
+    expect(repeatedDrafts).toHaveLength(1);
+    const mergedDraft = repeatedDrafts[0];
+    expect(mergedDraft.id).toBe(draftCartId);
+    expect(String(mergedDraft.shipAddress || mergedDraft.ship_address || "")).toBe(existingDraftCart.shipAddress);
+    expect(Number(mergedDraft.discountAmount || mergedDraft.discount_amount || 0)).toBe(2000);
+    expect(mergedDraft.items || []).toHaveLength(1);
+    expect(Number(mergedDraft.items[0].quantity)).toBe(3);
+
+    const unchangedCompletedCart = (latestState.carts || []).find((cart) => cart.id === completedCartId);
+    expect(unchangedCompletedCart).toBeTruthy();
+    expect(unchangedCompletedCart.status).toBe("completed");
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});

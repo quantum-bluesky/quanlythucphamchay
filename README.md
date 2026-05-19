@@ -132,7 +132,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Sau khi tạo phiếu batch, có màn review detail với nút `Trước / Sau` để chỉnh nhanh các phiếu vừa tạo rồi quay lại planner refresh trạng thái
 - Quyền xử lý kỳ gom nhập có thể cấp cho `Master Admin`, user có permission `procurement_batch_manage`, hoặc username nằm trong config `procurement.planner_manager_usernames`
 - Nút `Detail` ở `Giỏ hiện hành` và `Đơn hàng` cho phép bung nhanh metadata phiếu xuất và danh sách dòng hàng mà không phải mở sang chỗ chỉnh sửa
-- Từ màn `Đơn hàng`, có thể bấm `Xuất lại` trên đơn đã `Đã xuất hàng` hoặc `Đã thanh toán` để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và các dòng hàng
+- Từ màn `Đơn hàng`, có thể bấm `Xuất lại` trên đơn đã `Đã xuất hàng` hoặc `Đã thanh toán` để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và các dòng hàng; nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay không
 - Từ màn Khách hàng có thể bấm badge `đơn chờ` / `đơn` để mở danh sách phiếu của đúng khách; nếu khách chỉ có 1 phiếu thì màn Đơn hàng sẽ tự mở detail kể cả với đơn đã xuất hàng hoặc đã thanh toán
 - Màn `Đơn hàng` mặc định ẩn đơn đã hủy; khi cần đối chiếu lịch sử có thể bật checkbox `Hiện đơn đã hủy`
 - Đơn `Chốt đơn` khóa khách hàng nhưng vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới trước `Đã xuất hàng`; sau `Đã xuất hàng` chỉ còn được sửa `giảm giá khuyến mại` trước thanh toán
