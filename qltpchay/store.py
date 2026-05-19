@@ -160,6 +160,22 @@ class InventoryStore:
                 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity
                 ON audit_logs(entity_type, created_at DESC);
 
+                CREATE TABLE IF NOT EXISTS bulk_order_batches (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    request_id TEXT NOT NULL UNIQUE,
+                    mode TEXT NOT NULL,
+                    actor TEXT NOT NULL DEFAULT '',
+                    total_orders INTEGER NOT NULL DEFAULT 0,
+                    success_count INTEGER NOT NULL DEFAULT 0,
+                    failed_count INTEGER NOT NULL DEFAULT 0,
+                    request_payload TEXT NOT NULL DEFAULT '{}',
+                    response_payload TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_bulk_order_batches_created_at
+                ON bulk_order_batches(created_at DESC);
+
                 CREATE TABLE IF NOT EXISTS customers (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -1248,6 +1264,189 @@ class InventoryStore:
             "unit_price": round(float(row["unit_price"] or 0), 2),
             "note": row["note"] or "",
         }
+
+    def _find_active_customer_by_name(
+        self,
+        connection: sqlite3.Connection,
+        customer_name: str,
+    ) -> dict | None:
+        clean_customer_name = str(customer_name or "").strip()
+        if not clean_customer_name:
+            return None
+        row = connection.execute(
+            """
+            SELECT id, name, phone, address, zalo_url, created_at, updated_at, deleted_at
+            FROM customers
+            WHERE deleted_at IS NULL
+              AND name = ? COLLATE NOCASE
+            ORDER BY datetime(updated_at) DESC, id
+            LIMIT 1
+            """,
+            (clean_customer_name,),
+        ).fetchone()
+        return self._serialize_customer_row(row) if row else None
+
+    def _ensure_customer_for_bulk_order(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        customer_id: str = "",
+        customer_name: str = "",
+        created_at: str,
+    ) -> dict:
+        clean_customer_id = str(customer_id or "").strip()
+        clean_customer_name = str(customer_name or "").strip()
+        if clean_customer_id:
+            row = connection.execute(
+                """
+                SELECT id, name, phone, address, zalo_url, created_at, updated_at, deleted_at
+                FROM customers
+                WHERE id = ?
+                  AND deleted_at IS NULL
+                """,
+                (clean_customer_id,),
+            ).fetchone()
+            if row:
+                return self._serialize_customer_row(row)
+        existing_customer = self._find_active_customer_by_name(connection, clean_customer_name)
+        if existing_customer:
+            return existing_customer
+        if not clean_customer_name:
+            raise ValueError("Khách hàng là bắt buộc.")
+        resolved_customer_id = clean_customer_id or f"customer_{secrets.token_hex(6)}"
+        connection.execute(
+            """
+            INSERT INTO customers(id, name, phone, address, zalo_url, created_at, updated_at, deleted_at)
+            VALUES(?, ?, '', '', '', ?, ?, NULL)
+            """,
+            (
+                resolved_customer_id,
+                clean_customer_name,
+                created_at,
+                created_at,
+            ),
+        )
+        return {
+            "id": resolved_customer_id,
+            "name": clean_customer_name,
+            "phone": "",
+            "address": "",
+            "zaloUrl": "",
+            "zalo_url": "",
+            "createdAt": created_at,
+            "updatedAt": created_at,
+            "deletedAt": None,
+            "deleted_at": None,
+        }
+
+    def _get_existing_draft_cart_for_customer(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        customer_id: str = "",
+        customer_name: str = "",
+    ) -> dict | None:
+        clean_customer_id = str(customer_id or "").strip()
+        clean_customer_name = str(customer_name or "").strip()
+        row = None
+        if clean_customer_id:
+            row = connection.execute(
+                """
+                SELECT id
+                FROM carts
+                WHERE status = 'draft'
+                  AND customer_id = ?
+                ORDER BY datetime(updated_at) DESC, id
+                LIMIT 1
+                """,
+                (clean_customer_id,),
+            ).fetchone()
+        if not row and clean_customer_name:
+            row = connection.execute(
+                """
+                SELECT id
+                FROM carts
+                WHERE status = 'draft'
+                  AND customer_name = ? COLLATE NOCASE
+                ORDER BY datetime(updated_at) DESC, id
+                LIMIT 1
+                """,
+                (clean_customer_name,),
+            ).fetchone()
+        if not row:
+            return None
+        return self._get_cart_document(connection, str(row["id"]))
+
+    def _build_cart_items_from_grouped_sale_items(
+        self,
+        connection: sqlite3.Connection,
+        grouped_items: dict[int, dict],
+    ) -> list[dict]:
+        cart_items: list[dict] = []
+        for product_id, grouped_item in grouped_items.items():
+            product = self._get_product_or_raise(connection, product_id)
+            cart_items.append(
+                {
+                    "id": f"cart_item_{secrets.token_hex(6)}",
+                    "productId": int(product_id),
+                    "product_id": int(product_id),
+                    "productName": str(product["name"] or "").strip(),
+                    "product_name": str(product["name"] or "").strip(),
+                    "quantity": round(float(grouped_item["quantity"]), 2),
+                    "unitPrice": round(float(grouped_item["unit_price"]), 2),
+                    "unit_price": round(float(grouped_item["unit_price"]), 2),
+                    "note": str(grouped_item.get("note") or "").strip(),
+                }
+            )
+        return cart_items
+
+    def _replace_cart_items(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        cart_id: str,
+        items: list[dict],
+    ) -> None:
+        connection.execute("DELETE FROM cart_items WHERE cart_id = ?", (str(cart_id),))
+        for index, item in enumerate(items):
+            connection.execute(
+                """
+                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
+                    str(cart_id),
+                    int(item.get("productId") or item.get("product_id") or 0),
+                    str(item.get("productName") or item.get("product_name") or "").strip(),
+                    float(item.get("quantity") or 0),
+                    float(item.get("unitPrice") or item.get("unit_price") or 0),
+                    str(item.get("note") or "").strip(),
+                    index,
+                ),
+            )
+
+    def _merge_grouped_sale_items(
+        self,
+        existing_items: list[dict],
+        incoming_grouped_items: dict[int, dict],
+    ) -> dict[int, dict]:
+        merged_items = self._group_sale_items(existing_items or [])
+        for product_id, incoming_item in incoming_grouped_items.items():
+            existing_item = merged_items.get(product_id)
+            if existing_item:
+                existing_item["quantity"] += incoming_item["quantity"]
+                existing_item["unit_price"] = incoming_item["unit_price"]
+                if incoming_item.get("note"):
+                    existing_item["note"] = incoming_item["note"]
+                continue
+            merged_items[product_id] = {
+                "product_id": incoming_item["product_id"],
+                "quantity": incoming_item["quantity"],
+                "unit_price": incoming_item["unit_price"],
+                "note": incoming_item.get("note") or "",
+            }
+        return merged_items
 
     def _serialize_purchase_item_row(self, row: sqlite3.Row) -> dict:
         return {
@@ -3101,6 +3300,213 @@ class InventoryStore:
             "items": [self._serialize_cart_item_row(item_row) for item_row in item_rows],
         }
 
+    @staticmethod
+    def _format_bulk_quantity(value: float) -> str:
+        return f"{float(value):g}"
+
+    def _collect_committed_availability_shortages(
+        self,
+        connection: sqlite3.Connection,
+        grouped_items: dict[int, dict],
+        *,
+        exclude_cart_id: str = "",
+    ) -> list[dict]:
+        shortages: list[dict] = []
+        for product_id, item in grouped_items.items():
+            product = self._get_product_or_raise(connection, product_id)
+            current_stock = self._get_stock_for_product(connection, product_id)
+            reserved_quantity = self._get_reserved_quantity_for_committed_orders(
+                connection,
+                product_id,
+                exclude_cart_id=exclude_cart_id,
+            )
+            ordered_incoming_quantity = self._get_ordered_incoming_quantity_for_product(
+                connection,
+                product_id,
+            )
+            available_quantity = max(
+                Decimal("0"),
+                current_stock + ordered_incoming_quantity - reserved_quantity,
+            )
+            if item["quantity"] <= available_quantity:
+                continue
+            shortages.append(
+                {
+                    "product_id": int(product_id),
+                    "product_name": str(product["name"] or "").strip(),
+                    "required_quantity": round(float(item["quantity"]), 2),
+                    "available_quantity": round(float(available_quantity), 2),
+                    "shortage_quantity": round(float(item["quantity"] - available_quantity), 2),
+                    "current_stock": round(float(current_stock), 2),
+                    "reserved_quantity": round(float(reserved_quantity), 2),
+                    "ordered_incoming_quantity": round(float(ordered_incoming_quantity), 2),
+                    "message": (
+                        f"Thiếu {str(product['name'] or '').strip()}: "
+                        f"cần {self._format_bulk_quantity(float(item['quantity']))}, "
+                        f"còn {self._format_bulk_quantity(float(available_quantity))}"
+                    ),
+                }
+            )
+        return shortages
+
+    def _commit_cart_order_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        cart_id: str,
+        *,
+        actor: str = "",
+        committed_at: str,
+    ) -> dict:
+        clean_cart_id = str(cart_id or "").strip()
+        cart = self._get_cart_document(connection, clean_cart_id)
+        previous_status = str(cart.get("status") or "draft")
+        if previous_status != "draft":
+            raise ValueError("Chỉ đơn nháp mới được chốt đơn.")
+        if not cart.get("items"):
+            raise ValueError("Giỏ hàng đang trống.")
+        clean_customer_name = str(cart.get("customerName") or "").strip()
+        if not clean_customer_name:
+            raise ValueError("Khách hàng là bắt buộc.")
+
+        grouped_items = self._group_sale_items(cart.get("items") or [])
+        shortages = self._collect_committed_availability_shortages(
+            connection,
+            grouped_items,
+            exclude_cart_id=clean_cart_id,
+        )
+        if shortages:
+            raise ValueError(shortages[0]["message"])
+
+        order_code = str(cart.get("orderCode") or "").strip() or self._build_order_code(clean_customer_name, committed_at)
+        connection.execute(
+            """
+            UPDATE carts
+            SET status = 'committed',
+                payment_status = 'unpaid',
+                updated_at = ?,
+                committed_at = ?,
+                order_code = ?
+            WHERE id = ?
+            """,
+            (committed_at, committed_at, order_code, clean_cart_id),
+        )
+        self._record_audit(
+            connection,
+            entity_type="cart",
+            entity_id=clean_cart_id,
+            entity_name=order_code or clean_cart_id,
+            action="status-change",
+            actor=actor,
+            message="Trạng thái đơn đổi từ draft sang committed.",
+        )
+        return self._get_cart_document(connection, clean_cart_id)
+
+    def _create_or_merge_bulk_order_draft(
+        self,
+        connection: sqlite3.Connection,
+        raw_order: dict,
+        *,
+        created_at: str,
+    ) -> dict:
+        resolved_customer = self._ensure_customer_for_bulk_order(
+            connection,
+            customer_id=str(raw_order.get("customer_id") or raw_order.get("customerId") or "").strip(),
+            customer_name=str(raw_order.get("customer_name") or raw_order.get("customerName") or "").strip(),
+            created_at=created_at,
+        )
+        grouped_items = self._group_sale_items(raw_order.get("items") or [])
+        if not grouped_items:
+            raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
+        merge_strategy = str(raw_order.get("merge_strategy") or raw_order.get("mergeStrategy") or "merge_existing_draft").strip() or "merge_existing_draft"
+        clean_ship_address = str(raw_order.get("ship_address") or raw_order.get("shipAddress") or "").strip() or str(resolved_customer.get("address") or "").strip()
+        subtotal = sum(
+            item["quantity"] * item["unit_price"]
+            for item in grouped_items.values()
+        )
+        validated_discount_amount = self._validate_discount_amount(
+            raw_order.get("discount_amount", raw_order.get("discountAmount", 0)),
+            subtotal,
+            "Giảm giá khuyến mại phiếu xuất",
+        )
+        existing_draft = None
+        if merge_strategy != "create_new_draft":
+            existing_draft = self._get_existing_draft_cart_for_customer(
+                connection,
+                customer_id=str(resolved_customer.get("id") or "").strip(),
+                customer_name=str(resolved_customer.get("name") or "").strip(),
+            )
+        if existing_draft:
+            merged_grouped_items = self._merge_grouped_sale_items(
+                existing_draft.get("items") or [],
+                grouped_items,
+            )
+            merged_items = self._build_cart_items_from_grouped_sale_items(
+                connection,
+                merged_grouped_items,
+            )
+            current_discount = self._get_cart_discount_amount(existing_draft)
+            next_discount = validated_discount_amount if validated_discount_amount > 0 else current_discount
+            connection.execute(
+                """
+                UPDATE carts
+                SET customer_id = ?,
+                    customer_name = ?,
+                    discount_amount = ?,
+                    ship_address = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    str(resolved_customer.get("id") or "").strip(),
+                    str(resolved_customer.get("name") or "").strip(),
+                    next_discount,
+                    clean_ship_address or self._get_cart_ship_address(existing_draft),
+                    created_at,
+                    str(existing_draft.get("id") or "").strip(),
+                ),
+            )
+            self._replace_cart_items(
+                connection,
+                cart_id=str(existing_draft.get("id") or "").strip(),
+                items=merged_items,
+            )
+            return {
+                "cart": self._get_cart_document(connection, str(existing_draft.get("id") or "").strip()),
+                "reused_existing_draft": True,
+                "customer": resolved_customer,
+            }
+
+        cart_id = f"cart_{secrets.token_hex(6)}"
+        cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
+        connection.execute(
+            """
+            INSERT INTO carts(
+                id, customer_id, customer_name, status, payment_status, discount_amount, ship_address,
+                created_at, updated_at, committed_at, completed_at, cancelled_at, paid_at, order_code
+            )
+            VALUES(?, ?, ?, 'draft', 'unpaid', ?, ?, ?, ?, NULL, NULL, NULL, NULL, '')
+            """,
+            (
+                cart_id,
+                str(resolved_customer.get("id") or "").strip(),
+                str(resolved_customer.get("name") or "").strip(),
+                validated_discount_amount,
+                clean_ship_address,
+                created_at,
+                created_at,
+            ),
+        )
+        self._replace_cart_items(
+            connection,
+            cart_id=cart_id,
+            items=cart_items,
+        )
+        return {
+            "cart": self._get_cart_document(connection, cart_id),
+            "reused_existing_draft": False,
+            "customer": resolved_customer,
+        }
+
     def create_checkout_order(
         self,
         customer_name: str,
@@ -3145,6 +3551,213 @@ class InventoryStore:
             "discount_amount": sale_result["discount_amount"],
             "total_amount": sale_result["total_amount"],
         }
+
+    def bulk_create_orders(
+        self,
+        *,
+        mode: str,
+        request_id: str,
+        orders: list[dict],
+        actor: str = "",
+    ) -> dict:
+        clean_mode = str(mode or "").strip()
+        clean_request_id = str(request_id or "").strip()
+        clean_actor = str(actor or "").strip()
+        if clean_mode not in {"draft", "commit_valid"}:
+            raise ValueError("Mode tạo nhiều đơn không hợp lệ.")
+        if not clean_request_id:
+            raise ValueError("Thiếu request_id.")
+        if not isinstance(orders, list) or not orders:
+            raise ValueError("Danh sách đơn hàng đang trống.")
+
+        now = utc_now_iso()
+        request_payload = {
+            "mode": clean_mode,
+            "request_id": clean_request_id,
+            "orders": orders,
+        }
+
+        with self._connect() as connection:
+            existing_batch = connection.execute(
+                """
+                SELECT response_payload
+                FROM bulk_order_batches
+                WHERE request_id = ?
+                LIMIT 1
+                """,
+                (clean_request_id,),
+            ).fetchone()
+            if existing_batch:
+                stored_response = json.loads(existing_batch["response_payload"] or "{}")
+                stored_response["request_id"] = clean_request_id
+                stored_response["idempotent_replay"] = True
+                return stored_response
+
+            connection.execute(
+                """
+                INSERT INTO bulk_order_batches(
+                    request_id, mode, actor, total_orders, success_count, failed_count, request_payload, response_payload, created_at
+                )
+                VALUES(?, ?, ?, ?, 0, 0, ?, '{}', ?)
+                """,
+                (
+                    clean_request_id,
+                    clean_mode,
+                    clean_actor,
+                    len(orders),
+                    json.dumps(request_payload, ensure_ascii=False),
+                    now,
+                ),
+            )
+
+            results: list[dict] = []
+            success_count = 0
+            failed_count = 0
+            for index, raw_order in enumerate(orders):
+                order_payload = raw_order if isinstance(raw_order, dict) else {}
+                client_order_id = str(order_payload.get("client_order_id") or order_payload.get("clientOrderId") or f"bulk_order_{index + 1}").strip()
+                customer_name = str(order_payload.get("customer_name") or order_payload.get("customerName") or "").strip()
+                draft_result = None
+                working_cart = None
+                shortage_errors: list[dict] = []
+                try:
+                    draft_result = self._create_or_merge_bulk_order_draft(
+                        connection,
+                        order_payload,
+                        created_at=now,
+                    )
+                    working_cart = draft_result["cart"]
+                    if clean_mode == "commit_valid":
+                        shortage_errors = self._collect_committed_availability_shortages(
+                            connection,
+                            self._group_sale_items(working_cart.get("items") or []),
+                            exclude_cart_id=str(working_cart.get("id") or "").strip(),
+                        )
+                        if shortage_errors:
+                            raise ValueError(shortage_errors[0]["message"])
+                        committed_cart = self._commit_cart_order_in_connection(
+                            connection,
+                            str(working_cart.get("id") or "").strip(),
+                            actor=clean_actor,
+                            committed_at=now,
+                        )
+                        success_count += 1
+                        results.append(
+                            {
+                                "client_order_id": client_order_id,
+                                "customer_id": committed_cart.get("customerId") or "",
+                                "customer_name": committed_cart.get("customerName") or customer_name,
+                                "status": "success",
+                                "order_status": "committed",
+                                "cart_id": committed_cart.get("id") or "",
+                                "order_code": committed_cart.get("orderCode") or "",
+                                "saved_as_draft": False,
+                                "message": "Đã chốt đơn.",
+                                "reused_existing_draft": bool(draft_result["reused_existing_draft"]),
+                                "errors": [],
+                            }
+                        )
+                        continue
+
+                    success_count += 1
+                    results.append(
+                        {
+                            "client_order_id": client_order_id,
+                            "customer_id": working_cart.get("customerId") or "",
+                            "customer_name": working_cart.get("customerName") or customer_name,
+                            "status": "success",
+                            "order_status": "draft",
+                            "cart_id": working_cart.get("id") or "",
+                            "order_code": working_cart.get("orderCode") or "",
+                            "saved_as_draft": True,
+                            "message": draft_result["reused_existing_draft"]
+                                and "Đã dồn vào đơn nháp hiện có."
+                                or "Đã lưu nháp.",
+                            "reused_existing_draft": bool(draft_result["reused_existing_draft"]),
+                            "errors": [],
+                        }
+                    )
+                except ValueError as exc:
+                    failed_count += 1
+                    error_message = str(exc) or "Đơn hàng không hợp lệ."
+                    results.append(
+                        {
+                            "client_order_id": client_order_id,
+                            "customer_id": (working_cart or {}).get("customerId") or str(order_payload.get("customer_id") or order_payload.get("customerId") or "").strip(),
+                            "customer_name": (working_cart or {}).get("customerName") or customer_name,
+                            "status": "failed",
+                            "order_status": "draft",
+                            "cart_id": (working_cart or {}).get("id") or "",
+                            "order_code": "",
+                            "saved_as_draft": clean_mode == "commit_valid",
+                            "message": error_message,
+                            "reused_existing_draft": bool((draft_result or {}).get("reused_existing_draft")),
+                            "errors": shortage_errors or [{"message": error_message}],
+                        }
+                    )
+
+            customers = self._refresh_sync_collection_cache(connection, "customers", updated_at=now)
+            carts = self._refresh_sync_collection_cache(connection, "carts", updated_at=now)
+            cart_by_id = {str(cart.get("id") or ""): cart for cart in carts if cart.get("id")}
+            customer_by_id = {str(customer.get("id") or ""): customer for customer in customers if customer.get("id")}
+            normalized_results: list[dict] = []
+            for entry in results:
+                cart = cart_by_id.get(str(entry.get("cart_id") or "").strip())
+                customer = customer_by_id.get(str(entry.get("customer_id") or "").strip())
+                current_customer_name = (
+                    (cart or {}).get("customerName")
+                    or (customer or {}).get("name")
+                    or entry.get("customer_name")
+                    or ""
+                )
+                normalized_results.append(
+                    {
+                        **entry,
+                        "customer_name": current_customer_name,
+                        "cart_id": (cart or {}).get("id") or entry.get("cart_id") or "",
+                        "order_code": (cart or {}).get("orderCode") or entry.get("order_code") or "",
+                    }
+                )
+
+            summary = {
+                "total_orders": len(orders),
+                "success": success_count,
+                "failed": failed_count,
+            }
+            response_payload = {
+                "request_id": clean_request_id,
+                "mode": clean_mode,
+                "summary": summary,
+                "results": normalized_results,
+            }
+            connection.execute(
+                """
+                UPDATE bulk_order_batches
+                SET success_count = ?,
+                    failed_count = ?,
+                    response_payload = ?
+                WHERE request_id = ?
+                """,
+                (
+                    success_count,
+                    failed_count,
+                    json.dumps(response_payload, ensure_ascii=False),
+                    clean_request_id,
+                ),
+            )
+            self._record_audit(
+                connection,
+                entity_type="bulk_order_batch",
+                entity_id=clean_request_id,
+                entity_name=clean_request_id,
+                action="create",
+                actor=clean_actor,
+                message=(
+                    f"Tạo nhiều đơn mode={clean_mode}. "
+                    f"Tổng {len(orders)} đơn, thành công {success_count}, lỗi {failed_count}."
+                ),
+            )
+            return response_payload
 
     def commit_cart_order(self, cart_id: str, *, actor: str = "") -> dict:
         clean_cart_id = str(cart_id or "").strip()

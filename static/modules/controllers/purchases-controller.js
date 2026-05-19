@@ -105,7 +105,10 @@ export function registerPurchasesControllerEvents(contract) {
 
   dom.createPurchaseDraftButton.addEventListener("click", () => {
     state.purchaseDetailExpanded = false;
-    const purchase = actions.createPurchaseDraftIfMissing();
+    const purchase = actions.createPurchaseDraftIfMissing({
+      preferredSupplierName: "",
+      preferBlankWhenActiveHasSupplier: true,
+    });
     if (purchase.items.length > 0) {
       actions.saveAndRenderAll(["purchases"]);
       actions.showToast("Đã lưu phiếu nhập nháp.");

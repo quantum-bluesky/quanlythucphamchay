@@ -78,6 +78,13 @@ Integration test dùng `Playwright`.
 ### Cài dependency test
 
 ```powershell
+npm ci
+npx playwright install chromium
+```
+
+hoặc:
+
+```powershell
 npm install
 npx playwright install chromium
 ```
@@ -190,6 +197,7 @@ Các nhóm kiểm tra chính:
 
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, cho phép chốt khi phần thiếu đã được phiếu nhập `Đã đặt` cover đủ, còn với thiếu hàng chưa đặt đủ thì user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu mở liên quan
+- `Tạo nhiều đơn mobile-first`: mỗi khách là một card riêng, `Chốt đơn hợp lệ` chỉ commit các đơn đủ hàng, đơn lỗi giữ lại để sửa tiếp và không cho bypass `draft -> completed`
 - `Reload số lượng sau đổi trạng thái`: sau `Xuất kho` hoặc `Nhập kho`, các màn `Tồn kho`, `Xuất hàng`, `Nhập hàng` phải nạp lại dữ liệu server mới mà không cần F5
 - `Xử lý nhập thiếu batch`: bật batch mode từ user có quyền, kiểm tra planner gom cả đơn nháp/đơn chốt, chặn bắt đầu kỳ gom khi đang có conflict phiếu nhập mở, và không cho tạo trùng phiếu nhập cho cùng sản phẩm thiếu
 - `Conflict đầu kỳ gom`: khi app chặn `Bắt đầu kỳ gom`, màn planner phải hiện danh sách conflict có thể bấm mở thẳng các phiếu nhập liên quan
@@ -271,6 +279,7 @@ Case mới cho Phase A:
 - `IT-PURSUP-08`: kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC/nội dung nhưng reset `Mã lô` / `HSD` / `NSX`
 - `IT-ORD-03`: kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được đơn nháp mới cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng
 - `IT-ORD-04`: kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hỏi có dồn thêm vào nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đang có
+- `ACC-ORD-17`: màn `Tạo nhiều đơn` trên mobile phải giữ card UI theo khách và chỉ commit các đơn hợp lệ
 - `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp kể cả thêm dòng hàng mới rồi mới chuyển sang `received`
 - `UT-DB-12`: backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `draft/ordered`, và chặn xóa trực tiếp phiếu `ordered`
 - `UT-DB-16`: backend tự tính HSD của phiếu nhập theo `ngày nhập kho + thời gian bảo quản` hoặc `ngày sản xuất + thời gian bảo quản`
@@ -278,6 +287,8 @@ Case mới cho Phase A:
 - `UT-SYNC-04`: backend chặn `draft -> paid` ở đơn hàng, cho `draft -> cancelled`, cho `completed -> paid`, rồi khóa hẳn nhánh mở lại/hạ trạng thái sau khi đã `cancelled/paid`
 - `UT-SYNC-05`: backend khóa `customerId/customerName` từ lúc đơn ở `committed`, vẫn cho sửa `ship_address` và thêm dòng hàng trước khi xuất, đồng thời chặn đổi `committed -> completed` qua sync thẳng
 - `UT-ORD-15`: backend `commit_cart_order()` không trừ kho, còn `ship_cart_order()` mới trừ kho và chuyển đơn sang `completed`
+- `UT-ORD-17`: backend bulk order chỉ commit các đơn hợp lệ, giữ đơn lỗi ở `draft`, lưu audit batch và replay an toàn theo `request_id`
+- `UT-AUTH-09`: phân quyền route bulk order phải tách rõ giữa quyền `tạo nhiều đơn` và quyền `chốt nhiều đơn`
 - `UT-DB-18`: backend nhận diện phiếu nhập `ordered` nhưng thiếu NCC là dữ liệu lỗi có thể repair để không khóa chết UI trên DB cũ
 - `UT-DB-19`: backend legacy audit tách đúng `safe fixes` và `manual review`
 - `UT-DB-20`: apply safe legacy fixes backfill được `cart.paid_at` và `purchase.received_at`

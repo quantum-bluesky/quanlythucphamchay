@@ -773,6 +773,55 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
+                if route == "/api/orders/bulk-create":
+                    mode = str(payload.get("mode") or "").strip()
+                    if mode == "commit_valid":
+                        if not self._require_named_permission(
+                            "bulk_order_commit",
+                            "Tài khoản này không có quyền chốt nhiều đơn.",
+                        ):
+                            return
+                    else:
+                        if self._is_login_enabled():
+                            session, expired = self._resolve_current_session()
+                            if expired:
+                                self._send_json(
+                                    HTTPStatus.UNAUTHORIZED,
+                                    self._build_auth_required_payload(session_expired=True),
+                                )
+                                return
+                            if not session:
+                                self._send_json(HTTPStatus.UNAUTHORIZED, self._build_auth_required_payload())
+                                return
+                            if not (
+                                self._has_named_permission("bulk_order_create")
+                                or self._has_named_permission("bulk_order_commit")
+                            ):
+                                self._send_json(
+                                    HTTPStatus.UNAUTHORIZED,
+                                    {"error": "Tài khoản này không có quyền tạo nhiều đơn."},
+                                )
+                                return
+                    result = store.bulk_create_orders(
+                        mode=mode,
+                        request_id=payload.get("request_id") or payload.get("requestId") or "",
+                        orders=payload.get("orders") or [],
+                        actor=self._get_current_username() or "",
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": (
+                                "Đã chốt các đơn hợp lệ."
+                                if mode == "commit_valid"
+                                else "Đã lưu các đơn nháp."
+                            ),
+                            **result,
+                            "inventory_summary": store.get_summary(),
+                        },
+                    )
+                    return
+
                 if route == "/api/orders/ship":
                     result = store.ship_cart_order(
                         payload.get("cart_id", ""),
@@ -1340,6 +1389,35 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             if isinstance(manager_usernames, list) and username in {str(entry or "").strip() for entry in manager_usernames}:
                 return True
             return "procurement_batch_manage" in set(self._get_current_permissions())
+
+        def _has_named_permission(self, permission_name: str) -> bool:
+            clean_permission_name = str(permission_name or "").strip()
+            if not clean_permission_name:
+                return False
+            if self._get_current_role() == "admin":
+                return True
+            return clean_permission_name in set(self._get_current_permissions())
+
+        def _require_named_permission(self, permission_name: str, error_message: str) -> bool:
+            if not self._is_login_enabled():
+                return True
+            session, expired = self._resolve_current_session()
+            if expired:
+                self._send_json(
+                    HTTPStatus.UNAUTHORIZED,
+                    self._build_auth_required_payload(session_expired=True),
+                )
+                return False
+            if not session:
+                self._send_json(HTTPStatus.UNAUTHORIZED, self._build_auth_required_payload())
+                return False
+            if self._has_named_permission(permission_name):
+                return True
+            self._send_json(
+                HTTPStatus.UNAUTHORIZED,
+                {"error": error_message},
+            )
+            return False
 
         def _get_procurement_permission_payload(self) -> dict:
             return {

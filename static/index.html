@@ -62,16 +62,17 @@
       </div>
       <div class="menu-grid" id="menuGrid">
         <button type="button" class="menu-button is-active" data-menu="inventory">1. Tồn kho</button>
-        <button type="button" class="menu-button" data-menu="create-order">2. Xuất hàng</button>
-        <button type="button" class="menu-button" data-menu="orders">3. Đơn hàng</button>
-        <button type="button" class="menu-button" data-menu="customers">4. Khách hàng</button>
-        <button type="button" class="menu-button" data-menu="products">5. Sản phẩm</button>
-        <button type="button" class="menu-button" data-menu="purchases">6. Nhập hàng</button>
-        <button type="button" class="menu-button" data-menu="procurement-planner">7. Xử lý nhập thiếu</button>
-        <button type="button" class="menu-button" data-menu="suppliers">8. Nhà cung cấp</button>
-        <button type="button" class="menu-button" data-menu="reports">9. Báo cáo</button>
-        <button type="button" class="menu-button" data-menu="history">10. Khôi phục</button>
-        <button type="button" class="menu-button" data-menu="admin">11. Admin</button>
+        <button type="button" class="menu-button" data-menu="create-order">2. Tạo đơn</button>
+        <button type="button" class="menu-button" data-menu="bulk-orders">3. Xuất nhanh</button>
+        <button type="button" class="menu-button" data-menu="orders">4. Đơn hàng</button>
+        <button type="button" class="menu-button" data-menu="customers">5. Khách hàng</button>
+        <button type="button" class="menu-button" data-menu="products">6. Sản phẩm</button>
+        <button type="button" class="menu-button" data-menu="purchases">7. Nhập hàng</button>
+        <button type="button" class="menu-button" data-menu="procurement-planner">8. Xử lý nhập thiếu</button>
+        <button type="button" class="menu-button" data-menu="suppliers">9. Nhà cung cấp</button>
+        <button type="button" class="menu-button" data-menu="reports">10. Báo cáo</button>
+        <button type="button" class="menu-button" data-menu="history">11. Khôi phục</button>
+        <button type="button" class="menu-button" data-menu="admin">12. Admin</button>
       </div>
     </nav>
 
@@ -256,6 +257,42 @@
             </div>
             <div id="salesProductList" class="sales-product-list"></div>
           </section>
+        </div>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="bulk-orders">
+      <section class="panel bulk-orders-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Tạo nhiều đơn</p>
+            <h2>Xuất nhanh theo khách</h2>
+          </div>
+          <p class="panel-note">Thêm nhiều khách, mỗi khách nhiều mặt hàng, rồi `Lưu nháp` hoặc `Chốt đơn hợp lệ` mà không đổi workflow hiện tại.</p>
+        </div>
+
+        <section class="sales-customer-card bulk-order-entry-card">
+          <div class="sales-customer-form bulk-order-customer-entry">
+            <label>
+              <span>Khách hàng</span>
+              <input id="bulkCustomerLookupInput" type="text" list="customerOptions" maxlength="80" placeholder="Gõ tên khách có sẵn hoặc tên khách mới">
+            </label>
+            <button type="button" id="bulkAddCustomerButton" class="primary-button">+ Thêm khách</button>
+          </div>
+          <label class="search-box bulk-order-search-box">
+            <span class="sr-only">Tìm khách hoặc mặt hàng trong màn tạo nhiều đơn</span>
+            <input id="bulkOrderSearchInput" type="search" placeholder="Tìm khách hoặc mặt hàng đã thêm...">
+          </label>
+          <div id="bulkOrderSummaryBar" class="bulk-order-summary-bar"></div>
+        </section>
+
+        <div id="bulkOrderPermissionNotice" class="inline-alert warning" hidden></div>
+        <section id="bulkOrderResultSummary" class="sales-card" hidden></section>
+        <div id="bulkOrderList" class="customer-list bulk-order-list"></div>
+
+        <div class="bulk-order-footer-actions">
+          <button type="button" id="bulkOrderSaveDraftButton" class="ghost-button">Lưu nháp</button>
+          <button type="button" id="bulkOrderCommitValidButton" class="primary-button">Chốt đơn hợp lệ</button>
         </div>
       </section>
     </section>
@@ -1005,6 +1042,26 @@
         <button type="button" id="closeHelpButton" class="ghost-button compact-button" aria-label="Đóng hướng dẫn">Đóng</button>
       </div>
       <div id="helpModalBody" class="help-dialog-body"></div>
+    </section>
+  </div>
+
+  <div id="bulkItemPickerModal" class="help-modal" hidden>
+    <div class="help-backdrop" data-bulk-picker-close="backdrop"></div>
+    <section class="help-dialog bulk-item-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="bulkItemPickerTitle">
+      <div class="help-dialog-head">
+        <div>
+          <p class="panel-kicker">Thêm hàng</p>
+          <h2 id="bulkItemPickerTitle">Chọn mặt hàng cho khách</h2>
+        </div>
+        <button type="button" id="bulkItemPickerCloseButton" class="ghost-button compact-button" aria-label="Đóng thêm hàng">Đóng</button>
+      </div>
+      <div class="help-dialog-body">
+        <label class="search-box">
+          <span class="sr-only">Tìm mặt hàng để thêm vào đơn</span>
+          <input id="bulkItemPickerSearchInput" type="search" placeholder="Gõ tên sản phẩm...">
+        </label>
+        <div id="bulkItemPickerList" class="sales-product-list"></div>
+      </div>
     </section>
   </div>
 

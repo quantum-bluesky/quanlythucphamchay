@@ -11,6 +11,7 @@ Nếu gặp các trạng thái hoặc thuật ngữ tiếng Anh như `draft`, `o
 - theo dõi tồn kho
 - nhập hàng
 - tạo đơn xuất cho khách
+- tạo nhiều đơn nhanh theo card trên điện thoại
 - quản lý khách hàng
 - quản lý nhà cung cấp
 - xem báo cáo nhập xuất theo tháng
@@ -164,12 +165,35 @@ Nếu thiếu hàng:
 - nếu đang bật kỳ gom nhập, app sẽ không tạo phiếu nhập tự động theo từng đơn; app chuyển sang màn `Xử lý nhập thiếu` để người giữ khóa xử lý tập trung
 - nếu cần đối chiếu nhanh metadata phiếu xuất hiện hành, bấm `Detail` trong khối `Giỏ hiện hành`
 
+### Màn tạo nhiều đơn mobile-first
+
+Vào menu:
+
+```text
+3. Xuất nhanh
+```
+
+Thực hiện:
+
+1. Gõ tên khách rồi bấm `+ Thêm khách`; mỗi khách sẽ thành một card riêng
+2. Với từng card, bấm `Thêm hàng` để chọn sản phẩm và nhập số lượng
+3. Nếu khách đang có đơn nháp trên server, chọn `Dồn vào đơn nháp hiện có` hoặc `Tạo đơn nháp mới riêng`
+4. Bấm `Lưu nháp` nếu chỉ muốn tạo hoặc cập nhật các đơn `Nháp`; bước này không giữ hàng và không trừ kho
+5. Bấm `Chốt đơn hợp lệ` nếu muốn kiểm tra tồn theo cùng rule `Chốt đơn` hiện tại; đơn đủ điều kiện sẽ sang `Chốt đơn`, đơn lỗi giữ lại trên màn để sửa tiếp
+
+Lưu ý:
+
+- màn này không cho đi thẳng `Nháp -> Đã xuất hàng`; mọi đơn vẫn phải đi theo đúng workflow `draft -> committed -> completed`
+- nếu thiếu hàng, app sẽ báo theo từng khách và từng sản phẩm, ví dụ `Thiếu Đậu hũ non: cần 10, còn 6`
+- trong v1 không có xuất kho hàng loạt; nếu cần xuất thật thì mở các đơn đã chốt ở `Quản lý đơn hàng` hoặc `Tạo đơn xuất hàng`
+- nếu tài khoản chỉ có quyền tạo nhiều đơn mà chưa có quyền chốt, cuối màn chỉ dùng được `Lưu nháp`
+
 ## 5. Luồng xem lại và hoàn tất đơn hàng
 
 Vào menu:
 
 ```text
-3. Quản lý đơn hàng
+4. Quản lý đơn hàng
 ```
 
 Dùng màn này để:
@@ -215,7 +239,7 @@ Lưu ý:
 Vào menu:
 
 ```text
-4. Quản lý khách hàng
+5. Quản lý khách hàng
 ```
 
 Thông tin nên lưu:
@@ -243,7 +267,7 @@ Khuyến nghị:
 Vào menu:
 
 ```text
-5. Quản lý sản phẩm
+6. Quản lý sản phẩm
 ```
 
 Màn này dùng để:
@@ -271,7 +295,7 @@ Màn này dùng để:
 Vào menu:
 
 ```text
-6. Quản lý nhập hàng
+7. Quản lý nhập hàng
 ```
 
 Màn này có 2 phần:
@@ -360,7 +384,7 @@ Lưu ý:
 Vào menu:
 
 ```text
-7. Xử lý nhập thiếu
+8. Xử lý nhập thiếu
 ```
 
 Màn này dùng khi cần gom nhu cầu nhập định kỳ, ví dụ cuối tháng hoặc khi có nhiều đơn cần xử lý cùng lúc.
@@ -410,7 +434,7 @@ Lưu ý:
 Vào menu:
 
 ```text
-8. Quản lý nhà cung cấp
+9. Quản lý nhà cung cấp
 ```
 
 Nên lưu:
@@ -434,7 +458,7 @@ Nên lưu:
 Vào menu:
 
 ```text
-9. Báo cáo tháng
+10. Báo cáo tháng
 ```
 
 Màn này dùng để:
@@ -603,7 +627,7 @@ Hiện phiếu đã hủy
 Vào menu:
 
 ```text
-11. Master Admin
+12. Master Admin
 ```
 
 Chỉ người quản trị hệ thống mới nên dùng màn này.

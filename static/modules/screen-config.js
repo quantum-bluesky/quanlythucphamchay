@@ -62,6 +62,26 @@ export const SCREEN_HELP = {
       { menu: "purchases", label: "Lên phiếu nhập" },
     ],
   },
+  "bulk-orders": {
+    title: "Tạo nhiều đơn",
+    overview: "Màn này dùng để nhập nhanh nhiều khách theo card trên mobile: mỗi khách một đơn riêng, có thể lưu nháp hàng loạt hoặc chỉ chốt các đơn đang đủ điều kiện.",
+    steps: [
+      "Gõ tên khách rồi bấm `+ Thêm khách`; nếu khách chưa có trong danh bạ, app vẫn tạo card để backend tự chuẩn hóa khi lưu.",
+      "Mỗi khách có card riêng. Bấm `Thêm hàng` để mở picker sản phẩm, nhập số lượng rồi chỉnh thêm giá bán, địa chỉ giao hoặc giảm giá ngay trên card đó.",
+      "Nếu khách đang có đơn nháp trên server, card sẽ hiện nhắc để bạn chọn `Dồn vào đơn nháp hiện có` hoặc `Tạo đơn nháp mới riêng`.",
+      "Nút `Lưu nháp` chỉ tạo hoặc cập nhật từng đơn ở trạng thái `Nháp`; bước này không giữ hàng, không trừ kho và không bỏ qua workflow chuẩn.",
+      "Nút `Chốt đơn hợp lệ` dùng cùng rule kiểm tồn của bước `Chốt đơn` hiện tại. Đơn nào đủ hàng thì sang `Chốt đơn`, đơn lỗi sẽ giữ lại để sửa tiếp.",
+      "Lỗi được trả theo từng khách và từng sản phẩm. Nếu thiếu hàng, bạn sẽ thấy chi tiết như `Thiếu ...: cần ..., còn ...` ngay trên card cần sửa.",
+      "Trong v1 không có xuất kho hàng loạt. Sau khi chốt xong, các đơn vẫn đi tiếp đúng luồng `Chốt đơn -> Đã xuất hàng` ở màn đơn hàng.",
+      DESKTOP_MENU_HINT,
+      MOBILE_FLOATING_HINT,
+    ],
+    related: [
+      { menu: "create-order", label: "Quay lại tạo đơn lẻ" },
+      { menu: "orders", label: "Xem các đơn đã tạo" },
+      { menu: "customers", label: "Kiểm tra danh bạ khách" },
+    ],
+  },
   orders: {
     title: "Quản lý đơn hàng",
     overview: "Theo dõi các đơn nháp, đơn đã chốt, đơn đã xuất hàng, đơn đã thanh toán và tra cứu lịch sử đơn theo khách hay mặt hàng.",
@@ -309,6 +329,10 @@ export const SCREEN_META = {
     title: "Tạo đơn xuất hàng",
     subtitle: "Chọn khách, thêm hàng vào giỏ và chốt đơn nhanh.",
   },
+  "bulk-orders": {
+    title: "Tạo nhiều đơn",
+    subtitle: "Nhập nhanh nhiều khách theo card và chỉ chốt các đơn đủ hàng.",
+  },
   orders: {
     title: "Đơn hàng",
     subtitle: "Theo dõi giỏ nháp, đơn đã chốt và trạng thái thanh toán.",
@@ -359,6 +383,10 @@ export const FLOATING_SEARCH_CONFIG = {
   "create-order": {
     sourceId: "salesSearchInput",
     placeholder: "Tìm sản phẩm để thêm vào giỏ",
+  },
+  "bulk-orders": {
+    sourceId: "bulkOrderSearchInput",
+    placeholder: "Tìm khách hoặc mặt hàng trong tạo nhiều đơn",
   },
   orders: {
     sourceId: "orderSearchInput",

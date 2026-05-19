@@ -108,6 +108,23 @@ Nếu cần can thiệp đặc biệt
 - đơn `committed` vẫn cho sửa dòng hàng, địa chỉ giao và giảm giá; không đổi được khách, không được xóa
 - đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; ngoại lệ duy nhất trước thanh toán là vẫn cho sửa `giảm giá khuyến mại` của toàn đơn
 
+### Luồng tạo nhiều đơn mobile-first
+
+- màn `bulk-orders` chỉ là cách nhập nhanh nhiều cart; không tạo workflow trạng thái mới
+- user thêm nhiều khách, mỗi khách có nhiều mặt hàng trên card riêng
+- action `Lưu nháp`:
+  - tạo hoặc cập nhật từng cart ở trạng thái `draft`
+  - không giữ hàng
+  - không trừ kho
+  - nếu khách đang có draft cart và user chọn merge thì hệ thống dồn thêm dòng vào draft hiện có
+- action `Chốt đơn hợp lệ`:
+  - backend luôn validate lại toàn bộ payload và tồn khả dụng, không tin dữ liệu frontend
+  - với từng khách, hệ thống tạo hoặc cập nhật draft trước, rồi mới kiểm tồn theo đúng công thức `tồn hiện tại + hàng đã đặt nhập - phần đã giữ cho các đơn committed khác`
+  - đơn đủ điều kiện mới chuyển `draft -> committed`
+  - đơn lỗi giữ ở `draft` để user sửa tiếp; response trả chi tiết theo từng khách và từng sản phẩm thiếu
+- request batch phải có `request_id` duy nhất để chống double-submit; nếu server nhận lại cùng `request_id` thì replay kết quả cũ, không tạo trùng đơn
+- v1 không có bước xuất hàng hàng loạt; nếu sau này cần, đó phải là action riêng và vẫn chỉ được đi tiếp `committed -> completed`
+
 ## 4. Luồng nhập hàng
 
 ### Bước 1: Tạo hoặc mở phiếu nhập

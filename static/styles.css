@@ -1060,6 +1060,102 @@ button:disabled {
   margin-top: 18px;
 }
 
+.bulk-orders-panel {
+  display: grid;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.bulk-order-entry-card {
+  display: grid;
+  gap: 12px;
+}
+
+.bulk-order-customer-entry {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.bulk-order-search-box {
+  margin: 0;
+}
+
+.bulk-order-summary-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.bulk-order-summary-amount {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.bulk-order-list {
+  display: grid;
+  gap: 12px;
+}
+
+.bulk-order-card {
+  display: grid;
+  gap: 10px;
+}
+
+.bulk-order-card.is-expanded {
+  border-color: rgba(36, 91, 63, 0.18);
+  box-shadow: 0 18px 34px rgba(36, 91, 63, 0.12);
+}
+
+.bulk-order-card-actions {
+  flex-wrap: wrap;
+}
+
+.bulk-order-detail-block {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(34, 49, 39, 0.16);
+}
+
+.bulk-order-item-list,
+.bulk-order-error-list {
+  display: grid;
+  gap: 10px;
+}
+
+.bulk-order-item-grid,
+.bulk-item-picker-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bulk-order-entry-total {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.bulk-order-footer-actions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 15;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border-radius: 20px;
+  background: rgba(255, 252, 246, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 18px 34px rgba(36, 54, 41, 0.14);
+  backdrop-filter: blur(12px);
+}
+
+.bulk-item-picker-dialog {
+  width: min(680px, calc(100vw - 20px));
+}
+
 .inline-alert {
   padding: 12px 14px;
   border-radius: var(--radius-md);
@@ -1874,7 +1970,14 @@ button:disabled {
 
   .action-row,
   .sales-customer-single,
+  .bulk-order-customer-entry,
+  .bulk-order-footer-actions,
   .menu-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bulk-order-summary-bar {
+    display: grid;
     grid-template-columns: 1fr;
   }
 

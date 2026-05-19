@@ -1,6 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginAdminRequest,
   autoLoginUser,
   autoLoginUserRequest,
   collectToast,
@@ -31,6 +32,42 @@ async function fetchProducts(request, cookie) {
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.products || [];
+}
+
+async function createBackupSnapshot(request) {
+  const adminCookie = await autoLoginAdminRequest(request);
+  const response = await request.get("/api/admin/backup", {
+    headers: { Cookie: adminCookie },
+  });
+  expect(response.ok()).toBeTruthy();
+  return response.body();
+}
+
+async function restoreBackupSnapshot(request, snapshot, page = null) {
+  if (page && !page.isClosed()) {
+    await page.close();
+  }
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const adminCookie = await autoLoginAdminRequest(request);
+      const response = await request.post("/api/admin/restore", {
+        headers: { Cookie: adminCookie },
+        data: {
+          content_base64: snapshot.toString("base64"),
+        },
+      });
+      expect(response.ok()).toBeTruthy();
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt === 3) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+    }
+  }
+  throw lastError || new Error("restoreBackupSnapshot failed");
 }
 
 function hasActualPurchaseHistory(state, productId) {
@@ -117,6 +154,7 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
   const supplierName = `NCC Flow ${timestamp}`;
   const supplierPhone = `09${String(timestamp).slice(-8)}`;
   const userCookie = await autoLoginUserRequest(request);
+  const snapshot = await createBackupSnapshot(request);
 
   const stateResponseAuthed = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponseAuthed.ok()).toBeTruthy();
@@ -163,15 +201,7 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
       (!Array.isArray(purchase.items) || purchase.items.length === 0)
     )).toBeFalsy();
   } finally {
-    await request.put("/api/state", {
-      headers: { Cookie: userCookie },
-      data: {
-        customers: originalState.customers,
-        suppliers: originalState.suppliers,
-        carts: originalState.carts,
-        purchases: originalState.purchases,
-      },
-    });
+    await restoreBackupSnapshot(request, snapshot, page);
   }
 
   expectNoRuntimeErrors(runtime);
@@ -184,6 +214,7 @@ test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the exis
   const supplierA = `NCC A ${timestamp}`;
   const supplierB = `NCC B ${timestamp}`;
   const userCookie = await autoLoginUserRequest(request);
+  const snapshot = await createBackupSnapshot(request);
   const originalState = await fetchSyncState(request, userCookie);
 
   try {
@@ -266,15 +297,7 @@ test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the exis
     expect((supplierADrafts[0].items || []).some((item) => item.productName === productTwoName)).toBeTruthy();
     expect((supplierBDrafts[0].items || []).some((item) => item.productName === productTwoName)).toBeTruthy();
   } finally {
-    await request.put("/api/state", {
-      headers: { Cookie: userCookie },
-      data: {
-        customers: originalState.customers,
-        suppliers: originalState.suppliers,
-        carts: originalState.carts,
-        purchases: originalState.purchases,
-      },
-    });
+    await restoreBackupSnapshot(request, snapshot, page);
   }
 
   expectNoRuntimeErrors(runtime);
@@ -287,6 +310,7 @@ test("IT-PURSUP-04 empty purchase draft can be deleted and supplier button can s
   const supplierB = `NCC draft B ${timestamp}`;
   const now = new Date().toISOString();
   const userCookie = await autoLoginUserRequest(request);
+  const snapshot = await createBackupSnapshot(request);
   const originalState = await fetchSyncState(request, userCookie);
 
   try {
@@ -360,15 +384,7 @@ test("IT-PURSUP-04 empty purchase draft can be deleted and supplier button can s
     expect((stateAfterSwitch.purchases || []).some((purchase) => purchase.supplierName === supplierA)).toBeFalsy();
     expect((stateAfterSwitch.purchases || []).some((purchase) => purchase.supplierName === supplierB)).toBeFalsy();
   } finally {
-    await request.put("/api/state", {
-      headers: { Cookie: userCookie },
-      data: {
-        customers: originalState.customers,
-        suppliers: originalState.suppliers,
-        carts: originalState.carts,
-        purchases: originalState.purchases,
-      },
-    });
+    await restoreBackupSnapshot(request, snapshot, page);
   }
 
   expectNoRuntimeErrors(runtime);
@@ -383,6 +399,7 @@ test("IT-PURSUP-08 purchases can repeat a received purchase into a new draft wit
   const discountAmount = 6000;
   const now = new Date().toISOString();
   const originalState = await fetchSyncState(request, userCookie);
+  const snapshot = await createBackupSnapshot(request);
   const products = await fetchProducts(request, userCookie);
   const product = products[0];
   expect(product).toBeTruthy();
@@ -471,15 +488,7 @@ test("IT-PURSUP-08 purchases can repeat a received purchase into a new draft wit
     expect(String(repeatedDraft.items[0].expiryDate || repeatedDraft.items[0].expiry_date || "")).toBe("");
     expect(String(repeatedDraft.items[0].manufactureDate || repeatedDraft.items[0].manufacture_date || "")).toBe("");
   } finally {
-    await request.put("/api/state", {
-      headers: { Cookie: userCookie },
-      data: {
-        customers: originalState.customers,
-        suppliers: originalState.suppliers,
-        carts: originalState.carts,
-        purchases: originalState.purchases,
-      },
-    });
+    await restoreBackupSnapshot(request, snapshot, page);
   }
 
   expectNoRuntimeErrors(runtime);
@@ -490,6 +499,7 @@ test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical
   const timestamp = Date.now();
   const now = new Date().toISOString();
   const userCookie = await autoLoginUserRequest(request);
+  const snapshot = await createBackupSnapshot(request);
   const originalState = await fetchSyncState(request, userCookie);
   const products = await fetchProducts(request, userCookie);
   const candidateProducts = products.filter((product) => !hasActualPurchaseHistory(originalState, product.id));
@@ -549,15 +559,7 @@ test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical
       (purchase.items || []).some((item) => Number(item.productId) === Number(uniqueProduct.id))
     )).toBeTruthy();
   } finally {
-    await request.put("/api/state", {
-      headers: { Cookie: userCookie },
-      data: {
-        customers: originalState.customers,
-        suppliers: originalState.suppliers,
-        carts: originalState.carts,
-        purchases: originalState.purchases,
-      },
-    });
+    await restoreBackupSnapshot(request, snapshot, page);
   }
 
   expectNoRuntimeErrors(runtime);
@@ -568,6 +570,7 @@ test("IT-PURSUP-06 purchase supplier suggestions prioritize multiple historical 
   const timestamp = Date.now();
   const now = new Date().toISOString();
   const userCookie = await autoLoginUserRequest(request);
+  const snapshot = await createBackupSnapshot(request);
   const originalState = await fetchSyncState(request, userCookie);
   const products = await fetchProducts(request, userCookie);
   const candidateProducts = products.filter((product) => !hasActualPurchaseHistory(originalState, product.id));
@@ -631,15 +634,7 @@ test("IT-PURSUP-06 purchase supplier suggestions prioritize multiple historical 
     expect(supplierOptionValues.indexOf(lowPrioritySupplier)).toBeGreaterThanOrEqual(0);
     expect(supplierOptionValues.indexOf(highPrioritySupplier)).toBeLessThan(supplierOptionValues.indexOf(lowPrioritySupplier));
   } finally {
-    await request.put("/api/state", {
-      headers: { Cookie: userCookie },
-      data: {
-        customers: originalState.customers,
-        suppliers: originalState.suppliers,
-        carts: originalState.carts,
-        purchases: originalState.purchases,
-      },
-    });
+    await restoreBackupSnapshot(request, snapshot, page);
   }
 
   expectNoRuntimeErrors(runtime);
@@ -652,6 +647,7 @@ test("IT-PURSUP-07 purchases warn and review open receipts when one product is p
   const supplierA = `NCC conflict A ${timestamp}`;
   const supplierB = `NCC conflict B ${timestamp}`;
   const userCookie = await autoLoginUserRequest(request);
+  const snapshot = await createBackupSnapshot(request);
   const originalState = await fetchSyncState(request, userCookie);
   const products = await fetchProducts(request, userCookie);
   const targetProduct = products[0];
@@ -734,15 +730,7 @@ test("IT-PURSUP-07 purchases warn and review open receipts when one product is p
       (purchase.items || []).some((item) => Number(item.productId) === Number(targetProduct.id))
     )).toBeTruthy();
   } finally {
-    await request.put("/api/state", {
-      headers: { Cookie: userCookie },
-      data: {
-        customers: originalState.customers,
-        suppliers: originalState.suppliers,
-        carts: originalState.carts,
-        purchases: originalState.purchases,
-      },
-    });
+    await restoreBackupSnapshot(request, snapshot, page);
   }
 
   expectNoRuntimeErrors(runtime);
@@ -756,6 +744,7 @@ test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid pur
   const supplierPhone = `09${String(timestamp).slice(-8)}`;
   const now = new Date().toISOString();
   const userCookie = await autoLoginUserRequest(request);
+  const snapshot = await createBackupSnapshot(request);
 
   const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
@@ -819,15 +808,7 @@ test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid pur
     expect((latestState.suppliers || []).some((supplier) => supplier.name === renamedSupplier)).toBeTruthy();
     expect((latestState.purchases || []).some((purchase) => purchase.id === paidPurchase.id && purchase.supplierName === supplierName)).toBeTruthy();
   } finally {
-    await request.put("/api/state", {
-      headers: { Cookie: userCookie },
-      data: {
-        customers: originalState.customers,
-        suppliers: originalState.suppliers,
-        carts: originalState.carts,
-        purchases: originalState.purchases,
-      },
-    });
+    await restoreBackupSnapshot(request, snapshot, page);
   }
 
   expectNoRuntimeErrors(runtime);

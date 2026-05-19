@@ -147,6 +147,9 @@ Mục tiêu:
 | 113 | `IT-PROC-02` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-02"` |
 | 114 | `IT-PROC-03` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-03"` |
 | 115 | `IT-PROC-04` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-04"` |
+| 116 | `UT-ORD-17` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_17_bulk_create_orders_commit_valid_is_partial_and_idempotent` |
+| 117 | `UT-AUTH-09` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_09_bulk_order_permissions_split_draft_and_commit` |
+| 118 | `ACC-ORD-17` | `tests/integration/bulk-orders-mobile.spec.js` | `npx playwright test tests/integration/bulk-orders-mobile.spec.js --grep "ACC-ORD-17"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

@@ -50,6 +50,7 @@ Các domain đã có file UI riêng để giảm conflict khi làm song song:
 
 - `static/modules/ui/inventory-ui.js`
 - `static/modules/ui/sales-ui.js`
+- `static/modules/ui/bulk-orders-ui.js`
 - `static/modules/ui/purchases-ui.js`
 - `static/modules/ui/entities-ui.js`
 - `static/modules/ui/reports-admin-ui.js`
@@ -58,6 +59,7 @@ Các domain đã có file controller riêng:
 
 - `static/modules/controllers/inventory-controller.js`
 - `static/modules/controllers/sales-controller.js`
+- `static/modules/controllers/bulk-orders-controller.js`
 - `static/modules/controllers/purchases-controller.js`
 - `static/modules/controllers/entities-controller.js`
 - `static/modules/controllers/reports-admin-controller.js`
@@ -106,6 +108,8 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Quản lý riêng `giá nhập` và `giá bán mặc định` của sản phẩm
 - Có badge `Chờ xuất` / `Chờ nhập` ngay trên card tồn kho để nhảy nhanh sang màn liên quan, đồng thời hiện `số phiếu / tổng số lượng` đang chờ theo từng mặt hàng
 - Quản lý khách hàng, đơn nháp, `Chốt đơn` và `Xuất hàng` nhiều mặt hàng trong một lần
+- Có màn `Tạo nhiều đơn / Xuất nhanh` theo kiểu mobile-first: mỗi khách là một card riêng, cuối màn chỉ có `Lưu nháp` và `Chốt đơn hợp lệ`
+- `Lưu nháp` ở màn tạo nhiều đơn chỉ tạo cart `draft` cho từng khách, không giữ hàng và không trừ kho; `Chốt đơn hợp lệ` chỉ đẩy các đơn đủ tồn sang `committed`, còn đơn lỗi giữ lại để sửa tiếp
 - Ở màn xuất hàng và nhập hàng, các mặt hàng đã chọn sẽ được gom lên phần tóm tắt đơn/phiếu phía trên để thao tác nhanh
 - Ở màn nhập hàng, mỗi card gợi ý có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`
 - Khi thêm hàng vào phiếu chưa có NCC, app sẽ tự chọn NCC nếu mặt hàng chỉ từng nhập từ 1 NCC; nếu từng nhập từ nhiều NCC thì danh sách gợi ý NCC ưu tiên NCC đã nhập mặt hàng đó nhiều hơn
@@ -170,6 +174,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần
 - Có lịch sử quản lý sản phẩm hiển thị rõ field nào đã đổi, người thao tác và vẫn giữ đúng actor khi import master; kèm màn quản lý các đối tượng đã xóa để khôi phục an toàn
 - Có login hệ thống cho `user` thường và `Master Admin`; có thể bật `EnableLogin` để bắt buộc login mới dùng app
+- Nếu bật login, có thể tách quyền `bulk_order_create` và `bulk_order_commit` để user chỉ được lưu nháp nhiều đơn hoặc được chốt nhiều đơn
 - Nếu cùng một domain chạy nhiều instance app ở các port khác nhau như `:4000` và `:9999`, session login sẽ được tách riêng theo từng port để không tự đá nhau
 - Có module `Master Admin` để export/import file master (JSON/CSV) và backup/restore toàn bộ database
 - `Master Admin` có thêm khối `Legacy Audit` để quét DB đang dùng, áp dụng các backfill an toàn và cho admin gắn lại `receipt_code` / `đơn nguồn` cho record legacy còn dang dở
