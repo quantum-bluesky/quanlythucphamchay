@@ -164,6 +164,31 @@ export function createSalesDomainHelpers(deps) {
     return cart;
   }
 
+  function cloneCartItemsForRepeat(sourceItems = []) {
+    return (Array.isArray(sourceItems) ? sourceItems : [])
+      .map((item) => {
+        const product = getProductById(item.productId);
+        const quantity = Number(item.quantity);
+        const unitPrice = Number(item.unitPrice);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          return null;
+        }
+        if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+          return null;
+        }
+        return {
+          id: createId("item"),
+          productId: Number(item.productId),
+          productName: product?.name || item.productName || "Sản phẩm",
+          unit: product?.unit || item.unit || "",
+          quantity: Number(quantity.toFixed(2)),
+          unitPrice,
+          note: String(item.note || "").trim(),
+        };
+      })
+      .filter(Boolean);
+  }
+
   function clearPendingCartMergePrompt() {
     state.pendingCartMergeCustomerId = "";
     state.pendingCartMergeCustomerName = "";
@@ -272,6 +297,130 @@ export function createSalesDomainHelpers(deps) {
     const updated = decorateCart(updater(state.carts[index]));
     state.carts[index] = updated;
     return updated;
+  }
+
+  function findDraftCartForCustomer(sourceCart) {
+    const customerId = String(sourceCart?.customerId || "").trim();
+    if (customerId) {
+      return state.carts.find((cart) => cart.status === "draft" && String(cart.customerId || "").trim() === customerId) || null;
+    }
+    const customerNameKey = normalizeText(String(sourceCart?.customerName || "").trim());
+    if (!customerNameKey) {
+      return null;
+    }
+    return state.carts.find((cart) => cart.status === "draft" && normalizeText(String(cart.customerName || "").trim()) === customerNameKey) || null;
+  }
+
+  function mergeRepeatCartItems(targetItems = [], sourceItems = []) {
+    const mergedItems = (Array.isArray(targetItems) ? targetItems : []).map((item) => ({
+      ...item,
+      id: item.id || createId("item"),
+      note: String(item.note || "").trim(),
+    }));
+    const mergedIndexByKey = new Map(
+      mergedItems.map((item, index) => [
+        `${Number(item.productId || 0)}|${Number(item.unitPrice || 0)}|${String(item.note || "").trim()}`,
+        index,
+      ])
+    );
+    (Array.isArray(sourceItems) ? sourceItems : []).forEach((item) => {
+      const normalizedItem = {
+        ...item,
+        id: createId("item"),
+        note: String(item.note || "").trim(),
+      };
+      const mergeKey = `${Number(normalizedItem.productId || 0)}|${Number(normalizedItem.unitPrice || 0)}|${String(normalizedItem.note || "").trim()}`;
+      const existingIndex = mergedIndexByKey.get(mergeKey);
+      if (existingIndex === undefined) {
+        mergedIndexByKey.set(mergeKey, mergedItems.length);
+        mergedItems.push(normalizedItem);
+        return;
+      }
+      const existingItem = mergedItems[existingIndex];
+      mergedItems[existingIndex] = {
+        ...existingItem,
+        quantity: Number((Number(existingItem.quantity || 0) + Number(normalizedItem.quantity || 0)).toFixed(2)),
+      };
+    });
+    return mergedItems;
+  }
+
+  function repeatCompletedCart(cartId, options = {}) {
+    const sourceCart = getCartById(cartId);
+    if (!sourceCart || String(sourceCart.status || "").trim() !== "completed") {
+      throw new Error("Chỉ đơn đã xuất hàng mới được tạo lại thành đơn nháp mới.");
+    }
+    const clonedItems = cloneCartItemsForRepeat(sourceCart.items);
+    if (!clonedItems.length) {
+      throw new Error("Đơn nguồn không có dòng hàng hợp lệ để tạo lại.");
+    }
+    const mergeIntoExistingDraft = Boolean(options.mergeIntoExistingDraft);
+    const existingDraft = findDraftCartForCustomer(sourceCart);
+    if (mergeIntoExistingDraft && existingDraft) {
+      const mergedCart = updateCart(existingDraft.id, (currentCart) => ({
+        ...currentCart,
+        items: mergeRepeatCartItems(currentCart.items, clonedItems),
+        shipAddress: String(currentCart.shipAddress || currentCart.ship_address || "").trim()
+          || String(sourceCart.shipAddress || sourceCart.ship_address || "").trim(),
+        ship_address: String(currentCart.shipAddress || currentCart.ship_address || "").trim()
+          || String(sourceCart.shipAddress || sourceCart.ship_address || "").trim(),
+        discountAmount: Number(currentCart.discountAmount || currentCart.discount_amount || 0) > 0
+          ? Number(currentCart.discountAmount || currentCart.discount_amount || 0)
+          : Number(sourceCart.discountAmount || sourceCart.discount_amount || 0),
+        paymentStatus: "unpaid",
+      }));
+      state.activeCartId = mergedCart.id;
+      state.activeCartPanelCollapsed = mobileQuery.matches;
+      state.activeCartDetailExpanded = false;
+      state.selectedCartItemsCollapsed = false;
+      state.expandedSelectedCartItemId = null;
+      state.expandedSalesProductId = null;
+      state.visibleSelectedSalesProductId = null;
+      clearPendingCartMergePrompt();
+      customerLookupInput.value = mergedCart.customerName;
+      switchMenu("create-order");
+      saveAndRenderAll(["carts"]);
+      focusActiveCartPanel();
+      return {
+        cart: mergedCart,
+        reusedDraft: true,
+      };
+    }
+    const repeatedCart = decorateCart({
+      id: createId("cart"),
+      customerId: sourceCart.customerId || "",
+      customerName: sourceCart.customerName || "Khách lẻ",
+      status: "draft",
+      paymentStatus: "unpaid",
+      discountAmount: Number(sourceCart.discountAmount || sourceCart.discount_amount || 0),
+      shipAddress: String(sourceCart.shipAddress || sourceCart.ship_address || "").trim(),
+      ship_address: String(sourceCart.shipAddress || sourceCart.ship_address || "").trim(),
+      items: clonedItems,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      orderCode: "",
+      committedAt: null,
+      completedAt: null,
+      cancelledAt: null,
+      paidAt: null,
+    });
+    state.carts.unshift(repeatedCart);
+    state.activeCartId = repeatedCart.id;
+    state.activeCartPanelCollapsed = mobileQuery.matches;
+    state.activeCartDetailExpanded = false;
+    state.selectedCartItemsCollapsed = false;
+    state.expandedSelectedCartItemId = null;
+    state.expandedSalesProductId = null;
+    state.visibleSelectedSalesProductId = null;
+    clearPendingCartMergePrompt();
+    customerLookupInput.value = repeatedCart.customerName;
+    switchMenu("create-order");
+    saveAndRenderAll(["carts"]);
+    focusActiveCartPanel();
+    return {
+      cart: repeatedCart,
+      reusedDraft: false,
+    };
   }
 
   function toggleProductInActiveCart(productId, checked) {
@@ -457,9 +606,11 @@ export function createSalesDomainHelpers(deps) {
     getPendingMergeCommittedCarts,
     openOrdersForCustomer,
     updateCart,
+    findDraftCartForCustomer,
     toggleProductInActiveCart,
     updateCartItem,
     removeCartItem,
+    repeatCompletedCart,
     getDraftDemandByProductId,
     getCommittedDemandByProductId,
     getPendingDemandByProductId,

@@ -510,6 +510,27 @@ export function registerSalesControllerEvents(contract) {
       actions.printCart(cart.id);
       return;
     }
+    if (action === "repeat") {
+      try {
+        await actions.flushPendingPersistCollections();
+        const existingDraft = actions.findDraftCartForCustomer(cart);
+        let mergeIntoExistingDraft = false;
+        if (existingDraft) {
+          mergeIntoExistingDraft = window.confirm(
+            `Khách "${cart.customerName || getCartDisplayName(cart)}" đang có một đơn nháp.\n\nChọn OK để dồn thêm vào đơn nháp hiện có và giảm số lần gửi hàng.\nChọn Cancel để tạo một đơn nháp mới riêng.`
+          );
+        }
+        const result = actions.repeatCompletedCart(cart.id, { mergeIntoExistingDraft });
+        actions.showToast(
+          result?.reusedDraft
+            ? "Đã dồn thêm vào đơn nháp hiện có của khách."
+            : "Đã tạo đơn nháp mới từ phiếu xuất đã chọn."
+        );
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (action === "save-discount") {
       saveCartDiscount(cart.id, dom.cartQueueList);
       return;

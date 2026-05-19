@@ -663,6 +663,20 @@ export function registerPurchasesControllerEvents(contract) {
       }
       return;
     }
+    if (actionButton.dataset.purchaseAction === "repeat") {
+      try {
+        await actions.flushPendingPersistCollections();
+        const result = actions.repeatCompletedPurchase(purchase.id);
+        actions.showToast(
+          result?.reusedDraft
+            ? "Đã chép nội dung vào phiếu nháp hiện có của cùng nhà cung cấp."
+            : "Đã tạo phiếu nhập nháp mới từ phiếu đã nhập hàng."
+        );
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "receive") {
       if (!queries.canReceivePurchase(purchase)) {
         actions.showToast("Chỉ phiếu đã đặt hàng mới được nhập kho.", true);
@@ -720,7 +734,7 @@ export function registerPurchasesControllerEvents(contract) {
     saveButton?.click();
   });
 
-  dom.purchaseOrderList.addEventListener("click", (event) => {
+  dom.purchaseOrderList.addEventListener("click", async (event) => {
     const reviewButton = event.target.closest("[data-purchase-conflict-review-action]");
     if (reviewButton) {
       if (reviewButton.dataset.purchaseConflictReviewAction === "dismiss") {
@@ -741,6 +755,20 @@ export function registerPurchasesControllerEvents(contract) {
       state.purchaseDetailExpanded = false;
       actions.saveAndRenderAll();
       actions.focusPurchasePanel();
+      return;
+    }
+    if (button.dataset.purchaseListAction === "repeat") {
+      try {
+        await actions.flushPendingPersistCollections();
+        const result = actions.repeatCompletedPurchase(button.dataset.purchaseId);
+        actions.showToast(
+          result?.reusedDraft
+            ? "Đã chép nội dung vào phiếu nháp hiện có của cùng nhà cung cấp."
+            : "Đã tạo phiếu nhập nháp mới từ phiếu đã nhập hàng."
+        );
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
     }
   });
 

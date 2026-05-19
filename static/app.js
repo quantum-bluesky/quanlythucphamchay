@@ -2641,6 +2641,10 @@ function maybeApplySupplierSuggestionToPurchase(purchaseId, productIds = []) {
   return getPurchasesDomainHelpers().maybeApplySupplierSuggestionToPurchase(purchaseId, productIds);
 }
 
+function repeatCompletedPurchase(purchaseId) {
+  return getPurchasesDomainHelpers().repeatCompletedPurchase(purchaseId);
+}
+
 function deletePurchaseDraftLocally(purchaseId) {
   return getPurchasesDomainHelpers().deletePurchaseDraftLocally(purchaseId);
 }
@@ -2651,6 +2655,10 @@ function isUnsavedEmptyDraftPurchase(purchase) {
 
 function updatePurchase(purchaseId, updater) {
   return getPurchasesDomainHelpers().updatePurchase(purchaseId, updater);
+}
+
+function repeatCompletedCart(cartId) {
+  return getSalesDomainHelpers().repeatCompletedCart(cartId);
 }
 
 function getDraftDemandByProductId() {
@@ -5539,6 +5547,7 @@ registerSalesControllerEvents({
     toggleProductInActiveCart,
     updateCartItem,
     removeCartItem,
+    repeatCompletedCart,
     setActiveCart,
     createNewDraftForPendingMergeCustomer,
     clearPendingCartMergePrompt,
@@ -5692,6 +5701,7 @@ registerPurchasesControllerEvents({
     focusSupplierReturnSection,
     switchMenu,
     addSuggestionToPurchase,
+    repeatCompletedPurchase,
     openPurchaseConflictReview,
     clearPurchaseConflictReview,
     openPurchaseDocumentById,

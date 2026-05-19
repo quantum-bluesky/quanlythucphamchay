@@ -236,3 +236,125 @@ test("IT-ORD-02 sales draft cart can save document discount from create-order sc
 
   expectNoRuntimeErrors(runtime);
 });
+
+test("IT-ORD-03 orders screen can repeat a completed order into a new draft cart", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const customerName = `Khách lặp đơn ${timestamp}`;
+  const completedCartId = `order_repeat_source_${timestamp}`;
+  const discountAmount = 4000;
+  const shipAddress = `Địa chỉ lặp đơn ${timestamp}`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const completedCart = {
+    id: completedCartId,
+    customerId: `customer_repeat_${timestamp}`,
+    customerName,
+    status: "completed",
+    paymentStatus: "unpaid",
+    discountAmount,
+    shipAddress,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+    orderCode: `DH-REPEAT-${timestamp}`,
+    items: [
+      {
+        id: `order_repeat_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 2,
+        unitPrice: Number(product.sale_price || product.price || 0) || 1000,
+        note: "",
+      },
+    ],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        carts: [completedCart, ...(originalState.carts || [])],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "orders");
+    await expectScreenTitle(page, "Đơn hàng");
+    await page.locator("#showArchivedCarts").check();
+    await page.waitForTimeout(300);
+    await setFloatingSearch(page, customerName);
+
+    const completedOrderCard = page.locator(".cart-queue-item", { hasText: customerName }).first();
+    await expect(completedOrderCard).toBeVisible();
+    const inlineRepeatButton = completedOrderCard.locator('[data-queue-action="repeat"]').first();
+    if (await inlineRepeatButton.count()) {
+      await inlineRepeatButton.click();
+    } else {
+      await completedOrderCard.locator('[data-queue-action="toggle-detail"]').click();
+      await completedOrderCard.locator('[data-queue-action="repeat"]').click();
+    }
+
+    const repeatToast = await collectToast(page, runtime, "it-ord-03-repeat-order", { errorPattern: /^$/ });
+    expect(repeatToast).toContain("Đã tạo đơn nháp mới");
+    await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    await expect(page.locator("#customerLookupInput")).toHaveValue(customerName);
+    const togglePanelButton = page.locator('#activeCartPanel [data-cart-action="toggle-panel"]').first();
+    if (!await page.locator("#activeCartPanel [data-cart-ship-address-input]").count() && await togglePanelButton.count()) {
+      await togglePanelButton.click();
+    }
+    await expect(page.locator("#activeCartPanel [data-cart-ship-address-input]")).toHaveValue(shipAddress);
+    await expect(page.locator("#activeCartPanel [data-cart-discount-input]")).toHaveValue(String(discountAmount));
+
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(latestStateResponse.ok()).toBeTruthy();
+    const latestState = await latestStateResponse.json();
+    const repeatedDrafts = (latestState.carts || []).filter((cart) =>
+      cart.id !== completedCartId &&
+      cart.status === "draft" &&
+      cart.customerName === customerName
+    );
+    expect(repeatedDrafts).toHaveLength(1);
+    const repeatedDraft = repeatedDrafts[0];
+    expect(repeatedDraft.paymentStatus).toBe("unpaid");
+    expect(String(repeatedDraft.orderCode || "")).toBe("");
+    expect(Number(repeatedDraft.discountAmount || repeatedDraft.discount_amount || 0)).toBe(discountAmount);
+    expect(String(repeatedDraft.shipAddress || repeatedDraft.ship_address || "")).toBe(shipAddress);
+    expect(repeatedDraft.items || []).toHaveLength(1);
+    expect(Number(repeatedDraft.items[0].productId)).toBe(Number(product.id));
+    expect(Number(repeatedDraft.items[0].quantity)).toBe(2);
+    expect(Number(repeatedDraft.items[0].unitPrice)).toBe(Number(completedCart.items[0].unitPrice));
+
+    const unchangedCompletedCart = (latestState.carts || []).find((cart) => cart.id === completedCartId);
+    expect(unchangedCompletedCart).toBeTruthy();
+    expect(unchangedCompletedCart.status).toBe("completed");
+    expect(String(unchangedCompletedCart.orderCode || "")).toBe(completedCart.orderCode);
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
