@@ -205,6 +205,24 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `product_id`, `product_name`
   - `quantity`, `unit_price`, `note`, `sort_order`
 
+### `bulk_order_batches`
+
+- log request batch cho màn `Tạo nhiều đơn`
+- cột chính:
+  - `id`
+  - `request_id`: unique idempotency key để chống bấm lặp tạo trùng
+  - `mode`: `draft` hoặc `commit_valid`
+  - `actor`
+  - `total_orders`, `success_count`, `failed_count`
+  - `request_payload`, `response_payload`
+  - `created_at`
+
+### Vai trò nghiệp vụ bổ sung
+
+- bảng này không tạo workflow trạng thái mới cho đơn; trạng thái chuẩn của từng cart vẫn giữ nguyên `draft -> committed -> completed`
+- `response_payload` lưu kết quả theo từng khách để nếu request bị gửi lặp cùng `request_id`, backend trả lại đúng batch cũ thay vì tạo đơn trùng
+- audit tổng quan của batch vẫn đi thêm vào `audit_logs` với `entity_type = bulk_order_batch`
+
 ### `purchases`
 
 - header phiếu nhập
