@@ -65,6 +65,29 @@ function buildPaidPurchase({ id, supplierName, product, quantity, now }) {
   };
 }
 
+function buildOpenPurchase({ id, supplierName, product, quantity, now, status = "draft" }) {
+  return {
+    id,
+    supplierName,
+    note: "Seed phiếu chờ nhập để review conflict NCC",
+    status,
+    createdAt: now,
+    updatedAt: now,
+    orderedAt: status === "ordered" ? now : "",
+    receiptCode: status === "ordered" ? `PN-${id}` : "",
+    items: [
+      {
+        id: `${id}_item`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity,
+        unitCost: Number(product.price || 0),
+      },
+    ],
+  };
+}
+
 function buildDemandCart({ id, customerName, product, quantity, now }) {
   return {
     id,
@@ -156,7 +179,7 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
 
 test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the existing draft when supplier repeats", async ({ page, request }) => {
   test.setTimeout(90000);
-  const runtime = attachRuntimeTracking(page);
+  const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
   const timestamp = Date.now();
   const supplierA = `NCC A ${timestamp}`;
   const supplierB = `NCC B ${timestamp}`;
@@ -227,6 +250,9 @@ test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the exis
     await expect(page.locator(".cart-item").filter({ hasText: productTwoName })).toHaveCount(0);
 
     await expect(secondProductSuggestion).toBeVisible();
+    page.once("dialog", async (dialog) => {
+      await dialog.dismiss();
+    });
     await secondProductSuggestion.locator('[data-purchase-suggestion-action="add"]').click();
     await collectToast(page, runtime, "it-pursup-03-reuse-supplier-a", { errorPattern: /^$/ });
 
@@ -348,6 +374,117 @@ test("IT-PURSUP-04 empty purchase draft can be deleted and supplier button can s
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-PURSUP-08 purchases can repeat a received purchase into a new draft with cleared lot metadata", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const supplierName = `NCC lap NH ${timestamp}`;
+  const purchaseId = `purchase_repeat_${timestamp}`;
+  const discountAmount = 6000;
+  const now = new Date().toISOString();
+  const originalState = await fetchSyncState(request, userCookie);
+  const products = await fetchProducts(request, userCookie);
+  const product = products[0];
+  expect(product).toBeTruthy();
+
+  const receivedPurchase = {
+    id: purchaseId,
+    supplierName,
+    note: "Nhập lại từ phiếu cũ",
+    status: "received",
+    discountAmount,
+    createdAt: now,
+    updatedAt: now,
+    receivedAt: now,
+    receiptCode: `PN-REPEAT-${timestamp}`,
+    items: [
+      {
+        id: `purchase_repeat_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 3,
+        unitCost: Number(product.price || 0) || 1000,
+        batchCode: `LO-${timestamp}`,
+        expiryInputMode: "direct",
+        expiryDate: "2026-12-31",
+        manufactureDate: "",
+      },
+    ],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: [receivedPurchase, ...(originalState.purchases || [])],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+    await setFloatingSearch(page, supplierName);
+
+    const purchaseCard = page.locator(".cart-queue-item", { hasText: supplierName }).first();
+    await expect(purchaseCard).toBeVisible();
+    await purchaseCard.locator('[data-purchase-list-action="repeat"]').click();
+
+    const repeatToast = await collectToast(page, runtime, "it-pursup-08-repeat-purchase", { errorPattern: /^$/ });
+    expect(repeatToast).toContain("Đã tạo phiếu nhập nháp mới");
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierName);
+    await expect(page.locator("#purchaseNoteInput")).toHaveValue(receivedPurchase.note);
+    await expect(page.locator('[data-purchase-discount-input]')).toHaveValue(String(discountAmount));
+    await expect(page.locator('[data-purchase-qty-input]').first()).toHaveValue("3");
+    await expect(page.locator('[data-purchase-cost-input]').first()).toHaveValue(String(Number(receivedPurchase.items[0].unitCost)));
+    await expect(page.locator('[data-purchase-batch-input]').first()).toHaveValue("");
+    await expect(page.locator('[data-purchase-expiry-input]').first()).toHaveValue("");
+    await expect(page.locator('[data-purchase-manufacture-input]').first()).toHaveValue("");
+
+    const latestState = await fetchSyncState(request, userCookie);
+    const repeatedDrafts = (latestState.purchases || []).filter((purchase) =>
+      purchase.id !== purchaseId &&
+      purchase.status === "draft" &&
+      purchase.supplierName === supplierName
+    );
+    expect(repeatedDrafts).toHaveLength(1);
+    const repeatedDraft = repeatedDrafts[0];
+    expect(String(repeatedDraft.receiptCode || repeatedDraft.receipt_code || "")).toBe("");
+    expect(String(repeatedDraft.sourceType || repeatedDraft.source_type || "")).toBe("");
+    expect(String(repeatedDraft.sourceCode || repeatedDraft.source_code || "")).toBe("");
+    expect(String(repeatedDraft.sourceName || repeatedDraft.source_name || "")).toBe("");
+    expect(String(repeatedDraft.note || "")).toBe(receivedPurchase.note);
+    expect(Number(repeatedDraft.discountAmount || repeatedDraft.discount_amount || 0)).toBe(discountAmount);
+    expect(repeatedDraft.items || []).toHaveLength(1);
+    expect(Number(repeatedDraft.items[0].productId)).toBe(Number(product.id));
+    expect(Number(repeatedDraft.items[0].quantity)).toBe(3);
+    expect(Number(repeatedDraft.items[0].unitCost || repeatedDraft.items[0].unit_cost || 0)).toBe(Number(receivedPurchase.items[0].unitCost));
+    expect(String(repeatedDraft.items[0].batchCode || repeatedDraft.items[0].batch_code || "")).toBe("");
+    expect(String(repeatedDraft.items[0].expiryDate || repeatedDraft.items[0].expiry_date || "")).toBe("");
+    expect(String(repeatedDraft.items[0].manufactureDate || repeatedDraft.items[0].manufacture_date || "")).toBe("");
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical supplier", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const timestamp = Date.now();
@@ -395,6 +532,7 @@ test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical
     await expectScreenTitle(page, "Nhập hàng");
     await page.locator("#createPurchaseDraftButton").click();
     await page.waitForTimeout(250);
+    await collectToast(page, runtime, "it-pursup-06-create-draft", { errorPattern: /^$/ });
     await expect(page.locator("#purchaseSupplierInput")).toHaveValue("");
 
     const addUniqueButton = page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${uniqueProduct.id}"]`).first();
@@ -426,7 +564,7 @@ test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical
 });
 
 test("IT-PURSUP-06 purchase supplier suggestions prioritize multiple historical suppliers", async ({ page, request }) => {
-  const runtime = attachRuntimeTracking(page);
+  const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
   const timestamp = Date.now();
   const now = new Date().toISOString();
   const userCookie = await autoLoginUserRequest(request);
@@ -479,9 +617,11 @@ test("IT-PURSUP-06 purchase supplier suggestions prioritize multiple historical 
 
     const addMultiButton = page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${multiProduct.id}"]`).first();
     await expect(addMultiButton).toBeVisible();
+    page.once("dialog", async (dialog) => {
+      await dialog.dismiss();
+    });
     await addMultiButton.click();
-    const multiToast = await collectToast(page, runtime, "it-pursup-05-multiple", { errorPattern: /^$/ });
-    expect(multiToast).toContain("Đã thêm vào phiếu nhập");
+    await expect(page.locator("#purchasePanel")).toContainText(multiProduct.name);
     await expect(page.locator("#purchaseSupplierInput")).toHaveValue("");
 
     const supplierOptionValues = await page.locator("#supplierOptions option").evaluateAll((options) =>
@@ -490,6 +630,109 @@ test("IT-PURSUP-06 purchase supplier suggestions prioritize multiple historical 
     expect(supplierOptionValues.indexOf(highPrioritySupplier)).toBeGreaterThanOrEqual(0);
     expect(supplierOptionValues.indexOf(lowPrioritySupplier)).toBeGreaterThanOrEqual(0);
     expect(supplierOptionValues.indexOf(highPrioritySupplier)).toBeLessThan(supplierOptionValues.indexOf(lowPrioritySupplier));
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-PURSUP-07 purchases warn and review open receipts when one product is pending across different suppliers", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
+  const timestamp = Date.now();
+  const now = new Date().toISOString();
+  const supplierA = `NCC conflict A ${timestamp}`;
+  const supplierB = `NCC conflict B ${timestamp}`;
+  const userCookie = await autoLoginUserRequest(request);
+  const originalState = await fetchSyncState(request, userCookie);
+  const products = await fetchProducts(request, userCookie);
+  const targetProduct = products[0];
+  expect(targetProduct).toBeTruthy();
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: [
+          ...(originalState.suppliers || []),
+          { id: `supplier_conflict_a_${timestamp}`, name: supplierA, phone: "", address: "", note: "", createdAt: now, updatedAt: now },
+          { id: `supplier_conflict_b_${timestamp}`, name: supplierB, phone: "", address: "", note: "", createdAt: now, updatedAt: now },
+        ],
+        carts: [
+          buildDemandCart({
+            id: `cart_conflict_${timestamp}`,
+            customerName: `Khách conflict ${timestamp}`,
+            product: targetProduct,
+            quantity: Math.max(Number(targetProduct.current_stock || 0) + 3, 3),
+            now,
+          }),
+          ...(originalState.carts || []),
+        ],
+        purchases: [
+          buildOpenPurchase({ id: `purchase_conflict_a_${timestamp}`, supplierName: supplierA, product: targetProduct, quantity: 2, now, status: "draft" }),
+          buildOpenPurchase({ id: `purchase_conflict_b_${timestamp}`, supplierName: supplierB, product: targetProduct, quantity: 4, now, status: "ordered" }),
+          ...(originalState.purchases || []),
+        ],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    await page.locator("#createPurchaseDraftButton").click();
+    await page.waitForTimeout(250);
+
+    let firstDialogMessage = "";
+    page.once("dialog", async (dialog) => {
+      firstDialogMessage = dialog.message();
+      await dialog.accept();
+    });
+    await page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${targetProduct.id}"]`).first().click();
+    await expect(page.locator("[data-purchase-conflict-review]")).toBeVisible();
+    expect(firstDialogMessage).toContain(targetProduct.name);
+    expect(firstDialogMessage).toContain("phiếu chờ nhập");
+    await expect(page.locator("[data-purchase-conflict-review]")).toContainText(supplierA);
+    await expect(page.locator("[data-purchase-conflict-review]")).toContainText(supplierB);
+
+    await page.locator("[data-purchase-conflict-review] .cart-queue-item", { hasText: supplierA }).locator('[data-purchase-conflict-review-action="open"]').click();
+    await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierA);
+    await page.locator('[data-purchase-conflict-review-action="dismiss"]').click();
+    await expect(page.locator("[data-purchase-conflict-review]")).toHaveCount(0);
+
+    await page.locator("#createPurchaseDraftButton").click();
+    await page.waitForTimeout(250);
+    let secondDialogMessage = "";
+    page.once("dialog", async (dialog) => {
+      secondDialogMessage = dialog.message();
+      await dialog.dismiss();
+    });
+    await page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${targetProduct.id}"]`).first().click();
+    expect(secondDialogMessage).toContain(targetProduct.name);
+    const conflictToast = await collectToast(page, runtime, "it-pursup-07-keep-current", { errorPattern: /^$/ });
+    expect(conflictToast).toContain("Cảnh báo");
+    await expect(page.locator("#purchasePanel")).toContainText(targetProduct.name);
+    await expect(page.locator("#purchasePanel")).toContainText("Cảnh báo NCC theo mặt hàng");
+
+    const latestState = await fetchSyncState(request, userCookie);
+    expect((latestState.purchases || []).some((purchase) =>
+      purchase.status === "draft" &&
+      !String(purchase.supplierName || "").trim() &&
+      (purchase.items || []).some((item) => Number(item.productId) === Number(targetProduct.id))
+    )).toBeTruthy();
   } finally {
     await request.put("/api/state", {
       headers: { Cookie: userCookie },

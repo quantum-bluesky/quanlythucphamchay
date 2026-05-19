@@ -62,6 +62,7 @@ Mục tiêu:
 | 36 | `IT-PURSUP-04` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-04"` |
 | 37 | `IT-PURSUP-05` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-05"` |
 | 38 | `IT-PURSUP-06` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-06"` |
+| 39 | `IT-PURSUP-07` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-07"` |
 | 39 | `IT-MOB-01` | `tests/integration/mobile-floating-ui.spec.js` | `npx playwright test tests/integration/mobile-floating-ui.spec.js --grep "IT-MOB-01"` |
 | 40 | `IT-MOB-02` | `tests/integration/mobile-floating-ui.spec.js` | `npx playwright test tests/integration/mobile-floating-ui.spec.js --grep "IT-MOB-02"` |
 | 41 | `IT-NAV-01` | `tests/integration/detail-scroll.spec.js` | `npx playwright test tests/integration/detail-scroll.spec.js --grep "IT-NAV-01"` |
@@ -72,6 +73,9 @@ Mục tiêu:
 | 46 | `IT-NAV-04` | `tests/integration/mobile-floating-ui.spec.js` | `npx playwright test tests/integration/mobile-floating-ui.spec.js --grep "IT-NAV-04"` |
 | 47 | `IT-TAB-01` | `tests/integration/mobile-floating-ui.spec.js` | `npx playwright test tests/integration/mobile-floating-ui.spec.js --grep "IT-TAB-01"` |
 | 48 | `IT-PAG-01` | `tests/integration/pagination-settings.spec.js` | `npx playwright test tests/integration/pagination-settings.spec.js --grep "IT-PAG-01"` |
+| 49 | `IT-ORD-03` | `tests/integration/orders-actions.spec.js` | `npx playwright test tests/integration/orders-actions.spec.js --grep "IT-ORD-03"` |
+| 50 | `IT-PURSUP-08` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-08"` |
+| 51 | `IT-ORD-04` | `tests/integration/orders-actions.spec.js` | `npx playwright test tests/integration/orders-actions.spec.js --grep "IT-ORD-04"` |
 | 45 | `UT-DB-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_01_create_product_and_stock_summary` |
 | 46 | `UT-DB-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_02_stock_out_cannot_exceed_inventory` |
 | 47 | `UT-DB-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_03_inventory_adjustment_receipt_updates_stock_with_reason` |

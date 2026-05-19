@@ -23,6 +23,7 @@ export function createPurchasesUi(deps) {
     canManageProcurementBatchStructure,
     isProcurementBatchModeActive,
     getPurchaseSuggestions,
+    getOpenPurchaseSupplierConflictInsight,
     resolvePurchaseItemExpiryMeta,
     isSearchResultMode,
     paginateItems,
@@ -56,6 +57,91 @@ export function createPurchasesUi(deps) {
       return sourceCode ? `${sourceName} (${sourceCode})` : sourceName;
     }
     return sourceCode || "";
+  }
+
+  function joinSupplierNames(names = []) {
+    return names
+      .map((name) => String(name || "").trim())
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  function getPurchaseConflictWarnings(purchase) {
+    if (!purchase || !Array.isArray(purchase.items) || !purchase.items.length) {
+      return [];
+    }
+    const targetSupplierName = String(purchase.supplierName || "").trim();
+    return purchase.items
+      .map((item) => {
+        const insight = getOpenPurchaseSupplierConflictInsight(item.productId, {
+          targetPurchaseId: purchase.id,
+          targetSupplierName,
+        });
+        if (!insight.hasOtherSupplierConflict) {
+          return null;
+        }
+        const otherSupplierNames = insight.otherSupplierPurchases
+          .map((entry) => String(entry.supplierName || "").trim())
+          .filter(Boolean)
+          .filter((value, index, values) => values.indexOf(value) === index);
+        if (!otherSupplierNames.length) {
+          return null;
+        }
+        return {
+          productName: item.productName,
+          otherSupplierNames,
+          hasMultiSupplierOpenState: insight.hasMultiSupplierOpenState,
+          openPurchaseCount: insight.openPurchases.length,
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function renderPurchaseConflictReviewPanel() {
+    const review = state.purchaseConflictReview || {};
+    const productId = Number(review.productId);
+    if (!Number.isFinite(productId) || productId <= 0) {
+      return "";
+    }
+    const insight = getOpenPurchaseSupplierConflictInsight(productId, {
+      targetPurchaseId: review.targetPurchaseId,
+      targetSupplierName: review.targetSupplierName,
+    });
+    const productName = String(review.productName || insight.productName || "").trim() || `SP #${String(review.productId || "")}`;
+    const warningMessage = insight.hasMultiSupplierOpenState
+      ? `Hiện mặt hàng này vẫn đang nằm ở nhiều NCC mở: ${joinSupplierNames(insight.distinctProjectedSuppliers)}. Bạn có thể mở phiếu để dồn lại một NCC hoặc giữ nguyên hiện trạng nếu chấp nhận.`
+      : insight.hasOtherSupplierConflict
+        ? `Mặt hàng này đang có phiếu chờ nhập ở ${joinSupplierNames(insight.distinctOpenSuppliers)}. Nếu tiếp tục đặt NCC khác thì một mặt hàng sẽ bị tách sang nhiều NCC.`
+        : "Mặt hàng này hiện không còn phiếu chờ nhập của NCC khác.";
+    return `
+      <article class="inline-alert warning" data-purchase-conflict-review>
+        <div class="queue-header">
+          <strong>Review phiếu chờ nhập của ${escapeHtml(productName)}</strong>
+          <button type="button" class="ghost-button compact-button" data-purchase-conflict-review-action="dismiss">Giữ hiện trạng</button>
+        </div>
+        <p class="panel-note">${escapeHtml(warningMessage)}</p>
+        ${insight.openPurchases.length ? `
+          <div class="queue-list">
+            ${insight.openPurchases.map((entry) => `
+              <article class="cart-queue-item">
+                <div class="queue-header">
+                  <strong>${escapeHtml(entry.supplierName || "Phiếu chưa có NCC")}</strong>
+                  <span class="status-pill ${entry.status === "ordered" ? "draft" : "warning"}">${escapeHtml(entry.status === "ordered" ? "Đã đặt" : "Nháp")}</span>
+                </div>
+                <div class="queue-meta">
+                  <span>${escapeHtml(entry.purchase.receiptCode || entry.id)}</span>
+                  <span>${escapeHtml(formatQuantity(entry.productQuantity))} ${escapeHtml(entry.purchase.items.find((item) => Number(item.productId) === productId)?.unit || "")}</span>
+                </div>
+                <div class="cart-line-note">${escapeHtml(entry.note || "Mở phiếu để rà soát hoặc đổi NCC khi phiếu còn Nháp.")}</div>
+                <div class="queue-actions">
+                  <button type="button" class="ghost-button compact-button" data-purchase-conflict-review-action="open" data-purchase-id="${escapeHtml(entry.id)}">Mở phiếu</button>
+                </div>
+              </article>
+            `).join("")}
+          </div>
+        ` : '<div class="empty-state">Không còn phiếu draft/ordered nào liên quan tới mặt hàng này.</div>'}
+      </article>
+    `;
   }
 
   function renderPurchaseEntryState() {
@@ -122,6 +208,8 @@ export function createPurchasesUi(deps) {
     const purchaseLocked = isLockedPurchase(purchase);
     const repairableInvalidPurchase = isRepairableInvalidPurchase(purchase);
     const purchaseHasSupplier = hasPurchaseSupplier(purchase);
+    const canRepeatPurchase = ["received", "paid"].includes(String(purchase?.status || "").trim());
+    const repeatPurchaseDisabled = isPurchaseStructureLockedByProcurementBatch();
     if (state.purchasePanelCollapsed) {
       dom.purchasePanel.innerHTML = `<article class="empty-state">Phiếu nhập đang được thu gọn.</article>`;
       return;
@@ -132,6 +220,7 @@ export function createPurchasesUi(deps) {
     }
     const purchaseStatusMeta = getPurchaseStatusMeta(purchase);
     const purchaseSourceLabel = getPurchaseSourceLabel(purchase);
+    const purchaseConflictWarnings = getPurchaseConflictWarnings(purchase);
     const detailRows = [
       { label: "Mã phiếu", value: purchase.receiptCode || "Chưa có" },
       { label: "Nhà cung cấp", value: purchase.supplierName || "Chưa có" },
@@ -227,6 +316,7 @@ export function createPurchasesUi(deps) {
           </div>
         ` : ""}
         ${procurementBatchReadOnly && ["draft", "ordered"].includes(purchase.status) ? `<article class="inline-alert warning">Batch mode đang bật. Bạn chỉ được xem phiếu nháp/đã đặt này; tạo mới, đổi NCC, sửa dòng, đổi giảm giá, hủy hoặc xóa chỉ dành cho người giữ khóa batch hoặc Master Admin. Bước Nhập kho chỉ còn mở cho phiếu không phải batch và đã được Đã đặt trước khi kỳ gom hiện tại bắt đầu.</article>` : ""}
+        ${purchaseConflictWarnings.length ? `<article class="inline-alert warning"><strong>Cảnh báo NCC theo mặt hàng:</strong> ${purchaseConflictWarnings.map((entry) => `${escapeHtml(entry.productName)} đang có phiếu chờ ở ${escapeHtml(joinSupplierNames(entry.otherSupplierNames))}${entry.hasMultiSupplierOpenState ? `; hiện đang có ${escapeHtml(String(entry.openPurchaseCount))} phiếu mở cho mặt hàng này.` : "."}`).join(" ")}</article>` : ""}
         ${repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đang ở trạng thái lỗi dữ liệu: marker xử lý và trạng thái hiện tại không còn khớp nhau. Có thể hủy hoặc xóa để dọn dữ liệu lỗi, app sẽ không khôi phục lại thành nháp.</article>` : ""}
         ${purchaseLocked && !repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
         <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">
@@ -244,6 +334,7 @@ export function createPurchasesUi(deps) {
           ${purchase.status === "draft" ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Đã đặt hàng</button>` : ""}
           ${canReceivePurchase(purchase) ? `<button type="button" class="primary-button" data-purchase-action="receive" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Nhập kho</button>` : ""}
           ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
+          ${canRepeatPurchase ? `<button type="button" class="ghost-button" data-purchase-action="repeat" ${repeatPurchaseDisabled ? "disabled" : ""} title="${repeatPurchaseDisabled ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo lại phiếu nhập." : ""}">Nhập lại</button>` : ""}
           ${["received", "paid"].includes(purchase.status) && !repairableInvalidPurchase ? `<button type="button" class="ghost-button" data-purchase-action="supplier-return">Trả NCC</button>` : ""}
           ${purchaseCancellable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
           ${canDeletePurchase(purchase) ? `<button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>` : ""}
@@ -269,13 +360,24 @@ export function createPurchasesUi(deps) {
     const paginationMarkup = renderPagination("purchaseSuggestions", pageData);
     const topPagination = paginationMarkup ? `<div class="purchase-suggestions-top-pagination">${paginationMarkup}</div>` : "";
     const bottomPagination = paginationMarkup ? `<div class="purchase-suggestions-bottom-pagination">${paginationMarkup}</div>` : "";
-    dom.purchaseSuggestionList.innerHTML = topPagination + pageData.items.map((entry) => `
+    dom.purchaseSuggestionList.innerHTML = topPagination + pageData.items.map((entry) => {
+      const insight = getOpenPurchaseSupplierConflictInsight(entry.product.id, {
+        targetPurchaseId: activePurchase?.id || "",
+        targetSupplierName: String(activePurchase?.supplierName || "").trim(),
+      });
+      const conflictNote = insight.hasMultiSupplierOpenState
+        ? `Đang có ${insight.openPurchases.length} phiếu draft/ordered cho mặt hàng này ở nhiều NCC: ${joinSupplierNames(insight.distinctProjectedSuppliers)}.`
+        : insight.hasOtherSupplierConflict
+          ? `Đã có phiếu chờ nhập ở ${joinSupplierNames(insight.distinctOpenSuppliers)}. Nếu thêm sang NCC khác thì một mặt hàng sẽ bị tách NCC.`
+          : "";
+      return `
       <article class="sales-product-row">
         <div class="sales-product-head">
           <div>
             <strong>${escapeHtml(entry.product.name)}</strong>
             <div class="sales-product-meta">Tồn ${formatQuantity(entry.product.current_stock)} ${escapeHtml(entry.product.unit)} | Cần cho đơn ${formatQuantity(entry.demand)}</div>
             <div class="cart-line-note">Đề xuất ${formatQuantity(entry.suggestedQuantity || entry.shortageFromOrders || 1)} ${escapeHtml(entry.product.unit)} trước khi thêm vào phiếu.</div>
+            ${conflictNote ? `<div class="cart-line-note warning-text">${escapeHtml(conflictNote)}</div>` : ""}
           </div>
         </div>
         <div class="queue-actions purchase-suggestion-actions">
@@ -286,10 +388,12 @@ export function createPurchasesUi(deps) {
           <button type="button" class="ghost-button compact-button" data-purchase-suggestion-action="add" data-product-id="${entry.product.id}" data-quantity="${entry.suggestedQuantity || entry.shortageFromOrders || 1}" ${isPurchaseStructureLockedByProcurementBatch() ? "disabled" : ""}>+ Phiếu</button>
         </div>
       </article>
-    `).join("") + bottomPagination;
+    `;
+    }).join("") + bottomPagination;
   }
 
   function renderPurchaseOrders() {
+    const repeatPurchaseDisabled = isPurchaseStructureLockedByProcurementBatch();
     const visiblePurchases = state.purchases
       .filter((purchase) => {
         if (!state.showCancelledPurchases && purchase.status === "cancelled") {
@@ -305,15 +409,16 @@ export function createPurchasesUi(deps) {
         return haystack.includes(state.purchaseSearchTerm.toLowerCase());
       });
     dom.purchaseOrderList.classList.toggle("is-compact-search", isSearchResultMode("purchaseOrders"));
+    const reviewMarkup = renderPurchaseConflictReviewPanel();
     if (!visiblePurchases.length) {
-      dom.purchaseOrderList.innerHTML = '<div class="empty-state">Chưa có phiếu nhập nào.</div>';
+      dom.purchaseOrderList.innerHTML = reviewMarkup + '<div class="empty-state">Chưa có phiếu nhập nào.</div>';
       return;
     }
     const pageData = paginateItems(visiblePurchases, "purchaseOrders");
     const paginationMarkup = renderPagination("purchaseOrders", pageData);
     const topPagination = paginationMarkup ? `<div class="purchase-orders-top-pagination">${paginationMarkup}</div>` : "";
     const bottomPagination = paginationMarkup ? `<div class="purchase-orders-bottom-pagination">${paginationMarkup}</div>` : "";
-    dom.purchaseOrderList.innerHTML = topPagination + pageData.items.map((purchase) => `
+    dom.purchaseOrderList.innerHTML = reviewMarkup + topPagination + pageData.items.map((purchase) => `
       <article class="cart-queue-item">
         <div class="queue-header">
           <strong>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
@@ -325,6 +430,7 @@ export function createPurchasesUi(deps) {
         </div>
         <div class="queue-actions">
           <button type="button" class="ghost-button compact-button" data-purchase-list-action="open" data-purchase-id="${purchase.id}">Mở</button>
+          ${["received", "paid"].includes(String(purchase.status || "").trim()) ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="repeat" data-purchase-id="${purchase.id}" ${repeatPurchaseDisabled ? "disabled" : ""} title="${repeatPurchaseDisabled ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo lại phiếu nhập." : ""}">Nhập lại</button>` : ""}
         </div>
       </article>
     `).join("") + bottomPagination;

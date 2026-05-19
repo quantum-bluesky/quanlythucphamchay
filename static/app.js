@@ -998,6 +998,7 @@ function getPurchasesUi() {
       canManageProcurementBatchStructure,
       isProcurementBatchModeActive,
       getPurchaseSuggestions,
+      getOpenPurchaseSupplierConflictInsight,
       resolvePurchaseItemExpiryMeta,
       isSearchResultMode,
       paginateItems,
@@ -2640,6 +2641,10 @@ function maybeApplySupplierSuggestionToPurchase(purchaseId, productIds = []) {
   return getPurchasesDomainHelpers().maybeApplySupplierSuggestionToPurchase(purchaseId, productIds);
 }
 
+function repeatCompletedPurchase(purchaseId) {
+  return getPurchasesDomainHelpers().repeatCompletedPurchase(purchaseId);
+}
+
 function deletePurchaseDraftLocally(purchaseId) {
   return getPurchasesDomainHelpers().deletePurchaseDraftLocally(purchaseId);
 }
@@ -2650,6 +2655,14 @@ function isUnsavedEmptyDraftPurchase(purchase) {
 
 function updatePurchase(purchaseId, updater) {
   return getPurchasesDomainHelpers().updatePurchase(purchaseId, updater);
+}
+
+function repeatCompletedCart(cartId, options = {}) {
+  return getSalesDomainHelpers().repeatCompletedCart(cartId, options);
+}
+
+function findDraftCartForCustomer(cart) {
+  return getSalesDomainHelpers().findDraftCartForCustomer(cart);
 }
 
 function getDraftDemandByProductId() {
@@ -2698,6 +2711,10 @@ function getCommittedCartsForProduct(productId) {
 
 function getOpenPurchasesForProduct(productId) {
   return getPurchasesDomainHelpers().getOpenPurchasesForProduct(productId);
+}
+
+function getOpenPurchaseSupplierConflictInsight(productId, options = {}) {
+  return getPurchasesDomainHelpers().getOpenPurchaseSupplierConflictInsight(productId, options);
 }
 
 function getInventoryProductSignals(product, demandMaps, incomingMap) {
@@ -4265,6 +4282,38 @@ function openPurchaseDocumentById(purchaseId) {
   focusPurchasePanel();
 }
 
+function openPurchaseConflictReview(productId, options = {}) {
+  const product = getProductById(productId);
+  state.purchaseConflictReview = {
+    productId: Number(productId),
+    productName: String(options.productName || product?.name || "").trim(),
+    targetPurchaseId: String(options.targetPurchaseId || "").trim(),
+    targetSupplierName: String(options.targetSupplierName || "").trim(),
+  };
+  const productName = String(options.productName || product?.name || "").trim();
+  if (productName) {
+    state.purchaseSearchTerm = productName;
+    if (purchaseSearchInput) {
+      purchaseSearchInput.value = productName;
+    }
+  }
+  state.pagination.purchaseSuggestions = 1;
+  state.pagination.purchaseOrders = 1;
+  switchMenu("purchases");
+  renderAll();
+  focusPurchaseOrders();
+}
+
+function clearPurchaseConflictReview() {
+  state.purchaseConflictReview = {
+    productId: null,
+    productName: "",
+    targetPurchaseId: "",
+    targetSupplierName: "",
+  };
+  renderPurchaseOrders();
+}
+
 function renderSummary(summary) {
   getInventoryUi().renderSummary(summary);
 }
@@ -5502,6 +5551,8 @@ registerSalesControllerEvents({
     toggleProductInActiveCart,
     updateCartItem,
     removeCartItem,
+    repeatCompletedCart,
+    findDraftCartForCustomer,
     setActiveCart,
     createNewDraftForPendingMergeCustomer,
     clearPendingCartMergePrompt,
@@ -5655,6 +5706,10 @@ registerPurchasesControllerEvents({
     focusSupplierReturnSection,
     switchMenu,
     addSuggestionToPurchase,
+    repeatCompletedPurchase,
+    openPurchaseConflictReview,
+    clearPurchaseConflictReview,
+    openPurchaseDocumentById,
     openSupplierReturnDraftFromPurchase,
     addSupplierReturnDraftItem,
     resetSupplierReturnDraft,
@@ -5680,6 +5735,7 @@ registerPurchasesControllerEvents({
     isUnsavedEmptyDraftPurchase,
     canMarkPurchasePaid,
     isRepairableInvalidPurchase,
+    getOpenPurchaseSupplierConflictInsight,
     getSkipNextPurchaseSupplierChangePersist: () => skipNextPurchaseSupplierChangePersist,
   },
   utils: {

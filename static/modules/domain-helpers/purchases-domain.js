@@ -374,6 +374,83 @@ export function createPurchasesDomainHelpers(deps) {
     );
   }
 
+  function getOpenPurchaseSupplierConflictInsight(productId, options = {}) {
+    const targetProductId = Number(productId);
+    if (!Number.isFinite(targetProductId) || targetProductId <= 0) {
+      return {
+        productId: null,
+        targetPurchaseId: "",
+        targetSupplierName: "",
+        productName: "",
+        openPurchases: [],
+        distinctOpenSuppliers: [],
+        distinctProjectedSuppliers: [],
+        otherSupplierPurchases: [],
+        hasOtherSupplierConflict: false,
+        hasMultiSupplierOpenState: false,
+      };
+    }
+    const targetPurchaseId = String(options.targetPurchaseId || "").trim();
+    const targetSupplierName = String(options.targetSupplierName || "").trim();
+    const openPurchases = getOpenPurchasesForProduct(targetProductId)
+      .map((purchase) => {
+        const matchedItem = (Array.isArray(purchase.items) ? purchase.items : []).find(
+          (item) => Number(item.productId) === targetProductId
+        );
+        return {
+          id: String(purchase.id || "").trim(),
+          purchase,
+          supplierName: String(purchase.supplierName || "").trim(),
+          status: String(purchase.status || "").trim(),
+          productQuantity: Number(matchedItem?.quantity || 0),
+          productName: String(matchedItem?.productName || "").trim(),
+          note: String(purchase.note || "").trim(),
+        };
+      });
+    const productName = openPurchases.find((entry) => entry.productName)?.productName
+      || String(getProductById(targetProductId)?.name || "").trim();
+    const distinctOpenSuppliers = [];
+    const openSupplierKeys = new Set();
+    openPurchases.forEach((entry) => {
+      const supplierName = String(entry.supplierName || "").trim();
+      const supplierKey = normalizeSupplierName(supplierName);
+      if (!supplierKey || openSupplierKeys.has(supplierKey)) {
+        return;
+      }
+      openSupplierKeys.add(supplierKey);
+      distinctOpenSuppliers.push(supplierName);
+    });
+    const targetSupplierKey = normalizeSupplierName(targetSupplierName);
+    const distinctProjectedSuppliers = [...distinctOpenSuppliers];
+    if (targetSupplierKey && !openSupplierKeys.has(targetSupplierKey)) {
+      distinctProjectedSuppliers.push(targetSupplierName);
+    }
+    const otherSupplierPurchases = openPurchases.filter((entry) => {
+      if (!entry.supplierName) {
+        return false;
+      }
+      if (targetPurchaseId && entry.id === targetPurchaseId) {
+        return false;
+      }
+      if (!targetSupplierKey) {
+        return true;
+      }
+      return normalizeSupplierName(entry.supplierName) !== targetSupplierKey;
+    });
+    return {
+      productId: targetProductId,
+      targetPurchaseId,
+      targetSupplierName,
+      productName,
+      openPurchases,
+      distinctOpenSuppliers,
+      distinctProjectedSuppliers,
+      otherSupplierPurchases,
+      hasOtherSupplierConflict: otherSupplierPurchases.length > 0,
+      hasMultiSupplierOpenState: distinctProjectedSuppliers.length > 1,
+    };
+  }
+
   function getPurchaseSourceMeta(purchase = {}) {
     return {
       sourceType: String(purchase.sourceType || purchase.source_type || "").trim(),
@@ -649,6 +726,90 @@ export function createPurchasesDomainHelpers(deps) {
       };
     });
     return mergedItems;
+  }
+
+  function clonePurchaseItemsForRepeat(sourceItems = []) {
+    return (Array.isArray(sourceItems) ? sourceItems : [])
+      .map((item) => {
+        const product = getProductById(item.productId);
+        const quantity = Number(item.quantity);
+        const unitCost = Number(item.unitCost ?? item.unit_cost);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          return null;
+        }
+        if (!Number.isFinite(unitCost) || unitCost < 0) {
+          return null;
+        }
+        return {
+          id: createId("purchase_item"),
+          productId: Number(item.productId),
+          productName: product?.name || item.productName || "Sản phẩm",
+          unit: product?.unit || item.unit || "",
+          quantity: Number(quantity.toFixed(2)),
+          unitCost,
+          batchCode: "",
+          expiryInputMode: "direct",
+          manufactureDate: "",
+          expiryDate: "",
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function repeatCompletedPurchase(purchaseId) {
+    assertCanMutatePurchaseStructure();
+    const sourcePurchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
+    if (!sourcePurchase || !["received", "paid"].includes(String(sourcePurchase.status || "").trim())) {
+      throw new Error("Chỉ phiếu đã nhập kho hoặc đã thanh toán mới được tạo lại thành phiếu nháp.");
+    }
+    const supplierName = String(sourcePurchase.supplierName || "").trim();
+    if (!supplierName) {
+      throw new Error("Phiếu nguồn chưa có nhà cung cấp hợp lệ để tạo lại.");
+    }
+    const clonedItems = clonePurchaseItemsForRepeat(sourcePurchase.items);
+    if (!clonedItems.length) {
+      throw new Error("Phiếu nguồn không có dòng hàng hợp lệ để tạo lại.");
+    }
+    const activePurchase = getActivePurchase();
+    if (activePurchase && isTransientBlankPurchaseDraft(activePurchase)) {
+      removePurchaseById(activePurchase.id);
+    }
+    const existingDraft = findDraftPurchaseBySupplierName(supplierName);
+    if (existingDraft) {
+      const sourceDiscountAmount = Number(sourcePurchase.discountAmount ?? sourcePurchase.discount_amount ?? 0);
+      updatePurchase(existingDraft.id, (currentPurchase) => ({
+        items: mergeDraftItems(currentPurchase.items, clonedItems),
+        note: String(currentPurchase.note || "").trim() || String(sourcePurchase.note || "").trim(),
+        discountAmount: Number(currentPurchase.discountAmount || currentPurchase.discount_amount || 0) > 0
+          ? Number(currentPurchase.discountAmount || currentPurchase.discount_amount || 0)
+          : sourceDiscountAmount,
+        sourceType: currentPurchase.sourceType || currentPurchase.source_type || "",
+        sourceCode: currentPurchase.sourceCode || currentPurchase.source_code || "",
+        sourceName: currentPurchase.sourceName || currentPurchase.source_name || "",
+      }));
+      const mergedDraft = activatePurchaseState(existingDraft.id) || getActivePurchase() || existingDraft;
+      switchMenu("purchases");
+      saveAndRenderAll(["purchases"]);
+      focusPurchasePanel();
+      return {
+        purchase: mergedDraft,
+        reusedDraft: true,
+      };
+    }
+    const repeatedDraft = buildDraftPurchase({
+      supplierName,
+      note: String(sourcePurchase.note || "").trim(),
+      discountAmount: Number(sourcePurchase.discountAmount ?? sourcePurchase.discount_amount ?? 0),
+      items: clonedItems,
+    });
+    const activatedDraft = activatePurchaseState(repeatedDraft.id) || repeatedDraft;
+    switchMenu("purchases");
+    saveAndRenderAll(["purchases"]);
+    focusPurchasePanel();
+    return {
+      purchase: activatedDraft,
+      reusedDraft: false,
+    };
   }
 
   function createPurchaseDraftIfMissing(options = {}) {
@@ -957,6 +1118,7 @@ export function createPurchasesDomainHelpers(deps) {
     getIncomingPurchaseByProductId,
     getOpenPurchaseCountByProductId,
     getOpenPurchasesForProduct,
+    getOpenPurchaseSupplierConflictInsight,
     getSupplierHistoryForProduct,
     getSupplierHistoryForProducts,
     getSupplierSuggestionsForPurchase,
@@ -968,6 +1130,7 @@ export function createPurchasesDomainHelpers(deps) {
     findUnsuppliedDraftPurchaseBySource,
     buildDraftPurchase,
     addSuggestionToPurchase,
+    repeatCompletedPurchase,
     canEditPurchaseExpiryMetadata,
     resolvePurchaseItemExpiryMeta,
     startInventoryInFlow,

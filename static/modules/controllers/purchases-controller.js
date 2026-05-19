@@ -12,6 +12,25 @@ export function registerPurchasesControllerEvents(contract) {
     return purchase.receiptCode || purchase.supplierName || "phiếu nhập này";
   }
 
+  function buildProductSupplierConflictMessage(productName, insight) {
+    const distinctSuppliers = (insight?.distinctOpenSuppliers || []).filter(Boolean);
+    if (!distinctSuppliers.length) {
+      return "";
+    }
+    if (insight.hasMultiSupplierOpenState) {
+      return [
+        `Mặt hàng "${productName}" đang có ${insight.openPurchases.length} phiếu chờ nhập ở nhiều NCC: ${distinctSuppliers.join(", ")}.`,
+        "Chọn OK để mở danh sách phiếu liên quan và review.",
+        "Chọn Cancel để giữ nguyên hiện trạng và thêm tiếp vào phiếu hiện tại.",
+      ].join("\n\n");
+    }
+    return [
+      `Mặt hàng "${productName}" đang có phiếu chờ nhập của NCC khác: ${distinctSuppliers.join(", ")}.`,
+      "Chọn OK để mở danh sách phiếu liên quan và review.",
+      "Chọn Cancel để giữ nguyên hiện trạng và thêm tiếp vào phiếu hiện tại.",
+    ].join("\n\n");
+  }
+
   function confirmPurchaseStatusAction(purchase, action) {
     const label = getPurchaseDisplayName(purchase);
     const messages = {
@@ -267,7 +286,26 @@ export function registerPurchasesControllerEvents(contract) {
     if (!button) return;
     try {
       const quantity = resolvePurchaseSuggestionQuantity(button);
-      const result = actions.addSuggestionToPurchase(button.dataset.productId, quantity, queries.getProductById(button.dataset.productId)?.price || 0);
+      const activePurchase = queries.getActivePurchase();
+      const product = queries.getProductById(button.dataset.productId);
+      const supplierConflictInsight = queries.getOpenPurchaseSupplierConflictInsight(button.dataset.productId, {
+        targetPurchaseId: activePurchase?.id || "",
+        targetSupplierName: String(activePurchase?.supplierName || dom.purchaseSupplierInput.value || "").trim(),
+      });
+      if (supplierConflictInsight.hasOtherSupplierConflict) {
+        const shouldReview = window.confirm(
+          buildProductSupplierConflictMessage(product?.name || "Mặt hàng này", supplierConflictInsight)
+        );
+        if (shouldReview) {
+          actions.openPurchaseConflictReview(button.dataset.productId, {
+            productName: product?.name || "",
+            targetPurchaseId: activePurchase?.id || "",
+            targetSupplierName: String(activePurchase?.supplierName || dom.purchaseSupplierInput.value || "").trim(),
+          });
+          return;
+        }
+      }
+      const result = actions.addSuggestionToPurchase(button.dataset.productId, quantity, product?.price || 0);
       state.purchasePanelCollapsed = false;
       renderers.renderPurchasePanel();
       actions.focusPurchasePanel();
@@ -278,6 +316,8 @@ export function registerPurchasesControllerEvents(contract) {
             ? `Đã chuyển sang phiếu nháp hiện có của ${supplierName} và thêm mặt hàng.`
             : `Đã thêm vào phiếu nhập và tự chọn ${supplierName} theo lịch sử nhập hàng.`
         );
+      } else if (supplierConflictInsight?.hasOtherSupplierConflict) {
+        actions.showToast("Đã thêm vào phiếu nhập. Cảnh báo: mặt hàng này vẫn đang có phiếu chờ ở NCC khác.");
       } else {
         actions.showToast("Đã thêm vào phiếu nhập.");
       }
@@ -623,6 +663,20 @@ export function registerPurchasesControllerEvents(contract) {
       }
       return;
     }
+    if (actionButton.dataset.purchaseAction === "repeat") {
+      try {
+        await actions.flushPendingPersistCollections();
+        const result = actions.repeatCompletedPurchase(purchase.id);
+        actions.showToast(
+          result?.reusedDraft
+            ? "Đã chép nội dung vào phiếu nháp hiện có của cùng nhà cung cấp."
+            : "Đã tạo phiếu nhập nháp mới từ phiếu đã nhập hàng."
+        );
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "receive") {
       if (!queries.canReceivePurchase(purchase)) {
         actions.showToast("Chỉ phiếu đã đặt hàng mới được nhập kho.", true);
@@ -680,7 +734,19 @@ export function registerPurchasesControllerEvents(contract) {
     saveButton?.click();
   });
 
-  dom.purchaseOrderList.addEventListener("click", (event) => {
+  dom.purchaseOrderList.addEventListener("click", async (event) => {
+    const reviewButton = event.target.closest("[data-purchase-conflict-review-action]");
+    if (reviewButton) {
+      if (reviewButton.dataset.purchaseConflictReviewAction === "dismiss") {
+        actions.clearPurchaseConflictReview();
+        return;
+      }
+      if (reviewButton.dataset.purchaseConflictReviewAction === "open") {
+        actions.openPurchaseDocumentById(reviewButton.dataset.purchaseId);
+        actions.showToast("Đã mở phiếu nhập để review NCC của mặt hàng này.");
+        return;
+      }
+    }
     const button = event.target.closest("[data-purchase-list-action]");
     if (!button) return;
     if (button.dataset.purchaseListAction === "open") {
@@ -689,6 +755,20 @@ export function registerPurchasesControllerEvents(contract) {
       state.purchaseDetailExpanded = false;
       actions.saveAndRenderAll();
       actions.focusPurchasePanel();
+      return;
+    }
+    if (button.dataset.purchaseListAction === "repeat") {
+      try {
+        await actions.flushPendingPersistCollections();
+        const result = actions.repeatCompletedPurchase(button.dataset.purchaseId);
+        actions.showToast(
+          result?.reusedDraft
+            ? "Đã chép nội dung vào phiếu nháp hiện có của cùng nhà cung cấp."
+            : "Đã tạo phiếu nhập nháp mới từ phiếu đã nhập hàng."
+        );
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
     }
   });
 

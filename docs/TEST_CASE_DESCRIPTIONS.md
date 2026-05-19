@@ -30,7 +30,7 @@ Lưu ý:
 | 11 | `ACC-PHB-01` | Kiểm tra API phiếu điều chỉnh tồn cập nhật tồn kho và ghi audit trail đúng. |
 | 12 | `ACC-PHB-02` | Kiểm tra API phiếu trả hàng khách cộng tồn kho và ghi note giao dịch đúng. |
 | 13 | `ACC-PHB-03` | Kiểm tra API phiếu trả NCC trừ tồn kho và ghi note giao dịch đúng. |
-| 14 | `ACC-PHB-04` | Kiểm tra báo cáo tháng và audit chứng từ phản ánh riêng điều chỉnh tồn, trả khách và trả NCC. |
+| 14 | `ACC-PHB-04` | Kiểm tra báo cáo tháng và audit chứng từ phản ánh riêng điều chỉnh tồn, trả khách và trả NCC, sau khi phiếu nhập nguồn đi đúng luồng `ordered -> received`. |
 | 15 | `IT-PHB-01` | Kiểm tra UI màn tồn kho tạo được phiếu điều chỉnh tồn từ form trên giao diện. |
 | 16 | `IT-PHB-02` | Kiểm tra UI tạo phiếu trả hàng khách từ một đơn đã chốt. |
 | 17 | `IT-PHB-03` | Kiểm tra UI hỗ trợ lập phiếu trả hàng khách độc lập không cần đơn nguồn. |
@@ -58,11 +58,15 @@ Lưu ý:
 | 37 | `IT-PURSUP-04` | Kiểm tra phiếu nhập nháp trống có thể `Xóa phiếu` ngay trên UI, đồng thời nút `NCC` trên phiếu `Nháp` vẫn cho sang danh sách NCC để đổi sang nhà cung cấp khác trước khi đặt hàng. |
 | 38 | `IT-PURSUP-05` | Kiểm tra màn nhập hàng tự chọn NCC khi mặt hàng thêm vào phiếu chưa có NCC chỉ từng nhập từ một NCC. |
 | 39 | `IT-PURSUP-06` | Kiểm tra màn nhập hàng không tự điền NCC khi mặt hàng có nhiều NCC lịch sử, nhưng datalist NCC ưu tiên NCC có lịch sử nhập nhiều hơn. |
-| 40 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
+| 40 | `IT-PURSUP-07` | Kiểm tra màn nhập hàng cảnh báo khi một mặt hàng đang nằm ở phiếu mở của NCC khác, mở được danh sách phiếu liên quan để review, và vẫn cho user giữ nguyên hiện trạng nếu muốn. |
+| 41 | `IT-PURSUP-08` | Kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC, ghi chú, giảm giá và dòng hàng, nhưng reset `Mã lô`, `HSD` và `NSX` để nhập lại theo lô mới. |
+| 42 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
 | 41 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
 | 42 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |
 | 43 | `IT-ORD-01` | Kiểm tra màn đơn hàng hỗ trợ mở rộng chi tiết, đánh dấu đã thanh toán và mở lại giỏ nháp. |
-| 44 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
+| 44 | `IT-ORD-03` | Kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng. |
+| 45 | `IT-ORD-04` | Kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hiện hỏi có dồn thêm vào đơn nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đó thay vì tạo draft mới. |
+| 46 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
 | 45 | `IT-NAV-02` | Kiểm tra menu trên PC/tablet bung ra từ nút `Mở menu`, tự thu gọn khi rê chuột hoặc bấm ra ngoài, đồng thời giữ chiều rộng menu gọn. |
 | 46 | `IT-NAV-03` | Kiểm tra sau khi xoay giữa màn hình dọc và ngang thì vẫn bấm được các item trong menu nghiệp vụ để chuyển màn bình thường. |
 | 47 | `IT-NAV-04` | Kiểm tra trên Tablet touch thật vừa login xong vẫn tap được nút `Mở menu` và chuyển màn bằng item menu bình thường, không bị header menu chặn touch. |
@@ -113,7 +117,7 @@ Lưu ý:
 | 87 | `UT-DB-14` | Kiểm tra backend phiếu trả NCC có thể chỉ rõ `Mã lô` để trừ đúng lô đó thay vì lấy FEFO chung. |
 | 88 | `UT-DB-15` | Kiểm tra backend chặn phiếu nhập chuyển sang `Đã đặt` hoặc `Đã nhập kho` nếu chưa có nhà cung cấp. |
 | 89 | `ACC-PUR-05` | Kiểm tra UI và API đều chặn phiếu nhập chưa có nhà cung cấp chuyển sang `Đã đặt hàng` hoặc `Nhập kho`. |
-| 90 | `IT-PUR-01` | Kiểm tra card gợi ý ở màn `Nhập hàng` cho đổi nhanh ô `SL` trước khi bấm `+ Phiếu`, và phiếu nháp nhận đúng số lượng vừa nhập. |
+| 90 | `IT-PUR-01` | Kiểm tra card gợi ý ở màn `Nhập hàng` cho đổi nhanh ô `SL` trước khi bấm `+ Phiếu`; nếu phát sinh cảnh báo nhiều NCC thì vẫn có thể giữ hiện trạng và thêm đúng số lượng vào phiếu nháp. |
 | 91 | `UT-DB-16` | Kiểm tra backend tự tính HSD của dòng phiếu nhập từ `ngày nhập kho + thời gian bảo quản` hoặc từ `ngày sản xuất + thời gian bảo quản`, đồng thời lưu đúng liên kết `purchase_item_id` ở receipt item. |
 | 92 | `UT-DB-17` | Kiểm tra backend cho cập nhật lại HSD/NSX của dòng phiếu `received` và đồng bộ đúng sang `purchase_items`, `inventory_batches`, `inventory_receipt_items` và note transaction. |
 | 93 | `UT-SYNC-05` | Kiểm tra đơn `committed` khóa khách hàng nhưng vẫn cho sửa `ship_address`, đồng thời chặn việc đổi thẳng `committed -> completed` qua sync state. |
