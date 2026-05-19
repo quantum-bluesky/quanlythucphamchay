@@ -94,8 +94,8 @@ Lưu ý:
 | 64 | `UT-HIS-01` | Kiểm tra product history hỗ trợ lọc theo actor ở backend. |
 | 65 | `UT-HIS-02` | Kiểm tra product history hỗ trợ lọc theo khoảng ngày ở backend. |
 | 66 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |
-| 67 | `ACC-PUR-03` | Kiểm tra phiếu nhập nháp phải được chuyển sang `Đã đặt hàng` trước khi `Nhập kho`, phiếu `Đã đặt hàng` vẫn chỉnh sửa được nhưng NCC đã bị khóa, và tồn kho hiển thị số mới ngay sau khi nhập kho không cần F5. |
-| 68 | `UT-DB-11` | Kiểm tra backend chặn `draft -> received`, cho phép `ordered` tiếp tục chỉnh sửa, rồi mới chuyển sang `received` hợp lệ. |
+| 67 | `ACC-PUR-03` | Kiểm tra phiếu nhập nháp phải được chuyển sang `Đã đặt hàng` trước khi `Nhập kho`, phiếu `Đã đặt hàng` vẫn chỉnh sửa được kể cả thêm mặt hàng mới nhưng NCC đã bị khóa, và tồn kho hiển thị số mới ngay sau khi nhập kho không cần F5. |
+| 68 | `UT-DB-11` | Kiểm tra backend chặn `draft -> received`, cho phép `ordered` tiếp tục chỉnh sửa kể cả thêm dòng hàng mới, rồi mới chuyển sang `received` hợp lệ. |
 | 69 | `IT-STS-01` | Kiểm tra các action đổi trạng thái, hủy và xóa phiếu ở đơn hàng và phiếu nhập đều hiện dialog confirm trước khi app áp dụng thay đổi, đồng thời tồn kho hiển thị số mới ngay sau khi xuất kho không cần F5. |
 | 70 | `UT-AUTH-06` | Kiểm tra server serve `index.html` và `app.js` với cache-control phù hợp, đồng thời HTML/JS đã được gắn URL version cho client asset. |
 | 71 | `UT-JSVER-01` | Kiểm tra manifest version của từng file `.js` tăng đúng theo lần đổi nội dung và tự reset về `1` khi version chính đổi. |
@@ -120,7 +120,7 @@ Lưu ý:
 | 90 | `IT-PUR-01` | Kiểm tra card gợi ý ở màn `Nhập hàng` cho đổi nhanh ô `SL` trước khi bấm `+ Phiếu`; nếu phát sinh cảnh báo nhiều NCC thì vẫn có thể giữ hiện trạng và thêm đúng số lượng vào phiếu nháp. |
 | 91 | `UT-DB-16` | Kiểm tra backend tự tính HSD của dòng phiếu nhập từ `ngày nhập kho + thời gian bảo quản` hoặc từ `ngày sản xuất + thời gian bảo quản`, đồng thời lưu đúng liên kết `purchase_item_id` ở receipt item. |
 | 92 | `UT-DB-17` | Kiểm tra backend cho cập nhật lại HSD/NSX của dòng phiếu `received` và đồng bộ đúng sang `purchase_items`, `inventory_batches`, `inventory_receipt_items` và note transaction. |
-| 93 | `UT-SYNC-05` | Kiểm tra đơn `committed` khóa khách hàng nhưng vẫn cho sửa `ship_address`, đồng thời chặn việc đổi thẳng `committed -> completed` qua sync state. |
+| 93 | `UT-SYNC-05` | Kiểm tra đơn `committed` khóa khách hàng nhưng vẫn cho sửa `ship_address` và thêm dòng hàng trước khi xuất, đồng thời chặn việc đổi thẳng `committed -> completed` qua sync state. |
 | 94 | `UT-ORD-15` | Kiểm tra flow backend `draft -> committed -> completed`: bước `commit` chưa trừ kho, bước `ship` mới trừ kho và cập nhật trạng thái hoàn tất. |
 | 95 | `UT-ORD-16` | Kiểm tra backend cho `commit` dùng phần hàng đã nằm trong phiếu nhập `ordered`, đồng thời không cho hai đơn cùng giữ vượt quá lượng cover đó. |
 | 96 | `UT-DB-18` | Kiểm tra phiếu nhập `ordered` nhưng thiếu nhà cung cấp được nhận diện là dữ liệu lỗi có thể repair để UI cho sửa NCC hoặc xóa/hủy. |
