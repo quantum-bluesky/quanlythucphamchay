@@ -86,6 +86,7 @@ Liên kết detail hiện có:
   - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
   - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu, không phải per-line
   - khối `Giỏ hiện hành` có thêm button `Detail` để bung metadata phiếu xuất mà không chuyển màn
+  - phiếu xuất được phép `In` từ lúc còn `Nháp` cho tới `Đã thanh toán`
   - detail đơn phải có thêm `Địa chỉ giao`; field này là snapshot riêng của đơn và cho sửa tới trước khi `Đã xuất hàng`
   - không dùng cụm nút tăng giảm nhanh trong `Giỏ hiện hành` để tránh rối trên mobile
   - sau khi đơn đã `Chốt đơn`, app khóa khách hàng nhưng vẫn cho sửa dòng hàng, địa chỉ giao và `Giảm giá khuyến mại`
@@ -110,6 +111,7 @@ Liên kết detail hiện có:
   - đơn đã hủy mặc định ẩn để list gọn hơn; user chỉ bật lại khi cần tra cứu
   - đơn `draft` có nút `Chốt đơn` nhanh ngay trên card trên tablet/PC
   - đơn `committed` có nút `Xuất hàng` nhanh ngay trên card trên tablet/PC
+  - list đơn có thêm nút `In` cho các phiếu chưa thanh toán; riêng phiếu đã thanh toán chỉ giữ `In` trong phần detail để list gọn hơn
   - card đơn có button `Detail` để bung metadata và danh sách dòng hàng ngay trong list
   - khi đi từ màn `customers`, list có thể tự lọc đúng theo `customerId`; nếu chỉ còn 1 phiếu phù hợp thì detail của phiếu đó phải tự mở kể cả với đơn `Đã xuất hàng` hoặc `Đã thanh toán`
   - card đơn `committed` có thể hiện thêm input `Địa chỉ giao` và `Giảm giá khuyến mại` trong detail
@@ -168,6 +170,7 @@ Liên kết detail hiện có:
   - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu để đối chiếu số tiền thực trả NCC
   - mỗi dòng nhập cần có input `Mã lô` và phần nhập HSD hỗ trợ 2 mode: nhập trực tiếp `Hạn dùng` hoặc nhập gián tiếp `Ngày sản xuất`; mode mặc định là nhập trực tiếp HSD, còn mode gián tiếp sẽ tự tính `HSD = NSX + thời gian bảo quản`
   - metadata phiếu nhập được bung/thu gọn bằng button `Detail` thay vì badge tĩnh để phần đầu phiếu gọn hơn
+  - phiếu nhập được phép `In` từ lúc còn `Nháp` cho tới `Đã thanh toán`; ở list chỉ hiện nút `In` tới trước khi phiếu đã thanh toán, còn phiếu đã thanh toán thì in lại từ detail
   - nếu phiếu nhập sinh ra từ một đơn đang thiếu hàng, phần metadata `Detail` phải hiện nguồn đơn thiếu riêng; không dùng ô ghi chú để nhét sẵn nội dung này
   - nếu shortage từ màn xuất hàng đã được cover bởi phiếu `draft/ordered` hiện có, màn nhập hàng chỉ mở lại phiếu liên quan khi user xác nhận; không tự tạo thêm phiếu trùng
   - nếu khi chọn mặt hàng vào phiếu mà mặt hàng đó đang nằm ở phiếu `draft/ordered` của NCC khác, UI phải hiện cảnh báo và cho user chọn mở danh sách các phiếu liên quan để review; từ danh sách này user có thể mở từng phiếu để dồn lại về một NCC hoặc giữ nguyên hiện trạng

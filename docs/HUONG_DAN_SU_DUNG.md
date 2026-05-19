@@ -118,6 +118,7 @@ Trong `Giỏ hiện hành`:
 6. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung` và xác nhận
 7. Nếu không cần dòng hàng đó nữa, bấm `Bỏ khỏi giỏ`
 8. Nếu có khuyến mại cho cả đơn, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
+9. Nếu cần gửi trước cho khách, có thể bấm `In` ngay từ lúc đơn còn `Nháp`
 
 ### Bước 4: Chốt đơn
 
@@ -136,7 +137,7 @@ Nếu đủ hàng:
 - đơn chuyển sang trạng thái `Chốt đơn`
 - khóa khách hàng của đơn, không cho xóa phiếu
 - vẫn cho sửa dòng hàng, địa chỉ giao và `Giảm giá khuyến mại` cho tới trước khi xuất hàng
-- có thể in / gửi danh sách cho khách ngay từ thời điểm này
+- vẫn có thể in / gửi phiếu cho khách; app cũng cho in từ lúc đơn còn `Nháp`
 - nếu đã nhập `Giảm giá khuyến mại`, số `Cần thanh toán` trên phiếu và bản in sẽ là số đã trừ khuyến mại
 
 ### Bước 5: Xuất hàng
@@ -187,7 +188,7 @@ Dùng màn này để:
 - `Chốt đơn`: khóa khách hàng và giữ hàng logic cho đơn nháp
 - `Xuất hàng`: trừ kho thật cho đơn đã chốt
 - `Detail`: bung nhanh mã đơn, trạng thái, ngày tạo, mốc xử lý và danh sách dòng hàng của phiếu
-- `In`: in hoặc gửi lại danh sách hàng cho khách
+- `In`: in hoặc gửi lại phiếu cho khách từ `Nháp` tới `Đã thanh toán`; ở list, nút `In` không hiện với phiếu đã thanh toán nên nếu cần in lại thì mở `Detail`
 - `Xuất lại`: tạo nhanh một đơn nháp mới từ đơn đã `Đã xuất hàng` hoặc `Đã thanh toán`
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền
 - `Hủy`: dùng khi khách không lấy nữa
@@ -308,10 +309,11 @@ Màn này có 2 phần:
 26. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 27. Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Giảm giá khuyến mại` và cập nhật lại `Hạn dùng` hoặc `Ngày sản xuất`; app không mở khóa lại số lượng, giá, mã lô hay NCC
 28. Nếu cần nhập lại gần giống một phiếu cũ đã `Đã nhập kho` hoặc `Đã thanh toán`, bấm `Nhập lại`; app sẽ tạo nhanh một phiếu nháp mới với cùng NCC, ghi chú, giảm giá và các dòng hàng. Nếu NCC đó đang có phiếu nháp sẵn thì app sẽ dồn thêm vào phiếu nháp hiện có để giữ đúng rule mỗi NCC tối đa một phiếu nháp
-29. Khi `Nhập lại`, app chỉ sao chép các dòng hàng và thông tin mức phiếu; `Mã lô`, `HSD` và `Ngày sản xuất` sẽ để trống để bạn nhập lại theo lô hàng mới
-30. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
-31. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`
-32. Trước khi đổi trạng thái `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu` hoặc `Xóa phiếu`, app sẽ hiện message confirm để tránh thao tác nhầm
+29. Có thể bấm `In` để in phiếu gửi NCC từ lúc phiếu còn `Nháp` cho tới `Đã thanh toán`; ở list phiếu, nút `In` không hiện khi phiếu đã thanh toán nên nếu cần in lại thì mở detail của phiếu
+30. Khi `Nhập lại`, app chỉ sao chép các dòng hàng và thông tin mức phiếu; `Mã lô`, `HSD` và `Ngày sản xuất` sẽ để trống để bạn nhập lại theo lô hàng mới
+31. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
+32. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`
+33. Trước khi đổi trạng thái `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu` hoặc `Xóa phiếu`, app sẽ hiện message confirm để tránh thao tác nhầm
 
 Nếu phiếu được tạo từ một đơn đang thiếu hàng:
 

@@ -37,6 +37,14 @@ export function createSalesUi(deps) {
     return Boolean(cart && ["draft", "committed"].includes(String(cart.status || "").trim()));
   }
 
+  function canPrintCartDocument(cart) {
+    return Boolean(cart && cart.status !== "cancelled" && Array.isArray(cart.items) && cart.items.length);
+  }
+
+  function canShowCartListPrintAction(cart) {
+    return canPrintCartDocument(cart) && cart.paymentStatus !== "paid";
+  }
+
   function getCartDetailRows(cart) {
     const statusMeta = getCartStatusMeta(cart);
     return [
@@ -202,7 +210,7 @@ export function createSalesUi(deps) {
       return;
     }
     const statusMeta = getCartStatusMeta(cart);
-    const canPrint = ["committed", "completed"].includes(cart.status);
+    const canPrint = canPrintCartDocument(cart);
     const noteText = cart.status === "committed"
       ? "Đơn đã chốt: khóa khách hàng, vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới khi xuất."
       : "Đơn nháp: có thể chọn khách, sửa dòng hàng, địa chỉ giao và giảm giá trước khi chốt.";
@@ -407,9 +415,11 @@ export function createSalesUi(deps) {
         const statusMeta = getCartStatusMeta(cart);
         const compactMeta = `${formatDate(cart.completedAt || cart.committedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • Cần thu ${formatCurrency(cart.totalAmount)}`;
         const detailButtonLabel = expanded ? "Ẩn detail" : "Detail";
-        const allowPrint = ["committed", "completed"].includes(cart.status);
+        const allowPrint = canPrintCartDocument(cart);
+        const allowListPrint = canShowCartListPrintAction(cart);
         const allowOpen = ["draft", "committed"].includes(cart.status);
         const allowRepeat = cart.status === "completed";
+        const showPaidDetailPrint = allowPrint && cart.paymentStatus === "paid";
         return `
         <article class="cart-queue-item ${expanded ? "is-expanded" : ""}">
           <div class="queue-header">
@@ -431,9 +441,8 @@ export function createSalesUi(deps) {
           <div class="queue-actions">
             ${allowOpen
               ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="open" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục xử lý"}</button>`
-              : allowPrint
-                ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>`
-                : ""}
+              : ""}
+            ${allowListPrint ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
             <button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">${detailButtonLabel}</button>
             ${!compact && allowRepeat ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="repeat" data-queue-action="repeat" data-cart-id="${cart.id}">Xuất lại</button>` : ""}
             ${!compact && cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="customer-return" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
@@ -450,6 +459,7 @@ export function createSalesUi(deps) {
                 shipAddressActionAttribute: 'data-queue-action="save-ship-address"',
                 discountActionAttribute: 'data-queue-action="save-discount"',
               })}
+              ${!compact && showPaidDetailPrint ? `<div class="queue-actions queue-actions-expanded"><button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button></div>` : ""}
               ${compact ? `<div class="queue-actions queue-actions-expanded">
               ${allowPrint ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
                 ${allowRepeat ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="repeat" data-queue-action="repeat" data-cart-id="${cart.id}">Xuất lại</button>` : ""}

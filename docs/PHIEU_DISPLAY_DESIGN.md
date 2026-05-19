@@ -41,6 +41,7 @@ List chỉ ưu tiên:
 - trạng thái
 - mã phiếu nếu có
 - tổng tiền net sau khuyến mại hoặc tổng SL
+- action `In` nhanh nếu phiếu chưa thanh toán; khi phiếu đã thanh toán thì giữ `In` trong detail để list gọn trên mobile
 
 Không nhồi nhiều mốc thời gian vào list để giữ UI gọn trên mobile.
 
@@ -64,6 +65,7 @@ Nếu thiếu dữ liệu thật thì hiện:
 
 Button `Detail` phải cho phép expand/collapse ngay trong card hoặc panel hiện tại để giữ list phiếu gọn trên mobile.
 Detail của phiếu xuất phải vẫn mở được với đơn `Chốt đơn`, `Đã xuất hàng` và `Đã thanh toán`, kể cả khi người dùng đi từ màn khách hàng sang bằng link nội bộ.
+Detail của phiếu xuất và phiếu nhập phải luôn giữ action `In` từ lúc phiếu còn `Nháp` cho tới khi đã `Đã thanh toán`.
 
 Khi chứng từ có dữ liệu theo lô, phần danh sách dòng hoặc note đi kèm nên hiện thêm:
 
