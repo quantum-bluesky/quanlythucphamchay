@@ -89,9 +89,10 @@ export const SCREEN_HELP = {
       "Dùng ô tìm kiếm để lọc theo khách hàng, mã đơn hoặc tên mặt hàng.",
       "Mặc định list ưu tiên các đơn đang chờ xử lý gồm `Nháp` và `Chốt đơn`; bật `Hiện đơn lưu trữ` khi cần xem cả đơn đã xuất hoặc đã hủy.",
       "Khi đi từ màn Khách hàng sang, app có thể tự lọc đúng theo khách; nếu khách chỉ có 1 phiếu hàng thì màn này sẽ tự mở thẳng phần detail của phiếu đó, kể cả khi đơn đã `Đã xuất hàng` hoặc `Đã thanh toán`.",
+      "Danh sách đơn là phần chính của màn này. Chạm vào một card hoặc bấm `Detail` để mở panel detail riêng ở phía trên; panel có nút `Previous / Next` để chuyển nhanh theo đúng danh sách đang lọc hiện tại và có nút `Đóng` để ẩn detail mà không mất bộ lọc.",
       "Với đơn `Nháp`, bấm `Chốt đơn` ngay trên card để khóa khách hàng và giữ hàng; bước này có thể dựa trên tồn hiện tại cộng với phần hàng đã được NCC xác nhận ở phiếu nhập `Đã đặt`. Với đơn `Chốt đơn`, bấm `Xuất hàng` khi giao thật.",
       "Trước khi `Chốt đơn`, `Xuất hàng`, `Đã thanh toán`, `Hủy` hoặc `Xóa`, app sẽ hiện message confirm để bạn kiểm tra lại thao tác có thể đổi trạng thái hoặc xóa phiếu.",
-      "Nút `Detail` trên card đơn dùng để bung nhanh metadata và danh sách dòng hàng của phiếu mà không cần mở sang chỗ chỉnh sửa.",
+      "Trong panel detail của đơn, metadata luôn hiện đầy đủ; riêng danh sách mặt hàng mặc định thu gọn để màn mobile gọn hơn, có thể bấm mở ra khi cần đối chiếu từng dòng.",
       "List đơn có thêm nút `In` cho các phiếu từ `Nháp` tới trước `Đã thanh toán`; với phiếu đã thanh toán, mở `Detail` để in lại cho gọn list.",
       "Đơn `Chốt đơn` vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá khuyến mại, nhưng không đổi được khách hàng và không được xóa.",
       "Đơn `Đã xuất hàng` không còn cho sửa trực tiếp mặt hàng, số lượng, địa chỉ giao hay giá; trước thanh toán chỉ còn được sửa `Giảm giá khuyến mại` của toàn đơn.",
@@ -115,6 +116,7 @@ export const SCREEN_HELP = {
     steps: [
       "Mở vào màn là thấy ngay danh sách khách hàng hiện hành.",
       "Form tạo/sửa được thu gọn sẵn để ưu tiên phần danh sách; bấm Thêm mới hoặc Sửa để mở đúng lúc cần nhập liệu.",
+      "Chạm vào một khách trong danh sách để mở panel detail riêng. Panel này hiện đủ số liên lạc, địa chỉ ship, link Zalo và số đơn liên quan, kèm nút `Previous / Next` và `Đóng` để duyệt nhanh mà không mất search hiện tại.",
       "Tìm nhanh bằng tên, số điện thoại hoặc địa chỉ để tránh nhập trùng.",
       "Badge `giỏ chờ` hoặc `đơn` trên từng khách là link sang màn Đơn hàng; nếu khách chỉ có đúng 1 phiếu thì app sẽ mở thẳng detail của phiếu đó để đối chiếu nhanh.",
       DESKTOP_PAGINATION_HINT,
@@ -153,6 +155,7 @@ export const SCREEN_HELP = {
     overview: "Màn này quản lý phiếu nhập nháp, đơn đã đặt, hàng đã về và trạng thái thanh toán nhập hàng.",
     steps: [
       "Xem ngay danh sách phiếu nhập hiện hành khi mở màn.",
+      "Khi chọn một phiếu nhập từ danh sách, panel detail phía trên sẽ tự mở, hiện đủ metadata và toàn bộ các dòng hàng của phiếu, kèm nút `Previous / Next` và `Đóng` để duyệt nhanh theo đúng danh sách đang lọc.",
       "Tạo hoặc mở phiếu nhập, thêm sản phẩm cần mua rồi cập nhật trạng thái theo tiến trình `Nháp -> Đã đặt hàng -> Nhập kho -> Đã thanh toán`.",
       "Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; phiếu trống chỉ là trạng thái mở tạm trên giao diện.",
       "Phiếu đang ở trạng thái `Nháp` hoặc `Đã đặt` vẫn có thể chỉnh sửa số lượng, giá và thêm bớt dòng; nút `Nhập kho` chỉ xuất hiện khi phiếu đã `Đã đặt`.",
@@ -233,6 +236,7 @@ export const SCREEN_HELP = {
     steps: [
       "Mở màn là thấy danh sách nhà cung cấp hiện có.",
       "Form tạo/sửa được thu gọn sẵn để ưu tiên phần danh sách; bấm Thêm mới hoặc Sửa để mở đúng lúc cần nhập liệu.",
+      "Chạm vào một nhà cung cấp để mở panel detail riêng. Panel này hiện đủ thông tin liên hệ, ghi chú và số phiếu liên quan, có `Previous / Next` để chuyển nhanh giữa các NCC trong đúng danh sách đang lọc.",
       "Nếu đi từ màn Nhập hàng sang bằng nút NCC, form sẽ mở sẵn với tên nhà cung cấp đang gõ; thao tác này chỉ bật khi phiếu nhập còn ở trạng thái `Nháp`.",
       "Nếu kỳ gom nhập đang active lock, màn này sẽ hiện cảnh báo owner của batch để bạn biết đang tạo/sửa NCC trong lúc batch mode vẫn còn mở.",
       "Tìm theo tên, số điện thoại hoặc địa chỉ trước khi thêm để tránh trùng lặp.",

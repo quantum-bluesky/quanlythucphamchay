@@ -64,6 +64,7 @@ Nếu thiếu dữ liệu thật thì hiện:
 - giá trị suy ra từ DB nếu đó là fallback an toàn
 
 Button `Detail` phải cho phép expand/collapse ngay trong card hoặc panel hiện tại để giữ list phiếu gọn trên mobile.
+Khi list phiếu dùng panel detail riêng, panel đó phải có nút `Previous / Next` để chuyển theo đúng danh sách hiện đang lọc/search và có nút `Đóng` để ẩn detail mà không reset list.
 Detail của phiếu xuất phải vẫn mở được với đơn `Chốt đơn`, `Đã xuất hàng` và `Đã thanh toán`, kể cả khi người dùng đi từ màn khách hàng sang bằng link nội bộ.
 Detail của phiếu xuất và phiếu nhập phải luôn giữ action `In` từ lúc phiếu còn `Nháp` cho tới khi đã `Đã thanh toán`.
 Các action hiếm như `Trả hàng` và `Trả NCC` chỉ nên xuất hiện trong detail của đúng phiếu nguồn; không đặt form độc lập ở phía ngoài list để tránh user nhầm đó là thao tác mở phiếu thông thường.
@@ -98,6 +99,7 @@ Thông tin nên hiện trong detail:
 - ngày tạo
 - ngày chốt / ngày xuất / ngày thanh toán nếu có
 - cập nhật cuối
+- danh sách dòng hàng mặc định thu gọn trên mobile; user chủ động mở ra khi cần đối chiếu
 
 #### Phiếu nhập
 
@@ -124,6 +126,7 @@ Thông tin nên hiện trong detail:
 - ngày thanh toán
 - cập nhật cuối
 - nếu phiếu được tạo từ planner batch, detail nên giữ nguồn `procurement_batch` để đối chiếu với màn xử lý nhập thiếu; ghi chú vẫn dành cho nội dung user nhập tay
+- danh sách dòng hàng phải hiện đầy đủ khi đã mở detail để user rà nhanh từng lô/số lượng/giá nhập
 
 #### Phiếu điều chỉnh tồn
 

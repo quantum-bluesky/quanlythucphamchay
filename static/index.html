@@ -325,7 +325,10 @@
             <input id="orderSearchInput" type="search" placeholder="Tìm theo khách hàng, mã đơn, mặt hàng...">
           </label>
         </div>
-        <div id="cartQueueList" class="cart-queue-list"></div>
+        <div class="master-detail-layout orders-master-detail">
+          <section id="orderDetailPanel" class="sales-card detail-panel document-detail-panel" hidden></section>
+          <div id="cartQueueList" class="cart-queue-list"></div>
+        </div>
       </section>
     </section>
 
@@ -377,7 +380,10 @@
             <input id="customerSearchInput" type="search" placeholder="Tìm khách hàng...">
           </label>
         </div>
-        <div id="customerList" class="customer-list"></div>
+        <div class="master-detail-layout entity-master-detail">
+          <section id="customerDetailPanel" class="sales-card detail-panel entity-detail-panel" hidden></section>
+          <div id="customerList" class="customer-list"></div>
+        </div>
       </section>
     </section>
 
@@ -621,7 +627,10 @@
             <input id="supplierSearchInput" type="search" placeholder="Tìm nhà cung cấp...">
           </label>
         </div>
-        <div id="supplierList" class="customer-list"></div>
+        <div class="master-detail-layout entity-master-detail">
+          <section id="supplierDetailPanel" class="sales-card detail-panel entity-detail-panel" hidden></section>
+          <div id="supplierList" class="customer-list"></div>
+        </div>
       </section>
     </section>
 

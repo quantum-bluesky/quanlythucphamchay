@@ -23,6 +23,7 @@ export function createPurchasesUi(deps) {
     canManageProcurementBatchStructure,
     isProcurementBatchModeActive,
     getPurchaseSuggestions,
+    getVisiblePurchases,
     getOpenPurchaseSupplierConflictInsight,
     resolvePurchaseItemExpiryMeta,
     getSupplierReturnEditorMarkup,
@@ -220,6 +221,7 @@ export function createPurchasesUi(deps) {
     const canRepeatPurchase = ["received", "paid"].includes(String(purchase?.status || "").trim());
     const canPrintPurchase = canPrintPurchaseDocument(purchase);
     const repeatPurchaseDisabled = isPurchaseStructureLockedByProcurementBatch();
+    const visiblePurchases = getVisiblePurchases();
     if (state.purchasePanelCollapsed) {
       dom.purchasePanel.innerHTML = `<article class="empty-state">Phiếu nhập đang được thu gọn.</article>`;
       return;
@@ -232,6 +234,7 @@ export function createPurchasesUi(deps) {
     const purchaseSourceLabel = getPurchaseSourceLabel(purchase);
     const purchaseConflictWarnings = getPurchaseConflictWarnings(purchase);
     const supplierReturnEditorMarkup = getSupplierReturnEditorMarkup(purchase);
+    const currentVisibleIndex = visiblePurchases.findIndex((entry) => String(entry.id) === String(purchase.id));
     const detailRows = [
       { label: "Mã phiếu", value: purchase.receiptCode || "Chưa có" },
       { label: "Nhà cung cấp", value: purchase.supplierName || "Chưa có" },
@@ -298,13 +301,24 @@ export function createPurchasesUi(deps) {
     }).join("") : '<div class="empty-state">Phiếu nhập đang trống.</div>';
     dom.purchasePanel.innerHTML = `
       <article class="active-cart-card">
-        <div class="active-cart-header">
+        <div class="detail-panel-head active-cart-header">
           <div>
             <p class="panel-kicker">Phiếu nhập hiện hành</p>
             <h3>${escapeHtml(purchase.supplierName || "Chưa có nhà cung cấp")}</h3>
             <p class="panel-note">${escapeHtml(purchase.note || "Chưa có ghi chú")}</p>
           </div>
-          <span class="status-pill ${escapeHtml(purchaseStatusMeta.statusClass)}">${escapeHtml(purchaseStatusMeta.label)}</span>
+          <div class="inline-menu-actions">
+            <span class="status-pill ${escapeHtml(purchaseStatusMeta.statusClass)}">${escapeHtml(purchaseStatusMeta.label)}</span>
+            <button type="button" class="ghost-button compact-button" data-purchase-action="close-panel">Đóng</button>
+          </div>
+        </div>
+        <div class="detail-panel-nav">
+          <button type="button" class="ghost-button compact-button" data-purchase-action="previous" ${currentVisibleIndex <= 0 ? "disabled" : ""}>Previous</button>
+          <button type="button" class="ghost-button compact-button" data-purchase-action="next" ${currentVisibleIndex < 0 || currentVisibleIndex >= visiblePurchases.length - 1 ? "disabled" : ""}>Next</button>
+        </div>
+        <div class="detail-panel-meta">
+          <span>${currentVisibleIndex >= 0 ? `${currentVisibleIndex + 1}/${visiblePurchases.length} trong danh sách hiện tại` : "Phiếu này đang mở ngoài danh sách lọc hiện tại"}</span>
+          <span>${purchase.items.length} dòng • ${formatCurrency(purchase.totalAmount || 0)}</span>
         </div>
         <div class="active-cart-stats">
           <div class="stat-chip"><span>Số dòng</span><strong>${purchase.items.length}</strong></div>
@@ -407,20 +421,7 @@ export function createPurchasesUi(deps) {
 
   function renderPurchaseOrders() {
     const repeatPurchaseDisabled = isPurchaseStructureLockedByProcurementBatch();
-    const visiblePurchases = state.purchases
-      .filter((purchase) => {
-        if (!state.showCancelledPurchases && purchase.status === "cancelled") {
-          return false;
-        }
-        return state.showPaidPurchases || purchase.status !== "paid";
-      })
-      .filter((purchase) => {
-        if (!state.purchaseSearchTerm) {
-          return true;
-        }
-        const haystack = `${purchase.supplierName} ${purchase.receiptCode} ${purchase.note || ""} ${purchase.sourceName || purchase.source_name || ""} ${purchase.sourceCode || purchase.source_code || ""} ${purchase.items.map((item) => item.productName).join(" ")}`.toLowerCase();
-        return haystack.includes(state.purchaseSearchTerm.toLowerCase());
-      });
+    const visiblePurchases = getVisiblePurchases();
     dom.purchaseOrderList.classList.toggle("is-compact-search", isSearchResultMode("purchaseOrders"));
     const reviewMarkup = renderPurchaseConflictReviewPanel();
     if (!visiblePurchases.length) {
@@ -432,7 +433,7 @@ export function createPurchasesUi(deps) {
     const topPagination = paginationMarkup ? `<div class="purchase-orders-top-pagination">${paginationMarkup}</div>` : "";
     const bottomPagination = paginationMarkup ? `<div class="purchase-orders-bottom-pagination">${paginationMarkup}</div>` : "";
     dom.purchaseOrderList.innerHTML = reviewMarkup + topPagination + pageData.items.map((purchase) => `
-      <article class="cart-queue-item">
+      <article class="cart-queue-item selectable-card ${String(state.activePurchaseId || "") === String(purchase.id) ? "is-selected-detail" : ""}" data-purchase-select="${purchase.id}" tabindex="0" role="button" aria-pressed="${String(state.activePurchaseId || "") === String(purchase.id) ? "true" : "false"}">
         <div class="queue-header">
           <strong>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
           <span class="status-pill ${getPurchaseStatusMeta(purchase).statusClass}">${getPurchaseStatusMeta(purchase).label}</span>

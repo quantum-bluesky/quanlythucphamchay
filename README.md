@@ -166,7 +166,9 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Khối audit chứng từ ở màn `Báo cáo` hỗ trợ tìm theo mã phiếu và mã tham chiếu nguồn để đối chiếu nhanh
 - Quản lý khách hàng có thêm số liên lạc, địa chỉ ship và link Zalo
 - Màn Khách hàng trên mobile được nén còn khoảng 3 dòng mỗi card để thấy nhiều khách hơn; dòng cuối ưu tiên số liên lạc và action ngắn
-- Màn Khách hàng và Nhà cung cấp ưu tiên hiển thị danh sách; form tạo/sửa được thu gọn và chỉ mở khi bấm `Thêm mới` hoặc `Sửa`
+- Màn Khách hàng và Nhà cung cấp ưu tiên hiển thị danh sách; form tạo/sửa được thu gọn và chỉ mở khi bấm `Thêm mới` hoặc `Sửa`; khi chọn một card sẽ mở panel detail riêng có `Previous / Next` và `Đóng`
+- Màn Đơn hàng và danh sách Phiếu nhập dùng pattern `list là chính, detail mở riêng`: chọn card để mở detail đầy đủ, giữ nguyên bộ lọc/search hiện tại, có `Previous / Next` để chuyển nhanh trong danh sách đang xem
+- Ở màn Đơn hàng, danh sách mặt hàng trong detail mặc định thu gọn để màn mobile gọn hơn; ở màn Phiếu nhập, detail vẫn hiện trọn danh sách dòng hàng để rà phiếu nhanh
 - Màn Sản phẩm cũng ưu tiên hiển thị danh sách; phần `Thêm sản phẩm` và `Lịch sử sản phẩm` được thu gọn sẵn và chỉ mở khi cần
 - Quản lý đơn hàng có thêm trạng thái `Chốt đơn`, `Đã xuất hàng`, thanh toán và các nút `Chốt đơn` / `Xuất hàng` nhanh theo từng card
 - Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, giá nhập, giá bán mặc định và ngưỡng cảnh báo
