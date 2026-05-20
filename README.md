@@ -110,6 +110,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Quản lý khách hàng, đơn nháp, `Chốt đơn` và `Xuất hàng` nhiều mặt hàng trong một lần
 - Có màn `Tạo nhiều đơn / Xuất nhanh` theo kiểu mobile-first: mỗi khách là một card riêng, cuối màn chỉ có `Lưu nháp` và `Chốt đơn hợp lệ`
 - Nếu bật login và user không có quyền `order_batch_manage`, màn `Xuất nhanh` sẽ tạo `yêu cầu xuất nhanh` ở trạng thái `pending_approval`; user quản lý hoặc `Master Admin` duyệt xong thì owner mới xử lý tiếp thành đơn thật
+- Có popup `Lịch sử` xem nhanh audit timeline cho từng yêu cầu xuất nhanh và từng đơn đã tạo, ưu tiên mobile và chỉ nạp khi user mở detail để không làm nặng list
 - `Lưu nháp` ở màn tạo nhiều đơn chỉ tạo cart `draft` cho từng khách, không giữ hàng và không trừ kho; `Chốt đơn hợp lệ` chỉ đẩy các đơn đủ tồn sang `committed`, còn đơn lỗi giữ lại để sửa tiếp
 - Ở màn xuất hàng và nhập hàng, các mặt hàng đã chọn sẽ được gom lên phần tóm tắt đơn/phiếu phía trên để thao tác nhanh
 - Ở màn nhập hàng, mỗi card gợi ý có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`

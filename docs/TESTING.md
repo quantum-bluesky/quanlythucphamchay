@@ -199,6 +199,7 @@ Các nhóm kiểm tra chính:
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, cho phép chốt khi phần thiếu đã được phiếu nhập `Đã đặt` cover đủ, còn với thiếu hàng chưa đặt đủ thì user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu mở liên quan
 - `Tạo nhiều đơn mobile-first`: mỗi khách là một card riêng, `Chốt đơn hợp lệ` chỉ commit các đơn đủ hàng, đơn lỗi giữ lại để sửa tiếp và không cho bypass `draft -> completed`
 - `Approve request xuất nhanh`: user thường gửi request `pending_approval`, user quản lý duyệt/từ chối, owner có thể xử lý tiếp request đã `approved`, và UI vẫn nhìn thấy trạng thái chung để tránh tạo trùng
+- `Audit log đơn xuất nhanh`: popup `Lịch sử` phải đọc đúng timeline của request và đơn, hiển thị mới nhất trước và không làm chậm list vì chỉ fetch khi user mở popup
 - `Reload số lượng sau đổi trạng thái`: sau `Xuất kho` hoặc `Nhập kho`, các màn `Tồn kho`, `Xuất hàng`, `Nhập hàng` phải nạp lại dữ liệu server mới mà không cần F5
 - `Xử lý nhập thiếu batch`: bật batch mode từ user có quyền, kiểm tra planner gom cả đơn nháp/đơn chốt, chặn bắt đầu kỳ gom khi đang có conflict phiếu nhập mở, và không cho tạo trùng phiếu nhập cho cùng sản phẩm thiếu
 - `Conflict đầu kỳ gom`: khi app chặn `Bắt đầu kỳ gom`, màn planner phải hiện danh sách conflict có thể bấm mở thẳng các phiếu nhập liên quan
@@ -289,6 +290,9 @@ Case mới cho Phase A:
 - `UT-AUTH-10`: user có `order_batch_manage` và quyền chốt nhiều đơn phải nhận cảnh báo duplicate request nhưng vẫn được phép override khi xác nhận
 - `UT-AUTH-11`: route approval của màn `Xuất nhanh` phải cho manager approve/reject và cho owner xử lý request đã `approved`
 - `ACC-ORD-18`: UI `Xuất nhanh` phải cho user thường gửi request chờ duyệt, manager approve, rồi owner xử lý tiếp sau khi đã duyệt
+- `UT-ORD-19`: store phải ghi history cho request approval và cho cart khi có tạo mới, đổi trạng thái, sửa địa chỉ giao hoặc sửa dòng hàng
+- `UT-AUTH-12`: route history phải trả đúng timeline cho cả request `Xuất nhanh` và order detail
+- `ACC-ORD-19`: popup `Lịch sử` phải mở được từ request `Xuất nhanh` và từ detail đơn, đồng thời hiện các mốc audit chính
 - `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp kể cả thêm dòng hàng mới rồi mới chuyển sang `received`
 - `UT-DB-12`: backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `draft/ordered`, và chặn xóa trực tiếp phiếu `ordered`
 - `UT-DB-16`: backend tự tính HSD của phiếu nhập theo `ngày nhập kho + thời gian bảo quản` hoặc `ngày sản xuất + thời gian bảo quản`

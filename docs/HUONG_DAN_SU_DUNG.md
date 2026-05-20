@@ -192,6 +192,7 @@ Lưu ý:
 - nếu thiếu hàng, app sẽ báo theo từng khách và từng sản phẩm, ví dụ `Thiếu Đậu hũ non: cần 10, còn 6`
 - request đang `Chờ duyệt` hoặc `Đã duyệt` nhưng chưa `Đã xử lý` sẽ hiện cho tất cả user để tránh tạo trùng đơn xuất nhanh
 - user quản lý có permission `order_batch_manage` sẽ thấy badge số request chờ duyệt ngay trên menu `Xuất nhanh`
+- nút `Lịch sử` trong card request và detail đơn sẽ mở popup xem nhanh các mốc `tạo request / approve / reject / xử lý / sửa đơn`
 - trong v1 không có xuất kho hàng loạt; nếu cần xuất thật thì mở các đơn đã chốt ở `Quản lý đơn hàng` hoặc `Tạo đơn xuất hàng`
 - nếu tài khoản chỉ có quyền tạo nhiều đơn mà chưa có quyền chốt, cuối màn chỉ dùng được `Lưu nháp`
 
@@ -219,6 +220,7 @@ Dùng màn này để:
 - `Chốt đơn`: khóa khách hàng và giữ hàng logic cho đơn nháp
 - `Xuất hàng`: trừ kho thật cho đơn đã chốt
 - `Detail`: mở panel detail riêng của đơn đang chọn, hiện mã đơn, trạng thái, ngày tạo, mốc xử lý và danh sách dòng hàng của phiếu
+- `Lịch sử`: mở popup audit của đúng đơn đang xem để tra nhanh ai đổi trạng thái, đổi địa chỉ giao, đổi giảm giá hay sửa số lượng hàng
 - `In`: in hoặc gửi lại phiếu cho khách từ `Nháp` tới `Đã thanh toán`; ở list, nút `In` không hiện với phiếu đã thanh toán nên nếu cần in lại thì mở `Detail`
 - `Xuất lại`: tạo nhanh một đơn nháp mới từ đơn đã `Đã xuất hàng` hoặc `Đã thanh toán`
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền

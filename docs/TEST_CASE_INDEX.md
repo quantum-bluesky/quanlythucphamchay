@@ -159,6 +159,9 @@ Mục tiêu:
 | 124 | `UT-AUTH-10` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_10_order_batch_manage_can_override_duplicate_warning_for_direct_commit` |
 | 125 | `UT-AUTH-11` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_11_bulk_order_request_lifecycle_supports_approve_reject_and_owner_process` |
 | 126 | `ACC-ORD-18` | `tests/integration/bulk-orders-mobile.spec.js` | `npx playwright test tests/integration/bulk-orders-mobile.spec.js --grep "ACC-ORD-18"` |
+| 127 | `UT-ORD-19` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_19_entity_change_history_tracks_bulk_request_and_cart_edits` |
+| 128 | `UT-AUTH-12` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_12_history_routes_return_request_and_order_audit_timeline` |
+| 129 | `ACC-ORD-19` | `tests/integration/bulk-orders-mobile.spec.js` | `npx playwright test tests/integration/bulk-orders-mobile.spec.js --grep "ACC-ORD-19"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

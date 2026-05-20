@@ -153,3 +153,6 @@ Lưu ý:
 | 124 | `UT-AUTH-10` | Kiểm tra user có `order_batch_manage` và quyền chốt nhiều đơn bị cảnh báo duplicate request active ở route `/api/orders/bulk-create`, nhưng vẫn có thể override khi gửi lại với cờ xác nhận. |
 | 125 | `UT-AUTH-11` | Kiểm tra route approval của màn `Xuất nhanh` cho manager xem request chung, `approve/reject`, lưu lý do reject và cho owner xử lý request đã `approved`. |
 | 126 | `ACC-ORD-18` | Kiểm tra UI `Xuất nhanh` cho user thường gửi request chờ duyệt, user quản lý thấy badge pending để approve, rồi owner reload lại và xử lý tiếp request đã duyệt thành đơn thật. |
+| 127 | `UT-ORD-19` | Kiểm tra store ghi timeline cho `bulk_order_request` và `cart`, bao gồm các mốc tạo request, approve, process, tạo đơn, đổi trạng thái, sửa địa chỉ giao và sửa dòng hàng. |
+| 128 | `UT-AUTH-12` | Kiểm tra các route history của `Xuất nhanh` trả đúng audit timeline cho cả request approval và detail đơn đã tạo. |
+| 129 | `ACC-ORD-19` | Kiểm tra popup `Lịch sử` mở được từ request `Xuất nhanh` và từ detail đơn, đồng thời hiện đúng các mốc audit chính trên mobile. |

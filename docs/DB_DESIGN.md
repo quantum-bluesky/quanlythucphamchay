@@ -246,6 +246,24 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - `process_response_payload` lưu kết quả batch thực tế sau khi request đã được xử lý, giúp UI hiển thị lại số đơn thành công/lỗi mà không phải chạy lại
 - quyền `order_batch_manage` chỉ mở luồng duyệt/từ chối/xử lý request; không kéo theo quyền chỉnh tồn hay quyền admin khác
 
+### `entity_change_logs`
+
+- audit timeline nhẹ cho từng chứng từ hoặc request, hiện dùng trước cho `cart` và `bulk_order_request`
+- cột chính:
+  - `id`
+  - `entity_type`, `entity_id`, `entity_code`
+  - `action`, `actor`
+  - `before_status`, `after_status`
+  - `note`
+  - `metadata_json`
+  - `created_at`
+
+### Vai trò nghiệp vụ bổ sung cho audit timeline
+
+- endpoint history chỉ nạp khi user mở popup `Lịch sử`, nên không làm nặng list đơn hiện tại
+- log phải đủ để truy ra các mốc chính như `tạo request`, `approve`, `reject`, `process`, `đổi trạng thái đơn`, `sửa địa chỉ giao`, `sửa giảm giá`, `sửa dòng hàng`
+- `metadata_json` giữ chỗ cho các domain khác tái dùng sau này mà không cần thay schema ngay
+
 ### `purchases`
 
 - header phiếu nhập

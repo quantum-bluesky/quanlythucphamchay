@@ -120,3 +120,53 @@ test("ACC-ORD-18 bulk order approval requests stay visible across users and owne
   expectNoRuntimeErrors(managerRuntime);
   await managerContext.close();
 });
+
+test("ACC-ORD-19 audit history modal opens from request detail and order detail", async ({ browser, page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const runtime = attachRuntimeTracking(page);
+
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
+
+  await switchMenu(page, "bulk-orders");
+  await page.locator("#bulkCustomerLookupInput").fill("Khách xem audit");
+  await page.locator("#bulkAddCustomerButton").click();
+  await addBulkOrderItem(page, "Khách xem audit", "Chả quế chay", 1);
+  await page.locator("#bulkOrderCommitValidButton").click();
+
+  const managerContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  const managerPage = await managerContext.newPage();
+  const managerRuntime = attachRuntimeTracking(managerPage);
+  await managerPage.goto("/");
+  await managerPage.waitForLoadState("networkidle");
+  await autoLoginProcurementManager(managerPage, request);
+  await managerPage.reload({ waitUntil: "networkidle" });
+  await switchMenu(managerPage, "bulk-orders");
+  await managerPage.locator('[data-bulk-order-action="approve-request"]').click();
+
+  await page.reload({ waitUntil: "networkidle" });
+  await switchMenu(page, "bulk-orders");
+  await page.locator('[data-bulk-order-action="process-request"]').first().click();
+  await page.locator('[data-bulk-order-action="history-request"]').first().click();
+  await expect(page.locator("#auditHistoryModal")).toBeVisible();
+  await expect(page.locator("#auditHistoryModalBody")).toContainText("Tạo yêu cầu");
+  await expect(page.locator("#auditHistoryModalBody")).toContainText("Approve");
+  await expect(page.locator("#auditHistoryModalBody")).toContainText("Xử lý request");
+  await page.locator("#closeAuditHistoryButton").click();
+  await expect(page.locator("#auditHistoryModal")).toBeHidden();
+
+  await switchMenu(page, "orders");
+  await page.locator('#cartQueueList .cart-queue-item').filter({ hasText: "Khách xem audit" }).first().click();
+  await page.locator('[data-order-detail-action="history"]').click();
+  await expect(page.locator("#auditHistoryModal")).toBeVisible();
+  await expect(page.locator("#auditHistoryModalBody")).toContainText("Tạo mới");
+  await expect(page.locator("#auditHistoryModalBody")).toContainText("Đổi trạng thái");
+
+  expectNoRuntimeErrors(runtime);
+  expectNoRuntimeErrors(managerRuntime);
+  await managerContext.close();
+});

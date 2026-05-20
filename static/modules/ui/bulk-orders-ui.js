@@ -197,6 +197,7 @@ export function createBulkOrdersUi(deps) {
               ${request.status === "processed" ? `<div class="cart-line-note">Kết quả xử lý: ${escapeHtml(`${processSummary.success || 0} thành công / ${processSummary.failed || 0} lỗi`)}</div>` : ""}
               <div class="customer-actions bulk-order-card-actions">
                 <button type="button" class="ghost-button compact-button" data-bulk-order-action="toggle-request-detail" data-request-id="${escapeHtml(request.request_id)}">${isExpanded ? "Ẩn" : "Xem"}</button>
+                <button type="button" class="ghost-button compact-button" data-bulk-order-action="history-request" data-request-id="${escapeHtml(request.request_id)}">Lịch sử</button>
                 ${canApprove ? `<button type="button" class="primary-button compact-button" data-bulk-order-action="approve-request" data-request-id="${escapeHtml(request.request_id)}">Approve</button>` : ""}
                 ${canReject ? `<button type="button" class="danger-button compact-button" data-bulk-order-action="reject-request" data-request-id="${escapeHtml(request.request_id)}">Reject</button>` : ""}
                 ${canProcess ? `<button type="button" class="primary-button compact-button" data-bulk-order-action="process-request" data-request-id="${escapeHtml(request.request_id)}">Xử lý</button>` : ""}

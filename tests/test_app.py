@@ -2318,6 +2318,61 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(committed_cart["status"], "committed")
         self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 5.0)
 
+    def test_ut_ord_19_entity_change_history_tracks_bulk_request_and_cart_edits(self) -> None:
+        product = self.store.create_product(
+            name="Mọc chay audit order",
+            category="Đông lạnh",
+            unit="gói",
+            price=18000,
+            sale_price=26000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 10, "Tồn đầu audit order")
+
+        self.store.create_bulk_order_request(
+            mode="commit_valid",
+            request_id="bulk-history-001",
+            actor="staff",
+            orders=[
+                {
+                    "client_order_id": "bulk-history-order-1",
+                    "customer_name": "Khách lịch sử đơn",
+                    "ship_address": "10 Hai Bà Trưng",
+                    "items": [{"product_id": product["id"], "quantity": 1, "unit_price": 26000}],
+                }
+            ],
+        )
+        self.store.approve_bulk_order_request("bulk-history-001", actor="bizmanager")
+        processed = self.store.process_bulk_order_request("bulk-history-001", actor="staff")
+
+        request_history = self.store.get_bulk_order_request_change_history("bulk-history-001", limit=10)
+        request_actions = [entry["action"] for entry in request_history]
+        self.assertIn("create-request", request_actions)
+        self.assertIn("approve-request", request_actions)
+        self.assertIn("process-request", request_actions)
+
+        cart_id = processed["process_result"]["results"][0]["cart_id"]
+        current_state = self.store.get_sync_state()
+        carts = copy.deepcopy(current_state["carts"])
+        target_cart = next(cart for cart in carts if cart["id"] == cart_id)
+        target_cart["shipAddress"] = "11 Hai Bà Trưng"
+        target_cart["items"][0]["quantity"] = 2
+        target_cart["updatedAt"] = "2026-05-21T10:00:00+07:00"
+        self.store.save_sync_state(
+            {
+                "carts": carts,
+                "expected_updated_at": {"carts": current_state["updated_at"]["carts"]},
+                "actor": "staff-edit",
+            }
+        )
+
+        cart_history = self.store.get_cart_change_history(cart_id, limit=20)
+        cart_actions = [entry["action"] for entry in cart_history]
+        self.assertIn("create", cart_actions)
+        self.assertIn("status-change", cart_actions)
+        self.assertIn("edit-ship-address", cart_actions)
+        self.assertIn("edit-items", cart_actions)
+
     def test_ut_aud_01_save_sync_state_logs_cart_status_changes_with_actor(self) -> None:
         self.store.save_sync_state(
             {

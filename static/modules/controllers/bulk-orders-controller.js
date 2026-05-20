@@ -370,6 +370,10 @@ export function registerBulkOrdersControllerEvents(contract) {
     actions.showToast(payload.message || "Đã xử lý yêu cầu xuất nhanh đã duyệt.");
   }
 
+  async function openBulkOrderRequestHistory(requestId) {
+    await actions.openBulkOrderRequestAuditHistory(requestId);
+  }
+
   dom.bulkCustomerLookupInput?.addEventListener("input", (event) => {
     state.bulkOrderDraft.customerText = event.target.value;
   });
@@ -431,6 +435,11 @@ export function registerBulkOrdersControllerEvents(contract) {
         return;
       case "process-request":
         processBulkOrderRequest(button.dataset.requestId || "").catch((error) => {
+          actions.showToast(error.message, true);
+        });
+        return;
+      case "history-request":
+        openBulkOrderRequestHistory(button.dataset.requestId || "").catch((error) => {
           actions.showToast(error.message, true);
         });
         return;

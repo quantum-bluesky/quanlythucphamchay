@@ -243,6 +243,48 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 )
                 return
 
+            request_history_match = re.fullmatch(r"/api/orders/bulk-requests/([^/]+)/history", route)
+            if request_history_match:
+                query = parse_qs(parsed.query)
+                limit = query.get("limit", ["30"])[0]
+                request_doc = store.get_bulk_order_request(request_history_match.group(1))
+                if not request_doc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Không tìm thấy yêu cầu xuất nhanh."})
+                    return
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "request": request_doc,
+                        "history": store.get_bulk_order_request_change_history(
+                            request_history_match.group(1),
+                            limit=int(limit),
+                        ),
+                    },
+                )
+                return
+
+            order_history_match = re.fullmatch(r"/api/orders/([^/]+)/history", route)
+            if order_history_match:
+                query = parse_qs(parsed.query)
+                limit = query.get("limit", ["30"])[0]
+                cart_id = order_history_match.group(1)
+                carts = store.get_sync_state().get("carts", [])
+                cart = next(
+                    (entry for entry in carts if str(entry.get("id") or "").strip() == str(cart_id or "").strip()),
+                    None,
+                )
+                if not cart:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Không tìm thấy đơn hàng."})
+                    return
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "cart": cart,
+                        "history": store.get_cart_change_history(cart_id, limit=int(limit)),
+                    },
+                )
+                return
+
             if route == "/api/state":
                 query = parse_qs(parsed.query)
                 limit = query.get("transaction_limit", ["16"])[0]

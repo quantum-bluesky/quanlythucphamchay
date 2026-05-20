@@ -28,6 +28,13 @@ export const state = {
   reports: null,
   adminLegacyAudit: null,
   adminLegacyAuditLoading: false,
+  auditHistory: {
+    open: false,
+    title: "",
+    subtitle: "",
+    loading: false,
+    entries: [],
+  },
   admin: {
     authenticated: false,
     username: "",

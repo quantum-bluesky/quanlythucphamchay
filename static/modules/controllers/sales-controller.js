@@ -645,6 +645,14 @@ export function registerSalesControllerEvents(contract) {
       actions.printCart(cart.id);
       return;
     }
+    if (action === "history") {
+      try {
+        await actions.openCartAuditHistory(cart.id);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (action === "repeat") {
       try {
         await actions.flushPendingPersistCollections();
@@ -808,6 +816,14 @@ export function registerSalesControllerEvents(contract) {
     }
     if (action === "print") {
       actions.printCart(cart.id);
+      return;
+    }
+    if (action === "history") {
+      try {
+        await actions.openCartAuditHistory(cart.id);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
       return;
     }
     if (action === "repeat") {

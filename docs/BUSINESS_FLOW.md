@@ -130,6 +130,7 @@ Nếu cần can thiệp đặc biệt
   - khi request được xử lý thật, đơn đủ điều kiện mới chuyển `draft -> committed`; đơn lỗi giữ ở `draft` để user sửa tiếp và response vẫn trả chi tiết theo từng khách, từng sản phẩm thiếu
 - request batch phải có `request_id` duy nhất để chống double-submit; nếu server nhận lại cùng `request_id` thì replay kết quả cũ, không tạo trùng đơn
 - request approval cũng phải có `request_id` duy nhất; duplicate request active phải chặn user thường, còn user có `order_batch_manage` chỉ bị cảnh báo và có thể xác nhận đi tiếp
+- mỗi request và mỗi đơn thực tế tạo từ flow này đều có popup `Lịch sử`; dữ liệu log đọc riêng theo chứng từ khi user mở detail, không nạp sẵn vào list
 - v1 không có bước xuất hàng hàng loạt; nếu sau này cần, đó phải là action riêng và vẫn chỉ được đi tiếp `committed -> completed`
 
 ## 4. Luồng nhập hàng

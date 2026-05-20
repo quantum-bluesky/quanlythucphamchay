@@ -810,6 +810,107 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(rejected_request["status"], "rejected")
         self.assertEqual(rejected_request["reject_reason"], "Trùng khách đang xử lý")
 
+    def test_ut_auth_12_history_routes_return_request_and_order_audit_timeline(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [
+                {
+                    "username": "staff",
+                    "password": "staff12345",
+                    "permissions": ["bulk_order_commit"],
+                },
+                {
+                    "username": "bizmanager",
+                    "password": "biz12345",
+                    "permissions": ["order_batch_manage"],
+                },
+            ],
+            "debug": {"sync_state": False},
+        }
+        self._start_server(config)
+
+        product = self.store.create_product(
+            name="Sản phẩm history route",
+            category="Đồ chay",
+            unit="gói",
+            price=15000,
+            sale_price=22000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 8, "Tồn đầu history route")
+
+        _, _, staff_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+        )
+        staff_cookie = self._extract_cookie(staff_login_headers)
+        _, _, manager_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "bizmanager", "password": "biz12345"},
+        )
+        manager_cookie = self._extract_cookie(manager_login_headers)
+
+        create_status, _, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-create",
+            cookie=staff_cookie,
+            payload={
+                "mode": "commit_valid",
+                "request_id": "bulk-history-route-001",
+                "orders": [
+                    {
+                        "client_order_id": "bulk-history-route-order-1",
+                        "customer_name": "Khách history route",
+                        "items": [{"product_id": product["id"], "quantity": 1, "unit_price": 22000}],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(create_status, 200)
+
+        approve_status, _, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-requests/bulk-history-route-001/approve",
+            cookie=manager_cookie,
+            payload={},
+        )
+        self.assertEqual(approve_status, 200)
+
+        process_status, process_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-requests/bulk-history-route-001/process",
+            cookie=staff_cookie,
+            payload={},
+        )
+        self.assertEqual(process_status, 200)
+        cart_id = process_payload["process_result"]["results"][0]["cart_id"]
+
+        request_history_status, request_history_payload, _ = self._request_json(
+            "GET",
+            "/api/orders/bulk-requests/bulk-history-route-001/history?limit=10",
+            cookie=manager_cookie,
+        )
+        self.assertEqual(request_history_status, 200)
+        request_actions = [entry["action"] for entry in request_history_payload["history"]]
+        self.assertIn("create-request", request_actions)
+        self.assertIn("approve-request", request_actions)
+        self.assertIn("process-request", request_actions)
+
+        order_history_status, order_history_payload, _ = self._request_json(
+            "GET",
+            f"/api/orders/{cart_id}/history?limit=10",
+            cookie=staff_cookie,
+        )
+        self.assertEqual(order_history_status, 200)
+        order_actions = [entry["action"] for entry in order_history_payload["history"]]
+        self.assertIn("create", order_actions)
+        self.assertIn("status-change", order_actions)
+
 
 if __name__ == "__main__":
     unittest.main()

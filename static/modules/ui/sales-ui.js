@@ -245,6 +245,7 @@ export function createSalesUi(deps) {
       <div class="detail-panel-actions">
         ${allowOpen ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="open" data-cart-id="${selectedCart.id}">${mobileQuery.matches ? "Mở" : "Tiếp tục xử lý"}</button>` : ""}
         ${allowPrint ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="print" data-cart-id="${selectedCart.id}">In</button>` : ""}
+        <button type="button" class="ghost-button compact-button" data-order-detail-action="history" data-cart-id="${selectedCart.id}">Lịch sử</button>
         ${allowRepeat ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="repeat" data-cart-id="${selectedCart.id}">Xuất lại</button>` : ""}
         ${selectedCart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-order-detail-action="commit" data-cart-id="${selectedCart.id}">Chốt đơn</button>` : ""}
         ${selectedCart.status === "committed" ? `<button type="button" class="secondary-button compact-button" data-order-detail-action="ship" data-cart-id="${selectedCart.id}">Xuất hàng</button>` : ""}

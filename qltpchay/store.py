@@ -166,6 +166,23 @@ class InventoryStore:
                 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity
                 ON audit_logs(entity_type, created_at DESC);
 
+                CREATE TABLE IF NOT EXISTS entity_change_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    entity_code TEXT NOT NULL DEFAULT '',
+                    action TEXT NOT NULL,
+                    actor TEXT NOT NULL DEFAULT '',
+                    before_status TEXT NOT NULL DEFAULT '',
+                    after_status TEXT NOT NULL DEFAULT '',
+                    note TEXT NOT NULL DEFAULT '',
+                    metadata_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_entity_change_logs_lookup
+                ON entity_change_logs(entity_type, entity_id, created_at DESC);
+
                 CREATE TABLE IF NOT EXISTS bulk_order_batches (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     request_id TEXT NOT NULL UNIQUE,
@@ -2111,6 +2128,123 @@ class InventoryStore:
             (entity_type, str(entity_id), entity_name, action, (actor or "").strip(), message, utc_now_iso()),
         )
 
+    def _record_entity_change(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        entity_type: str,
+        entity_id: str | int,
+        entity_code: str = "",
+        action: str,
+        actor: str = "",
+        before_status: str = "",
+        after_status: str = "",
+        note: str = "",
+        metadata: dict | None = None,
+        created_at: str | None = None,
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO entity_change_logs(
+                entity_type, entity_id, entity_code, action, actor,
+                before_status, after_status, note, metadata_json, created_at
+            )
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(entity_type or "").strip(),
+                str(entity_id),
+                str(entity_code or "").strip(),
+                str(action or "").strip(),
+                str(actor or "").strip(),
+                str(before_status or "").strip(),
+                str(after_status or "").strip(),
+                str(note or "").strip(),
+                json.dumps(metadata or {}, ensure_ascii=False),
+                str(created_at or utc_now_iso()).strip() or utc_now_iso(),
+            ),
+        )
+
+    @staticmethod
+    def _get_entity_change_action_label(action: str) -> str:
+        return {
+            "create": "Tạo mới",
+            "status-change": "Đổi trạng thái",
+            "payment-status": "Cập nhật thanh toán",
+            "edit-customer": "Đổi khách hàng",
+            "edit-ship-address": "Sửa địa chỉ giao",
+            "edit-discount": "Sửa giảm giá",
+            "edit-items": "Sửa mặt hàng",
+            "create-request": "Tạo yêu cầu",
+            "approve-request": "Approve",
+            "reject-request": "Reject",
+            "process-request": "Xử lý request",
+        }.get(str(action or "").strip(), str(action or "").strip() or "Cập nhật")
+
+    def _serialize_entity_change_row(self, row: sqlite3.Row) -> dict:
+        try:
+            metadata = json.loads(row["metadata_json"] or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            metadata = {}
+        action = str(row["action"] or "").strip()
+        return {
+            "id": int(row["id"] or 0),
+            "entity_type": str(row["entity_type"] or "").strip(),
+            "entity_id": str(row["entity_id"] or "").strip(),
+            "entity_code": str(row["entity_code"] or "").strip(),
+            "action": action,
+            "action_label": self._get_entity_change_action_label(action),
+            "actor": str(row["actor"] or "").strip(),
+            "before_status": str(row["before_status"] or "").strip(),
+            "after_status": str(row["after_status"] or "").strip(),
+            "note": str(row["note"] or "").strip(),
+            "metadata": metadata if isinstance(metadata, dict) else {},
+            "created_at": str(row["created_at"] or "").strip(),
+        }
+
+    def get_entity_change_history(
+        self,
+        *,
+        entity_type: str,
+        entity_id: str,
+        limit: int = 40,
+    ) -> list[dict]:
+        clean_entity_type = str(entity_type or "").strip()
+        clean_entity_id = str(entity_id or "").strip()
+        if not clean_entity_type or not clean_entity_id:
+            return []
+        try:
+            clean_limit = max(1, min(int(limit), 100))
+        except (TypeError, ValueError):
+            clean_limit = 40
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, entity_type, entity_id, entity_code, action, actor,
+                       before_status, after_status, note, metadata_json, created_at
+                FROM entity_change_logs
+                WHERE entity_type = ? AND entity_id = ?
+                ORDER BY created_at DESC, id DESC
+                LIMIT ?
+                """,
+                (clean_entity_type, clean_entity_id, clean_limit),
+            ).fetchall()
+        return [self._serialize_entity_change_row(row) for row in rows]
+
+    def get_cart_change_history(self, cart_id: str, *, limit: int = 40) -> list[dict]:
+        return self.get_entity_change_history(
+            entity_type="cart",
+            entity_id=str(cart_id or "").strip(),
+            limit=limit,
+        )
+
+    def get_bulk_order_request_change_history(self, request_id: str, *, limit: int = 40) -> list[dict]:
+        return self.get_entity_change_history(
+            entity_type="bulk_order_request",
+            entity_id=str(request_id or "").strip(),
+            limit=limit,
+        )
+
     def _count_product_sync_usage(self, product_id: int) -> dict:
         carts = self._get_sync_collection("carts")
         purchases = self._get_sync_collection("purchases")
@@ -3429,6 +3563,18 @@ class InventoryStore:
             actor=actor,
             message="Trạng thái đơn đổi từ draft sang committed.",
         )
+        self._record_entity_change(
+            connection,
+            entity_type="cart",
+            entity_id=clean_cart_id,
+            entity_code=order_code or clean_cart_id,
+            action="status-change",
+            actor=actor,
+            before_status="draft",
+            after_status="committed",
+            note="Chốt đơn.",
+            created_at=committed_at,
+        )
         return self._get_cart_document(connection, clean_cart_id)
 
     @staticmethod
@@ -3872,6 +4018,18 @@ class InventoryStore:
                     now,
                 ),
             )
+            self._record_entity_change(
+                connection,
+                entity_type="bulk_order_request",
+                entity_id=clean_request_id,
+                entity_code=request_code,
+                action="create-request",
+                actor=clean_actor,
+                before_status="",
+                after_status="pending_approval",
+                note=f"Tạo yêu cầu xuất nhanh gồm {len(prepared_orders)} đơn ở mode {clean_mode}.",
+                created_at=now,
+            )
             request_row = self._load_bulk_order_request_row(connection, clean_request_id)
             request_doc = self._serialize_bulk_order_request_row(request_row, duplicates=[])
             return {
@@ -3927,6 +4085,18 @@ class InventoryStore:
                 """,
                 (clean_actor, now, now, clean_request_id),
             )
+            self._record_entity_change(
+                connection,
+                entity_type="bulk_order_request",
+                entity_id=clean_request_id,
+                entity_code=str(row["request_code"] or clean_request_id).strip(),
+                action="approve-request",
+                actor=clean_actor,
+                before_status=status,
+                after_status="approved",
+                note="Duyệt yêu cầu xuất nhanh.",
+                created_at=now,
+            )
             updated_row = self._load_bulk_order_request_row(connection, clean_request_id)
             return self._serialize_bulk_order_request_row(updated_row, duplicates=[])
 
@@ -3955,6 +4125,18 @@ class InventoryStore:
                 WHERE request_id = ?
                 """,
                 (clean_actor, now, clean_reason, now, clean_request_id),
+            )
+            self._record_entity_change(
+                connection,
+                entity_type="bulk_order_request",
+                entity_id=clean_request_id,
+                entity_code=str(row["request_code"] or clean_request_id).strip(),
+                action="reject-request",
+                actor=clean_actor,
+                before_status=status,
+                after_status="rejected",
+                note=clean_reason or "Từ chối yêu cầu xuất nhanh.",
+                created_at=now,
             )
             updated_row = self._load_bulk_order_request_row(connection, clean_request_id)
             return self._serialize_bulk_order_request_row(updated_row, duplicates=[])
@@ -4000,6 +4182,21 @@ class InventoryStore:
                     clean_request_id,
                 ),
             )
+            self._record_entity_change(
+                connection,
+                entity_type="bulk_order_request",
+                entity_id=clean_request_id,
+                entity_code=str(request_doc.get("request_code") or clean_request_id).strip(),
+                action="process-request",
+                actor=clean_actor,
+                before_status="approved",
+                after_status="processed",
+                note=(
+                    f"Xử lý request: {process_result['summary']['success']} thành công / "
+                    f"{process_result['summary']['failed']} lỗi."
+                ),
+                created_at=now,
+            )
             updated_row = self._load_bulk_order_request_row(connection, clean_request_id)
             request_doc = self._serialize_bulk_order_request_row(updated_row, duplicates=[])
         return {
@@ -4013,6 +4210,7 @@ class InventoryStore:
         raw_order: dict,
         *,
         created_at: str,
+        actor: str = "",
     ) -> dict:
         resolved_customer = self._ensure_customer_for_bulk_order(
             connection,
@@ -4042,6 +4240,7 @@ class InventoryStore:
                 customer_name=str(resolved_customer.get("name") or "").strip(),
             )
         if existing_draft:
+            previous_cart = self._get_cart_document(connection, str(existing_draft.get("id") or "").strip())
             merged_grouped_items = self._merge_grouped_sale_items(
                 existing_draft.get("items") or [],
                 grouped_items,
@@ -4076,8 +4275,17 @@ class InventoryStore:
                 cart_id=str(existing_draft.get("id") or "").strip(),
                 items=merged_items,
             )
+            updated_cart = self._get_cart_document(connection, str(existing_draft.get("id") or "").strip())
+            self._record_cart_change_history(
+                connection,
+                previous=previous_cart,
+                current=updated_cart,
+                actor=actor,
+                created_at=created_at,
+                note_prefix="Cập nhật từ màn Xuất nhanh",
+            )
             return {
-                "cart": self._get_cart_document(connection, str(existing_draft.get("id") or "").strip()),
+                "cart": updated_cart,
                 "reused_existing_draft": True,
                 "customer": resolved_customer,
             }
@@ -4107,8 +4315,17 @@ class InventoryStore:
             cart_id=cart_id,
             items=cart_items,
         )
+        created_cart = self._get_cart_document(connection, cart_id)
+        self._record_cart_change_history(
+            connection,
+            previous=None,
+            current=created_cart,
+            actor=actor,
+            created_at=created_at,
+            note_prefix="Tạo từ màn Xuất nhanh",
+        )
         return {
-            "cart": self._get_cart_document(connection, cart_id),
+            "cart": created_cart,
             "reused_existing_draft": False,
             "customer": resolved_customer,
         }
@@ -4248,6 +4465,7 @@ class InventoryStore:
                         connection,
                         order_payload,
                         created_at=now,
+                        actor=clean_actor,
                     )
                     working_cart = draft_result["cart"]
                     if clean_mode == "commit_valid":
@@ -4493,6 +4711,18 @@ class InventoryStore:
                 action="status-change",
                 actor=actor,
                 message="Trạng thái đơn đổi từ committed sang completed.",
+            )
+            self._record_entity_change(
+                connection,
+                entity_type="cart",
+                entity_id=clean_cart_id,
+                entity_code=order_code or clean_cart_id,
+                action="status-change",
+                actor=actor,
+                before_status="committed",
+                after_status="completed",
+                note="Xuất hàng hoàn tất.",
+                created_at=now,
             )
             carts = self._refresh_sync_collection_cache(connection, "carts", updated_at=now)
             completed_cart = next((entry for entry in carts if str(entry.get("id")) == clean_cart_id), None)
@@ -7740,6 +7970,172 @@ class InventoryStore:
 
         return self.get_sync_state()
 
+    @staticmethod
+    def _build_cart_history_item_map(cart: dict | None) -> dict[tuple[int, str], dict]:
+        item_map: dict[tuple[int, str], dict] = {}
+        for raw_item in (cart or {}).get("items") or []:
+            product_id = int(raw_item.get("productId") or raw_item.get("product_id") or 0)
+            product_name = str(raw_item.get("productName") or raw_item.get("product_name") or "").strip()
+            key = (product_id, product_name)
+            item_map[key] = {
+                "product_name": product_name or f"Sản phẩm {product_id}",
+                "quantity": round(float(raw_item.get("quantity") or 0), 2),
+                "unit_price": round(float(raw_item.get("unitPrice") or raw_item.get("unit_price") or 0), 2),
+            }
+        return item_map
+
+    def _build_cart_item_change_note(self, previous: dict, current: dict) -> str:
+        previous_items = self._build_cart_history_item_map(previous)
+        current_items = self._build_cart_history_item_map(current)
+        notes: list[str] = []
+        for key in sorted(set(previous_items) | set(current_items), key=lambda entry: (normalize_key(entry[1]), entry[0])):
+            previous_item = previous_items.get(key)
+            current_item = current_items.get(key)
+            label = (current_item or previous_item or {}).get("product_name") or "Mặt hàng"
+            if previous_item is None and current_item is not None:
+                notes.append(f"Thêm {label}: SL {current_item['quantity']}, giá {current_item['unit_price']}.")
+                continue
+            if previous_item is not None and current_item is None:
+                notes.append(f"Bỏ {label} khỏi đơn.")
+                continue
+            item_changes: list[str] = []
+            if round(previous_item["quantity"], 2) != round(current_item["quantity"], 2):
+                item_changes.append(f"SL {previous_item['quantity']} -> {current_item['quantity']}")
+            if round(previous_item["unit_price"], 2) != round(current_item["unit_price"], 2):
+                item_changes.append(f"Giá {previous_item['unit_price']} -> {current_item['unit_price']}")
+            if item_changes:
+                notes.append(f"{label}: {'; '.join(item_changes)}.")
+        return " ".join(notes[:8]).strip()
+
+    def _record_cart_change_history(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        previous: dict | None,
+        current: dict,
+        actor: str = "",
+        created_at: str | None = None,
+        note_prefix: str = "",
+    ) -> None:
+        clean_actor = str(actor or "").strip()
+        current_status = str(current.get("status") or "draft").strip()
+        cart_id = str(current.get("id") or "").strip()
+        cart_code = str(current.get("orderCode") or current.get("order_code") or cart_id).strip()
+        prefix = str(note_prefix or "").strip()
+        if prefix:
+            prefix = f"{prefix}. "
+        if not previous:
+            self._record_entity_change(
+                connection,
+                entity_type="cart",
+                entity_id=cart_id,
+                entity_code=cart_code,
+                action="create",
+                actor=clean_actor,
+                before_status="",
+                after_status=current_status,
+                note=f"{prefix}Tạo đơn cho {str(current.get('customerName') or '').strip() or 'khách hàng'}.".strip(),
+                created_at=created_at,
+            )
+            return
+
+        previous_status = str(previous.get("status") or "draft").strip()
+        if previous_status != current_status:
+            self._record_entity_change(
+                connection,
+                entity_type="cart",
+                entity_id=cart_id,
+                entity_code=cart_code,
+                action="status-change",
+                actor=clean_actor,
+                before_status=previous_status,
+                after_status=current_status,
+                note=f"{prefix}Trạng thái đơn đổi từ {previous_status} sang {current_status}.",
+                created_at=created_at,
+            )
+
+        previous_payment = str(previous.get("paymentStatus") or previous.get("payment_status") or "").strip()
+        current_payment = str(current.get("paymentStatus") or current.get("payment_status") or "").strip()
+        if previous_payment != current_payment:
+            self._record_entity_change(
+                connection,
+                entity_type="cart",
+                entity_id=cart_id,
+                entity_code=cart_code,
+                action="payment-status",
+                actor=clean_actor,
+                before_status=previous_status,
+                after_status=current_status,
+                note=(
+                    f"{prefix}Thanh toán đổi từ {previous_payment or 'chưa rõ'} "
+                    f"sang {current_payment or 'chưa rõ'}."
+                ),
+                created_at=created_at,
+            )
+
+        previous_customer = str(previous.get("customerName") or previous.get("customer_name") or "").strip()
+        current_customer = str(current.get("customerName") or current.get("customer_name") or "").strip()
+        if previous_customer != current_customer:
+            self._record_entity_change(
+                connection,
+                entity_type="cart",
+                entity_id=cart_id,
+                entity_code=cart_code,
+                action="edit-customer",
+                actor=clean_actor,
+                before_status=previous_status,
+                after_status=current_status,
+                note=f"{prefix}Khách hàng đổi từ {previous_customer or 'trống'} sang {current_customer or 'trống'}.",
+                created_at=created_at,
+            )
+
+        previous_address = self._get_cart_ship_address(previous)
+        current_address = self._get_cart_ship_address(current)
+        if previous_address != current_address:
+            self._record_entity_change(
+                connection,
+                entity_type="cart",
+                entity_id=cart_id,
+                entity_code=cart_code,
+                action="edit-ship-address",
+                actor=clean_actor,
+                before_status=previous_status,
+                after_status=current_status,
+                note=f"{prefix}Địa chỉ giao đổi từ {previous_address or 'trống'} sang {current_address or 'trống'}.",
+                created_at=created_at,
+            )
+
+        previous_discount = round(float(previous.get("discountAmount") or previous.get("discount_amount") or 0), 2)
+        current_discount = round(float(current.get("discountAmount") or current.get("discount_amount") or 0), 2)
+        if previous_discount != current_discount:
+            self._record_entity_change(
+                connection,
+                entity_type="cart",
+                entity_id=cart_id,
+                entity_code=cart_code,
+                action="edit-discount",
+                actor=clean_actor,
+                before_status=previous_status,
+                after_status=current_status,
+                note=f"{prefix}Giảm giá đổi từ {previous_discount} sang {current_discount}.",
+                created_at=created_at,
+            )
+
+        item_note = self._build_cart_item_change_note(previous, current)
+        if item_note:
+            self._record_entity_change(
+                connection,
+                entity_type="cart",
+                entity_id=cart_id,
+                entity_code=cart_code,
+                action="edit-items",
+                actor=clean_actor,
+                before_status=previous_status,
+                after_status=current_status,
+                note=f"{prefix}{item_note}".strip(),
+                created_at=created_at,
+            )
+
     def _audit_cart_changes(
         self,
         connection: sqlite3.Connection,
@@ -7754,6 +8150,12 @@ class InventoryStore:
             if not cart_id:
                 continue
             previous = existing_by_id.get(cart_id)
+            self._record_cart_change_history(
+                connection,
+                previous=previous,
+                current=cart,
+                actor=actor,
+            )
             if not previous:
                 continue
             previous_status = str(previous.get("status") or "draft")

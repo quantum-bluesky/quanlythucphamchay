@@ -6,6 +6,7 @@ export function createCoreUi(deps) {
     currentAppInfo,
     getLatestRuntimeVersion,
     escapeHtml,
+    formatDate,
     getCurrentScreenHelp,
     getFloatingSearchConfig,
     getFloatingSearchSourceInput,
@@ -196,6 +197,39 @@ export function createCoreUi(deps) {
     `;
   }
 
+  function renderAuditHistoryModal() {
+    const auditHistory = state.auditHistory || {};
+    dom.auditHistoryModal.hidden = !auditHistory.open;
+    if (!auditHistory.open) {
+      return;
+    }
+    const entries = Array.isArray(auditHistory.entries) ? auditHistory.entries : [];
+    const subtitle = [auditHistory.subtitle, auditHistory.loading ? "Đang nạp dữ liệu..." : ""].filter(Boolean).join(" • ");
+    dom.auditHistoryModalBody.innerHTML = `
+      <article class="help-card">
+        <h3>${escapeHtml(auditHistory.title || "Lịch sử thay đổi")}</h3>
+        <p class="panel-note">${escapeHtml(subtitle || "Xem nhanh các thay đổi mới nhất của chứng từ đang chọn.")}</p>
+      </article>
+      ${auditHistory.loading ? '<div class="empty-state">Đang nạp lịch sử thay đổi...</div>' : ""}
+      ${!auditHistory.loading && !entries.length ? '<div class="empty-state">Chưa có log thay đổi nào cho chứng từ này.</div>' : ""}
+      ${!auditHistory.loading && entries.length ? `
+        <div class="report-list">
+          ${entries.map((entry) => `
+            <article class="report-card">
+              <div class="report-card-head">
+                <strong>${escapeHtml(entry.action_label || entry.action || "Cập nhật")}</strong>
+                <span class="status-pill draft">${escapeHtml(formatDate(entry.created_at) || entry.created_at || "")}</span>
+              </div>
+              <div class="report-card-row"><span>User</span><span>${escapeHtml(entry.actor || "Hệ thống")}</span></div>
+              <div class="report-card-row"><span>Trạng thái</span><span>${escapeHtml([entry.before_status || "-", entry.after_status || "-"].join(" -> "))}</span></div>
+              <div class="cart-line-note">${escapeHtml(entry.note || "Không có ghi chú bổ sung.")}</div>
+            </article>
+          `).join("")}
+        </div>
+      ` : ""}
+    `;
+  }
+
   function renderScreenToolbox() {
     const scrollTop = window.scrollY || window.pageYOffset || 0;
     const viewportBottom = scrollTop + window.innerHeight;
@@ -254,6 +288,7 @@ export function createCoreUi(deps) {
     renderAppVersion,
     renderAboutSection,
     renderHelpModal,
+    renderAuditHistoryModal,
     renderScreenToolbox,
     renderFloatingSearchDock,
   };

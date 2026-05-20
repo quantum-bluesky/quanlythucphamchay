@@ -104,6 +104,10 @@ export function registerCoreControllerEvents(contract) {
     actions.setHelpOpen(false);
   });
 
+  dom.closeAuditHistoryButton?.addEventListener("click", () => {
+    actions.setAuditHistoryOpen(false);
+  });
+
   dom.helpModal.addEventListener("click", (event) => {
     if (event.target.closest("[data-help-close='backdrop']")) {
       actions.setHelpOpen(false);
@@ -113,6 +117,12 @@ export function registerCoreControllerEvents(contract) {
     if (helpMenuButton) {
       actions.switchMenu(helpMenuButton.dataset.helpMenu);
       actions.setHelpOpen(false);
+    }
+  });
+
+  dom.auditHistoryModal?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-audit-history-close='backdrop']")) {
+      actions.setAuditHistoryOpen(false);
     }
   });
 
@@ -215,6 +225,9 @@ export function registerCoreControllerEvents(contract) {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && state.helpOpen) {
       actions.setHelpOpen(false);
+    }
+    if (event.key === "Escape" && state.auditHistory?.open) {
+      actions.setAuditHistoryOpen(false);
     }
     if (event.key === "Escape" && state.floatingSearchExpanded) {
       actions.setFloatingSearchExpanded(false);
