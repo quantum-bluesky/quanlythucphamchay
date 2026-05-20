@@ -33,7 +33,10 @@ async function createBackupSnapshot(request) {
   return response.body();
 }
 
-async function restoreBackupSnapshot(request, snapshot) {
+async function restoreBackupSnapshot(request, snapshot, page = null) {
+  if (page && !page.isClosed()) {
+    await page.close();
+  }
   const adminCookie = await loginAdminApi(request);
   const response = await request.post("/api/admin/restore", {
     headers: { Cookie: adminCookie },
@@ -140,13 +143,9 @@ async function openDraftCartFromOrders(page, customerName, cartId) {
   await switchMenu(page, "orders");
   await expectScreenTitle(page, "Đơn hàng");
   await setFloatingSearch(page, customerName);
-  await page.evaluate((targetCartId) => {
-    const button = document.querySelector(`[data-queue-action="open"][data-cart-id="${targetCartId}"]`);
-    if (!(button instanceof HTMLElement)) {
-      throw new Error("Không tìm thấy nút mở giỏ hàng từ màn Đơn hàng.");
-    }
-    button.click();
-  }, cartId);
+  const openButton = page.locator(`[data-queue-action="open"][data-cart-id="${cartId}"]`).first();
+  await expect(openButton).toBeVisible();
+  await openButton.click();
 }
 
 async function ensureActiveCartPanelOpen(page) {
@@ -169,6 +168,23 @@ async function interceptConfirm(page, nextResult = true) {
 
 async function readInterceptedConfirmMessages(page) {
   return page.evaluate(() => Array.isArray(window.__testConfirmMessages) ? window.__testConfirmMessages.slice() : []);
+}
+
+async function waitForToastContaining(page, expectedTexts, timeout = 5000) {
+  const targets = Array.isArray(expectedTexts) ? expectedTexts : [expectedTexts];
+  const startedAt = Date.now();
+  let latestText = "";
+  while (Date.now() - startedAt < timeout) {
+    const toast = page.locator("#toast:not([hidden])").first();
+    if (await toast.count()) {
+      latestText = ((await toast.textContent()) || "").trim();
+      if (targets.some((target) => latestText.includes(target))) {
+        return latestText;
+      }
+    }
+    await page.waitForTimeout(150);
+  }
+  throw new Error(`Không thấy toast chứa ${targets.join(" / ")}. Toast gần nhất: ${latestText}`);
 }
 
 function filterOrderOpenSyncNoise(runtime) {
@@ -275,9 +291,11 @@ test("ACC-SALE-02 shortage commit allows ordered purchase coverage and otherwise
     expect(createDialogMessages[0] || "").toContain("Chốt đơn");
     expect(createDialogMessage).toContain(shortageProduct.name);
     const createdLinkedPurchase = createDialogMessage.includes("App sẽ tạo hoặc cập nhật phiếu nhập tương ứng cho phần còn thiếu");
-    const shortageToast = await collectToast(page, runtime, "acc-sale-02-shortage", {
-      errorPattern: /^$/,
-    });
+    const shortageToast = await waitForToastContaining(page, [
+      "Đã tạo hoặc cập nhật phiếu nhập dự kiến",
+      "Đã mở phiếu nhập chờ liên quan",
+    ]);
+    runtime.toasts.push(`acc-sale-02-shortage:${shortageToast}`);
     if (createdLinkedPurchase) {
       expect(createDialogMessage).toContain("App sẽ tạo hoặc cập nhật phiếu nhập tương ứng cho phần còn thiếu");
       expect(shortageToast).toContain("Đã tạo hoặc cập nhật phiếu nhập dự kiến");
@@ -377,9 +395,8 @@ test("ACC-SALE-02 shortage commit allows ordered purchase coverage and otherwise
     const commitWithOrderedMessages = await readInterceptedConfirmMessages(page);
     expect(commitWithOrderedMessages).toHaveLength(1);
     expect(commitWithOrderedMessages[0] || "").toContain("Chốt đơn");
-    const commitWithOrderedToast = await collectToast(page, runtime, "acc-sale-02-ordered-cover", {
-      errorPattern: /^$/,
-    });
+    const commitWithOrderedToast = await waitForToastContaining(page, "Đã chốt đơn");
+    runtime.toasts.push(`acc-sale-02-ordered-cover:${commitWithOrderedToast}`);
     expect(commitWithOrderedToast).toContain("Đã chốt đơn");
 
     syncState = await fetchSyncState(request, adminCookie);
@@ -387,7 +404,7 @@ test("ACC-SALE-02 shortage commit allows ordered purchase coverage and otherwise
     expect(committedCart).toBeTruthy();
     expect(committedCart.status).toBe("committed");
   } finally {
-    await restoreBackupSnapshot(request, snapshot);
+    await restoreBackupSnapshot(request, snapshot, page);
   }
 
   filterOrderOpenSyncNoise(runtime);
