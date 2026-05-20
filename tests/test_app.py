@@ -1660,6 +1660,7 @@ class InventoryStoreTests(unittest.TestCase):
         editable_purchases = copy.deepcopy(editable_state["purchases"])
         editable_carts[0]["discountAmount"] = 5000
         editable_purchases[0]["discountAmount"] = 4000
+        editable_purchases[0]["note"] = "Da nhap kho, cho sua ghi chu"
         updated_state = self.store.save_sync_state(
             {
                 "carts": editable_carts,
@@ -1673,6 +1674,7 @@ class InventoryStoreTests(unittest.TestCase):
 
         self.assertEqual(updated_state["carts"][0]["discountAmount"], 5000.0)
         self.assertEqual(updated_state["purchases"][0]["discountAmount"], 4000.0)
+        self.assertEqual(updated_state["purchases"][0]["note"], "Da nhap kho, cho sua ghi chu")
 
         paid_state = self.store.get_sync_state()
         paid_carts = copy.deepcopy(paid_state["carts"])
@@ -1709,6 +1711,17 @@ class InventoryStoreTests(unittest.TestCase):
             self.store.save_sync_state(
                 {
                     "purchases": final_purchases,
+                    "expected_updated_at": {"purchases": locked_state["updated_at"]["purchases"]},
+                }
+            )
+
+        final_note_purchases = copy.deepcopy(locked_state["purchases"])
+        final_note_purchases[0]["note"] = "Khong duoc sua sau thanh toan"
+
+        with self.assertRaisesRegex(ValueError, "Phiếu nhập đã thanh toán không thể sửa trực tiếp"):
+            self.store.save_sync_state(
+                {
+                    "purchases": final_note_purchases,
                     "expected_updated_at": {"purchases": locked_state["updated_at"]["purchases"]},
                 }
             )
