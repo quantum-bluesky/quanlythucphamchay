@@ -60,6 +60,7 @@ Lưu ý:
 | 39 | `IT-PURSUP-06` | Kiểm tra màn nhập hàng không tự điền NCC khi mặt hàng có nhiều NCC lịch sử, nhưng datalist NCC ưu tiên NCC có lịch sử nhập nhiều hơn. |
 | 40 | `IT-PURSUP-07` | Kiểm tra màn nhập hàng cảnh báo khi một mặt hàng đang nằm ở phiếu mở của NCC khác, mở được danh sách phiếu liên quan để review, và vẫn cho user giữ nguyên hiện trạng nếu muốn. |
 | 41 | `IT-PURSUP-08` | Kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC, ghi chú, giảm giá và dòng hàng, nhưng reset `Mã lô`, `HSD` và `NSX` để nhập lại theo lô mới. |
+| 119 | `IT-PURSUP-09` | Kiểm tra phiếu nhập `Đã nhập kho` vẫn sửa được `Ghi chú` tới trước khi `Đã thanh toán`, rồi khóa lại sau khi phiếu chuyển sang `Đã thanh toán`. |
 | 42 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
 | 41 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
 | 42 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |
@@ -111,7 +112,7 @@ Lưu ý:
 | 80 | `IT-INV-SORT-01` | Kiểm tra dropdown sort ở màn tồn kho nằm trong pagination mobile và sắp đúng theo tồn, ưu tiên, hạn còn lại. |
 | 81 | `IT-INV-SORT-02` | Kiểm tra dropdown sort ở màn tồn kho vẫn nằm trong pagination desktop cùng page-size picker. |
 | 82 | `IT-PROD-LIFE-01` | Kiểm tra màn Sản phẩm lưu được metadata hạn dùng/bảo quản từ inline edit và render lại đúng nhãn. |
-| 83 | `UT-SYNC-03` | Kiểm tra đơn đã chốt chưa thanh toán và phiếu nhập đã nhận chưa thanh toán vẫn sửa được `giảm giá khuyến mại`, nhưng sau khi đánh dấu thanh toán thì field này bị khóa lại. |
+| 83 | `UT-SYNC-03` | Kiểm tra đơn đã chốt chưa thanh toán và phiếu nhập đã nhận chưa thanh toán vẫn sửa được `giảm giá khuyến mại`; riêng phiếu nhập `received` còn sửa được cả `Ghi chú`, nhưng sau khi đánh dấu thanh toán thì các field này bị khóa lại. |
 | 84 | `UT-DB-12` | Kiểm tra backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `ordered`, và chặn xóa trực tiếp phiếu `ordered`. |
 | 85 | `UT-SYNC-04` | Kiểm tra đơn hàng chặn `draft -> paid`, cho `draft -> cancelled`, cho `completed -> paid`, rồi khóa nhánh mở lại/hạ thanh toán sau khi đã `cancelled/paid`. |
 | 86 | `UT-DB-13` | Kiểm tra backend khi xuất kho sẽ trừ đúng thứ tự FEFO theo HSD thật của các lô và tính lại giá vốn bình quân theo các lô đã bị trừ. |

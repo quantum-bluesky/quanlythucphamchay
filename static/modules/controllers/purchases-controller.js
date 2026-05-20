@@ -166,8 +166,8 @@ export function registerPurchasesControllerEvents(contract) {
   dom.purchaseNoteInput.addEventListener("change", () => {
     const purchase = queries.getActivePurchase();
     if (!purchase) return;
-    if (!queries.canEditPurchase(purchase)) {
-      actions.showToast("Phiếu nhập đã khóa, không thể sửa ghi chú trực tiếp.", true);
+    if (!queries.canEditPurchaseNote(purchase)) {
+      actions.showToast("Chỉ phiếu chưa thanh toán mới được sửa ghi chú.", true);
       renderers.renderPurchasePanel();
       return;
     }

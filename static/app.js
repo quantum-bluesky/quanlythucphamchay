@@ -1023,6 +1023,7 @@ function getPurchasesUi() {
       mobileQuery,
       getActivePurchase,
       canEditPurchase,
+      canEditPurchaseNote,
       canEditPurchaseExpiryMetadata,
       canEditPurchaseDiscount,
       canEditPurchaseSupplier,
@@ -1762,6 +1763,10 @@ function getCartCostWarning(cart) {
 
 function canEditPurchase(purchase) {
   return getPurchasesDomainHelpers().canEditPurchase(purchase);
+}
+
+function canEditPurchaseNote(purchase) {
+  return getPurchasesDomainHelpers().canEditPurchaseNote(purchase);
 }
 
 function canEditPurchaseDiscount(purchase) {
@@ -4987,7 +4992,7 @@ function renderAll() {
   }
   const activePurchase = getActivePurchase();
   const supplierEditable = canEditPurchaseSupplier(activePurchase);
-  const noteEditable = canEditPurchase(activePurchase);
+  const noteEditable = canEditPurchaseNote(activePurchase);
   if (activePurchase) {
     purchaseSupplierInput.value = activePurchase.supplierName || (supplierEditable ? state.pendingPurchaseSupplierName : "") || "";
     purchaseNoteInput.value = activePurchase.note || "";
@@ -6016,6 +6021,7 @@ registerPurchasesControllerEvents({
     getActivePurchase,
     getProductById,
     canEditPurchase,
+    canEditPurchaseNote,
     canEditPurchaseExpiryMetadata,
     canEditPurchaseDiscount,
     canEditPurchaseSupplier,

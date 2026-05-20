@@ -274,6 +274,18 @@ export function createPurchasesDomainHelpers(deps) {
     );
   }
 
+  function canEditPurchaseNote(purchase) {
+    return Boolean(
+      purchase && (
+        (
+          ["draft", "ordered"].includes(purchase.status)
+          && !isPurchaseStructureLockedByProcurementBatch(purchase)
+        ) ||
+        purchase.status === "received"
+      )
+    );
+  }
+
   function canEditPurchaseExpiryMetadata(purchase) {
     return Boolean(
       purchase
@@ -1114,6 +1126,7 @@ export function createPurchasesDomainHelpers(deps) {
     canReceivePurchase,
     isRepairableInvalidPurchase,
     canEditPurchase,
+    canEditPurchaseNote,
     canEditPurchaseDiscount,
     canEditPurchaseSupplier,
     canDeletePurchase,
