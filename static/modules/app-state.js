@@ -66,6 +66,7 @@ export const state = {
     reviewOpen: false,
     reviewPurchaseIds: [],
     reviewIndex: 0,
+    mergeSelectionKeys: [],
   },
   paginationConfig: {
     itemsPerPage: 10,
@@ -116,6 +117,7 @@ export const state = {
   expandedSelectedCartItemId: null,
   expandedOrderId: null,
   orderDetailItemsCollapsed: true,
+  selectedOrderMergeIds: [],
   pendingCartMergeCustomerId: "",
   pendingCartMergeCustomerName: "",
   inventoryAdjustmentReasons: {},
@@ -178,6 +180,7 @@ export const state = {
   purchasePanelCollapsed: false,
   purchaseDetailExpanded: false,
   selectedPurchaseItemsCollapsed: true,
+  selectedPurchaseMergeIds: [],
   pendingPurchaseSupplierFlow: false,
   pendingPurchaseSupplierName: "",
   purchaseConflictReview: {
@@ -190,6 +193,12 @@ export const state = {
   pendingProcurementSupplierName: "",
   editingSupplierFormId: null,
   supplierFormCollapsed: true,
+  pendingDocumentMerge: {
+    kind: "",
+    sourceMenu: "",
+    documentIds: [],
+    targetId: "",
+  },
   pagination: {
     inventory: 1,
     productManage: 1,

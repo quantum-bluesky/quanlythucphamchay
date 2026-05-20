@@ -120,6 +120,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Phiếu xuất và phiếu nhập có thêm `giảm giá khuyến mại` ở cấp toàn phiếu; app tự tính `Tạm tính / Giảm KM / Cần thanh toán` ngay trên panel, detail và bản in
 - Nếu `Cần thanh toán` của phiếu xuất đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app sẽ hiện cảnh báo trước khi `Chốt đơn` hoặc `Xuất hàng`
 - Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm
+- Ở màn `Đơn hàng`, có thể tick nhiều phiếu `Nháp/Chốt đơn` cùng khách để mở flow `Gộp đơn`; hệ thống sẽ chặn nếu chọn khác khách
 - Khi một action đang lưu thay đổi lên server, app sẽ phủ `Loading` toàn màn hình và khóa tạm các thao tác khác cho tới khi trạng thái mới được cập nhật xong, để tránh bấm chồng nhiều action liên tiếp
 - Khi chốt đơn bị thiếu hàng, app vẫn cho chốt nếu phần thiếu đã được cover đủ bởi phiếu nhập `Đã đặt`; nếu mới chỉ có phiếu `Nháp` hoặc vẫn thiếu số lượng thì app sẽ báo trước khi tạo/cập nhật phiếu nhập và cho mở lại phiếu liên quan khi người dùng xác nhận cần chỉnh
 - Màn `Xử lý nhập thiếu` cho phép bật kỳ gom nhập định kỳ, gom nhu cầu của cả đơn nháp và đơn đã chốt theo từng mặt hàng để tạo phiếu nhập batch
@@ -128,6 +129,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Trước khi bắt đầu kỳ gom nhập, app sẽ audit nhanh các phiếu nhập mở; nếu một sản phẩm đang bị cover bởi nhiều phiếu mở thì phải dọn conflict trước khi acquire lock
 - Khi bị chặn vì conflict đầu kỳ gom, màn planner sẽ hiện ngay danh sách sản phẩm và các mã phiếu nhập mở liên quan để bấm sang màn `Nhập hàng` xử lý
 - Planner batch cho tick chọn nhiều mặt hàng, chọn NCC từ danh bạ, chỉnh số lượng/giá nhập/giảm giá, rồi gom các mặt hàng cùng NCC vào một phiếu nhập nháp
+- Trong `Xử lý nhập thiếu`, khối phiếu liên quan cũng cho mở `Gộp đơn`; không được gộp lẫn phiếu nhập với phiếu xuất trong cùng một lần thao tác
 - Khi kỳ gom nhập còn active lock, các màn `Tồn kho`, `Xuất hàng`, `Đơn hàng`, `Nhập hàng`, `Nhà cung cấp` sẽ hiện cảnh báo đang ở Batch mode, ai đang giữ lock và màn đó bị ảnh hưởng gì
 - Trong Batch mode, người giữ khóa còn có thể mở khối `Chọn thêm sản phẩm khác` để tick chọn nhanh các mặt hàng ngoài nhu cầu đơn trên một danh sách riêng; khối này ưu tiên các sản phẩm đã có trên planner nhưng `Cần nhập = 0`, sau đó hiện tiếp toàn bộ sản phẩm active còn lại ngoài planner
 - Các dòng extra được tick sẽ có badge `Ngoài nhu cầu đơn`, không tham gia tính `Cần nhập`, nhưng vẫn được gom chung theo NCC
@@ -152,6 +154,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Các màn chọn đối tượng đều có ô tìm kiếm/gõ tên để thao tác nhanh trên điện thoại
 - Quản lý nhập hàng với phiếu nhập nháp, trạng thái đặt hàng/nhập kho và gợi ý sản phẩm cần nhập
 - Phiếu nhập bắt buộc có nhà cung cấp trước khi chuyển sang `Đã đặt hàng` hoặc `Nhập kho`
+- Ở màn `Nhập hàng`, có thể tick nhiều phiếu `Nháp/Đã đặt` cùng NCC để mở flow `Gộp đơn`; hệ thống sẽ chặn nếu chọn khác NCC
 - Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Ghi chú` và `Giảm giá khuyến mại`; app không mở khóa lại số lượng, giá, mã lô, NCC hay cấu trúc dòng nhập
 - Mỗi dòng nhập có thể khai báo riêng `Mã lô` và `Hạn dùng`; có thể nhập HSD trực tiếp hoặc nhập gián tiếp qua `Ngày sản xuất` để app tự tính `HSD = NSX + thời gian bảo quản`; nếu cùng một sản phẩm về nhiều lô khác nhau có thể tách nhanh bằng nút `+ Lô`
 - Nếu để trống `Hạn dùng`, khi `Nhập kho` app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` của sản phẩm

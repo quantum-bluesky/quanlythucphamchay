@@ -453,6 +453,145 @@ export function createSalesDomainHelpers(deps) {
     };
   }
 
+  function canMergeCart(cart) {
+    return Boolean(cart && ["draft", "committed"].includes(String(cart.status || "").trim()));
+  }
+
+  function getCartMergePriority(cart) {
+    return String(cart?.status || "").trim() === "committed" ? 2 : 1;
+  }
+
+  function buildCartMergePreview(cartIds = []) {
+    const uniqueIds = [...new Set((Array.isArray(cartIds) ? cartIds : []).map((id) => String(id || "").trim()).filter(Boolean))];
+    if (uniqueIds.length < 2) {
+      throw new Error("Cần chọn ít nhất 2 phiếu xuất để gộp.");
+    }
+    const carts = uniqueIds.map((cartId) => getCartById(cartId)).filter(Boolean);
+    if (carts.length !== uniqueIds.length) {
+      throw new Error("Có phiếu xuất không còn tồn tại để gộp.");
+    }
+    if (carts.some((cart) => !canMergeCart(cart))) {
+      throw new Error("Chỉ gộp được các phiếu xuất đang ở trạng thái Nháp hoặc Chốt đơn.");
+    }
+    if (carts.some((cart) => !String(cart.customerName || "").trim())) {
+      throw new Error("Cần chọn khách hàng cho tất cả phiếu xuất trước khi gộp.");
+    }
+    const customerKeys = [...new Set(carts.map((cart) => normalizeText(String(cart.customerName || "").trim())).filter(Boolean))];
+    if (customerKeys.length > 1) {
+      throw new Error("Chỉ gộp được các phiếu xuất cùng một khách hàng.");
+    }
+    const sortedByTarget = [...carts].sort((left, right) => {
+      const priorityDiff = getCartMergePriority(right) - getCartMergePriority(left);
+      if (priorityDiff !== 0) {
+        return priorityDiff;
+      }
+      if (String(left.id) === String(state.activeCartId || "")) {
+        return -1;
+      }
+      if (String(right.id) === String(state.activeCartId || "")) {
+        return 1;
+      }
+      return Date.parse(String(right.updatedAt || right.createdAt || "")) - Date.parse(String(left.updatedAt || left.createdAt || ""));
+    });
+    const targetCart = sortedByTarget[0];
+    const sourceCarts = sortedByTarget.slice(1);
+    return {
+      documentIds: sortedByTarget.map((cart) => cart.id),
+      targetId: targetCart.id,
+      targetCart,
+      sourceIds: sourceCarts.map((cart) => cart.id),
+      sourceCarts,
+      customerName: targetCart.customerName || "",
+    };
+  }
+
+  function startCartMergePreview(cartIds = [], options = {}) {
+    const preview = buildCartMergePreview(cartIds);
+    state.pendingDocumentMerge = {
+      kind: "sales",
+      sourceMenu: String(options.sourceMenu || state.activeMenu || "orders"),
+      documentIds: preview.documentIds,
+      targetId: preview.targetId,
+    };
+    state.activeCartId = preview.targetId;
+    state.activeCartPanelCollapsed = false;
+    state.activeCartDetailExpanded = false;
+    state.selectedCartItemsCollapsed = false;
+    state.expandedSelectedCartItemId = null;
+    state.expandedSalesProductId = null;
+    state.visibleSelectedSalesProductId = null;
+    state.selectedOrderMergeIds = preview.documentIds;
+    customerLookupInput.value = preview.customerName || "";
+    return preview;
+  }
+
+  function getPendingCartMergePreview() {
+    if (String(state.pendingDocumentMerge?.kind || "") !== "sales") {
+      return null;
+    }
+    const cartIds = Array.isArray(state.pendingDocumentMerge?.documentIds) ? state.pendingDocumentMerge.documentIds : [];
+    if (cartIds.length < 2) {
+      return null;
+    }
+    try {
+      return buildCartMergePreview(cartIds);
+    } catch {
+      return null;
+    }
+  }
+
+  function clearCartMergePreview() {
+    if (String(state.pendingDocumentMerge?.kind || "") === "sales") {
+      state.pendingDocumentMerge = {
+        kind: "",
+        sourceMenu: "",
+        documentIds: [],
+        targetId: "",
+      };
+    }
+    state.selectedOrderMergeIds = [];
+  }
+
+  function applyPendingCartMerge() {
+    const preview = getPendingCartMergePreview();
+    if (!preview) {
+      throw new Error("Không có dữ liệu gộp phiếu xuất hợp lệ.");
+    }
+    const now = nowIso();
+    const mergedItems = preview.sourceCarts.reduce(
+      (items, cart) => mergeRepeatCartItems(items, cart.items),
+      preview.targetCart.items
+    );
+    const mergedDiscountAmount = Number(preview.documentIds.reduce((sum, cartId) => {
+      const cart = getCartById(cartId);
+      return sum + Number(cart?.discountAmount || cart?.discount_amount || 0);
+    }, 0).toFixed(2));
+    const mergedShipAddress = [
+      preview.targetCart.shipAddress || preview.targetCart.ship_address || "",
+      ...preview.sourceCarts.map((cart) => cart.shipAddress || cart.ship_address || ""),
+    ].map((value) => String(value || "").trim()).find(Boolean) || "";
+    const mergedCart = updateCart(preview.targetId, (currentCart) => ({
+      ...currentCart,
+      items: mergedItems,
+      shipAddress: mergedShipAddress,
+      ship_address: mergedShipAddress,
+      discountAmount: mergedDiscountAmount,
+      paymentStatus: "unpaid",
+      updatedAt: now,
+    }));
+    preview.sourceIds.forEach((cartId) => {
+      updateCart(cartId, (currentCart) => ({
+        ...currentCart,
+        status: "cancelled",
+        cancelledAt: now,
+        updatedAt: now,
+      }));
+    });
+    state.activeCartId = mergedCart.id;
+    clearCartMergePreview();
+    return mergedCart;
+  }
+
   function toggleProductInActiveCart(productId, checked) {
     const cart = getActiveCart();
     if (!cart) throw new Error("Hãy mở giỏ hàng cho khách trước.");
@@ -641,6 +780,11 @@ export function createSalesDomainHelpers(deps) {
     updateCartItem,
     removeCartItem,
     repeatCompletedCart,
+    canMergeCart,
+    startCartMergePreview,
+    getPendingCartMergePreview,
+    clearCartMergePreview,
+    applyPendingCartMerge,
     getDraftDemandByProductId,
     getCommittedDemandByProductId,
     getPendingDemandByProductId,
