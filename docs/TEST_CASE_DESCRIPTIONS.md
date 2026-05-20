@@ -33,9 +33,9 @@ Lưu ý:
 | 14 | `ACC-PHB-04` | Kiểm tra báo cáo tháng và audit chứng từ phản ánh riêng điều chỉnh tồn, trả khách và trả NCC, sau khi phiếu nhập nguồn đi đúng luồng `ordered -> received`. |
 | 15 | `IT-PHB-01` | Kiểm tra UI màn tồn kho tạo được phiếu điều chỉnh tồn từ form trên giao diện. |
 | 16 | `IT-PHB-02` | Kiểm tra UI tạo phiếu trả hàng khách từ một đơn đã chốt. |
-| 17 | `IT-PHB-03` | Kiểm tra UI hỗ trợ lập phiếu trả hàng khách độc lập không cần đơn nguồn. |
+| 17 | `IT-PHB-03` | Kiểm tra UI không còn hiện form trả hàng khách độc lập ngoài detail đơn. |
 | 18 | `IT-PHB-04` | Kiểm tra UI tạo phiếu trả NCC từ một phiếu nhập đã nhận hàng. |
-| 19 | `IT-PHB-05` | Kiểm tra UI hỗ trợ lập phiếu trả NCC độc lập không cần phiếu nguồn. |
+| 19 | `IT-PHB-05` | Kiểm tra UI không còn hiện form trả NCC độc lập ngoài detail phiếu nhập. |
 | 20 | `ACC-SUP-01` | Kiểm tra màn nhà cung cấp render ổn định và các thao tác cơ bản hoạt động bình thường. |
 | 21 | `ACC-SUP-02` | Kiểm tra tạo nhà cung cấp mới không làm hỏng dữ liệu các phiếu đã thanh toán kiểu legacy dùng `received_at`. |
 | 22 | `ACC-REP-01` | Kiểm tra màn báo cáo làm mới dữ liệu và render ổn định sau reload. |

@@ -325,55 +325,6 @@
             <input id="orderSearchInput" type="search" placeholder="Tìm theo khách hàng, mã đơn, mặt hàng...">
           </label>
         </div>
-        <section id="customerReturnSection" class="sales-card product-collapse-card is-collapsed">
-          <div class="subheading">
-            <div>
-              <p class="panel-kicker">Phiếu trả hàng khách</p>
-              <h3>Tạo chứng từ hoàn hàng sau đơn đã chốt</h3>
-            </div>
-            <button type="button" id="customerReturnToggleButton" class="ghost-button compact-button">Mở phiếu</button>
-          </div>
-          <div id="customerReturnWrap" class="product-collapse-body" hidden>
-            <label class="price-field">
-              <span>Khách hàng</span>
-              <input id="customerReturnCustomerInput" type="text" maxlength="120" placeholder="Tên khách hàng">
-            </label>
-            <label class="price-field">
-              <span>Ghi chú</span>
-              <input id="customerReturnNoteInput" type="text" maxlength="160" placeholder="Lý do trả hàng / ghi chú">
-            </label>
-            <div class="purchase-inline-grid">
-              <label class="price-field">
-                <span>Sản phẩm</span>
-                <input id="customerReturnProductInput" type="text" list="productOptions" maxlength="120" placeholder="Gõ tên sản phẩm hoặc mở từ đơn cũ">
-              </label>
-              <label class="price-field">
-                <span>SL trả</span>
-                <input id="customerReturnQuantityInput" type="number" min="0.01" step="0.01" placeholder="0">
-              </label>
-              <label class="price-field">
-                <span>Giá hoàn</span>
-                <input id="customerReturnPriceInput" type="number" min="0" step="1000" placeholder="0">
-              </label>
-              <label class="price-field">
-                <span>Mã lô</span>
-                <input id="customerReturnBatchCodeInput" type="text" maxlength="80" placeholder="Tùy chọn khi hàng trả về">
-              </label>
-              <label class="price-field">
-                <span>Hạn dùng</span>
-                <input id="customerReturnExpiryDateInput" type="date">
-              </label>
-            </div>
-            <div class="customer-form-actions">
-              <button type="button" id="customerReturnAddButton" class="ghost-button">Thêm dòng</button>
-            </div>
-            <div id="customerReturnItems" class="cart-items-list"></div>
-            <div class="customer-form-actions">
-              <button type="button" id="customerReturnSubmitButton" class="primary-button">Tạo phiếu trả khách</button>
-              <button type="button" id="customerReturnClearButton" class="ghost-button">Làm mới phiếu</button>
-            </div>
-          </div>
-        </section>
         <div id="cartQueueList" class="cart-queue-list"></div>
       </section>
     </section>
@@ -561,48 +512,6 @@
         </article>
 
           <section id="purchasePanel" class="active-cart-panel"></section>
-          <section id="supplierReturnSection" class="sales-card product-collapse-card is-collapsed">
-            <div class="subheading">
-              <div>
-                <p class="panel-kicker">Phiếu trả NCC</p>
-                <h3>Tạo chứng từ trả hàng về nhà cung cấp</h3>
-              </div>
-              <button type="button" id="supplierReturnToggleButton" class="ghost-button compact-button">Mở phiếu</button>
-            </div>
-            <div id="supplierReturnWrap" class="product-collapse-body" hidden>
-              <label class="price-field">
-                <span>Nhà cung cấp</span>
-                <input id="supplierReturnSupplierInput" type="text" maxlength="120" placeholder="Tên nhà cung cấp">
-              </label>
-              <label class="price-field">
-                <span>Ghi chú</span>
-                <input id="supplierReturnNoteInput" type="text" maxlength="160" placeholder="Lý do trả NCC / ghi chú">
-              </label>
-              <div class="purchase-inline-grid">
-                <label class="price-field">
-                  <span>Sản phẩm</span>
-                  <input id="supplierReturnProductInput" type="text" list="productOptions" maxlength="120" placeholder="Gõ tên sản phẩm hoặc mở từ phiếu cũ">
-                </label>
-                <label class="price-field">
-                  <span>SL trả</span>
-                  <input id="supplierReturnQuantityInput" type="number" min="0.01" step="0.01" placeholder="0">
-                </label>
-                <label class="price-field">
-                  <span>Giá trả NCC</span>
-                  <input id="supplierReturnPriceInput" type="number" min="0" step="1000" placeholder="0">
-                </label>
-              </div>
-              <div class="customer-form-actions">
-                <button type="button" id="supplierReturnAddButton" class="ghost-button">Thêm dòng</button>
-              </div>
-              <div id="supplierReturnItems" class="cart-items-list"></div>
-              <div class="customer-form-actions">
-                <button type="button" id="supplierReturnSubmitButton" class="primary-button">Tạo phiếu trả NCC</button>
-                <button type="button" id="supplierReturnClearButton" class="ghost-button">Làm mới phiếu</button>
-              </div>
-            </div>
-          </section>
-
           <div class="sales-columns">
           <section class="sales-card">
             <div class="subheading">

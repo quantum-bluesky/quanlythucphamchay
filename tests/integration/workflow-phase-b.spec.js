@@ -206,11 +206,11 @@ test("IT-PHB-02 customer return receipt UI creates from completed order", async 
     }
     const returnButton = orderCard.locator('[data-queue-action="customer-return"], [data-cart-list-action="customer-return"]');
     await returnButton.first().click();
-    await expect(page.locator("#customerReturnWrap")).toBeVisible();
-    await expect(page.locator("#customerReturnCustomerInput")).toHaveValue(customerName);
-    await expect(page.locator("#customerReturnNoteInput")).toHaveValue(new RegExp(orderCode));
-    await page.locator('[data-customer-return-qty]').first().fill("1");
-    await page.locator("#customerReturnSubmitButton").click();
+    await expect(orderCard.locator('[data-customer-return-editor]')).toBeVisible();
+    await expect(orderCard.locator('[data-customer-return-customer-input]')).toHaveValue(customerName);
+    await expect(orderCard.locator('[data-customer-return-note-input]')).toHaveValue(new RegExp(orderCode));
+    await orderCard.locator('[data-customer-return-qty]').first().fill("1");
+    await orderCard.locator('[data-customer-return-action="submit"]').click();
 
     const toastText = await collectToast(page, runtime, "it-phb-02", { errorPattern: /^$/ });
     expect(toastText).toContain("Đã tạo phiếu trả hàng khách");
@@ -228,33 +228,16 @@ test("IT-PHB-02 customer return receipt UI creates from completed order", async 
   expectNoRuntimeErrors(runtime);
 });
 
-test("IT-PHB-03 customer return receipt UI also supports independent manual entry", async ({ page, request }) => {
+test("IT-PHB-03 customer return receipt UI hides standalone form outside order detail", async ({ page, request }) => {
   const snapshot = await createBackupSnapshot(request);
   const runtime = attachRuntimeTracking(page);
 
   try {
-    const adminCookie = await autoLoginAdminRequest(request);
-    const beforeProducts = await fetchProducts(request, adminCookie);
-    const product = getProduct(beforeProducts, () => true, "Không tìm thấy sản phẩm để test phiếu trả khách độc lập.");
-
     await openHomeWithLogin(page, request, autoLoginUser);
     await switchMenu(page, "orders");
-    await page.locator("#customerReturnToggleButton").click();
-    await expect(page.locator("#customerReturnWrap")).toBeVisible();
-    await page.locator("#customerReturnCustomerInput").fill("Khách lẻ IT-PHB-03");
-    await page.locator("#customerReturnNoteInput").fill("Lập phiếu độc lập");
-    await page.locator("#customerReturnProductInput").fill(product.name);
-    await page.locator("#customerReturnQuantityInput").fill("1");
-    await page.locator("#customerReturnPriceInput").fill("55000");
-    await page.locator("#customerReturnAddButton").click();
-    await page.locator("#customerReturnSubmitButton").click();
-
-    const toastText = await collectToast(page, runtime, "it-phb-03", { errorPattern: /^$/ });
-    expect(toastText).toContain("Đã tạo phiếu trả hàng khách");
-
-    const afterProducts = await fetchProducts(request, adminCookie);
-    const updatedProduct = getProduct(afterProducts, (entry) => entry.id === product.id, "Không tìm thấy sản phẩm sau phiếu trả khách độc lập.");
-    expect(Number(updatedProduct.current_stock)).toBe(Number(product.current_stock) + 1);
+    await expect(page.locator("#customerReturnSection")).toHaveCount(0);
+    await expect(page.locator("#customerReturnToggleButton")).toHaveCount(0);
+    await expect(page.locator('[data-customer-return-editor]')).toHaveCount(0);
   } finally {
     await restoreBackupSnapshot(request, snapshot);
   }
@@ -325,11 +308,12 @@ test("IT-PHB-04 supplier return receipt UI creates from received purchase", asyn
     const purchaseCard = page.locator(".cart-queue-item").filter({ hasText: supplierName }).first();
     await expect(purchaseCard).toBeVisible();
     await purchaseCard.locator('[data-purchase-list-action="open"]').click();
+    await page.locator('[data-purchase-action="toggle-detail"]').click();
     await page.locator('[data-purchase-action="supplier-return"]').click();
-    await expect(page.locator("#supplierReturnWrap")).toBeVisible();
-    await expect(page.locator("#supplierReturnSupplierInput")).toHaveValue(supplierName);
+    await expect(page.locator('[data-supplier-return-editor]')).toBeVisible();
+    await expect(page.locator('[data-supplier-return-supplier-input]')).toHaveValue(supplierName);
     await page.locator('[data-supplier-return-qty]').first().fill("1");
-    await page.locator("#supplierReturnSubmitButton").click();
+    await page.locator('[data-supplier-return-action="submit"]').click();
 
     const returnToast = await collectToast(page, runtime, "it-phb-04-return", { errorPattern: /^$/ });
     expect(returnToast).toContain("Đã tạo phiếu trả nhà cung cấp");
@@ -347,37 +331,16 @@ test("IT-PHB-04 supplier return receipt UI creates from received purchase", asyn
   expectNoRuntimeErrors(runtime);
 });
 
-test("IT-PHB-05 supplier return receipt UI also supports independent manual entry", async ({ page, request }) => {
+test("IT-PHB-05 supplier return receipt UI hides standalone form outside purchase detail", async ({ page, request }) => {
   const snapshot = await createBackupSnapshot(request);
   const runtime = attachRuntimeTracking(page);
 
   try {
-    const adminCookie = await autoLoginAdminRequest(request);
-    const beforeProducts = await fetchProducts(request, adminCookie);
-    const product = getProduct(
-      beforeProducts,
-      (entry) => Number(entry.current_stock) >= 1,
-      "Không tìm thấy sản phẩm đủ tồn kho để test phiếu trả NCC độc lập."
-    );
-
     await openHomeWithLogin(page, request, autoLoginUser);
     await switchMenu(page, "purchases");
-    await page.locator("#supplierReturnToggleButton").click();
-    await expect(page.locator("#supplierReturnWrap")).toBeVisible();
-    await page.locator("#supplierReturnSupplierInput").fill("NCC lẻ IT-PHB-05");
-    await page.locator("#supplierReturnNoteInput").fill("Lập phiếu trả độc lập");
-    await page.locator("#supplierReturnProductInput").fill(product.name);
-    await page.locator("#supplierReturnQuantityInput").fill("1");
-    await page.locator("#supplierReturnPriceInput").fill("12000");
-    await page.locator("#supplierReturnAddButton").click();
-    await page.locator("#supplierReturnSubmitButton").click();
-
-    const toastText = await collectToast(page, runtime, "it-phb-05", { errorPattern: /^$/ });
-    expect(toastText).toContain("Đã tạo phiếu trả nhà cung cấp");
-
-    const afterProducts = await fetchProducts(request, adminCookie);
-    const updatedProduct = getProduct(afterProducts, (entry) => entry.id === product.id, "Không tìm thấy sản phẩm sau phiếu trả NCC độc lập.");
-    expect(Number(updatedProduct.current_stock)).toBe(Number(product.current_stock) - 1);
+    await expect(page.locator("#supplierReturnSection")).toHaveCount(0);
+    await expect(page.locator("#supplierReturnToggleButton")).toHaveCount(0);
+    await expect(page.locator('[data-supplier-return-editor]')).toHaveCount(0);
   } finally {
     await restoreBackupSnapshot(request, snapshot);
   }

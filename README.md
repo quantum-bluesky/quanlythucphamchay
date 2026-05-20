@@ -180,7 +180,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - `Master Admin` có thêm khối `Legacy Audit` để quét DB đang dùng, áp dụng các backfill an toàn và cho admin gắn lại `receipt_code` / `đơn nguồn` cho record legacy còn dang dở
 - Timeout phiên tách riêng trong config: `session_timeout_minutes` cho user thường và `admin_session_timeout_minutes` cho admin; khi không có thao tác đủ lâu thì phiên sẽ tự hết hạn và quay về trạng thái cần login, không hiện dialog gia hạn phiên
 - Chỉ `Master Admin` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit
-- Luồng Phase B đã có UI ngay trong app: `Phiếu DC` ở màn tồn kho, `Phiếu trả hàng khách` ở màn đơn hàng, `Phiếu trả NCC` ở màn nhập hàng
+- Luồng Phase B đã có UI ngay trong app: `Phiếu DC` ở màn tồn kho, còn `Phiếu trả hàng khách` và `Phiếu trả NCC` chỉ mở trong detail của đúng đơn/phiếu nguồn để tránh bấm nhầm
 - Các chứng từ đã `completed/received/paid/cancelled` vẫn bị khóa xóa/hủy trực tiếp kể cả với `Master Admin`; muốn điều chỉnh phải lập phiếu mới để giữ audit
 - Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất
 - Các list dài có phân trang `Trước / Sau` để thao tác gọn hơn trên mobile
@@ -406,8 +406,8 @@ Các API mới để tạo chứng từ điều chỉnh, giữ tương thích d�
 UI tương ứng:
 
 - màn `Tồn kho`: `Phiếu DC` hoặc khối `Phiếu điều chỉnh tồn`
-- màn `Đơn hàng`: khối `Phiếu trả hàng khách`, có thể mở sẵn từ nút `Trả hàng` trên đơn đã chốt hoặc nhập tay độc lập
-- màn `Nhập hàng`: khối `Phiếu trả NCC`, có thể mở sẵn từ nút `Trả NCC` trên phiếu đã nhập kho / đã thanh toán hoặc nhập tay độc lập
+- màn `Đơn hàng`: action `Trả hàng` chỉ hiện trong detail của đơn đã xuất để mở sẵn phiếu trả khách theo đúng đơn nguồn
+- màn `Nhập hàng`: action `Trả NCC` chỉ hiện trong detail của phiếu đã nhập kho / đã thanh toán để mở sẵn phiếu trả theo đúng phiếu nguồn
 - màn `Báo cáo`: thẻ tổng hợp, xu hướng tháng, chi tiết sản phẩm và khối `Audit chứng từ` để tra cứu 3 loại phiếu Phase B
 
 Quy tắc workflow vẫn giữ nguyên:
