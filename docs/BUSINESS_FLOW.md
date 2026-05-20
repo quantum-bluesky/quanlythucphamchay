@@ -233,12 +233,14 @@ ordered -> cancelled
 
 - dùng khi khách trả hàng
 - tồn kho tăng lại
+- luôn khởi tạo từ detail của đúng đơn `completed`; không còn form trả hàng độc lập ở ngoài list đơn
 
 ### Phiếu trả NCC
 
 - dùng khi trả ngược hàng lỗi cho NCC
 - tồn kho giảm
 - mặc định trừ theo FEFO; nếu dòng trả chỉ rõ mã lô thì ưu tiên trừ đúng lô đó
+- luôn khởi tạo từ detail của đúng phiếu `received/paid`; không còn form trả NCC độc lập ở ngoài list nhập hàng
 
 ### Nguyên tắc chung
 

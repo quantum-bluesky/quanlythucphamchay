@@ -66,6 +66,7 @@ Nếu thiếu dữ liệu thật thì hiện:
 Button `Detail` phải cho phép expand/collapse ngay trong card hoặc panel hiện tại để giữ list phiếu gọn trên mobile.
 Detail của phiếu xuất phải vẫn mở được với đơn `Chốt đơn`, `Đã xuất hàng` và `Đã thanh toán`, kể cả khi người dùng đi từ màn khách hàng sang bằng link nội bộ.
 Detail của phiếu xuất và phiếu nhập phải luôn giữ action `In` từ lúc phiếu còn `Nháp` cho tới khi đã `Đã thanh toán`.
+Các action hiếm như `Trả hàng` và `Trả NCC` chỉ nên xuất hiện trong detail của đúng phiếu nguồn; không đặt form độc lập ở phía ngoài list để tránh user nhầm đó là thao tác mở phiếu thông thường.
 
 Khi chứng từ có dữ liệu theo lô, phần danh sách dòng hoặc note đi kèm nên hiện thêm:
 
@@ -153,6 +154,7 @@ Nguồn màn hình:
 Mục đích:
 
 - ghi nhận khách trả hàng và cộng lại tồn
+- chỉ mở editor từ detail của đúng đơn đã xuất
 
 Thông tin nên hiện trong detail:
 
@@ -174,6 +176,7 @@ Nguồn màn hình:
 Mục đích:
 
 - ghi nhận hàng trả ngược về nhà cung cấp và trừ tồn
+- chỉ mở editor từ detail của đúng phiếu đã nhập kho / đã thanh toán
 
 Thông tin nên hiện trong detail:
 
