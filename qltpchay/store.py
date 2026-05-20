@@ -7425,7 +7425,7 @@ class InventoryStore:
             if previous_status == "received":
                 if next_status not in {"received", "paid"}:
                     raise ValueError("Phiếu nhập đã nhập kho không thể hạ trạng thái hoặc mở lại nháp.")
-                if self._snapshot_purchase_for_lock(previous) != self._snapshot_purchase_for_lock(purchase):
+                if self._snapshot_purchase_for_receive_lock(previous) != self._snapshot_purchase_for_receive_lock(purchase):
                     raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
                 if next_status == "received":
                     continue
@@ -7586,7 +7586,6 @@ class InventoryStore:
         return {
             "supplierId": str(purchase.get("supplierId") or ""),
             "supplierName": str(purchase.get("supplierName") or ""),
-            "note": str(purchase.get("note") or ""),
             "sourceType": str(purchase.get("sourceType") or purchase.get("source_type") or ""),
             "sourceCode": str(purchase.get("sourceCode") or purchase.get("source_code") or ""),
             "sourceName": str(purchase.get("sourceName") or purchase.get("source_name") or ""),

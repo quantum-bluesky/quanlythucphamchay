@@ -494,6 +494,95 @@ test("IT-PURSUP-08 purchases can repeat a received purchase into a new draft wit
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-PURSUP-09 received purchase note stays editable until paid", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const supplierName = `NCC ghi chu ${timestamp}`;
+  const purchaseId = `purchase_note_${timestamp}`;
+  const now = new Date().toISOString();
+  const originalState = await fetchSyncState(request, userCookie);
+  const snapshot = await createBackupSnapshot(request);
+  const products = await fetchProducts(request, userCookie);
+  const product = products[0];
+  expect(product).toBeTruthy();
+
+  const receivedPurchase = {
+    id: purchaseId,
+    supplierName,
+    note: "Ghi chu truoc thanh toan",
+    status: "received",
+    discountAmount: 0,
+    createdAt: now,
+    updatedAt: now,
+    orderedAt: now,
+    receivedAt: now,
+    receiptCode: `PN-NOTE-${timestamp}`,
+    items: [
+      {
+        id: `purchase_note_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 2,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: [receivedPurchase, ...(originalState.purchases || [])],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+    await setFloatingSearch(page, supplierName);
+
+    const purchaseCard = page.locator(".cart-queue-item", { hasText: supplierName }).first();
+    await expect(purchaseCard).toBeVisible();
+    await purchaseCard.locator('[data-purchase-list-action="open"]').click();
+
+    const noteInput = page.locator("#purchaseNoteInput");
+    await expect(noteInput).toBeEnabled();
+    await noteInput.fill("Da sua truoc thanh toan");
+    await noteInput.press("Tab");
+
+    await expect.poll(async () => {
+      const latestState = await fetchSyncState(request, userCookie);
+      const latestReceivedPurchase = (latestState.purchases || []).find((purchase) => purchase.id === purchaseId);
+      return String(latestReceivedPurchase?.note || "");
+    }).toBe("Da sua truoc thanh toan");
+
+    await page.locator('[data-purchase-action="mark-paid"]').click();
+
+    const paidToast = await collectToast(page, runtime, "it-pursup-09-mark-paid", { errorPattern: /^$/ });
+    expect(paidToast).toContain("Đã cập nhật phiếu nhập là đã thanh toán");
+    await expect(noteInput).toBeDisabled();
+
+    const latestState = await fetchSyncState(request, userCookie);
+    const latestPaidPurchase = (latestState.purchases || []).find((purchase) => purchase.id === purchaseId);
+    expect(String(latestPaidPurchase?.status || "")).toBe("paid");
+    expect(String(latestPaidPurchase?.note || "")).toBe("Da sua truoc thanh toan");
+  } finally {
+    await restoreBackupSnapshot(request, snapshot, page);
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical supplier", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const timestamp = Date.now();

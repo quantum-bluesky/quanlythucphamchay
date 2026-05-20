@@ -277,6 +277,7 @@ Case mới cho Phase A:
 - `IT-PURSUP-06`: kiểm tra gợi ý NCC khi có nhiều NCC lịch sử sẽ ưu tiên thứ tự datalist nhưng không tự điền NCC
 - `IT-PURSUP-07`: kiểm tra cảnh báo khi một mặt hàng đang nằm ở phiếu mở của NCC khác, cho mở danh sách phiếu liên quan để review và vẫn giữ được hiện trạng nếu user muốn
 - `IT-PURSUP-08`: kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC/nội dung nhưng reset `Mã lô` / `HSD` / `NSX`
+- `IT-PURSUP-09`: kiểm tra phiếu nhập `Đã nhập kho` vẫn sửa được `Ghi chú` tới trước khi `Đã thanh toán`, rồi khóa lại sau khi trả tiền
 - `IT-ORD-03`: kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được đơn nháp mới cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng
 - `IT-ORD-04`: kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hỏi có dồn thêm vào nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đang có
 - `IT-ORD-05`: kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện cảnh báo bổ sung trước khi `Chốt đơn`
