@@ -12,6 +12,7 @@ export function createSalesUi(deps) {
     getProductById,
     canDeleteCart,
     canEditCartDiscount,
+    getCartCostWarning,
     getVisibleOrders,
     getCustomerReturnEditorMarkup,
     isSearchResultMode,
@@ -97,6 +98,19 @@ export function createSalesUi(deps) {
           <button type="button" class="ghost-button compact-button" ${actionAttribute} data-cart-id="${cart.id}">Lưu địa chỉ giao</button>
         </div>
       </div>
+    `;
+  }
+
+  function renderCartCostWarning(cart) {
+    const warning = getCartCostWarning(cart);
+    if (!warning.hasWarning) {
+      return "";
+    }
+    return `
+      <article class="inline-alert warning">
+        Cảnh báo: tổng giá xuất ${escapeHtml(formatCurrency(warning.totalAmount))} đang nhỏ hơn tổng giá nhập ${escapeHtml(formatCurrency(warning.estimatedCostAmount))}.
+        Chênh lệch âm ${escapeHtml(formatCurrency(warning.lossAmount))}.
+      </article>
     `;
   }
 
@@ -193,6 +207,7 @@ export function createSalesUi(deps) {
         shipAddressActionAttribute: 'data-order-detail-action="save-ship-address"',
         discountActionAttribute: 'data-order-detail-action="save-discount"',
       })}
+      ${renderCartCostWarning(selectedCart)}
       <div class="detail-panel-actions">
         ${allowOpen ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="open" data-cart-id="${selectedCart.id}">${mobileQuery.matches ? "Mở" : "Tiếp tục xử lý"}</button>` : ""}
         ${allowPrint ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="print" data-cart-id="${selectedCart.id}">In</button>` : ""}
@@ -326,6 +341,7 @@ export function createSalesUi(deps) {
           <div class="stat-chip"><span>Tạm tính</span><strong>${escapeHtml(formatCurrency(cart.subtotalAmount || 0))}</strong></div>
           <div class="stat-chip"><span>Cần thu</span><strong>${escapeHtml(formatCurrency(cart.totalAmount))}</strong></div>
         </div>
+        ${renderCartCostWarning(cart)}
         ${state.activeCartDetailExpanded ? renderCartDocumentDetail(cart, {
           shipAddressActionAttribute: 'data-cart-action="save-ship-address"',
           discountActionAttribute: 'data-cart-action="save-discount"',

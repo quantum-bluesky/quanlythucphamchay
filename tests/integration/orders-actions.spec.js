@@ -144,6 +144,97 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-ORD-05 commit warns when sale total is lower than purchase total", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const customerName = `Khách cảnh báo giá ${timestamp}`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.find((entry) => Number(entry.current_stock || 0) >= 2) || productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const draftCart = {
+    id: `order_warning_${timestamp}`,
+    customerName,
+    status: "draft",
+    paymentStatus: "unpaid",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    orderCode: "",
+    items: [
+      {
+        id: `order_warning_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 2,
+        unitPrice: Math.max(0, Number(product.price || 0) - 2000),
+        note: "",
+      },
+    ],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        carts: [draftCart, ...(originalState.carts || [])],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "orders");
+    await expectScreenTitle(page, "Đơn hàng");
+    await setFloatingSearch(page, customerName);
+
+    const draftOrderCard = page.locator(".cart-queue-item", { hasText: customerName }).first();
+    await expect(draftOrderCard).toBeVisible();
+    await draftOrderCard.locator('[data-queue-action="open"]').click();
+    await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    if (!await page.locator('[data-cart-action="commit"]').isVisible().catch(() => false)) {
+      await page.locator('[data-cart-action="toggle-panel"]').click();
+      await expect(page.locator('[data-cart-action="commit"]')).toBeVisible();
+    }
+
+    const dialogs = [];
+    page.on("dialog", async (dialog) => {
+      dialogs.push(dialog.message());
+      await dialog.accept();
+    });
+
+    await page.locator('[data-cart-action="commit"]').click();
+
+    await expect.poll(() => dialogs.length).toBe(2);
+    expect(dialogs[0]).toContain("Chốt đơn");
+    expect(dialogs[1]).toContain("tổng giá xuất đang thấp hơn giá nhập");
+
+    const commitToast = await collectToast(page, runtime, "it-ord-05-commit-warning", { errorPattern: /^$/ });
+    expect(commitToast).toContain("Đã chốt đơn");
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-ORD-02 sales draft cart can save document discount from create-order screen", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const userCookie = await autoLoginUserRequest(request);

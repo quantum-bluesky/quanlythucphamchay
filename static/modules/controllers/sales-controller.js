@@ -12,6 +12,22 @@ export function registerSalesControllerEvents(contract) {
     return cart.orderCode || cart.customerName || "giỏ hàng này";
   }
 
+  function confirmCartCostWarning(cart, actionLabel) {
+    const warning = queries.getCartCostWarning(cart);
+    if (!warning?.hasWarning) {
+      return true;
+    }
+    return window.confirm(
+      [
+        `${actionLabel} khi tổng giá xuất đang thấp hơn giá nhập?`,
+        "",
+        `Cần thanh toán: ${utils.formatCurrency(warning.totalAmount)}`,
+        `Tổng giá nhập: ${utils.formatCurrency(warning.estimatedCostAmount)}`,
+        `Chênh lệch âm: ${utils.formatCurrency(warning.lossAmount)}`,
+      ].join("\n")
+    );
+  }
+
   function normalizeCustomerKey(value) {
     return String(value || "").trim().toLocaleLowerCase("vi");
   }
@@ -466,6 +482,10 @@ export function registerSalesControllerEvents(contract) {
       if (!confirmCartStatusAction(cart, "commit")) {
         return;
       }
+      const latestCart = queries.getActiveCart() || cart;
+      if (!confirmCartCostWarning(latestCart, "Chốt đơn")) {
+        return;
+      }
       try {
         await actions.flushPendingPersistCollections();
         await actions.commitActiveCart();
@@ -479,6 +499,10 @@ export function registerSalesControllerEvents(contract) {
         return;
       }
       if (!confirmCartStatusAction(cart, "ship")) {
+        return;
+      }
+      const latestCart = queries.getActiveCart() || cart;
+      if (!confirmCartCostWarning(latestCart, "Xuất hàng")) {
         return;
       }
       try {
@@ -585,6 +609,10 @@ export function registerSalesControllerEvents(contract) {
       if (!confirmCartStatusAction(cart, "commit")) {
         return;
       }
+      const latestCart = queries.getCartById(button.dataset.cartId) || cart;
+      if (!confirmCartCostWarning(latestCart, "Chốt đơn")) {
+        return;
+      }
       try {
         await actions.flushPendingPersistCollections();
         await actions.commitCart(cart.id);
@@ -598,6 +626,10 @@ export function registerSalesControllerEvents(contract) {
         return;
       }
       if (!confirmCartStatusAction(cart, "ship")) {
+        return;
+      }
+      const latestCart = queries.getCartById(button.dataset.cartId) || cart;
+      if (!confirmCartCostWarning(latestCart, "Xuất hàng")) {
         return;
       }
       try {
@@ -738,6 +770,8 @@ export function registerSalesControllerEvents(contract) {
     if (action === "commit") {
       if (!saveCartEditorsBeforeStatusChange(cart.id, dom.orderDetailPanel)) return;
       if (!confirmCartStatusAction(cart, "commit")) return;
+      const latestCart = queries.getCartById(cart.id) || cart;
+      if (!confirmCartCostWarning(latestCart, "Chốt đơn")) return;
       try {
         await actions.flushPendingPersistCollections();
         await actions.commitCart(cart.id);
@@ -749,6 +783,8 @@ export function registerSalesControllerEvents(contract) {
     if (action === "ship") {
       if (!saveCartEditorsBeforeStatusChange(cart.id, dom.orderDetailPanel)) return;
       if (!confirmCartStatusAction(cart, "ship")) return;
+      const latestCart = queries.getCartById(cart.id) || cart;
+      if (!confirmCartCostWarning(latestCart, "Xuất hàng")) return;
       try {
         await actions.flushPendingPersistCollections();
         await actions.shipCart(cart.id);

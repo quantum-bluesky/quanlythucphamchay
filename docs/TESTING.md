@@ -279,6 +279,7 @@ Case mới cho Phase A:
 - `IT-PURSUP-08`: kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC/nội dung nhưng reset `Mã lô` / `HSD` / `NSX`
 - `IT-ORD-03`: kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được đơn nháp mới cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng
 - `IT-ORD-04`: kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hỏi có dồn thêm vào nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đang có
+- `IT-ORD-05`: kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện cảnh báo bổ sung trước khi `Chốt đơn`
 - `ACC-ORD-17`: màn `Tạo nhiều đơn` trên mobile phải giữ card UI theo khách và chỉ commit các đơn hợp lệ
 - `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp kể cả thêm dòng hàng mới rồi mới chuyển sang `received`
 - `UT-DB-12`: backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `draft/ordered`, và chặn xóa trực tiếp phiếu `ordered`

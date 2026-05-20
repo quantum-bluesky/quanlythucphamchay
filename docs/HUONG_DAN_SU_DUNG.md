@@ -140,6 +140,7 @@ Nếu đủ hàng:
 - vẫn cho sửa dòng hàng, địa chỉ giao và `Giảm giá khuyến mại` cho tới trước khi xuất hàng
 - vẫn có thể in / gửi phiếu cho khách; app cũng cho in từ lúc đơn còn `Nháp`
 - nếu đã nhập `Giảm giá khuyến mại`, số `Cần thanh toán` trên phiếu và bản in sẽ là số đã trừ khuyến mại
+- nếu `Cần thanh toán` đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app sẽ hiện thêm cảnh báo xác nhận trước khi chốt để bạn rà lại giá bán
 
 ### Bước 5: Xuất hàng
 
@@ -154,6 +155,7 @@ Nếu đủ hàng:
 - hệ thống mới trừ kho ở bước này
 - đơn chuyển sang trạng thái `Đã xuất hàng`
 - không tự in phiếu nữa; nếu cần in thì bấm `In`
+- nếu sau khi rà lại mà `Cần thanh toán` vẫn thấp hơn tổng `giá nhập mặc định`, app sẽ hỏi xác nhận thêm một lần trước khi xuất hàng
 
 Nếu thiếu hàng:
 
