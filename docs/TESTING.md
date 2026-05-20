@@ -278,9 +278,11 @@ Case mới cho Phase A:
 - `IT-PURSUP-07`: kiểm tra cảnh báo khi một mặt hàng đang nằm ở phiếu mở của NCC khác, cho mở danh sách phiếu liên quan để review và vẫn giữ được hiện trạng nếu user muốn
 - `IT-PURSUP-08`: kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC/nội dung nhưng reset `Mã lô` / `HSD` / `NSX`
 - `IT-PURSUP-09`: kiểm tra phiếu nhập `Đã nhập kho` vẫn sửa được `Ghi chú` tới trước khi `Đã thanh toán`, rồi khóa lại sau khi trả tiền
+- `IT-PURSUP-10`: kiểm tra chỉ gộp được phiếu nhập `Nháp/Đã đặt` cùng NCC, báo lỗi khi khác NCC, và `Hủy` preview sẽ quay lại đúng danh sách
 - `IT-ORD-03`: kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được đơn nháp mới cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng
 - `IT-ORD-04`: kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hỏi có dồn thêm vào nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đang có
 - `IT-ORD-05`: kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện cảnh báo bổ sung trước khi `Chốt đơn`
+- `IT-ORD-06`: kiểm tra chỉ gộp được phiếu xuất `Nháp/Chốt đơn` cùng khách, báo lỗi khi khác khách, và `Hủy` preview sẽ quay lại đúng danh sách
 - `ACC-ORD-17`: màn `Tạo nhiều đơn` trên mobile phải giữ card UI theo khách và chỉ commit các đơn hợp lệ
 - `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp kể cả thêm dòng hàng mới rồi mới chuyển sang `received`
 - `UT-DB-12`: backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `draft/ordered`, và chặn xóa trực tiếp phiếu `ordered`
@@ -305,6 +307,7 @@ Case mới cho Phase A:
 - `UT-PROC-08`: extra row cùng sản phẩm với shortage row phải merge vào cùng phiếu batch/NCC đang xử lý, không tạo extra assignment
 - `UT-AUTH-04B`: user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn không có quyền chỉnh tồn trực tiếp
 - `IT-PROC-03`: batch owner thêm extra product trong planner, thấy badge `Ngoài nhu cầu đơn`, tạo phiếu thành công và review chung với shortage row cùng NCC
+- `IT-PROC-05`: từ `Xử lý nhập thiếu`, chọn lẫn phiếu nhập và phiếu xuất trong khối phiếu liên quan rồi bấm `Gộp đơn` phải bị chặn và giữ nguyên màn planner
 
 Case mới cho Phase B.4:
 

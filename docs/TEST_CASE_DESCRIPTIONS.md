@@ -61,6 +61,7 @@ Lưu ý:
 | 40 | `IT-PURSUP-07` | Kiểm tra màn nhập hàng cảnh báo khi một mặt hàng đang nằm ở phiếu mở của NCC khác, mở được danh sách phiếu liên quan để review, và vẫn cho user giữ nguyên hiện trạng nếu muốn. |
 | 41 | `IT-PURSUP-08` | Kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC, ghi chú, giảm giá và dòng hàng, nhưng reset `Mã lô`, `HSD` và `NSX` để nhập lại theo lô mới. |
 | 119 | `IT-PURSUP-09` | Kiểm tra phiếu nhập `Đã nhập kho` vẫn sửa được `Ghi chú` tới trước khi `Đã thanh toán`, rồi khóa lại sau khi phiếu chuyển sang `Đã thanh toán`. |
+| 120 | `IT-PURSUP-10` | Kiểm tra chỉ gộp được phiếu nhập `Nháp/Đã đặt` cùng NCC, báo lỗi khi khác NCC, và bấm `Hủy` trong preview sẽ quay lại đúng danh sách phiếu. |
 | 42 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
 | 41 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
 | 42 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |
@@ -68,6 +69,7 @@ Lưu ý:
 | 44 | `IT-ORD-03` | Kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng. |
 | 45 | `IT-ORD-04` | Kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hiện hỏi có dồn thêm vào đơn nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đó thay vì tạo draft mới. |
 | 46 | `IT-ORD-05` | Kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện confirm cảnh báo bổ sung trước khi `Chốt đơn`. |
+| 121 | `IT-ORD-06` | Kiểm tra chỉ gộp được phiếu xuất `Nháp/Chốt đơn` cùng khách, báo lỗi khi khác khách, và bấm `Hủy` trong preview sẽ quay lại đúng danh sách đơn. |
 | 47 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
 | 45 | `IT-NAV-02` | Kiểm tra menu trên PC/tablet bung ra từ nút `Mở menu`, tự thu gọn khi rê chuột hoặc bấm ra ngoài, đồng thời giữ chiều rộng menu gọn. |
 | 46 | `IT-NAV-03` | Kiểm tra sau khi xoay giữa màn hình dọc và ngang thì vẫn bấm được các item trong menu nghiệp vụ để chuyển màn bình thường. |
@@ -143,6 +145,7 @@ Lưu ý:
 | 111 | `IT-PROC-02` | Kiểm tra user không giữ khóa batch vào màn `Nhập hàng` sẽ bị khóa create/edit cấu trúc phiếu `draft/ordered`; phiếu batch không còn nút `Nhập kho`, còn ngoại lệ phiếu thường đã `ordered` từ trước lúc batch bắt đầu vẫn được `Nhập kho` rồi `Đã thanh toán`, kể cả khi owner đã sửa lại ghi chú phiếu sau lúc batch mở và không bị fail oan do sync cả collection `purchases`. |
 | 112 | `IT-PROC-03` | Kiểm tra batch owner thêm được extra product có badge `Ngoài nhu cầu đơn`, tạo phiếu batch mixed lines thành công và review chung với shortage row cùng NCC. |
 | 113 | `IT-PROC-04` | Kiểm tra owner đang ở flow batch khi bấm sang màn ngoài flow sẽ thấy dialog nhắc kết thúc kỳ gom; nếu không kết thúc thì app hỏi tiếp để chọn `ở lại` hoặc `đi tiếp mà vẫn giữ batch mode`, còn `OK` ở dialog đầu sẽ finish batch, release lock rồi mới điều hướng. |
+| 122 | `IT-PROC-05` | Kiểm tra màn `Xử lý nhập thiếu` chặn thao tác `Gộp đơn` khi user chọn lẫn phiếu nhập và phiếu xuất trong cùng một lần thao tác. |
 | 114 | `UT-ORD-17` | Kiểm tra backend tạo nhiều đơn ở mode `commit_valid` chỉ commit các đơn đủ hàng, giữ đơn lỗi ở `draft`, ghi audit batch và replay an toàn theo `request_id`. |
 | 115 | `UT-AUTH-09` | Kiểm tra route `/api/orders/bulk-create` tách rõ quyền `bulk_order_create` và `bulk_order_commit`: user chỉ có quyền tạo được lưu nháp nhưng bị chặn chốt nhiều đơn. |
 | 116 | `ACC-ORD-17` | Kiểm tra màn `Tạo nhiều đơn` trên mobile giữ giao diện card theo khách, cuối màn chỉ có 2 CTA chính, và action `Chốt đơn hợp lệ` chỉ commit các đơn đủ điều kiện còn đơn lỗi giữ lại để sửa. |

@@ -598,3 +598,180 @@ test("IT-ORD-04 orders screen asks to merge repeat items into an existing draft 
 
   expectNoRuntimeErrors(runtime);
 });
+
+test("IT-ORD-06 orders screen merges only open orders of the same customer and can return from merge preview", async ({ page, request }) => {
+  test.setTimeout(90000);
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const sameCustomerName = `Khách gộp ORD ${timestamp}`;
+  const otherCustomerName = `Khách gộp ORD ${timestamp} khác`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const committedCart = {
+    id: `order_merge_committed_${timestamp}`,
+    customerName: sameCustomerName,
+    status: "committed",
+    paymentStatus: "unpaid",
+    discountAmount: 1000,
+    shipAddress: `Địa chỉ chốt ${timestamp}`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    committedAt: new Date().toISOString(),
+    orderCode: `DH-MERGE-${timestamp}`,
+    items: [
+      {
+        id: `order_merge_committed_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 1,
+        unitPrice: Number(product.sale_price || product.price || 0) || 1000,
+        note: "",
+      },
+    ],
+  };
+  const draftCart = {
+    id: `order_merge_draft_${timestamp}`,
+    customerName: sameCustomerName,
+    status: "draft",
+    paymentStatus: "unpaid",
+    discountAmount: 2000,
+    shipAddress: `Địa chỉ nháp ${timestamp}`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    orderCode: "",
+    items: [
+      {
+        id: `order_merge_draft_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 2,
+        unitPrice: Number(product.sale_price || product.price || 0) || 1000,
+        note: "",
+      },
+    ],
+  };
+  const otherDraftCart = {
+    id: `order_merge_other_${timestamp}`,
+    customerName: otherCustomerName,
+    status: "draft",
+    paymentStatus: "unpaid",
+    discountAmount: 500,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    orderCode: "",
+    items: [
+      {
+        id: `order_merge_other_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 1,
+        unitPrice: Number(product.sale_price || product.price || 0) || 1000,
+        note: "",
+      },
+    ],
+  };
+
+  async function checkMergeCart(cartId) {
+    const checkbox = page.locator(`[data-order-select="${cartId}"] input[data-queue-action="toggle-merge-select"]`).first();
+    await checkbox.evaluate((node) => {
+      node.checked = true;
+      node.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await expect(checkbox).toBeChecked();
+  }
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        carts: [committedCart, draftCart, otherDraftCart, ...(originalState.carts || [])],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "orders");
+    await expectScreenTitle(page, "Đơn hàng");
+    await setFloatingSearch(page, `Khách gộp ORD ${timestamp}`);
+
+    const committedCard = page.locator(`[data-order-select="${committedCart.id}"]`).first();
+    const draftCard = page.locator(`[data-order-select="${draftCart.id}"]`).first();
+    const otherCard = page.locator(`[data-order-select="${otherDraftCart.id}"]`).first();
+    await expect(committedCard).toBeVisible();
+    await expect(draftCard).toBeVisible();
+    await expect(otherCard).toBeVisible();
+
+    await checkMergeCart(committedCart.id);
+    await checkMergeCart(otherDraftCart.id);
+    await page.locator('#cartQueueList [data-queue-action="start-merge-preview"]').click();
+    const invalidToast = await collectToast(page, runtime, "it-ord-06-invalid", { errorPattern: /^$/ });
+    expect(invalidToast).toContain("Chỉ gộp được các phiếu xuất cùng một khách hàng.");
+    await expectScreenTitle(page, "Đơn hàng");
+
+    await page.locator('#cartQueueList [data-queue-action="clear-merge-selection"]').click();
+    await checkMergeCart(committedCart.id);
+    await checkMergeCart(draftCart.id);
+    await page.locator('#cartQueueList [data-queue-action="start-merge-preview"]').click();
+    await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    await expect(page.locator("#activeCartPanel")).toContainText("Gộp đơn đang chờ xác nhận");
+    await page.locator('#activeCartPanel [data-cart-action="cancel-merge-preview"]').click();
+
+    await expectScreenTitle(page, "Đơn hàng");
+    await expect(committedCard).toBeVisible();
+    await expect(draftCard).toBeVisible();
+    await expect(page.locator('#cartQueueList [data-queue-action="start-merge-preview"]')).toHaveCount(0);
+
+    await checkMergeCart(committedCart.id);
+    await checkMergeCart(draftCart.id);
+    await page.locator('#cartQueueList [data-queue-action="start-merge-preview"]').click();
+    await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    await page.locator('#activeCartPanel [data-cart-action="confirm-merge-preview"]').click();
+    const mergeToast = await collectToast(page, runtime, "it-ord-06-merge", { errorPattern: /^$/ });
+    expect(mergeToast).toContain("Đã gộp các phiếu xuất đã chọn vào phiếu hiện hành.");
+
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(latestStateResponse.ok()).toBeTruthy();
+    const latestState = await latestStateResponse.json();
+    const mergedCommittedCart = (latestState.carts || []).find((cart) => cart.id === committedCart.id);
+    const cancelledDraftCart = (latestState.carts || []).find((cart) => cart.id === draftCart.id);
+    const untouchedOtherCart = (latestState.carts || []).find((cart) => cart.id === otherDraftCart.id);
+
+    expect(mergedCommittedCart).toBeTruthy();
+    expect(mergedCommittedCart.status).toBe("committed");
+    expect(Number(mergedCommittedCart.discountAmount || mergedCommittedCart.discount_amount || 0)).toBe(3000);
+    expect(mergedCommittedCart.items || []).toHaveLength(1);
+    expect(Number(mergedCommittedCart.items[0].quantity)).toBe(3);
+    expect(cancelledDraftCart).toBeTruthy();
+    expect(cancelledDraftCart.status).toBe("cancelled");
+    expect(untouchedOtherCart).toBeTruthy();
+    expect(untouchedOtherCart.status).toBe("draft");
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});

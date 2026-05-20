@@ -824,6 +824,164 @@ export function createPurchasesDomainHelpers(deps) {
     };
   }
 
+  function canMergePurchase(purchase) {
+    return Boolean(purchase && ["draft", "ordered"].includes(String(purchase.status || "").trim()));
+  }
+
+  function getPurchaseMergePriority(purchase) {
+    return String(purchase?.status || "").trim() === "ordered" ? 2 : 1;
+  }
+
+  function buildMergedPurchaseNote(purchases = []) {
+    return [...new Set(
+      purchases
+        .map((purchase) => String(purchase?.note || "").trim())
+        .filter(Boolean)
+    )].join(" | ");
+  }
+
+  function buildMergedPurchaseSourceMeta(purchases = []) {
+    const sourceKeys = [...new Set(purchases.map((purchase) => [
+      String(purchase?.sourceType || purchase?.source_type || "").trim(),
+      String(purchase?.sourceCode || purchase?.source_code || "").trim(),
+      String(purchase?.sourceName || purchase?.source_name || "").trim(),
+    ].join("|")))];
+    if (sourceKeys.length !== 1) {
+      return {
+        sourceType: "",
+        sourceCode: "",
+        sourceName: "",
+      };
+    }
+    const targetPurchase = purchases[0] || {};
+    return {
+      sourceType: String(targetPurchase.sourceType || targetPurchase.source_type || "").trim(),
+      sourceCode: String(targetPurchase.sourceCode || targetPurchase.source_code || "").trim(),
+      sourceName: String(targetPurchase.sourceName || targetPurchase.source_name || "").trim(),
+    };
+  }
+
+  function buildPurchaseMergePreview(purchaseIds = []) {
+    const uniqueIds = [...new Set((Array.isArray(purchaseIds) ? purchaseIds : []).map((id) => String(id || "").trim()).filter(Boolean))];
+    if (uniqueIds.length < 2) {
+      throw new Error("Cần chọn ít nhất 2 phiếu nhập để gộp.");
+    }
+    const purchases = uniqueIds.map((purchaseId) => state.purchases.find((purchase) => purchase.id === purchaseId) || null).filter(Boolean);
+    if (purchases.length !== uniqueIds.length) {
+      throw new Error("Có phiếu nhập không còn tồn tại để gộp.");
+    }
+    if (purchases.some((purchase) => !canMergePurchase(purchase))) {
+      throw new Error("Chỉ gộp được các phiếu nhập đang ở trạng thái Nháp hoặc Đã đặt.");
+    }
+    if (purchases.some((purchase) => !String(purchase.supplierName || "").trim())) {
+      throw new Error("Cần chọn nhà cung cấp cho tất cả phiếu nhập trước khi gộp.");
+    }
+    const supplierKeys = [...new Set(purchases.map((purchase) => normalizeSupplierName(purchase.supplierName)).filter(Boolean))];
+    if (supplierKeys.length > 1) {
+      throw new Error("Chỉ gộp được các phiếu nhập cùng một nhà cung cấp.");
+    }
+    const sortedByTarget = [...purchases].sort((left, right) => {
+      const priorityDiff = getPurchaseMergePriority(right) - getPurchaseMergePriority(left);
+      if (priorityDiff !== 0) {
+        return priorityDiff;
+      }
+      if (String(left.id) === String(state.activePurchaseId || "")) {
+        return -1;
+      }
+      if (String(right.id) === String(state.activePurchaseId || "")) {
+        return 1;
+      }
+      return Date.parse(String(right.updatedAt || right.createdAt || "")) - Date.parse(String(left.updatedAt || left.createdAt || ""));
+    });
+    const targetPurchase = sortedByTarget[0];
+    const sourcePurchases = sortedByTarget.slice(1);
+    return {
+      documentIds: sortedByTarget.map((purchase) => purchase.id),
+      targetId: targetPurchase.id,
+      targetPurchase,
+      sourceIds: sourcePurchases.map((purchase) => purchase.id),
+      sourcePurchases,
+      supplierName: targetPurchase.supplierName || "",
+    };
+  }
+
+  function startPurchaseMergePreview(purchaseIds = [], options = {}) {
+    const preview = buildPurchaseMergePreview(purchaseIds);
+    state.pendingDocumentMerge = {
+      kind: "purchase",
+      sourceMenu: String(options.sourceMenu || state.activeMenu || "purchases"),
+      documentIds: preview.documentIds,
+      targetId: preview.targetId,
+    };
+    state.selectedPurchaseMergeIds = preview.documentIds;
+    activatePurchaseState(preview.targetId);
+    return preview;
+  }
+
+  function getPendingPurchaseMergePreview() {
+    if (String(state.pendingDocumentMerge?.kind || "") !== "purchase") {
+      return null;
+    }
+    const purchaseIds = Array.isArray(state.pendingDocumentMerge?.documentIds) ? state.pendingDocumentMerge.documentIds : [];
+    if (purchaseIds.length < 2) {
+      return null;
+    }
+    try {
+      return buildPurchaseMergePreview(purchaseIds);
+    } catch {
+      return null;
+    }
+  }
+
+  function clearPurchaseMergePreview() {
+    if (String(state.pendingDocumentMerge?.kind || "") === "purchase") {
+      state.pendingDocumentMerge = {
+        kind: "",
+        sourceMenu: "",
+        documentIds: [],
+        targetId: "",
+      };
+    }
+    state.selectedPurchaseMergeIds = [];
+  }
+
+  function applyPendingPurchaseMerge() {
+    const preview = getPendingPurchaseMergePreview();
+    if (!preview) {
+      throw new Error("Không có dữ liệu gộp phiếu nhập hợp lệ.");
+    }
+    const now = nowIso();
+    const mergedItems = preview.sourcePurchases.reduce(
+      (items, purchase) => mergeDraftItems(items, purchase.items),
+      preview.targetPurchase.items
+    );
+    const mergedDiscountAmount = Number(preview.documentIds.reduce((sum, purchaseId) => {
+      const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
+      return sum + Number(purchase?.discountAmount || purchase?.discount_amount || 0);
+    }, 0).toFixed(2));
+    const mergedSourceMeta = buildMergedPurchaseSourceMeta([preview.targetPurchase, ...preview.sourcePurchases]);
+    const mergedPurchase = updatePurchase(preview.targetId, (currentPurchase) => ({
+      ...currentPurchase,
+      items: mergedItems,
+      note: buildMergedPurchaseNote([preview.targetPurchase, ...preview.sourcePurchases]),
+      discountAmount: mergedDiscountAmount,
+      sourceType: mergedSourceMeta.sourceType,
+      sourceCode: mergedSourceMeta.sourceCode,
+      sourceName: mergedSourceMeta.sourceName,
+      updatedAt: now,
+    }));
+    preview.sourceIds.forEach((purchaseId) => {
+      updatePurchase(purchaseId, (currentPurchase) => ({
+        ...currentPurchase,
+        status: "cancelled",
+        updatedAt: now,
+      }));
+    });
+    activatePurchaseState(mergedPurchase.id);
+    clearPurchaseMergePreview();
+    return mergedPurchase;
+  }
+
   function createPurchaseDraftIfMissing(options = {}) {
     assertCanMutatePurchaseStructure();
     const {
@@ -1153,6 +1311,11 @@ export function createPurchasesDomainHelpers(deps) {
     buildDraftPurchase,
     addSuggestionToPurchase,
     repeatCompletedPurchase,
+    canMergePurchase,
+    startPurchaseMergePreview,
+    getPendingPurchaseMergePreview,
+    clearPurchaseMergePreview,
+    applyPendingPurchaseMerge,
     canEditPurchaseExpiryMetadata,
     resolvePurchaseItemExpiryMeta,
     startInventoryInFlow,

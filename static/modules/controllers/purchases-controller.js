@@ -49,6 +49,25 @@ export function registerPurchasesControllerEvents(contract) {
     ].join("\n\n");
   }
 
+  function toggleSelectedPurchaseMergeId(purchaseId, forceChecked = null) {
+    const selectedIds = new Set((Array.isArray(state.selectedPurchaseMergeIds) ? state.selectedPurchaseMergeIds : []).map((id) => String(id || "").trim()).filter(Boolean));
+    const cleanPurchaseId = String(purchaseId || "").trim();
+    if (!cleanPurchaseId) {
+      return;
+    }
+    const shouldSelect = forceChecked === null ? !selectedIds.has(cleanPurchaseId) : Boolean(forceChecked);
+    if (shouldSelect) {
+      selectedIds.add(cleanPurchaseId);
+    } else {
+      selectedIds.delete(cleanPurchaseId);
+    }
+    state.selectedPurchaseMergeIds = [...selectedIds];
+  }
+
+  function clearSelectedPurchaseMergeIds() {
+    state.selectedPurchaseMergeIds = [];
+  }
+
   function confirmPurchaseStatusAction(purchase, action) {
     const label = getPurchaseDisplayName(purchase);
     const messages = {
@@ -575,6 +594,27 @@ export function registerPurchasesControllerEvents(contract) {
       renderers.renderPurchasePanel();
       return;
     }
+    if (actionButton.dataset.purchaseAction === "cancel-merge-preview") {
+      const sourceMenu = String(state.pendingDocumentMerge?.sourceMenu || "");
+      actions.clearPurchaseMergePreview();
+      if (sourceMenu) {
+        actions.switchMenu(sourceMenu);
+      }
+      actions.saveAndRenderAll();
+      return;
+    }
+    if (actionButton.dataset.purchaseAction === "confirm-merge-preview") {
+      try {
+        await actions.flushPendingPersistCollections();
+        actions.applyPendingPurchaseMerge();
+        actions.saveAndRenderAll(["purchases"]);
+        actions.focusPurchasePanel();
+        actions.showToast("Đã gộp các phiếu nhập đã chọn vào phiếu hiện hành.");
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "print") {
       actions.printPurchase(purchase.id);
       return;
@@ -817,6 +857,15 @@ export function registerPurchasesControllerEvents(contract) {
     });
   });
 
+  dom.purchaseOrderList.addEventListener("change", (event) => {
+    const checkbox = event.target.closest('input[data-purchase-list-action="toggle-merge-select"]');
+    if (!checkbox) {
+      return;
+    }
+    toggleSelectedPurchaseMergeId(checkbox.dataset.purchaseId, Boolean(checkbox.checked));
+    renderers.renderPurchaseOrders();
+  });
+
   dom.purchaseOrderList.addEventListener("click", async (event) => {
     const reviewButton = event.target.closest("[data-purchase-conflict-review-action]");
     if (reviewButton) {
@@ -839,6 +888,26 @@ export function registerPurchasesControllerEvents(contract) {
     }
     if (button.dataset.purchaseListAction === "open") {
       selectPurchaseDocument(button.dataset.purchaseId);
+      return;
+    }
+    if (button.dataset.purchaseListAction === "toggle-merge-select") {
+      return;
+    }
+    if (button.dataset.purchaseListAction === "clear-merge-selection") {
+      clearSelectedPurchaseMergeIds();
+      renderers.renderPurchaseOrders();
+      return;
+    }
+    if (button.dataset.purchaseListAction === "start-merge-preview") {
+      try {
+        await actions.flushPendingPersistCollections();
+        actions.startPurchaseMergePreview(state.selectedPurchaseMergeIds, { sourceMenu: "purchases" });
+        actions.saveAndRenderAll();
+        actions.focusPurchasePanel();
+        actions.showToast("Đã mở màn gộp đơn để rà lại phiếu nhập trước khi gộp.");
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
       return;
     }
     if (button.dataset.purchaseListAction === "print") {

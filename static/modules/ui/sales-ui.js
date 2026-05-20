@@ -11,8 +11,10 @@ export function createSalesUi(deps) {
     getPendingMergeCommittedCarts,
     getProductById,
     canDeleteCart,
+    canMergeCart,
     canEditCartDiscount,
     getCartCostWarning,
+    getPendingCartMergePreview,
     getVisibleOrders,
     getCustomerReturnEditorMarkup,
     isSearchResultMode,
@@ -110,6 +112,38 @@ export function createSalesUi(deps) {
       <article class="inline-alert warning">
         Cảnh báo: tổng giá xuất ${escapeHtml(formatCurrency(warning.totalAmount))} đang nhỏ hơn tổng giá nhập ${escapeHtml(formatCurrency(warning.estimatedCostAmount))}.
         Chênh lệch âm ${escapeHtml(formatCurrency(warning.lossAmount))}.
+      </article>
+    `;
+  }
+
+  function renderCartMergePreview(cart) {
+    const preview = getPendingCartMergePreview();
+    if (!preview || String(preview.targetId) !== String(cart?.id || "")) {
+      return "";
+    }
+    return `
+      <article class="inline-alert warning">
+        <strong>Gộp đơn đang chờ xác nhận</strong>
+        <div class="cart-line-note">Giữ lại phiếu này và gộp thêm ${escapeHtml(String(preview.sourceIds.length))} phiếu cùng khách vào đây.</div>
+        <div class="document-detail-items">
+          ${preview.documentIds.map((cartId) => {
+            const entry = cartId === preview.targetId ? preview.targetCart : preview.sourceCarts.find((sourceCart) => String(sourceCart.id) === String(cartId));
+            const label = String(entry?.orderCode || entry?.customerName || cartId);
+            const statusMeta = getCartStatusMeta(entry || {});
+            return `
+              <article class="document-detail-item">
+                <div class="document-detail-item-head">
+                  <strong>${escapeHtml(label)}</strong>
+                  <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}${String(cartId) === String(preview.targetId) ? " · Giữ lại" : ""}</span>
+                </div>
+              </article>
+            `;
+          }).join("")}
+        </div>
+        <div class="line-actions">
+          <button type="button" class="primary-button compact-button" data-cart-action="confirm-merge-preview">Thực hiện gộp</button>
+          <button type="button" class="ghost-button compact-button" data-cart-action="cancel-merge-preview">Hủy</button>
+        </div>
       </article>
     `;
   }
@@ -341,6 +375,7 @@ export function createSalesUi(deps) {
           <div class="stat-chip"><span>Tạm tính</span><strong>${escapeHtml(formatCurrency(cart.subtotalAmount || 0))}</strong></div>
           <div class="stat-chip"><span>Cần thu</span><strong>${escapeHtml(formatCurrency(cart.totalAmount))}</strong></div>
         </div>
+        ${renderCartMergePreview(cart)}
         ${renderCartCostWarning(cart)}
         ${state.activeCartDetailExpanded ? renderCartDocumentDetail(cart, {
           shipAddressActionAttribute: 'data-cart-action="save-ship-address"',
@@ -484,9 +519,23 @@ export function createSalesUi(deps) {
     const paginationMarkup = renderPagination("orders", pageData);
     const topPagination = paginationMarkup ? `<div class="orders-top-pagination">${paginationMarkup}</div>` : "";
     const bottomPagination = paginationMarkup ? `<div class="orders-bottom-pagination">${paginationMarkup}</div>` : "";
-    dom.cartQueueList.innerHTML = topPagination + pageData.items
+    const selectedMergeIds = (Array.isArray(state.selectedOrderMergeIds) ? state.selectedOrderMergeIds : [])
+      .filter((cartId) => visibleCarts.some((cart) => String(cart.id) === String(cartId)));
+    const mergeToolbarMarkup = selectedMergeIds.length
+      ? `
+        <article class="inline-alert warning">
+          <strong>${escapeHtml(String(selectedMergeIds.length))} phiếu xuất đang được chọn</strong>
+          <div class="line-actions">
+            ${selectedMergeIds.length >= 2 ? '<button type="button" class="primary-button compact-button" data-queue-action="start-merge-preview">Gộp đơn</button>' : ""}
+            <button type="button" class="ghost-button compact-button" data-queue-action="clear-merge-selection">Bỏ chọn</button>
+          </div>
+        </article>
+      `
+      : "";
+    dom.cartQueueList.innerHTML = mergeToolbarMarkup + topPagination + pageData.items
       .map((cart) => {
         const isSelected = String(state.expandedOrderId) === String(cart.id);
+        const isMergeSelected = selectedMergeIds.some((cartId) => String(cartId) === String(cart.id));
         const statusMeta = getCartStatusMeta(cart);
         const compactMeta = `${formatDate(cart.completedAt || cart.committedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • Cần thu ${formatCurrency(cart.totalAmount)}`;
         const detailButtonLabel = isSelected ? "Đang xem" : "Detail";
@@ -513,6 +562,7 @@ export function createSalesUi(deps) {
               </div>
             `}
           <div class="queue-actions">
+            ${canMergeCart(cart) ? `<label class="toggle-inline" data-queue-action="toggle-merge-select" data-cart-id="${cart.id}"><input type="checkbox" data-queue-action="toggle-merge-select" data-cart-id="${cart.id}" ${isMergeSelected ? "checked" : ""}><span>Chọn</span></label>` : ""}
             ${allowOpen
               ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="open" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục xử lý"}</button>`
               : ""}
