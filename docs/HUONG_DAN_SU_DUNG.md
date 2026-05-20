@@ -211,7 +211,7 @@ Dùng màn này để:
 - `Tiếp tục xử lý`: mở lại đơn nháp hoặc đơn đã chốt để sửa tiếp trước khi xuất
 - `Chốt đơn`: khóa khách hàng và giữ hàng logic cho đơn nháp
 - `Xuất hàng`: trừ kho thật cho đơn đã chốt
-- `Detail`: bung nhanh mã đơn, trạng thái, ngày tạo, mốc xử lý và danh sách dòng hàng của phiếu
+- `Detail`: mở panel detail riêng của đơn đang chọn, hiện mã đơn, trạng thái, ngày tạo, mốc xử lý và danh sách dòng hàng của phiếu
 - `In`: in hoặc gửi lại phiếu cho khách từ `Nháp` tới `Đã thanh toán`; ở list, nút `In` không hiện với phiếu đã thanh toán nên nếu cần in lại thì mở `Detail`
 - `Xuất lại`: tạo nhanh một đơn nháp mới từ đơn đã `Đã xuất hàng` hoặc `Đã thanh toán`
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền
@@ -230,7 +230,8 @@ Lưu ý:
 - trước khi `Đã thanh toán`, vẫn được sửa riêng `Giảm giá khuyến mại` của cả đơn; riêng địa chỉ giao chỉ được sửa tới trước `Đã xuất hàng`
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
 - kể cả `Master Admin` cũng không được xóa hoặc hủy ngược đơn đã chốt
-- trên mobile hoặc tablet, có thể dùng `Detail` để bung rồi thu gọn nhanh nội dung phiếu ngay trong danh sách
+- panel detail có nút `Previous / Next` để chuyển nhanh giữa các đơn trong đúng danh sách đang lọc; nút `Đóng` chỉ ẩn detail, không làm mất search/filter hiện tại
+- trong panel detail của đơn, danh sách mặt hàng mặc định thu gọn để màn mobile gọn hơn; bấm `Mở mặt hàng` khi cần rà từng dòng
 - nếu đi từ màn `Khách hàng` sang bằng badge `đơn chờ` hoặc `đơn`, app sẽ tự lọc đúng các phiếu của khách; khi khách chỉ có 1 phiếu thì detail sẽ tự mở sẵn kể cả nếu đơn đã `Đã xuất hàng` hoặc `Đã thanh toán`
 - trước khi `Chốt đơn`, `Xuất hàng`, `Đã thanh toán`, `Hủy` hoặc `Xóa`, app sẽ hiện message confirm để tránh đổi trạng thái hoặc xóa nhầm
 
@@ -252,11 +253,12 @@ Thông tin nên lưu:
 ### Cách dùng
 
 1. Mở màn là thấy ngay danh sách khách hàng để tìm nhanh
-2. Khi cần tạo mới, bấm `Thêm mới` để mở form
-3. Điền thông tin rồi bấm `Lưu khách hàng`
-4. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
-5. Khi cần mở giỏ hàng nhanh cho khách, bấm `Mở giỏ`
-6. Nếu muốn xem lại phiếu hàng của khách, bấm badge `giỏ chờ` hoặc `đơn`; nếu khách chỉ có 1 phiếu thì app sẽ mở thẳng detail của phiếu đó ở màn `Quản lý đơn hàng`
+2. Chạm vào một khách trong list để mở panel detail riêng; panel này hiện đủ liên hệ, địa chỉ ship, link Zalo và có `Previous / Next` để chuyển nhanh giữa các khách đang hiện trên list
+3. Khi cần tạo mới, bấm `Thêm mới` để mở form
+4. Điền thông tin rồi bấm `Lưu khách hàng`
+5. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
+6. Khi cần mở giỏ hàng nhanh cho khách, bấm `Mở giỏ`
+7. Nếu muốn xem lại phiếu hàng của khách, bấm badge `giỏ chờ` hoặc `đơn`; nếu khách chỉ có 1 phiếu thì app sẽ mở thẳng detail của phiếu đó ở màn `Quản lý đơn hàng`
 
 Khuyến nghị:
 
@@ -337,7 +339,8 @@ Màn này có 2 phần:
 30. Khi `Nhập lại`, app chỉ sao chép các dòng hàng và thông tin mức phiếu; `Mã lô`, `HSD` và `Ngày sản xuất` sẽ để trống để bạn nhập lại theo lô hàng mới
 31. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
 32. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`
-33. Trước khi đổi trạng thái `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu` hoặc `Xóa phiếu`, app sẽ hiện message confirm để tránh thao tác nhầm
+33. Panel detail của phiếu nhập có nút `Previous / Next` để chuyển nhanh theo đúng danh sách phiếu đang lọc; nút `Đóng` chỉ ẩn detail, không làm mất filter/search
+34. Trước khi đổi trạng thái `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu` hoặc `Xóa phiếu`, app sẽ hiện message confirm để tránh thao tác nhầm
 
 Nếu phiếu được tạo từ một đơn đang thiếu hàng:
 
@@ -447,11 +450,12 @@ Nên lưu:
 ### Cách dùng
 
 1. Mở màn là thấy ngay danh sách nhà cung cấp để tìm nhanh
-2. Khi cần tạo mới, bấm `Thêm mới` để mở form
-3. Lưu nhà cung cấp rồi dùng lại trong phiếu nhập
-4. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
-5. Nếu đi từ màn `NH` sang bằng nút `NCC`, app sẽ mở sẵn form theo tên đang gõ; thao tác này chỉ dùng được khi phiếu nhập còn là `Nháp`
-6. Có thể bấm `Dùng cho phiếu nhập` để chuyển nhanh sang màn nhập hàng
+2. Chạm vào một NCC trong list để mở panel detail riêng; panel này hiện đủ liên hệ, ghi chú và số phiếu liên quan, có `Previous / Next` để duyệt nhanh giữa các NCC đang hiện
+3. Khi cần tạo mới, bấm `Thêm mới` để mở form
+4. Lưu nhà cung cấp rồi dùng lại trong phiếu nhập
+5. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
+6. Nếu đi từ màn `NH` sang bằng nút `NCC`, app sẽ mở sẵn form theo tên đang gõ; thao tác này chỉ dùng được khi phiếu nhập còn là `Nháp`
+7. Có thể bấm `Dùng cho phiếu nhập` để chuyển nhanh sang màn nhập hàng
 
 ## 11. Luồng báo cáo tháng
 

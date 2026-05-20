@@ -15,6 +15,7 @@ export function createSalesDomainHelpers(deps) {
     focusCreateOrderSelection,
     focusActiveCartPanel,
     focusOrderQueueItem,
+    focusOrderDetailPanel,
     focusPurchaseOrders,
     switchMenu,
     showToast,
@@ -281,10 +282,11 @@ export function createSalesDomainHelpers(deps) {
     state.orderSearchTerm = customer.name;
     state.pagination.orders = 1;
     state.expandedOrderId = sortedRelatedCarts.length === 1 ? targetCart.id : null;
+    state.orderDetailItemsCollapsed = true;
     switchMenu("orders");
     saveAndRenderAll();
     if (sortedRelatedCarts.length === 1) {
-      focusOrderQueueItem(targetCart.id);
+      focusOrderDetailPanel();
       showToast("Đã mở detail phiếu hàng của khách.");
       return;
     }

@@ -12,6 +12,7 @@ export function createSalesUi(deps) {
     getProductById,
     canDeleteCart,
     canEditCartDiscount,
+    getVisibleOrders,
     getCustomerReturnEditorMarkup,
     isSearchResultMode,
     paginateItems,
@@ -100,12 +101,21 @@ export function createSalesUi(deps) {
   }
 
   function renderCartDocumentDetail(cart, options = {}) {
-    const { includeItems = false, discountActionAttribute = "", shipAddressActionAttribute = "" } = options;
+    const {
+      includeItems = false,
+      discountActionAttribute = "",
+      shipAddressActionAttribute = "",
+      itemsCollapsed = false,
+      itemToggleActionAttribute = "",
+    } = options;
     const statusMeta = getCartStatusMeta(cart);
     const detailRows = getCartDetailRows(cart);
     const itemsMarkup = includeItems
       ? (cart.items.length
-        ? `<div class="document-detail-items">${cart.items.map((item) => `
+        ? `
+          <section class="document-items-shell ${itemsCollapsed ? "is-collapsed" : ""}">
+            ${itemToggleActionAttribute ? `<div class="detail-toggle-row"><strong>Mặt hàng trong đơn</strong><button type="button" class="ghost-button compact-button" ${itemToggleActionAttribute}>${itemsCollapsed ? "Mở mặt hàng" : "Thu gọn mặt hàng"}</button></div>` : ""}
+            <div class="document-detail-items">${cart.items.map((item) => `
             <article class="document-detail-item">
               <div class="document-detail-item-head">
                 <strong>${escapeHtml(item.productName)}</strong>
@@ -116,7 +126,9 @@ export function createSalesUi(deps) {
                 <span>Giá bán ${escapeHtml(formatCurrency(item.unitPrice))}</span>
               </div>
             </article>
-          `).join("")}</div>`
+          `).join("")}</div>
+          </section>
+        `
         : '<div class="empty-state">Phiếu xuất này chưa có dòng hàng.</div>')
       : "";
     const shipAddressMarkup = shipAddressActionAttribute ? renderCartShipAddressEditor(cart, shipAddressActionAttribute) : "";
@@ -136,6 +148,63 @@ export function createSalesUi(deps) {
         ${discountEditorMarkup}
         ${itemsMarkup}
       </div>
+    `;
+  }
+
+  function renderOrderDetailPanel(visibleCarts) {
+    if (!dom.orderDetailPanel) {
+      return;
+    }
+    const selectedCart = visibleCarts.find((cart) => String(cart.id) === String(state.expandedOrderId || "")) || null;
+    if (!selectedCart) {
+      dom.orderDetailPanel.hidden = true;
+      dom.orderDetailPanel.innerHTML = "";
+      return;
+    }
+    const currentIndex = visibleCarts.findIndex((cart) => String(cart.id) === String(selectedCart.id));
+    const statusMeta = getCartStatusMeta(selectedCart);
+    const allowPrint = canPrintCartDocument(selectedCart);
+    const allowOpen = ["draft", "committed"].includes(selectedCart.status);
+    const allowRepeat = selectedCart.status === "completed";
+    const allowMarkPaid = selectedCart.status === "completed" && selectedCart.paymentStatus !== "paid";
+    const allowReturn = selectedCart.status === "completed";
+    dom.orderDetailPanel.hidden = false;
+    dom.orderDetailPanel.innerHTML = `
+      <div class="detail-panel-head">
+        <div>
+          <p class="panel-kicker">Đơn hàng đang chọn</p>
+          <h3>${escapeHtml(selectedCart.orderCode || selectedCart.customerName)}</h3>
+          <p class="panel-note">${escapeHtml(selectedCart.customerName)} • ${escapeHtml(statusMeta.label)}</p>
+        </div>
+        <button type="button" class="ghost-button compact-button" data-order-detail-action="close">Đóng</button>
+      </div>
+      <div class="detail-panel-nav">
+        <button type="button" class="ghost-button compact-button" data-order-detail-action="previous" ${currentIndex <= 0 ? "disabled" : ""}>Previous</button>
+        <button type="button" class="ghost-button compact-button" data-order-detail-action="next" ${currentIndex >= visibleCarts.length - 1 ? "disabled" : ""}>Next</button>
+      </div>
+      <div class="detail-panel-meta">
+        <span>${escapeHtml(String(currentIndex + 1))}/${escapeHtml(String(visibleCarts.length))} trong danh sách hiện tại</span>
+        <span>${escapeHtml(formatQuantity(selectedCart.totalQuantity))} món • ${escapeHtml(formatCurrency(selectedCart.totalAmount))}</span>
+      </div>
+      ${renderCartDocumentDetail(selectedCart, {
+        includeItems: true,
+        itemsCollapsed: state.orderDetailItemsCollapsed,
+        itemToggleActionAttribute: 'data-order-detail-action="toggle-items"',
+        shipAddressActionAttribute: 'data-order-detail-action="save-ship-address"',
+        discountActionAttribute: 'data-order-detail-action="save-discount"',
+      })}
+      <div class="detail-panel-actions">
+        ${allowOpen ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="open" data-cart-id="${selectedCart.id}">${mobileQuery.matches ? "Mở" : "Tiếp tục xử lý"}</button>` : ""}
+        ${allowPrint ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="print" data-cart-id="${selectedCart.id}">In</button>` : ""}
+        ${allowRepeat ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="repeat" data-cart-id="${selectedCart.id}">Xuất lại</button>` : ""}
+        ${selectedCart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-order-detail-action="commit" data-cart-id="${selectedCart.id}">Chốt đơn</button>` : ""}
+        ${selectedCart.status === "committed" ? `<button type="button" class="secondary-button compact-button" data-order-detail-action="ship" data-cart-id="${selectedCart.id}">Xuất hàng</button>` : ""}
+        ${allowMarkPaid ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="mark-paid" data-cart-id="${selectedCart.id}">Đã thanh toán</button>` : ""}
+        ${allowReturn ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="customer-return" data-cart-id="${selectedCart.id}">Trả hàng</button>` : ""}
+        ${["draft", "committed"].includes(selectedCart.status) ? `<button type="button" class="secondary-button compact-button" data-order-detail-action="cancel" data-cart-id="${selectedCart.id}">Hủy</button>` : ""}
+        ${canDeleteCart(selectedCart) ? `<button type="button" class="danger-button compact-button" data-order-detail-action="delete" data-cart-id="${selectedCart.id}">Xóa</button>` : ""}
+      </div>
+      ${getCustomerReturnEditorMarkup(selectedCart)}
     `;
   }
 
@@ -385,23 +454,12 @@ export function createSalesUi(deps) {
   function renderCartQueue() {
     const compact = mobileQuery.matches;
     const customerFilterId = String(state.orderFilterCustomerId || "");
-    const pending = state.carts.filter((cart) => ["draft", "committed"].includes(cart.status));
-    const archived = state.carts.filter((cart) => {
-      if (["draft", "committed"].includes(cart.status)) return false;
-      if (!state.showCancelledOrders && cart.status === "cancelled") return false;
-      if (!state.showPaidOrders && cart.paymentStatus === "paid") return false;
-      return true;
-    });
-    const visibleCarts = (state.showArchivedCarts ? [...pending, ...archived] : pending).filter((cart) => {
-      if (customerFilterId && String(cart.customerId || "") !== customerFilterId) return false;
-      if (!state.orderSearchTerm) return true;
-      const haystack = `${cart.customerName} ${cart.orderCode} ${cart.items.map((item) => item.productName).join(" ")}`.toLowerCase();
-      return haystack.includes(state.orderSearchTerm.toLowerCase());
-    });
+    const visibleCarts = getVisibleOrders();
     dom.cartQueueList.classList.toggle("is-compact-search", Boolean(customerFilterId) || isSearchResultMode("orders"));
     if (dom.draftCartBadge) {
-      dom.draftCartBadge.textContent = String(pending.length);
+      dom.draftCartBadge.textContent = String(state.carts.filter((cart) => ["draft", "committed"].includes(cart.status)).length);
     }
+    renderOrderDetailPanel(visibleCarts);
     if (!visibleCarts.length) {
       dom.cartQueueList.innerHTML = '<div class="empty-state">Không có đơn hàng phù hợp.</div>';
       return;
@@ -412,18 +470,16 @@ export function createSalesUi(deps) {
     const bottomPagination = paginationMarkup ? `<div class="orders-bottom-pagination">${paginationMarkup}</div>` : "";
     dom.cartQueueList.innerHTML = topPagination + pageData.items
       .map((cart) => {
-        const expanded = String(state.expandedOrderId) === String(cart.id);
+        const isSelected = String(state.expandedOrderId) === String(cart.id);
         const statusMeta = getCartStatusMeta(cart);
         const compactMeta = `${formatDate(cart.completedAt || cart.committedAt || cart.cancelledAt || cart.updatedAt)} • ${cart.itemCount} dòng • Cần thu ${formatCurrency(cart.totalAmount)}`;
-        const detailButtonLabel = expanded ? "Ẩn detail" : "Detail";
+        const detailButtonLabel = isSelected ? "Đang xem" : "Detail";
         const allowPrint = canPrintCartDocument(cart);
         const allowListPrint = canShowCartListPrintAction(cart);
         const allowOpen = ["draft", "committed"].includes(cart.status);
         const allowRepeat = cart.status === "completed";
-        const showPaidDetailPrint = allowPrint && cart.paymentStatus === "paid";
-        const customerReturnEditorMarkup = expanded ? getCustomerReturnEditorMarkup(cart) : "";
         return `
-        <article class="cart-queue-item ${expanded ? "is-expanded" : ""}">
+        <article class="cart-queue-item selectable-card ${isSelected ? "is-selected-detail" : ""}" data-order-select="${cart.id}" tabindex="0" role="button" aria-pressed="${isSelected ? "true" : "false"}">
           <div class="queue-header">
             <strong>${escapeHtml(cart.customerName)}</strong>
             <span class="status-pill ${statusMeta.statusClass}">${statusMeta.label}</span>
@@ -453,27 +509,6 @@ export function createSalesUi(deps) {
             ${!compact && ["draft", "committed"].includes(cart.status) ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
             ${!compact && canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
           </div>
-          ${expanded ? `
-            <div class="queue-detail-block">
-              ${renderCartDocumentDetail(cart, {
-                includeItems: true,
-                shipAddressActionAttribute: 'data-queue-action="save-ship-address"',
-                discountActionAttribute: 'data-queue-action="save-discount"',
-              })}
-              ${(!compact && (showPaidDetailPrint || cart.status === "completed")) ? `<div class="queue-actions queue-actions-expanded">${showPaidDetailPrint ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="customer-return" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}</div>` : ""}
-              ${compact ? `<div class="queue-actions queue-actions-expanded">
-              ${allowPrint ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
-                ${allowRepeat ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="repeat" data-queue-action="repeat" data-cart-id="${cart.id}">Xuất lại</button>` : ""}
-                ${cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="commit" data-queue-action="commit" data-cart-id="${cart.id}">Chốt</button>` : ""}
-                ${cart.status === "committed" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="ship" data-queue-action="ship" data-cart-id="${cart.id}">Xuất</button>` : ""}
-                ${cart.status === "completed" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="customer-return" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả</button>` : ""}
-                ${cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">TT</button>` : ""}
-                ${["draft", "committed"].includes(cart.status) ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
-                ${canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
-              </div>` : ""}
-              ${customerReturnEditorMarkup}
-            </div>
-          ` : ""}
         </article>
       `;
       })
