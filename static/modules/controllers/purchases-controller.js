@@ -662,9 +662,10 @@ export function registerPurchasesControllerEvents(contract) {
     }
     if (actionButton.dataset.purchaseAction === "supplier-return") {
       try {
+        state.purchaseDetailExpanded = true;
         actions.openSupplierReturnDraftFromPurchase(purchase.id);
-        renderers.renderSupplierReturnSection();
-        actions.focusSupplierReturnSection();
+        renderers.renderPurchasePanel();
+        actions.focusPurchasePanel();
       } catch (error) {
         actions.showToast(error.message, true);
       }
@@ -741,6 +742,48 @@ export function registerPurchasesControllerEvents(contract) {
     saveButton?.click();
   });
 
+  dom.purchasePanel.addEventListener("input", (event) => {
+    const supplierInput = event.target.closest("[data-supplier-return-supplier-input]");
+    if (supplierInput) {
+      state.supplierReturnDraft.supplierName = supplierInput.value;
+      return;
+    }
+    const noteInput = event.target.closest("[data-supplier-return-note-input]");
+    if (noteInput) {
+      state.supplierReturnDraft.note = noteInput.value;
+      return;
+    }
+    const productInput = event.target.closest("[data-supplier-return-product-input]");
+    if (productInput) {
+      state.supplierReturnDraft.productText = productInput.value;
+      return;
+    }
+    const quantityInput = event.target.closest("[data-supplier-return-quantity-input]");
+    if (quantityInput) {
+      state.supplierReturnDraft.quantity = quantityInput.value;
+      return;
+    }
+    const priceInput = event.target.closest("[data-supplier-return-price-input]");
+    if (priceInput) {
+      state.supplierReturnDraft.unitCost = priceInput.value;
+      return;
+    }
+    const qtyInput = event.target.closest("[data-supplier-return-qty]");
+    const itemPriceInput = event.target.closest("[data-supplier-return-price]");
+    const itemId = qtyInput?.dataset.supplierReturnQty || itemPriceInput?.dataset.supplierReturnPrice;
+    if (!itemId) return;
+    state.supplierReturnDraft.items = state.supplierReturnDraft.items.map((item) => {
+      if (item.id !== itemId) return item;
+      const quantity = qtyInput ? Number(qtyInput.value) : Number(item.quantity);
+      const unitCost = itemPriceInput ? Number(itemPriceInput.value) : Number(item.unitCost);
+      return {
+        ...item,
+        quantity: Number.isFinite(quantity) ? quantity : item.quantity,
+        unitCost: Number.isFinite(unitCost) ? unitCost : item.unitCost,
+      };
+    });
+  });
+
   dom.purchaseOrderList.addEventListener("click", async (event) => {
     const reviewButton = event.target.closest("[data-purchase-conflict-review-action]");
     if (reviewButton) {
@@ -783,83 +826,38 @@ export function registerPurchasesControllerEvents(contract) {
     }
   });
 
-  dom.supplierReturnToggleButton?.addEventListener("click", () => {
-    state.supplierReturnDraft.collapsed = !state.supplierReturnDraft.collapsed;
-    renderers.renderSupplierReturnSection();
-    if (!state.supplierReturnDraft.collapsed) {
-      actions.focusSupplierReturnSection();
-    }
-  });
-
-  dom.supplierReturnSupplierInput?.addEventListener("input", (event) => {
-    state.supplierReturnDraft.supplierName = event.target.value;
-  });
-
-  dom.supplierReturnNoteInput?.addEventListener("input", (event) => {
-    state.supplierReturnDraft.note = event.target.value;
-  });
-
-  dom.supplierReturnProductInput?.addEventListener("input", (event) => {
-    state.supplierReturnDraft.productText = event.target.value;
-  });
-
-  dom.supplierReturnQuantityInput?.addEventListener("input", (event) => {
-    state.supplierReturnDraft.quantity = event.target.value;
-  });
-
-  dom.supplierReturnPriceInput?.addEventListener("input", (event) => {
-    state.supplierReturnDraft.unitCost = event.target.value;
-  });
-
-  dom.supplierReturnAddButton?.addEventListener("click", () => {
-    try {
-      actions.addSupplierReturnDraftItem(
-        dom.supplierReturnProductInput.value,
-        dom.supplierReturnQuantityInput.value,
-        dom.supplierReturnPriceInput.value
-      );
-      renderers.renderSupplierReturnSection();
-    } catch (error) {
-      actions.showToast(error.message, true);
-    }
-  });
-
-  dom.supplierReturnItems?.addEventListener("input", (event) => {
-    const qtyInput = event.target.closest("[data-supplier-return-qty]");
-    const priceInput = event.target.closest("[data-supplier-return-price]");
-    const itemId = qtyInput?.dataset.supplierReturnQty || priceInput?.dataset.supplierReturnPrice;
-    if (!itemId) return;
-    state.supplierReturnDraft.items = state.supplierReturnDraft.items.map((item) => {
-      if (item.id !== itemId) return item;
-      const quantity = qtyInput ? Number(qtyInput.value) : Number(item.quantity);
-      const unitCost = priceInput ? Number(priceInput.value) : Number(item.unitCost);
-      return {
-        ...item,
-        quantity: Number.isFinite(quantity) ? quantity : item.quantity,
-        unitCost: Number.isFinite(unitCost) ? unitCost : item.unitCost,
-      };
-    });
-  });
-
-  dom.supplierReturnItems?.addEventListener("click", (event) => {
+  dom.purchasePanel.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-supplier-return-action]");
     if (!button) return;
+    if (button.dataset.supplierReturnAction === "add") {
+      try {
+        actions.addSupplierReturnDraftItem(
+          dom.purchasePanel.querySelector("[data-supplier-return-product-input]")?.value || "",
+          dom.purchasePanel.querySelector("[data-supplier-return-quantity-input]")?.value || "",
+          dom.purchasePanel.querySelector("[data-supplier-return-price-input]")?.value || ""
+        );
+        renderers.renderPurchasePanel();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (button.dataset.supplierReturnAction === "remove") {
       state.supplierReturnDraft.items = state.supplierReturnDraft.items.filter((item) => item.id !== button.dataset.itemId);
-      renderers.renderSupplierReturnSection();
+      renderers.renderPurchasePanel();
+      return;
     }
-  });
-
-  dom.supplierReturnClearButton?.addEventListener("click", () => {
-    actions.resetSupplierReturnDraft({ keepCollapsed: false });
-    renderers.renderSupplierReturnSection();
-  });
-
-  dom.supplierReturnSubmitButton?.addEventListener("click", async () => {
-    try {
-      await actions.submitSupplierReturnDraft();
-    } catch (error) {
-      actions.showToast(error.message, true);
+    if (button.dataset.supplierReturnAction === "close") {
+      actions.resetSupplierReturnDraft();
+      renderers.renderPurchasePanel();
+      return;
+    }
+    if (button.dataset.supplierReturnAction === "submit") {
+      try {
+        await actions.submitSupplierReturnDraft();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
     }
   });
 

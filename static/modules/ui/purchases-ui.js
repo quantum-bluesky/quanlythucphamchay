@@ -25,6 +25,7 @@ export function createPurchasesUi(deps) {
     getPurchaseSuggestions,
     getOpenPurchaseSupplierConflictInsight,
     resolvePurchaseItemExpiryMeta,
+    getSupplierReturnEditorMarkup,
     isSearchResultMode,
     paginateItems,
     renderPagination,
@@ -230,6 +231,7 @@ export function createPurchasesUi(deps) {
     const purchaseStatusMeta = getPurchaseStatusMeta(purchase);
     const purchaseSourceLabel = getPurchaseSourceLabel(purchase);
     const purchaseConflictWarnings = getPurchaseConflictWarnings(purchase);
+    const supplierReturnEditorMarkup = getSupplierReturnEditorMarkup(purchase);
     const detailRows = [
       { label: "Mã phiếu", value: purchase.receiptCode || "Chưa có" },
       { label: "Nhà cung cấp", value: purchase.supplierName || "Chưa có" },
@@ -323,6 +325,8 @@ export function createPurchasesUi(deps) {
               ${detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
             </article>
           </div>
+          ${["received", "paid"].includes(purchase.status) && !repairableInvalidPurchase ? `<div class="queue-actions queue-actions-expanded"><button type="button" class="ghost-button compact-button" data-purchase-action="supplier-return">Trả NCC</button></div>` : ""}
+          ${supplierReturnEditorMarkup}
         ` : ""}
         ${procurementBatchReadOnly && ["draft", "ordered"].includes(purchase.status) ? `<article class="inline-alert warning">Batch mode đang bật. Bạn chỉ được xem phiếu nháp/đã đặt này; tạo mới, đổi NCC, sửa dòng, đổi giảm giá, hủy hoặc xóa chỉ dành cho người giữ khóa batch hoặc Master Admin. Bước Nhập kho chỉ còn mở cho phiếu không phải batch và đã được Đã đặt trước khi kỳ gom hiện tại bắt đầu.</article>` : ""}
         ${purchaseConflictWarnings.length ? `<article class="inline-alert warning"><strong>Cảnh báo NCC theo mặt hàng:</strong> ${purchaseConflictWarnings.map((entry) => `${escapeHtml(entry.productName)} đang có phiếu chờ ở ${escapeHtml(joinSupplierNames(entry.otherSupplierNames))}${entry.hasMultiSupplierOpenState ? `; hiện đang có ${escapeHtml(String(entry.openPurchaseCount))} phiếu mở cho mặt hàng này.` : "."}`).join(" ")}</article>` : ""}
@@ -345,7 +349,6 @@ export function createPurchasesUi(deps) {
           ${canReceivePurchase(purchase) ? `<button type="button" class="primary-button" data-purchase-action="receive" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Nhập kho</button>` : ""}
           ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
           ${canRepeatPurchase ? `<button type="button" class="ghost-button" data-purchase-action="repeat" ${repeatPurchaseDisabled ? "disabled" : ""} title="${repeatPurchaseDisabled ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo lại phiếu nhập." : ""}">Nhập lại</button>` : ""}
-          ${["received", "paid"].includes(purchase.status) && !repairableInvalidPurchase ? `<button type="button" class="ghost-button" data-purchase-action="supplier-return">Trả NCC</button>` : ""}
           ${purchaseCancellable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
           ${canDeletePurchase(purchase) ? `<button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>` : ""}
         </div>

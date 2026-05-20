@@ -64,20 +64,6 @@ import {
   showPaidOrders,
   orderSearchInput,
   cartQueueList,
-  customerReturnSection,
-  customerReturnWrap,
-  customerReturnToggleButton,
-  customerReturnCustomerInput,
-  customerReturnNoteInput,
-  customerReturnProductInput,
-  customerReturnQuantityInput,
-  customerReturnPriceInput,
-  customerReturnBatchCodeInput,
-  customerReturnExpiryDateInput,
-  customerReturnAddButton,
-  customerReturnItems,
-  customerReturnSubmitButton,
-  customerReturnClearButton,
   customerForm,
   customerNameInput,
   customerPhoneInput,
@@ -108,18 +94,6 @@ import {
   createPurchaseDraftButton,
   togglePurchasePanelButton,
   purchasePanel,
-  supplierReturnSection,
-  supplierReturnWrap,
-  supplierReturnToggleButton,
-  supplierReturnSupplierInput,
-  supplierReturnNoteInput,
-  supplierReturnProductInput,
-  supplierReturnQuantityInput,
-  supplierReturnPriceInput,
-  supplierReturnAddButton,
-  supplierReturnItems,
-  supplierReturnSubmitButton,
-  supplierReturnClearButton,
   purchaseSupplierMenuButton,
   purchaseSearchInput,
   purchaseSuggestionList,
@@ -699,20 +673,6 @@ function focusInventoryReceiptSection() {
   scheduleScrollToTarget(inventoryReceiptSection);
 }
 
-function focusCustomerReturnSection() {
-  if (state.activeMenu !== "orders") {
-    switchMenu("orders");
-  }
-  scheduleScrollToTarget(customerReturnSection);
-}
-
-function focusSupplierReturnSection() {
-  if (state.activeMenu !== "purchases") {
-    switchMenu("purchases");
-  }
-  scheduleScrollToTarget(supplierReturnSection);
-}
-
 function focusOrderQueueItem(cartId) {
   if (state.activeMenu !== "orders") {
     switchMenu("orders");
@@ -976,6 +936,7 @@ function getSalesUi() {
       getProductById,
       canDeleteCart,
       canEditCartDiscount,
+      getCustomerReturnEditorMarkup: (cart) => buildCustomerReturnEditorMarkup(cart),
       isSearchResultMode,
       paginateItems,
       renderPagination,
@@ -1050,6 +1011,7 @@ function getPurchasesUi() {
       getPurchaseSuggestions,
       getOpenPurchaseSupplierConflictInsight,
       resolvePurchaseItemExpiryMeta,
+      getSupplierReturnEditorMarkup: (purchase) => buildSupplierReturnEditorMarkup(purchase),
       isSearchResultMode,
       paginateItems,
       renderPagination,
@@ -4605,51 +4567,76 @@ function openCustomerReturnDraftFromCart(cartId) {
   };
 }
 
-function renderCustomerReturnSection() {
-  if (!customerReturnSection || !customerReturnWrap || !customerReturnToggleButton) {
-    return;
-  }
+function buildCustomerReturnEditorMarkup(cart) {
   const draft = state.customerReturnDraft;
-  customerReturnSection.classList.toggle("is-collapsed", draft.collapsed);
-  customerReturnWrap.hidden = draft.collapsed;
-  customerReturnToggleButton.textContent = draft.collapsed ? "Mở phiếu" : "Thu gọn";
-  if (customerReturnCustomerInput) customerReturnCustomerInput.value = draft.customerName || "";
-  if (customerReturnNoteInput) customerReturnNoteInput.value = draft.note || "";
-  if (customerReturnProductInput) customerReturnProductInput.value = draft.productText || "";
-  if (customerReturnQuantityInput) customerReturnQuantityInput.value = draft.quantity || "";
-  if (customerReturnPriceInput) customerReturnPriceInput.value = draft.unitRefund || "";
-  if (customerReturnBatchCodeInput) customerReturnBatchCodeInput.value = draft.batchCode || "";
-  if (customerReturnExpiryDateInput) customerReturnExpiryDateInput.value = draft.expiryDate || "";
-  if (!customerReturnItems) {
-    return;
-  }
-  if (!draft.items.length) {
-    customerReturnItems.innerHTML = '<div class="empty-state">Chọn một đơn đã chốt để tạo sẵn phiếu, hoặc nhập sản phẩm và bấm Thêm dòng để lập phiếu độc lập.</div>';
-    return;
+  if (!cart || String(draft.sourceCartId || "") !== String(cart.id || "")) {
+    return "";
   }
   const sourceCart = draft.sourceCartId ? getCartById(draft.sourceCartId) : null;
   const sourceLabel = sourceCart?.orderCode ? `Đơn nguồn: ${sourceCart.orderCode}` : "";
-  customerReturnItems.innerHTML = `
-    ${sourceLabel ? `<article class="inline-alert">${escapeHtml(sourceLabel)}</article>` : ""}
-    ${draft.items.map((item) => `
-      <article class="cart-item">
-        <div class="cart-item-header">
-          <div>
-            <strong>${escapeHtml(item.productName)}</strong>
-            <div class="cart-line-note">${escapeHtml(item.unit)}</div>
-            ${item.batchCode || item.expiryDate ? `<div class="cart-line-note">${item.batchCode ? `Lô ${escapeHtml(item.batchCode)}` : "Lô tự sinh"}${item.expiryDate ? ` • HSD ${escapeHtml(item.expiryDate)}` : ""}</div>` : ""}
-          </div>
-          <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitRefund || 0)))}</strong>
-        </div>
-        <div class="purchase-inline-grid">
-          <label class="price-field"><span>SL trả</span><input type="number" min="0.01" step="0.01" value="${item.quantity}" data-customer-return-qty="${item.id}"></label>
-          <label class="price-field"><span>Giá hoàn</span><input type="number" min="0" step="1000" value="${item.unitRefund}" data-customer-return-price="${item.id}"></label>
-        </div>
-        <div class="line-actions">
-          <button type="button" class="danger-button compact-button" data-customer-return-action="remove" data-item-id="${item.id}">Bỏ dòng</button>
-        </div>
-      </article>
-    `).join("")}
+  return `
+    <div class="document-detail-block" data-customer-return-editor="${escapeHtml(String(cart.id || ""))}">
+      <article class="inline-alert warning">Trả hàng chỉ nên lập từ detail của đúng đơn đã xuất để tránh bấm nhầm và giữ đúng liên kết chứng từ.</article>
+      ${sourceLabel ? `<article class="inline-alert">${escapeHtml(sourceLabel)}</article>` : ""}
+      <label class="price-field">
+        <span>Khách hàng</span>
+        <input type="text" maxlength="120" value="${escapeHtml(draft.customerName || "")}" data-customer-return-customer-input placeholder="Tên khách hàng">
+      </label>
+      <label class="price-field">
+        <span>Ghi chú</span>
+        <input type="text" maxlength="160" value="${escapeHtml(draft.note || "")}" data-customer-return-note-input placeholder="Lý do trả hàng / ghi chú">
+      </label>
+      <div class="purchase-inline-grid">
+        <label class="price-field">
+          <span>Sản phẩm</span>
+          <input type="text" list="productOptions" maxlength="120" value="${escapeHtml(draft.productText || "")}" data-customer-return-product-input placeholder="Gõ tên sản phẩm để thêm dòng">
+        </label>
+        <label class="price-field">
+          <span>SL trả</span>
+          <input type="number" min="0.01" step="0.01" value="${escapeHtml(draft.quantity || "")}" data-customer-return-quantity-input placeholder="0">
+        </label>
+        <label class="price-field">
+          <span>Giá hoàn</span>
+          <input type="number" min="0" step="1000" value="${escapeHtml(draft.unitRefund || "")}" data-customer-return-price-input placeholder="0">
+        </label>
+        <label class="price-field">
+          <span>Mã lô</span>
+          <input type="text" maxlength="80" value="${escapeHtml(draft.batchCode || "")}" data-customer-return-batch-code-input placeholder="Tùy chọn khi hàng trả về">
+        </label>
+        <label class="price-field">
+          <span>Hạn dùng</span>
+          <input type="date" value="${escapeHtml(draft.expiryDate || "")}" data-customer-return-expiry-date-input>
+        </label>
+      </div>
+      <div class="customer-form-actions">
+        <button type="button" class="ghost-button" data-customer-return-action="add">Thêm dòng</button>
+      </div>
+      <div class="cart-items-list">
+        ${draft.items.length ? draft.items.map((item) => `
+          <article class="cart-item">
+            <div class="cart-item-header">
+              <div>
+                <strong>${escapeHtml(item.productName)}</strong>
+                <div class="cart-line-note">${escapeHtml(item.unit)}</div>
+                ${item.batchCode || item.expiryDate ? `<div class="cart-line-note">${item.batchCode ? `Lô ${escapeHtml(item.batchCode)}` : "Lô tự sinh"}${item.expiryDate ? ` • HSD ${escapeHtml(item.expiryDate)}` : ""}</div>` : ""}
+              </div>
+              <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitRefund || 0)))}</strong>
+            </div>
+            <div class="purchase-inline-grid">
+              <label class="price-field"><span>SL trả</span><input type="number" min="0.01" step="0.01" value="${item.quantity}" data-customer-return-qty="${item.id}"></label>
+              <label class="price-field"><span>Giá hoàn</span><input type="number" min="0" step="1000" value="${item.unitRefund}" data-customer-return-price="${item.id}"></label>
+            </div>
+            <div class="line-actions">
+              <button type="button" class="danger-button compact-button" data-customer-return-action="remove" data-item-id="${item.id}">Bỏ dòng</button>
+            </div>
+          </article>
+        `).join("") : '<div class="empty-state">Phiếu trả hàng khách đang trống. Giữ lại các dòng cần hoàn rồi bấm tạo phiếu.</div>'}
+      </div>
+      <div class="customer-form-actions">
+        <button type="button" class="primary-button" data-customer-return-action="submit">Tạo phiếu trả khách</button>
+        <button type="button" class="ghost-button" data-customer-return-action="close">Đóng phiếu trả</button>
+      </div>
+    </div>
   `;
 }
 
@@ -4728,49 +4715,68 @@ function openSupplierReturnDraftFromPurchase(purchaseId) {
   };
 }
 
-function renderSupplierReturnSection() {
-  if (!supplierReturnSection || !supplierReturnWrap || !supplierReturnToggleButton) {
-    return;
-  }
+function buildSupplierReturnEditorMarkup(purchase) {
   const draft = state.supplierReturnDraft;
-  supplierReturnSection.classList.toggle("is-collapsed", draft.collapsed);
-  supplierReturnWrap.hidden = draft.collapsed;
-  supplierReturnToggleButton.textContent = draft.collapsed ? "Mở phiếu" : "Thu gọn";
-  if (supplierReturnSupplierInput) supplierReturnSupplierInput.value = draft.supplierName || "";
-  if (supplierReturnNoteInput) supplierReturnNoteInput.value = draft.note || "";
-  if (supplierReturnProductInput) supplierReturnProductInput.value = draft.productText || "";
-  if (supplierReturnQuantityInput) supplierReturnQuantityInput.value = draft.quantity || "";
-  if (supplierReturnPriceInput) supplierReturnPriceInput.value = draft.unitCost || "";
-  if (!supplierReturnItems) {
-    return;
-  }
-  if (!draft.items.length) {
-    supplierReturnItems.innerHTML = '<div class="empty-state">Mở một phiếu đã nhập kho để tạo sẵn phiếu, hoặc nhập sản phẩm và bấm Thêm dòng để lập phiếu trả NCC độc lập.</div>';
-    return;
+  if (!purchase || String(draft.sourcePurchaseId || "") !== String(purchase.id || "")) {
+    return "";
   }
   const sourcePurchase = draft.sourcePurchaseId ? state.purchases.find((entry) => entry.id === draft.sourcePurchaseId) : null;
   const sourceLabel = sourcePurchase?.receiptCode ? `Phiếu nguồn: ${sourcePurchase.receiptCode}` : "";
-  supplierReturnItems.innerHTML = `
-    ${sourceLabel ? `<article class="inline-alert">${escapeHtml(sourceLabel)}</article>` : ""}
-    ${draft.items.map((item) => `
-      <article class="cart-item">
-        <div class="cart-item-header">
-          <div>
-            <strong>${escapeHtml(item.productName)}</strong>
-            <div class="cart-line-note">${escapeHtml(item.unit)}</div>
-            ${item.batchCode || item.expiryDate ? `<div class="cart-line-note">${item.batchCode ? `Lô ${escapeHtml(item.batchCode)}` : ""}${item.expiryDate ? `${item.batchCode ? " • " : ""}HSD ${escapeHtml(item.expiryDate)}` : ""}</div>` : ""}
-          </div>
-          <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitCost || 0)))}</strong>
-        </div>
-        <div class="purchase-inline-grid">
-          <label class="price-field"><span>SL trả</span><input type="number" min="0.01" step="0.01" value="${item.quantity}" data-supplier-return-qty="${item.id}"></label>
-          <label class="price-field"><span>Giá trả NCC</span><input type="number" min="0" step="1000" value="${item.unitCost}" data-supplier-return-price="${item.id}"></label>
-        </div>
-        <div class="line-actions">
-          <button type="button" class="danger-button compact-button" data-supplier-return-action="remove" data-item-id="${item.id}">Bỏ dòng</button>
-        </div>
-      </article>
-    `).join("")}
+  return `
+    <div class="document-detail-block" data-supplier-return-editor="${escapeHtml(String(purchase.id || ""))}">
+      <article class="inline-alert warning">Trả NCC chỉ nên lập từ detail của đúng phiếu đã nhập để tránh nhầm với thao tác mở phiếu thông thường.</article>
+      ${sourceLabel ? `<article class="inline-alert">${escapeHtml(sourceLabel)}</article>` : ""}
+      <label class="price-field">
+        <span>Nhà cung cấp</span>
+        <input type="text" maxlength="120" value="${escapeHtml(draft.supplierName || "")}" data-supplier-return-supplier-input placeholder="Tên nhà cung cấp">
+      </label>
+      <label class="price-field">
+        <span>Ghi chú</span>
+        <input type="text" maxlength="160" value="${escapeHtml(draft.note || "")}" data-supplier-return-note-input placeholder="Lý do trả NCC / ghi chú">
+      </label>
+      <div class="purchase-inline-grid">
+        <label class="price-field">
+          <span>Sản phẩm</span>
+          <input type="text" list="productOptions" maxlength="120" value="${escapeHtml(draft.productText || "")}" data-supplier-return-product-input placeholder="Gõ tên sản phẩm để thêm dòng">
+        </label>
+        <label class="price-field">
+          <span>SL trả</span>
+          <input type="number" min="0.01" step="0.01" value="${escapeHtml(draft.quantity || "")}" data-supplier-return-quantity-input placeholder="0">
+        </label>
+        <label class="price-field">
+          <span>Giá trả NCC</span>
+          <input type="number" min="0" step="1000" value="${escapeHtml(draft.unitCost || "")}" data-supplier-return-price-input placeholder="0">
+        </label>
+      </div>
+      <div class="customer-form-actions">
+        <button type="button" class="ghost-button" data-supplier-return-action="add">Thêm dòng</button>
+      </div>
+      <div class="cart-items-list">
+        ${draft.items.length ? draft.items.map((item) => `
+          <article class="cart-item">
+            <div class="cart-item-header">
+              <div>
+                <strong>${escapeHtml(item.productName)}</strong>
+                <div class="cart-line-note">${escapeHtml(item.unit)}</div>
+                ${item.batchCode || item.expiryDate ? `<div class="cart-line-note">${item.batchCode ? `Lô ${escapeHtml(item.batchCode)}` : ""}${item.expiryDate ? `${item.batchCode ? " • " : ""}HSD ${escapeHtml(item.expiryDate)}` : ""}</div>` : ""}
+              </div>
+              <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitCost || 0)))}</strong>
+            </div>
+            <div class="purchase-inline-grid">
+              <label class="price-field"><span>SL trả</span><input type="number" min="0.01" step="0.01" value="${item.quantity}" data-supplier-return-qty="${item.id}"></label>
+              <label class="price-field"><span>Giá trả NCC</span><input type="number" min="0" step="1000" value="${item.unitCost}" data-supplier-return-price="${item.id}"></label>
+            </div>
+            <div class="line-actions">
+              <button type="button" class="danger-button compact-button" data-supplier-return-action="remove" data-item-id="${item.id}">Bỏ dòng</button>
+            </div>
+          </article>
+        `).join("") : '<div class="empty-state">Phiếu trả NCC đang trống. Giữ lại các dòng cần trả rồi bấm tạo phiếu.</div>'}
+      </div>
+      <div class="customer-form-actions">
+        <button type="button" class="primary-button" data-supplier-return-action="submit">Tạo phiếu trả NCC</button>
+        <button type="button" class="ghost-button" data-supplier-return-action="close">Đóng phiếu trả</button>
+      </div>
+    </div>
   `;
 }
 
@@ -4934,11 +4940,9 @@ function renderAll() {
   renderBulkOrdersScreen();
   renderSalesProductList();
   renderCartItems();
-  renderCustomerReturnSection();
   renderCartQueue();
   renderCustomers();
   renderPurchasePanel();
-  renderSupplierReturnSection();
   renderPurchaseSuggestions();
   renderPurchaseOrders();
   renderProcurementPlanner();
@@ -5691,18 +5695,6 @@ registerSalesControllerEvents({
     activeCartPanel,
     selectedCartToggleButton,
     cartQueueList,
-    customerReturnToggleButton,
-    customerReturnCustomerInput,
-    customerReturnNoteInput,
-    customerReturnProductInput,
-    customerReturnQuantityInput,
-    customerReturnPriceInput,
-    customerReturnBatchCodeInput,
-    customerReturnExpiryDateInput,
-    customerReturnAddButton,
-    customerReturnItems,
-    customerReturnClearButton,
-    customerReturnSubmitButton,
   },
   actions: {
     showToast,
@@ -5733,7 +5725,6 @@ registerSalesControllerEvents({
     focusActiveCartPanel,
     focusOrderQueueItem,
     openCustomerReturnDraftFromCart,
-    focusCustomerReturnSection,
     addCustomerReturnDraftItem,
     resetCustomerReturnDraft,
     submitCustomerReturnDraft,
@@ -5744,7 +5735,6 @@ registerSalesControllerEvents({
     renderActiveCartPanel,
     renderCartQueue,
     renderCreateOrderEntryState,
-    renderCustomerReturnSection,
   },
   queries: {
     getActiveCart,
@@ -5876,16 +5866,6 @@ registerPurchasesControllerEvents({
     purchasePanel,
     purchaseOrderList,
     mobileQuery,
-    supplierReturnToggleButton,
-    supplierReturnSupplierInput,
-    supplierReturnNoteInput,
-    supplierReturnProductInput,
-    supplierReturnQuantityInput,
-    supplierReturnPriceInput,
-    supplierReturnAddButton,
-    supplierReturnItems,
-    supplierReturnClearButton,
-    supplierReturnSubmitButton,
   },
   actions: {
     createPurchaseDraftIfMissing,
@@ -5905,7 +5885,6 @@ registerPurchasesControllerEvents({
     beginSupplierCreateFromPurchase,
     setSkipNextPurchaseSupplierChangePersist: (value) => { skipNextPurchaseSupplierChangePersist = value; },
     focusPurchaseOrders,
-    focusSupplierReturnSection,
     switchMenu,
     addSuggestionToPurchase,
     repeatCompletedPurchase,
@@ -5922,7 +5901,6 @@ registerPurchasesControllerEvents({
     renderPurchasePanel,
     renderPurchaseSuggestions,
     renderPurchaseOrders,
-    renderSupplierReturnSection,
   },
   queries: {
     getActivePurchase,

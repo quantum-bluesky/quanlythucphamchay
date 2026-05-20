@@ -502,18 +502,20 @@ Lưu ý:
 #### Phiếu trả hàng khách
 
 1. Vào `Quản lý đơn hàng`
-2. Nếu có đơn nguồn, tìm đơn đã chốt rồi bấm `Trả hàng`
-3. App sẽ tạo sẵn danh sách dòng hàng theo đơn đó; có thể sửa số lượng trả, giá hoàn hoặc bỏ bớt dòng
-4. Nếu không có đơn nguồn, mở khối `Phiếu trả hàng khách`, nhập `Khách hàng`, `Sản phẩm`, `SL trả`, `Giá hoàn` rồi bấm `Thêm dòng`
+2. Tìm đúng đơn đã `Đã xuất hàng` rồi bấm `Detail`
+3. Trong detail của đơn đó, bấm `Trả hàng`
+4. App sẽ tạo sẵn danh sách dòng hàng theo đơn nguồn; có thể sửa số lượng trả, giá hoàn hoặc bỏ bớt dòng
 5. Bấm `Tạo phiếu trả khách`
+6. Form trả hàng không còn hiện độc lập ngoài list để tránh bấm nhầm sang một phiếu không liên quan
 
 #### Phiếu trả NCC
 
 1. Vào `Quản lý nhập hàng`
-2. Nếu có phiếu nguồn, mở phiếu đã `Đã nhập kho` hoặc `Đã thanh toán` rồi bấm `Trả NCC`
-3. App sẽ tạo sẵn danh sách dòng hàng theo phiếu đó; có thể sửa số lượng trả, giá trả NCC hoặc bỏ bớt dòng
-4. Nếu không có phiếu nguồn, mở khối `Phiếu trả NCC`, nhập `Nhà cung cấp`, `Sản phẩm`, `SL trả`, `Giá trả NCC` rồi bấm `Thêm dòng`
+2. Mở đúng phiếu đã `Đã nhập kho` hoặc `Đã thanh toán`, rồi bấm `Detail`
+3. Trong detail của phiếu đó, bấm `Trả NCC`
+4. App sẽ tạo sẵn danh sách dòng hàng theo phiếu nguồn; có thể sửa số lượng trả, giá trả NCC hoặc bỏ bớt dòng
 5. Bấm `Tạo phiếu trả NCC`
+6. Form trả NCC không còn hiện độc lập ngoài list để tránh nhầm với thao tác mở phiếu nhập thông thường
 
 #### Báo cáo và audit chứng từ Phase B
 
