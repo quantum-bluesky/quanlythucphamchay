@@ -962,6 +962,7 @@ function getSalesUi() {
       getProductById,
       canDeleteCart,
       canEditCartDiscount,
+      getCartCostWarning,
       getVisibleOrders,
       getCustomerReturnEditorMarkup: (cart) => buildCustomerReturnEditorMarkup(cart),
       isSearchResultMode,
@@ -1753,6 +1754,10 @@ function canDeleteCart(cart) {
 
 function canEditCartDiscount(cart) {
   return getSalesDomainHelpers().canEditCartDiscount(cart);
+}
+
+function getCartCostWarning(cart) {
+  return getSalesDomainHelpers().getCartCostWarning(cart);
 }
 
 function canEditPurchase(purchase) {
@@ -5834,6 +5839,7 @@ registerSalesControllerEvents({
     getActiveCart,
     getCartById,
     canEditCartDiscount,
+    getCartCostWarning,
     getVisibleOrders,
   },
   utils: {

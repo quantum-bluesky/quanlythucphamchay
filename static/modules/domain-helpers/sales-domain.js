@@ -58,6 +58,29 @@ export function createSalesDomainHelpers(deps) {
     );
   }
 
+  function getCartCostWarning(cart) {
+    if (!cart || !Array.isArray(cart.items) || !cart.items.length) {
+      return {
+        hasWarning: false,
+        estimatedCostAmount: 0,
+        totalAmount: Number(cart?.totalAmount || 0),
+        lossAmount: 0,
+      };
+    }
+    const estimatedCostAmount = cart.items.reduce((sum, item) => {
+      const product = getProductById(item.productId);
+      return sum + (Number(item.quantity || 0) * Number(product?.price || 0));
+    }, 0);
+    const totalAmount = Number(cart.totalAmount || 0);
+    const lossAmount = estimatedCostAmount - totalAmount;
+    return {
+      hasWarning: lossAmount > 0.0001,
+      estimatedCostAmount: Number(estimatedCostAmount.toFixed(2)),
+      totalAmount: Number(totalAmount.toFixed(2)),
+      lossAmount: Number(Math.max(0, lossAmount).toFixed(2)),
+    };
+  }
+
   function decorateCart(cart) {
     const items = Array.isArray(cart.items)
       ? cart.items
@@ -630,5 +653,6 @@ export function createSalesDomainHelpers(deps) {
     startInventoryOutFlow,
     setActiveCart,
     canEditCartDiscount,
+    getCartCostWarning,
   };
 }
