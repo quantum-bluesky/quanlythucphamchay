@@ -132,10 +132,11 @@ Liên kết detail hiện có:
   - danh sách order card
 - nguyên tắc UI:
   - đơn đã hủy mặc định ẩn để list gọn hơn; user chỉ bật lại khi cần tra cứu
+  - list đơn là trung tâm; detail của đơn mở ở panel riêng khi user chọn card, có nút `Previous / Next` để đi theo đúng danh sách đang lọc và có nút `Đóng` để ẩn panel
   - đơn `draft` có nút `Chốt đơn` nhanh ngay trên card trên tablet/PC
   - đơn `committed` có nút `Xuất hàng` nhanh ngay trên card trên tablet/PC
   - list đơn có thêm nút `In` cho các phiếu chưa thanh toán; riêng phiếu đã thanh toán chỉ giữ `In` trong phần detail để list gọn hơn
-  - card đơn có button `Detail` để bung metadata và danh sách dòng hàng ngay trong list
+  - card đơn có button `Detail` để mở panel detail; trong panel này metadata hiện đầy đủ, còn danh sách mặt hàng mặc định thu gọn và chỉ mở ra khi user cần xem
   - khi đi từ màn `customers`, list có thể tự lọc đúng theo `customerId`; nếu chỉ còn 1 phiếu phù hợp thì detail của phiếu đó phải tự mở kể cả với đơn `Đã xuất hàng` hoặc `Đã thanh toán`
   - card đơn `committed` có thể hiện thêm input `Địa chỉ giao` và `Giảm giá khuyến mại` trong detail
   - card đơn `completed` chưa thanh toán chỉ còn hiện input `Giảm giá khuyến mại` trong detail
@@ -157,6 +158,7 @@ Liên kết detail hiện có:
 - nguyên tắc UI:
   - trên mobile, card khách nên giữ ở khoảng 3 dòng để ưu tiên mật độ danh sách
   - dòng cuối của card mobile ưu tiên `số liên lạc` và các action ngắn cùng hàng để thấy được nhiều khách hơn
+  - detail của khách mở ở panel riêng khi user chọn card; panel này hiện đủ liên hệ/ship/Zalo, có `Previous / Next` theo danh sách đang lọc và có nút `Đóng`
   - badge `giỏ chờ` hoặc `đơn` trên card là link nội bộ sang màn `orders`; nếu chỉ có 1 phiếu liên quan thì app mở thẳng detail phiếu đó
 
 ### `products` - Quản lý sản phẩm
@@ -188,6 +190,7 @@ Liên kết detail hiện có:
   - nút `NCC`
 - nguyên tắc UI:
   - phiếu đã hủy mặc định ẩn để list gọn hơn; user chỉ bật lại khi cần tra cứu
+  - khi user chọn một phiếu trong danh sách, panel phiếu nhập hiện hành đóng vai trò detail panel riêng: có `Previous / Next`, `Đóng`, metadata đầy đủ và danh sách dòng hàng hiện trọn vẹn
   - ngay trên từng card gợi ý nhập phải có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
@@ -259,6 +262,7 @@ Liên kết detail hiện có:
   - form tạo/sửa thu gọn
 - nguyên tắc UI:
   - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo để user biết đang tạo/sửa NCC trong bối cảnh batch mode còn mở
+  - detail của NCC mở ở panel riêng khi user chọn card; panel này hiện đủ liên hệ, ghi chú, số phiếu liên quan, có `Previous / Next` và `Đóng`
 
 ### `reports` - Báo cáo
 

@@ -63,6 +63,7 @@ import {
   showCancelledOrders,
   showPaidOrders,
   orderSearchInput,
+  orderDetailPanel,
   cartQueueList,
   customerForm,
   customerNameInput,
@@ -74,6 +75,7 @@ import {
   customerFormWrap,
   customerFormToggleButton,
   customerSearchInput,
+  customerDetailPanel,
   customerList,
   productManageSearchInput,
   productManageList,
@@ -125,6 +127,7 @@ import {
   supplierFormWrap,
   supplierFormToggleButton,
   supplierSearchInput,
+  supplierDetailPanel,
   supplierList,
   reportMonthInput,
   reportStartDateInput,
@@ -682,6 +685,27 @@ function focusOrderQueueItem(cartId) {
   )));
 }
 
+function focusOrderDetailPanel() {
+  if (state.activeMenu !== "orders") {
+    switchMenu("orders");
+  }
+  scheduleScrollToTarget(orderDetailPanel, { delayMs: 40 });
+}
+
+function focusCustomerDetailPanel() {
+  if (state.activeMenu !== "customers") {
+    switchMenu("customers");
+  }
+  scheduleScrollToTarget(customerDetailPanel, { delayMs: 40 });
+}
+
+function focusSupplierDetailPanel() {
+  if (state.activeMenu !== "suppliers") {
+    switchMenu("suppliers");
+  }
+  scheduleScrollToTarget(supplierDetailPanel, { delayMs: 40 });
+}
+
 function getProductsUi() {
   if (!productsUi) {
     productsUi = createProductsUi({
@@ -770,6 +794,7 @@ function getSalesDomainHelpers() {
       focusCreateOrderSelection,
       focusActiveCartPanel,
       focusOrderQueueItem,
+      focusOrderDetailPanel,
       focusPurchaseOrders,
       switchMenu,
       showToast,
@@ -917,6 +942,7 @@ function getSalesUi() {
         createOrderCustomerCard,
         openCartButton,
         activeCartPanel,
+        orderDetailPanel,
         salesProductList,
         selectedCartSection,
         selectedCartToggleButton,
@@ -936,6 +962,7 @@ function getSalesUi() {
       getProductById,
       canDeleteCart,
       canEditCartDiscount,
+      getVisibleOrders,
       getCustomerReturnEditorMarkup: (cart) => buildCustomerReturnEditorMarkup(cart),
       isSearchResultMode,
       paginateItems,
@@ -1009,6 +1036,7 @@ function getPurchasesUi() {
       canManageProcurementBatchStructure,
       isProcurementBatchModeActive,
       getPurchaseSuggestions,
+      getVisiblePurchases,
       getOpenPurchaseSupplierConflictInsight,
       resolvePurchaseItemExpiryMeta,
       getSupplierReturnEditorMarkup: (purchase) => buildSupplierReturnEditorMarkup(purchase),
@@ -1031,7 +1059,9 @@ function getEntitiesUi() {
         supplierFormSection,
         supplierFormWrap,
         supplierFormToggleButton,
+        customerDetailPanel,
         customerList,
+        supplierDetailPanel,
         supplierList,
         deletedCustomerList,
         deletedSupplierList,
@@ -1042,6 +1072,8 @@ function getEntitiesUi() {
       mobileQuery,
       getActiveCustomers,
       getActiveSuppliers,
+      getVisibleCustomers,
+      getVisibleSuppliers,
       getDeletedCustomers,
       getDeletedSuppliers,
       getCustomerDeleteImpact,
@@ -1257,12 +1289,13 @@ async function openInventoryHistoryDocument(documentType, documentCode) {
     state.orderSearchTerm = cleanCode;
     state.pagination.orders = 1;
     state.expandedOrderId = cart.id;
+    state.orderDetailItemsCollapsed = true;
     if (orderSearchInput) {
       orderSearchInput.value = cleanCode;
     }
     switchMenu("orders");
     renderCartQueue();
-    focusOrderQueueItem(cart.id);
+    focusOrderDetailPanel();
     return;
   }
 
@@ -1488,6 +1521,16 @@ function paginateItems(items, key) {
   };
 }
 
+function setPaginationPageForItem(key, items, itemId, getItemId = (item) => item?.id) {
+  const pageSize = getPageSize(key);
+  const targetIndex = items.findIndex((item) => String(getItemId(item) || "") === String(itemId || ""));
+  if (targetIndex < 0) {
+    return false;
+  }
+  state.pagination[key] = Math.max(1, Math.floor(targetIndex / pageSize) + 1);
+  return true;
+}
+
 function shouldShowPaginationSizePicker(key) {
   return !mobileQuery.matches && Boolean(PAGINATION_GROUP_MAP[key]);
 }
@@ -1575,6 +1618,13 @@ function getActiveCustomers() {
   return state.customers.filter((customer) => !isDeletedEntity(customer));
 }
 
+function getVisibleCustomers() {
+  const keyword = normalizeText(state.customerSearchTerm);
+  return getActiveCustomers().filter((customer) => (
+    `${customer.name} ${customer.phone} ${customer.address} ${customer.zaloUrl}`.toLowerCase().includes(keyword)
+  ));
+}
+
 function getDeletedCustomers() {
   return state.customers.filter((customer) => isDeletedEntity(customer));
 }
@@ -1583,8 +1633,49 @@ function getActiveSuppliers() {
   return state.suppliers.filter((supplier) => !isDeletedEntity(supplier));
 }
 
+function getVisibleSuppliers() {
+  const keyword = normalizeText(state.supplierSearchTerm);
+  return getActiveSuppliers().filter((supplier) => (
+    `${supplier.name} ${supplier.phone} ${supplier.address} ${supplier.note}`.toLowerCase().includes(keyword)
+  ));
+}
+
 function getDeletedSuppliers() {
   return state.suppliers.filter((supplier) => isDeletedEntity(supplier));
+}
+
+function getVisibleOrders() {
+  const customerFilterId = String(state.orderFilterCustomerId || "");
+  const pending = state.carts.filter((cart) => ["draft", "committed"].includes(cart.status));
+  const archived = state.carts.filter((cart) => {
+    if (["draft", "committed"].includes(cart.status)) return false;
+    if (!state.showCancelledOrders && cart.status === "cancelled") return false;
+    if (!state.showPaidOrders && cart.paymentStatus === "paid") return false;
+    return true;
+  });
+  return (state.showArchivedCarts ? [...pending, ...archived] : pending).filter((cart) => {
+    if (customerFilterId && String(cart.customerId || "") !== customerFilterId) return false;
+    if (!state.orderSearchTerm) return true;
+    const haystack = `${cart.customerName} ${cart.orderCode} ${cart.items.map((item) => item.productName).join(" ")}`.toLowerCase();
+    return haystack.includes(state.orderSearchTerm.toLowerCase());
+  });
+}
+
+function getVisiblePurchases() {
+  return state.purchases
+    .filter((purchase) => {
+      if (!state.showCancelledPurchases && purchase.status === "cancelled") {
+        return false;
+      }
+      return state.showPaidPurchases || purchase.status !== "paid";
+    })
+    .filter((purchase) => {
+      if (!state.purchaseSearchTerm) {
+        return true;
+      }
+      const haystack = `${purchase.supplierName} ${purchase.receiptCode} ${purchase.note || ""} ${purchase.sourceName || purchase.source_name || ""} ${purchase.sourceCode || purchase.source_code || ""} ${purchase.items.map((item) => item.productName).join(" ")}`.toLowerCase();
+      return haystack.includes(state.purchaseSearchTerm.toLowerCase());
+    });
 }
 
 function readStorage(key, fallback) {
@@ -4306,7 +4397,7 @@ function openPurchaseDocumentById(purchaseId) {
   }
   state.activePurchaseId = purchase.id;
   state.purchasePanelCollapsed = false;
-  state.purchaseDetailExpanded = false;
+  state.purchaseDetailExpanded = true;
   state.selectedPurchaseItemsCollapsed = false;
   switchMenu("purchases");
   renderAll();
@@ -5694,6 +5785,7 @@ registerSalesControllerEvents({
     cartItemsList,
     activeCartPanel,
     selectedCartToggleButton,
+    orderDetailPanel,
     cartQueueList,
   },
   actions: {
@@ -5723,11 +5815,13 @@ registerSalesControllerEvents({
     printCart,
     updateProductSalePrice,
     focusActiveCartPanel,
+    focusOrderDetailPanel,
     focusOrderQueueItem,
     openCustomerReturnDraftFromCart,
     addCustomerReturnDraftItem,
     resetCustomerReturnDraft,
     submitCustomerReturnDraft,
+    setPaginationPageForItem,
   },
   renderers: {
     renderSalesProductList,
@@ -5740,6 +5834,7 @@ registerSalesControllerEvents({
     getActiveCart,
     getCartById,
     canEditCartDiscount,
+    getVisibleOrders,
   },
   utils: {
     formatCurrency,
@@ -5800,6 +5895,7 @@ registerEntitiesControllerEvents({
     customerPhoneInput,
     customerAddressInput,
     customerZaloInput,
+    customerDetailPanel,
     customerList,
     supplierSearchInput,
     supplierForm,
@@ -5809,6 +5905,7 @@ registerEntitiesControllerEvents({
     supplierPhoneInput,
     supplierAddressInput,
     supplierNoteInput,
+    supplierDetailPanel,
     supplierList,
     purchaseNoteInput,
     purchaseSupplierInput,
@@ -5827,6 +5924,8 @@ registerEntitiesControllerEvents({
     applySupplierToActiveDraft,
     updatePurchase,
     focusPurchasePanel,
+    focusCustomerDetailPanel,
+    focusSupplierDetailPanel,
     switchMenu,
     showToast,
     saveAndRenderAll,
@@ -5836,6 +5935,7 @@ registerEntitiesControllerEvents({
     restoreSupplier,
     refreshData,
     apiRequest,
+    setPaginationPageForItem,
   },
   renderers: {
     renderCustomers,
@@ -5845,6 +5945,8 @@ registerEntitiesControllerEvents({
   queries: {
     getCustomerDeleteImpact,
     getSupplierDeleteImpact,
+    getVisibleCustomers,
+    getVisibleSuppliers,
   },
   utils: {
     formatQuantity,
@@ -5865,6 +5967,7 @@ registerPurchasesControllerEvents({
     purchaseSuggestionList,
     purchasePanel,
     purchaseOrderList,
+    orderDetailPanel,
     mobileQuery,
   },
   actions: {
@@ -5896,6 +5999,7 @@ registerPurchasesControllerEvents({
     addSupplierReturnDraftItem,
     resetSupplierReturnDraft,
     submitSupplierReturnDraft,
+    setPaginationPageForItem,
   },
   renderers: {
     renderPurchasePanel,
@@ -5918,6 +6022,7 @@ registerPurchasesControllerEvents({
     isRepairableInvalidPurchase,
     getOpenPurchaseSupplierConflictInsight,
     getSkipNextPurchaseSupplierChangePersist: () => skipNextPurchaseSupplierChangePersist,
+    getVisiblePurchases,
   },
   utils: {
     nowIso,

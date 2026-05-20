@@ -144,6 +144,23 @@ export function registerSalesControllerEvents(contract) {
     return true;
   }
 
+  function selectOrderDetail(cartId, { focus = true, resetItems = true } = {}) {
+    const visibleOrders = queries.getVisibleOrders();
+    const cart = visibleOrders.find((entry) => entry.id === cartId) || null;
+    state.expandedOrderId = cart ? cartId : null;
+    if (resetItems) {
+      state.orderDetailItemsCollapsed = true;
+    }
+    if (cart) {
+      actions.setPaginationPageForItem("orders", visibleOrders, cartId);
+    }
+    renderers.renderCartQueue();
+    if (cart && focus) {
+      actions.focusOrderDetailPanel();
+    }
+    return cart;
+  }
+
   dom.salesSearchInput.addEventListener("input", (event) => {
     state.salesSearchTerm = event.target.value;
     state.pagination.salesProducts = 1;
@@ -503,15 +520,15 @@ export function registerSalesControllerEvents(contract) {
 
   dom.cartQueueList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-cart-list-action], [data-queue-action]");
-    if (!button) return;
+    if (!button) {
+      const card = event.target.closest("[data-order-select]");
+      if (!card) return;
+      selectOrderDetail(card.dataset.orderSelect);
+      return;
+    }
     const action = button.dataset.cartListAction || button.dataset.queueAction;
     if (action === "toggle-detail") {
-      const shouldExpand = state.expandedOrderId !== button.dataset.cartId;
-      state.expandedOrderId = shouldExpand ? button.dataset.cartId : null;
-      renderers.renderCartQueue();
-      if (shouldExpand) {
-        actions.focusOrderQueueItem(button.dataset.cartId);
-      }
+      selectOrderDetail(button.dataset.cartId);
       return;
     }
     const cart = queries.getCartById(button.dataset.cartId);
@@ -645,6 +662,149 @@ export function registerSalesControllerEvents(contract) {
     }
   });
 
+  dom.orderDetailPanel?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-order-detail-action]");
+    if (!button) return;
+    const action = button.dataset.orderDetailAction;
+    const cartId = button.dataset.cartId || state.expandedOrderId;
+    if (action === "close") {
+      state.expandedOrderId = null;
+      renderers.renderCartQueue();
+      return;
+    }
+    if (action === "previous" || action === "next") {
+      const visibleOrders = queries.getVisibleOrders();
+      const currentIndex = visibleOrders.findIndex((entry) => entry.id === state.expandedOrderId);
+      if (currentIndex < 0) return;
+      const delta = action === "previous" ? -1 : 1;
+      const target = visibleOrders[currentIndex + delta];
+      if (!target) return;
+      selectOrderDetail(target.id);
+      return;
+    }
+    if (action === "toggle-items") {
+      state.orderDetailItemsCollapsed = !state.orderDetailItemsCollapsed;
+      renderers.renderCartQueue();
+      actions.focusOrderDetailPanel();
+      return;
+    }
+    const cart = queries.getCartById(cartId);
+    if (!cart) return;
+    if (action === "open") {
+      actions.setActiveCart(cart.id);
+      state.activeCartDetailExpanded = false;
+      actions.switchMenu(["draft", "committed"].includes(cart.status) ? "create-order" : "orders");
+      actions.saveAndRenderAll();
+      if (["draft", "committed"].includes(cart.status)) {
+        actions.focusActiveCartPanel();
+      } else {
+        actions.focusOrderDetailPanel();
+      }
+      return;
+    }
+    if (action === "print") {
+      actions.printCart(cart.id);
+      return;
+    }
+    if (action === "repeat") {
+      try {
+        await actions.flushPendingPersistCollections();
+        const existingDraft = findExistingDraftForSameCustomer(cart);
+        let mergeIntoExistingDraft = false;
+        if (existingDraft) {
+          mergeIntoExistingDraft = window.confirm(
+            `Khách "${cart.customerName || getCartDisplayName(cart)}" đang có một đơn nháp.\n\nChọn OK để dồn thêm vào đơn nháp hiện có và giảm số lần gửi hàng.\nChọn Cancel để tạo một đơn nháp mới riêng.`
+          );
+        }
+        const result = actions.repeatCompletedCart(cart.id, { mergeIntoExistingDraft });
+        actions.showToast(
+          result?.reusedDraft
+            ? "Đã dồn thêm vào đơn nháp hiện có của khách."
+            : "Đã tạo đơn nháp mới từ phiếu xuất đã chọn."
+        );
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (action === "save-discount") {
+      saveCartDiscount(cart.id, dom.orderDetailPanel);
+      return;
+    }
+    if (action === "save-ship-address") {
+      saveCartShipAddress(cart.id, dom.orderDetailPanel);
+      return;
+    }
+    if (action === "commit") {
+      if (!saveCartEditorsBeforeStatusChange(cart.id, dom.orderDetailPanel)) return;
+      if (!confirmCartStatusAction(cart, "commit")) return;
+      try {
+        await actions.flushPendingPersistCollections();
+        await actions.commitCart(cart.id);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (action === "ship") {
+      if (!saveCartEditorsBeforeStatusChange(cart.id, dom.orderDetailPanel)) return;
+      if (!confirmCartStatusAction(cart, "ship")) return;
+      try {
+        await actions.flushPendingPersistCollections();
+        await actions.shipCart(cart.id);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (action === "customer-return") {
+      try {
+        state.expandedOrderId = cart.id;
+        actions.openCustomerReturnDraftFromCart(cart.id);
+        renderers.renderCartQueue();
+        actions.focusOrderDetailPanel();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (action === "mark-paid") {
+      if (!saveCartEditorsBeforeStatusChange(cart.id, dom.orderDetailPanel)) return;
+      const latestCart = queries.getCartById(cart.id) || cart;
+      if (!confirmCartStatusAction(cart, "mark-paid")) return;
+      await actions.flushPendingPersistCollections();
+      actions.updateCart(latestCart.id, (currentCart) => ({
+        ...currentCart,
+        paymentStatus: "paid",
+        paidAt: utils.nowIso(),
+        updatedAt: utils.nowIso(),
+      }));
+      actions.saveAndRenderAll();
+      await persistCartStatusChange("Đã cập nhật đơn là đã thanh toán.");
+      return;
+    }
+    if (action === "cancel") {
+      if (!confirmCartStatusAction(cart, "cancel")) return;
+      await actions.flushPendingPersistCollections();
+      cart.status = "cancelled";
+      cart.cancelledAt = utils.nowIso();
+      cart.updatedAt = utils.nowIso();
+      state.expandedOrderId = null;
+      actions.saveAndRenderAll();
+      await persistCartStatusChange("Đã hủy đơn hàng.");
+      return;
+    }
+    if (action === "delete") {
+      if (!confirmCartStatusAction(cart, "delete")) return;
+      await actions.flushPendingPersistCollections();
+      state.carts = state.carts.filter((entry) => entry.id !== cart.id);
+      if (state.activeCartId === cart.id) state.activeCartId = null;
+      state.expandedOrderId = null;
+      actions.saveAndRenderAll();
+      await persistCartStatusChange("Đã xóa giỏ nháp.");
+    }
+  });
+
   dom.activeCartPanel.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     const discountInput = event.target.closest("[data-cart-discount-input]");
@@ -662,6 +822,14 @@ export function registerSalesControllerEvents(contract) {
   });
 
   dom.cartQueueList.addEventListener("keydown", (event) => {
+    if (["Enter", " "].includes(event.key) && !event.target.closest("[data-cart-list-action], [data-queue-action], [data-customer-return-action]")) {
+      const card = event.target.closest("[data-order-select]");
+      if (card) {
+        event.preventDefault();
+        selectOrderDetail(card.dataset.orderSelect);
+        return;
+      }
+    }
     if (event.key !== "Enter") return;
     const discountInput = event.target.closest("[data-cart-discount-input]");
     if (discountInput) {
@@ -679,7 +847,21 @@ export function registerSalesControllerEvents(contract) {
     saveButton?.click();
   });
 
-  dom.cartQueueList.addEventListener("input", (event) => {
+  dom.orderDetailPanel?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const discountInput = event.target.closest("[data-cart-discount-input]");
+    if (discountInput) {
+      event.preventDefault();
+      dom.orderDetailPanel.querySelector('[data-order-detail-action="save-discount"]')?.click();
+      return;
+    }
+    const shipAddressInput = event.target.closest("[data-cart-ship-address-input]");
+    if (!shipAddressInput) return;
+    event.preventDefault();
+    dom.orderDetailPanel.querySelector('[data-order-detail-action="save-ship-address"]')?.click();
+  });
+
+  function handleCustomerReturnDraftInput(event) {
     const customerInput = event.target.closest("[data-customer-return-customer-input]");
     if (customerInput) {
       state.customerReturnDraft.customerName = customerInput.value;
@@ -729,19 +911,22 @@ export function registerSalesControllerEvents(contract) {
         unitRefund: Number.isFinite(unitRefund) ? unitRefund : item.unitRefund,
       };
     });
-  });
+  }
 
-  dom.cartQueueList.addEventListener("click", async (event) => {
+  dom.cartQueueList.addEventListener("input", handleCustomerReturnDraftInput);
+  dom.orderDetailPanel?.addEventListener("input", handleCustomerReturnDraftInput);
+
+  async function handleCustomerReturnDraftClick(event, root) {
     const button = event.target.closest("[data-customer-return-action]");
     if (!button) return;
     if (button.dataset.customerReturnAction === "add") {
       try {
         actions.addCustomerReturnDraftItem(
-          dom.cartQueueList.querySelector("[data-customer-return-product-input]")?.value || "",
-          dom.cartQueueList.querySelector("[data-customer-return-quantity-input]")?.value || "",
-          dom.cartQueueList.querySelector("[data-customer-return-price-input]")?.value || "",
-          dom.cartQueueList.querySelector("[data-customer-return-batch-code-input]")?.value || "",
-          dom.cartQueueList.querySelector("[data-customer-return-expiry-date-input]")?.value || ""
+          root.querySelector("[data-customer-return-product-input]")?.value || "",
+          root.querySelector("[data-customer-return-quantity-input]")?.value || "",
+          root.querySelector("[data-customer-return-price-input]")?.value || "",
+          root.querySelector("[data-customer-return-batch-code-input]")?.value || "",
+          root.querySelector("[data-customer-return-expiry-date-input]")?.value || ""
         );
         renderers.renderCartQueue();
       } catch (error) {
@@ -766,5 +951,12 @@ export function registerSalesControllerEvents(contract) {
         actions.showToast(error.message, true);
       }
     }
+  }
+
+  dom.cartQueueList.addEventListener("click", async (event) => {
+    await handleCustomerReturnDraftClick(event, dom.cartQueueList);
+  });
+  dom.orderDetailPanel?.addEventListener("click", async (event) => {
+    await handleCustomerReturnDraftClick(event, dom.orderDetailPanel);
   });
 }

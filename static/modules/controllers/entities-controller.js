@@ -8,6 +8,34 @@ export function registerEntitiesControllerEvents(contract) {
     utils,
   } = contract;
 
+  function selectCustomer(customerId, { focus = true } = {}) {
+    const visibleCustomers = queries.getVisibleCustomers();
+    const customer = visibleCustomers.find((entry) => entry.id === customerId) || null;
+    state.selectedCustomerId = customer ? customerId : "";
+    if (customer) {
+      actions.setPaginationPageForItem("customers", visibleCustomers, customerId);
+    }
+    renderers.renderCustomers();
+    if (customer && focus) {
+      actions.focusCustomerDetailPanel();
+    }
+    return customer;
+  }
+
+  function selectSupplier(supplierId, { focus = true } = {}) {
+    const visibleSuppliers = queries.getVisibleSuppliers();
+    const supplier = visibleSuppliers.find((entry) => entry.id === supplierId) || null;
+    state.selectedSupplierId = supplier ? supplierId : "";
+    if (supplier) {
+      actions.setPaginationPageForItem("suppliers", visibleSuppliers, supplierId);
+    }
+    renderers.renderSuppliers();
+    if (supplier && focus) {
+      actions.focusSupplierDetailPanel();
+    }
+    return supplier;
+  }
+
   dom.customerSearchInput.addEventListener("input", (event) => {
     state.customerSearchTerm = event.target.value;
     state.pagination.customers = 1;
@@ -71,7 +99,12 @@ export function registerEntitiesControllerEvents(contract) {
 
   dom.customerList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-customer-action]");
-    if (!button) return;
+    if (!button) {
+      const card = event.target.closest("[data-customer-select]");
+      if (!card) return;
+      selectCustomer(card.dataset.customerSelect);
+      return;
+    }
     const customerId = button.dataset.customerId;
     const customer = state.customers.find((entry) => entry.id === customerId);
     if (!customer) {
@@ -95,6 +128,7 @@ export function registerEntitiesControllerEvents(contract) {
       return;
     }
     if (button.dataset.customerAction === "edit") {
+      state.selectedCustomerId = customerId;
       state.editingCustomerFormId = customerId;
       dom.customerNameInput.value = customer.name;
       dom.customerPhoneInput.value = customer.phone || "";
@@ -110,11 +144,75 @@ export function registerEntitiesControllerEvents(contract) {
       if (impact.draftCount > 0) warnings.push(`Đang có ${impact.draftCount} giỏ nháp liên quan.`);
       if (!window.confirm(warnings.join("\n"))) return;
       try {
+        if (state.selectedCustomerId === customerId) {
+          state.selectedCustomerId = "";
+        }
         actions.deleteCustomer(customerId);
+        renderers.renderCustomers();
         actions.showToast("Đã chuyển khách hàng sang danh mục đã xóa.");
       } catch (error) {
         actions.showToast(error.message, true);
       }
+    }
+  });
+
+  dom.customerList.addEventListener("keydown", (event) => {
+    if (!["Enter", " "].includes(event.key)) return;
+    if (event.target.closest("[data-customer-action]")) return;
+    const card = event.target.closest("[data-customer-select]");
+    if (!card) return;
+    event.preventDefault();
+    selectCustomer(card.dataset.customerSelect);
+  });
+
+  dom.customerDetailPanel?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-customer-detail-action]");
+    if (!button) return;
+    const customerId = button.dataset.customerId || state.selectedCustomerId;
+    const customer = state.customers.find((entry) => entry.id === customerId);
+    if (button.dataset.customerDetailAction === "close") {
+      state.selectedCustomerId = "";
+      renderers.renderCustomers();
+      return;
+    }
+    if (button.dataset.customerDetailAction === "previous" || button.dataset.customerDetailAction === "next") {
+      const visibleCustomers = queries.getVisibleCustomers();
+      const currentIndex = visibleCustomers.findIndex((entry) => entry.id === state.selectedCustomerId);
+      if (currentIndex < 0) return;
+      const delta = button.dataset.customerDetailAction === "previous" ? -1 : 1;
+      const target = visibleCustomers[currentIndex + delta];
+      if (!target) return;
+      selectCustomer(target.id);
+      return;
+    }
+    if (!customer) {
+      actions.showToast("Không tìm thấy khách hàng.", true);
+      return;
+    }
+    if (button.dataset.customerDetailAction === "open-cart") {
+      try {
+        actions.openCartForCustomer(customer.name);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (button.dataset.customerDetailAction === "open-orders") {
+      try {
+        actions.openOrdersForCustomer(customer.id);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (button.dataset.customerDetailAction === "edit") {
+      state.editingCustomerFormId = customer.id;
+      dom.customerNameInput.value = customer.name;
+      dom.customerPhoneInput.value = customer.phone || "";
+      dom.customerAddressInput.value = customer.address || "";
+      dom.customerZaloInput.value = customer.zaloUrl || "";
+      state.customerFormCollapsed = false;
+      renderers.renderEntityForms();
     }
   });
 
@@ -205,7 +303,12 @@ export function registerEntitiesControllerEvents(contract) {
 
   dom.supplierList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-supplier-action]");
-    if (!button) return;
+    if (!button) {
+      const card = event.target.closest("[data-supplier-select]");
+      if (!card) return;
+      selectSupplier(card.dataset.supplierSelect);
+      return;
+    }
     const supplierId = button.dataset.supplierId;
     const supplier = state.suppliers.find((entry) => entry.id === supplierId);
     if (!supplier) {
@@ -247,6 +350,7 @@ export function registerEntitiesControllerEvents(contract) {
     }
     if (button.dataset.supplierAction === "edit") {
       actions.clearPendingPurchaseSupplierFlow();
+      state.selectedSupplierId = supplierId;
       state.editingSupplierFormId = supplierId;
       dom.supplierNameInput.value = supplier.name;
       dom.supplierPhoneInput.value = supplier.phone || "";
@@ -262,11 +366,92 @@ export function registerEntitiesControllerEvents(contract) {
       if (impact.historyCount > 0) warnings.push(`Có ${impact.historyCount} phiếu nhập lịch sử liên quan.`);
       if (!window.confirm(warnings.join("\n"))) return;
       try {
+        if (state.selectedSupplierId === supplierId) {
+          state.selectedSupplierId = "";
+        }
         actions.deleteSupplier(supplierId);
+        renderers.renderSuppliers();
         actions.showToast("Đã chuyển nhà cung cấp sang danh mục đã xóa.");
       } catch (error) {
         actions.showToast(error.message, true);
       }
+    }
+  });
+
+  dom.supplierList.addEventListener("keydown", (event) => {
+    if (!["Enter", " "].includes(event.key)) return;
+    if (event.target.closest("[data-supplier-action]")) return;
+    const card = event.target.closest("[data-supplier-select]");
+    if (!card) return;
+    event.preventDefault();
+    selectSupplier(card.dataset.supplierSelect);
+  });
+
+  dom.supplierDetailPanel?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-supplier-detail-action]");
+    if (!button) return;
+    const supplierId = button.dataset.supplierId || state.selectedSupplierId;
+    const supplier = state.suppliers.find((entry) => entry.id === supplierId);
+    if (button.dataset.supplierDetailAction === "close") {
+      state.selectedSupplierId = "";
+      renderers.renderSuppliers();
+      return;
+    }
+    if (button.dataset.supplierDetailAction === "previous" || button.dataset.supplierDetailAction === "next") {
+      const visibleSuppliers = queries.getVisibleSuppliers();
+      const currentIndex = visibleSuppliers.findIndex((entry) => entry.id === state.selectedSupplierId);
+      if (currentIndex < 0) return;
+      const delta = button.dataset.supplierDetailAction === "previous" ? -1 : 1;
+      const target = visibleSuppliers[currentIndex + delta];
+      if (!target) return;
+      selectSupplier(target.id);
+      return;
+    }
+    if (!supplier) {
+      actions.showToast("Không tìm thấy nhà cung cấp.", true);
+      return;
+    }
+    if (button.dataset.supplierDetailAction === "use") {
+      if (state.pendingProcurementSupplierFlow) {
+        const pendingName = state.pendingProcurementSupplierName || "";
+        const normalizeSupplierName = (value) => String(value || "").trim().toLowerCase();
+        Object.values(state.procurementPlanner.selections || {}).forEach((selection) => {
+          if (selection && (!pendingName || normalizeSupplierName(selection.supplierName) === normalizeSupplierName(pendingName))) {
+            selection.supplierName = supplier.name;
+          }
+        });
+        state.pendingProcurementSupplierFlow = false;
+        state.pendingProcurementSupplierName = "";
+        actions.switchMenu("procurement-planner");
+        actions.showToast("Đã chọn nhà cung cấp cho màn Xử lý nhập thiếu.");
+        return;
+      }
+      dom.purchaseSupplierInput.value = supplier.name;
+      state.pendingPurchaseSupplierFlow = false;
+      state.pendingPurchaseSupplierName = supplier.name;
+      actions.switchMenu("purchases");
+      const purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
+      const canApplySupplierToActiveDraft = Boolean(purchase && purchase.status === "draft");
+      if (canApplySupplierToActiveDraft) {
+        const result = actions.applySupplierToActiveDraft(supplier.name, {
+          note: dom.purchaseNoteInput.value.trim(),
+        });
+        actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
+        actions.focusPurchasePanel();
+      } else {
+        actions.saveAndRenderAll();
+      }
+      actions.showToast("Đã chọn nhà cung cấp cho phiếu nhập.");
+      return;
+    }
+    if (button.dataset.supplierDetailAction === "edit") {
+      actions.clearPendingPurchaseSupplierFlow();
+      state.editingSupplierFormId = supplierId;
+      dom.supplierNameInput.value = supplier.name;
+      dom.supplierPhoneInput.value = supplier.phone || "";
+      dom.supplierAddressInput.value = supplier.address || "";
+      dom.supplierNoteInput.value = supplier.note || "";
+      actions.openSupplierForm({ focus: true });
     }
   });
 

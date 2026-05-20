@@ -8,6 +8,24 @@ export function registerPurchasesControllerEvents(contract) {
     utils,
   } = contract;
 
+  function selectPurchaseDocument(purchaseId, { focus = true, expandDetail = true } = {}) {
+    const visiblePurchases = queries.getVisiblePurchases();
+    const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
+    if (!purchase) {
+      return null;
+    }
+    state.activePurchaseId = purchase.id;
+    state.purchasePanelCollapsed = false;
+    state.purchaseDetailExpanded = expandDetail;
+    state.selectedPurchaseItemsCollapsed = false;
+    actions.setPaginationPageForItem("purchaseOrders", visiblePurchases, purchase.id);
+    actions.saveAndRenderAll();
+    if (focus) {
+      actions.focusPurchasePanel();
+    }
+    return purchase;
+  }
+
   function getPurchaseDisplayName(purchase) {
     return purchase.receiptCode || purchase.supplierName || "phiếu nhập này";
   }
@@ -537,6 +555,21 @@ export function registerPurchasesControllerEvents(contract) {
       actions.showToast("Không có phiếu nhập đang mở.", true);
       return;
     }
+    if (actionButton.dataset.purchaseAction === "close-panel") {
+      state.purchasePanelCollapsed = true;
+      renderers.renderPurchasePanel();
+      return;
+    }
+    if (actionButton.dataset.purchaseAction === "previous" || actionButton.dataset.purchaseAction === "next") {
+      const visiblePurchases = queries.getVisiblePurchases();
+      const currentIndex = visiblePurchases.findIndex((entry) => entry.id === state.activePurchaseId);
+      if (currentIndex < 0) return;
+      const delta = actionButton.dataset.purchaseAction === "previous" ? -1 : 1;
+      const target = visiblePurchases[currentIndex + delta];
+      if (!target) return;
+      selectPurchaseDocument(target.id);
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "toggle-detail") {
       state.purchaseDetailExpanded = !state.purchaseDetailExpanded;
       renderers.renderPurchasePanel();
@@ -798,13 +831,14 @@ export function registerPurchasesControllerEvents(contract) {
       }
     }
     const button = event.target.closest("[data-purchase-list-action]");
-    if (!button) return;
+    if (!button) {
+      const card = event.target.closest("[data-purchase-select]");
+      if (!card) return;
+      selectPurchaseDocument(card.dataset.purchaseSelect);
+      return;
+    }
     if (button.dataset.purchaseListAction === "open") {
-      state.activePurchaseId = button.dataset.purchaseId;
-      state.purchasePanelCollapsed = false;
-      state.purchaseDetailExpanded = false;
-      actions.saveAndRenderAll();
-      actions.focusPurchasePanel();
+      selectPurchaseDocument(button.dataset.purchaseId);
       return;
     }
     if (button.dataset.purchaseListAction === "print") {
@@ -824,6 +858,15 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast(error.message, true);
       }
     }
+  });
+
+  dom.purchaseOrderList.addEventListener("keydown", (event) => {
+    if (!["Enter", " "].includes(event.key)) return;
+    if (event.target.closest("[data-purchase-list-action], [data-purchase-conflict-review-action]")) return;
+    const card = event.target.closest("[data-purchase-select]");
+    if (!card) return;
+    event.preventDefault();
+    selectPurchaseDocument(card.dataset.purchaseSelect);
   });
 
   dom.purchasePanel.addEventListener("click", async (event) => {
