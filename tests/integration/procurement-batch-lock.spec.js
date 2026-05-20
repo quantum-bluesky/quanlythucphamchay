@@ -16,11 +16,13 @@ function stripProcurementBatchTestPurchases(state) {
     ...state,
     carts: (state.carts || []).filter((cart) => {
       const id = String(cart?.id || "");
-      return !id.startsWith("cart_proc114_batch_");
+      return !id.startsWith("cart_proc114_batch_") && !id.startsWith("cart_proc_merge_");
     }),
     purchases: (state.purchases || []).filter((purchase) => {
       const id = String(purchase?.id || "");
-      return !id.startsWith("purchase_conflict_batch_") && !id.startsWith("purchase_batch_lock_");
+      return !id.startsWith("purchase_conflict_batch_")
+        && !id.startsWith("purchase_batch_lock_")
+        && !id.startsWith("purchase_proc_merge_");
     }),
   };
 }
@@ -36,7 +38,9 @@ async function cleanupProcurementBatchTestPurchases(request, cookie) {
   const currentState = await stateResponse.json();
   const targetPurchases = (currentState.purchases || []).filter((purchase) => {
     const id = String(purchase?.id || "");
-    return id.startsWith("purchase_conflict_batch_") || id.startsWith("purchase_batch_lock_");
+    return id.startsWith("purchase_conflict_batch_")
+      || id.startsWith("purchase_batch_lock_")
+      || id.startsWith("purchase_proc_merge_");
   });
 
   for (const purchase of targetPurchases) {
@@ -55,6 +59,17 @@ async function cleanupProcurementBatchTestPurchases(request, cookie) {
     const payload = await response.json();
     expect(response.ok(), JSON.stringify(payload)).toBeTruthy();
   }
+}
+
+async function setFloatingSearch(page, term) {
+  const toggle = page.locator("#floatingSearchToggle");
+  const input = page.locator("#floatingSearchInput");
+  if (!await input.isVisible()) {
+    await toggle.click();
+  }
+  await expect(input).toBeVisible();
+  await input.fill(term);
+  await page.waitForTimeout(250);
 }
 
 test("IT-PROC-01 start batch shows clickable conflict list for overlapping open purchases", async ({ page, request }) => {
@@ -560,6 +575,133 @@ test("IT-PROC-04 leaving procurement flow prompts to finish batch and offers sta
         data: {},
       }).catch(() => null);
     }
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales documents", async ({ page, request }) => {
+  test.setTimeout(90000);
+  const runtime = attachRuntimeTracking(page);
+  const managerCookie = await autoLoginProcurementManagerRequest(request);
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const restoredState = stripProcurementBatchTestPurchases(originalState);
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: managerCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const shortageProduct = (productsPayload.products || []).find((product) => Number.isFinite(Number(product?.current_stock || 0)));
+  expect(shortageProduct).toBeTruthy();
+  const timestamp = Date.now();
+  const customerName = `Khách proc merge ${timestamp}`;
+  const supplierName = `NCC proc merge ${timestamp}`;
+  const cartId = `cart_proc_merge_${timestamp}`;
+  const purchaseId = `purchase_proc_merge_${timestamp}`;
+  const shortageQuantity = Math.max(Number(shortageProduct.current_stock || 0) + 2, 2);
+  let batchStarted = false;
+
+  try {
+    await cleanupProcurementBatchTestPurchases(request, managerCookie);
+
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: managerCookie },
+      data: {
+        carts: [
+          ...(restoredState.carts || []),
+          {
+            id: cartId,
+            customerName,
+            status: "draft",
+            paymentStatus: "unpaid",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            items: [
+              {
+                id: `cart_proc_merge_item_${timestamp}`,
+                productId: shortageProduct.id,
+                productName: shortageProduct.name,
+                unit: shortageProduct.unit,
+                quantity: shortageQuantity,
+                unitPrice: Number(shortageProduct.sale_price || shortageProduct.price || 0) || 1000,
+                note: "",
+              },
+            ],
+          },
+        ],
+        purchases: [
+          ...(restoredState.purchases || []),
+          {
+            id: purchaseId,
+            supplierName,
+            note: "IT-PROC-05 phiếu nhập mở liên quan",
+            status: "draft",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            items: [
+              {
+                id: `purchase_proc_merge_item_${timestamp}`,
+                productId: shortageProduct.id,
+                productName: shortageProduct.name,
+                unit: shortageProduct.unit,
+                quantity: 1,
+                unitCost: Number(shortageProduct.price || 0) || 1000,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    const startResponse = await request.post("/api/procurement/batch/start", {
+      headers: { Cookie: managerCookie },
+      data: {},
+    });
+    const startPayload = await startResponse.json();
+    expect(startResponse.ok(), JSON.stringify(startPayload)).toBeTruthy();
+    batchStarted = true;
+
+    await gotoWithRetry(page, "/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginProcurementManager(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "orders");
+    await expectScreenTitle(page, "Đơn hàng");
+    await setFloatingSearch(page, customerName);
+    const cartCard = page.locator(`[data-order-select="${cartId}"]`).first();
+    await expect(cartCard).toBeVisible();
+    await cartCard.locator('[data-queue-action="toggle-detail"]').click();
+    await expect(page.locator("#orderDetailPanel")).toContainText(customerName);
+    await page.locator('#orderDetailPanel [data-order-detail-action="commit"]').click();
+    await expectScreenTitle(page, "Xử lý nhập thiếu");
+    await expect(page.locator("[data-procurement-merge-panel]")).toBeVisible();
+
+    await page.locator(`[data-procurement-merge-action="toggle"][data-document-key="cart:${cartId}"]`).check();
+    await page.locator(`[data-procurement-merge-action="toggle"][data-document-key="purchase:${purchaseId}"]`).check();
+    await page.locator('[data-procurement-merge-action="start"]').click();
+    const mixedToast = await collectToast(page, runtime, "it-proc-05-mixed", { errorPattern: /^$/ });
+    expect(mixedToast).toContain("Không gộp lẫn phiếu nhập và phiếu xuất trong cùng một lần thao tác.");
+    await expectScreenTitle(page, "Xử lý nhập thiếu");
+    await expect(page.locator("[data-procurement-merge-panel]")).toBeVisible();
+  } finally {
+    if (batchStarted) {
+      await request.post("/api/procurement/batch/finish", {
+        headers: { Cookie: managerCookie },
+        data: {},
+      }).catch(() => null);
+    }
+    await cleanupProcurementBatchTestPurchases(request, managerCookie);
+    await request.put("/api/state", {
+      headers: { Cookie: managerCookie },
+      data: {
+        customers: restoredState.customers,
+        suppliers: restoredState.suppliers,
+        carts: restoredState.carts,
+        purchases: restoredState.purchases,
+      },
+    }).catch(() => null);
   }
 
   expectNoRuntimeErrors(runtime);

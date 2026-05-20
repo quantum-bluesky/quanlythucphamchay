@@ -12,6 +12,7 @@ export function createPurchasesUi(deps) {
     canEditPurchaseExpiryMetadata,
     canEditPurchaseDiscount,
     canEditPurchaseSupplier,
+    canMergePurchase,
     hasPurchaseSupplier,
     canDeletePurchase,
     canCancelPurchase,
@@ -24,6 +25,7 @@ export function createPurchasesUi(deps) {
     isProcurementBatchModeActive,
     getPurchaseSuggestions,
     getVisiblePurchases,
+    getPendingPurchaseMergePreview,
     getOpenPurchaseSupplierConflictInsight,
     resolvePurchaseItemExpiryMeta,
     getSupplierReturnEditorMarkup,
@@ -186,6 +188,38 @@ export function createPurchasesUi(deps) {
     `;
   }
 
+  function renderPurchaseMergePreview(purchase) {
+    const preview = getPendingPurchaseMergePreview();
+    if (!preview || String(preview.targetId) !== String(purchase?.id || "")) {
+      return "";
+    }
+    return `
+      <article class="inline-alert warning">
+        <strong>Gộp phiếu nhập đang chờ xác nhận</strong>
+        <div class="cart-line-note">Giữ lại phiếu này và gộp thêm ${escapeHtml(String(preview.sourceIds.length))} phiếu cùng NCC vào đây.</div>
+        <div class="document-detail-items">
+          ${preview.documentIds.map((purchaseId) => {
+            const entry = purchaseId === preview.targetId ? preview.targetPurchase : preview.sourcePurchases.find((sourcePurchase) => String(sourcePurchase.id) === String(purchaseId));
+            const label = String(entry?.receiptCode || entry?.supplierName || purchaseId);
+            const statusMeta = getPurchaseStatusMeta(entry || {});
+            return `
+              <article class="document-detail-item">
+                <div class="document-detail-item-head">
+                  <strong>${escapeHtml(label)}</strong>
+                  <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}${String(purchaseId) === String(preview.targetId) ? " · Giữ lại" : ""}</span>
+                </div>
+              </article>
+            `;
+          }).join("")}
+        </div>
+        <div class="line-actions">
+          <button type="button" class="primary-button compact-button" data-purchase-action="confirm-merge-preview">Thực hiện gộp</button>
+          <button type="button" class="ghost-button compact-button" data-purchase-action="cancel-merge-preview">Hủy</button>
+        </div>
+      </article>
+    `;
+  }
+
   function renderPurchasePanel() {
     dom.createPurchaseDraftButton.textContent = mobileQuery.matches ? "Tạo phiếu" : "Tạo phiếu nháp";
     const purchase = getActivePurchase();
@@ -325,6 +359,7 @@ export function createPurchasesUi(deps) {
           <div class="stat-chip"><span>Tạm tính</span><strong>${formatCurrency(purchase.subtotalAmount || 0)}</strong></div>
           <div class="stat-chip"><span>Cần trả</span><strong>${formatCurrency(purchase.totalAmount || 0)}</strong></div>
         </div>
+        ${renderPurchaseMergePreview(purchase)}
         ${renderPurchaseDiscountEditor(purchase)}
         <div class="document-detail-toggle-row">
           <button type="button" class="ghost-button compact-button" data-purchase-action="toggle-detail">${state.purchaseDetailExpanded ? "Ẩn detail" : "Detail"}</button>
@@ -432,7 +467,20 @@ export function createPurchasesUi(deps) {
     const paginationMarkup = renderPagination("purchaseOrders", pageData);
     const topPagination = paginationMarkup ? `<div class="purchase-orders-top-pagination">${paginationMarkup}</div>` : "";
     const bottomPagination = paginationMarkup ? `<div class="purchase-orders-bottom-pagination">${paginationMarkup}</div>` : "";
-    dom.purchaseOrderList.innerHTML = reviewMarkup + topPagination + pageData.items.map((purchase) => `
+    const selectedMergeIds = (Array.isArray(state.selectedPurchaseMergeIds) ? state.selectedPurchaseMergeIds : [])
+      .filter((purchaseId) => visiblePurchases.some((purchase) => String(purchase.id) === String(purchaseId)));
+    const mergeToolbarMarkup = selectedMergeIds.length
+      ? `
+        <article class="inline-alert warning">
+          <strong>${escapeHtml(String(selectedMergeIds.length))} phiếu nhập đang được chọn</strong>
+          <div class="line-actions">
+            ${selectedMergeIds.length >= 2 ? '<button type="button" class="primary-button compact-button" data-purchase-list-action="start-merge-preview">Gộp đơn</button>' : ""}
+            <button type="button" class="ghost-button compact-button" data-purchase-list-action="clear-merge-selection">Bỏ chọn</button>
+          </div>
+        </article>
+      `
+      : "";
+    dom.purchaseOrderList.innerHTML = reviewMarkup + mergeToolbarMarkup + topPagination + pageData.items.map((purchase) => `
       <article class="cart-queue-item selectable-card ${String(state.activePurchaseId || "") === String(purchase.id) ? "is-selected-detail" : ""}" data-purchase-select="${purchase.id}" tabindex="0" role="button" aria-pressed="${String(state.activePurchaseId || "") === String(purchase.id) ? "true" : "false"}">
         <div class="queue-header">
           <strong>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
@@ -443,6 +491,7 @@ export function createPurchasesUi(deps) {
           <span>${formatCurrency(purchase.totalAmount || 0)}</span>
         </div>
         <div class="queue-actions">
+          ${canMergePurchase(purchase) ? `<label class="toggle-inline" data-purchase-list-action="toggle-merge-select" data-purchase-id="${purchase.id}"><input type="checkbox" data-purchase-list-action="toggle-merge-select" data-purchase-id="${purchase.id}" ${selectedMergeIds.some((purchaseId) => String(purchaseId) === String(purchase.id)) ? "checked" : ""}><span>Chọn</span></label>` : ""}
           <button type="button" class="ghost-button compact-button" data-purchase-list-action="open" data-purchase-id="${purchase.id}">Mở</button>
           ${canShowPurchaseListPrintAction(purchase) ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="print" data-purchase-id="${purchase.id}">In</button>` : ""}
           ${["received", "paid"].includes(String(purchase.status || "").trim()) ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="repeat" data-purchase-id="${purchase.id}" ${repeatPurchaseDisabled ? "disabled" : ""} title="${repeatPurchaseDisabled ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo lại phiếu nhập." : ""}">Nhập lại</button>` : ""}

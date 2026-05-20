@@ -961,8 +961,10 @@ function getSalesUi() {
       getPendingMergeCommittedCarts,
       getProductById,
       canDeleteCart,
+      canMergeCart,
       canEditCartDiscount,
       getCartCostWarning,
+      getPendingCartMergePreview,
       getVisibleOrders,
       getCustomerReturnEditorMarkup: (cart) => buildCustomerReturnEditorMarkup(cart),
       isSearchResultMode,
@@ -1024,6 +1026,8 @@ function getPurchasesUi() {
       getActivePurchase,
       canEditPurchase,
       canEditPurchaseNote,
+      canMergePurchase,
+      getPendingPurchaseMergePreview,
       canEditPurchaseExpiryMetadata,
       canEditPurchaseDiscount,
       canEditPurchaseSupplier,
@@ -1761,12 +1765,52 @@ function getCartCostWarning(cart) {
   return getSalesDomainHelpers().getCartCostWarning(cart);
 }
 
+function canMergeCart(cart) {
+  return getSalesDomainHelpers().canMergeCart(cart);
+}
+
+function startCartMergePreview(cartIds, options = {}) {
+  return getSalesDomainHelpers().startCartMergePreview(cartIds, options);
+}
+
+function getPendingCartMergePreview() {
+  return getSalesDomainHelpers().getPendingCartMergePreview();
+}
+
+function clearCartMergePreview() {
+  return getSalesDomainHelpers().clearCartMergePreview();
+}
+
+function applyPendingCartMerge() {
+  return getSalesDomainHelpers().applyPendingCartMerge();
+}
+
 function canEditPurchase(purchase) {
   return getPurchasesDomainHelpers().canEditPurchase(purchase);
 }
 
 function canEditPurchaseNote(purchase) {
   return getPurchasesDomainHelpers().canEditPurchaseNote(purchase);
+}
+
+function canMergePurchase(purchase) {
+  return getPurchasesDomainHelpers().canMergePurchase(purchase);
+}
+
+function startPurchaseMergePreview(purchaseIds, options = {}) {
+  return getPurchasesDomainHelpers().startPurchaseMergePreview(purchaseIds, options);
+}
+
+function getPendingPurchaseMergePreview() {
+  return getPurchasesDomainHelpers().getPendingPurchaseMergePreview();
+}
+
+function clearPurchaseMergePreview() {
+  return getPurchasesDomainHelpers().clearPurchaseMergePreview();
+}
+
+function applyPendingPurchaseMerge() {
+  return getPurchasesDomainHelpers().applyPendingPurchaseMerge();
 }
 
 function canEditPurchaseDiscount(purchase) {
@@ -3635,18 +3679,19 @@ function renderProcurementPlanner() {
   }
   renderProcurementReviewPanel();
   renderProcurementExtraPanel(canEditBatch);
+  const mergePanelMarkup = renderProcurementMergePanel();
 
   if (state.procurementPlanner.loading) {
-    procurementPlannerList.innerHTML = '<div class="empty-state">Đang tải dữ liệu xử lý nhập thiếu...</div>';
+    procurementPlannerList.innerHTML = `${mergePanelMarkup}<div class="empty-state">Đang tải dữ liệu xử lý nhập thiếu...</div>`;
     return;
   }
   const rows = Array.isArray(state.procurementPlanner.rows) ? state.procurementPlanner.rows : [];
   if (!rows.length) {
-    procurementPlannerList.innerHTML = '<div class="empty-state">Chưa có mặt hàng thiếu hoặc cần cảnh báo theo phạm vi hiện tại.</div>';
+    procurementPlannerList.innerHTML = `${mergePanelMarkup}<div class="empty-state">Chưa có mặt hàng thiếu hoặc cần cảnh báo theo phạm vi hiện tại.</div>`;
     return;
   }
 
-  procurementPlannerList.innerHTML = rows.map((row) => {
+  procurementPlannerList.innerHTML = mergePanelMarkup + rows.map((row) => {
     const assignment = row.assignment || null;
     const selection = getProcurementSelection(row.product_id);
     const isSelected = Boolean(selection.selected);
@@ -3763,6 +3808,187 @@ function getCartShortagePlan(cart) {
         requiredFromSource,
       };
     });
+}
+
+function getProcurementRelatedMergeDocuments() {
+  const documents = [];
+  const pushDocument = (entry) => {
+    if (!entry?.key) {
+      return;
+    }
+    if (documents.some((document) => document.key === entry.key)) {
+      return;
+    }
+    documents.push(entry);
+  };
+
+  getProcurementReviewPurchaseIds().forEach((purchaseId) => {
+    const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
+    if (!canMergePurchase(purchase)) {
+      return;
+    }
+    pushDocument({
+      key: `purchase:${purchase.id}`,
+      kind: "purchase",
+      id: purchase.id,
+      label: purchase.receiptCode || purchase.supplierName || purchase.id,
+      meta: purchase.supplierName || "Phiếu nhập",
+      statusLabel: purchase.status === "ordered" ? "Đã đặt" : "Nháp",
+      statusClass: purchase.status === "ordered" ? "draft" : "warning",
+    });
+  });
+
+  if (String(state.procurementPlanner.scope?.type || "") === "cart") {
+    const sourceCart = getCartById(state.procurementPlanner.scope?.code || "");
+    const customerNameKey = normalizeText(String(sourceCart?.customerName || "").trim());
+    if (canMergeCart(sourceCart)) {
+      pushDocument({
+        key: `cart:${sourceCart.id}`,
+        kind: "sales",
+        id: sourceCart.id,
+        label: sourceCart.orderCode || sourceCart.customerName || sourceCart.id,
+        meta: sourceCart.customerName || "Đơn hàng",
+        statusLabel: sourceCart.status === "committed" ? "Chốt đơn" : "Nháp",
+        statusClass: sourceCart.status === "committed" ? "warning" : "draft",
+      });
+    }
+    state.carts.forEach((cart) => {
+      if (!canMergeCart(cart) || !customerNameKey || normalizeText(String(cart.customerName || "").trim()) !== customerNameKey) {
+        return;
+      }
+      pushDocument({
+        key: `cart:${cart.id}`,
+        kind: "sales",
+        id: cart.id,
+        label: cart.orderCode || cart.customerName || cart.id,
+        meta: cart.customerName || "Đơn hàng",
+        statusLabel: cart.status === "committed" ? "Chốt đơn" : "Nháp",
+        statusClass: cart.status === "committed" ? "warning" : "draft",
+      });
+    });
+    const shortagePlan = sourceCart ? getCartShortagePlan(sourceCart) : [];
+    const relatedPurchaseIds = new Set();
+    shortagePlan.forEach((entry) => {
+      getOpenPurchasesForProduct(entry.product?.id || entry.item?.productId || 0).forEach((purchase) => {
+        if (canMergePurchase(purchase)) {
+          relatedPurchaseIds.add(purchase.id);
+        }
+      });
+    });
+    [...relatedPurchaseIds].forEach((purchaseId) => {
+      const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
+      if (!canMergePurchase(purchase)) {
+        return;
+      }
+      pushDocument({
+        key: `purchase:${purchase.id}`,
+        kind: "purchase",
+        id: purchase.id,
+        label: purchase.receiptCode || purchase.supplierName || purchase.id,
+        meta: purchase.supplierName || "Phiếu nhập",
+        statusLabel: purchase.status === "ordered" ? "Đã đặt" : "Nháp",
+        statusClass: purchase.status === "ordered" ? "draft" : "warning",
+      });
+    });
+  }
+
+  return documents;
+}
+
+function clearProcurementMergeSelection() {
+  state.procurementPlanner.mergeSelectionKeys = [];
+}
+
+function toggleProcurementMergeSelection(documentKey, checked) {
+  const selectedKeys = new Set((Array.isArray(state.procurementPlanner.mergeSelectionKeys) ? state.procurementPlanner.mergeSelectionKeys : []).map((key) => String(key || "").trim()).filter(Boolean));
+  const cleanKey = String(documentKey || "").trim();
+  if (!cleanKey) {
+    return;
+  }
+  if (checked) {
+    selectedKeys.add(cleanKey);
+  } else {
+    selectedKeys.delete(cleanKey);
+  }
+  state.procurementPlanner.mergeSelectionKeys = [...selectedKeys];
+}
+
+function renderProcurementMergePanel() {
+  const documents = getProcurementRelatedMergeDocuments();
+  if (!documents.length) {
+    clearProcurementMergeSelection();
+    return "";
+  }
+  const selectedKeys = (Array.isArray(state.procurementPlanner.mergeSelectionKeys) ? state.procurementPlanner.mergeSelectionKeys : [])
+    .filter((key) => documents.some((document) => document.key === key));
+  state.procurementPlanner.mergeSelectionKeys = selectedKeys;
+  return `
+    <article class="inline-alert warning" data-procurement-merge-panel>
+      <div class="queue-header">
+        <strong>Phiếu liên quan có thể gộp</strong>
+        <span>${escapeHtml(String(documents.length))} phiếu mở</span>
+      </div>
+      <p class="panel-note">Chọn từ 2 phiếu trở lên rồi bấm Gộp đơn. App sẽ chặn nếu lẫn phiếu nhập với phiếu xuất hoặc không cùng NCC/KH.</p>
+      <div class="document-detail-items">
+        ${documents.map((document) => `
+          <article class="document-detail-item">
+            <div class="document-detail-item-head">
+              <label class="toggle-inline">
+                <input type="checkbox" data-procurement-merge-action="toggle" data-document-key="${escapeHtml(document.key)}" ${selectedKeys.includes(document.key) ? "checked" : ""}>
+                <strong>${escapeHtml(document.label)}</strong>
+              </label>
+              <span class="status-pill ${escapeHtml(document.statusClass)}">${escapeHtml(document.statusLabel)}</span>
+            </div>
+            <div class="document-detail-item-meta">
+              <span>${escapeHtml(document.kind === "purchase" ? "Phiếu nhập" : "Phiếu xuất")}</span>
+              <span>${escapeHtml(document.meta)}</span>
+            </div>
+          </article>
+        `).join("")}
+      </div>
+      <div class="line-actions">
+        ${selectedKeys.length >= 2 ? '<button type="button" class="primary-button compact-button" data-procurement-merge-action="start">Gộp đơn</button>' : ""}
+        ${selectedKeys.length ? '<button type="button" class="ghost-button compact-button" data-procurement-merge-action="clear">Bỏ chọn</button>' : ""}
+      </div>
+    </article>
+  `;
+}
+
+function startProcurementMergePreview() {
+  const selectedKeys = (Array.isArray(state.procurementPlanner.mergeSelectionKeys) ? state.procurementPlanner.mergeSelectionKeys : []).map((key) => String(key || "").trim()).filter(Boolean);
+  if (selectedKeys.length < 2) {
+    throw new Error("Cần chọn ít nhất 2 phiếu để gộp.");
+  }
+  const documentGroups = selectedKeys.reduce((groups, key) => {
+    const [kind, id] = key.split(":");
+    if (!kind || !id) {
+      return groups;
+    }
+    groups[kind] = groups[kind] || [];
+    groups[kind].push(id);
+    return groups;
+  }, {});
+  const kinds = Object.keys(documentGroups);
+  if (kinds.length > 1) {
+    throw new Error("Không gộp lẫn phiếu nhập và phiếu xuất trong cùng một lần thao tác.");
+  }
+  if (documentGroups.purchase?.length) {
+    startPurchaseMergePreview(documentGroups.purchase, { sourceMenu: "procurement-planner" });
+    switchMenu("purchases");
+    saveAndRenderAll();
+    focusPurchasePanel();
+    showToast("Đã chuyển sang màn gộp phiếu nhập để rà lại trước khi gộp.");
+    return;
+  }
+  if (documentGroups.sales?.length) {
+    startCartMergePreview(documentGroups.sales, { sourceMenu: "procurement-planner" });
+    switchMenu("create-order");
+    saveAndRenderAll();
+    focusActiveCartPanel();
+    showToast("Đã chuyển sang màn gộp phiếu xuất để rà lại trước khi gộp.");
+    return;
+  }
+  throw new Error("Không có phiếu hợp lệ để gộp.");
 }
 
 function formatShortagePlanLine(entry) {
@@ -5808,6 +6034,9 @@ registerSalesControllerEvents({
     updateCartItem,
     removeCartItem,
     repeatCompletedCart,
+    startCartMergePreview,
+    clearCartMergePreview,
+    applyPendingCartMerge,
     findDraftCartForCustomer,
     setActiveCart,
     createNewDraftForPendingMergeCustomer,
@@ -5843,6 +6072,8 @@ registerSalesControllerEvents({
   queries: {
     getActiveCart,
     getCartById,
+    canMergeCart,
+    getPendingCartMergePreview,
     canEditCartDiscount,
     getCartCostWarning,
     getVisibleOrders,
@@ -6002,6 +6233,9 @@ registerPurchasesControllerEvents({
     switchMenu,
     addSuggestionToPurchase,
     repeatCompletedPurchase,
+    startPurchaseMergePreview,
+    clearPurchaseMergePreview,
+    applyPendingPurchaseMerge,
     printPurchase,
     openPurchaseConflictReview,
     clearPurchaseConflictReview,
@@ -6022,6 +6256,8 @@ registerPurchasesControllerEvents({
     getProductById,
     canEditPurchase,
     canEditPurchaseNote,
+    canMergePurchase,
+    getPendingPurchaseMergePreview,
     canEditPurchaseExpiryMetadata,
     canEditPurchaseDiscount,
     canEditPurchaseSupplier,
@@ -6230,6 +6466,12 @@ procurementPlannerList?.addEventListener("input", (event) => {
 });
 
 procurementPlannerList?.addEventListener("change", (event) => {
+  const mergeToggle = event.target.closest('[data-procurement-merge-action="toggle"]');
+  if (mergeToggle) {
+    toggleProcurementMergeSelection(mergeToggle.dataset.documentKey, Boolean(mergeToggle.checked));
+    renderProcurementPlanner();
+    return;
+  }
   const input = event.target.closest("[data-procurement-field]");
   if (!input) return;
   const selection = getProcurementSelection(input.dataset.productId);
@@ -6241,6 +6483,26 @@ procurementPlannerList?.addEventListener("change", (event) => {
   window.setTimeout(() => {
     renderProcurementPlanner();
   }, 0);
+});
+
+procurementPlannerList?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-procurement-merge-action]");
+  if (!button) {
+    return;
+  }
+  const action = String(button.dataset.procurementMergeAction || "");
+  if (action === "clear") {
+    clearProcurementMergeSelection();
+    renderProcurementPlanner();
+    return;
+  }
+  if (action === "start") {
+    try {
+      startProcurementMergePreview();
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  }
 });
 
 procurementExtraPanel?.addEventListener("click", (event) => {

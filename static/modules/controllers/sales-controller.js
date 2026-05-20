@@ -50,6 +50,25 @@ export function registerSalesControllerEvents(contract) {
     }) || null;
   }
 
+  function toggleSelectedOrderMergeId(cartId, forceChecked = null) {
+    const selectedIds = new Set((Array.isArray(state.selectedOrderMergeIds) ? state.selectedOrderMergeIds : []).map((id) => String(id || "").trim()).filter(Boolean));
+    const cleanCartId = String(cartId || "").trim();
+    if (!cleanCartId) {
+      return;
+    }
+    const shouldSelect = forceChecked === null ? !selectedIds.has(cleanCartId) : Boolean(forceChecked);
+    if (shouldSelect) {
+      selectedIds.add(cleanCartId);
+    } else {
+      selectedIds.delete(cleanCartId);
+    }
+    state.selectedOrderMergeIds = [...selectedIds];
+  }
+
+  function clearSelectedOrderMergeIds() {
+    state.selectedOrderMergeIds = [];
+  }
+
   function confirmCartStatusAction(cart, action) {
     const label = getCartDisplayName(cart);
     const messages = {
@@ -454,6 +473,29 @@ export function registerSalesControllerEvents(contract) {
       renderers.renderActiveCartPanel();
       return;
     }
+    if (button.dataset.cartAction === "cancel-merge-preview") {
+      const sourceMenu = String(state.pendingDocumentMerge?.sourceMenu || "");
+      actions.clearCartMergePreview();
+      if (sourceMenu) {
+        actions.switchMenu(sourceMenu);
+      }
+      actions.saveAndRenderAll();
+      renderers.renderCreateOrderEntryState();
+      return;
+    }
+    if (button.dataset.cartAction === "confirm-merge-preview") {
+      try {
+        await actions.flushPendingPersistCollections();
+        actions.applyPendingCartMerge();
+        actions.switchMenu("create-order");
+        actions.saveAndRenderAll(["carts"]);
+        actions.focusActiveCartPanel();
+        actions.showToast("Đã gộp các phiếu xuất đã chọn vào phiếu hiện hành.");
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (button.dataset.cartAction === "close") {
       state.activeCartId = null;
       state.activeCartDetailExpanded = false;
@@ -542,6 +584,15 @@ export function registerSalesControllerEvents(contract) {
     renderers.renderCartItems();
   });
 
+  dom.cartQueueList.addEventListener("change", (event) => {
+    const checkbox = event.target.closest('input[data-queue-action="toggle-merge-select"]');
+    if (!checkbox) {
+      return;
+    }
+    toggleSelectedOrderMergeId(checkbox.dataset.cartId, Boolean(checkbox.checked));
+    renderers.renderCartQueue();
+  });
+
   dom.cartQueueList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-cart-list-action], [data-queue-action]");
     if (!button) {
@@ -551,6 +602,27 @@ export function registerSalesControllerEvents(contract) {
       return;
     }
     const action = button.dataset.cartListAction || button.dataset.queueAction;
+    if (action === "toggle-merge-select") {
+      return;
+    }
+    if (action === "clear-merge-selection") {
+      clearSelectedOrderMergeIds();
+      renderers.renderCartQueue();
+      return;
+    }
+    if (action === "start-merge-preview") {
+      try {
+        await actions.flushPendingPersistCollections();
+        actions.startCartMergePreview(state.selectedOrderMergeIds, { sourceMenu: "orders" });
+        actions.switchMenu("create-order");
+        actions.saveAndRenderAll();
+        actions.focusActiveCartPanel();
+        actions.showToast("Đã mở màn gộp đơn để rà lại phiếu xuất trước khi gộp.");
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (action === "toggle-detail") {
       selectOrderDetail(button.dataset.cartId);
       return;

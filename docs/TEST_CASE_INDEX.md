@@ -78,6 +78,8 @@ Mục tiêu:
 | 51 | `IT-ORD-04` | `tests/integration/orders-actions.spec.js` | `npx playwright test tests/integration/orders-actions.spec.js --grep "IT-ORD-04"` |
 | 52 | `IT-ORD-05` | `tests/integration/orders-actions.spec.js` | `npx playwright test tests/integration/orders-actions.spec.js --grep "IT-ORD-05"` |
 | 119 | `IT-PURSUP-09` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-09"` |
+| 120 | `IT-PURSUP-10` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-10"` |
+| 121 | `IT-ORD-06` | `tests/integration/orders-actions.spec.js` | `npx playwright test tests/integration/orders-actions.spec.js --grep "IT-ORD-06"` |
 | 53 | `UT-DB-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_01_create_product_and_stock_summary` |
 | 46 | `UT-DB-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_02_stock_out_cannot_exceed_inventory` |
 | 47 | `UT-DB-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_03_inventory_adjustment_receipt_updates_stock_with_reason` |
@@ -149,6 +151,7 @@ Mục tiêu:
 | 113 | `IT-PROC-02` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-02"` |
 | 114 | `IT-PROC-03` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-03"` |
 | 115 | `IT-PROC-04` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-04"` |
+| 122 | `IT-PROC-05` | `tests/integration/procurement-batch-lock.spec.js` | `npx playwright test tests/integration/procurement-batch-lock.spec.js --grep "IT-PROC-05"` |
 | 116 | `UT-ORD-17` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_17_bulk_create_orders_commit_valid_is_partial_and_idempotent` |
 | 117 | `UT-AUTH-09` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_09_bulk_order_permissions_split_draft_and_commit` |
 | 118 | `ACC-ORD-17` | `tests/integration/bulk-orders-mobile.spec.js` | `npx playwright test tests/integration/bulk-orders-mobile.spec.js --grep "ACC-ORD-17"` |

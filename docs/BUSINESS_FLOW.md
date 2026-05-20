@@ -75,6 +75,7 @@ Nếu cần can thiệp đặc biệt
 - nếu đủ tồn:
   - kiểm tra tồn khả dụng để chốt theo công thức `tồn hiện tại + hàng đã đặt nhập - phần đã giữ cho các đơn committed khác`
   - nếu `Cần thanh toán` đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app phải hiện cảnh báo xác nhận thêm trước khi cho chốt
+  - ở màn `Đơn hàng`, các phiếu `draft/committed` cùng khách có thể được chọn nhiều phiếu để mở flow `gộp đơn`; nếu khác khách thì không cho đi tiếp
   - cart chuyển `committed`
   - phát sinh `order_code` và `committed_at`
   - chưa trừ kho thật
@@ -108,6 +109,7 @@ Nếu cần can thiệp đặc biệt
 - nếu đi từ màn `customers`, app có thể lọc danh sách đơn đúng theo khách; nếu khách chỉ có 1 phiếu thì mở sẵn detail để xem ngay kể cả với đơn đã `completed/paid`
 - đơn `draft` có nút `Chốt đơn`, đơn `committed` có nút `Xuất hàng`
 - đơn `committed` vẫn cho sửa dòng hàng, địa chỉ giao và giảm giá; không đổi được khách, không được xóa
+- đơn `draft/committed` cùng khách vẫn có thể đi vào flow `gộp đơn`; hệ thống giữ lại một phiếu đích rồi chuyển các phiếu nguồn sang `cancelled`
 - đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; ngoại lệ duy nhất trước thanh toán là vẫn cho sửa `giảm giá khuyến mại` của toàn đơn
 
 ### Luồng tạo nhiều đơn mobile-first
@@ -149,6 +151,7 @@ Nếu cần can thiệp đặc biệt
 - nếu khi chọn mặt hàng vào phiếu mà mặt hàng đó đang nằm ở phiếu `draft/ordered` của NCC khác, app phải cảnh báo ngay và cho user chọn mở danh sách các phiếu liên quan để review trước khi quyết định dồn về một NCC hay giữ nguyên hiện trạng
 - phiếu `draft` đang trống vẫn có thể xóa ngay trên UI mà không cần lưu xuống DB
 - nếu phiếu được tạo từ đơn thiếu hàng, app giữ liên kết nguồn đơn riêng trong metadata của phiếu, không nhét sẵn vào ô ghi chú
+- các phiếu `draft/ordered` cùng NCC có thể được chọn nhiều phiếu để mở flow `gộp đơn`
 - sửa số lượng, giá nhập, mã lô và HSD của từng dòng; mặc định nhập trực tiếp HSD, hoặc có thể chuyển sang nhập gián tiếp bằng `Ngày sản xuất` để app tự tính HSD theo thời gian bảo quản
 - nếu cùng một sản phẩm về nhiều lô khác nhau thì tách thành nhiều dòng riêng
 - bắt buộc có nhà cung cấp trước khi chuyển phiếu sang `ordered`
@@ -182,6 +185,7 @@ ordered -> cancelled
 - `received` chỉ còn cho sửa `ghi chú`, `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
 - từ phiếu `received/paid`, có thể bấm `Nhập lại` để tạo nhanh một phiếu nháp mới cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có để không tạo draft thứ hai
 - khi `Nhập lại`, app chỉ sao chép nội dung đặt hàng; metadata lô như `batchCode`, `expiryDate`, `manufactureDate` phải reset về trống để nhập lại theo lô mới
+- flow `gộp đơn` phiếu nhập giữ lại một phiếu đích, dồn tất cả dòng hàng và giảm giá vào phiếu đó, hợp nhất `ghi chú` theo danh sách duy nhất ngăn bằng ` | `, rồi chuyển các phiếu nguồn sang `cancelled`
 - khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `draft/ordered`; user khác chỉ được đi tiếp `ordered -> received` nếu phiếu không phải batch và đã `ordered` trước lúc lock hiện tại được acquire, rồi mới đi tiếp `received -> paid`
 - trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
 
@@ -203,6 +207,7 @@ ordered -> cancelled
   - hệ thống tạo `workflow_locks.lock_key = procurement_batch`
   - chỉ một người giữ khóa xử lý tạo phiếu nhập batch tại một thời điểm
   - shortage từ chốt/xuất đơn chuyển về màn `Xử lý nhập thiếu`
+  - nếu planner đang hiện khối phiếu liên quan có thể gộp, app cho mở flow `gộp đơn` nhưng chặn trộn phiếu nhập và phiếu xuất trong cùng một lần thao tác
 
 ### Rule gom phiếu
 

@@ -583,6 +583,175 @@ test("IT-PURSUP-09 received purchase note stays editable until paid", async ({ p
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-PURSUP-10 purchases merge only open receipts of the same supplier and can cancel preview", async ({ page, request }) => {
+  test.setTimeout(90000);
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const sameSupplierName = `NCC gộp ${timestamp}`;
+  const otherSupplierName = `NCC gộp ${timestamp} khác`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const orderedPurchase = {
+    id: `purchase_merge_ordered_${timestamp}`,
+    supplierName: sameSupplierName,
+    note: "Ghi chú ordered",
+    status: "ordered",
+    discountAmount: 3000,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    orderedAt: new Date().toISOString(),
+    receiptCode: `PN-MERGE-${timestamp}`,
+    items: [
+      {
+        id: `purchase_merge_ordered_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 2,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+  const draftPurchase = {
+    id: `purchase_merge_draft_${timestamp}`,
+    supplierName: sameSupplierName,
+    note: "Ghi chú draft",
+    status: "draft",
+    discountAmount: 5000,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    items: [
+      {
+        id: `purchase_merge_draft_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 5,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+  const otherPurchase = {
+    id: `purchase_merge_other_${timestamp}`,
+    supplierName: otherSupplierName,
+    note: "Phiếu NCC khác",
+    status: "draft",
+    discountAmount: 700,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    items: [
+      {
+        id: `purchase_merge_other_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 1,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+
+  async function checkMergePurchase(purchaseId) {
+    const checkbox = page.locator(`[data-purchase-select="${purchaseId}"] input[data-purchase-list-action="toggle-merge-select"]`).first();
+    await checkbox.evaluate((node) => {
+      node.checked = true;
+      node.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await expect(checkbox).toBeChecked();
+  }
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        purchases: [orderedPurchase, draftPurchase, otherPurchase, ...(originalState.purchases || [])],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+    await setFloatingSearch(page, `NCC gộp ${timestamp}`);
+
+    const orderedCard = page.locator(`[data-purchase-select="${orderedPurchase.id}"]`).first();
+    const draftCard = page.locator(`[data-purchase-select="${draftPurchase.id}"]`).first();
+    const otherCard = page.locator(`[data-purchase-select="${otherPurchase.id}"]`).first();
+    await expect(orderedCard).toBeVisible();
+    await expect(draftCard).toBeVisible();
+    await expect(otherCard).toBeVisible();
+
+    await checkMergePurchase(orderedPurchase.id);
+    await checkMergePurchase(otherPurchase.id);
+    await page.locator('#purchaseOrderList [data-purchase-list-action="start-merge-preview"]').click();
+    const invalidToast = await collectToast(page, runtime, "it-pursup-10-invalid", { errorPattern: /^$/ });
+    expect(invalidToast).toContain("Chỉ gộp được các phiếu nhập cùng một nhà cung cấp.");
+    await expectScreenTitle(page, "Nhập hàng");
+
+    await page.locator('#purchaseOrderList [data-purchase-list-action="clear-merge-selection"]').click();
+    await checkMergePurchase(orderedPurchase.id);
+    await checkMergePurchase(draftPurchase.id);
+    await page.locator('#purchaseOrderList [data-purchase-list-action="start-merge-preview"]').click();
+    await expect(page.locator("#purchasePanel")).toContainText("Gộp phiếu nhập đang chờ xác nhận");
+    await page.locator('#purchasePanel [data-purchase-action="cancel-merge-preview"]').click();
+    await expectScreenTitle(page, "Nhập hàng");
+    await expect(orderedCard).toBeVisible();
+    await expect(draftCard).toBeVisible();
+    await expect(page.locator('#purchaseOrderList [data-purchase-list-action="start-merge-preview"]')).toHaveCount(0);
+
+    await checkMergePurchase(orderedPurchase.id);
+    await checkMergePurchase(draftPurchase.id);
+    await page.locator('#purchaseOrderList [data-purchase-list-action="start-merge-preview"]').click();
+    await expect(page.locator("#purchasePanel")).toContainText("Gộp phiếu nhập đang chờ xác nhận");
+    await page.locator('#purchasePanel [data-purchase-action="confirm-merge-preview"]').click();
+    const mergeToast = await collectToast(page, runtime, "it-pursup-10-merge", { errorPattern: /^$/ });
+    expect(mergeToast).toContain("Đã gộp các phiếu nhập đã chọn vào phiếu hiện hành.");
+
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(latestStateResponse.ok()).toBeTruthy();
+    const latestState = await latestStateResponse.json();
+    const mergedOrderedPurchase = (latestState.purchases || []).find((purchase) => purchase.id === orderedPurchase.id);
+    const cancelledDraftPurchase = (latestState.purchases || []).find((purchase) => purchase.id === draftPurchase.id);
+    const untouchedOtherPurchase = (latestState.purchases || []).find((purchase) => purchase.id === otherPurchase.id);
+
+    expect(mergedOrderedPurchase).toBeTruthy();
+    expect(mergedOrderedPurchase.status).toBe("ordered");
+    expect(Number(mergedOrderedPurchase.discountAmount || mergedOrderedPurchase.discount_amount || 0)).toBe(8000);
+    expect(String(mergedOrderedPurchase.note || "")).toBe("Ghi chú ordered | Ghi chú draft");
+    expect(mergedOrderedPurchase.items || []).toHaveLength(1);
+    expect(Number(mergedOrderedPurchase.items[0].quantity)).toBe(7);
+    expect(cancelledDraftPurchase).toBeTruthy();
+    expect(cancelledDraftPurchase.status).toBe("cancelled");
+    expect(untouchedOtherPurchase).toBeTruthy();
+    expect(untouchedOtherPurchase.status).toBe("draft");
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical supplier", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const timestamp = Date.now();
