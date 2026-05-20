@@ -74,6 +74,7 @@ Nếu cần can thiệp đặc biệt
 
 - nếu đủ tồn:
   - kiểm tra tồn khả dụng để chốt theo công thức `tồn hiện tại + hàng đã đặt nhập - phần đã giữ cho các đơn committed khác`
+  - nếu `Cần thanh toán` đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app phải hiện cảnh báo xác nhận thêm trước khi cho chốt
   - cart chuyển `committed`
   - phát sinh `order_code` và `committed_at`
   - chưa trừ kho thật
@@ -91,6 +92,7 @@ Nếu cần can thiệp đặc biệt
 - nếu đủ tồn thực tế:
   - tạo xuất kho
   - trừ kho theo FEFO từ lô có HSD sớm nhất trước
+  - nếu `Cần thanh toán` vẫn thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app phải hỏi xác nhận thêm trước khi xuất
   - cart chuyển `completed`
 - nếu thiếu tồn thực tế:
   - app báo trước và cho mở/tạo phiếu nhập bù thiếu
