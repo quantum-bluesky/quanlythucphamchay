@@ -72,6 +72,12 @@ class ProcurementBatchStartConflictError(ValueError):
         super().__init__(message)
 
 
+class BulkOrderRequestDuplicateError(ValueError):
+    def __init__(self, message: str, *, duplicates: list[dict] | None = None):
+        self.duplicates = duplicates or []
+        super().__init__(message)
+
+
 class InventoryStore:
     SYNC_COLLECTION_KEYS = ("customers", "suppliers", "carts", "purchases")
 
@@ -175,6 +181,30 @@ class InventoryStore:
 
                 CREATE INDEX IF NOT EXISTS idx_bulk_order_batches_created_at
                 ON bulk_order_batches(created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS bulk_order_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    request_id TEXT NOT NULL UNIQUE,
+                    request_code TEXT NOT NULL DEFAULT '',
+                    mode TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending_approval',
+                    requested_by TEXT NOT NULL DEFAULT '',
+                    approved_by TEXT NOT NULL DEFAULT '',
+                    approved_at TEXT,
+                    rejected_by TEXT NOT NULL DEFAULT '',
+                    rejected_at TEXT,
+                    reject_reason TEXT NOT NULL DEFAULT '',
+                    processed_by TEXT NOT NULL DEFAULT '',
+                    processed_at TEXT,
+                    total_orders INTEGER NOT NULL DEFAULT 0,
+                    request_payload TEXT NOT NULL DEFAULT '{}',
+                    process_response_payload TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_bulk_order_requests_status_created_at
+                ON bulk_order_requests(status, created_at DESC);
 
                 CREATE TABLE IF NOT EXISTS customers (
                     id TEXT PRIMARY KEY,
@@ -3401,6 +3431,582 @@ class InventoryStore:
         )
         return self._get_cart_document(connection, clean_cart_id)
 
+    @staticmethod
+    def _normalize_bulk_order_mode(mode: str) -> str:
+        clean_mode = str(mode or "").strip()
+        return clean_mode if clean_mode in {"draft", "commit_valid"} else ""
+
+    @staticmethod
+    def _normalize_bulk_order_request_status(status: str) -> str:
+        clean_status = str(status or "").strip()
+        return clean_status if clean_status in {"pending_approval", "approved", "rejected", "processed"} else "pending_approval"
+
+    @staticmethod
+    def _build_bulk_order_request_code(created_at: str, request_id: str) -> str:
+        parsed = datetime.now(timezone.utc)
+        clean_created_at = str(created_at or "").strip()
+        if clean_created_at:
+            try:
+                parsed = datetime.fromisoformat(clean_created_at)
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                else:
+                    parsed = parsed.astimezone(timezone.utc)
+            except ValueError:
+                pass
+        suffix = hashlib.sha1(str(request_id or "").encode("utf-8")).hexdigest()[:6]
+        return f"YCNX-{parsed.strftime('%Y%m%d-%H%M%S')}-{suffix}"
+
+    @staticmethod
+    def _build_bulk_order_request_order_signature(order: dict) -> str:
+        items = []
+        for raw_item in order.get("items") or []:
+            product_id = int(raw_item.get("product_id") or raw_item.get("productId") or 0)
+            if product_id <= 0:
+                continue
+            try:
+                quantity = round(float(raw_item.get("quantity") or 0), 2)
+            except (TypeError, ValueError):
+                quantity = 0.0
+            try:
+                unit_price = round(float(raw_item.get("unit_price") or raw_item.get("unitPrice") or 0), 2)
+            except (TypeError, ValueError):
+                unit_price = 0.0
+            items.append(
+                {
+                    "product_id": product_id,
+                    "quantity": quantity,
+                    "unit_price": unit_price,
+                }
+            )
+        items.sort(key=lambda item: (item["product_id"], item["quantity"], item["unit_price"]))
+        try:
+            discount_amount = round(float(order.get("discount_amount", order.get("discountAmount", 0)) or 0), 2)
+        except (TypeError, ValueError):
+            discount_amount = 0.0
+        signature_payload = {
+            "customer_id": str(order.get("customer_id") or order.get("customerId") or "").strip(),
+            "customer_name": normalize_key(order.get("customer_name") or order.get("customerName") or ""),
+            "ship_address": normalize_key(order.get("ship_address") or order.get("shipAddress") or ""),
+            "discount_amount": discount_amount,
+            "items": items,
+        }
+        return json.dumps(signature_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+    def _prepare_bulk_order_submission_orders(
+        self,
+        connection: sqlite3.Connection,
+        orders: list[dict],
+    ) -> list[dict]:
+        prepared_orders: list[dict] = []
+        for index, raw_order in enumerate(orders):
+            order_payload = raw_order if isinstance(raw_order, dict) else {}
+            customer_name = str(order_payload.get("customer_name") or order_payload.get("customerName") or "").strip()
+            if not customer_name:
+                raise ValueError("Khách hàng là bắt buộc.")
+            grouped_items = self._group_sale_items(order_payload.get("items") or [])
+            if not grouped_items:
+                raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
+            subtotal = sum(item["quantity"] * item["unit_price"] for item in grouped_items.values())
+            discount_amount = self._validate_discount_amount(
+                order_payload.get("discount_amount", order_payload.get("discountAmount", 0)),
+                subtotal,
+                "Giảm giá khuyến mại phiếu xuất",
+            )
+            discount_amount_decimal = Decimal(str(discount_amount))
+            prepared_items: list[dict] = []
+            total_quantity = Decimal("0")
+            for grouped_item in grouped_items.values():
+                product_id = int(grouped_item["product_id"])
+                product = self._get_product_or_raise(connection, product_id)
+                quantity = grouped_item["quantity"]
+                unit_price = grouped_item["unit_price"]
+                total_quantity += quantity
+                prepared_items.append(
+                    {
+                        "product_id": product_id,
+                        "product_name": str(product["name"] or "").strip(),
+                        "unit": str(product["unit"] or "").strip(),
+                        "quantity": round(float(quantity), 2),
+                        "unit_price": round(float(unit_price), 2),
+                        "note": str(grouped_item.get("note") or "").strip(),
+                    }
+                )
+            prepared_items.sort(key=lambda item: (normalize_key(item["product_name"]), item["product_id"]))
+            prepared_order = {
+                "client_order_id": str(
+                    order_payload.get("client_order_id")
+                    or order_payload.get("clientOrderId")
+                    or f"bulk_order_{index + 1}"
+                ).strip() or f"bulk_order_{index + 1}",
+                "customer_id": str(order_payload.get("customer_id") or order_payload.get("customerId") or "").strip(),
+                "customer_name": customer_name,
+                "ship_address": str(order_payload.get("ship_address") or order_payload.get("shipAddress") or "").strip(),
+                "discount_amount": round(float(discount_amount), 2),
+                "merge_strategy": str(
+                    order_payload.get("merge_strategy") or order_payload.get("mergeStrategy") or "merge_existing_draft"
+                ).strip() or "merge_existing_draft",
+                "items": prepared_items,
+                "item_count": len(prepared_items),
+                "total_quantity": round(float(total_quantity), 2),
+                "subtotal_amount": round(float(subtotal), 2),
+                "total_amount": round(float(subtotal - discount_amount_decimal), 2),
+            }
+            prepared_order["signature"] = self._build_bulk_order_request_order_signature(prepared_order)
+            prepared_orders.append(prepared_order)
+        return prepared_orders
+
+    def _extract_prepared_bulk_order_request_orders(self, request_payload_text: str | None) -> list[dict]:
+        try:
+            payload = json.loads(request_payload_text or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return []
+        raw_orders = payload.get("orders") if isinstance(payload, dict) else []
+        prepared_orders: list[dict] = []
+        if not isinstance(raw_orders, list):
+            return prepared_orders
+        for index, raw_order in enumerate(raw_orders):
+            order_payload = raw_order if isinstance(raw_order, dict) else {}
+            prepared_items: list[dict] = []
+            total_quantity = 0.0
+            for raw_item in order_payload.get("items") or []:
+                product_id = int(raw_item.get("product_id") or raw_item.get("productId") or 0)
+                if product_id <= 0:
+                    continue
+                try:
+                    quantity = round(float(raw_item.get("quantity") or 0), 2)
+                except (TypeError, ValueError):
+                    quantity = 0.0
+                try:
+                    unit_price = round(float(raw_item.get("unit_price") or raw_item.get("unitPrice") or 0), 2)
+                except (TypeError, ValueError):
+                    unit_price = 0.0
+                prepared_items.append(
+                    {
+                        "product_id": product_id,
+                        "product_name": str(raw_item.get("product_name") or raw_item.get("productName") or "").strip(),
+                        "unit": str(raw_item.get("unit") or "").strip(),
+                        "quantity": quantity,
+                        "unit_price": unit_price,
+                        "note": str(raw_item.get("note") or "").strip(),
+                    }
+                )
+                total_quantity += quantity
+            prepared_items.sort(key=lambda item: (normalize_key(item["product_name"]), item["product_id"]))
+            try:
+                discount_amount = round(float(order_payload.get("discount_amount", order_payload.get("discountAmount", 0)) or 0), 2)
+            except (TypeError, ValueError):
+                discount_amount = 0.0
+            try:
+                subtotal_amount = round(float(order_payload.get("subtotal_amount", order_payload.get("subtotalAmount", 0)) or 0), 2)
+            except (TypeError, ValueError):
+                subtotal_amount = round(sum(item["quantity"] * item["unit_price"] for item in prepared_items), 2)
+            prepared_order = {
+                "client_order_id": str(
+                    order_payload.get("client_order_id")
+                    or order_payload.get("clientOrderId")
+                    or f"bulk_order_{index + 1}"
+                ).strip() or f"bulk_order_{index + 1}",
+                "customer_id": str(order_payload.get("customer_id") or order_payload.get("customerId") or "").strip(),
+                "customer_name": str(order_payload.get("customer_name") or order_payload.get("customerName") or "").strip(),
+                "ship_address": str(order_payload.get("ship_address") or order_payload.get("shipAddress") or "").strip(),
+                "discount_amount": discount_amount,
+                "merge_strategy": str(
+                    order_payload.get("merge_strategy") or order_payload.get("mergeStrategy") or "merge_existing_draft"
+                ).strip() or "merge_existing_draft",
+                "items": prepared_items,
+                "item_count": len(prepared_items),
+                "total_quantity": round(total_quantity, 2),
+                "subtotal_amount": subtotal_amount,
+                "total_amount": round(max(0.0, subtotal_amount - discount_amount), 2),
+            }
+            prepared_order["signature"] = self._build_bulk_order_request_order_signature(prepared_order)
+            prepared_orders.append(prepared_order)
+        return prepared_orders
+
+    def _find_bulk_order_request_duplicates(
+        self,
+        connection: sqlite3.Connection,
+        prepared_orders: list[dict],
+        *,
+        exclude_request_id: str = "",
+    ) -> list[dict]:
+        signatures = {
+            str(order.get("signature") or "").strip(): order
+            for order in prepared_orders
+            if str(order.get("signature") or "").strip()
+        }
+        if not signatures:
+            return []
+        rows = connection.execute(
+            """
+            SELECT request_id, request_code, mode, status, requested_by, created_at, request_payload
+            FROM bulk_order_requests
+            WHERE status IN ('pending_approval', 'approved')
+            ORDER BY created_at DESC, id DESC
+            """
+        ).fetchall()
+        duplicates: list[dict] = []
+        clean_exclude_request_id = str(exclude_request_id or "").strip()
+        for row in rows:
+            request_id = str(row["request_id"] or "").strip()
+            if clean_exclude_request_id and request_id == clean_exclude_request_id:
+                continue
+            matched_orders = [
+                {
+                    "client_order_id": order.get("client_order_id") or "",
+                    "customer_name": order.get("customer_name") or "",
+                    "item_count": int(order.get("item_count") or 0),
+                    "total_quantity": float(order.get("total_quantity") or 0),
+                }
+                for order in self._extract_prepared_bulk_order_request_orders(row["request_payload"])
+                if str(order.get("signature") or "").strip() in signatures
+            ]
+            if not matched_orders:
+                continue
+            duplicates.append(
+                {
+                    "request_id": request_id,
+                    "request_code": str(row["request_code"] or request_id).strip() or request_id,
+                    "mode": self._normalize_bulk_order_mode(row["mode"]),
+                    "status": self._normalize_bulk_order_request_status(row["status"]),
+                    "requested_by": str(row["requested_by"] or "").strip(),
+                    "created_at": str(row["created_at"] or "").strip(),
+                    "matched_order_count": len(matched_orders),
+                    "matched_orders": matched_orders,
+                }
+            )
+        return duplicates
+
+    @staticmethod
+    def _load_bulk_order_request_row(
+        connection: sqlite3.Connection,
+        request_id: str,
+    ) -> sqlite3.Row | None:
+        return connection.execute(
+            """
+            SELECT id, request_id, request_code, mode, status, requested_by,
+                   approved_by, approved_at, rejected_by, rejected_at, reject_reason,
+                   processed_by, processed_at, total_orders, request_payload,
+                   process_response_payload, created_at, updated_at
+            FROM bulk_order_requests
+            WHERE request_id = ?
+            LIMIT 1
+            """,
+            (request_id,),
+        ).fetchone()
+
+    def _serialize_bulk_order_request_row(
+        self,
+        row: sqlite3.Row | None,
+        *,
+        duplicates: list[dict] | None = None,
+    ) -> dict | None:
+        if not row:
+            return None
+        orders = self._extract_prepared_bulk_order_request_orders(row["request_payload"])
+        try:
+            process_response = json.loads(row["process_response_payload"] or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            process_response = {}
+        total_items = sum(int(order.get("item_count") or 0) for order in orders)
+        total_quantity = round(sum(float(order.get("total_quantity") or 0) for order in orders), 2)
+        return {
+            "request_id": str(row["request_id"] or "").strip(),
+            "request_code": str(row["request_code"] or row["request_id"] or "").strip(),
+            "mode": self._normalize_bulk_order_mode(row["mode"]),
+            "status": self._normalize_bulk_order_request_status(row["status"]),
+            "requested_by": str(row["requested_by"] or "").strip(),
+            "approved_by": str(row["approved_by"] or "").strip(),
+            "approved_at": str(row["approved_at"] or "").strip(),
+            "rejected_by": str(row["rejected_by"] or "").strip(),
+            "rejected_at": str(row["rejected_at"] or "").strip(),
+            "reject_reason": str(row["reject_reason"] or "").strip(),
+            "processed_by": str(row["processed_by"] or "").strip(),
+            "processed_at": str(row["processed_at"] or "").strip(),
+            "created_at": str(row["created_at"] or "").strip(),
+            "updated_at": str(row["updated_at"] or row["created_at"] or "").strip(),
+            "total_orders": int(row["total_orders"] or len(orders)),
+            "total_items": total_items,
+            "total_quantity": total_quantity,
+            "orders": orders,
+            "process_response": process_response,
+            "process_summary": process_response.get("summary") if isinstance(process_response, dict) else {},
+            "duplicates": duplicates or [],
+        }
+
+    def list_bulk_order_requests(self, *, limit: int = 30) -> list[dict]:
+        try:
+            clean_limit = max(1, min(int(limit), 200))
+        except (TypeError, ValueError):
+            clean_limit = 30
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, request_id, request_code, mode, status, requested_by,
+                       approved_by, approved_at, rejected_by, rejected_at, reject_reason,
+                       processed_by, processed_at, total_orders, request_payload,
+                       process_response_payload, created_at, updated_at
+                FROM bulk_order_requests
+                ORDER BY created_at DESC, id DESC
+                LIMIT ?
+                """,
+                (clean_limit,),
+            ).fetchall()
+            return [
+                self._serialize_bulk_order_request_row(
+                    row,
+                    duplicates=self._find_bulk_order_request_duplicates(
+                        connection,
+                        self._extract_prepared_bulk_order_request_orders(row["request_payload"]),
+                        exclude_request_id=str(row["request_id"] or "").strip(),
+                    ) if self._normalize_bulk_order_request_status(row["status"]) in {"pending_approval", "approved"} else [],
+                )
+                for row in rows
+            ]
+
+    def get_bulk_order_request(self, request_id: str) -> dict | None:
+        clean_request_id = str(request_id or "").strip()
+        if not clean_request_id:
+            return None
+        with self._connect() as connection:
+            row = self._load_bulk_order_request_row(connection, clean_request_id)
+            if not row:
+                return None
+            duplicates = []
+            if self._normalize_bulk_order_request_status(row["status"]) in {"pending_approval", "approved"}:
+                duplicates = self._find_bulk_order_request_duplicates(
+                    connection,
+                    self._extract_prepared_bulk_order_request_orders(row["request_payload"]),
+                    exclude_request_id=clean_request_id,
+                )
+            return self._serialize_bulk_order_request_row(row, duplicates=duplicates)
+
+    def create_bulk_order_request(
+        self,
+        *,
+        mode: str,
+        request_id: str,
+        orders: list[dict],
+        actor: str = "",
+    ) -> dict:
+        clean_mode = self._normalize_bulk_order_mode(mode)
+        clean_request_id = str(request_id or "").strip()
+        clean_actor = str(actor or "").strip()
+        if not clean_mode:
+            raise ValueError("Mode tạo nhiều đơn không hợp lệ.")
+        if not clean_request_id:
+            raise ValueError("Thiếu request_id.")
+        if not isinstance(orders, list) or not orders:
+            raise ValueError("Danh sách đơn hàng đang trống.")
+
+        now = utc_now_iso()
+        with self._connect() as connection:
+            existing_row = self._load_bulk_order_request_row(connection, clean_request_id)
+            if existing_row:
+                request_doc = self._serialize_bulk_order_request_row(
+                    existing_row,
+                    duplicates=self._find_bulk_order_request_duplicates(
+                        connection,
+                        self._extract_prepared_bulk_order_request_orders(existing_row["request_payload"]),
+                        exclude_request_id=clean_request_id,
+                    ),
+                )
+                return {
+                    "request_id": clean_request_id,
+                    "mode": request_doc["mode"],
+                    "approval_required": True,
+                    "request": request_doc,
+                    "summary": {
+                        "total_orders": request_doc["total_orders"],
+                        "success": request_doc["total_orders"],
+                        "failed": 0,
+                    },
+                    "results": [
+                        {
+                            "client_order_id": order.get("client_order_id") or "",
+                            "customer_name": order.get("customer_name") or "",
+                            "status": "success",
+                            "order_status": request_doc["status"],
+                            "request_id": request_doc["request_id"],
+                            "request_code": request_doc["request_code"],
+                            "saved_as_draft": clean_mode == "draft",
+                            "message": "Yêu cầu đã tồn tại, trả lại kết quả đã lưu.",
+                            "errors": [],
+                        }
+                        for order in request_doc["orders"]
+                    ],
+                    "idempotent_replay": True,
+                }
+            prepared_orders = self._prepare_bulk_order_submission_orders(connection, orders)
+            duplicates = self._find_bulk_order_request_duplicates(connection, prepared_orders)
+            if duplicates:
+                duplicate_codes = ", ".join(entry["request_code"] for entry in duplicates[:3])
+                raise BulkOrderRequestDuplicateError(
+                    f"Một số đơn đã tồn tại trong yêu cầu xuất nhanh khác đang chờ xử lý: {duplicate_codes}.",
+                    duplicates=duplicates,
+                )
+            request_payload = {
+                "mode": clean_mode,
+                "request_id": clean_request_id,
+                "orders": prepared_orders,
+            }
+            request_code = self._build_bulk_order_request_code(now, clean_request_id)
+            connection.execute(
+                """
+                INSERT INTO bulk_order_requests(
+                    request_id, request_code, mode, status, requested_by,
+                    total_orders, request_payload, process_response_payload,
+                    created_at, updated_at
+                )
+                VALUES(?, ?, ?, 'pending_approval', ?, ?, ?, '{}', ?, ?)
+                """,
+                (
+                    clean_request_id,
+                    request_code,
+                    clean_mode,
+                    clean_actor,
+                    len(prepared_orders),
+                    json.dumps(request_payload, ensure_ascii=False),
+                    now,
+                    now,
+                ),
+            )
+            request_row = self._load_bulk_order_request_row(connection, clean_request_id)
+            request_doc = self._serialize_bulk_order_request_row(request_row, duplicates=[])
+            return {
+                "request_id": clean_request_id,
+                "mode": clean_mode,
+                "approval_required": True,
+                "request": request_doc,
+                "summary": {
+                    "total_orders": len(prepared_orders),
+                    "success": len(prepared_orders),
+                    "failed": 0,
+                },
+                "results": [
+                    {
+                        "client_order_id": order.get("client_order_id") or "",
+                        "customer_name": order.get("customer_name") or "",
+                        "status": "success",
+                        "order_status": "pending_approval",
+                        "request_id": clean_request_id,
+                        "request_code": request_code,
+                        "saved_as_draft": clean_mode == "draft",
+                        "message": "Đã tạo yêu cầu chờ duyệt.",
+                        "errors": [],
+                    }
+                    for order in prepared_orders
+                ],
+            }
+
+    def approve_bulk_order_request(self, request_id: str, *, actor: str = "") -> dict:
+        clean_request_id = str(request_id or "").strip()
+        clean_actor = str(actor or "").strip()
+        if not clean_request_id:
+            raise ValueError("Thiếu request_id.")
+        now = utc_now_iso()
+        with self._connect() as connection:
+            row = self._load_bulk_order_request_row(connection, clean_request_id)
+            if not row:
+                raise ValueError("Không tìm thấy yêu cầu xuất nhanh.")
+            status = self._normalize_bulk_order_request_status(row["status"])
+            if status != "pending_approval":
+                raise ValueError("Chỉ yêu cầu đang chờ duyệt mới được approve.")
+            connection.execute(
+                """
+                UPDATE bulk_order_requests
+                SET status = 'approved',
+                    approved_by = ?,
+                    approved_at = ?,
+                    rejected_by = '',
+                    rejected_at = NULL,
+                    reject_reason = '',
+                    updated_at = ?
+                WHERE request_id = ?
+                """,
+                (clean_actor, now, now, clean_request_id),
+            )
+            updated_row = self._load_bulk_order_request_row(connection, clean_request_id)
+            return self._serialize_bulk_order_request_row(updated_row, duplicates=[])
+
+    def reject_bulk_order_request(self, request_id: str, *, actor: str = "", reason: str = "") -> dict:
+        clean_request_id = str(request_id or "").strip()
+        clean_actor = str(actor or "").strip()
+        clean_reason = str(reason or "").strip()
+        if not clean_request_id:
+            raise ValueError("Thiếu request_id.")
+        now = utc_now_iso()
+        with self._connect() as connection:
+            row = self._load_bulk_order_request_row(connection, clean_request_id)
+            if not row:
+                raise ValueError("Không tìm thấy yêu cầu xuất nhanh.")
+            status = self._normalize_bulk_order_request_status(row["status"])
+            if status not in {"pending_approval", "approved"}:
+                raise ValueError("Chỉ yêu cầu đang chờ duyệt hoặc đã duyệt mới được reject.")
+            connection.execute(
+                """
+                UPDATE bulk_order_requests
+                SET status = 'rejected',
+                    rejected_by = ?,
+                    rejected_at = ?,
+                    reject_reason = ?,
+                    updated_at = ?
+                WHERE request_id = ?
+                """,
+                (clean_actor, now, clean_reason, now, clean_request_id),
+            )
+            updated_row = self._load_bulk_order_request_row(connection, clean_request_id)
+            return self._serialize_bulk_order_request_row(updated_row, duplicates=[])
+
+    def process_bulk_order_request(self, request_id: str, *, actor: str = "") -> dict:
+        clean_request_id = str(request_id or "").strip()
+        clean_actor = str(actor or "").strip()
+        if not clean_request_id:
+            raise ValueError("Thiếu request_id.")
+
+        request_doc = self.get_bulk_order_request(clean_request_id)
+        if not request_doc:
+            raise ValueError("Không tìm thấy yêu cầu xuất nhanh.")
+        if request_doc["status"] != "approved":
+            raise ValueError("Chỉ yêu cầu đã duyệt mới được xử lý.")
+
+        process_request_id = f"{clean_request_id}::processed"
+        process_result = self.bulk_create_orders(
+            mode=request_doc["mode"],
+            request_id=process_request_id,
+            orders=request_doc["orders"],
+            actor=clean_actor,
+            allow_duplicates=True,
+        )
+
+        now = utc_now_iso()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE bulk_order_requests
+                SET status = 'processed',
+                    processed_by = ?,
+                    processed_at = ?,
+                    process_response_payload = ?,
+                    updated_at = ?
+                WHERE request_id = ?
+                """,
+                (
+                    clean_actor,
+                    now,
+                    json.dumps(process_result, ensure_ascii=False),
+                    now,
+                    clean_request_id,
+                ),
+            )
+            updated_row = self._load_bulk_order_request_row(connection, clean_request_id)
+            request_doc = self._serialize_bulk_order_request_row(updated_row, duplicates=[])
+        return {
+            "request": request_doc,
+            "process_result": process_result,
+        }
+
     def _create_or_merge_bulk_order_draft(
         self,
         connection: sqlite3.Connection,
@@ -3559,11 +4165,12 @@ class InventoryStore:
         request_id: str,
         orders: list[dict],
         actor: str = "",
+        allow_duplicates: bool = False,
     ) -> dict:
-        clean_mode = str(mode or "").strip()
+        clean_mode = self._normalize_bulk_order_mode(mode)
         clean_request_id = str(request_id or "").strip()
         clean_actor = str(actor or "").strip()
-        if clean_mode not in {"draft", "commit_valid"}:
+        if not clean_mode:
             raise ValueError("Mode tạo nhiều đơn không hợp lệ.")
         if not clean_request_id:
             raise ValueError("Thiếu request_id.")
@@ -3593,6 +4200,16 @@ class InventoryStore:
                 stored_response["idempotent_replay"] = True
                 return stored_response
 
+            prepared_orders = self._prepare_bulk_order_submission_orders(connection, orders)
+            if not allow_duplicates:
+                duplicates = self._find_bulk_order_request_duplicates(connection, prepared_orders)
+                if duplicates:
+                    duplicate_codes = ", ".join(entry["request_code"] for entry in duplicates[:3])
+                    raise BulkOrderRequestDuplicateError(
+                        f"Một số đơn đã tồn tại trong yêu cầu xuất nhanh khác đang chờ xử lý: {duplicate_codes}.",
+                        duplicates=duplicates,
+                    )
+
             connection.execute(
                 """
                 INSERT INTO bulk_order_batches(
@@ -3604,8 +4221,14 @@ class InventoryStore:
                     clean_request_id,
                     clean_mode,
                     clean_actor,
-                    len(orders),
-                    json.dumps(request_payload, ensure_ascii=False),
+                    len(prepared_orders),
+                    json.dumps(
+                        {
+                            **request_payload,
+                            "orders": prepared_orders,
+                        },
+                        ensure_ascii=False,
+                    ),
                     now,
                 ),
             )
@@ -3613,7 +4236,7 @@ class InventoryStore:
             results: list[dict] = []
             success_count = 0
             failed_count = 0
-            for index, raw_order in enumerate(orders):
+            for index, raw_order in enumerate(prepared_orders):
                 order_payload = raw_order if isinstance(raw_order, dict) else {}
                 client_order_id = str(order_payload.get("client_order_id") or order_payload.get("clientOrderId") or f"bulk_order_{index + 1}").strip()
                 customer_name = str(order_payload.get("customer_name") or order_payload.get("customerName") or "").strip()
@@ -3720,7 +4343,7 @@ class InventoryStore:
                 )
 
             summary = {
-                "total_orders": len(orders),
+                "total_orders": len(prepared_orders),
                 "success": success_count,
                 "failed": failed_count,
             }
@@ -3754,7 +4377,7 @@ class InventoryStore:
                 actor=clean_actor,
                 message=(
                     f"Tạo nhiều đơn mode={clean_mode}. "
-                    f"Tổng {len(orders)} đơn, thành công {success_count}, lỗi {failed_count}."
+                    f"Tổng {len(prepared_orders)} đơn, thành công {success_count}, lỗi {failed_count}."
                 ),
             )
             return response_payload

@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
 from .constants import ADMIN_SESSION_COOKIE, APP_NAME, JS_ASSET_VERSIONS_PATH, STATIC_DIR
 from .js_asset_versions import JavaScriptAssetVersionManager
-from .store import ProcurementBatchStartConflictError, SyncConflictError
+from .store import BulkOrderRequestDuplicateError, ProcurementBatchStartConflictError, SyncConflictError
 
 
 def create_handler(store, admin_sessions, system_config: dict | None = None):
@@ -257,6 +257,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "transactions": store.get_transactions(limit=int(limit)),
                         "runtime_version": store.get_runtime_version(),
                         "procurement": self._build_procurement_status_payload(),
+                        "bulk_order_requests": store.list_bulk_order_requests(limit=30),
                         **store.get_sync_state(),
                     },
                 )
@@ -775,48 +776,158 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
                 if route == "/api/orders/bulk-create":
                     mode = str(payload.get("mode") or "").strip()
-                    if mode == "commit_valid":
-                        if not self._require_named_permission(
-                            "bulk_order_commit",
-                            "Tài khoản này không có quyền chốt nhiều đơn.",
-                        ):
+                    if self._is_login_enabled():
+                        session, expired = self._resolve_current_session()
+                        if expired:
+                            self._send_json(
+                                HTTPStatus.UNAUTHORIZED,
+                                self._build_auth_required_payload(session_expired=True),
+                            )
                             return
-                    else:
-                        if self._is_login_enabled():
-                            session, expired = self._resolve_current_session()
-                            if expired:
-                                self._send_json(
-                                    HTTPStatus.UNAUTHORIZED,
-                                    self._build_auth_required_payload(session_expired=True),
-                                )
-                                return
-                            if not session:
-                                self._send_json(HTTPStatus.UNAUTHORIZED, self._build_auth_required_payload())
-                                return
-                            if not (
-                                self._has_named_permission("bulk_order_create")
-                                or self._has_named_permission("bulk_order_commit")
-                            ):
-                                self._send_json(
-                                    HTTPStatus.UNAUTHORIZED,
-                                    {"error": "Tài khoản này không có quyền tạo nhiều đơn."},
-                                )
-                                return
-                    result = store.bulk_create_orders(
-                        mode=mode,
-                        request_id=payload.get("request_id") or payload.get("requestId") or "",
-                        orders=payload.get("orders") or [],
+                        if not session:
+                            self._send_json(HTTPStatus.UNAUTHORIZED, self._build_auth_required_payload())
+                            return
+                    if mode == "commit_valid":
+                        if not self._has_named_permission("bulk_order_commit"):
+                            self._send_json(
+                                HTTPStatus.UNAUTHORIZED,
+                                {"error": "Tài khoản này không có quyền chốt nhiều đơn."},
+                            )
+                            return
+                    elif self._is_login_enabled() and not (
+                        self._has_named_permission("bulk_order_create")
+                        or self._has_named_permission("bulk_order_commit")
+                    ):
+                        self._send_json(
+                            HTTPStatus.UNAUTHORIZED,
+                            {"error": "Tài khoản này không có quyền tạo nhiều đơn."},
+                        )
+                        return
+
+                    can_manage_requests = self._has_named_permission("order_batch_manage")
+                    approval_required = self._is_login_enabled() and not can_manage_requests
+                    request_id = payload.get("request_id") or payload.get("requestId") or ""
+                    orders = payload.get("orders") or []
+                    allow_duplicates = bool(payload.get("allow_duplicates") or payload.get("allowDuplicates"))
+                    try:
+                        if approval_required:
+                            result = store.create_bulk_order_request(
+                                mode=mode,
+                                request_id=request_id,
+                                orders=orders,
+                                actor=self._get_current_username() or "",
+                            )
+                            message = (
+                                "Đã gửi yêu cầu chốt nhiều đơn để chờ duyệt."
+                                if mode == "commit_valid"
+                                else "Đã gửi yêu cầu lưu nhiều đơn nháp để chờ duyệt."
+                            )
+                        else:
+                            result = store.bulk_create_orders(
+                                mode=mode,
+                                request_id=request_id,
+                                orders=orders,
+                                actor=self._get_current_username() or "",
+                                allow_duplicates=allow_duplicates,
+                            )
+                            message = (
+                                "Đã chốt các đơn hợp lệ."
+                                if mode == "commit_valid"
+                                else "Đã lưu các đơn nháp."
+                            )
+                    except BulkOrderRequestDuplicateError as exc:
+                        self._send_json(
+                            HTTPStatus.CONFLICT,
+                            {
+                                "error": str(exc),
+                                "code": "bulk_order_duplicate_request",
+                                "duplicates": exc.duplicates,
+                                "approval_required": approval_required,
+                                "can_continue": can_manage_requests,
+                            },
+                        )
+                        return
+
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": message,
+                            **result,
+                            "inventory_summary": store.get_summary(),
+                        },
+                    )
+                    return
+
+                request_approve_match = re.fullmatch(r"/api/orders/bulk-requests/([^/]+)/approve", route)
+                if request_approve_match:
+                    if not self._require_named_permission(
+                        "order_batch_manage",
+                        "Tài khoản này không có quyền duyệt yêu cầu xuất nhanh.",
+                    ):
+                        return
+                    request_doc = store.approve_bulk_order_request(
+                        request_approve_match.group(1),
                         actor=self._get_current_username() or "",
                     )
                     self._send_json(
                         HTTPStatus.OK,
                         {
-                            "message": (
-                                "Đã chốt các đơn hợp lệ."
-                                if mode == "commit_valid"
-                                else "Đã lưu các đơn nháp."
-                            ),
+                            "message": "Đã approve yêu cầu xuất nhanh.",
+                            "request": request_doc,
+                            "bulk_order_requests": store.list_bulk_order_requests(limit=30),
+                        },
+                    )
+                    return
+
+                request_reject_match = re.fullmatch(r"/api/orders/bulk-requests/([^/]+)/reject", route)
+                if request_reject_match:
+                    if not self._require_named_permission(
+                        "order_batch_manage",
+                        "Tài khoản này không có quyền từ chối yêu cầu xuất nhanh.",
+                    ):
+                        return
+                    request_doc = store.reject_bulk_order_request(
+                        request_reject_match.group(1),
+                        actor=self._get_current_username() or "",
+                        reason=payload.get("reason") or "",
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã reject yêu cầu xuất nhanh.",
+                            "request": request_doc,
+                            "bulk_order_requests": store.list_bulk_order_requests(limit=30),
+                        },
+                    )
+                    return
+
+                request_process_match = re.fullmatch(r"/api/orders/bulk-requests/([^/]+)/process", route)
+                if request_process_match:
+                    request_id = request_process_match.group(1)
+                    request_doc = store.get_bulk_order_request(request_id)
+                    if not request_doc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Không tìm thấy yêu cầu xuất nhanh."})
+                        return
+                    current_username = self._get_current_username() or ""
+                    if not (
+                        self._has_named_permission("order_batch_manage")
+                        or current_username == str(request_doc.get("requested_by") or "").strip()
+                    ):
+                        self._send_json(
+                            HTTPStatus.UNAUTHORIZED,
+                            {"error": "Tài khoản này không có quyền xử lý yêu cầu xuất nhanh đã duyệt."},
+                        )
+                        return
+                    result = store.process_bulk_order_request(
+                        request_id,
+                        actor=current_username,
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã xử lý yêu cầu xuất nhanh đã duyệt.",
                             **result,
+                            "bulk_order_requests": store.list_bulk_order_requests(limit=30),
                             "inventory_summary": store.get_summary(),
                         },
                     )

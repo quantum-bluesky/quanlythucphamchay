@@ -109,6 +109,7 @@ Liên kết detail hiện có:
   - ô thêm khách nhanh
   - list card theo khách
   - item picker sản phẩm
+  - khối `Yêu cầu xuất nhanh` hiển thị request gần đây và action `Approve/Reject/Xử lý`
   - thanh kết quả batch
   - footer action cố định
 - nguyên tắc UI:
@@ -118,6 +119,8 @@ Liên kết detail hiện có:
   - cuối màn chỉ có đúng 2 CTA chính: `Lưu nháp` và `Chốt đơn hợp lệ`
   - `Lưu nháp` chỉ tạo/cập nhật cart `draft`; không giữ hàng, không trừ kho và không nhảy thẳng sang `completed`
   - `Chốt đơn hợp lệ` phải kiểm từng khách theo đúng rule availability của bước `Chốt đơn` hiện tại; đơn đủ điều kiện sang `committed`, đơn lỗi giữ nguyên ở màn để user sửa tiếp
+  - khi login bật và user không có `order_batch_manage`, 2 CTA cuối màn phải đổi nghĩa thành `gửi request chờ duyệt`; request card phải hiện rõ `người tạo`, `trạng thái`, `số đơn`, `lý do reject` nếu có và warning trùng request active
+  - user có `order_batch_manage` hoặc `Master Admin` phải thấy badge pending ngay từ menu và có action `Approve/Reject`; owner của request đã `approved` cũng phải thấy nút `Xử lý`
   - lỗi phải hiển thị được theo từng khách và từng sản phẩm, ví dụ `Thiếu ...: cần ..., còn ...`
   - nếu khách đã có đơn nháp trên server, card phải cho user chọn `dồn vào nháp hiện có` hoặc `tạo nháp mới riêng`
   - import Excel nếu có chỉ là action phụ; dữ liệu sau import vẫn phải đổ về list card để user review/sửa trước khi lưu hoặc chốt

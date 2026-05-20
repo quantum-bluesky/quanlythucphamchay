@@ -46,6 +46,7 @@ import {
   bulkOrderSearchInput,
   bulkOrderSummaryBar,
   bulkOrderPermissionNotice,
+  bulkOrderRequestsPanel,
   bulkOrderResultSummary,
   bulkOrderList,
   bulkOrderSaveDraftButton,
@@ -310,6 +311,8 @@ const bulkOrderUiHelpers = {
   getCustomerDraftHint: () => null,
   getCanCreateBulkDraft: () => true,
   getCanCommitBulkOrders: () => true,
+  getCanManageBulkOrderRequests: () => false,
+  getRequiresBulkOrderApproval: () => false,
 };
 
 function setBusyPageInert(active) {
@@ -984,6 +987,7 @@ function getBulkOrdersUi() {
         bulkOrderSearchInput,
         bulkOrderSummaryBar,
         bulkOrderPermissionNotice,
+        bulkOrderRequestsPanel,
         bulkOrderResultSummary,
         bulkOrderList,
         bulkOrderSaveDraftButton,
@@ -999,6 +1003,8 @@ function getBulkOrdersUi() {
       getCustomerDraftHint: (entry) => bulkOrderUiHelpers.getCustomerDraftHint(entry),
       getCanCreateBulkDraft: () => bulkOrderUiHelpers.getCanCreateBulkDraft(),
       getCanCommitBulkOrders: () => bulkOrderUiHelpers.getCanCommitBulkOrders(),
+      getCanManageBulkOrderRequests: () => bulkOrderUiHelpers.getCanManageBulkOrderRequests(),
+      getRequiresBulkOrderApproval: () => bulkOrderUiHelpers.getRequiresBulkOrderApproval(),
     });
   }
   return bulkOrdersUi;
@@ -4366,6 +4372,7 @@ function clearProtectedSessionData() {
     customerText: "",
     entries: [],
     expandedEntryId: "",
+    expandedRequestId: "",
     itemPickerOpen: false,
     itemPickerEntryId: "",
     itemPickerSearchTerm: "",
@@ -4626,6 +4633,7 @@ async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "ac
     state.suppliers = payload.suppliers || [];
     state.carts = payload.carts || [];
     state.purchases = payload.purchases || [];
+    state.bulkOrderRequests = payload.bulk_order_requests || payload.bulkOrderRequests || [];
     syncSalesState();
     if (state.admin?.isAdmin && state.activeMenu === "admin") {
       try {
@@ -6103,6 +6111,7 @@ registerBulkOrdersControllerEvents({
     bulkCustomerLookupInput,
     bulkAddCustomerButton,
     bulkOrderSearchInput,
+    bulkOrderRequestsPanel,
     bulkOrderList,
     bulkOrderSaveDraftButton,
     bulkOrderCommitValidButton,
@@ -6126,6 +6135,12 @@ registerBulkOrdersControllerEvents({
       }
       if (typeof helpers.getCanCommitBulkOrders === "function") {
         bulkOrderUiHelpers.getCanCommitBulkOrders = helpers.getCanCommitBulkOrders;
+      }
+      if (typeof helpers.getCanManageBulkOrderRequests === "function") {
+        bulkOrderUiHelpers.getCanManageBulkOrderRequests = helpers.getCanManageBulkOrderRequests;
+      }
+      if (typeof helpers.getRequiresBulkOrderApproval === "function") {
+        bulkOrderUiHelpers.getRequiresBulkOrderApproval = helpers.getRequiresBulkOrderApproval;
       }
     },
   },

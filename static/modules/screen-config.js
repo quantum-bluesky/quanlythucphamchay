@@ -66,13 +66,14 @@ export const SCREEN_HELP = {
   },
   "bulk-orders": {
     title: "Tạo nhiều đơn",
-    overview: "Màn này dùng để nhập nhanh nhiều khách theo card trên mobile: mỗi khách một đơn riêng, có thể lưu nháp hàng loạt hoặc chỉ chốt các đơn đang đủ điều kiện.",
+    overview: "Màn này dùng để nhập nhanh nhiều khách theo card trên mobile: mỗi khách một đơn riêng, có thể gửi yêu cầu lưu/chốt hàng loạt và theo dõi trạng thái duyệt ngay trên cùng màn.",
     steps: [
       "Gõ tên khách rồi bấm `+ Thêm khách`; nếu khách chưa có trong danh bạ, app vẫn tạo card để backend tự chuẩn hóa khi lưu.",
       "Mỗi khách có card riêng. Bấm `Thêm hàng` để mở picker sản phẩm, nhập số lượng rồi chỉnh thêm giá bán, địa chỉ giao hoặc giảm giá ngay trên card đó.",
       "Nếu khách đang có đơn nháp trên server, card sẽ hiện nhắc để bạn chọn `Dồn vào đơn nháp hiện có` hoặc `Tạo đơn nháp mới riêng`.",
-      "Nút `Lưu nháp` chỉ tạo hoặc cập nhật từng đơn ở trạng thái `Nháp`; bước này không giữ hàng, không trừ kho và không bỏ qua workflow chuẩn.",
-      "Nút `Chốt đơn hợp lệ` dùng cùng rule kiểm tồn của bước `Chốt đơn` hiện tại. Đơn nào đủ hàng thì sang `Chốt đơn`, đơn lỗi sẽ giữ lại để sửa tiếp.",
+      "Nếu tài khoản không có quyền `order_batch_manage`, các nút cuối màn sẽ gửi `yêu cầu xuất nhanh` ở trạng thái `Chờ duyệt` thay vì ghi thẳng đơn chính thức.",
+      "User có quyền `order_batch_manage` hoặc `Master Admin` sẽ thấy khối request gần đây, có thể `Approve`, `Reject` hoặc cho owner xử lý tiếp khi request đã `Đã duyệt`.",
+      "Nút `Chốt đơn hợp lệ` vẫn dùng cùng rule kiểm tồn của bước `Chốt đơn` hiện tại. Nếu request được xử lý thành công, đơn đủ hàng mới sang `Chốt đơn`; đơn lỗi vẫn giữ lại để sửa tiếp.",
       "Lỗi được trả theo từng khách và từng sản phẩm. Nếu thiếu hàng, bạn sẽ thấy chi tiết như `Thiếu ...: cần ..., còn ...` ngay trên card cần sửa.",
       "Trong v1 không có xuất kho hàng loạt. Sau khi chốt xong, các đơn vẫn đi tiếp đúng luồng `Chốt đơn -> Đã xuất hàng` ở màn đơn hàng.",
       DESKTOP_MENU_HINT,
@@ -341,7 +342,7 @@ export const SCREEN_META = {
   },
   "bulk-orders": {
     title: "Tạo nhiều đơn",
-    subtitle: "Nhập nhanh nhiều khách theo card và chỉ chốt các đơn đủ hàng.",
+    subtitle: "Nhập nhanh nhiều khách theo card, gửi request duyệt và xử lý tiếp đơn đủ hàng.",
   },
   orders: {
     title: "Đơn hàng",

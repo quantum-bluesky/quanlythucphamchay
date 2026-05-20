@@ -99,6 +99,21 @@ export function registerBulkOrdersControllerEvents(contract) {
     return permissions.has("bulk_order_commit");
   }
 
+  function getCanManageBulkOrderRequests() {
+    if (!state.admin?.enableLogin) {
+      return true;
+    }
+    if (state.admin?.isAdmin) {
+      return true;
+    }
+    const permissions = new Set((state.admin?.permissions || []).map((entry) => String(entry || "").trim()));
+    return permissions.has("order_batch_manage");
+  }
+
+  function getRequiresBulkOrderApproval() {
+    return Boolean(state.admin?.enableLogin && state.admin?.authenticated && !getCanManageBulkOrderRequests());
+  }
+
   function addCustomerEntry() {
     const customerText = String(dom.bulkCustomerLookupInput?.value || state.bulkOrderDraft.customerText || "").trim();
     const customer = findMatchingCustomer(customerText);
@@ -218,6 +233,8 @@ export function registerBulkOrdersControllerEvents(contract) {
           merge_strategy: entry.mergeStrategy || "merge_existing_draft",
           items: (entry.items || []).map((item) => ({
             product_id: Number(item.productId || 0),
+            product_name: item.productName || "",
+            unit: item.unit || "",
             quantity: Number(item.quantity || 0),
             unit_price: Number(item.unitPrice || 0),
           })),
@@ -254,7 +271,24 @@ export function registerBulkOrdersControllerEvents(contract) {
     renderers.renderBulkOrdersScreen();
   }
 
-  async function submitBulkOrders(mode) {
+  function buildBulkDuplicateWarningMessage(error) {
+    const duplicates = Array.isArray(error?.payload?.duplicates) ? error.payload.duplicates : [];
+    const duplicateLines = duplicates
+      .slice(0, 5)
+      .map((entry) => {
+        const requestCode = entry.request_code || entry.requestCode || entry.request_id || "Yêu cầu khác";
+        const matchedCount = Number(entry.matched_order_count || entry.matchedOrderCount || 0);
+        return `- ${requestCode}: trùng ${matchedCount || 1} đơn`;
+      });
+    return [
+      error?.message || "Có đơn đã nằm trong yêu cầu xuất nhanh khác đang chờ xử lý.",
+      duplicateLines.length ? duplicateLines.join("\n") : "",
+      "Chọn OK để tiếp tục tạo batch này.",
+      "Chọn Cancel để quay lại rà soát request hiện có.",
+    ].filter(Boolean).join("\n\n");
+  }
+
+  async function submitBulkOrders(mode, { allowDuplicates = false } = {}) {
     if (!getDraftEntries().length) {
       actions.showToast("Chưa có khách nào trong màn tạo nhiều đơn.", true);
       return;
@@ -272,17 +306,68 @@ export function registerBulkOrdersControllerEvents(contract) {
     try {
       const payload = await actions.apiRequest("/api/orders/bulk-create", {
         method: "POST",
-        body: JSON.stringify(buildBulkRequestPayload(mode)),
+        body: JSON.stringify({
+          ...buildBulkRequestPayload(mode),
+          allow_duplicates: allowDuplicates,
+        }),
       });
       await actions.refreshData();
       applySubmissionResult(payload);
       actions.showToast(payload.message || (mode === "commit_valid" ? "Đã chốt các đơn hợp lệ." : "Đã lưu các đơn nháp."));
     } catch (error) {
+      if (
+        !allowDuplicates
+        && error?.payload?.code === "bulk_order_duplicate_request"
+        && error?.payload?.can_continue
+        && getCanManageBulkOrderRequests()
+      ) {
+        const shouldContinue = window.confirm(buildBulkDuplicateWarningMessage(error));
+        if (shouldContinue) {
+          await submitBulkOrders(mode, { allowDuplicates: true });
+          return;
+        }
+      }
       actions.showToast(error.message, true);
     } finally {
       state.bulkOrderDraft.submitting = false;
       renderers.renderBulkOrdersScreen();
     }
+  }
+
+  function toggleRequestDetail(requestId) {
+    state.bulkOrderDraft.expandedRequestId = state.bulkOrderDraft.expandedRequestId === requestId ? "" : requestId;
+    renderers.renderBulkOrdersScreen();
+  }
+
+  async function approveBulkOrderRequest(requestId) {
+    const payload = await actions.apiRequest(`/api/orders/bulk-requests/${encodeURIComponent(requestId)}/approve`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    await actions.refreshData();
+    state.bulkOrderDraft.expandedRequestId = requestId;
+    actions.showToast(payload.message || "Đã approve yêu cầu xuất nhanh.");
+  }
+
+  async function rejectBulkOrderRequest(requestId) {
+    const reason = window.prompt("Nhập lý do reject ngắn gọn (có thể để trống):", "") || "";
+    const payload = await actions.apiRequest(`/api/orders/bulk-requests/${encodeURIComponent(requestId)}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+    await actions.refreshData();
+    state.bulkOrderDraft.expandedRequestId = requestId;
+    actions.showToast(payload.message || "Đã reject yêu cầu xuất nhanh.");
+  }
+
+  async function processBulkOrderRequest(requestId) {
+    const payload = await actions.apiRequest(`/api/orders/bulk-requests/${encodeURIComponent(requestId)}/process`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    await actions.refreshData();
+    state.bulkOrderDraft.expandedRequestId = requestId;
+    actions.showToast(payload.message || "Đã xử lý yêu cầu xuất nhanh đã duyệt.");
   }
 
   dom.bulkCustomerLookupInput?.addEventListener("input", (event) => {
@@ -310,7 +395,7 @@ export function registerBulkOrdersControllerEvents(contract) {
     renderers.renderBulkOrdersScreen();
   });
 
-  dom.bulkOrderList?.addEventListener("click", (event) => {
+  function handleBulkOrderAction(event) {
     const button = event.target.closest("[data-bulk-order-action]");
     if (!button) {
       return;
@@ -331,10 +416,31 @@ export function registerBulkOrdersControllerEvents(contract) {
       case "remove-item":
         removeEntryItem(entryId, itemId);
         return;
+      case "toggle-request-detail":
+        toggleRequestDetail(button.dataset.requestId || "");
+        return;
+      case "approve-request":
+        approveBulkOrderRequest(button.dataset.requestId || "").catch((error) => {
+          actions.showToast(error.message, true);
+        });
+        return;
+      case "reject-request":
+        rejectBulkOrderRequest(button.dataset.requestId || "").catch((error) => {
+          actions.showToast(error.message, true);
+        });
+        return;
+      case "process-request":
+        processBulkOrderRequest(button.dataset.requestId || "").catch((error) => {
+          actions.showToast(error.message, true);
+        });
+        return;
       default:
         return;
     }
-  });
+  }
+
+  dom.bulkOrderList?.addEventListener("click", handleBulkOrderAction);
+  dom.bulkOrderRequestsPanel?.addEventListener("click", handleBulkOrderAction);
 
   dom.bulkOrderList?.addEventListener("input", (event) => {
     const entryId = event.target.dataset.entryId || "";
@@ -435,5 +541,7 @@ export function registerBulkOrdersControllerEvents(contract) {
     getCustomerDraftHint: findExistingDraftCart,
     getCanCreateBulkDraft,
     getCanCommitBulkOrders,
+    getCanManageBulkOrderRequests,
+    getRequiresBulkOrderApproval,
   });
 }

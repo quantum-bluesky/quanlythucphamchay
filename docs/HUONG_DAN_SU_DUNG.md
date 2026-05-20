@@ -181,13 +181,17 @@ Thực hiện:
 1. Gõ tên khách rồi bấm `+ Thêm khách`; mỗi khách sẽ thành một card riêng
 2. Với từng card, bấm `Thêm hàng` để chọn sản phẩm và nhập số lượng
 3. Nếu khách đang có đơn nháp trên server, chọn `Dồn vào đơn nháp hiện có` hoặc `Tạo đơn nháp mới riêng`
-4. Bấm `Lưu nháp` nếu chỉ muốn tạo hoặc cập nhật các đơn `Nháp`; bước này không giữ hàng và không trừ kho
-5. Bấm `Chốt đơn hợp lệ` nếu muốn kiểm tra tồn theo cùng rule `Chốt đơn` hiện tại; đơn đủ điều kiện sẽ sang `Chốt đơn`, đơn lỗi giữ lại trên màn để sửa tiếp
+4. Nếu tài khoản không có quyền `order_batch_manage`, các nút cuối màn sẽ gửi `yêu cầu xuất nhanh` ở trạng thái `Chờ duyệt`; chưa tạo đơn chính thức ngay
+5. Nếu tài khoản có quyền `order_batch_manage` hoặc là `Master Admin`, có thể duyệt/từ chối request ngay trong khối `Yêu cầu xuất nhanh`
+6. Sau khi request đã `Đã duyệt`, owner tạo request hoặc user quản lý có thể bấm `Xử lý` để chạy tiếp luồng lưu nháp/chốt đơn
+7. Bấm `Chốt đơn hợp lệ` nếu muốn kiểm tra tồn theo cùng rule `Chốt đơn` hiện tại; đơn đủ điều kiện sẽ sang `Chốt đơn`, đơn lỗi giữ lại trên màn để sửa tiếp
 
 Lưu ý:
 
 - màn này không cho đi thẳng `Nháp -> Đã xuất hàng`; mọi đơn vẫn phải đi theo đúng workflow `draft -> committed -> completed`
 - nếu thiếu hàng, app sẽ báo theo từng khách và từng sản phẩm, ví dụ `Thiếu Đậu hũ non: cần 10, còn 6`
+- request đang `Chờ duyệt` hoặc `Đã duyệt` nhưng chưa `Đã xử lý` sẽ hiện cho tất cả user để tránh tạo trùng đơn xuất nhanh
+- user quản lý có permission `order_batch_manage` sẽ thấy badge số request chờ duyệt ngay trên menu `Xuất nhanh`
 - trong v1 không có xuất kho hàng loạt; nếu cần xuất thật thì mở các đơn đã chốt ở `Quản lý đơn hàng` hoặc `Tạo đơn xuất hàng`
 - nếu tài khoản chỉ có quyền tạo nhiều đơn mà chưa có quyền chốt, cuối màn chỉ dùng được `Lưu nháp`
 
@@ -648,6 +652,7 @@ Từ phiên bản này, màn `Master Admin` cũng là nơi login hệ thống:
 - `user` thường: dùng các màn nghiệp vụ chung
 - `Master Admin`: có thêm phần quản trị master data, backup/restore, legacy audit và chỉnh tồn trực tiếp
 - user quản lý kinh doanh có thể được cấp riêng quyền `procurement_batch_manage` để xử lý kỳ gom nhập mà không có quyền chỉnh tồn trực tiếp
+- user quản lý xuất nhanh có thể được cấp quyền `order_batch_manage` để duyệt/từ chối/xử lý tiếp các yêu cầu xuất nhanh của user thường
 - nếu `EnableLogin = true` trong `system_config.json`, người dùng phải login thì mới dùng được app
 
 Màn này có 3 nhóm chức năng:

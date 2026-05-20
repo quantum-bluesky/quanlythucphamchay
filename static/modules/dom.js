@@ -44,6 +44,7 @@ export const bulkAddCustomerButton = document.getElementById("bulkAddCustomerBut
 export const bulkOrderSearchInput = document.getElementById("bulkOrderSearchInput");
 export const bulkOrderSummaryBar = document.getElementById("bulkOrderSummaryBar");
 export const bulkOrderPermissionNotice = document.getElementById("bulkOrderPermissionNotice");
+export const bulkOrderRequestsPanel = document.getElementById("bulkOrderRequestsPanel");
 export const bulkOrderResultSummary = document.getElementById("bulkOrderResultSummary");
 export const bulkOrderList = document.getElementById("bulkOrderList");
 export const bulkOrderSaveDraftButton = document.getElementById("bulkOrderSaveDraftButton");

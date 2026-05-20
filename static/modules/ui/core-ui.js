@@ -37,7 +37,22 @@ export function createCoreUi(deps) {
     dom.menuToggleButton.title = dom.mobileQuery.matches
       ? (state.menuCollapsed ? "Mở menu nghiệp vụ" : "Đóng menu nghiệp vụ")
       : (state.menuCollapsed ? "Hover hoặc bấm để mở menu nghiệp vụ" : "Rê chuột ra ngoài để menu tự thu gọn");
+    const canManageBulkOrderRequests = Boolean(
+      state.admin?.isAdmin
+      || (state.admin?.permissions || []).some((permission) => String(permission || "").trim() === "order_batch_manage")
+    );
+    const pendingBulkOrderApprovals = (state.bulkOrderRequests || []).filter(
+      (request) => String(request?.status || "").trim() === "pending_approval"
+    ).length;
     dom.menuPanel.querySelectorAll("[data-menu]").forEach((button) => {
+      if (!button.dataset.baseLabel) {
+        button.dataset.baseLabel = (button.textContent || "").trim();
+      }
+      if (button.dataset.menu === "bulk-orders") {
+        button.textContent = canManageBulkOrderRequests && pendingBulkOrderApprovals > 0
+          ? `${button.dataset.baseLabel} (${pendingBulkOrderApprovals} chờ duyệt)`
+          : button.dataset.baseLabel;
+      }
       button.classList.toggle("is-active", button.dataset.menu === state.activeMenu);
       button.disabled = loginLocked && button.dataset.menu !== "admin";
     });

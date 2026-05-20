@@ -544,6 +544,272 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(commit_status, 401)
         self.assertIn("quyền chốt nhiều đơn", commit_payload["error"])
 
+    def test_ut_auth_10_order_batch_manage_can_override_duplicate_warning_for_direct_commit(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [
+                {
+                    "username": "staff",
+                    "password": "staff12345",
+                    "permissions": ["bulk_order_commit"],
+                },
+                {
+                    "username": "bizmanager",
+                    "password": "biz12345",
+                    "permissions": ["order_batch_manage", "bulk_order_commit"],
+                },
+            ],
+            "debug": {"sync_state": False},
+        }
+        self._start_server(config)
+
+        product = self.store.create_product(
+            name="Sản phẩm override duplicate",
+            category="Đồ chay",
+            unit="gói",
+            price=12000,
+            sale_price=18000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 10, "Tồn đầu override duplicate")
+
+        _, _, staff_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+        )
+        staff_cookie = self._extract_cookie(staff_login_headers)
+
+        request_status, request_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-create",
+            cookie=staff_cookie,
+            payload={
+                "mode": "commit_valid",
+                "request_id": "bulk-approval-dup-001",
+                "orders": [
+                    {
+                        "client_order_id": "dup-order-1",
+                        "customer_name": "Khách duplicate",
+                        "items": [{"product_id": product["id"], "quantity": 1, "unit_price": 18000}],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(request_status, 200)
+        self.assertTrue(request_payload["approval_required"])
+        self.assertEqual(request_payload["request"]["status"], "pending_approval")
+
+        _, _, manager_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "bizmanager", "password": "biz12345"},
+        )
+        manager_cookie = self._extract_cookie(manager_login_headers)
+
+        blocked_status, blocked_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-create",
+            cookie=manager_cookie,
+            payload={
+                "mode": "commit_valid",
+                "request_id": "bulk-approval-dup-002",
+                "orders": [
+                    {
+                        "client_order_id": "dup-order-2",
+                        "customer_name": "Khách duplicate",
+                        "items": [{"product_id": product["id"], "quantity": 1, "unit_price": 18000}],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(blocked_status, 409)
+        self.assertEqual(blocked_payload["code"], "bulk_order_duplicate_request")
+        self.assertTrue(blocked_payload["can_continue"])
+        self.assertFalse(blocked_payload["approval_required"])
+
+        override_status, override_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-create",
+            cookie=manager_cookie,
+            payload={
+                "mode": "commit_valid",
+                "request_id": "bulk-approval-dup-002",
+                "allow_duplicates": True,
+                "orders": [
+                    {
+                        "client_order_id": "dup-order-2",
+                        "customer_name": "Khách duplicate",
+                        "items": [{"product_id": product["id"], "quantity": 1, "unit_price": 18000}],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(override_status, 200)
+        self.assertEqual(override_payload["summary"]["success"], 1)
+        self.assertEqual(override_payload["results"][0]["order_status"], "committed")
+
+    def test_ut_auth_11_bulk_order_request_lifecycle_supports_approve_reject_and_owner_process(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [
+                {
+                    "username": "staff",
+                    "password": "staff12345",
+                    "permissions": ["bulk_order_commit"],
+                },
+                {
+                    "username": "bizmanager",
+                    "password": "biz12345",
+                    "permissions": ["order_batch_manage"],
+                },
+            ],
+            "debug": {"sync_state": False},
+        }
+        self._start_server(config)
+
+        product = self.store.create_product(
+            name="Sản phẩm request approve",
+            category="Đồ chay",
+            unit="gói",
+            price=15000,
+            sale_price=21000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 12, "Tồn đầu request approve")
+
+        _, _, staff_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+        )
+        staff_cookie = self._extract_cookie(staff_login_headers)
+
+        create_status, create_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-create",
+            cookie=staff_cookie,
+            payload={
+                "mode": "commit_valid",
+                "request_id": "bulk-approval-flow-001",
+                "orders": [
+                    {
+                        "client_order_id": "approval-flow-1",
+                        "customer_name": "Khách flow approve",
+                        "items": [{"product_id": product["id"], "quantity": 2, "unit_price": 21000}],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(create_status, 200)
+        self.assertTrue(create_payload["approval_required"])
+        self.assertEqual(create_payload["request"]["status"], "pending_approval")
+
+        state_status, state_payload, _ = self._request_json("GET", "/api/state?transaction_limit=16", cookie=staff_cookie)
+        self.assertEqual(state_status, 200)
+        self.assertEqual(len(state_payload["bulk_order_requests"]), 1)
+        self.assertEqual(state_payload["bulk_order_requests"][0]["status"], "pending_approval")
+
+        duplicate_status, duplicate_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-create",
+            cookie=staff_cookie,
+            payload={
+                "mode": "commit_valid",
+                "request_id": "bulk-approval-flow-002",
+                "orders": [
+                    {
+                        "client_order_id": "approval-flow-2",
+                        "customer_name": "Khách flow approve",
+                        "items": [{"product_id": product["id"], "quantity": 2, "unit_price": 21000}],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(duplicate_status, 409)
+        self.assertFalse(duplicate_payload["can_continue"])
+        self.assertTrue(duplicate_payload["approval_required"])
+
+        _, _, manager_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "bizmanager", "password": "biz12345"},
+        )
+        manager_cookie = self._extract_cookie(manager_login_headers)
+
+        manager_state_status, manager_state_payload, _ = self._request_json(
+            "GET",
+            "/api/state?transaction_limit=16",
+            cookie=manager_cookie,
+        )
+        self.assertEqual(manager_state_status, 200)
+        self.assertEqual(manager_state_payload["bulk_order_requests"][0]["requested_by"], "staff")
+
+        approve_status, approve_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-requests/bulk-approval-flow-001/approve",
+            cookie=manager_cookie,
+            payload={},
+        )
+        self.assertEqual(approve_status, 200)
+        self.assertEqual(approve_payload["request"]["status"], "approved")
+        self.assertEqual(approve_payload["request"]["approved_by"], "bizmanager")
+
+        process_status, process_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-requests/bulk-approval-flow-001/process",
+            cookie=staff_cookie,
+            payload={},
+        )
+        self.assertEqual(process_status, 200)
+        self.assertEqual(process_payload["request"]["status"], "processed")
+        self.assertEqual(process_payload["request"]["processed_by"], "staff")
+        self.assertEqual(process_payload["process_result"]["summary"]["success"], 1)
+
+        create_reject_status, create_reject_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-create",
+            cookie=staff_cookie,
+            payload={
+                "mode": "commit_valid",
+                "request_id": "bulk-approval-flow-003",
+                "orders": [
+                    {
+                        "client_order_id": "approval-flow-3",
+                        "customer_name": "Khách flow reject",
+                        "items": [{"product_id": product["id"], "quantity": 1, "unit_price": 21000}],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(create_reject_status, 200)
+        self.assertEqual(create_reject_payload["request"]["status"], "pending_approval")
+
+        reject_status, reject_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-requests/bulk-approval-flow-003/reject",
+            cookie=manager_cookie,
+            payload={"reason": "Trùng khách đang xử lý"},
+        )
+        self.assertEqual(reject_status, 200)
+        self.assertEqual(reject_payload["request"]["status"], "rejected")
+        self.assertEqual(reject_payload["request"]["reject_reason"], "Trùng khách đang xử lý")
+
+        refresh_status, refresh_payload, _ = self._request_json("GET", "/api/state?transaction_limit=16", cookie=staff_cookie)
+        self.assertEqual(refresh_status, 200)
+        rejected_request = next(
+            request for request in refresh_payload["bulk_order_requests"]
+            if request["request_id"] == "bulk-approval-flow-003"
+        )
+        self.assertEqual(rejected_request["status"], "rejected")
+        self.assertEqual(rejected_request["reject_reason"], "Trùng khách đang xử lý")
+
 
 if __name__ == "__main__":
     unittest.main()

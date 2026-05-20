@@ -223,6 +223,29 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - `response_payload` lưu kết quả theo từng khách để nếu request bị gửi lặp cùng `request_id`, backend trả lại đúng batch cũ thay vì tạo đơn trùng
 - audit tổng quan của batch vẫn đi thêm vào `audit_logs` với `entity_type = bulk_order_batch`
 
+### `bulk_order_requests`
+
+- lưu request phê duyệt cho màn `Tạo nhiều đơn` khi user thường gửi batch cần quản lý duyệt trước
+- cột chính:
+  - `id`
+  - `request_id`: unique idempotency key cho request approval
+  - `request_code`: mã hiển thị ngắn cho UI/mobile
+  - `mode`: `draft` hoặc `commit_valid`
+  - `status`: `pending_approval`, `approved`, `rejected`, `processed`
+  - `requested_by`, `approved_by`, `approved_at`
+  - `rejected_by`, `rejected_at`, `reject_reason`
+  - `processed_by`, `processed_at`
+  - `total_orders`
+  - `request_payload`, `process_response_payload`
+  - `created_at`, `updated_at`
+
+### Vai trò nghiệp vụ bổ sung cho request approval
+
+- bảng này không thay thế trạng thái chuẩn của `carts`; trước khi request được `processed`, hệ thống chưa tạo cart chính thức mới
+- duplicate check của màn `Xuất nhanh` phải so theo request đang `pending_approval` hoặc `approved` nhưng chưa `processed`, để tránh nhiều user tạo trùng cùng một đơn
+- `process_response_payload` lưu kết quả batch thực tế sau khi request đã được xử lý, giúp UI hiển thị lại số đơn thành công/lỗi mà không phải chạy lại
+- quyền `order_batch_manage` chỉ mở luồng duyệt/từ chối/xử lý request; không kéo theo quyền chỉnh tồn hay quyền admin khác
+
 ### `purchases`
 
 - header phiếu nhập

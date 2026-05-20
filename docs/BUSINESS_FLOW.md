@@ -114,19 +114,22 @@ Nếu cần can thiệp đặc biệt
 
 ### Luồng tạo nhiều đơn mobile-first
 
-- màn `bulk-orders` chỉ là cách nhập nhanh nhiều cart; không tạo workflow trạng thái mới
+- màn `bulk-orders` vừa là chỗ nhập nhanh nhiều cart, vừa có thêm lớp request approval khi login bật cho user không có quyền `order_batch_manage`
 - user thêm nhiều khách, mỗi khách có nhiều mặt hàng trên card riêng
 - action `Lưu nháp`:
-  - tạo hoặc cập nhật từng cart ở trạng thái `draft`
-  - không giữ hàng
-  - không trừ kho
-  - nếu khách đang có draft cart và user chọn merge thì hệ thống dồn thêm dòng vào draft hiện có
+  - với user quản lý hoặc `Master Admin`: tạo hoặc cập nhật từng cart ở trạng thái `draft`
+  - với user thường: tạo `bulk_order_request` ở trạng thái `pending_approval`
+  - cả 2 đường đều không giữ hàng, không trừ kho
+  - nếu khách đang có draft cart và user chọn merge thì hệ thống vẫn giữ rule dồn vào draft hiện có ở bước xử lý thực tế
 - action `Chốt đơn hợp lệ`:
   - backend luôn validate lại toàn bộ payload và tồn khả dụng, không tin dữ liệu frontend
-  - với từng khách, hệ thống tạo hoặc cập nhật draft trước, rồi mới kiểm tồn theo đúng công thức `tồn hiện tại + hàng đã đặt nhập - phần đã giữ cho các đơn committed khác`
-  - đơn đủ điều kiện mới chuyển `draft -> committed`
-  - đơn lỗi giữ ở `draft` để user sửa tiếp; response trả chi tiết theo từng khách và từng sản phẩm thiếu
+  - với user quản lý hoặc `Master Admin`: với từng khách, hệ thống tạo hoặc cập nhật draft trước, rồi mới kiểm tồn theo đúng công thức `tồn hiện tại + hàng đã đặt nhập - phần đã giữ cho các đơn committed khác`
+  - với user thường: backend chỉ lưu request `pending_approval`, chưa ghi cart chính thức
+  - request đang `pending_approval` hoặc `approved` nhưng chưa `processed` phải hiện cho mọi user để tránh tạo trùng
+  - user có `order_batch_manage` được `Approve/Reject`; owner của request đã `approved` hoặc user quản lý đều có thể `Xử lý`
+  - khi request được xử lý thật, đơn đủ điều kiện mới chuyển `draft -> committed`; đơn lỗi giữ ở `draft` để user sửa tiếp và response vẫn trả chi tiết theo từng khách, từng sản phẩm thiếu
 - request batch phải có `request_id` duy nhất để chống double-submit; nếu server nhận lại cùng `request_id` thì replay kết quả cũ, không tạo trùng đơn
+- request approval cũng phải có `request_id` duy nhất; duplicate request active phải chặn user thường, còn user có `order_batch_manage` chỉ bị cảnh báo và có thể xác nhận đi tiếp
 - v1 không có bước xuất hàng hàng loạt; nếu sau này cần, đó phải là action riêng và vẫn chỉ được đi tiếp `committed -> completed`
 
 ## 4. Luồng nhập hàng
