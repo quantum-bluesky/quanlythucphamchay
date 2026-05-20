@@ -125,13 +125,14 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Khi chốt đơn bị thiếu hàng, app vẫn cho chốt nếu phần thiếu đã được cover đủ bởi phiếu nhập `Đã đặt`; nếu mới chỉ có phiếu `Nháp` hoặc vẫn thiếu số lượng thì app sẽ báo trước khi tạo/cập nhật phiếu nhập và cho mở lại phiếu liên quan khi người dùng xác nhận cần chỉnh
 - Màn `Xử lý nhập thiếu` cho phép bật kỳ gom nhập định kỳ, gom nhu cầu của cả đơn nháp và đơn đã chốt theo từng mặt hàng để tạo phiếu nhập batch
 - Trong kỳ gom nhập, shortage flow không auto-create phiếu nhập theo từng đơn; người giữ khóa batch phải xử lý trên planner và mỗi sản phẩm thiếu chỉ được gán vào một phiếu nhập mở để tránh tách logistics
+- Danh sách shortage chính ở màn `Xử lý nhập thiếu` chỉ hiện các mặt hàng còn nhu cầu nhập thực tế (`Cần nhập > 0`) để người dùng tập trung đúng các dòng có thể tạo phiếu
 - Khi kỳ gom nhập còn hiệu lực, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới hay sửa cấu trúc phiếu nhập `Nháp/Đã đặt`; user khác chỉ được `Nhập kho` với phiếu không phải `procurement_batch` đã `Đã đặt` từ trước lúc batch hiện tại bắt đầu, rồi đi tiếp `Đã thanh toán` như bình thường
 - Trước khi bắt đầu kỳ gom nhập, app sẽ audit nhanh các phiếu nhập mở; nếu một sản phẩm đang bị cover bởi nhiều phiếu mở thì phải dọn conflict trước khi acquire lock
 - Khi bị chặn vì conflict đầu kỳ gom, màn planner sẽ hiện ngay danh sách sản phẩm và các mã phiếu nhập mở liên quan để bấm sang màn `Nhập hàng` xử lý
 - Planner batch cho tick chọn nhiều mặt hàng, chọn NCC từ danh bạ, chỉnh số lượng/giá nhập/giảm giá, rồi gom các mặt hàng cùng NCC vào một phiếu nhập nháp
 - Trong `Xử lý nhập thiếu`, khối phiếu liên quan cũng cho mở `Gộp đơn`; không được gộp lẫn phiếu nhập với phiếu xuất trong cùng một lần thao tác
 - Khi kỳ gom nhập còn active lock, các màn `Tồn kho`, `Xuất hàng`, `Đơn hàng`, `Nhập hàng`, `Nhà cung cấp` sẽ hiện cảnh báo đang ở Batch mode, ai đang giữ lock và màn đó bị ảnh hưởng gì
-- Trong Batch mode, người giữ khóa còn có thể mở khối `Chọn thêm sản phẩm khác` để tick chọn nhanh các mặt hàng ngoài nhu cầu đơn trên một danh sách riêng; khối này ưu tiên các sản phẩm đã có trên planner nhưng `Cần nhập = 0`, sau đó hiện tiếp toàn bộ sản phẩm active còn lại ngoài planner
+- Trong Batch mode, người giữ khóa còn có thể mở khối `Chọn thêm sản phẩm khác` để tick chọn nhanh các mặt hàng ngoài nhu cầu đơn trên một danh sách riêng; khối này ưu tiên các sản phẩm planner đang theo dõi nhưng hiện `Cần nhập = 0`, sau đó hiện tiếp toàn bộ sản phẩm active còn lại ngoài planner
 - Các dòng extra được tick sẽ có badge `Ngoài nhu cầu đơn`, không tham gia tính `Cần nhập`, nhưng vẫn được gom chung theo NCC
 - Các dòng `Ngoài nhu cầu đơn` không tạo `procurement_assignment`; rule `mỗi sản phẩm thiếu chỉ có một assignment active` chỉ tiếp tục áp dụng cho các dòng shortage
 - Nếu owner rời các màn trong flow xử lý batch sang màn ngoài flow khi kỳ gom vẫn còn mở, app sẽ hỏi có muốn `Kết thúc kỳ gom` ngay hay không; nếu không kết thúc thì app hỏi tiếp để chọn `ở lại` hoặc `chuyển sang màn khác mà vẫn giữ nguyên batch mode`

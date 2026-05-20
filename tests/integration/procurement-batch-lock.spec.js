@@ -16,7 +16,9 @@ function stripProcurementBatchTestPurchases(state) {
     ...state,
     carts: (state.carts || []).filter((cart) => {
       const id = String(cart?.id || "");
-      return !id.startsWith("cart_proc114_batch_") && !id.startsWith("cart_proc_merge_");
+      return !id.startsWith("cart_proc114_batch_")
+        && !id.startsWith("cart_proc129_batch_")
+        && !id.startsWith("cart_proc_merge_");
     }),
     purchases: (state.purchases || []).filter((purchase) => {
       const id = String(purchase?.id || "");
@@ -459,6 +461,106 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
     await expect(page.locator("#procurementReviewPanel")).toContainText(shortageProduct.name);
     await expect(page.locator("#procurementReviewPanel")).toContainText(extraProduct.name);
     await expect(page.locator('#procurementReviewPanel [data-procurement-review-action="open"]')).toHaveCount(1);
+  } finally {
+    if (batchStarted) {
+      await request.post("/api/procurement/batch/finish", {
+        headers: { Cookie: managerCookie },
+        data: {},
+      }).catch(() => null);
+    }
+    await cleanupProcurementBatchTestPurchases(request, managerCookie);
+    await request.put("/api/state", {
+      headers: { Cookie: managerCookie },
+      data: {
+        customers: restoredState.customers,
+        suppliers: restoredState.suppliers,
+        carts: restoredState.carts,
+        purchases: restoredState.purchases,
+      },
+    }).catch(() => null);
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-PROC-03A planner hides zero-need shortage rows and keeps mobile scroll after supplier change", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const managerCookie = await autoLoginProcurementManagerRequest(request);
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const restoredState = stripProcurementBatchTestPurchases(originalState);
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: managerCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const zeroNeedProduct = (productsPayload.products || []).find((product) => product.name === "Bò lát xào");
+  const shortageProduct = (productsPayload.products || []).find((product) => product.name === "Chả quế chay");
+  expect(zeroNeedProduct).toBeTruthy();
+  expect(shortageProduct).toBeTruthy();
+  const timestamp = Date.now();
+  let batchStarted = false;
+
+  try {
+    await cleanupProcurementBatchTestPurchases(request, managerCookie);
+
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: managerCookie },
+      data: {
+        carts: [
+          ...(restoredState.carts || []),
+          {
+            id: `cart_proc129_batch_${timestamp}`,
+            customerName: "Khách proc129",
+            status: "draft",
+            items: [
+              {
+                id: `cart_proc129_batch_item_${timestamp}`,
+                productId: shortageProduct.id,
+                productName: shortageProduct.name,
+                quantity: 10,
+                unitPrice: Number(shortageProduct.sale_price || shortageProduct.salePrice || 0) || 55000,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.setViewportSize({ width: 390, height: 480 });
+    await gotoWithRetry(page, "/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginProcurementManager(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+    await switchMenu(page, "procurement-planner");
+    await expectScreenTitle(page, "Xử lý nhập thiếu");
+
+    await page.locator("#procurementStartBatchButton").click();
+    const batchToast = await collectToast(page, runtime, "it-proc-03a-start-batch");
+    expect(batchToast).toContain("Đã bắt đầu kỳ gom nhập");
+    batchStarted = true;
+
+    await expect(page.locator(`[data-procurement-action="toggle-row"][data-product-id="${shortageProduct.id}"]`)).toBeVisible();
+    await expect(page.locator(`[data-procurement-action="toggle-row"][data-product-id="${zeroNeedProduct.id}"]`)).toHaveCount(0);
+
+    await page.locator('#procurementExtraPanel [data-procurement-extra-action="toggle"]').click();
+    const extraPanel = page.locator("#procurementExtraPanel");
+    await expect(extraPanel).toContainText("Đang có trên planner nhưng Cần nhập = 0");
+    const zeroNeedRow = extraPanel.locator(`[data-procurement-extra-candidate][data-product-id="${zeroNeedProduct.id}"]`).first();
+    await expect(zeroNeedRow).toBeVisible();
+    await expect(zeroNeedRow).not.toContainText("Đang có trên planner (cần nhập 0)");
+
+    await zeroNeedRow.locator("[data-procurement-extra-select]").check();
+    const supplierInput = zeroNeedRow.locator(`[data-procurement-extra-field="supplierName"][data-product-id="${zeroNeedProduct.id}"]`);
+    await supplierInput.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(150);
+    const beforeScrollY = await page.evaluate(() => window.scrollY);
+    await supplierInput.fill("NCC Hương Sen");
+    await supplierInput.evaluate((element) => element.blur());
+    await page.waitForTimeout(250);
+    const afterScrollY = await page.evaluate(() => window.scrollY);
+    expect(Math.abs(afterScrollY - beforeScrollY)).toBeLessThan(40);
+    await expect(zeroNeedRow).toContainText("Ngoài nhu cầu đơn");
   } finally {
     if (batchStarted) {
       await request.post("/api/procurement/batch/finish", {

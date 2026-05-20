@@ -409,10 +409,10 @@ Màn này dùng khi cần gom nhu cầu nhập định kỳ, ví dụ cuối th�
 3. Trước khi bật batch mode, app sẽ quét nhanh các phiếu nhập mở; nếu cùng một sản phẩm đang nằm trong nhiều phiếu mở thì app chặn và yêu cầu dọn conflict trước.
 4. Khi bị chặn vì conflict, ngay trên màn này sẽ hiện danh sách sản phẩm và các mã phiếu nhập mở liên quan; bấm vào từng mã phiếu để sang `Quản lý nhập hàng` xử lý.
 5. Nếu đang xử lý lâu trên màn này, app sẽ tự gia hạn khóa định kỳ cho đúng user đang giữ khóa.
-6. Xem từng dòng mặt hàng thiếu: tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập.
+6. Danh sách shortage chính chỉ hiện các mặt hàng còn `Cần nhập > 0`; trên từng dòng xem tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập.
 7. Tick chọn những dòng cần xử lý. Dòng chưa tick sẽ không hiện cảnh báo sau nhập vì chưa có số lượng dự kiến.
 8. Với từng dòng đã tick, chọn NCC từ danh bạ và nhập số lượng; số lượng mặc định là mức đủ đáp ứng nhu cầu.
-9. Nếu cần gom thêm vài mặt hàng ngoài nhu cầu đơn, mở khối `Chọn thêm sản phẩm khác`. Khối này sẽ hiện trước các sản phẩm đã có trên planner nhưng `Cần nhập = 0`, rồi hiện tiếp các sản phẩm active còn lại ngoài planner.
+9. Nếu cần gom thêm vài mặt hàng ngoài nhu cầu đơn, mở khối `Chọn thêm sản phẩm khác`. Khối này sẽ hiện trước các sản phẩm planner đang theo dõi nhưng hiện `Cần nhập = 0`, rồi hiện tiếp các sản phẩm active còn lại ngoài planner.
 10. Gõ tên vào ô lọc nếu cần, rồi tick chọn nhanh ngay trên dòng sản phẩm muốn nhập thêm. Khi tick, dòng đó sẽ bung sẵn ô NCC, số lượng, giá nhập, giảm KM và ghi chú.
 11. Mỗi dòng thêm tay sẽ có badge `Ngoài nhu cầu đơn`; các dòng này không tham gia tính `Cần nhập`, nhưng vẫn được gom vào phiếu batch theo NCC.
 12. Trên tablet/desktop có thể nhập thêm `Giá nhập` và `Giảm KM`; khi nhiều dòng cùng NCC, giảm giá sẽ được gom vào phiếu của NCC đó.

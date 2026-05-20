@@ -3287,6 +3287,19 @@ function applyProcurementExtraSearchFilter() {
   }
 }
 
+function renderProcurementPlannerPreservingScrollPosition() {
+  const previousScrollX = window.scrollX || 0;
+  const previousScrollY = window.scrollY || 0;
+  renderProcurementPlanner();
+  window.requestAnimationFrame(() => {
+    window.scrollTo({
+      left: previousScrollX,
+      top: previousScrollY,
+      behavior: "auto",
+    });
+  });
+}
+
 function getProcurementExtraRowSignals(extraRow) {
   const productId = Number(extraRow?.productId || 0);
   const shortageRow = (state.procurementPlanner.rows || []).find((row) => Number(row.product_id) === productId) || null;
@@ -3539,7 +3552,6 @@ function renderProcurementExtraPanel(canEditBatch) {
                   </div>
                   <div class="cart-item-actions">
                     <span class="pill draft">Ngoài nhu cầu đơn</span>
-                    ${candidate.sourceGroup === "zero-need" ? '<span class="pill warning">Đang có trên planner (cần nhập 0)</span>' : ""}
                   </div>
                 </div>
                 ${inputBlock}
@@ -3580,7 +3592,7 @@ function renderProcurementExtraPanel(canEditBatch) {
       <div class="cart-line-note">Các dòng dưới đây được đánh dấu là ngoài nhu cầu đơn, không tham gia tính Cần nhập của list shortage. Tick dòng nào thì dòng đó mới bung ô nhập nhanh.</div>
       ${renderCandidateSection(
         "Đang có trên planner nhưng Cần nhập = 0",
-        "Nhóm này giúp xử lý nhanh các mặt hàng đã hiện sẵn trên danh sách thiếu nhưng hiện không còn shortage thực tế.",
+        "Nhóm này giúp xử lý nhanh các mặt hàng planner đang theo dõi nhưng hiện không còn nhu cầu nhập thực tế.",
         candidateGroups.zeroNeedCandidates
       )}
       ${renderCandidateSection(
@@ -3686,12 +3698,13 @@ function renderProcurementPlanner() {
     return;
   }
   const rows = Array.isArray(state.procurementPlanner.rows) ? state.procurementPlanner.rows : [];
-  if (!rows.length) {
+  const visibleRows = rows.filter((row) => Number(row.required_purchase || 0) > 0);
+  if (!visibleRows.length) {
     procurementPlannerList.innerHTML = `${mergePanelMarkup}<div class="empty-state">Chưa có mặt hàng thiếu hoặc cần cảnh báo theo phạm vi hiện tại.</div>`;
     return;
   }
 
-  procurementPlannerList.innerHTML = mergePanelMarkup + rows.map((row) => {
+  procurementPlannerList.innerHTML = mergePanelMarkup + visibleRows.map((row) => {
     const assignment = row.assignment || null;
     const selection = getProcurementSelection(row.product_id);
     const isSelected = Boolean(selection.selected);
@@ -6450,7 +6463,7 @@ procurementPlannerList?.addEventListener("click", async (event) => {
       selection.unitCost = selection.unitCost || String(row.unit_cost || 0);
       selection.discountAmount = selection.discountAmount || "0";
     }
-    renderProcurementPlanner();
+    renderProcurementPlannerPreservingScrollPosition();
   }
 });
 
@@ -6481,7 +6494,7 @@ procurementPlannerList?.addEventListener("change", (event) => {
   if (field === "unitCost") selection.unitCost = input.value;
   if (field === "discountAmount") selection.discountAmount = input.value;
   window.setTimeout(() => {
-    renderProcurementPlanner();
+    renderProcurementPlannerPreservingScrollPosition();
   }, 0);
 });
 
@@ -6511,13 +6524,13 @@ procurementExtraPanel?.addEventListener("click", (event) => {
   const action = String(button.dataset.procurementExtraAction || "");
   if (action === "toggle") {
     state.procurementPlanner.extraExpanded = !state.procurementPlanner.extraExpanded;
-    renderProcurementPlanner();
+    renderProcurementPlannerPreservingScrollPosition();
     return;
   }
   if (action === "remove") {
     const productId = Number(button.dataset.productId || 0);
     removeProcurementExtraRowByProductId(productId);
-    renderProcurementPlanner();
+    renderProcurementPlannerPreservingScrollPosition();
   }
 });
 
@@ -6544,11 +6557,11 @@ procurementExtraPanel?.addEventListener("change", (event) => {
     const product = state.products.find((entry) => Number(entry.id) === productId && !isDeletedEntity(entry));
     if (!product) {
       showToast("Không tìm thấy sản phẩm hợp lệ để thêm vào kỳ gom.", true);
-      renderProcurementPlanner();
+      renderProcurementPlannerPreservingScrollPosition();
       return;
     }
     setProcurementExtraProductSelected(product, Boolean(selectInput.checked));
-    renderProcurementPlanner();
+    renderProcurementPlannerPreservingScrollPosition();
     return;
   }
   const input = event.target.closest("[data-procurement-extra-field]");
@@ -6559,7 +6572,7 @@ procurementExtraPanel?.addEventListener("change", (event) => {
   if (!targetRow || !field) return;
   targetRow[field] = input.value;
   window.setTimeout(() => {
-    renderProcurementPlanner();
+    renderProcurementPlannerPreservingScrollPosition();
   }, 0);
 });
 
