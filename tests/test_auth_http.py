@@ -911,6 +911,130 @@ class AuthHttpTests(unittest.TestCase):
         self.assertIn("create", order_actions)
         self.assertIn("status-change", order_actions)
 
+    def test_ut_auth_13_pending_bulk_order_request_delete_allows_owner_and_manager_only(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [
+                {
+                    "username": "staff",
+                    "password": "staff12345",
+                    "permissions": ["bulk_order_commit"],
+                },
+                {
+                    "username": "otherstaff",
+                    "password": "other12345",
+                    "permissions": ["bulk_order_commit"],
+                },
+                {
+                    "username": "bizmanager",
+                    "password": "biz12345",
+                    "permissions": ["order_batch_manage"],
+                },
+            ],
+            "debug": {"sync_state": False},
+        }
+        self._start_server(config)
+
+        product = self.store.create_product(
+            name="Sản phẩm request delete route",
+            category="Đồ chay",
+            unit="gói",
+            price=14000,
+            sale_price=23000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 10, "Tồn đầu request delete route")
+
+        _, _, staff_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+        )
+        staff_cookie = self._extract_cookie(staff_login_headers)
+        _, _, other_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "otherstaff", "password": "other12345"},
+        )
+        other_cookie = self._extract_cookie(other_login_headers)
+        _, _, manager_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "bizmanager", "password": "biz12345"},
+        )
+        manager_cookie = self._extract_cookie(manager_login_headers)
+
+        create_status, create_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-create",
+            cookie=staff_cookie,
+            payload={
+                "mode": "commit_valid",
+                "request_id": "bulk-delete-flow-001",
+                "orders": [
+                    {
+                        "client_order_id": "bulk-delete-flow-order-1",
+                        "customer_name": "Khách xóa request",
+                        "items": [{"product_id": product["id"], "quantity": 2, "unit_price": 23000}],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(create_status, 200)
+        self.assertEqual(create_payload["request"]["status"], "pending_approval")
+
+        denied_status, denied_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-requests/bulk-delete-flow-001/delete",
+            cookie=other_cookie,
+            payload={},
+        )
+        self.assertEqual(denied_status, 401)
+        self.assertIn("owner", denied_payload["error"])
+
+        delete_status, delete_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-requests/bulk-delete-flow-001/delete",
+            cookie=staff_cookie,
+            payload={},
+        )
+        self.assertEqual(delete_status, 200)
+        self.assertEqual(delete_payload["request"]["request_id"], "bulk-delete-flow-001")
+        self.assertEqual(delete_payload["request"]["status"], "pending_approval")
+        self.assertEqual(delete_payload["bulk_order_requests"], [])
+
+        recreate_status, recreate_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-create",
+            cookie=staff_cookie,
+            payload={
+                "mode": "commit_valid",
+                "request_id": "bulk-delete-flow-002",
+                "orders": [
+                    {
+                        "client_order_id": "bulk-delete-flow-order-2",
+                        "customer_name": "Khách xóa request",
+                        "items": [{"product_id": product["id"], "quantity": 2, "unit_price": 23000}],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(recreate_status, 200)
+        self.assertEqual(recreate_payload["request"]["status"], "pending_approval")
+
+        manager_delete_status, manager_delete_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/bulk-requests/bulk-delete-flow-002/delete",
+            cookie=manager_cookie,
+            payload={},
+        )
+        self.assertEqual(manager_delete_status, 200)
+        self.assertEqual(manager_delete_payload["request"]["request_id"], "bulk-delete-flow-002")
+        self.assertEqual(manager_delete_payload["bulk_order_requests"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

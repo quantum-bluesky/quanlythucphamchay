@@ -4141,6 +4141,50 @@ class InventoryStore:
             updated_row = self._load_bulk_order_request_row(connection, clean_request_id)
             return self._serialize_bulk_order_request_row(updated_row, duplicates=[])
 
+    def delete_bulk_order_request(
+        self,
+        request_id: str,
+        *,
+        actor: str = "",
+        can_manage: bool = False,
+    ) -> dict:
+        clean_request_id = str(request_id or "").strip()
+        clean_actor = str(actor or "").strip()
+        if not clean_request_id:
+            raise ValueError("Thiếu request_id.")
+        now = utc_now_iso()
+        with self._connect() as connection:
+            row = self._load_bulk_order_request_row(connection, clean_request_id)
+            if not row:
+                raise ValueError("Không tìm thấy yêu cầu xuất nhanh.")
+            status = self._normalize_bulk_order_request_status(row["status"])
+            if status != "pending_approval":
+                raise ValueError("Chỉ yêu cầu đang chờ duyệt mới được xóa.")
+            requested_by = str(row["requested_by"] or "").strip()
+            if not can_manage and clean_actor != requested_by:
+                raise ValueError("Chỉ owner hoặc user quản lý mới được xóa yêu cầu xuất nhanh này.")
+            request_doc = self._serialize_bulk_order_request_row(row, duplicates=[])
+            connection.execute(
+                """
+                DELETE FROM bulk_order_requests
+                WHERE request_id = ?
+                """,
+                (clean_request_id,),
+            )
+            self._record_entity_change(
+                connection,
+                entity_type="bulk_order_request",
+                entity_id=clean_request_id,
+                entity_code=str(row["request_code"] or clean_request_id).strip(),
+                action="delete-request",
+                actor=clean_actor,
+                before_status=status,
+                after_status="",
+                note="Xóa yêu cầu xuất nhanh đang chờ duyệt.",
+                created_at=now,
+            )
+            return request_doc
+
     def process_bulk_order_request(self, request_id: str, *, actor: str = "") -> dict:
         clean_request_id = str(request_id or "").strip()
         clean_actor = str(actor or "").strip()

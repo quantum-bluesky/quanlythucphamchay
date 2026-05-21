@@ -293,6 +293,9 @@ Case mới cho Phase A:
 - `UT-ORD-19`: store phải ghi history cho request approval và cho cart khi có tạo mới, đổi trạng thái, sửa địa chỉ giao hoặc sửa dòng hàng
 - `UT-AUTH-12`: route history phải trả đúng timeline cho cả request `Xuất nhanh` và order detail
 - `ACC-ORD-19`: popup `Lịch sử` phải mở được từ request `Xuất nhanh` và từ detail đơn, đồng thời hiện các mốc audit chính
+- `UT-ORD-20`: store phải cho xóa request `pending_approval`, giải phóng duplicate-check để tạo lại request mới, và vẫn chặn xóa request đã qua bước duyệt
+- `UT-AUTH-13`: route xóa request `Xuất nhanh` chỉ cho owner hoặc user có `order_batch_manage`
+- `ACC-ORD-20`: UI `Xuất nhanh` phải hiện nút `Xóa` cho request `pending_approval` và cho phép owner hoặc manager xóa ngay trên mobile
 - `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp kể cả thêm dòng hàng mới rồi mới chuyển sang `received`
 - `UT-DB-12`: backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `draft/ordered`, và chặn xóa trực tiếp phiếu `ordered`
 - `UT-DB-16`: backend tự tính HSD của phiếu nhập theo `ngày nhập kho + thời gian bảo quản` hoặc `ngày sản xuất + thời gian bảo quản`

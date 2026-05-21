@@ -72,7 +72,7 @@ export const SCREEN_HELP = {
       "Mỗi khách có card riêng. Bấm `Thêm hàng` để mở picker sản phẩm, nhập số lượng rồi chỉnh thêm giá bán, địa chỉ giao hoặc giảm giá ngay trên card đó.",
       "Nếu khách đang có đơn nháp trên server, card sẽ hiện nhắc để bạn chọn `Dồn vào đơn nháp hiện có` hoặc `Tạo đơn nháp mới riêng`.",
       "Nếu tài khoản không có quyền `order_batch_manage`, các nút cuối màn sẽ gửi `yêu cầu xuất nhanh` ở trạng thái `Chờ duyệt` thay vì ghi thẳng đơn chính thức.",
-      "User có quyền `order_batch_manage` hoặc `Master Admin` sẽ thấy khối request gần đây, có thể `Approve`, `Reject` hoặc cho owner xử lý tiếp khi request đã `Đã duyệt`.",
+      "User có quyền `order_batch_manage` hoặc `Master Admin` sẽ thấy khối request gần đây, có thể `Approve`, `Reject`, `Xóa` request còn `Chờ duyệt`, hoặc cho owner xử lý tiếp khi request đã `Đã duyệt`.",
       "Nút `Lịch sử` trong request hoặc detail đơn sẽ mở popup audit gọn để xem ai đổi gì, lúc nào và trạng thái trước/sau ra sao.",
       "Nút `Chốt đơn hợp lệ` vẫn dùng cùng rule kiểm tồn của bước `Chốt đơn` hiện tại. Nếu request được xử lý thành công, đơn đủ hàng mới sang `Chốt đơn`; đơn lỗi vẫn giữ lại để sửa tiếp.",
       "Lỗi được trả theo từng khách và từng sản phẩm. Nếu thiếu hàng, bạn sẽ thấy chi tiết như `Thiếu ...: cần ..., còn ...` ngay trên card cần sửa.",

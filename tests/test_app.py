@@ -2373,6 +2373,61 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertIn("edit-ship-address", cart_actions)
         self.assertIn("edit-items", cart_actions)
 
+    def test_ut_ord_20_pending_bulk_order_request_can_be_deleted_and_recreated(self) -> None:
+        product = self.store.create_product(
+            name="Cá viên chay request delete",
+            category="Đông lạnh",
+            unit="gói",
+            price=17000,
+            sale_price=26000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 6, "Tồn đầu request delete")
+
+        self.store.create_bulk_order_request(
+            mode="commit_valid",
+            request_id="bulk-request-delete-001",
+            actor="staff",
+            orders=[
+                {
+                    "client_order_id": "bulk-request-delete-order-1",
+                    "customer_name": "Khách request delete",
+                    "ship_address": "2 Pasteur",
+                    "items": [{"product_id": product["id"], "quantity": 2, "unit_price": 26000}],
+                }
+            ],
+        )
+        deleted_request = self.store.delete_bulk_order_request(
+            "bulk-request-delete-001",
+            actor="staff",
+            can_manage=False,
+        )
+        self.assertEqual(deleted_request["status"], "pending_approval")
+        self.assertIsNone(self.store.get_bulk_order_request("bulk-request-delete-001"))
+
+        recreated = self.store.create_bulk_order_request(
+            mode="commit_valid",
+            request_id="bulk-request-delete-002",
+            actor="staff",
+            orders=[
+                {
+                    "client_order_id": "bulk-request-delete-order-2",
+                    "customer_name": "Khách request delete",
+                    "ship_address": "2 Pasteur",
+                    "items": [{"product_id": product["id"], "quantity": 2, "unit_price": 26000}],
+                }
+            ],
+        )
+        self.assertEqual(recreated["request"]["status"], "pending_approval")
+
+        self.store.approve_bulk_order_request("bulk-request-delete-002", actor="bizmanager")
+        with self.assertRaisesRegex(ValueError, "đang chờ duyệt"):
+            self.store.delete_bulk_order_request(
+                "bulk-request-delete-002",
+                actor="staff",
+                can_manage=False,
+            )
+
     def test_ut_aud_01_save_sync_state_logs_cart_status_changes_with_actor(self) -> None:
         self.store.save_sync_state(
             {

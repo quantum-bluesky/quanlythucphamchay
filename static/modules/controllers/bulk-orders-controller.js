@@ -370,6 +370,24 @@ export function registerBulkOrdersControllerEvents(contract) {
     actions.showToast(payload.message || "Đã xử lý yêu cầu xuất nhanh đã duyệt.");
   }
 
+  async function deleteBulkOrderRequest(requestId) {
+    const requestDoc = (Array.isArray(state.bulkOrderRequests) ? state.bulkOrderRequests : [])
+      .find((entry) => String(entry.request_id || "") === String(requestId || ""));
+    const requestLabel = requestDoc?.request_code || requestDoc?.request_id || requestId;
+    if (!window.confirm(`Xóa "${requestLabel}"?\n\nChỉ request đang chờ duyệt mới được xóa. Sau khi xác nhận, các đơn trong request này có thể được tạo lại nếu cần.`)) {
+      return;
+    }
+    const payload = await actions.apiRequest(`/api/orders/bulk-requests/${encodeURIComponent(requestId)}/delete`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    await actions.refreshData();
+    if (state.bulkOrderDraft.expandedRequestId === requestId) {
+      state.bulkOrderDraft.expandedRequestId = "";
+    }
+    actions.showToast(payload.message || "Đã xóa yêu cầu xuất nhanh chờ duyệt.");
+  }
+
   async function openBulkOrderRequestHistory(requestId) {
     await actions.openBulkOrderRequestAuditHistory(requestId);
   }
@@ -435,6 +453,11 @@ export function registerBulkOrdersControllerEvents(contract) {
         return;
       case "process-request":
         processBulkOrderRequest(button.dataset.requestId || "").catch((error) => {
+          actions.showToast(error.message, true);
+        });
+        return;
+      case "delete-request":
+        deleteBulkOrderRequest(button.dataset.requestId || "").catch((error) => {
           actions.showToast(error.message, true);
         });
         return;

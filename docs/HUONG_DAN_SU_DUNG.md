@@ -183,8 +183,9 @@ Thực hiện:
 3. Nếu khách đang có đơn nháp trên server, chọn `Dồn vào đơn nháp hiện có` hoặc `Tạo đơn nháp mới riêng`
 4. Nếu tài khoản không có quyền `order_batch_manage`, các nút cuối màn sẽ gửi `yêu cầu xuất nhanh` ở trạng thái `Chờ duyệt`; chưa tạo đơn chính thức ngay
 5. Nếu tài khoản có quyền `order_batch_manage` hoặc là `Master Admin`, có thể duyệt/từ chối request ngay trong khối `Yêu cầu xuất nhanh`
-6. Sau khi request đã `Đã duyệt`, owner tạo request hoặc user quản lý có thể bấm `Xử lý` để chạy tiếp luồng lưu nháp/chốt đơn
-7. Bấm `Chốt đơn hợp lệ` nếu muốn kiểm tra tồn theo cùng rule `Chốt đơn` hiện tại; đơn đủ điều kiện sẽ sang `Chốt đơn`, đơn lỗi giữ lại trên màn để sửa tiếp
+6. Request còn `Chờ duyệt` mà tạo nhầm có thể bấm `Xóa`; owner của request hoặc user quản lý đều làm được
+7. Sau khi request đã `Đã duyệt`, owner tạo request hoặc user quản lý có thể bấm `Xử lý` để chạy tiếp luồng lưu nháp/chốt đơn
+8. Bấm `Chốt đơn hợp lệ` nếu muốn kiểm tra tồn theo cùng rule `Chốt đơn` hiện tại; đơn đủ điều kiện sẽ sang `Chốt đơn`, đơn lỗi giữ lại trên màn để sửa tiếp
 
 Lưu ý:
 
@@ -192,6 +193,7 @@ Lưu ý:
 - nếu thiếu hàng, app sẽ báo theo từng khách và từng sản phẩm, ví dụ `Thiếu Đậu hũ non: cần 10, còn 6`
 - request đang `Chờ duyệt` hoặc `Đã duyệt` nhưng chưa `Đã xử lý` sẽ hiện cho tất cả user để tránh tạo trùng đơn xuất nhanh
 - user quản lý có permission `order_batch_manage` sẽ thấy badge số request chờ duyệt ngay trên menu `Xuất nhanh`
+- khi request còn `Chờ duyệt`, owner của request hoặc user quản lý có thể `Xóa` để bỏ yêu cầu tạo nhầm; app xóa hẳn request thay vì thêm trạng thái mới
 - nút `Lịch sử` trong card request và detail đơn sẽ mở popup xem nhanh các mốc `tạo request / approve / reject / xử lý / sửa đơn`
 - trong v1 không có xuất kho hàng loạt; nếu cần xuất thật thì mở các đơn đã chốt ở `Quản lý đơn hàng` hoặc `Tạo đơn xuất hàng`
 - nếu tài khoản chỉ có quyền tạo nhiều đơn mà chưa có quyền chốt, cuối màn chỉ dùng được `Lưu nháp`

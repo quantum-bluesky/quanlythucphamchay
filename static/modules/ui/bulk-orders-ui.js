@@ -177,6 +177,10 @@ export function createBulkOrdersUi(deps) {
           const duplicates = Array.isArray(request.duplicates) ? request.duplicates : [];
           const canApprove = canManageRequests && request.status === "pending_approval";
           const canReject = canManageRequests && ["pending_approval", "approved"].includes(String(request.status || "").trim());
+          const canDelete = request.status === "pending_approval" && (
+            canManageRequests
+            || currentUsername === String(request.requested_by || "").trim()
+          );
           const canProcess = request.status === "approved" && (canManageRequests || currentUsername === String(request.requested_by || "").trim());
           const processSummary = request.process_summary || {};
           return `
@@ -200,6 +204,7 @@ export function createBulkOrdersUi(deps) {
                 <button type="button" class="ghost-button compact-button" data-bulk-order-action="history-request" data-request-id="${escapeHtml(request.request_id)}">Lịch sử</button>
                 ${canApprove ? `<button type="button" class="primary-button compact-button" data-bulk-order-action="approve-request" data-request-id="${escapeHtml(request.request_id)}">Approve</button>` : ""}
                 ${canReject ? `<button type="button" class="danger-button compact-button" data-bulk-order-action="reject-request" data-request-id="${escapeHtml(request.request_id)}">Reject</button>` : ""}
+                ${canDelete ? `<button type="button" class="danger-button compact-button" data-bulk-order-action="delete-request" data-request-id="${escapeHtml(request.request_id)}">Xóa</button>` : ""}
                 ${canProcess ? `<button type="button" class="primary-button compact-button" data-bulk-order-action="process-request" data-request-id="${escapeHtml(request.request_id)}">Xử lý</button>` : ""}
               </div>
               ${isExpanded ? `

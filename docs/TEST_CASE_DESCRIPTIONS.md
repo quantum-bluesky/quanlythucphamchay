@@ -156,3 +156,6 @@ Lưu ý:
 | 127 | `UT-ORD-19` | Kiểm tra store ghi timeline cho `bulk_order_request` và `cart`, bao gồm các mốc tạo request, approve, process, tạo đơn, đổi trạng thái, sửa địa chỉ giao và sửa dòng hàng. |
 | 128 | `UT-AUTH-12` | Kiểm tra các route history của `Xuất nhanh` trả đúng audit timeline cho cả request approval và detail đơn đã tạo. |
 | 129 | `ACC-ORD-19` | Kiểm tra popup `Lịch sử` mở được từ request `Xuất nhanh` và từ detail đơn, đồng thời hiện đúng các mốc audit chính trên mobile. |
+| 130 | `UT-ORD-20` | Kiểm tra store cho xóa request `pending_approval`, mở lại duplicate-check để tạo request mới, và vẫn chặn xóa request đã `approved`. |
+| 131 | `UT-AUTH-13` | Kiểm tra route xóa request `Xuất nhanh` chỉ cho owner hoặc user có `order_batch_manage`; user khác bị chặn và manager xóa được request của staff. |
+| 132 | `ACC-ORD-20` | Kiểm tra mobile UI `Xuất nhanh` hiện nút `Xóa` cho request `pending_approval`, cho owner tự xóa request tạo nhầm và cho manager xóa request của user khác. |

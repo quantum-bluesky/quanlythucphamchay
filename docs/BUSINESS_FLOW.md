@@ -126,7 +126,7 @@ Nếu cần can thiệp đặc biệt
   - với user quản lý hoặc `Master Admin`: với từng khách, hệ thống tạo hoặc cập nhật draft trước, rồi mới kiểm tồn theo đúng công thức `tồn hiện tại + hàng đã đặt nhập - phần đã giữ cho các đơn committed khác`
   - với user thường: backend chỉ lưu request `pending_approval`, chưa ghi cart chính thức
   - request đang `pending_approval` hoặc `approved` nhưng chưa `processed` phải hiện cho mọi user để tránh tạo trùng
-  - user có `order_batch_manage` được `Approve/Reject`; owner của request đã `approved` hoặc user quản lý đều có thể `Xử lý`
+  - user có `order_batch_manage` được `Approve/Reject`; owner của request hoặc user quản lý được `Xóa` khi request còn `pending_approval`; owner của request đã `approved` hoặc user quản lý đều có thể `Xử lý`
   - khi request được xử lý thật, đơn đủ điều kiện mới chuyển `draft -> committed`; đơn lỗi giữ ở `draft` để user sửa tiếp và response vẫn trả chi tiết theo từng khách, từng sản phẩm thiếu
 - request batch phải có `request_id` duy nhất để chống double-submit; nếu server nhận lại cùng `request_id` thì replay kết quả cũ, không tạo trùng đơn
 - request approval cũng phải có `request_id` duy nhất; duplicate request active phải chặn user thường, còn user có `order_batch_manage` chỉ bị cảnh báo và có thể xác nhận đi tiếp

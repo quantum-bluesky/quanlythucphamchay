@@ -244,7 +244,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - bảng này không thay thế trạng thái chuẩn của `carts`; trước khi request được `processed`, hệ thống chưa tạo cart chính thức mới
 - duplicate check của màn `Xuất nhanh` phải so theo request đang `pending_approval` hoặc `approved` nhưng chưa `processed`, để tránh nhiều user tạo trùng cùng một đơn
 - `process_response_payload` lưu kết quả batch thực tế sau khi request đã được xử lý, giúp UI hiển thị lại số đơn thành công/lỗi mà không phải chạy lại
-- quyền `order_batch_manage` chỉ mở luồng duyệt/từ chối/xử lý request; không kéo theo quyền chỉnh tồn hay quyền admin khác
+- quyền `order_batch_manage` chỉ mở luồng duyệt/từ chối/xóa request `pending_approval`/xử lý request; không kéo theo quyền chỉnh tồn hay quyền admin khác
 
 ### `entity_change_logs`
 

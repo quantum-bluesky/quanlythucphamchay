@@ -943,6 +943,39 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
+                request_delete_match = re.fullmatch(r"/api/orders/bulk-requests/([^/]+)/delete", route)
+                if request_delete_match:
+                    request_id = request_delete_match.group(1)
+                    request_doc = store.get_bulk_order_request(request_id)
+                    if not request_doc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Không tìm thấy yêu cầu xuất nhanh."})
+                        return
+                    current_username = self._get_current_username() or ""
+                    can_manage_requests = self._has_named_permission("order_batch_manage")
+                    if not (
+                        can_manage_requests
+                        or current_username == str(request_doc.get("requested_by") or "").strip()
+                    ):
+                        self._send_json(
+                            HTTPStatus.UNAUTHORIZED,
+                            {"error": "Chỉ owner hoặc user quản lý mới được xóa yêu cầu xuất nhanh này."},
+                        )
+                        return
+                    deleted_request = store.delete_bulk_order_request(
+                        request_id,
+                        actor=current_username,
+                        can_manage=can_manage_requests,
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã xóa yêu cầu xuất nhanh chờ duyệt.",
+                            "request": deleted_request,
+                            "bulk_order_requests": store.list_bulk_order_requests(limit=30),
+                        },
+                    )
+                    return
+
                 request_process_match = re.fullmatch(r"/api/orders/bulk-requests/([^/]+)/process", route)
                 if request_process_match:
                     request_id = request_process_match.group(1)
