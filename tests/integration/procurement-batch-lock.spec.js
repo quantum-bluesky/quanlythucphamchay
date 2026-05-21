@@ -12,6 +12,14 @@ const {
 } = require("./support/ui");
 
 function stripProcurementBatchTestPurchases(state) {
+  const isProcurementTestSupplier = (supplier) => {
+    const id = String(supplier?.id || "");
+    const name = String(supplier?.name || "");
+    return id.startsWith("supplier_proc114_")
+      || id.startsWith("supplier_proc_merge_")
+      || name.startsWith("NCC Proc114 ")
+      || name.startsWith("NCC proc merge ");
+  };
   return {
     ...state,
     carts: (state.carts || []).filter((cart) => {
@@ -20,11 +28,16 @@ function stripProcurementBatchTestPurchases(state) {
         && !id.startsWith("cart_proc129_batch_")
         && !id.startsWith("cart_proc_merge_");
     }),
+    suppliers: (state.suppliers || []).filter((supplier) => !isProcurementTestSupplier(supplier)),
     purchases: (state.purchases || []).filter((purchase) => {
       const id = String(purchase?.id || "");
-      return !id.startsWith("purchase_conflict_batch_")
-        && !id.startsWith("purchase_batch_lock_")
-        && !id.startsWith("purchase_proc_merge_");
+      const sourceType = String(purchase?.sourceType || purchase?.source_type || "").trim();
+      const status = String(purchase?.status || "").trim();
+      const isTemporaryProcurementPurchase = id.startsWith("purchase_conflict_batch_")
+        || id.startsWith("purchase_batch_lock_")
+        || id.startsWith("purchase_proc_merge_")
+        || sourceType === "procurement_batch";
+      return !(isTemporaryProcurementPurchase && ["draft", "ordered"].includes(status));
     }),
   };
 }
@@ -40,9 +53,11 @@ async function cleanupProcurementBatchTestPurchases(request, cookie) {
   const currentState = await stateResponse.json();
   const targetPurchases = (currentState.purchases || []).filter((purchase) => {
     const id = String(purchase?.id || "");
+    const sourceType = String(purchase?.sourceType || purchase?.source_type || "").trim();
     return id.startsWith("purchase_conflict_batch_")
       || id.startsWith("purchase_batch_lock_")
-      || id.startsWith("purchase_proc_merge_");
+      || id.startsWith("purchase_proc_merge_")
+      || sourceType === "procurement_batch";
   });
 
   for (const purchase of targetPurchases) {
@@ -506,6 +521,8 @@ test("IT-PROC-03A planner hides zero-need shortage rows and keeps mobile scroll 
     const seedResponse = await request.put("/api/state", {
       headers: { Cookie: managerCookie },
       data: {
+        customers: restoredState.customers,
+        suppliers: restoredState.suppliers,
         carts: [
           ...(restoredState.carts || []),
           {
@@ -525,7 +542,8 @@ test("IT-PROC-03A planner hides zero-need shortage rows and keeps mobile scroll 
         ],
       },
     });
-    expect(seedResponse.ok()).toBeTruthy();
+    const seedPayload = await seedResponse.json();
+    expect(seedResponse.ok(), JSON.stringify(seedPayload)).toBeTruthy();
 
     await page.setViewportSize({ width: 390, height: 480 });
     await gotoWithRetry(page, "/");
@@ -693,7 +711,16 @@ test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales doc
   const productsResponse = await request.get("/api/products", { headers: { Cookie: managerCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
-  const shortageProduct = (productsPayload.products || []).find((product) => Number.isFinite(Number(product?.current_stock || 0)));
+  const openPurchaseProductIds = new Set(
+    (restoredState.purchases || [])
+      .filter((purchase) => ["draft", "ordered"].includes(String(purchase?.status || "").trim()))
+      .flatMap((purchase) => (purchase.items || []).map((item) => Number(item?.productId || 0)))
+      .filter((productId) => Number.isFinite(productId) && productId > 0)
+  );
+  const shortageProduct = (productsPayload.products || []).find((product) =>
+    Number.isFinite(Number(product?.current_stock || 0))
+    && !openPurchaseProductIds.has(Number(product?.id || 0))
+  ) || (productsPayload.products || []).find((product) => Number.isFinite(Number(product?.current_stock || 0)));
   expect(shortageProduct).toBeTruthy();
   const timestamp = Date.now();
   const customerName = `Khách proc merge ${timestamp}`;
@@ -709,6 +736,8 @@ test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales doc
     const seedResponse = await request.put("/api/state", {
       headers: { Cookie: managerCookie },
       data: {
+        customers: restoredState.customers,
+        suppliers: restoredState.suppliers,
         carts: [
           ...(restoredState.carts || []),
           {
@@ -754,7 +783,8 @@ test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales doc
         ],
       },
     });
-    expect(seedResponse.ok()).toBeTruthy();
+    const seedPayload = await seedResponse.json();
+    expect(seedResponse.ok(), JSON.stringify(seedPayload)).toBeTruthy();
 
     const startResponse = await request.post("/api/procurement/batch/start", {
       headers: { Cookie: managerCookie },

@@ -1507,7 +1507,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self.send_header("Cache-Control", cache_control)
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
-            self.wfile.write(payload)
+            try:
+                self.wfile.write(payload)
+            except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+                return
 
         @staticmethod
         def _is_login_enabled() -> bool:
