@@ -181,13 +181,20 @@ Thực hiện:
 1. Gõ tên khách rồi bấm `+ Thêm khách`; mỗi khách sẽ thành một card riêng
 2. Với từng card, bấm `Thêm hàng` để chọn sản phẩm và nhập số lượng
 3. Nếu khách đang có đơn nháp trên server, chọn `Dồn vào đơn nháp hiện có` hoặc `Tạo đơn nháp mới riêng`
-4. Bấm `Lưu nháp` nếu chỉ muốn tạo hoặc cập nhật các đơn `Nháp`; bước này không giữ hàng và không trừ kho
-5. Bấm `Chốt đơn hợp lệ` nếu muốn kiểm tra tồn theo cùng rule `Chốt đơn` hiện tại; đơn đủ điều kiện sẽ sang `Chốt đơn`, đơn lỗi giữ lại trên màn để sửa tiếp
+4. Nếu tài khoản không có quyền `order_batch_manage`, các nút cuối màn sẽ gửi `yêu cầu xuất nhanh` ở trạng thái `Chờ duyệt`; chưa tạo đơn chính thức ngay
+5. Nếu tài khoản có quyền `order_batch_manage` hoặc là `Master Admin`, có thể duyệt/từ chối request ngay trong khối `Yêu cầu xuất nhanh`
+6. Request còn `Chờ duyệt` mà tạo nhầm có thể bấm `Xóa`; owner của request hoặc user quản lý đều làm được
+7. Sau khi request đã `Đã duyệt`, owner tạo request hoặc user quản lý có thể bấm `Xử lý` để chạy tiếp luồng lưu nháp/chốt đơn
+8. Bấm `Chốt đơn hợp lệ` nếu muốn kiểm tra tồn theo cùng rule `Chốt đơn` hiện tại; đơn đủ điều kiện sẽ sang `Chốt đơn`, đơn lỗi giữ lại trên màn để sửa tiếp
 
 Lưu ý:
 
 - màn này không cho đi thẳng `Nháp -> Đã xuất hàng`; mọi đơn vẫn phải đi theo đúng workflow `draft -> committed -> completed`
 - nếu thiếu hàng, app sẽ báo theo từng khách và từng sản phẩm, ví dụ `Thiếu Đậu hũ non: cần 10, còn 6`
+- request đang `Chờ duyệt` hoặc `Đã duyệt` nhưng chưa `Đã xử lý` sẽ hiện cho tất cả user để tránh tạo trùng đơn xuất nhanh
+- user quản lý có permission `order_batch_manage` sẽ thấy badge số request chờ duyệt ngay trên menu `Xuất nhanh`
+- khi request còn `Chờ duyệt`, owner của request hoặc user quản lý có thể `Xóa` để bỏ yêu cầu tạo nhầm; app xóa hẳn request thay vì thêm trạng thái mới
+- nút `Lịch sử` trong card request và detail đơn sẽ mở popup xem nhanh các mốc `tạo request / approve / reject / xử lý / sửa đơn`
 - trong v1 không có xuất kho hàng loạt; nếu cần xuất thật thì mở các đơn đã chốt ở `Quản lý đơn hàng` hoặc `Tạo đơn xuất hàng`
 - nếu tài khoản chỉ có quyền tạo nhiều đơn mà chưa có quyền chốt, cuối màn chỉ dùng được `Lưu nháp`
 
@@ -215,6 +222,7 @@ Dùng màn này để:
 - `Chốt đơn`: khóa khách hàng và giữ hàng logic cho đơn nháp
 - `Xuất hàng`: trừ kho thật cho đơn đã chốt
 - `Detail`: mở panel detail riêng của đơn đang chọn, hiện mã đơn, trạng thái, ngày tạo, mốc xử lý và danh sách dòng hàng của phiếu
+- `Lịch sử`: mở popup audit của đúng đơn đang xem để tra nhanh ai đổi trạng thái, đổi địa chỉ giao, đổi giảm giá hay sửa số lượng hàng
 - `In`: in hoặc gửi lại phiếu cho khách từ `Nháp` tới `Đã thanh toán`; ở list, nút `In` không hiện với phiếu đã thanh toán nên nếu cần in lại thì mở `Detail`
 - `Xuất lại`: tạo nhanh một đơn nháp mới từ đơn đã `Đã xuất hàng` hoặc `Đã thanh toán`
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền
@@ -409,10 +417,10 @@ Màn này dùng khi cần gom nhu cầu nhập định kỳ, ví dụ cuối th�
 3. Trước khi bật batch mode, app sẽ quét nhanh các phiếu nhập mở; nếu cùng một sản phẩm đang nằm trong nhiều phiếu mở thì app chặn và yêu cầu dọn conflict trước.
 4. Khi bị chặn vì conflict, ngay trên màn này sẽ hiện danh sách sản phẩm và các mã phiếu nhập mở liên quan; bấm vào từng mã phiếu để sang `Quản lý nhập hàng` xử lý.
 5. Nếu đang xử lý lâu trên màn này, app sẽ tự gia hạn khóa định kỳ cho đúng user đang giữ khóa.
-6. Xem từng dòng mặt hàng thiếu: tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập.
+6. Danh sách shortage chính chỉ hiện các mặt hàng còn `Cần nhập > 0`; trên từng dòng xem tồn hiện tại, nhu cầu đơn chốt, nhu cầu đơn nháp, số đang chờ nhập và số cần nhập.
 7. Tick chọn những dòng cần xử lý. Dòng chưa tick sẽ không hiện cảnh báo sau nhập vì chưa có số lượng dự kiến.
 8. Với từng dòng đã tick, chọn NCC từ danh bạ và nhập số lượng; số lượng mặc định là mức đủ đáp ứng nhu cầu.
-9. Nếu cần gom thêm vài mặt hàng ngoài nhu cầu đơn, mở khối `Chọn thêm sản phẩm khác`. Khối này sẽ hiện trước các sản phẩm đã có trên planner nhưng `Cần nhập = 0`, rồi hiện tiếp các sản phẩm active còn lại ngoài planner.
+9. Nếu cần gom thêm vài mặt hàng ngoài nhu cầu đơn, mở khối `Chọn thêm sản phẩm khác`. Khối này sẽ hiện trước các sản phẩm planner đang theo dõi nhưng hiện `Cần nhập = 0`, rồi hiện tiếp các sản phẩm active còn lại ngoài planner.
 10. Gõ tên vào ô lọc nếu cần, rồi tick chọn nhanh ngay trên dòng sản phẩm muốn nhập thêm. Khi tick, dòng đó sẽ bung sẵn ô NCC, số lượng, giá nhập, giảm KM và ghi chú.
 11. Mỗi dòng thêm tay sẽ có badge `Ngoài nhu cầu đơn`; các dòng này không tham gia tính `Cần nhập`, nhưng vẫn được gom vào phiếu batch theo NCC.
 12. Trên tablet/desktop có thể nhập thêm `Giá nhập` và `Giảm KM`; khi nhiều dòng cùng NCC, giảm giá sẽ được gom vào phiếu của NCC đó.
@@ -648,6 +656,7 @@ Từ phiên bản này, màn `Master Admin` cũng là nơi login hệ thống:
 - `user` thường: dùng các màn nghiệp vụ chung
 - `Master Admin`: có thêm phần quản trị master data, backup/restore, legacy audit và chỉnh tồn trực tiếp
 - user quản lý kinh doanh có thể được cấp riêng quyền `procurement_batch_manage` để xử lý kỳ gom nhập mà không có quyền chỉnh tồn trực tiếp
+- user quản lý xuất nhanh có thể được cấp quyền `order_batch_manage` để duyệt/từ chối/xử lý tiếp các yêu cầu xuất nhanh của user thường
 - nếu `EnableLogin = true` trong `system_config.json`, người dùng phải login thì mới dùng được app
 
 Màn này có 3 nhóm chức năng:

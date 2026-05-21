@@ -155,6 +155,16 @@ Mục tiêu:
 | 116 | `UT-ORD-17` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_17_bulk_create_orders_commit_valid_is_partial_and_idempotent` |
 | 117 | `UT-AUTH-09` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_09_bulk_order_permissions_split_draft_and_commit` |
 | 118 | `ACC-ORD-17` | `tests/integration/bulk-orders-mobile.spec.js` | `npx playwright test tests/integration/bulk-orders-mobile.spec.js --grep "ACC-ORD-17"` |
+| 123 | `UT-ORD-18` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_18_bulk_order_request_lifecycle_blocks_duplicates_until_processed` |
+| 124 | `UT-AUTH-10` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_10_order_batch_manage_can_override_duplicate_warning_for_direct_commit` |
+| 125 | `UT-AUTH-11` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_11_bulk_order_request_lifecycle_supports_approve_reject_and_owner_process` |
+| 126 | `ACC-ORD-18` | `tests/integration/bulk-orders-mobile.spec.js` | `npx playwright test tests/integration/bulk-orders-mobile.spec.js --grep "ACC-ORD-18"` |
+| 127 | `UT-ORD-19` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_19_entity_change_history_tracks_bulk_request_and_cart_edits` |
+| 128 | `UT-AUTH-12` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_12_history_routes_return_request_and_order_audit_timeline` |
+| 129 | `ACC-ORD-19` | `tests/integration/bulk-orders-mobile.spec.js` | `npx playwright test tests/integration/bulk-orders-mobile.spec.js --grep "ACC-ORD-19"` |
+| 130 | `UT-ORD-20` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_20_pending_bulk_order_request_can_be_deleted_and_recreated` |
+| 131 | `UT-AUTH-13` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_13_pending_bulk_order_request_delete_allows_owner_and_manager_only` |
+| 132 | `ACC-ORD-20` | `tests/integration/bulk-orders-mobile.spec.js` | `npx playwright test tests/integration/bulk-orders-mobile.spec.js --grep "ACC-ORD-20"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

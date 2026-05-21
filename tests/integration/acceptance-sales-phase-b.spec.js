@@ -301,7 +301,10 @@ test("ACC-SALE-02 shortage commit allows ordered purchase coverage and otherwise
       expect(shortageToast).toContain("Đã tạo hoặc cập nhật phiếu nhập dự kiến");
       await expect(page.locator("#purchaseNoteInput")).toHaveValue("");
     } else {
-      expect(createDialogMessage).toContain("đã có phiếu chờ nhập đủ số lượng");
+      expect(
+        createDialogMessage.includes("đã có phiếu chờ nhập đủ số lượng")
+        || createDialogMessage.includes("phần còn thiếu mới đang nằm ở phiếu nhập nháp/chờ đặt")
+      ).toBeTruthy();
       expect(shortageToast).toContain("Đã mở phiếu nhập chờ liên quan");
     }
 

@@ -109,6 +109,9 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Có badge `Chờ xuất` / `Chờ nhập` ngay trên card tồn kho để nhảy nhanh sang màn liên quan, đồng thời hiện `số phiếu / tổng số lượng` đang chờ theo từng mặt hàng
 - Quản lý khách hàng, đơn nháp, `Chốt đơn` và `Xuất hàng` nhiều mặt hàng trong một lần
 - Có màn `Tạo nhiều đơn / Xuất nhanh` theo kiểu mobile-first: mỗi khách là một card riêng, cuối màn chỉ có `Lưu nháp` và `Chốt đơn hợp lệ`
+- Nếu bật login và user không có quyền `order_batch_manage`, màn `Xuất nhanh` sẽ tạo `yêu cầu xuất nhanh` ở trạng thái `pending_approval`; user quản lý hoặc `Master Admin` duyệt xong thì owner mới xử lý tiếp thành đơn thật
+- Request `pending_approval` tạo nhầm có thể xóa ngay trên màn `Xuất nhanh`; owner của request hoặc user có `order_batch_manage`/`Master Admin` đều xóa được, không cần thêm status mới
+- Có popup `Lịch sử` xem nhanh audit timeline cho từng yêu cầu xuất nhanh và từng đơn đã tạo, ưu tiên mobile và chỉ nạp khi user mở detail để không làm nặng list
 - `Lưu nháp` ở màn tạo nhiều đơn chỉ tạo cart `draft` cho từng khách, không giữ hàng và không trừ kho; `Chốt đơn hợp lệ` chỉ đẩy các đơn đủ tồn sang `committed`, còn đơn lỗi giữ lại để sửa tiếp
 - Ở màn xuất hàng và nhập hàng, các mặt hàng đã chọn sẽ được gom lên phần tóm tắt đơn/phiếu phía trên để thao tác nhanh
 - Ở màn nhập hàng, mỗi card gợi ý có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`
@@ -125,13 +128,14 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Khi chốt đơn bị thiếu hàng, app vẫn cho chốt nếu phần thiếu đã được cover đủ bởi phiếu nhập `Đã đặt`; nếu mới chỉ có phiếu `Nháp` hoặc vẫn thiếu số lượng thì app sẽ báo trước khi tạo/cập nhật phiếu nhập và cho mở lại phiếu liên quan khi người dùng xác nhận cần chỉnh
 - Màn `Xử lý nhập thiếu` cho phép bật kỳ gom nhập định kỳ, gom nhu cầu của cả đơn nháp và đơn đã chốt theo từng mặt hàng để tạo phiếu nhập batch
 - Trong kỳ gom nhập, shortage flow không auto-create phiếu nhập theo từng đơn; người giữ khóa batch phải xử lý trên planner và mỗi sản phẩm thiếu chỉ được gán vào một phiếu nhập mở để tránh tách logistics
+- Danh sách shortage chính ở màn `Xử lý nhập thiếu` chỉ hiện các mặt hàng còn nhu cầu nhập thực tế (`Cần nhập > 0`) để người dùng tập trung đúng các dòng có thể tạo phiếu
 - Khi kỳ gom nhập còn hiệu lực, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới hay sửa cấu trúc phiếu nhập `Nháp/Đã đặt`; user khác chỉ được `Nhập kho` với phiếu không phải `procurement_batch` đã `Đã đặt` từ trước lúc batch hiện tại bắt đầu, rồi đi tiếp `Đã thanh toán` như bình thường
 - Trước khi bắt đầu kỳ gom nhập, app sẽ audit nhanh các phiếu nhập mở; nếu một sản phẩm đang bị cover bởi nhiều phiếu mở thì phải dọn conflict trước khi acquire lock
 - Khi bị chặn vì conflict đầu kỳ gom, màn planner sẽ hiện ngay danh sách sản phẩm và các mã phiếu nhập mở liên quan để bấm sang màn `Nhập hàng` xử lý
 - Planner batch cho tick chọn nhiều mặt hàng, chọn NCC từ danh bạ, chỉnh số lượng/giá nhập/giảm giá, rồi gom các mặt hàng cùng NCC vào một phiếu nhập nháp
 - Trong `Xử lý nhập thiếu`, khối phiếu liên quan cũng cho mở `Gộp đơn`; không được gộp lẫn phiếu nhập với phiếu xuất trong cùng một lần thao tác
 - Khi kỳ gom nhập còn active lock, các màn `Tồn kho`, `Xuất hàng`, `Đơn hàng`, `Nhập hàng`, `Nhà cung cấp` sẽ hiện cảnh báo đang ở Batch mode, ai đang giữ lock và màn đó bị ảnh hưởng gì
-- Trong Batch mode, người giữ khóa còn có thể mở khối `Chọn thêm sản phẩm khác` để tick chọn nhanh các mặt hàng ngoài nhu cầu đơn trên một danh sách riêng; khối này ưu tiên các sản phẩm đã có trên planner nhưng `Cần nhập = 0`, sau đó hiện tiếp toàn bộ sản phẩm active còn lại ngoài planner
+- Trong Batch mode, người giữ khóa còn có thể mở khối `Chọn thêm sản phẩm khác` để tick chọn nhanh các mặt hàng ngoài nhu cầu đơn trên một danh sách riêng; khối này ưu tiên các sản phẩm planner đang theo dõi nhưng hiện `Cần nhập = 0`, sau đó hiện tiếp toàn bộ sản phẩm active còn lại ngoài planner
 - Các dòng extra được tick sẽ có badge `Ngoài nhu cầu đơn`, không tham gia tính `Cần nhập`, nhưng vẫn được gom chung theo NCC
 - Các dòng `Ngoài nhu cầu đơn` không tạo `procurement_assignment`; rule `mỗi sản phẩm thiếu chỉ có một assignment active` chỉ tiếp tục áp dụng cho các dòng shortage
 - Nếu owner rời các màn trong flow xử lý batch sang màn ngoài flow khi kỳ gom vẫn còn mở, app sẽ hỏi có muốn `Kết thúc kỳ gom` ngay hay không; nếu không kết thúc thì app hỏi tiếp để chọn `ở lại` hoặc `chuyển sang màn khác mà vẫn giữ nguyên batch mode`
@@ -182,6 +186,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Có lịch sử quản lý sản phẩm hiển thị rõ field nào đã đổi, người thao tác và vẫn giữ đúng actor khi import master; kèm màn quản lý các đối tượng đã xóa để khôi phục an toàn
 - Có login hệ thống cho `user` thường và `Master Admin`; có thể bật `EnableLogin` để bắt buộc login mới dùng app
 - Nếu bật login, có thể tách quyền `bulk_order_create` và `bulk_order_commit` để user chỉ được lưu nháp nhiều đơn hoặc được chốt nhiều đơn
+- Permission `order_batch_manage` cho phép user quản lý xem toàn bộ yêu cầu xuất nhanh, duyệt/từ chối, xóa request còn `pending_approval` và xử lý tiếp request đã `approved`
 - Nếu cùng một domain chạy nhiều instance app ở các port khác nhau như `:4000` và `:9999`, session login sẽ được tách riêng theo từng port để không tự đá nhau
 - Có module `Master Admin` để export/import file master (JSON/CSV) và backup/restore toàn bộ database
 - `Master Admin` có thêm khối `Legacy Audit` để quét DB đang dùng, áp dụng các backfill an toàn và cho admin gắn lại `receipt_code` / `đơn nguồn` cho record legacy còn dang dở

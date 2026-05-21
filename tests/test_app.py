@@ -12,7 +12,7 @@ from pathlib import Path
 from app import InventoryStore
 from qltpchay.http_handler import create_handler
 from qltpchay.importer import parse_seed_line
-from qltpchay.store import SyncConflictError
+from qltpchay.store import BulkOrderRequestDuplicateError, SyncConflictError
 
 
 class InventoryStoreTests(unittest.TestCase):
@@ -2218,6 +2218,215 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertIsNotNone(audit_row)
         self.assertEqual(audit_row["actor"], "tester")
         self.assertIn("Tổng 2 đơn, thành công 1, lỗi 1.", audit_row["message"])
+
+    def test_ut_ord_18_bulk_order_request_lifecycle_blocks_duplicates_until_processed(self) -> None:
+        product = self.store.create_product(
+            name="Chả giò request bulk",
+            category="Đông lạnh",
+            unit="gói",
+            price=20000,
+            sale_price=30000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 5, "Tồn đầu request bulk")
+
+        request_result = self.store.create_bulk_order_request(
+            mode="commit_valid",
+            request_id="bulk-request-approval-001",
+            actor="staff",
+            orders=[
+                {
+                    "client_order_id": "bulk-request-order-1",
+                    "customer_name": "Khách request bulk",
+                    "ship_address": "5 Lê Lợi",
+                    "items": [
+                        {
+                            "product_id": product["id"],
+                            "quantity": 2,
+                            "unit_price": 30000,
+                        }
+                    ],
+                }
+            ],
+        )
+        self.assertTrue(request_result["approval_required"])
+        self.assertEqual(request_result["request"]["status"], "pending_approval")
+        self.assertEqual(request_result["summary"], {"total_orders": 1, "success": 1, "failed": 0})
+
+        replay = self.store.create_bulk_order_request(
+            mode="commit_valid",
+            request_id="bulk-request-approval-001",
+            actor="staff",
+            orders=[
+                {
+                    "client_order_id": "bulk-request-order-1",
+                    "customer_name": "Khách request bulk",
+                    "items": [{"product_id": product["id"], "quantity": 2, "unit_price": 30000}],
+                }
+            ],
+        )
+        self.assertTrue(replay["idempotent_replay"])
+        self.assertEqual(replay["request"]["status"], "pending_approval")
+
+        with self.assertRaises(BulkOrderRequestDuplicateError):
+            self.store.create_bulk_order_request(
+                mode="commit_valid",
+                request_id="bulk-request-approval-002",
+                actor="staff",
+                orders=[
+                    {
+                        "client_order_id": "bulk-request-order-2",
+                        "customer_name": "Khách request bulk",
+                        "ship_address": "5 Lê Lợi",
+                        "items": [{"product_id": product["id"], "quantity": 2, "unit_price": 30000}],
+                    }
+                ],
+            )
+
+        approved = self.store.approve_bulk_order_request(
+            "bulk-request-approval-001",
+            actor="bizmanager",
+        )
+        self.assertEqual(approved["status"], "approved")
+        self.assertEqual(approved["approved_by"], "bizmanager")
+
+        with self.assertRaises(BulkOrderRequestDuplicateError):
+            self.store.create_bulk_order_request(
+                mode="commit_valid",
+                request_id="bulk-request-approval-003",
+                actor="staff",
+                orders=[
+                    {
+                        "client_order_id": "bulk-request-order-3",
+                        "customer_name": "Khách request bulk",
+                        "ship_address": "5 Lê Lợi",
+                        "items": [{"product_id": product["id"], "quantity": 2, "unit_price": 30000}],
+                    }
+                ],
+            )
+
+        processed = self.store.process_bulk_order_request(
+            "bulk-request-approval-001",
+            actor="staff",
+        )
+        self.assertEqual(processed["request"]["status"], "processed")
+        self.assertEqual(processed["request"]["processed_by"], "staff")
+        self.assertEqual(processed["process_result"]["summary"], {"total_orders": 1, "success": 1, "failed": 0})
+
+        carts = self.store.get_sync_state()["carts"]
+        committed_cart = next(cart for cart in carts if cart["id"] == processed["process_result"]["results"][0]["cart_id"])
+        self.assertEqual(committed_cart["status"], "committed")
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 5.0)
+
+    def test_ut_ord_19_entity_change_history_tracks_bulk_request_and_cart_edits(self) -> None:
+        product = self.store.create_product(
+            name="Mọc chay audit order",
+            category="Đông lạnh",
+            unit="gói",
+            price=18000,
+            sale_price=26000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 10, "Tồn đầu audit order")
+
+        self.store.create_bulk_order_request(
+            mode="commit_valid",
+            request_id="bulk-history-001",
+            actor="staff",
+            orders=[
+                {
+                    "client_order_id": "bulk-history-order-1",
+                    "customer_name": "Khách lịch sử đơn",
+                    "ship_address": "10 Hai Bà Trưng",
+                    "items": [{"product_id": product["id"], "quantity": 1, "unit_price": 26000}],
+                }
+            ],
+        )
+        self.store.approve_bulk_order_request("bulk-history-001", actor="bizmanager")
+        processed = self.store.process_bulk_order_request("bulk-history-001", actor="staff")
+
+        request_history = self.store.get_bulk_order_request_change_history("bulk-history-001", limit=10)
+        request_actions = [entry["action"] for entry in request_history]
+        self.assertIn("create-request", request_actions)
+        self.assertIn("approve-request", request_actions)
+        self.assertIn("process-request", request_actions)
+
+        cart_id = processed["process_result"]["results"][0]["cart_id"]
+        current_state = self.store.get_sync_state()
+        carts = copy.deepcopy(current_state["carts"])
+        target_cart = next(cart for cart in carts if cart["id"] == cart_id)
+        target_cart["shipAddress"] = "11 Hai Bà Trưng"
+        target_cart["items"][0]["quantity"] = 2
+        target_cart["updatedAt"] = "2026-05-21T10:00:00+07:00"
+        self.store.save_sync_state(
+            {
+                "carts": carts,
+                "expected_updated_at": {"carts": current_state["updated_at"]["carts"]},
+                "actor": "staff-edit",
+            }
+        )
+
+        cart_history = self.store.get_cart_change_history(cart_id, limit=20)
+        cart_actions = [entry["action"] for entry in cart_history]
+        self.assertIn("create", cart_actions)
+        self.assertIn("status-change", cart_actions)
+        self.assertIn("edit-ship-address", cart_actions)
+        self.assertIn("edit-items", cart_actions)
+
+    def test_ut_ord_20_pending_bulk_order_request_can_be_deleted_and_recreated(self) -> None:
+        product = self.store.create_product(
+            name="Cá viên chay request delete",
+            category="Đông lạnh",
+            unit="gói",
+            price=17000,
+            sale_price=26000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 6, "Tồn đầu request delete")
+
+        self.store.create_bulk_order_request(
+            mode="commit_valid",
+            request_id="bulk-request-delete-001",
+            actor="staff",
+            orders=[
+                {
+                    "client_order_id": "bulk-request-delete-order-1",
+                    "customer_name": "Khách request delete",
+                    "ship_address": "2 Pasteur",
+                    "items": [{"product_id": product["id"], "quantity": 2, "unit_price": 26000}],
+                }
+            ],
+        )
+        deleted_request = self.store.delete_bulk_order_request(
+            "bulk-request-delete-001",
+            actor="staff",
+            can_manage=False,
+        )
+        self.assertEqual(deleted_request["status"], "pending_approval")
+        self.assertIsNone(self.store.get_bulk_order_request("bulk-request-delete-001"))
+
+        recreated = self.store.create_bulk_order_request(
+            mode="commit_valid",
+            request_id="bulk-request-delete-002",
+            actor="staff",
+            orders=[
+                {
+                    "client_order_id": "bulk-request-delete-order-2",
+                    "customer_name": "Khách request delete",
+                    "ship_address": "2 Pasteur",
+                    "items": [{"product_id": product["id"], "quantity": 2, "unit_price": 26000}],
+                }
+            ],
+        )
+        self.assertEqual(recreated["request"]["status"], "pending_approval")
+
+        self.store.approve_bulk_order_request("bulk-request-delete-002", actor="bizmanager")
+        with self.assertRaisesRegex(ValueError, "đang chờ duyệt"):
+            self.store.delete_bulk_order_request(
+                "bulk-request-delete-002",
+                actor="staff",
+                can_manage=False,
+            )
 
     def test_ut_aud_01_save_sync_state_logs_cart_status_changes_with_actor(self) -> None:
         self.store.save_sync_state(
