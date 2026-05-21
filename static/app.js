@@ -46,6 +46,7 @@ import {
   bulkOrderSearchInput,
   bulkOrderSummaryBar,
   bulkOrderPermissionNotice,
+  bulkOrderRequestsPanel,
   bulkOrderResultSummary,
   bulkOrderList,
   bulkOrderSaveDraftButton,
@@ -180,6 +181,9 @@ import {
   helpModal,
   helpModalBody,
   closeHelpButton,
+  auditHistoryModal,
+  auditHistoryModalBody,
+  closeAuditHistoryButton,
   globalBusyOverlay,
   globalBusyCard,
   globalBusyLabel,
@@ -310,6 +314,8 @@ const bulkOrderUiHelpers = {
   getCustomerDraftHint: () => null,
   getCanCreateBulkDraft: () => true,
   getCanCommitBulkOrders: () => true,
+  getCanManageBulkOrderRequests: () => false,
+  getRequiresBulkOrderApproval: () => false,
 };
 
 function setBusyPageInert(active) {
@@ -984,6 +990,7 @@ function getBulkOrdersUi() {
         bulkOrderSearchInput,
         bulkOrderSummaryBar,
         bulkOrderPermissionNotice,
+        bulkOrderRequestsPanel,
         bulkOrderResultSummary,
         bulkOrderList,
         bulkOrderSaveDraftButton,
@@ -999,6 +1006,8 @@ function getBulkOrdersUi() {
       getCustomerDraftHint: (entry) => bulkOrderUiHelpers.getCustomerDraftHint(entry),
       getCanCreateBulkDraft: () => bulkOrderUiHelpers.getCanCreateBulkDraft(),
       getCanCommitBulkOrders: () => bulkOrderUiHelpers.getCanCommitBulkOrders(),
+      getCanManageBulkOrderRequests: () => bulkOrderUiHelpers.getCanManageBulkOrderRequests(),
+      getRequiresBulkOrderApproval: () => bulkOrderUiHelpers.getRequiresBulkOrderApproval(),
     });
   }
   return bulkOrdersUi;
@@ -2401,6 +2410,8 @@ function getCoreUi() {
         aboutContent,
         helpModal,
         helpModalBody,
+        auditHistoryModal,
+        auditHistoryModalBody,
         scrollTopButton,
         scrollBottomButton,
         navBackButton,
@@ -2416,6 +2427,7 @@ function getCoreUi() {
       currentAppInfo,
       getLatestRuntimeVersion: () => latestRuntimeVersion,
       escapeHtml,
+      formatDate,
       getCurrentScreenHelp,
       getFloatingSearchConfig,
       getFloatingSearchSourceInput,
@@ -2454,6 +2466,10 @@ function renderAboutSection() {
 
 function renderHelpModal() {
   getCoreUi().renderHelpModal();
+}
+
+function renderAuditHistoryModal() {
+  getCoreUi().renderAuditHistoryModal();
 }
 
 function setHelpOpen(nextValue) {
@@ -4366,6 +4382,7 @@ function clearProtectedSessionData() {
     customerText: "",
     entries: [],
     expandedEntryId: "",
+    expandedRequestId: "",
     itemPickerOpen: false,
     itemPickerEntryId: "",
     itemPickerSearchTerm: "",
@@ -4626,6 +4643,7 @@ async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "ac
     state.suppliers = payload.suppliers || [];
     state.carts = payload.carts || [];
     state.purchases = payload.purchases || [];
+    state.bulkOrderRequests = payload.bulk_order_requests || payload.bulkOrderRequests || [];
     syncSalesState();
     if (state.admin?.isAdmin && state.activeMenu === "admin") {
       try {
@@ -5293,6 +5311,7 @@ function renderAll() {
   renderReports();
   renderAdminSection();
   renderAboutSection();
+  renderAuditHistoryModal();
   renderCreateOrderEntryState();
   renderPurchaseEntryState();
   renderReportSections();
@@ -5303,6 +5322,78 @@ function renderAll() {
   scheduleStickyLayoutMetricsUpdate();
   settlePendingSavingUiReleases();
   window.__QLTPCHAY_APP_READY = true;
+}
+
+function setAuditHistoryOpen(nextValue) {
+  state.auditHistory.open = Boolean(nextValue);
+  if (!state.auditHistory.open) {
+    state.auditHistory.loading = false;
+  }
+  renderAuditHistoryModal();
+}
+
+async function openCartAuditHistory(cartId) {
+  const cart = getCartById(cartId);
+  if (!cart) {
+    throw new Error("Không tìm thấy đơn hàng để xem lịch sử.");
+  }
+  state.auditHistory = {
+    open: true,
+    title: `Lịch sử ${cart.orderCode || cart.customerName || "đơn hàng"}`,
+    subtitle: `${cart.customerName || "Khách hàng"} • ${cart.status || "draft"}`,
+    loading: true,
+    entries: [],
+  };
+  renderAuditHistoryModal();
+  try {
+    const payload = await apiRequest(`/api/orders/${encodeURIComponent(cartId)}/history?limit=30`);
+    const latestCart = payload.cart || cart;
+    state.auditHistory = {
+      open: true,
+      title: `Lịch sử ${latestCart.orderCode || latestCart.customerName || "đơn hàng"}`,
+      subtitle: `${latestCart.customerName || "Khách hàng"} • ${latestCart.status || "draft"}`,
+      loading: false,
+      entries: Array.isArray(payload.history) ? payload.history : [],
+    };
+  } catch (error) {
+    state.auditHistory.loading = false;
+    state.auditHistory.entries = [];
+    renderAuditHistoryModal();
+    throw error;
+  }
+  renderAuditHistoryModal();
+}
+
+async function openBulkOrderRequestAuditHistory(requestId) {
+  const request = (state.bulkOrderRequests || []).find((entry) => String(entry?.request_id || "") === String(requestId || "")) || null;
+  if (!request) {
+    throw new Error("Không tìm thấy yêu cầu xuất nhanh để xem lịch sử.");
+  }
+  state.auditHistory = {
+    open: true,
+    title: `Lịch sử ${request.request_code || request.request_id || "yêu cầu xuất nhanh"}`,
+    subtitle: `${request.requested_by || "Không rõ"} • ${request.status || "pending_approval"}`,
+    loading: true,
+    entries: [],
+  };
+  renderAuditHistoryModal();
+  try {
+    const payload = await apiRequest(`/api/orders/bulk-requests/${encodeURIComponent(requestId)}/history?limit=30`);
+    const latestRequest = payload.request || request;
+    state.auditHistory = {
+      open: true,
+      title: `Lịch sử ${latestRequest.request_code || latestRequest.request_id || "yêu cầu xuất nhanh"}`,
+      subtitle: `${latestRequest.requested_by || "Không rõ"} • ${latestRequest.status || "pending_approval"}`,
+      loading: false,
+      entries: Array.isArray(payload.history) ? payload.history : [],
+    };
+  } catch (error) {
+    state.auditHistory.loading = false;
+    state.auditHistory.entries = [];
+    renderAuditHistoryModal();
+    throw error;
+  }
+  renderAuditHistoryModal();
 }
 
 function buildDocumentPrintMarkup({ title, metadata = [], rows = "", headers = [], subtotalAmount = 0, discountAmount = 0, totalAmount = 0 }) {
@@ -5874,6 +5965,8 @@ registerCoreControllerEvents({
     floatingSearchInput,
     closeHelpButton,
     helpModal,
+    closeAuditHistoryButton,
+    auditHistoryModal,
     mobileQuery,
     scrollTopButton,
     scrollBottomButton,
@@ -5887,6 +5980,7 @@ registerCoreControllerEvents({
     scrollPageTo,
     navigateMenuHistory,
     setHelpOpen,
+    setAuditHistoryOpen,
     revealEdgeHiddenClusterFromViewportClick,
     interceptEdgeHiddenClusterReveal,
     revealFloatingCluster,
@@ -6065,6 +6159,7 @@ registerSalesControllerEvents({
     checkoutCart,
     checkoutActiveCart,
     printCart,
+    openCartAuditHistory,
     updateProductSalePrice,
     focusActiveCartPanel,
     focusOrderDetailPanel,
@@ -6103,6 +6198,7 @@ registerBulkOrdersControllerEvents({
     bulkCustomerLookupInput,
     bulkAddCustomerButton,
     bulkOrderSearchInput,
+    bulkOrderRequestsPanel,
     bulkOrderList,
     bulkOrderSaveDraftButton,
     bulkOrderCommitValidButton,
@@ -6115,6 +6211,7 @@ registerBulkOrdersControllerEvents({
     apiRequest,
     refreshData,
     showToast,
+    openBulkOrderRequestAuditHistory,
     createId,
     createRequestId,
     registerBulkOrderHelpers: (helpers = {}) => {
@@ -6126,6 +6223,12 @@ registerBulkOrdersControllerEvents({
       }
       if (typeof helpers.getCanCommitBulkOrders === "function") {
         bulkOrderUiHelpers.getCanCommitBulkOrders = helpers.getCanCommitBulkOrders;
+      }
+      if (typeof helpers.getCanManageBulkOrderRequests === "function") {
+        bulkOrderUiHelpers.getCanManageBulkOrderRequests = helpers.getCanManageBulkOrderRequests;
+      }
+      if (typeof helpers.getRequiresBulkOrderApproval === "function") {
+        bulkOrderUiHelpers.getRequiresBulkOrderApproval = helpers.getRequiresBulkOrderApproval;
       }
     },
   },

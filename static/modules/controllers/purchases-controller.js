@@ -8,7 +8,7 @@ export function registerPurchasesControllerEvents(contract) {
     utils,
   } = contract;
 
-  function selectPurchaseDocument(purchaseId, { focus = true, expandDetail = true } = {}) {
+  function selectPurchaseDocument(purchaseId, { focus = true, expandDetail = !dom.mobileQuery.matches } = {}) {
     const visiblePurchases = queries.getVisiblePurchases();
     const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
     if (!purchase) {
@@ -17,7 +17,7 @@ export function registerPurchasesControllerEvents(contract) {
     state.activePurchaseId = purchase.id;
     state.purchasePanelCollapsed = false;
     state.purchaseDetailExpanded = expandDetail;
-    state.selectedPurchaseItemsCollapsed = false;
+    state.selectedPurchaseItemsCollapsed = dom.mobileQuery.matches;
     actions.setPaginationPageForItem("purchaseOrders", visiblePurchases, purchase.id);
     actions.saveAndRenderAll();
     if (focus) {
@@ -586,7 +586,9 @@ export function registerPurchasesControllerEvents(contract) {
       const delta = actionButton.dataset.purchaseAction === "previous" ? -1 : 1;
       const target = visiblePurchases[currentIndex + delta];
       if (!target) return;
-      selectPurchaseDocument(target.id);
+      selectPurchaseDocument(target.id, {
+        expandDetail: state.purchaseDetailExpanded,
+      });
       return;
     }
     if (actionButton.dataset.purchaseAction === "toggle-detail") {

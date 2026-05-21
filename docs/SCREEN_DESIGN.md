@@ -109,6 +109,8 @@ Liên kết detail hiện có:
   - ô thêm khách nhanh
   - list card theo khách
   - item picker sản phẩm
+  - khối `Yêu cầu xuất nhanh` hiển thị request gần đây và action `Approve/Reject/Xóa/Xử lý`
+  - popup `Lịch sử` dùng chung cho request và detail đơn
   - thanh kết quả batch
   - footer action cố định
 - nguyên tắc UI:
@@ -118,6 +120,9 @@ Liên kết detail hiện có:
   - cuối màn chỉ có đúng 2 CTA chính: `Lưu nháp` và `Chốt đơn hợp lệ`
   - `Lưu nháp` chỉ tạo/cập nhật cart `draft`; không giữ hàng, không trừ kho và không nhảy thẳng sang `completed`
   - `Chốt đơn hợp lệ` phải kiểm từng khách theo đúng rule availability của bước `Chốt đơn` hiện tại; đơn đủ điều kiện sang `committed`, đơn lỗi giữ nguyên ở màn để user sửa tiếp
+  - khi login bật và user không có `order_batch_manage`, 2 CTA cuối màn phải đổi nghĩa thành `gửi request chờ duyệt`; request card phải hiện rõ `người tạo`, `trạng thái`, `số đơn`, `lý do reject` nếu có và warning trùng request active
+  - user có `order_batch_manage` hoặc `Master Admin` phải thấy badge pending ngay từ menu và có action `Approve/Reject`; request còn `pending_approval` phải có thêm `Xóa` cho owner hoặc user quản lý; owner của request đã `approved` cũng phải thấy nút `Xử lý`
+  - request card và detail đơn phải có nút `Lịch sử`; popup audit hiển thị mới nhất trước, tối thiểu có `thời gian`, `user`, `hành động`, `trạng thái trước/sau`, `ghi chú`
   - lỗi phải hiển thị được theo từng khách và từng sản phẩm, ví dụ `Thiếu ...: cần ..., còn ...`
   - nếu khách đã có đơn nháp trên server, card phải cho user chọn `dồn vào nháp hiện có` hoặc `tạo nháp mới riêng`
   - import Excel nếu có chỉ là action phụ; dữ liệu sau import vẫn phải đổ về list card để user review/sửa trước khi lưu hoặc chốt
@@ -132,6 +137,7 @@ Liên kết detail hiện có:
   - search đơn hàng
   - filter hiện đơn lưu trữ / đã hủy / đã thanh toán
   - danh sách order card
+  - detail panel có nút `Lịch sử`
 - nguyên tắc UI:
   - đơn đã hủy mặc định ẩn để list gọn hơn; user chỉ bật lại khi cần tra cứu
   - list đơn là trung tâm; detail của đơn mở ở panel riêng khi user chọn card, có nút `Previous / Next` để đi theo đúng danh sách đang lọc và có nút `Đóng` để ẩn panel

@@ -245,6 +245,7 @@ export function createSalesUi(deps) {
       <div class="detail-panel-actions">
         ${allowOpen ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="open" data-cart-id="${selectedCart.id}">${mobileQuery.matches ? "Mở" : "Tiếp tục xử lý"}</button>` : ""}
         ${allowPrint ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="print" data-cart-id="${selectedCart.id}">In</button>` : ""}
+        <button type="button" class="ghost-button compact-button" data-order-detail-action="history" data-cart-id="${selectedCart.id}">Lịch sử</button>
         ${allowRepeat ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="repeat" data-cart-id="${selectedCart.id}">Xuất lại</button>` : ""}
         ${selectedCart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-order-detail-action="commit" data-cart-id="${selectedCart.id}">Chốt đơn</button>` : ""}
         ${selectedCart.status === "committed" ? `<button type="button" class="secondary-button compact-button" data-order-detail-action="ship" data-cart-id="${selectedCart.id}">Xuất hàng</button>` : ""}
@@ -543,6 +544,9 @@ export function createSalesUi(deps) {
         const allowListPrint = canShowCartListPrintAction(cart);
         const allowOpen = ["draft", "committed"].includes(cart.status);
         const allowRepeat = cart.status === "completed";
+        const allowReturn = cart.status === "completed";
+        const showExpandedCardActions = !compact || isSelected;
+        const inlineCustomerReturnEditor = isSelected ? getCustomerReturnEditorMarkup(cart) : "";
         return `
         <article class="cart-queue-item selectable-card ${isSelected ? "is-selected-detail" : ""}" data-order-select="${cart.id}" tabindex="0" role="button" aria-pressed="${isSelected ? "true" : "false"}">
           <div class="queue-header">
@@ -568,13 +572,15 @@ export function createSalesUi(deps) {
               : ""}
             ${allowListPrint ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
             <button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">${detailButtonLabel}</button>
-            ${!compact && allowRepeat ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="repeat" data-queue-action="repeat" data-cart-id="${cart.id}">Xuất lại</button>` : ""}
-            ${!compact && cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
-            ${!compact && cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="commit" data-queue-action="commit" data-cart-id="${cart.id}">Chốt đơn</button>` : ""}
-            ${!compact && cart.status === "committed" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="ship" data-queue-action="ship" data-cart-id="${cart.id}">Xuất hàng</button>` : ""}
-            ${!compact && ["draft", "committed"].includes(cart.status) ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
-            ${!compact && canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
+            ${showExpandedCardActions && allowRepeat ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="repeat" data-queue-action="repeat" data-cart-id="${cart.id}">Xuất lại</button>` : ""}
+            ${showExpandedCardActions && cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
+            ${showExpandedCardActions && allowReturn ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="customer-return" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
+            ${showExpandedCardActions && cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="commit" data-queue-action="commit" data-cart-id="${cart.id}">Chốt đơn</button>` : ""}
+            ${showExpandedCardActions && cart.status === "committed" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="ship" data-queue-action="ship" data-cart-id="${cart.id}">Xuất hàng</button>` : ""}
+            ${showExpandedCardActions && ["draft", "committed"].includes(cart.status) ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}
+            ${showExpandedCardActions && canDeleteCart(cart) ? `<button type="button" class="danger-button compact-button" data-cart-list-action="delete" data-queue-action="delete" data-cart-id="${cart.id}">Xóa</button>` : ""}
           </div>
+          ${inlineCustomerReturnEditor}
         </article>
       `;
       })

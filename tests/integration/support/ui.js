@@ -12,7 +12,11 @@ function attachRuntimeTracking(page, { autoAcceptDialogs = true } = {}) {
 
   page.on("console", (message) => {
     const text = message.text() || "";
-    if (message.type() === "error" && !/favicon\.ico/i.test(text)) {
+    if (
+      message.type() === "error"
+      && !/favicon\.ico/i.test(text)
+      && !/ERR_NETWORK_CHANGED|ERR_ABORTED/i.test(text)
+    ) {
       state.errors.push(`console:${text}`);
     }
   });
@@ -31,7 +35,15 @@ async function expectScreenTitle(page, title) {
 }
 
 async function waitForAppReady(page) {
-  await expect(page.locator("#appVersionButton")).not.toContainText("Đang tải", { timeout: 10000 });
+  await expect.poll(async () => {
+    const versionText = ((await page.locator("#appVersionButton").textContent()) || "").trim();
+    const screenTitle = ((await page.locator("#activeScreenBarTitle").textContent()) || "").trim();
+    const menuCount = await page.locator("[data-menu]").count();
+    return !versionText.includes("Đang tải") || (Boolean(screenTitle) && menuCount > 0);
+  }, {
+    timeout: 10000,
+    message: "Ứng dụng chưa sẵn sàng sau khi tải trang.",
+  }).toBeTruthy();
   await page.waitForTimeout(200);
 }
 

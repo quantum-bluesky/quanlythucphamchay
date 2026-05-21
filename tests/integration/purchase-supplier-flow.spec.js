@@ -70,10 +70,34 @@ async function restoreBackupSnapshot(request, snapshot, page = null) {
   throw lastError || new Error("restoreBackupSnapshot failed");
 }
 
+async function waitForToastContaining(page, expectedTexts, timeout = 5000) {
+  const expectedList = Array.isArray(expectedTexts) ? expectedTexts : [expectedTexts];
+  const toast = page.locator("#toast:not([hidden])");
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await toast.count()) {
+      const text = ((await toast.first().textContent()) || "").trim();
+      if (expectedList.some((entry) => text.includes(entry))) {
+        return text;
+      }
+    }
+    await page.waitForTimeout(150);
+  }
+  const lastText = await toast.count() ? (((await toast.first().textContent()) || "").trim()) : "";
+  throw new Error(`Không thấy toast mong đợi (${expectedList.join(" | ")}). Toast hiện tại: ${lastText}`);
+}
+
 function hasActualPurchaseHistory(state, productId) {
   return (state.purchases || []).some((purchase) =>
     ["received", "paid"].includes(String(purchase.status || "")) &&
     String(purchase.supplierName || "").trim() &&
+    (purchase.items || []).some((item) => Number(item.productId) === Number(productId))
+  );
+}
+
+function hasAnyOpenPurchaseReference(state, productId) {
+  return (state.purchases || []).some((purchase) =>
+    !["cancelled", "paid"].includes(String(purchase.status || "")) &&
     (purchase.items || []).some((item) => Number(item.productId) === Number(productId))
   );
 }
@@ -760,9 +784,16 @@ test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical
   const snapshot = await createBackupSnapshot(request);
   const originalState = await fetchSyncState(request, userCookie);
   const products = await fetchProducts(request, userCookie);
-  const candidateProducts = products.filter((product) => !hasActualPurchaseHistory(originalState, product.id));
+  const candidateProducts = products.filter((product) =>
+    !hasActualPurchaseHistory(originalState, product.id)
+    && !hasAnyOpenPurchaseReference(originalState, product.id)
+  );
   expect(candidateProducts.length).toBeGreaterThanOrEqual(1);
-  const uniqueProduct = products.find((product) => product.name === "Bò kho" && !hasActualPurchaseHistory(originalState, product.id)) || candidateProducts[0];
+  const uniqueProduct = products.find((product) =>
+    product.name === "Bò kho"
+    && !hasActualPurchaseHistory(originalState, product.id)
+    && !hasAnyOpenPurchaseReference(originalState, product.id)
+  ) || candidateProducts[0];
   const uniqueSupplier = `NCC unique ${timestamp}`;
 
   try {
@@ -806,7 +837,8 @@ test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical
     const addUniqueButton = page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${uniqueProduct.id}"]`).first();
     await expect(addUniqueButton).toBeVisible();
     await addUniqueButton.click();
-    const uniqueToast = await collectToast(page, runtime, "it-pursup-05-unique", { errorPattern: /^$/ });
+    const uniqueToast = await waitForToastContaining(page, `tự chọn ${uniqueSupplier}`);
+    runtime.toasts.push(`it-pursup-05-unique:${uniqueToast}`);
     expect(uniqueToast).toContain(`tự chọn ${uniqueSupplier}`);
     await expect(page.locator("#purchaseSupplierInput")).toHaveValue(uniqueSupplier);
 
@@ -976,7 +1008,8 @@ test("IT-PURSUP-07 purchases warn and review open receipts when one product is p
     });
     await page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${targetProduct.id}"]`).first().click();
     expect(secondDialogMessage).toContain(targetProduct.name);
-    const conflictToast = await collectToast(page, runtime, "it-pursup-07-keep-current", { errorPattern: /^$/ });
+    const conflictToast = await waitForToastContaining(page, "Cảnh báo");
+    runtime.toasts.push(`it-pursup-07-keep-current:${conflictToast}`);
     expect(conflictToast).toContain("Cảnh báo");
     await expect(page.locator("#purchasePanel")).toContainText(targetProduct.name);
     await expect(page.locator("#purchasePanel")).toContainText("Cảnh báo NCC theo mặt hàng");

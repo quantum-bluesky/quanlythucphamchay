@@ -14,12 +14,13 @@
   "users": [
     {
       "username": "user",
-      "password": "user12345"
+      "password": "user12345",
+      "permissions": ["bulk_order_create", "bulk_order_commit"]
     },
     {
       "username": "bizmanager",
       "password": "biz12345",
-      "permissions": ["procurement_batch_manage"]
+      "permissions": ["procurement_batch_manage", "order_batch_manage"]
     }
   ],
   "debug": {
