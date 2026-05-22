@@ -138,18 +138,20 @@ export function registerBulkOrdersControllerEvents(contract) {
     renderers.renderBulkOrdersScreen();
   }
 
-  function updateEntry(entryId, updater) {
+  function updateEntry(entryId, updater, { render = true } = {}) {
     setEntries(getDraftEntries().map((entry) => (
       entry.id === entryId ? markEntryDirty(updater(entry)) : entry
     )));
-    renderers.renderBulkOrdersScreen();
+    if (render) {
+      renderers.renderBulkOrdersScreen();
+    }
   }
 
-  function updateEntryItem(entryId, itemId, updater) {
+  function updateEntryItem(entryId, itemId, updater, options = {}) {
     updateEntry(entryId, (entry) => ({
       ...entry,
       items: (entry.items || []).map((item) => item.id === itemId ? updater(item) : item),
-    }));
+    }), options);
   }
 
   function removeEntry(entryId) {
@@ -480,7 +482,7 @@ export function registerBulkOrdersControllerEvents(contract) {
       return;
     }
     if (event.target.dataset.bulkOrderField === "ship-address") {
-      updateEntry(entryId, (entry) => ({ ...entry, shipAddress: String(event.target.value || "") }));
+      updateEntry(entryId, (entry) => ({ ...entry, shipAddress: String(event.target.value || "") }), { render: false });
       return;
     }
     if (event.target.dataset.bulkOrderField === "discount-amount") {
@@ -489,7 +491,7 @@ export function registerBulkOrdersControllerEvents(contract) {
       updateEntry(entryId, (entry) => ({
         ...entry,
         discountAmount: Number.isFinite(nextDiscount) ? Math.max(0, Math.min(nextDiscount, totals.subtotalAmount)) : entry.discountAmount,
-      }));
+      }), { render: false });
       return;
     }
     const itemId = event.target.dataset.itemId || "";
@@ -501,7 +503,7 @@ export function registerBulkOrdersControllerEvents(contract) {
       if (!Number.isFinite(quantity) || quantity <= 0) {
         return;
       }
-      updateEntryItem(entryId, itemId, (item) => ({ ...item, quantity: Number(quantity.toFixed(2)) }));
+      updateEntryItem(entryId, itemId, (item) => ({ ...item, quantity: Number(quantity.toFixed(2)) }), { render: false });
       return;
     }
     if (event.target.dataset.bulkOrderItemField === "unit-price") {
@@ -509,13 +511,22 @@ export function registerBulkOrdersControllerEvents(contract) {
       if (!Number.isFinite(unitPrice) || unitPrice < 0) {
         return;
       }
-      updateEntryItem(entryId, itemId, (item) => ({ ...item, unitPrice }));
+      updateEntryItem(entryId, itemId, (item) => ({ ...item, unitPrice }), { render: false });
     }
   });
 
   dom.bulkOrderList?.addEventListener("change", (event) => {
     const entryId = event.target.dataset.entryId || "";
     if (!entryId) {
+      return;
+    }
+    if (
+      event.target.dataset.bulkOrderField === "ship-address"
+      || event.target.dataset.bulkOrderField === "discount-amount"
+      || event.target.dataset.bulkOrderItemField === "quantity"
+      || event.target.dataset.bulkOrderItemField === "unit-price"
+    ) {
+      renderers.renderBulkOrdersScreen();
       return;
     }
     if (event.target.dataset.bulkOrderField === "merge-strategy") {

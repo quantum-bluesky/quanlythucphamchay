@@ -26,6 +26,24 @@ async function addBulkOrderItem(page, customerName, productName, quantity) {
   await expect(page.locator("#bulkItemPickerModal")).toBeHidden();
 }
 
+async function expectActiveBulkField(page, expectedEntryId, expectedField, expectedItemId = "") {
+  await expect.poll(async () => page.evaluate(() => {
+    const active = document.activeElement;
+    if (!active) {
+      return null;
+    }
+    return {
+      entryId: active.dataset?.entryId || "",
+      field: active.dataset?.bulkOrderField || active.dataset?.bulkOrderItemField || "",
+      itemId: active.dataset?.itemId || "",
+    };
+  })).toEqual({
+    entryId: expectedEntryId,
+    field: expectedField,
+    itemId: expectedItemId,
+  });
+}
+
 test("ACC-ORD-17 bulk orders mobile keeps card UI and only commits valid customers", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const runtime = attachRuntimeTracking(page);
@@ -44,6 +62,40 @@ test("ACC-ORD-17 bulk orders mobile keeps card UI and only commits valid custome
   await page.locator("#bulkCustomerLookupInput").fill("Khách bulk A");
   await page.locator("#bulkAddCustomerButton").click();
   await addBulkOrderItem(page, "Khách bulk A", "Chả quế chay", 1);
+  const firstBulkCard = page.locator("#bulkOrderList .bulk-order-card").filter({ hasText: "Khách bulk A" }).first();
+  const firstEntryId = await firstBulkCard.getAttribute("data-entry-id");
+  expect(firstEntryId).toBeTruthy();
+  const quantityInput = firstBulkCard.locator('[data-bulk-order-item-field="quantity"]').first();
+  const quantityItemId = await quantityInput.getAttribute("data-item-id");
+  expect(quantityItemId).toBeTruthy();
+  await quantityInput.click();
+  await quantityInput.press("ControlOrMeta+A");
+  await quantityInput.type("2");
+  await expect(quantityInput).toHaveValue("2");
+  await expectActiveBulkField(page, firstEntryId, "quantity", quantityItemId);
+
+  const unitPriceInput = firstBulkCard.locator('[data-bulk-order-item-field="unit-price"]').first();
+  const unitPriceItemId = await unitPriceInput.getAttribute("data-item-id");
+  expect(unitPriceItemId).toBeTruthy();
+  await unitPriceInput.click();
+  await unitPriceInput.press("ControlOrMeta+A");
+  await unitPriceInput.type("56000");
+  await expect(unitPriceInput).toHaveValue("56000");
+  await expectActiveBulkField(page, firstEntryId, "unit-price", unitPriceItemId);
+
+  const shipAddressInput = firstBulkCard.locator('[data-bulk-order-field="ship-address"]');
+  await shipAddressInput.click();
+  await shipAddressInput.press("ControlOrMeta+A");
+  await shipAddressInput.type("Dia chi bulk mobile");
+  await expect(shipAddressInput).toHaveValue("Dia chi bulk mobile");
+  await expectActiveBulkField(page, firstEntryId, "ship-address");
+
+  const discountInput = firstBulkCard.locator('[data-bulk-order-field="discount-amount"]');
+  await discountInput.click();
+  await discountInput.press("ControlOrMeta+A");
+  await discountInput.type("5000");
+  await expect(discountInput).toHaveValue("5000");
+  await expectActiveBulkField(page, firstEntryId, "discount-amount");
 
   await page.locator("#bulkCustomerLookupInput").fill("Khách bulk B");
   await page.locator("#bulkAddCustomerButton").click();

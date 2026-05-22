@@ -270,7 +270,7 @@ export function createBulkOrdersUi(deps) {
     const draftHint = getCustomerDraftHint(entry);
     const errorRows = Array.isArray(entry.errors) ? entry.errors : [];
     return `
-      <article class="customer-item bulk-order-card ${isExpanded ? "is-expanded" : ""}">
+      <article class="customer-item bulk-order-card ${isExpanded ? "is-expanded" : ""}" data-entry-id="${escapeHtml(entry.id)}">
         <div class="customer-header">
           <strong>${escapeHtml(entry.customerName || "Khách hàng mới")}</strong>
           <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}</span>
