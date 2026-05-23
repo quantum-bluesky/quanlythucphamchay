@@ -12,6 +12,10 @@ export function registerSalesControllerEvents(contract) {
     return cart.orderCode || cart.customerName || "giỏ hàng này";
   }
 
+  function syncPriceWarningFromInput(input) {
+    utils.syncPriceWarningGroup(input?.closest("[data-price-warning-group]"));
+  }
+
   function confirmCartCostWarning(cart, actionLabel) {
     const warning = queries.getCartCostWarning(cart);
     if (!warning?.hasWarning) {
@@ -463,6 +467,12 @@ export function registerSalesControllerEvents(contract) {
     saveButton?.click();
   });
 
+  dom.salesProductList.addEventListener("input", (event) => {
+    const warningInput = event.target.closest("[data-price-warning-input]");
+    if (!warningInput) return;
+    syncPriceWarningFromInput(warningInput);
+  });
+
   dom.cartItemsList.addEventListener("click", async (event) => {
     const lineButton = event.target.closest("[data-line-action], [data-cart-item-action]");
     if (!lineButton) return;
@@ -522,6 +532,12 @@ export function registerSalesControllerEvents(contract) {
     const itemId = qtyInput?.dataset.qtyInput || priceInput?.dataset.priceInputCart || priceInput?.dataset.priceInput;
     const saveButton = dom.cartItemsList.querySelector(`[data-line-action="save"][data-item-id="${itemId}"], [data-cart-item-action="save"][data-item-id="${itemId}"]`);
     saveButton?.click();
+  });
+
+  dom.cartItemsList.addEventListener("input", (event) => {
+    const warningInput = event.target.closest("[data-price-warning-input]");
+    if (!warningInput) return;
+    syncPriceWarningFromInput(warningInput);
   });
 
   dom.activeCartPanel.addEventListener("click", async (event) => {

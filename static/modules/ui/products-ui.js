@@ -6,6 +6,8 @@ export function createProductsUi(deps) {
     formatCurrency,
     formatDate,
     escapeHtml,
+    getPriceWarningAlerts,
+    renderPriceWarningMarkup,
     isSearchResultMode,
     paginateItems,
     renderPagination,
@@ -53,6 +55,11 @@ export function createProductsUi(deps) {
     dom.productManageList.innerHTML = topPagination + pageData.items
       .map((product) => {
         const isEditing = state.editingProductId === product.id;
+        const priceAlerts = getPriceWarningAlerts({
+          purchasePrice: product.price,
+          salePrice: product.sale_price ?? 0,
+        });
+        const priceWarningLabels = renderPriceWarningMarkup(priceAlerts, "view");
         const shelfLifeLabel = product.shelf_life_days ? `Hạn ${formatQuantity(product.shelf_life_days)} ngày` : "Chưa có hạn dùng";
         const storageLifeLabel = product.storage_life_days ? `Bảo quản ${formatQuantity(product.storage_life_days)} ngày` : "Chưa có bảo quản";
         const compactLayout = compact
@@ -73,6 +80,7 @@ export function createProductsUi(deps) {
                 <div class="product-manage-side-meta">
                   <span>Giá nhập ${formatCurrency(product.price)}</span>
                   <span>Giá bán ${formatCurrency(product.sale_price ?? 0)}</span>
+                  ${priceWarningLabels ? `<div class="price-warning-inline">${priceWarningLabels}</div>` : ""}
                   <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
                   <span>${escapeHtml(shelfLifeLabel)}</span>
                   <span>${escapeHtml(storageLifeLabel)}</span>
@@ -97,9 +105,12 @@ export function createProductsUi(deps) {
                   <div class="product-row-stock">${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}</div>
                 </div>
                 <div class="product-row-meta">
+                  <span>Giá nhập ${formatCurrency(product.price)}</span>
+                  <span>Giá bán ${formatCurrency(product.sale_price ?? 0)}</span>
                   <span>Ngưỡng ${formatQuantity(product.low_stock_threshold)}</span>
                   <span>${escapeHtml(shelfLifeLabel)}</span>
                   <span>${escapeHtml(storageLifeLabel)}</span>
+                  ${priceWarningLabels}
                 </div>
                 <div class="cart-line-note">${product.current_stock > 0 ? `Còn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}.` : "Có thể ngừng bán."}</div>
                 <div class="row-actions">
@@ -112,8 +123,11 @@ export function createProductsUi(deps) {
                 <label class="inline-labeled-field"><span>Tên</span><input type="text" value="${escapeHtml(product.name)}" data-manage-input="name" data-product-id="${product.id}" placeholder="Tên sản phẩm"></label>
                 <label class="inline-labeled-field"><span>Loại</span><input type="text" value="${escapeHtml(product.category)}" data-manage-input="category" data-product-id="${product.id}" placeholder="Loại"></label>
                 <label class="inline-labeled-field"><span>ĐVT</span><input type="text" value="${escapeHtml(product.unit)}" data-manage-input="unit" data-product-id="${product.id}" placeholder="Đơn vị"></label>
-                <label class="inline-labeled-field"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${product.price}" data-manage-input="price" data-product-id="${product.id}" placeholder="Giá nhập"></label>
-                <label class="inline-labeled-field"><span>Giá bán</span><input type="number" min="0" step="1000" value="${product.sale_price ?? 0}" data-manage-input="sale_price" data-product-id="${product.id}" placeholder="Giá bán"></label>
+                <div data-price-warning-group data-price-warning-mode="edit">
+                  <label class="inline-labeled-field" data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${product.price}" data-manage-input="price" data-product-id="${product.id}" data-price-warning-input="purchase" placeholder="Giá nhập"></label>
+                  <label class="inline-labeled-field" data-price-warning-field="sale"><span>Giá bán</span><input type="number" min="0" step="1000" value="${product.sale_price ?? 0}" data-manage-input="sale_price" data-product-id="${product.id}" data-price-warning-input="sale" placeholder="Giá bán"></label>
+                  <div data-price-warning-host>${renderPriceWarningMarkup(priceAlerts, "edit")}</div>
+                </div>
                 <label class="inline-labeled-field"><span>Ngưỡng</span><input type="number" min="0.01" step="0.01" value="${product.low_stock_threshold}" data-manage-input="low_stock_threshold" data-product-id="${product.id}" placeholder="Ngưỡng"></label>
                 <label class="inline-labeled-field"><span>Hạn dùng</span><input type="number" min="0.01" step="1" value="${product.shelf_life_days ?? ""}" data-manage-input="shelf_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>
                 <label class="inline-labeled-field"><span>Bảo quản</span><input type="number" min="0.01" step="1" value="${product.storage_life_days ?? ""}" data-manage-input="storage_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>

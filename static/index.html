@@ -430,14 +430,17 @@
                 <span>Đơn vị tính</span>
                 <input name="unit" type="text" maxlength="20" value="gói" required>
               </label>
-              <label>
-                <span>Giá nhập</span>
-                <input name="price" type="number" step="1000" min="0" value="0" required>
-              </label>
-              <label>
-                <span>Giá bán mặc định</span>
-                <input name="sale_price" type="number" step="1000" min="0" value="0" required>
-              </label>
+              <div data-price-warning-group data-price-warning-mode="edit">
+                <label data-price-warning-field="purchase">
+                  <span>Giá nhập</span>
+                  <input name="price" type="number" step="1000" min="0" value="0" data-price-warning-input="purchase" required>
+                </label>
+                <label data-price-warning-field="sale">
+                  <span>Giá bán mặc định</span>
+                  <input name="sale_price" type="number" step="1000" min="0" value="0" data-price-warning-input="sale" required>
+                </label>
+                <div data-price-warning-host></div>
+              </div>
               <label>
                 <span>Cảnh báo sắp hết</span>
                 <input name="low_stock_threshold" type="number" step="0.01" min="0.01" value="5" required>

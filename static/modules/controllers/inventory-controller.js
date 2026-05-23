@@ -5,6 +5,7 @@ export function registerInventoryControllerEvents(contract) {
     actions,
     renderers,
     queries,
+    utils,
   } = contract;
 
   const requireAdmin = () => {
@@ -50,6 +51,7 @@ export function registerInventoryControllerEvents(contract) {
         state.expandedProductId = productId;
         state.editingPriceId = productId;
         renderers.renderProducts();
+        utils.syncPriceWarningGroups(dom.productGrid);
         return;
       }
       if (actionButton.dataset.productAction === "cancel-price-edit") {
@@ -209,6 +211,10 @@ export function registerInventoryControllerEvents(contract) {
   });
 
   dom.productGrid.addEventListener("input", (event) => {
+    const priceInput = event.target.closest("[data-price-warning-input]");
+    if (priceInput) {
+      utils.syncPriceWarningGroup(priceInput.closest("[data-price-warning-group]"));
+    }
     const reasonInput = event.target.closest("[data-adjust-reason-input]");
     if (!reasonInput) return;
     actions.setInventoryAdjustmentReason(reasonInput.dataset.adjustReasonInput, reasonInput.value);
