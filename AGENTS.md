@@ -208,6 +208,48 @@ Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối
 - nếu chưa thể chạy đủ test, phải nói rõ đã chạy test nào, thiếu test nào, và lý do
 - khi làm nhiều Issue trong một chuỗi, sau mỗi Issue phải dừng ở trạng thái branch/commit của chính Issue đó để có thể review hoặc tách tiếp nhánh kế thừa cho Issue sau
 
+## Quy ước tăng version theo Issue
+
+Áp dụng như global rule sau khi hoàn thành từng Issue:
+
+- version runtime chính được lưu ở `data/system_config.json` theo format `x.y.z`
+- version asset JS build được quản lý riêng ở `data/js_asset_versions.json` để tạo version đầy đủ dạng `x.y.z.n`
+- mỗi Issue sau khi fix xong phải tự tăng đúng `version chính` trong `data/system_config.json`, rồi đưa thay đổi này vào commit của chính Issue đó
+- không dồn nhiều Issue vào cùng một lần tăng version chính
+
+### Quy tắc phân loại mức độ Issue
+
+- Issue nhỏ:
+  - sửa hẹp
+  - ít file
+  - không đổi workflow chính
+  - không đổi schema
+  - chỉ tăng `z` thêm `1`
+- Issue trung bình đến khá lớn:
+  - đụng nhiều file hoặc nhiều lớp backend/frontend/docs/test
+  - có đổi workflow đáng kể nhưng vẫn trong một phạm vi chức năng
+  - có thêm permission, audit, UI flow, API flow, hoặc migration nhỏ tương thích ngược
+  - tăng `y` thêm `1`
+- Issue rất lớn:
+  - đổi kiến trúc hoặc workflow lớn trên nhiều domain
+  - thay đổi sâu dữ liệu/trạng thái/chuẩn vận hành
+  - có migration lớn, thay đổi diện rộng nhiều màn, hoặc ảnh hưởng release ở cấp major
+  - tăng `x` thêm `1`
+
+### Quy tắc reset phần version thấp hơn
+
+- nếu tăng `z`: đổi `x.y.z` thành `x.y.(z+1)`
+- nếu tăng `y`: đổi `x.y.z` thành `x.(y+1).0`
+- nếu tăng `x`: đổi `x.y.z` thành `(x+1).0.0`
+
+### Quy tắc thực thi version
+
+- phải xác định mức độ Issue trước khi chốt commit
+- nếu mức độ Issue không rõ hoặc có tranh luận giữa `z` và `y`, mặc định thiên về mức cao hơn để tránh under-version
+- nếu thay đổi JS thì ngoài việc tăng `version chính` ở `data/system_config.json`, vẫn phải cập nhật đúng manifest `data/js_asset_versions.json` theo cơ chế build hiện có
+- khi báo cáo xong từng Issue, nên nêu luôn version trước và version sau
+- nếu trong cùng một lượt làm nhiều Issue tách branch/commit riêng, mỗi branch phải tự tăng version từ base branch thực tế của chính nó; không được giả định trước version của các Issue khác chưa merge
+
 ## Khi nhận task mới
 
 Mặc định nên:
@@ -220,6 +262,7 @@ Mặc định nên:
 6. cập nhật help/docs nếu workflow, label hoặc design thay đổi
 7. nếu thêm/sửa test case hoặc test spec, cập nhật ngay tài liệu test trong repo gồm `docs/TESTING.md`, `docs/TEST_CASE_INDEX.md`, `docs/TEST_CASE_DESCRIPTIONS.md` để quy ước được giữ ở mức global, không chỉ trong session hiện tại
 8. nếu task được giao theo Issue, áp dụng đầy đủ `Quy ước Git theo Issue` ở trên trước khi bắt đầu sửa code
+9. nếu task là Issue, xác định luôn mức tăng version theo `Quy ước tăng version theo Issue` và cập nhật `data/system_config.json` trước khi tạo commit
 
 ## Quy ước bổ sung cho tooling/setup
 
