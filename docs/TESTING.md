@@ -281,10 +281,13 @@ Case mới cho Phase A:
 - `IT-PURSUP-08`: kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC/nội dung nhưng reset `Mã lô` / `HSD` / `NSX`
 - `IT-PURSUP-09`: kiểm tra phiếu nhập `Đã nhập kho` vẫn sửa được `Ghi chú` tới trước khi `Đã thanh toán`, rồi khóa lại sau khi trả tiền
 - `IT-PURSUP-10`: kiểm tra chỉ gộp được phiếu nhập `Nháp/Đã đặt` cùng NCC, báo lỗi khi khác NCC, và `Hủy` preview sẽ quay lại đúng danh sách
+- `IT-PURSUP-11`: kiểm tra màn nhập hàng có thể `Đặt hàng` hàng loạt cho các phiếu đã chọn, chỉ chuyển các phiếu nháp hợp lệ sang `Đã đặt hàng` và giữ nguyên phiếu lỗi để user xử lý tiếp
 - `IT-ORD-03`: kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được đơn nháp mới cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng
 - `IT-ORD-04`: kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hỏi có dồn thêm vào nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đang có
 - `IT-ORD-05`: kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện cảnh báo bổ sung trước khi `Chốt đơn`
+- `IT-ORD-07`: kiểm tra màn đơn hàng có thể `Chốt đơn` hàng loạt cho các phiếu đã chọn, chỉ chốt các đơn nháp hợp lệ và giữ nguyên phiếu lỗi để user xử lý tiếp
 - `IT-ORD-06`: kiểm tra chỉ gộp được phiếu xuất `Nháp/Chốt đơn` cùng khách, báo lỗi khi khác khách, và `Hủy` preview sẽ quay lại đúng danh sách
+- `IT-ORD-07`: kiểm tra màn đơn hàng có thể `Chốt đơn` hàng loạt cho các phiếu đã chọn, chỉ chốt các đơn nháp hợp lệ và giữ nguyên phiếu lỗi để user xử lý tiếp
 - `ACC-ORD-17`: màn `Tạo nhiều đơn` trên mobile phải giữ card UI theo khách, cho sửa tiếp card đã lưu/chốt, chỉ commit các đơn hợp lệ, và khi còn đơn thiếu hàng phải mở được luồng nhập hàng từ khối kết quả
 - `UT-ORD-18`: backend request approval của màn `Xuất nhanh` phải chặn request trùng cho tới khi request cũ được `processed`
 - `UT-AUTH-10`: user có `order_batch_manage` và quyền chốt nhiều đơn phải nhận cảnh báo duplicate request nhưng vẫn được phép override khi xác nhận

@@ -62,6 +62,7 @@ Lưu ý:
 | 41 | `IT-PURSUP-08` | Kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC, ghi chú, giảm giá và dòng hàng, nhưng reset `Mã lô`, `HSD` và `NSX` để nhập lại theo lô mới. |
 | 119 | `IT-PURSUP-09` | Kiểm tra phiếu nhập `Đã nhập kho` vẫn sửa được `Ghi chú` tới trước khi `Đã thanh toán`, rồi khóa lại sau khi phiếu chuyển sang `Đã thanh toán`. |
 | 120 | `IT-PURSUP-10` | Kiểm tra chỉ gộp được phiếu nhập `Nháp/Đã đặt` cùng NCC, báo lỗi khi khác NCC, và bấm `Hủy` trong preview sẽ quay lại đúng danh sách phiếu. |
+| 122 | `IT-PURSUP-11` | Kiểm tra thanh chọn nhiều phiếu ở màn nhập hàng có thể `Đặt hàng` hàng loạt, chỉ chuyển các phiếu `draft` có NCC hợp lệ sang `ordered` và giữ nguyên phiếu lỗi để user xử lý tiếp. |
 | 42 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
 | 41 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
 | 42 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |
@@ -70,6 +71,7 @@ Lưu ý:
 | 45 | `IT-ORD-04` | Kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hiện hỏi có dồn thêm vào đơn nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đó thay vì tạo draft mới. |
 | 46 | `IT-ORD-05` | Kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện confirm cảnh báo bổ sung trước khi `Chốt đơn`. |
 | 121 | `IT-ORD-06` | Kiểm tra chỉ gộp được phiếu xuất `Nháp/Chốt đơn` cùng khách, báo lỗi khi khác khách, và bấm `Hủy` trong preview sẽ quay lại đúng danh sách đơn. |
+| 123 | `IT-ORD-07` | Kiểm tra thanh chọn nhiều phiếu ở màn đơn hàng có thể `Chốt đơn` hàng loạt, chỉ chốt các đơn `draft` hợp lệ và giữ nguyên phiếu lỗi để user xử lý tiếp. |
 | 47 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
 | 45 | `IT-NAV-02` | Kiểm tra menu trên PC/tablet bung ra từ nút `Mở menu`, tự thu gọn khi rê chuột hoặc bấm ra ngoài, đồng thời giữ chiều rộng menu gọn. |
 | 46 | `IT-NAV-03` | Kiểm tra sau khi xoay giữa màn hình dọc và ngang thì vẫn bấm được các item trong menu nghiệp vụ để chuyển màn bình thường. |

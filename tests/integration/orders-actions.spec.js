@@ -235,6 +235,105 @@ test("IT-ORD-05 commit warns when sale total is lower than purchase total", asyn
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-ORD-07 orders screen can bulk commit selected drafts and keep invalid drafts selected", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const customerPrefix = `Khách bulk commit ${timestamp}`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.find((entry) => Number(entry.current_stock || 0) >= 1) || productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const validCart = {
+    id: `order_bulk_valid_${timestamp}`,
+    customerName: `${customerPrefix} A`,
+    status: "draft",
+    paymentStatus: "unpaid",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    orderCode: "",
+    items: [
+      {
+        id: `order_bulk_valid_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        unitPrice: Number(product.sale_price || product.price || 0) || 1000,
+        note: "",
+      },
+    ],
+  };
+  const invalidCart = {
+    id: `order_bulk_invalid_${timestamp}`,
+    customerName: `${customerPrefix} B`,
+    status: "draft",
+    paymentStatus: "unpaid",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    orderCode: "",
+    items: [],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        carts: [validCart, invalidCart, ...(originalState.carts || [])],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "orders");
+    await expectScreenTitle(page, "Đơn hàng");
+    await setFloatingSearch(page, customerPrefix);
+
+    const validCheckbox = page.locator(`[data-order-select="${validCart.id}"] input[data-queue-action="toggle-merge-select"]`).first();
+    const invalidCheckbox = page.locator(`[data-order-select="${invalidCart.id}"] input[data-queue-action="toggle-merge-select"]`).first();
+    await validCheckbox.check();
+    await invalidCheckbox.check();
+    await expect(validCheckbox).toBeChecked();
+    await expect(invalidCheckbox).toBeChecked();
+
+    await page.locator('#cartQueueList [data-queue-action="commit-selected"]').click();
+    const bulkCommitToast = await collectToast(page, runtime, "it-ord-07-bulk-commit", { errorPattern: /^$/ });
+    expect(bulkCommitToast).toContain("Đã chốt 1 đơn đã chọn.");
+
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(latestStateResponse.ok()).toBeTruthy();
+    const latestState = await latestStateResponse.json();
+    const latestValidCart = (latestState.carts || []).find((cart) => cart.id === validCart.id);
+    const latestInvalidCart = (latestState.carts || []).find((cart) => cart.id === invalidCart.id);
+    expect(String(latestValidCart?.status || "")).toBe("committed");
+    expect(String(latestInvalidCart?.status || "")).toBe("draft");
+
+    await expect(page.locator("#cartQueueList .inline-alert.warning")).toContainText("1 phiếu xuất đang được chọn");
+    await expect(invalidCheckbox).toBeChecked();
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-ORD-02 sales draft cart can save document discount from create-order screen", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const userCookie = await autoLoginUserRequest(request);

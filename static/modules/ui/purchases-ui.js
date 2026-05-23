@@ -474,6 +474,7 @@ export function createPurchasesUi(deps) {
         <article class="inline-alert warning">
           <strong>${escapeHtml(String(selectedMergeIds.length))} phiếu nhập đang được chọn</strong>
           <div class="line-actions">
+            <button type="button" class="secondary-button compact-button" data-purchase-list-action="mark-selected-ordered">Đặt hàng</button>
             ${selectedMergeIds.length >= 2 ? '<button type="button" class="primary-button compact-button" data-purchase-list-action="start-merge-preview">Gộp đơn</button>' : ""}
             <button type="button" class="ghost-button compact-button" data-purchase-list-action="clear-merge-selection">Bỏ chọn</button>
           </div>
