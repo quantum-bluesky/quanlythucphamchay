@@ -10,8 +10,8 @@
       "sha256": "f9487167db62c725547c03b405c6beb7da259f12a04e14e09f738321cc1585d3"
     },
     "modules/controllers/bulk-orders-controller.js": {
-      "counter": 5,
-      "sha256": "9eb3aba468b0839edb18cbbb24b38ecd4cada332bc35a6c189b3db4e15766bfe"
+      "counter": 6,
+      "sha256": "65cf7410d13354eb582f153d9455d461436e11345b289af66b3e58ea8916ec4f"
     },
     "modules/controllers/core-controller.js": {
       "counter": 2,
@@ -66,8 +66,8 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 5,
-      "sha256": "7b6123b05f291167cae6c970e249586153f9725af63894c8d1d8ab58f9d7b198"
+      "counter": 6,
+      "sha256": "99af549923980d621deb2d983f2171b9fc96de0bc975c025e45bdee4e69ca807"
     },
     "modules/sync-runtime.js": {
       "counter": 1,

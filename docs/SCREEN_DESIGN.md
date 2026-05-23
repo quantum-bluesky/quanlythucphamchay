@@ -119,7 +119,9 @@ Liên kết detail hiện có:
   - action trực tiếp trên card chỉ giữ các thao tác gọn như `Sửa`, `Thêm hàng`, `Xóa khách`
   - cuối màn chỉ có đúng 2 CTA chính: `Lưu nháp` và `Chốt đơn hợp lệ`
   - `Lưu nháp` chỉ tạo/cập nhật cart `draft`; không giữ hàng, không trừ kho và không nhảy thẳng sang `completed`
+  - card lưu/chốt thành công vẫn phải ở lại trên màn để user sửa tiếp; nếu card đã gắn với cart `draft/committed` có sẵn thì lần lưu/chốt tiếp theo phải cập nhật đúng cart đó, không tạo bản sao
   - `Chốt đơn hợp lệ` phải kiểm từng khách theo đúng rule availability của bước `Chốt đơn` hiện tại; đơn đủ điều kiện sang `committed`, đơn lỗi giữ nguyên ở màn để user sửa tiếp
+  - nếu user đang sửa card đã `committed`, thao tác lưu tiếp không được làm hạ trạng thái về `draft`; chỉ cập nhật địa chỉ giao, giảm giá và dòng hàng theo rule đơn đã chốt
   - khi login bật và user không có `order_batch_manage`, 2 CTA cuối màn phải đổi nghĩa thành `gửi request chờ duyệt`; request card phải hiện rõ `người tạo`, `trạng thái`, `số đơn`, `lý do reject` nếu có và warning trùng request active
   - user có `order_batch_manage` hoặc `Master Admin` phải thấy badge pending ngay từ menu và có action `Approve/Reject`; request còn `pending_approval` phải có thêm `Xóa` cho owner hoặc user quản lý; owner của request đã `approved` cũng phải thấy nút `Xử lý`
   - request card và detail đơn phải có nút `Lịch sử`; popup audit hiển thị mới nhất trước, tối thiểu có `thời gian`, `user`, `hành động`, `trạng thái trước/sau`, `ghi chú`

@@ -2219,6 +2219,137 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(audit_row["actor"], "tester")
         self.assertIn("Tổng 2 đơn, thành công 1, lỗi 1.", audit_row["message"])
 
+    def test_ut_ord_21_bulk_editing_saved_draft_or_committed_updates_same_cart(self) -> None:
+        product = self.store.create_product(
+            name="Mì căn bulk chỉnh tiếp",
+            category="Đông lạnh",
+            unit="gói",
+            price=38000,
+            sale_price=52000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 20, "Tồn đầu test bulk edit")
+
+        created_draft = self.store.bulk_create_orders(
+            mode="draft",
+            request_id="bulk-edit-001",
+            actor="tester",
+            orders=[
+                {
+                    "client_order_id": "bulk-edit-order-1",
+                    "customer_name": "Khách sửa bulk",
+                    "ship_address": "1 Nguyễn Tri Phương",
+                    "discount_amount": 1000,
+                    "items": [
+                        {
+                            "product_id": product["id"],
+                            "quantity": 2,
+                            "unit_price": 52000,
+                        }
+                    ],
+                }
+            ],
+        )
+        created_entry = created_draft["results"][0]
+        cart_id = created_entry["cart_id"]
+        self.assertTrue(cart_id)
+        self.assertEqual(created_entry["order_status"], "draft")
+        self.assertTrue(created_entry["saved_as_draft"])
+
+        updated_draft = self.store.bulk_create_orders(
+            mode="draft",
+            request_id="bulk-edit-002",
+            actor="tester",
+            orders=[
+                {
+                    "client_order_id": "bulk-edit-order-1",
+                    "cart_id": cart_id,
+                    "customer_name": "Khách sửa bulk",
+                    "ship_address": "2 Lý Thường Kiệt",
+                    "discount_amount": 5000,
+                    "items": [
+                        {
+                            "product_id": product["id"],
+                            "quantity": 3,
+                            "unit_price": 56000,
+                        }
+                    ],
+                }
+            ],
+        )
+        updated_draft_entry = updated_draft["results"][0]
+        self.assertEqual(updated_draft_entry["cart_id"], cart_id)
+        self.assertEqual(updated_draft_entry["order_status"], "draft")
+        self.assertTrue(updated_draft_entry["saved_as_draft"])
+        self.assertIn("cập nhật đơn nháp", updated_draft_entry["message"].lower())
+
+        committed = self.store.bulk_create_orders(
+            mode="commit_valid",
+            request_id="bulk-edit-003",
+            actor="tester",
+            orders=[
+                {
+                    "client_order_id": "bulk-edit-order-1",
+                    "cart_id": cart_id,
+                    "customer_name": "Khách sửa bulk",
+                    "ship_address": "2 Lý Thường Kiệt",
+                    "discount_amount": 5000,
+                    "items": [
+                        {
+                            "product_id": product["id"],
+                            "quantity": 3,
+                            "unit_price": 56000,
+                        }
+                    ],
+                }
+            ],
+        )
+        committed_entry = committed["results"][0]
+        self.assertEqual(committed_entry["cart_id"], cart_id)
+        self.assertEqual(committed_entry["order_status"], "committed")
+        self.assertFalse(committed_entry["saved_as_draft"])
+        self.assertIn("Đã chốt đơn.", committed_entry["message"])
+        self.assertTrue(committed_entry["order_code"])
+
+        updated_committed = self.store.bulk_create_orders(
+            mode="draft",
+            request_id="bulk-edit-004",
+            actor="tester",
+            orders=[
+                {
+                    "client_order_id": "bulk-edit-order-1",
+                    "cart_id": cart_id,
+                    "customer_name": "Khách sửa bulk",
+                    "ship_address": "3 Hai Bà Trưng",
+                    "discount_amount": 7000,
+                    "items": [
+                        {
+                            "product_id": product["id"],
+                            "quantity": 4,
+                            "unit_price": 57000,
+                        }
+                    ],
+                }
+            ],
+        )
+        updated_committed_entry = updated_committed["results"][0]
+        self.assertEqual(updated_committed_entry["cart_id"], cart_id)
+        self.assertEqual(updated_committed_entry["order_status"], "committed")
+        self.assertFalse(updated_committed_entry["saved_as_draft"])
+        self.assertEqual(updated_committed_entry["order_code"], committed_entry["order_code"])
+        self.assertIn("cập nhật đơn đã chốt", updated_committed_entry["message"].lower())
+
+        carts = [cart for cart in self.store.get_sync_state()["carts"] if cart["customerName"] == "Khách sửa bulk"]
+        self.assertEqual(len(carts), 1)
+        final_cart = carts[0]
+        self.assertEqual(final_cart["id"], cart_id)
+        self.assertEqual(final_cart["status"], "committed")
+        self.assertEqual(final_cart["shipAddress"], "3 Hai Bà Trưng")
+        self.assertEqual(float(final_cart["discountAmount"]), 7000.0)
+        self.assertEqual(float(final_cart["items"][0]["quantity"]), 4.0)
+        self.assertEqual(float(final_cart["items"][0]["unitPrice"]), 57000.0)
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 20.0)
+
     def test_ut_ord_18_bulk_order_request_lifecycle_blocks_duplicates_until_processed(self) -> None:
         product = self.store.create_product(
             name="Chả giò request bulk",

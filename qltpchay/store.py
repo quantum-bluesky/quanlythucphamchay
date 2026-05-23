@@ -3685,6 +3685,7 @@ class InventoryStore:
                     or order_payload.get("clientOrderId")
                     or f"bulk_order_{index + 1}"
                 ).strip() or f"bulk_order_{index + 1}",
+                "cart_id": str(order_payload.get("cart_id") or order_payload.get("cartId") or "").strip(),
                 "customer_id": str(order_payload.get("customer_id") or order_payload.get("customerId") or "").strip(),
                 "customer_name": customer_name,
                 "ship_address": str(order_payload.get("ship_address") or order_payload.get("shipAddress") or "").strip(),
@@ -3753,6 +3754,7 @@ class InventoryStore:
                     or order_payload.get("clientOrderId")
                     or f"bulk_order_{index + 1}"
                 ).strip() or f"bulk_order_{index + 1}",
+                "cart_id": str(order_payload.get("cart_id") or order_payload.get("cartId") or "").strip(),
                 "customer_id": str(order_payload.get("customer_id") or order_payload.get("customerId") or "").strip(),
                 "customer_name": str(order_payload.get("customer_name") or order_payload.get("customerName") or "").strip(),
                 "ship_address": str(order_payload.get("ship_address") or order_payload.get("shipAddress") or "").strip(),
@@ -3769,6 +3771,101 @@ class InventoryStore:
             prepared_order["signature"] = self._build_bulk_order_request_order_signature(prepared_order)
             prepared_orders.append(prepared_order)
         return prepared_orders
+
+    def _update_existing_bulk_order_cart(
+        self,
+        connection: sqlite3.Connection,
+        raw_order: dict,
+        *,
+        cart_id: str,
+        created_at: str,
+        actor: str = "",
+    ) -> dict:
+        clean_cart_id = str(cart_id or "").strip()
+        existing_cart = self._get_cart_document(connection, clean_cart_id)
+        previous_status = str(existing_cart.get("status") or "draft").strip() or "draft"
+        if previous_status not in {"draft", "committed"}:
+            raise ValueError("Chỉ được sửa tiếp đơn nháp hoặc đơn đã chốt.")
+
+        grouped_items = self._group_sale_items(raw_order.get("items") or [])
+        if not grouped_items:
+            raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
+
+        if previous_status == "committed":
+            resolved_customer = {
+                "id": str(existing_cart.get("customerId") or existing_cart.get("customer_id") or "").strip(),
+                "name": str(existing_cart.get("customerName") or existing_cart.get("customer_name") or "").strip(),
+                "address": str(existing_cart.get("shipAddress") or existing_cart.get("ship_address") or "").strip(),
+            }
+        else:
+            resolved_customer = self._ensure_customer_for_bulk_order(
+                connection,
+                customer_id=str(raw_order.get("customer_id") or raw_order.get("customerId") or "").strip(),
+                customer_name=str(raw_order.get("customer_name") or raw_order.get("customerName") or "").strip(),
+                created_at=created_at,
+            )
+
+        clean_ship_address = (
+            str(raw_order.get("ship_address") or raw_order.get("shipAddress") or "").strip()
+            or str(resolved_customer.get("address") or "").strip()
+            or self._get_cart_ship_address(existing_cart)
+        )
+        subtotal = sum(item["quantity"] * item["unit_price"] for item in grouped_items.values())
+        validated_discount_amount = self._validate_discount_amount(
+            raw_order.get("discount_amount", raw_order.get("discountAmount", 0)),
+            subtotal,
+            "Giảm giá khuyến mại phiếu xuất",
+        )
+
+        if previous_status == "committed":
+            shortages = self._collect_committed_availability_shortages(
+                connection,
+                grouped_items,
+                exclude_cart_id=clean_cart_id,
+            )
+            if shortages:
+                raise ValueError(shortages[0]["message"])
+
+        updated_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
+        connection.execute(
+            """
+            UPDATE carts
+            SET customer_id = ?,
+                customer_name = ?,
+                discount_amount = ?,
+                ship_address = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                str(resolved_customer.get("id") or "").strip(),
+                str(resolved_customer.get("name") or "").strip(),
+                validated_discount_amount,
+                clean_ship_address,
+                created_at,
+                clean_cart_id,
+            ),
+        )
+        self._replace_cart_items(
+            connection,
+            cart_id=clean_cart_id,
+            items=updated_items,
+        )
+        updated_cart = self._get_cart_document(connection, clean_cart_id)
+        self._record_cart_change_history(
+            connection,
+            previous=existing_cart,
+            current=updated_cart,
+            actor=actor,
+            created_at=created_at,
+            note_prefix="Cập nhật từ màn Xuất nhanh",
+        )
+        return {
+            "cart": updated_cart,
+            "reused_existing_draft": False,
+            "updated_existing_cart": True,
+            "customer": resolved_customer,
+        }
 
     def _find_bulk_order_request_duplicates(
         self,
@@ -4265,6 +4362,15 @@ class InventoryStore:
         grouped_items = self._group_sale_items(raw_order.get("items") or [])
         if not grouped_items:
             raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
+        existing_cart_id = str(raw_order.get("cart_id") or raw_order.get("cartId") or "").strip()
+        if existing_cart_id:
+            return self._update_existing_bulk_order_cart(
+                connection,
+                raw_order,
+                cart_id=existing_cart_id,
+                created_at=created_at,
+                actor=actor,
+            )
         merge_strategy = str(raw_order.get("merge_strategy") or raw_order.get("mergeStrategy") or "merge_existing_draft").strip() or "merge_existing_draft"
         clean_ship_address = str(raw_order.get("ship_address") or raw_order.get("shipAddress") or "").strip() or str(resolved_customer.get("address") or "").strip()
         subtotal = sum(
@@ -4503,7 +4609,14 @@ class InventoryStore:
                 customer_name = str(order_payload.get("customer_name") or order_payload.get("customerName") or "").strip()
                 draft_result = None
                 working_cart = None
+                existing_target_cart = None
                 shortage_errors: list[dict] = []
+                existing_cart_id = str(order_payload.get("cart_id") or order_payload.get("cartId") or "").strip()
+                if existing_cart_id:
+                    try:
+                        existing_target_cart = self._get_cart_document(connection, existing_cart_id)
+                    except ValueError:
+                        existing_target_cart = None
                 try:
                     draft_result = self._create_or_merge_bulk_order_draft(
                         connection,
@@ -4513,19 +4626,25 @@ class InventoryStore:
                     )
                     working_cart = draft_result["cart"]
                     if clean_mode == "commit_valid":
-                        shortage_errors = self._collect_committed_availability_shortages(
-                            connection,
-                            self._group_sale_items(working_cart.get("items") or []),
-                            exclude_cart_id=str(working_cart.get("id") or "").strip(),
-                        )
-                        if shortage_errors:
-                            raise ValueError(shortage_errors[0]["message"])
-                        committed_cart = self._commit_cart_order_in_connection(
-                            connection,
-                            str(working_cart.get("id") or "").strip(),
-                            actor=clean_actor,
-                            committed_at=now,
-                        )
+                        if str(working_cart.get("status") or "").strip() == "committed":
+                            committed_cart = self._get_cart_document(
+                                connection,
+                                str(working_cart.get("id") or "").strip(),
+                            )
+                        else:
+                            shortage_errors = self._collect_committed_availability_shortages(
+                                connection,
+                                self._group_sale_items(working_cart.get("items") or []),
+                                exclude_cart_id=str(working_cart.get("id") or "").strip(),
+                            )
+                            if shortage_errors:
+                                raise ValueError(shortage_errors[0]["message"])
+                            committed_cart = self._commit_cart_order_in_connection(
+                                connection,
+                                str(working_cart.get("id") or "").strip(),
+                                actor=clean_actor,
+                                committed_at=now,
+                            )
                         success_count += 1
                         results.append(
                             {
@@ -4537,7 +4656,11 @@ class InventoryStore:
                                 "cart_id": committed_cart.get("id") or "",
                                 "order_code": committed_cart.get("orderCode") or "",
                                 "saved_as_draft": False,
-                                "message": "Đã chốt đơn.",
+                                "message": (
+                                    "Đã cập nhật đơn đã chốt."
+                                    if str(working_cart.get("status") or "").strip() == "committed"
+                                    else "Đã chốt đơn."
+                                ),
                                 "reused_existing_draft": bool(draft_result["reused_existing_draft"]),
                                 "errors": [],
                             }
@@ -4545,36 +4668,49 @@ class InventoryStore:
                         continue
 
                     success_count += 1
+                    current_order_status = str(working_cart.get("status") or "draft").strip() or "draft"
                     results.append(
                         {
                             "client_order_id": client_order_id,
                             "customer_id": working_cart.get("customerId") or "",
                             "customer_name": working_cart.get("customerName") or customer_name,
                             "status": "success",
-                            "order_status": "draft",
+                            "order_status": current_order_status,
                             "cart_id": working_cart.get("id") or "",
                             "order_code": working_cart.get("orderCode") or "",
-                            "saved_as_draft": True,
-                            "message": draft_result["reused_existing_draft"]
-                                and "Đã dồn vào đơn nháp hiện có."
-                                or "Đã lưu nháp.",
+                            "saved_as_draft": current_order_status == "draft",
+                            "message": (
+                                current_order_status == "committed"
+                                and "Đã cập nhật đơn đã chốt."
+                                or (
+                                    draft_result.get("updated_existing_cart")
+                                    and "Đã cập nhật đơn nháp."
+                                    or (
+                                        draft_result["reused_existing_draft"]
+                                        and "Đã dồn vào đơn nháp hiện có."
+                                        or "Đã lưu nháp."
+                                    )
+                                )
+                            ),
                             "reused_existing_draft": bool(draft_result["reused_existing_draft"]),
                             "errors": [],
                         }
                     )
                 except ValueError as exc:
                     failed_count += 1
+                    target_cart = working_cart or existing_target_cart or {}
+                    target_order_status = str(target_cart.get("status") or "draft").strip() or "draft"
                     error_message = str(exc) or "Đơn hàng không hợp lệ."
                     results.append(
                         {
                             "client_order_id": client_order_id,
-                            "customer_id": (working_cart or {}).get("customerId") or str(order_payload.get("customer_id") or order_payload.get("customerId") or "").strip(),
-                            "customer_name": (working_cart or {}).get("customerName") or customer_name,
+                            "customer_id": target_cart.get("customerId") or str(order_payload.get("customer_id") or order_payload.get("customerId") or "").strip(),
+                            "customer_name": target_cart.get("customerName") or customer_name,
                             "status": "failed",
-                            "order_status": "draft",
-                            "cart_id": (working_cart or {}).get("id") or "",
-                            "order_code": "",
-                            "saved_as_draft": clean_mode == "commit_valid",
+                            "order_status": target_order_status,
+                            "cart_id": target_cart.get("id") or existing_cart_id,
+                            "order_code": target_cart.get("orderCode") or "",
+                            "saved_as_draft": clean_mode == "commit_valid" and target_order_status != "committed",
                             "message": error_message,
                             "reused_existing_draft": bool((draft_result or {}).get("reused_existing_draft")),
                             "errors": shortage_errors or [{"message": error_message}],

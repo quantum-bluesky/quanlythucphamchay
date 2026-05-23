@@ -165,6 +165,7 @@ Mục tiêu:
 | 130 | `UT-ORD-20` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_20_pending_bulk_order_request_can_be_deleted_and_recreated` |
 | 131 | `UT-AUTH-13` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_13_pending_bulk_order_request_delete_allows_owner_and_manager_only` |
 | 132 | `ACC-ORD-20` | `tests/integration/bulk-orders-mobile.spec.js` | `npx playwright test tests/integration/bulk-orders-mobile.spec.js --grep "ACC-ORD-20"` |
+| 133 | `UT-ORD-21` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_21_bulk_editing_saved_draft_or_committed_updates_same_cart` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

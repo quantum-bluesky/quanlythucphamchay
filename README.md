@@ -112,7 +112,8 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Nếu bật login và user không có quyền `order_batch_manage`, màn `Xuất nhanh` sẽ tạo `yêu cầu xuất nhanh` ở trạng thái `pending_approval`; user quản lý hoặc `Master Admin` duyệt xong thì owner mới xử lý tiếp thành đơn thật
 - Request `pending_approval` tạo nhầm có thể xóa ngay trên màn `Xuất nhanh`; owner của request hoặc user có `order_batch_manage`/`Master Admin` đều xóa được, không cần thêm status mới
 - Có popup `Lịch sử` xem nhanh audit timeline cho từng yêu cầu xuất nhanh và từng đơn đã tạo, ưu tiên mobile và chỉ nạp khi user mở detail để không làm nặng list
-- `Lưu nháp` ở màn tạo nhiều đơn chỉ tạo cart `draft` cho từng khách, không giữ hàng và không trừ kho; `Chốt đơn hợp lệ` chỉ đẩy các đơn đủ tồn sang `committed`, còn đơn lỗi giữ lại để sửa tiếp
+- `Lưu nháp` ở màn tạo nhiều đơn chỉ tạo/cập nhật cart `draft` cho từng khách, không giữ hàng và không trừ kho; card lưu thành công vẫn ở lại trên màn để sửa tiếp và lưu lại vào đúng đơn cũ
+- `Chốt đơn hợp lệ` chỉ đẩy các đơn đủ tồn sang `committed`, còn đơn lỗi giữ lại để sửa tiếp; card đã chốt vẫn có thể sửa tiếp ngay trên màn `Xuất nhanh` và lần lưu/chốt sau sẽ cập nhật đúng đơn đã chốt thay vì tạo bản sao
 - Ở màn xuất hàng và nhập hàng, các mặt hàng đã chọn sẽ được gom lên phần tóm tắt đơn/phiếu phía trên để thao tác nhanh
 - Ở màn nhập hàng, mỗi card gợi ý có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`
 - Khi thêm hàng vào phiếu chưa có NCC, app sẽ tự chọn NCC nếu mặt hàng chỉ từng nhập từ 1 NCC; nếu từng nhập từ nhiều NCC thì danh sách gợi ý NCC ưu tiên NCC đã nhập mặt hàng đó nhiều hơn

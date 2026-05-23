@@ -185,11 +185,14 @@ Thực hiện:
 5. Nếu tài khoản có quyền `order_batch_manage` hoặc là `Master Admin`, có thể duyệt/từ chối request ngay trong khối `Yêu cầu xuất nhanh`
 6. Request còn `Chờ duyệt` mà tạo nhầm có thể bấm `Xóa`; owner của request hoặc user quản lý đều làm được
 7. Sau khi request đã `Đã duyệt`, owner tạo request hoặc user quản lý có thể bấm `Xử lý` để chạy tiếp luồng lưu nháp/chốt đơn
-8. Bấm `Chốt đơn hợp lệ` nếu muốn kiểm tra tồn theo cùng rule `Chốt đơn` hiện tại; đơn đủ điều kiện sẽ sang `Chốt đơn`, đơn lỗi giữ lại trên màn để sửa tiếp
+8. Bấm `Lưu nháp` để lưu nhanh từng card xuống đơn `Nháp`; card lưu thành công vẫn ở lại ngay trên màn để bạn sửa tiếp và lưu lại đúng đơn nháp đó
+9. Bấm `Chốt đơn hợp lệ` nếu muốn kiểm tra tồn theo cùng rule `Chốt đơn` hiện tại; đơn đủ điều kiện sẽ sang `Chốt đơn`, đơn lỗi giữ lại trên màn để sửa tiếp
 
 Lưu ý:
 
 - màn này không cho đi thẳng `Nháp -> Đã xuất hàng`; mọi đơn vẫn phải đi theo đúng workflow `draft -> committed -> completed`
+- sau khi `Lưu nháp` hoặc `Chốt đơn hợp lệ`, card thành công không bị biến mất; bạn có thể sửa tiếp rồi bấm lưu/chốt lại để cập nhật đúng đơn đang mở
+- nếu card đã là `Chốt đơn`, bấm lưu lại cũng không làm tụt trạng thái về `Nháp`; app chỉ cập nhật nội dung đơn đã chốt
 - nếu thiếu hàng, app sẽ báo theo từng khách và từng sản phẩm, ví dụ `Thiếu Đậu hũ non: cần 10, còn 6`
 - request đang `Chờ duyệt` hoặc `Đã duyệt` nhưng chưa `Đã xử lý` sẽ hiện cho tất cả user để tránh tạo trùng đơn xuất nhanh
 - user quản lý có permission `order_batch_manage` sẽ thấy badge số request chờ duyệt ngay trên menu `Xuất nhanh`

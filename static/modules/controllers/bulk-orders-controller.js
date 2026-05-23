@@ -63,7 +63,6 @@ export function registerBulkOrdersControllerEvents(contract) {
       status: "idle",
       message: "",
       errors: [],
-      orderCode: "",
     };
   }
 
@@ -147,6 +146,33 @@ export function registerBulkOrdersControllerEvents(contract) {
     }
   }
 
+  function normalizeBulkEntryItems(items) {
+    return (Array.isArray(items) ? items : []).map((item) => ({
+      id: item.id || actions.createId("bulk_item"),
+      productId: Number(item.productId ?? item.product_id ?? 0),
+      productName: item.productName || item.product_name || "",
+      unit: item.unit || "",
+      quantity: Number(item.quantity || 0),
+      unitPrice: Number(item.unitPrice ?? item.unit_price ?? 0),
+    }));
+  }
+
+  function buildEntryFromCartState(entry, responseEntry = {}) {
+    const cartId = String(responseEntry.cart_id || entry.cartId || "").trim();
+    const latestCart = state.carts.find((cart) => String(cart.id || "").trim() === cartId) || null;
+    return {
+      ...entry,
+      customerId: String(latestCart?.customerId || latestCart?.customer_id || responseEntry.customer_id || entry.customerId || "").trim(),
+      customerName: String(latestCart?.customerName || latestCart?.customer_name || responseEntry.customer_name || entry.customerName || "").trim(),
+      shipAddress: String(latestCart?.shipAddress || latestCart?.ship_address || entry.shipAddress || "").trim(),
+      discountAmount: Number(latestCart?.discountAmount ?? latestCart?.discount_amount ?? entry.discountAmount ?? 0) || 0,
+      items: latestCart ? normalizeBulkEntryItems(latestCart.items) : normalizeBulkEntryItems(entry.items),
+      cartId: cartId || String(latestCart?.id || "").trim(),
+      orderCode: String(responseEntry.order_code || latestCart?.orderCode || latestCart?.order_code || entry.orderCode || "").trim(),
+      orderStatus: String(responseEntry.order_status || latestCart?.status || entry.orderStatus || "").trim(),
+    };
+  }
+
   function updateEntryItem(entryId, itemId, updater, options = {}) {
     updateEntry(entryId, (entry) => ({
       ...entry,
@@ -228,6 +254,7 @@ export function registerBulkOrdersControllerEvents(contract) {
         const totals = getEntryTotals(entry);
         return {
           client_order_id: entry.id,
+          cart_id: entry.cartId || "",
           customer_id: entry.customerId || "",
           customer_name: entry.customerName,
           ship_address: entry.shipAddress || "",
@@ -247,29 +274,32 @@ export function registerBulkOrdersControllerEvents(contract) {
 
   function applySubmissionResult(result) {
     const resultById = new Map((result.results || []).map((entry) => [String(entry.client_order_id || ""), entry]));
-    const remainingEntries = [];
-    getDraftEntries().forEach((entry) => {
+    const nextEntries = getDraftEntries().map((entry) => {
       const responseEntry = resultById.get(String(entry.id || ""));
       if (!responseEntry) {
-        remainingEntries.push(entry);
-        return;
+        return entry;
       }
+      const hydratedEntry = buildEntryFromCartState(entry, responseEntry);
       if (responseEntry.status === "success") {
-        return;
+        return {
+          ...hydratedEntry,
+          status: "success",
+          message: responseEntry.message || "",
+          errors: [],
+        };
       }
-      remainingEntries.push({
-        ...entry,
+      return {
+        ...hydratedEntry,
         status: "failed",
         message: responseEntry.message || "",
         errors: Array.isArray(responseEntry.errors) ? responseEntry.errors : [],
-        cartId: responseEntry.cart_id || entry.cartId || "",
-        orderCode: responseEntry.order_code || entry.orderCode || "",
-        orderStatus: responseEntry.order_status || "draft",
-      });
+        orderStatus: hydratedEntry.orderStatus || "draft",
+      };
     });
-    setEntries(remainingEntries);
+    setEntries(nextEntries);
     state.bulkOrderDraft.lastSubmission = result;
-    state.bulkOrderDraft.expandedEntryId = remainingEntries[0]?.id || "";
+    const nextExpandedEntry = nextEntries.find((entry) => entry.status !== "success") || nextEntries[0] || null;
+    state.bulkOrderDraft.expandedEntryId = nextExpandedEntry?.id || "";
     renderers.renderBulkOrdersScreen();
   }
 
