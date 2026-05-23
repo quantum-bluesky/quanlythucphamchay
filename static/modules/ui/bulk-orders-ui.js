@@ -237,6 +237,19 @@ export function createBulkOrdersUi(deps) {
       return;
     }
     const rows = Array.isArray(result.results) ? result.results : [];
+    const shortageRows = rows.filter((row) => {
+      const message = String(row?.message || "").trim().toLowerCase();
+      if (row?.status !== "failed" || result.mode !== "commit_valid") {
+        return false;
+      }
+      if (message.startsWith("thiếu ")) {
+        return true;
+      }
+      return Array.isArray(row?.errors) && row.errors.some((error) => String(error?.message || "").trim().toLowerCase().startsWith("thiếu "));
+    });
+    const shortageShortcutLabel = state.procurement?.mode === "batch"
+      ? "Sang Xử lý nhập thiếu"
+      : "Sang NH xử lý thiếu hàng";
     dom.bulkOrderResultSummary.innerHTML = `
       <div class="subheading">
         <div>
@@ -247,6 +260,14 @@ export function createBulkOrdersUi(deps) {
           ${escapeHtml(`${result.summary?.success || 0} thành công / ${result.summary?.failed || 0} lỗi`)}
         </span>
       </div>
+      ${shortageRows.length ? `
+        <article class="inline-alert warning">
+          <strong>Có ${escapeHtml(String(shortageRows.length))} đơn đang thiếu hàng.</strong>
+          <div class="line-actions">
+            <button type="button" class="primary-button compact-button" data-bulk-order-action="open-shortage-purchases">${escapeHtml(shortageShortcutLabel)}</button>
+          </div>
+        </article>
+      ` : ""}
       <div class="report-list">
         ${rows.map((row) => `
           <article class="report-card">

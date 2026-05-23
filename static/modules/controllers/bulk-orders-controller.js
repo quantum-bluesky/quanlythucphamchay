@@ -320,6 +320,37 @@ export function registerBulkOrdersControllerEvents(contract) {
     ].filter(Boolean).join("\n\n");
   }
 
+  function hasShortageFailure(entry) {
+    const message = String(entry?.message || "").trim().toLowerCase();
+    if (message.startsWith("thiếu ")) {
+      return true;
+    }
+    return Array.isArray(entry?.errors) && entry.errors.some((error) => String(error?.message || "").trim().toLowerCase().startsWith("thiếu "));
+  }
+
+  async function routeBulkOrderShortagesFromLastSubmission() {
+    const result = state.bulkOrderDraft?.lastSubmission || null;
+    if (!result) {
+      actions.showToast("Chưa có kết quả chốt đơn gần nhất để xử lý thiếu hàng.", true);
+      return;
+    }
+    const shortageRows = (Array.isArray(result.results) ? result.results : []).filter((entry) => (
+      entry?.status === "failed"
+      && String(entry?.cart_id || "").trim()
+      && hasShortageFailure(entry)
+    ));
+    if (!shortageRows.length) {
+      actions.showToast("Không có đơn thiếu hàng nào trong kết quả gần nhất.", true);
+      return;
+    }
+    const response = await actions.routeBulkOrderShortagesFromResult(result);
+    if (response?.targetMenu === "procurement-planner") {
+      actions.showToast("Đã chuyển sang màn Xử lý nhập thiếu cho các đơn đang thiếu hàng.");
+      return;
+    }
+    actions.showToast("Đã chuyển sang màn Nhập hàng để xử lý các đơn đang thiếu hàng.");
+  }
+
   async function submitBulkOrders(mode, { allowDuplicates = false } = {}) {
     if (!getDraftEntries().length) {
       actions.showToast("Chưa có khách nào trong màn tạo nhiều đơn.", true);
@@ -498,6 +529,11 @@ export function registerBulkOrdersControllerEvents(contract) {
           actions.showToast(error.message, true);
         });
         return;
+      case "open-shortage-purchases":
+        routeBulkOrderShortagesFromLastSubmission().catch((error) => {
+          actions.showToast(error.message, true);
+        });
+        return;
       default:
         return;
     }
@@ -505,6 +541,7 @@ export function registerBulkOrdersControllerEvents(contract) {
 
   dom.bulkOrderList?.addEventListener("click", handleBulkOrderAction);
   dom.bulkOrderRequestsPanel?.addEventListener("click", handleBulkOrderAction);
+  dom.bulkOrderResultSummary?.addEventListener("click", handleBulkOrderAction);
 
   dom.bulkOrderList?.addEventListener("input", (event) => {
     const entryId = event.target.dataset.entryId || "";

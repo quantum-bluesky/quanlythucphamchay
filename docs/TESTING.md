@@ -197,7 +197,7 @@ Các nhóm kiểm tra chính:
 
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, cho phép chốt khi phần thiếu đã được phiếu nhập `Đã đặt` cover đủ, còn với thiếu hàng chưa đặt đủ thì user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu mở liên quan
-- `Tạo nhiều đơn mobile-first`: mỗi khách là một card riêng, `Lưu nháp` giữ lại card thành công để sửa tiếp trên cùng màn, `Chốt đơn hợp lệ` chỉ commit các đơn đủ hàng, đơn lỗi giữ lại để sửa tiếp và không cho bypass `draft -> completed`
+- `Tạo nhiều đơn mobile-first`: mỗi khách là một card riêng, `Lưu nháp` giữ lại card thành công để sửa tiếp trên cùng màn, `Chốt đơn hợp lệ` chỉ commit các đơn đủ hàng, đơn lỗi giữ lại để sửa tiếp, và khi lỗi do thiếu hàng phải có CTA sang luồng nhập hàng phù hợp
 - `Approve request xuất nhanh`: user thường gửi request `pending_approval`, user quản lý duyệt/từ chối, owner có thể xử lý tiếp request đã `approved`, và UI vẫn nhìn thấy trạng thái chung để tránh tạo trùng
 - `Audit log đơn xuất nhanh`: popup `Lịch sử` phải đọc đúng timeline của request và đơn, hiển thị mới nhất trước và không làm chậm list vì chỉ fetch khi user mở popup
 - `Reload số lượng sau đổi trạng thái`: sau `Xuất kho` hoặc `Nhập kho`, các màn `Tồn kho`, `Xuất hàng`, `Nhập hàng` phải nạp lại dữ liệu server mới mà không cần F5
@@ -285,7 +285,7 @@ Case mới cho Phase A:
 - `IT-ORD-04`: kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hỏi có dồn thêm vào nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đang có
 - `IT-ORD-05`: kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện cảnh báo bổ sung trước khi `Chốt đơn`
 - `IT-ORD-06`: kiểm tra chỉ gộp được phiếu xuất `Nháp/Chốt đơn` cùng khách, báo lỗi khi khác khách, và `Hủy` preview sẽ quay lại đúng danh sách
-- `ACC-ORD-17`: màn `Tạo nhiều đơn` trên mobile phải giữ card UI theo khách, cho sửa tiếp card đã lưu/chốt, và chỉ commit các đơn hợp lệ
+- `ACC-ORD-17`: màn `Tạo nhiều đơn` trên mobile phải giữ card UI theo khách, cho sửa tiếp card đã lưu/chốt, chỉ commit các đơn hợp lệ, và khi còn đơn thiếu hàng phải mở được luồng nhập hàng từ khối kết quả
 - `UT-ORD-18`: backend request approval của màn `Xuất nhanh` phải chặn request trùng cho tới khi request cũ được `processed`
 - `UT-AUTH-10`: user có `order_batch_manage` và quyền chốt nhiều đơn phải nhận cảnh báo duplicate request nhưng vẫn được phép override khi xác nhận
 - `UT-AUTH-11`: route approval của màn `Xuất nhanh` phải cho manager approve/reject và cho owner xử lý request đã `approved`

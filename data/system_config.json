@@ -20,7 +20,7 @@
     {
       "username": "bizmanager",
       "password": "biz12345",
-      "permissions": ["procurement_batch_manage", "order_batch_manage"]
+      "permissions": ["procurement_batch_manage", "order_batch_manage","bulk_order_create", "bulk_order_commit"]
     }
   ],
   "debug": {

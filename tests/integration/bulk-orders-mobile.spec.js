@@ -174,6 +174,11 @@ test("ACC-ORD-17 bulk orders mobile keeps card UI and only commits valid custome
   expect(Number(cartsForCustomerA[0].items?.[0]?.quantity || 0)).toBe(4);
   expect(Number(cartsForCustomerA[0].items?.[0]?.unitPrice || 0)).toBe(56000);
 
+  await expect(page.locator('#bulkOrderResultSummary [data-bulk-order-action="open-shortage-purchases"]')).toBeVisible();
+  await page.locator('#bulkOrderResultSummary [data-bulk-order-action="open-shortage-purchases"]').click();
+  await expectScreenTitle(page, "Nhập hàng");
+  await expect(page.locator("#purchasePanel")).toContainText("Bò lát xào");
+
   expectNoRuntimeErrors(runtime);
 });
 

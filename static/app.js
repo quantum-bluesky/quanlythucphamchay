@@ -4138,6 +4138,24 @@ function createPurchaseSuggestionFromCart(cart, shortagePlan = null) {
   return { created: true, supplierSuggestion };
 }
 
+function getCartCommitPurchaseShortagePlan(cart) {
+  return getCartCommitShortages(cart)
+    .filter((entry) => entry.shortage > 0 && entry.product)
+    .map((entry) => {
+      const incomingQuantity = getOpenIncomingQuantityForProduct(entry.product.id);
+      const orderedIncomingQuantity = Number(entry.orderedIncomingQuantity || 0);
+      const draftIncomingQuantity = Math.max(0, Number((incomingQuantity - orderedIncomingQuantity).toFixed(2)));
+      return {
+        ...entry,
+        incomingQuantity,
+        orderedIncomingQuantity,
+        draftIncomingQuantity,
+        otherIncomingQuantity: incomingQuantity,
+        requiredFromSource: Math.max(0, Number((entry.shortage - draftIncomingQuantity).toFixed(2))),
+      };
+    });
+}
+
 function getCartShortages(cart) {
   return cart.items
     .map((item) => {
@@ -4185,6 +4203,65 @@ function getCartCommitShortages(cart) {
         commitAvailableQuantity,
       };
     });
+}
+
+async function routeBulkOrderShortagesFromResult(result) {
+  const rows = Array.isArray(result?.results) ? result.results : [];
+  const failedCartIds = [...new Set(rows
+    .filter((entry) => entry?.status === "failed" && String(entry?.cart_id || "").trim())
+    .map((entry) => String(entry.cart_id || "").trim()))];
+  const failedCarts = failedCartIds
+    .map((cartId) => getCartById(cartId))
+    .filter(Boolean);
+  if (!failedCarts.length) {
+    throw new Error("Không tìm thấy đơn thiếu hàng để chuyển sang xử lý nhập.");
+  }
+
+  if (isProcurementBatchMode()) {
+    await openProcurementPlanner(
+      failedCarts.length === 1
+        ? { type: "cart", code: String(failedCarts[0].id || "") }
+        : { type: "all", code: "" }
+    );
+    return {
+      targetMenu: "procurement-planner",
+      handledCount: failedCarts.length,
+    };
+  }
+
+  let createdOrUpdatedCount = 0;
+  let openedExistingCount = 0;
+  let openedExisting = false;
+  failedCarts.forEach((cart) => {
+    const shortagePlan = getCartCommitPurchaseShortagePlan(cart);
+    if (!shortagePlan.length) {
+      return;
+    }
+    const hasEnoughDraftCoverage = shortagePlan.every((entry) => entry.draftIncomingQuantity >= entry.shortage);
+    if (hasEnoughDraftCoverage && !openedExisting) {
+      openRelatedPurchasesForShortagePlan(cart, shortagePlan);
+      openedExisting = true;
+      openedExistingCount += 1;
+      return;
+    }
+    const created = createPurchaseSuggestionFromCart(cart, shortagePlan);
+    if (created) {
+      createdOrUpdatedCount += 1;
+    }
+  });
+
+  if (!createdOrUpdatedCount && !openedExistingCount) {
+    throw new Error("Không tìm thấy phần thiếu cần xử lý thêm qua phiếu nhập.");
+  }
+
+  if (!openedExisting) {
+    switchMenu("purchases");
+    focusPurchasePanel();
+  }
+  return {
+    targetMenu: "purchases",
+    handledCount: createdOrUpdatedCount + openedExistingCount,
+  };
 }
 
 function setQuickPanelCollapsed(collapsed) {
@@ -5808,21 +5885,7 @@ async function commitActiveCart() {
     throw new Error("Đơn hàng đang trống.");
   }
 
-  const shortagePlan = getCartCommitShortages(cart)
-    .filter((entry) => entry.shortage > 0 && entry.product)
-    .map((entry) => {
-      const incomingQuantity = getOpenIncomingQuantityForProduct(entry.product.id);
-      const orderedIncomingQuantity = Number(entry.orderedIncomingQuantity || 0);
-      const draftIncomingQuantity = Math.max(0, Number((incomingQuantity - orderedIncomingQuantity).toFixed(2)));
-      return {
-        ...entry,
-        incomingQuantity,
-        orderedIncomingQuantity,
-        draftIncomingQuantity,
-        otherIncomingQuantity: incomingQuantity,
-        requiredFromSource: Math.max(0, Number((entry.shortage - draftIncomingQuantity).toFixed(2))),
-      };
-    });
+  const shortagePlan = getCartCommitPurchaseShortagePlan(cart);
 
   if (shortagePlan.length) {
     if (isProcurementBatchMode()) {
@@ -6199,6 +6262,7 @@ registerBulkOrdersControllerEvents({
     bulkAddCustomerButton,
     bulkOrderSearchInput,
     bulkOrderRequestsPanel,
+    bulkOrderResultSummary,
     bulkOrderList,
     bulkOrderSaveDraftButton,
     bulkOrderCommitValidButton,
@@ -6211,6 +6275,7 @@ registerBulkOrdersControllerEvents({
     apiRequest,
     refreshData,
     showToast,
+    routeBulkOrderShortagesFromResult,
     openBulkOrderRequestAuditHistory,
     createId,
     createRequestId,

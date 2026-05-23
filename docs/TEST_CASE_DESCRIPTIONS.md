@@ -148,7 +148,7 @@ Lưu ý:
 | 122 | `IT-PROC-05` | Kiểm tra màn `Xử lý nhập thiếu` chặn thao tác `Gộp đơn` khi user chọn lẫn phiếu nhập và phiếu xuất trong cùng một lần thao tác. |
 | 114 | `UT-ORD-17` | Kiểm tra backend tạo nhiều đơn ở mode `commit_valid` chỉ commit các đơn đủ hàng, giữ đơn lỗi ở `draft`, ghi audit batch và replay an toàn theo `request_id`. |
 | 115 | `UT-AUTH-09` | Kiểm tra route `/api/orders/bulk-create` tách rõ quyền `bulk_order_create` và `bulk_order_commit`: user chỉ có quyền tạo được lưu nháp nhưng bị chặn chốt nhiều đơn. |
-| 116 | `ACC-ORD-17` | Kiểm tra màn `Tạo nhiều đơn` trên mobile giữ giao diện card theo khách, cho tiếp tục sửa card sau khi `Lưu nháp` hoặc `Chốt đơn`, và action `Chốt đơn hợp lệ` chỉ commit các đơn đủ điều kiện còn đơn lỗi giữ lại để sửa. |
+| 116 | `ACC-ORD-17` | Kiểm tra màn `Tạo nhiều đơn` trên mobile giữ giao diện card theo khách, cho tiếp tục sửa card sau khi `Lưu nháp` hoặc `Chốt đơn`, action `Chốt đơn hợp lệ` chỉ commit các đơn đủ điều kiện còn đơn lỗi giữ lại để sửa, và khi lỗi do thiếu hàng thì khối kết quả mở được luồng nhập hàng tương ứng. |
 | 123 | `UT-ORD-18` | Kiểm tra backend approval request của màn `Xuất nhanh` giữ request ở `pending_approval`, replay an toàn theo `request_id`, chặn request trùng cho tới khi request cũ được `processed`, rồi mới cho đi tiếp. |
 | 124 | `UT-AUTH-10` | Kiểm tra user có `order_batch_manage` và quyền chốt nhiều đơn bị cảnh báo duplicate request active ở route `/api/orders/bulk-create`, nhưng vẫn có thể override khi gửi lại với cờ xác nhận. |
 | 125 | `UT-AUTH-11` | Kiểm tra route approval của màn `Xuất nhanh` cho manager xem request chung, `approve/reject`, lưu lý do reject và cho owner xử lý request đã `approved`. |

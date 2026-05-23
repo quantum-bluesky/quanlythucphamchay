@@ -77,6 +77,7 @@ export const SCREEN_HELP = {
       "Bấm `Lưu nháp` hoặc `Chốt đơn hợp lệ` xong thì card thành công vẫn ở lại trên màn để bạn sửa tiếp; lần lưu/chốt sau sẽ cập nhật đúng đơn cũ thay vì tạo bản sao.",
       "Nút `Chốt đơn hợp lệ` vẫn dùng cùng rule kiểm tồn của bước `Chốt đơn` hiện tại. Nếu request được xử lý thành công, đơn đủ hàng mới sang `Chốt đơn`; đơn lỗi vẫn giữ lại để sửa tiếp.",
       "Nếu card đã là `Chốt đơn`, thao tác lưu lại chỉ cập nhật nội dung đơn đã chốt chứ không hạ trạng thái về `Nháp`.",
+      "Nếu `Chốt đơn hợp lệ` còn lỗi thiếu hàng, khối `Kết quả gần nhất` sẽ hiện nút chuyển nhanh sang xử lý nhập; daily mode mở `Nhập hàng`, còn batch procurement mode sẽ chuyển sang `Xử lý nhập thiếu`.",
       "Lỗi được trả theo từng khách và từng sản phẩm. Nếu thiếu hàng, bạn sẽ thấy chi tiết như `Thiếu ...: cần ..., còn ...` ngay trên card cần sửa.",
       "Trong v1 không có xuất kho hàng loạt. Sau khi chốt xong, các đơn vẫn đi tiếp đúng luồng `Chốt đơn -> Đã xuất hàng` ở màn đơn hàng.",
       DESKTOP_MENU_HINT,

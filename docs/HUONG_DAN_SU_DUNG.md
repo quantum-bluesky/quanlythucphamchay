@@ -194,6 +194,7 @@ Lưu ý:
 - sau khi `Lưu nháp` hoặc `Chốt đơn hợp lệ`, card thành công không bị biến mất; bạn có thể sửa tiếp rồi bấm lưu/chốt lại để cập nhật đúng đơn đang mở
 - nếu card đã là `Chốt đơn`, bấm lưu lại cũng không làm tụt trạng thái về `Nháp`; app chỉ cập nhật nội dung đơn đã chốt
 - nếu thiếu hàng, app sẽ báo theo từng khách và từng sản phẩm, ví dụ `Thiếu Đậu hũ non: cần 10, còn 6`
+- khi `Chốt đơn hợp lệ` có đơn thiếu hàng, khối `Kết quả gần nhất` sẽ hiện nút chuyển sang xử lý nhập cho các đơn vừa lỗi; bình thường nút sẽ mở `Nhập hàng`, còn nếu kỳ gom nhập đang bật thì app chuyển sang `Xử lý nhập thiếu`
 - request đang `Chờ duyệt` hoặc `Đã duyệt` nhưng chưa `Đã xử lý` sẽ hiện cho tất cả user để tránh tạo trùng đơn xuất nhanh
 - user quản lý có permission `order_batch_manage` sẽ thấy badge số request chờ duyệt ngay trên menu `Xuất nhanh`
 - khi request còn `Chờ duyệt`, owner của request hoặc user quản lý có thể `Xóa` để bỏ yêu cầu tạo nhầm; app xóa hẳn request thay vì thêm trạng thái mới
