@@ -151,6 +151,7 @@ Liên kết detail hiện có:
   - khi đi từ màn `customers`, list có thể tự lọc đúng theo `customerId`; nếu chỉ còn 1 phiếu phù hợp thì detail của phiếu đó phải tự mở kể cả với đơn `Đã xuất hàng` hoặc `Đã thanh toán`
   - card đơn `committed` có thể hiện thêm input `Địa chỉ giao` và `Giảm giá khuyến mại` trong detail
   - card/detail của đơn `draft/committed` nên giữ cảnh báo rõ khi `Cần thanh toán` đang thấp hơn tổng `giá nhập mặc định`
+  - thanh chọn nhiều phiếu ở list đơn có thêm nút `Chốt đơn`; action này xử lý loạt đơn `draft` hợp lệ và giữ nguyên các phiếu lỗi để user rà lại
   - preview `gộp đơn` của phiếu xuất tái sử dụng màn `create-order`: chọn một phiếu làm đích, hiển thị danh sách phiếu sẽ nhập vào, cho `Thực hiện gộp` hoặc `Hủy`
   - card đơn `completed` chưa thanh toán chỉ còn hiện input `Giảm giá khuyến mại` trong detail
   - card đơn `completed` hoặc `paid` có action `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và danh sách dòng hàng của phiếu đã chọn; nếu khách đã có đơn `draft` thì UI phải hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
@@ -223,6 +224,7 @@ Liên kết detail hiện có:
   - màn này phải có cảnh báo active lock riêng để user biết ai đang giữ batch mode và vì sao phiếu `Nháp/Đã đặt` đang bị siết quyền
   - nếu chưa có `Nhà cung cấp`, button `Đã đặt hàng` và `Nhập kho` phải bị khóa; UI cần hiện cảnh báo ngắn để user biết thiếu dữ liệu gì
   - ô NCC và nút `NCC` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
+  - thanh chọn nhiều phiếu ở list nhập hàng có thêm nút `Đặt hàng`; action này chuyển nhanh các phiếu `draft` hợp lệ sang `ordered` và giữ nguyên phiếu lỗi để user xử lý tiếp
   - list phiếu nhập cho phép tick nhiều phiếu `draft/ordered` cùng NCC để mở preview `gộp đơn`; nếu khác NCC thì app báo lỗi và không điều hướng
   - khi phiếu còn `Nháp`, bấm nút `NCC` từ một phiếu đã có NCC vẫn phải cho sang danh sách NCC để đổi sang NCC khác, không được kẹt ở chế độ sửa NCC hiện tại
   - nếu bỏ trống `Mã lô`, app tự sinh batch code khi nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` để FEFO vẫn có mốc hạn

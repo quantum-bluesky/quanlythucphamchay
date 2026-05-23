@@ -125,7 +125,9 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Phiếu xuất và phiếu nhập có thêm `giảm giá khuyến mại` ở cấp toàn phiếu; app tự tính `Tạm tính / Giảm KM / Cần thanh toán` ngay trên panel, detail và bản in
 - Nếu `Cần thanh toán` của phiếu xuất đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app sẽ hiện cảnh báo trước khi `Chốt đơn` hoặc `Xuất hàng`
 - Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm
+- Ở màn `Nhập hàng`, có thể tick nhiều phiếu rồi bấm `Đặt hàng` để chuyển nhanh các phiếu nháp hợp lệ sang `Đã đặt hàng`; phiếu thiếu NCC hoặc không còn sửa được sẽ được giữ nguyên và app báo lại theo từng phiếu
 - Ở màn `Đơn hàng`, có thể tick nhiều phiếu `Nháp/Chốt đơn` cùng khách để mở flow `Gộp đơn`; hệ thống sẽ chặn nếu chọn khác khách
+- Ở màn `Đơn hàng`, có thể tick nhiều phiếu rồi bấm `Chốt đơn` để xử lý hàng loạt các đơn nháp hợp lệ; đơn thiếu hàng hoặc không còn ở trạng thái nháp sẽ được giữ nguyên và app báo lại theo từng phiếu
 - Khi một action đang lưu thay đổi lên server, app sẽ phủ `Loading` toàn màn hình và khóa tạm các thao tác khác cho tới khi trạng thái mới được cập nhật xong, để tránh bấm chồng nhiều action liên tiếp
 - Khi chốt đơn bị thiếu hàng, app vẫn cho chốt nếu phần thiếu đã được cover đủ bởi phiếu nhập `Đã đặt`; nếu mới chỉ có phiếu `Nháp` hoặc vẫn thiếu số lượng thì app sẽ báo trước khi tạo/cập nhật phiếu nhập và cho mở lại phiếu liên quan khi người dùng xác nhận cần chỉnh
 - Màn `Xử lý nhập thiếu` cho phép bật kỳ gom nhập định kỳ, gom nhu cầu của cả đơn nháp và đơn đã chốt theo từng mặt hàng để tạo phiếu nhập batch
@@ -161,6 +163,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Quản lý nhập hàng với phiếu nhập nháp, trạng thái đặt hàng/nhập kho và gợi ý sản phẩm cần nhập
 - Phiếu nhập bắt buộc có nhà cung cấp trước khi chuyển sang `Đã đặt hàng` hoặc `Nhập kho`
 - Ở màn `Nhập hàng`, có thể tick nhiều phiếu `Nháp/Đã đặt` cùng NCC để mở flow `Gộp đơn`; hệ thống sẽ chặn nếu chọn khác NCC
+- Cùng thanh chọn nhiều phiếu ở màn `Nhập hàng` có thêm nút `Đặt hàng` để đẩy nhanh loạt phiếu nháp đủ điều kiện sang trạng thái `Đã đặt hàng`
 - Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Ghi chú` và `Giảm giá khuyến mại`; app không mở khóa lại số lượng, giá, mã lô, NCC hay cấu trúc dòng nhập
 - Mỗi dòng nhập có thể khai báo riêng `Mã lô` và `Hạn dùng`; có thể nhập HSD trực tiếp hoặc nhập gián tiếp qua `Ngày sản xuất` để app tự tính `HSD = NSX + thời gian bảo quản`; nếu cùng một sản phẩm về nhiều lô khác nhau có thể tách nhanh bằng nút `+ Lô`
 - Nếu để trống `Hạn dùng`, khi `Nhập kho` app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` của sản phẩm
@@ -182,6 +185,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Ở màn Đơn hàng, danh sách mặt hàng trong detail mặc định thu gọn để màn mobile gọn hơn; ở màn Phiếu nhập, detail vẫn hiện trọn danh sách dòng hàng để rà phiếu nhanh
 - Màn Sản phẩm cũng ưu tiên hiển thị danh sách; phần `Thêm sản phẩm` và `Lịch sử sản phẩm` được thu gọn sẵn và chỉ mở khi cần
 - Quản lý đơn hàng có thêm trạng thái `Chốt đơn`, `Đã xuất hàng`, thanh toán và các nút `Chốt đơn` / `Xuất hàng` nhanh theo từng card
+- Ở màn `Đơn hàng`, thanh chọn nhiều phiếu có thêm nút `Chốt đơn` để chốt hàng loạt các đơn nháp đủ điều kiện ngay trên danh sách
 - Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, giá nhập, giá bán mặc định và ngưỡng cảnh báo
 - Danh mục sản phẩm có thêm `hạn dùng` và `thời gian bảo quản` theo số ngày để app làm fallback ước tính khi lô chưa có HSD thật, cũng như tự tính HSD từ `Ngày sản xuất` hoặc `Ngày nhập kho`; nếu lô đã có HSD riêng thì tồn kho ưu tiên dữ liệu lô
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần

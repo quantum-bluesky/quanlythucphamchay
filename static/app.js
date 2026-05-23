@@ -6215,6 +6215,7 @@ registerSalesControllerEvents({
     persistCollections,
     flushPendingPersistCollections,
     refreshData,
+    apiRequest,
     commitCart,
     commitActiveCart,
     shipCart,

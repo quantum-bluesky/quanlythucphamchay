@@ -527,6 +527,7 @@ export function createSalesUi(deps) {
         <article class="inline-alert warning">
           <strong>${escapeHtml(String(selectedMergeIds.length))} phiếu xuất đang được chọn</strong>
           <div class="line-actions">
+            <button type="button" class="secondary-button compact-button" data-queue-action="commit-selected">Chốt đơn</button>
             ${selectedMergeIds.length >= 2 ? '<button type="button" class="primary-button compact-button" data-queue-action="start-merge-preview">Gộp đơn</button>' : ""}
             <button type="button" class="ghost-button compact-button" data-queue-action="clear-merge-selection">Bỏ chọn</button>
           </div>
