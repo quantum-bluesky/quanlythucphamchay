@@ -75,6 +75,7 @@ Nếu cần can thiệp đặc biệt
 - nếu đủ tồn:
   - kiểm tra tồn khả dụng để chốt theo công thức `tồn hiện tại + hàng đã đặt nhập - phần đã giữ cho các đơn committed khác`
   - nếu `Cần thanh toán` đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app phải hiện cảnh báo xác nhận thêm trước khi cho chốt
+  - ở màn `Đơn hàng`, user có thể tick nhiều phiếu rồi bấm `Chốt đơn`; hệ thống chốt các đơn `draft` hợp lệ và trả lại danh sách phiếu lỗi để xử lý tiếp
   - ở màn `Đơn hàng`, các phiếu `draft/committed` cùng khách có thể được chọn nhiều phiếu để mở flow `gộp đơn`; nếu khác khách thì không cho đi tiếp
   - cart chuyển `committed`
   - phát sinh `order_code` và `committed_at`
@@ -180,6 +181,7 @@ ordered -> cancelled
 - `draft` chỉ là trạng thái chuẩn bị, chưa cho nhập kho
 - `ordered` mới được nhập kho và vẫn cho sửa trực tiếp để thêm bớt theo biến động thực tế
 - nếu chưa có nhà cung cấp thì không được chuyển `draft -> ordered` hoặc `ordered -> received`
+- ở màn `Nhập hàng`, user có thể tick nhiều phiếu rồi bấm `Đặt hàng`; hệ thống chỉ chuyển các phiếu `draft` có NCC hợp lệ sang `ordered`, còn phiếu lỗi giữ nguyên để user rà lại
 - từ `ordered` trở đi không được đổi `supplierName`; UI phải khóa ô NCC và nút `NCC` trên mọi thiết bị
 - nếu sau khi review mà một mặt hàng vẫn còn nằm ở nhiều NCC mở khác nhau thì đây chỉ là cảnh báo nghiệp vụ cho user biết, không phải lỗi chặn workflow
 - ngoại lệ duy nhất là phiếu legacy bị đánh dấu `repairableInvalid`; trường hợp này UI mở lại thao tác sửa NCC hoặc xóa/hủy để cứu dữ liệu cũ, nhưng không coi là workflow chuẩn hằng ngày

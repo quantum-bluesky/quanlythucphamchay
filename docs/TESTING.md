@@ -197,7 +197,7 @@ Các nhóm kiểm tra chính:
 
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, cho phép chốt khi phần thiếu đã được phiếu nhập `Đã đặt` cover đủ, còn với thiếu hàng chưa đặt đủ thì user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu mở liên quan
-- `Tạo nhiều đơn mobile-first`: mỗi khách là một card riêng, `Chốt đơn hợp lệ` chỉ commit các đơn đủ hàng, đơn lỗi giữ lại để sửa tiếp và không cho bypass `draft -> completed`
+- `Tạo nhiều đơn mobile-first`: mỗi khách là một card riêng, `Lưu nháp` giữ lại card thành công để sửa tiếp trên cùng màn, `Chốt đơn hợp lệ` chỉ commit các đơn đủ hàng, đơn lỗi giữ lại để sửa tiếp, và khi lỗi do thiếu hàng phải có CTA sang luồng nhập hàng phù hợp
 - `Approve request xuất nhanh`: user thường gửi request `pending_approval`, user quản lý duyệt/từ chối, owner có thể xử lý tiếp request đã `approved`, và UI vẫn nhìn thấy trạng thái chung để tránh tạo trùng
 - `Audit log đơn xuất nhanh`: popup `Lịch sử` phải đọc đúng timeline của request và đơn, hiển thị mới nhất trước và không làm chậm list vì chỉ fetch khi user mở popup
 - `Reload số lượng sau đổi trạng thái`: sau `Xuất kho` hoặc `Nhập kho`, các màn `Tồn kho`, `Xuất hàng`, `Nhập hàng` phải nạp lại dữ liệu server mới mà không cần F5
@@ -281,11 +281,14 @@ Case mới cho Phase A:
 - `IT-PURSUP-08`: kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC/nội dung nhưng reset `Mã lô` / `HSD` / `NSX`
 - `IT-PURSUP-09`: kiểm tra phiếu nhập `Đã nhập kho` vẫn sửa được `Ghi chú` tới trước khi `Đã thanh toán`, rồi khóa lại sau khi trả tiền
 - `IT-PURSUP-10`: kiểm tra chỉ gộp được phiếu nhập `Nháp/Đã đặt` cùng NCC, báo lỗi khi khác NCC, và `Hủy` preview sẽ quay lại đúng danh sách
+- `IT-PURSUP-11`: kiểm tra màn nhập hàng có thể `Đặt hàng` hàng loạt cho các phiếu đã chọn, chỉ chuyển các phiếu nháp hợp lệ sang `Đã đặt hàng` và giữ nguyên phiếu lỗi để user xử lý tiếp
 - `IT-ORD-03`: kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được đơn nháp mới cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng
 - `IT-ORD-04`: kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hỏi có dồn thêm vào nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đang có
 - `IT-ORD-05`: kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện cảnh báo bổ sung trước khi `Chốt đơn`
+- `IT-ORD-07`: kiểm tra màn đơn hàng có thể `Chốt đơn` hàng loạt cho các phiếu đã chọn, chỉ chốt các đơn nháp hợp lệ và giữ nguyên phiếu lỗi để user xử lý tiếp
 - `IT-ORD-06`: kiểm tra chỉ gộp được phiếu xuất `Nháp/Chốt đơn` cùng khách, báo lỗi khi khác khách, và `Hủy` preview sẽ quay lại đúng danh sách
-- `ACC-ORD-17`: màn `Tạo nhiều đơn` trên mobile phải giữ card UI theo khách và chỉ commit các đơn hợp lệ
+- `IT-ORD-07`: kiểm tra màn đơn hàng có thể `Chốt đơn` hàng loạt cho các phiếu đã chọn, chỉ chốt các đơn nháp hợp lệ và giữ nguyên phiếu lỗi để user xử lý tiếp
+- `ACC-ORD-17`: màn `Tạo nhiều đơn` trên mobile phải giữ card UI theo khách, cho sửa tiếp card đã lưu/chốt, chỉ commit các đơn hợp lệ, và khi còn đơn thiếu hàng phải mở được luồng nhập hàng từ khối kết quả
 - `UT-ORD-18`: backend request approval của màn `Xuất nhanh` phải chặn request trùng cho tới khi request cũ được `processed`
 - `UT-AUTH-10`: user có `order_batch_manage` và quyền chốt nhiều đơn phải nhận cảnh báo duplicate request nhưng vẫn được phép override khi xác nhận
 - `UT-AUTH-11`: route approval của màn `Xuất nhanh` phải cho manager approve/reject và cho owner xử lý request đã `approved`
@@ -296,6 +299,7 @@ Case mới cho Phase A:
 - `UT-ORD-20`: store phải cho xóa request `pending_approval`, giải phóng duplicate-check để tạo lại request mới, và vẫn chặn xóa request đã qua bước duyệt
 - `UT-AUTH-13`: route xóa request `Xuất nhanh` chỉ cho owner hoặc user có `order_batch_manage`
 - `ACC-ORD-20`: UI `Xuất nhanh` phải hiện nút `Xóa` cho request `pending_approval` và cho phép owner hoặc manager xóa ngay trên mobile
+- `UT-ORD-21`: store phải cập nhật lại đúng cart cũ khi card `Xuất nhanh` đã từng `Lưu nháp` hoặc đã `Chốt đơn`, không tạo cart mới và không làm tụt `committed -> draft`
 - `UT-DB-11`: backend chặn `draft -> received`, cho phép `ordered` chỉnh tiếp kể cả thêm dòng hàng mới rồi mới chuyển sang `received`
 - `UT-DB-12`: backend chỉ cho xóa phiếu nhập `draft`, cho hủy phiếu `draft/ordered`, và chặn xóa trực tiếp phiếu `ordered`
 - `UT-DB-16`: backend tự tính HSD của phiếu nhập theo `ngày nhập kho + thời gian bảo quản` hoặc `ngày sản xuất + thời gian bảo quản`

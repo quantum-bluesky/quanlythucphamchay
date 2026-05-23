@@ -63,7 +63,6 @@ export function registerBulkOrdersControllerEvents(contract) {
       status: "idle",
       message: "",
       errors: [],
-      orderCode: "",
     };
   }
 
@@ -138,18 +137,47 @@ export function registerBulkOrdersControllerEvents(contract) {
     renderers.renderBulkOrdersScreen();
   }
 
-  function updateEntry(entryId, updater) {
+  function updateEntry(entryId, updater, { render = true } = {}) {
     setEntries(getDraftEntries().map((entry) => (
       entry.id === entryId ? markEntryDirty(updater(entry)) : entry
     )));
-    renderers.renderBulkOrdersScreen();
+    if (render) {
+      renderers.renderBulkOrdersScreen();
+    }
   }
 
-  function updateEntryItem(entryId, itemId, updater) {
+  function normalizeBulkEntryItems(items) {
+    return (Array.isArray(items) ? items : []).map((item) => ({
+      id: item.id || actions.createId("bulk_item"),
+      productId: Number(item.productId ?? item.product_id ?? 0),
+      productName: item.productName || item.product_name || "",
+      unit: item.unit || "",
+      quantity: Number(item.quantity || 0),
+      unitPrice: Number(item.unitPrice ?? item.unit_price ?? 0),
+    }));
+  }
+
+  function buildEntryFromCartState(entry, responseEntry = {}) {
+    const cartId = String(responseEntry.cart_id || entry.cartId || "").trim();
+    const latestCart = state.carts.find((cart) => String(cart.id || "").trim() === cartId) || null;
+    return {
+      ...entry,
+      customerId: String(latestCart?.customerId || latestCart?.customer_id || responseEntry.customer_id || entry.customerId || "").trim(),
+      customerName: String(latestCart?.customerName || latestCart?.customer_name || responseEntry.customer_name || entry.customerName || "").trim(),
+      shipAddress: String(latestCart?.shipAddress || latestCart?.ship_address || entry.shipAddress || "").trim(),
+      discountAmount: Number(latestCart?.discountAmount ?? latestCart?.discount_amount ?? entry.discountAmount ?? 0) || 0,
+      items: latestCart ? normalizeBulkEntryItems(latestCart.items) : normalizeBulkEntryItems(entry.items),
+      cartId: cartId || String(latestCart?.id || "").trim(),
+      orderCode: String(responseEntry.order_code || latestCart?.orderCode || latestCart?.order_code || entry.orderCode || "").trim(),
+      orderStatus: String(responseEntry.order_status || latestCart?.status || entry.orderStatus || "").trim(),
+    };
+  }
+
+  function updateEntryItem(entryId, itemId, updater, options = {}) {
     updateEntry(entryId, (entry) => ({
       ...entry,
       items: (entry.items || []).map((item) => item.id === itemId ? updater(item) : item),
-    }));
+    }), options);
   }
 
   function removeEntry(entryId) {
@@ -226,6 +254,7 @@ export function registerBulkOrdersControllerEvents(contract) {
         const totals = getEntryTotals(entry);
         return {
           client_order_id: entry.id,
+          cart_id: entry.cartId || "",
           customer_id: entry.customerId || "",
           customer_name: entry.customerName,
           ship_address: entry.shipAddress || "",
@@ -245,29 +274,32 @@ export function registerBulkOrdersControllerEvents(contract) {
 
   function applySubmissionResult(result) {
     const resultById = new Map((result.results || []).map((entry) => [String(entry.client_order_id || ""), entry]));
-    const remainingEntries = [];
-    getDraftEntries().forEach((entry) => {
+    const nextEntries = getDraftEntries().map((entry) => {
       const responseEntry = resultById.get(String(entry.id || ""));
       if (!responseEntry) {
-        remainingEntries.push(entry);
-        return;
+        return entry;
       }
+      const hydratedEntry = buildEntryFromCartState(entry, responseEntry);
       if (responseEntry.status === "success") {
-        return;
+        return {
+          ...hydratedEntry,
+          status: "success",
+          message: responseEntry.message || "",
+          errors: [],
+        };
       }
-      remainingEntries.push({
-        ...entry,
+      return {
+        ...hydratedEntry,
         status: "failed",
         message: responseEntry.message || "",
         errors: Array.isArray(responseEntry.errors) ? responseEntry.errors : [],
-        cartId: responseEntry.cart_id || entry.cartId || "",
-        orderCode: responseEntry.order_code || entry.orderCode || "",
-        orderStatus: responseEntry.order_status || "draft",
-      });
+        orderStatus: hydratedEntry.orderStatus || "draft",
+      };
     });
-    setEntries(remainingEntries);
+    setEntries(nextEntries);
     state.bulkOrderDraft.lastSubmission = result;
-    state.bulkOrderDraft.expandedEntryId = remainingEntries[0]?.id || "";
+    const nextExpandedEntry = nextEntries.find((entry) => entry.status !== "success") || nextEntries[0] || null;
+    state.bulkOrderDraft.expandedEntryId = nextExpandedEntry?.id || "";
     renderers.renderBulkOrdersScreen();
   }
 
@@ -286,6 +318,37 @@ export function registerBulkOrdersControllerEvents(contract) {
       "Chọn OK để tiếp tục tạo batch này.",
       "Chọn Cancel để quay lại rà soát request hiện có.",
     ].filter(Boolean).join("\n\n");
+  }
+
+  function hasShortageFailure(entry) {
+    const message = String(entry?.message || "").trim().toLowerCase();
+    if (message.startsWith("thiếu ")) {
+      return true;
+    }
+    return Array.isArray(entry?.errors) && entry.errors.some((error) => String(error?.message || "").trim().toLowerCase().startsWith("thiếu "));
+  }
+
+  async function routeBulkOrderShortagesFromLastSubmission() {
+    const result = state.bulkOrderDraft?.lastSubmission || null;
+    if (!result) {
+      actions.showToast("Chưa có kết quả chốt đơn gần nhất để xử lý thiếu hàng.", true);
+      return;
+    }
+    const shortageRows = (Array.isArray(result.results) ? result.results : []).filter((entry) => (
+      entry?.status === "failed"
+      && String(entry?.cart_id || "").trim()
+      && hasShortageFailure(entry)
+    ));
+    if (!shortageRows.length) {
+      actions.showToast("Không có đơn thiếu hàng nào trong kết quả gần nhất.", true);
+      return;
+    }
+    const response = await actions.routeBulkOrderShortagesFromResult(result);
+    if (response?.targetMenu === "procurement-planner") {
+      actions.showToast("Đã chuyển sang màn Xử lý nhập thiếu cho các đơn đang thiếu hàng.");
+      return;
+    }
+    actions.showToast("Đã chuyển sang màn Nhập hàng để xử lý các đơn đang thiếu hàng.");
   }
 
   async function submitBulkOrders(mode, { allowDuplicates = false } = {}) {
@@ -466,6 +529,11 @@ export function registerBulkOrdersControllerEvents(contract) {
           actions.showToast(error.message, true);
         });
         return;
+      case "open-shortage-purchases":
+        routeBulkOrderShortagesFromLastSubmission().catch((error) => {
+          actions.showToast(error.message, true);
+        });
+        return;
       default:
         return;
     }
@@ -473,6 +541,7 @@ export function registerBulkOrdersControllerEvents(contract) {
 
   dom.bulkOrderList?.addEventListener("click", handleBulkOrderAction);
   dom.bulkOrderRequestsPanel?.addEventListener("click", handleBulkOrderAction);
+  dom.bulkOrderResultSummary?.addEventListener("click", handleBulkOrderAction);
 
   dom.bulkOrderList?.addEventListener("input", (event) => {
     const entryId = event.target.dataset.entryId || "";
@@ -480,7 +549,7 @@ export function registerBulkOrdersControllerEvents(contract) {
       return;
     }
     if (event.target.dataset.bulkOrderField === "ship-address") {
-      updateEntry(entryId, (entry) => ({ ...entry, shipAddress: String(event.target.value || "") }));
+      updateEntry(entryId, (entry) => ({ ...entry, shipAddress: String(event.target.value || "") }), { render: false });
       return;
     }
     if (event.target.dataset.bulkOrderField === "discount-amount") {
@@ -489,7 +558,7 @@ export function registerBulkOrdersControllerEvents(contract) {
       updateEntry(entryId, (entry) => ({
         ...entry,
         discountAmount: Number.isFinite(nextDiscount) ? Math.max(0, Math.min(nextDiscount, totals.subtotalAmount)) : entry.discountAmount,
-      }));
+      }), { render: false });
       return;
     }
     const itemId = event.target.dataset.itemId || "";
@@ -501,7 +570,7 @@ export function registerBulkOrdersControllerEvents(contract) {
       if (!Number.isFinite(quantity) || quantity <= 0) {
         return;
       }
-      updateEntryItem(entryId, itemId, (item) => ({ ...item, quantity: Number(quantity.toFixed(2)) }));
+      updateEntryItem(entryId, itemId, (item) => ({ ...item, quantity: Number(quantity.toFixed(2)) }), { render: false });
       return;
     }
     if (event.target.dataset.bulkOrderItemField === "unit-price") {
@@ -509,13 +578,22 @@ export function registerBulkOrdersControllerEvents(contract) {
       if (!Number.isFinite(unitPrice) || unitPrice < 0) {
         return;
       }
-      updateEntryItem(entryId, itemId, (item) => ({ ...item, unitPrice }));
+      updateEntryItem(entryId, itemId, (item) => ({ ...item, unitPrice }), { render: false });
     }
   });
 
   dom.bulkOrderList?.addEventListener("change", (event) => {
     const entryId = event.target.dataset.entryId || "";
     if (!entryId) {
+      return;
+    }
+    if (
+      event.target.dataset.bulkOrderField === "ship-address"
+      || event.target.dataset.bulkOrderField === "discount-amount"
+      || event.target.dataset.bulkOrderItemField === "quantity"
+      || event.target.dataset.bulkOrderItemField === "unit-price"
+    ) {
+      renderers.renderBulkOrdersScreen();
       return;
     }
     if (event.target.dataset.bulkOrderField === "merge-strategy") {

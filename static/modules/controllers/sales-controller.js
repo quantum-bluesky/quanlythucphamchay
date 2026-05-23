@@ -12,6 +12,10 @@ export function registerSalesControllerEvents(contract) {
     return cart.orderCode || cart.customerName || "giỏ hàng này";
   }
 
+  function syncPriceWarningFromInput(input) {
+    utils.syncPriceWarningGroup(input?.closest("[data-price-warning-group]"));
+  }
+
   function confirmCartCostWarning(cart, actionLabel) {
     const warning = queries.getCartCostWarning(cart);
     if (!warning?.hasWarning) {
@@ -67,6 +71,107 @@ export function registerSalesControllerEvents(contract) {
 
   function clearSelectedOrderMergeIds() {
     state.selectedOrderMergeIds = [];
+  }
+
+  function buildBulkOrderFailureSummary(failures) {
+    if (!failures.length) {
+      return "";
+    }
+    return [
+      "Các đơn chưa chốt được:",
+      ...failures.map((entry) => `- ${entry.label}: ${entry.message}`),
+    ].join("\n");
+  }
+
+  async function commitSelectedOrders() {
+    const selectedIds = (Array.isArray(state.selectedOrderMergeIds) ? state.selectedOrderMergeIds : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean);
+    if (!selectedIds.length) {
+      actions.showToast("Chưa chọn đơn hàng nào.", true);
+      return;
+    }
+
+    const costWarnings = selectedIds
+      .map((cartId) => queries.getCartById(cartId))
+      .filter(Boolean)
+      .filter((cart) => String(cart.status || "").trim() === "draft")
+      .map((cart) => ({
+        label: getCartDisplayName(cart),
+        warning: queries.getCartCostWarning(cart),
+      }))
+      .filter((entry) => entry.warning?.hasWarning);
+    const costWarningText = costWarnings.length
+      ? `\n\nLưu ý có ${costWarnings.length} đơn nháp đang có Cần thanh toán thấp hơn tổng giá nhập mặc định. App vẫn sẽ thử chốt các đơn này theo lựa chọn hiện tại của bạn.`
+      : "";
+
+    if (!window.confirm(
+      `Chốt đơn cho ${selectedIds.length} phiếu đã chọn?` +
+      "\n\nChỉ các đơn nháp còn hợp lệ mới được chốt. Đơn lỗi hoặc thiếu hàng sẽ được giữ nguyên để bạn xử lý tiếp." +
+      costWarningText
+    )) {
+      return;
+    }
+
+    const expandedSelectedCartId = String(state.expandedOrderId || "").trim();
+    if (expandedSelectedCartId && selectedIds.includes(expandedSelectedCartId)) {
+      if (!saveCartEditorsBeforeStatusChange(expandedSelectedCartId, dom.orderDetailPanel)) {
+        return;
+      }
+    }
+
+    await actions.flushPendingPersistCollections();
+
+    const successes = [];
+    const failures = [];
+
+    for (const cartId of selectedIds) {
+      const cart = queries.getCartById(cartId);
+      const label = getCartDisplayName(cart || { orderCode: cartId, customerName: cartId });
+      if (!cart) {
+        failures.push({ id: cartId, label, message: "Không còn tìm thấy đơn trong dữ liệu hiện tại." });
+        continue;
+      }
+      if (String(cart.status || "").trim() !== "draft") {
+        failures.push({ id: cartId, label, message: "Chỉ đơn nháp mới được chốt đơn." });
+        continue;
+      }
+      if (!Array.isArray(cart.items) || !cart.items.length) {
+        failures.push({ id: cartId, label, message: "Đơn hàng đang trống." });
+        continue;
+      }
+
+      try {
+        await actions.apiRequest("/api/orders/commit", {
+          method: "POST",
+          body: JSON.stringify({
+            cart_id: cart.id,
+          }),
+        });
+        successes.push({ id: cartId, label });
+        await actions.refreshData();
+      } catch (error) {
+        failures.push({ id: cartId, label, message: error.message });
+        try {
+          await actions.refreshData();
+        } catch (refreshError) {
+          failures[failures.length - 1].message = `${error.message} Không tải lại được dữ liệu mới: ${refreshError.message}`;
+        }
+      }
+    }
+
+    state.selectedOrderMergeIds = failures.map((entry) => entry.id);
+    renderers.renderCartQueue();
+
+    if (successes.length) {
+      actions.showToast(`Đã chốt ${successes.length} đơn đã chọn.`);
+    }
+    if (failures.length) {
+      window.alert(buildBulkOrderFailureSummary(failures));
+      if (!successes.length) {
+        actions.showToast("Chưa có đơn nào được chốt.", true);
+      }
+    }
   }
 
   function confirmCartStatusAction(cart, action) {
@@ -362,6 +467,12 @@ export function registerSalesControllerEvents(contract) {
     saveButton?.click();
   });
 
+  dom.salesProductList.addEventListener("input", (event) => {
+    const warningInput = event.target.closest("[data-price-warning-input]");
+    if (!warningInput) return;
+    syncPriceWarningFromInput(warningInput);
+  });
+
   dom.cartItemsList.addEventListener("click", async (event) => {
     const lineButton = event.target.closest("[data-line-action], [data-cart-item-action]");
     if (!lineButton) return;
@@ -421,6 +532,12 @@ export function registerSalesControllerEvents(contract) {
     const itemId = qtyInput?.dataset.qtyInput || priceInput?.dataset.priceInputCart || priceInput?.dataset.priceInput;
     const saveButton = dom.cartItemsList.querySelector(`[data-line-action="save"][data-item-id="${itemId}"], [data-cart-item-action="save"][data-item-id="${itemId}"]`);
     saveButton?.click();
+  });
+
+  dom.cartItemsList.addEventListener("input", (event) => {
+    const warningInput = event.target.closest("[data-price-warning-input]");
+    if (!warningInput) return;
+    syncPriceWarningFromInput(warningInput);
   });
 
   dom.activeCartPanel.addEventListener("click", async (event) => {
@@ -608,6 +725,10 @@ export function registerSalesControllerEvents(contract) {
     if (action === "clear-merge-selection") {
       clearSelectedOrderMergeIds();
       renderers.renderCartQueue();
+      return;
+    }
+    if (action === "commit-selected") {
+      await commitSelectedOrders();
       return;
     }
     if (action === "start-merge-preview") {

@@ -6,6 +6,8 @@ export function createPurchasesUi(deps) {
     formatCurrency,
     formatDate,
     escapeHtml,
+    getPriceWarningAlerts,
+    renderPriceWarningMarkup,
     mobileQuery,
     getActivePurchase,
     canEditPurchase,
@@ -283,6 +285,7 @@ export function createPurchasesUi(deps) {
       { label: "Cập nhật cuối", value: formatDate(purchase.updatedAt) || "Chưa có" },
     ];
     const selectedItemsMarkup = purchase.items.length ? purchase.items.map((item) => {
+      const linePriceAlerts = getPriceWarningAlerts({ purchasePrice: item.unitCost });
       const expiryMeta = resolvePurchaseItemExpiryMeta(purchase, item);
       const isManufactureMode = expiryMeta.isManufactureMode;
       const editorHint = isManufactureMode
@@ -303,30 +306,33 @@ export function createPurchasesUi(deps) {
           <div class="cart-item-header">
             <div>
               <strong>${escapeHtml(item.productName)}</strong>
-              <div class="cart-line-note">${formatQuantity(item.quantity)} ${escapeHtml(item.unit)} | Giá nhập ${formatCurrency(item.unitCost)}</div>
+              <div class="cart-line-note">${formatQuantity(item.quantity)} ${escapeHtml(item.unit)} | Giá nhập ${formatCurrency(item.unitCost)} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
               ${(item.batchCode || expiryMeta.effectiveExpiryDate) ? `<div class="cart-line-note">${item.batchCode ? `Lô ${escapeHtml(item.batchCode)}` : "Lô tự sinh"}${expiryMeta.effectiveExpiryDate ? ` • HSD ${escapeHtml(expiryMeta.effectiveExpiryDate)}` : ""}${expiryMeta.usesReceivedFallback ? " • tự tính" : ""}${isManufactureMode ? " • từ NSX" : ""}</div>` : ""}
             </div>
             <strong>${formatCurrency(item.lineTotal)}</strong>
           </div>
-          <div class="purchase-inline-grid">
-            <label class="price-field"><span>Số lượng nhập</span><input type="number" min="0.01" step="0.01" value="${item.quantity}" data-purchase-qty-input="${item.id}" ${purchaseEditable ? "" : "disabled"}></label>
-            <label class="price-field"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${item.unitCost}" data-purchase-cost-input="${item.id}" ${purchaseEditable ? "" : "disabled"}></label>
-            <label class="price-field"><span>Mã lô</span><input type="text" maxlength="80" value="${escapeHtml(item.batchCode || "")}" data-purchase-batch-input="${item.id}" ${purchaseEditable ? "" : "disabled"} placeholder="Tùy chọn"></label>
-            <label class="price-field">
-              <span>Cách nhập HSD</span>
-              <select data-purchase-expiry-mode-input="${item.id}" ${purchaseExpiryEditable ? "" : "disabled"}>
-                <option value="direct" ${isManufactureMode ? "" : "selected"}>Nhập HSD</option>
-                <option value="manufacture" ${isManufactureMode ? "selected" : ""}>Nhập NSX</option>
-              </select>
-            </label>
-            <label class="price-field">
-              <span>Hạn dùng</span>
-              <input type="date" value="${escapeHtml(expiryMeta.directInputValue || "")}" data-purchase-expiry-input="${item.id}" ${purchaseExpiryEditable && !isManufactureMode ? "" : "disabled"}>
-            </label>
-            <label class="price-field">
-              <span>Ngày sản xuất</span>
-              <input type="date" value="${escapeHtml(expiryMeta.manufactureDate || "")}" data-purchase-manufacture-input="${item.id}" ${purchaseExpiryEditable && isManufactureMode ? "" : "disabled"}>
-            </label>
+          <div data-price-warning-group data-price-warning-mode="edit">
+            <div class="purchase-inline-grid">
+              <label class="price-field"><span>Số lượng nhập</span><input type="number" min="0.01" step="0.01" value="${item.quantity}" data-purchase-qty-input="${item.id}" ${purchaseEditable ? "" : "disabled"}></label>
+              <label class="price-field" data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${item.unitCost}" data-purchase-cost-input="${item.id}" data-price-warning-input="purchase" ${purchaseEditable ? "" : "disabled"}></label>
+              <label class="price-field"><span>Mã lô</span><input type="text" maxlength="80" value="${escapeHtml(item.batchCode || "")}" data-purchase-batch-input="${item.id}" ${purchaseEditable ? "" : "disabled"} placeholder="Tùy chọn"></label>
+              <label class="price-field">
+                <span>Cách nhập HSD</span>
+                <select data-purchase-expiry-mode-input="${item.id}" ${purchaseExpiryEditable ? "" : "disabled"}>
+                  <option value="direct" ${isManufactureMode ? "" : "selected"}>Nhập HSD</option>
+                  <option value="manufacture" ${isManufactureMode ? "selected" : ""}>Nhập NSX</option>
+                </select>
+              </label>
+              <label class="price-field">
+                <span>Hạn dùng</span>
+                <input type="date" value="${escapeHtml(expiryMeta.directInputValue || "")}" data-purchase-expiry-input="${item.id}" ${purchaseExpiryEditable && !isManufactureMode ? "" : "disabled"}>
+              </label>
+              <label class="price-field">
+                <span>Ngày sản xuất</span>
+                <input type="date" value="${escapeHtml(expiryMeta.manufactureDate || "")}" data-purchase-manufacture-input="${item.id}" ${purchaseExpiryEditable && isManufactureMode ? "" : "disabled"}>
+              </label>
+            </div>
+            <div data-price-warning-host>${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>
           </div>
           <div class="cart-line-note" data-purchase-expiry-hint="${item.id}">${editorHint}</div>
           ${purchaseExpiryEditable ? `<div class="line-actions"><button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">${purchase.status === "received" ? "Cập nhật HSD" : "Lưu dòng"}</button>${purchaseEditable ? `<button type="button" class="ghost-button compact-button" data-purchase-item-action="clone-lot" data-purchase-item-id="${item.id}">+ Lô</button><button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button><button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button><button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>` : ""}</div>` : ""}
@@ -423,6 +429,10 @@ export function createPurchasesUi(deps) {
     const topPagination = paginationMarkup ? `<div class="purchase-suggestions-top-pagination">${paginationMarkup}</div>` : "";
     const bottomPagination = paginationMarkup ? `<div class="purchase-suggestions-bottom-pagination">${paginationMarkup}</div>` : "";
     dom.purchaseSuggestionList.innerHTML = topPagination + pageData.items.map((entry) => {
+      const productPriceAlerts = getPriceWarningAlerts({
+        purchasePrice: entry.product.price,
+        salePrice: entry.product.sale_price ?? 0,
+      });
       const insight = getOpenPurchaseSupplierConflictInsight(entry.product.id, {
         targetPurchaseId: activePurchase?.id || "",
         targetSupplierName: String(activePurchase?.supplierName || "").trim(),
@@ -437,7 +447,7 @@ export function createPurchasesUi(deps) {
         <div class="sales-product-head">
           <div>
             <strong>${escapeHtml(entry.product.name)}</strong>
-            <div class="sales-product-meta">Tồn ${formatQuantity(entry.product.current_stock)} ${escapeHtml(entry.product.unit)} | Cần cho đơn ${formatQuantity(entry.demand)}</div>
+            <div class="sales-product-meta">Tồn ${formatQuantity(entry.product.current_stock)} ${escapeHtml(entry.product.unit)} | Cần cho đơn ${formatQuantity(entry.demand)} ${renderPriceWarningMarkup(productPriceAlerts, "view")}</div>
             <div class="cart-line-note">Đề xuất ${formatQuantity(entry.suggestedQuantity || entry.shortageFromOrders || 1)} ${escapeHtml(entry.product.unit)} trước khi thêm vào phiếu.</div>
             ${conflictNote ? `<div class="cart-line-note warning-text">${escapeHtml(conflictNote)}</div>` : ""}
           </div>
@@ -474,6 +484,7 @@ export function createPurchasesUi(deps) {
         <article class="inline-alert warning">
           <strong>${escapeHtml(String(selectedMergeIds.length))} phiếu nhập đang được chọn</strong>
           <div class="line-actions">
+            <button type="button" class="secondary-button compact-button" data-purchase-list-action="mark-selected-ordered">Đặt hàng</button>
             ${selectedMergeIds.length >= 2 ? '<button type="button" class="primary-button compact-button" data-purchase-list-action="start-merge-preview">Gộp đơn</button>' : ""}
             <button type="button" class="ghost-button compact-button" data-purchase-list-action="clear-merge-selection">Bỏ chọn</button>
           </div>

@@ -776,6 +776,113 @@ test("IT-PURSUP-10 purchases merge only open receipts of the same supplier and c
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-PURSUP-11 purchases screen can bulk mark selected drafts ordered and keep invalid drafts selected", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const supplierName = `NCC bulk order ${timestamp}`;
+  const searchTerm = String(timestamp);
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const validPurchase = {
+    id: `purchase_bulk_valid_${timestamp}`,
+    supplierName,
+    note: "Phiếu đủ điều kiện đặt",
+    status: "draft",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    items: [
+      {
+        id: `purchase_bulk_valid_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 2,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+  const invalidPurchase = {
+    id: `purchase_bulk_invalid_${timestamp}`,
+    supplierName: "",
+    note: `Thiếu NCC ${timestamp}`,
+    status: "draft",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    items: [
+      {
+        id: `purchase_bulk_invalid_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 1,
+        unitCost: Number(product.price || 0) || 1000,
+      },
+    ],
+  };
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        purchases: [validPurchase, invalidPurchase, ...(originalState.purchases || [])],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "purchases");
+    await expectScreenTitle(page, "Nhập hàng");
+    await setFloatingSearch(page, searchTerm);
+
+    const validCheckbox = page.locator(`[data-purchase-select="${validPurchase.id}"] input[data-purchase-list-action="toggle-merge-select"]`).first();
+    const invalidCheckbox = page.locator(`[data-purchase-select="${invalidPurchase.id}"] input[data-purchase-list-action="toggle-merge-select"]`).first();
+    await validCheckbox.check();
+    await invalidCheckbox.check();
+    await expect(validCheckbox).toBeChecked();
+    await expect(invalidCheckbox).toBeChecked();
+
+    await page.locator('#purchaseOrderList [data-purchase-list-action="mark-selected-ordered"]').click();
+    const bulkOrderToast = await collectToast(page, runtime, "it-pursup-11-bulk-order", { errorPattern: /^$/ });
+    expect(bulkOrderToast).toContain("Đã chuyển 1 phiếu sang Đã đặt hàng.");
+
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(latestStateResponse.ok()).toBeTruthy();
+    const latestState = await latestStateResponse.json();
+    const latestValidPurchase = (latestState.purchases || []).find((purchase) => purchase.id === validPurchase.id);
+    const latestInvalidPurchase = (latestState.purchases || []).find((purchase) => purchase.id === invalidPurchase.id);
+    expect(String(latestValidPurchase?.status || "")).toBe("ordered");
+    expect(String(latestInvalidPurchase?.status || "")).toBe("draft");
+
+    await expect(page.locator("#purchaseOrderList .inline-alert.warning")).toContainText("1 phiếu nhập đang được chọn");
+    await expect(invalidCheckbox).toBeChecked();
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical supplier", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const timestamp = Date.now();

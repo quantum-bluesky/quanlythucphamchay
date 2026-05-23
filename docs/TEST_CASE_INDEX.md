@@ -80,6 +80,8 @@ Mục tiêu:
 | 119 | `IT-PURSUP-09` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-09"` |
 | 120 | `IT-PURSUP-10` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-10"` |
 | 121 | `IT-ORD-06` | `tests/integration/orders-actions.spec.js` | `npx playwright test tests/integration/orders-actions.spec.js --grep "IT-ORD-06"` |
+| 122 | `IT-PURSUP-11` | `tests/integration/purchase-supplier-flow.spec.js` | `npx playwright test tests/integration/purchase-supplier-flow.spec.js --grep "IT-PURSUP-11"` |
+| 123 | `IT-ORD-07` | `tests/integration/orders-actions.spec.js` | `npx playwright test tests/integration/orders-actions.spec.js --grep "IT-ORD-07"` |
 | 53 | `UT-DB-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_01_create_product_and_stock_summary` |
 | 46 | `UT-DB-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_02_stock_out_cannot_exceed_inventory` |
 | 47 | `UT-DB-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_db_03_inventory_adjustment_receipt_updates_stock_with_reason` |
@@ -165,6 +167,7 @@ Mục tiêu:
 | 130 | `UT-ORD-20` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_20_pending_bulk_order_request_can_be_deleted_and_recreated` |
 | 131 | `UT-AUTH-13` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_13_pending_bulk_order_request_delete_allows_owner_and_manager_only` |
 | 132 | `ACC-ORD-20` | `tests/integration/bulk-orders-mobile.spec.js` | `npx playwright test tests/integration/bulk-orders-mobile.spec.js --grep "ACC-ORD-20"` |
+| 133 | `UT-ORD-21` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_21_bulk_editing_saved_draft_or_committed_updates_same_cart` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

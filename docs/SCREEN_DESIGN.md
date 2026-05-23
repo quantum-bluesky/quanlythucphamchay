@@ -84,6 +84,7 @@ Liên kết detail hiện có:
   - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
   - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
   - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
+  - với mọi chỗ đang sửa giá bán theo mặt hàng, nếu `giá xuất < giá nhập` của 1 mặt hàng thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
   - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu, không phải per-line
   - nếu `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` của các dòng hàng, panel phải hiện cảnh báo ngắn và trước `Chốt đơn`/`Xuất hàng` phải hỏi xác nhận thêm
   - từ màn `orders`, user có thể tick nhiều phiếu `draft/committed` cùng khách để mở preview `gộp đơn`; nếu khác khách thì giữ nguyên list và báo lỗi thân thiện
@@ -119,7 +120,10 @@ Liên kết detail hiện có:
   - action trực tiếp trên card chỉ giữ các thao tác gọn như `Sửa`, `Thêm hàng`, `Xóa khách`
   - cuối màn chỉ có đúng 2 CTA chính: `Lưu nháp` và `Chốt đơn hợp lệ`
   - `Lưu nháp` chỉ tạo/cập nhật cart `draft`; không giữ hàng, không trừ kho và không nhảy thẳng sang `completed`
+  - card lưu/chốt thành công vẫn phải ở lại trên màn để user sửa tiếp; nếu card đã gắn với cart `draft/committed` có sẵn thì lần lưu/chốt tiếp theo phải cập nhật đúng cart đó, không tạo bản sao
   - `Chốt đơn hợp lệ` phải kiểm từng khách theo đúng rule availability của bước `Chốt đơn` hiện tại; đơn đủ điều kiện sang `committed`, đơn lỗi giữ nguyên ở màn để user sửa tiếp
+  - nếu user đang sửa card đã `committed`, thao tác lưu tiếp không được làm hạ trạng thái về `draft`; chỉ cập nhật địa chỉ giao, giảm giá và dòng hàng theo rule đơn đã chốt
+  - nếu `Chốt đơn hợp lệ` fail vì thiếu hàng, khối `Kết quả gần nhất` phải có CTA chuyển nhanh sang luồng xử lý nhập cho các đơn vừa fail; CTA này mở `Nhập hàng` trong daily mode và mở `Xử lý nhập thiếu` nếu batch lock procurement đang active
   - khi login bật và user không có `order_batch_manage`, 2 CTA cuối màn phải đổi nghĩa thành `gửi request chờ duyệt`; request card phải hiện rõ `người tạo`, `trạng thái`, `số đơn`, `lý do reject` nếu có và warning trùng request active
   - user có `order_batch_manage` hoặc `Master Admin` phải thấy badge pending ngay từ menu và có action `Approve/Reject`; request còn `pending_approval` phải có thêm `Xóa` cho owner hoặc user quản lý; owner của request đã `approved` cũng phải thấy nút `Xử lý`
   - request card và detail đơn phải có nút `Lịch sử`; popup audit hiển thị mới nhất trước, tối thiểu có `thời gian`, `user`, `hành động`, `trạng thái trước/sau`, `ghi chú`
@@ -148,6 +152,7 @@ Liên kết detail hiện có:
   - khi đi từ màn `customers`, list có thể tự lọc đúng theo `customerId`; nếu chỉ còn 1 phiếu phù hợp thì detail của phiếu đó phải tự mở kể cả với đơn `Đã xuất hàng` hoặc `Đã thanh toán`
   - card đơn `committed` có thể hiện thêm input `Địa chỉ giao` và `Giảm giá khuyến mại` trong detail
   - card/detail của đơn `draft/committed` nên giữ cảnh báo rõ khi `Cần thanh toán` đang thấp hơn tổng `giá nhập mặc định`
+  - thanh chọn nhiều phiếu ở list đơn có thêm nút `Chốt đơn`; action này xử lý loạt đơn `draft` hợp lệ và giữ nguyên các phiếu lỗi để user rà lại
   - preview `gộp đơn` của phiếu xuất tái sử dụng màn `create-order`: chọn một phiếu làm đích, hiển thị danh sách phiếu sẽ nhập vào, cho `Thực hiện gộp` hoặc `Hủy`
   - card đơn `completed` chưa thanh toán chỉ còn hiện input `Giảm giá khuyến mại` trong detail
   - card đơn `completed` hoặc `paid` có action `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và danh sách dòng hàng của phiếu đã chọn; nếu khách đã có đơn `draft` thì UI phải hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
@@ -185,6 +190,7 @@ Liên kết detail hiện có:
   - filter audit theo actor/date
   - card lịch sử ghi rõ field thay đổi, giá trị cũ/mới, actor và thời gian
   - field `Hạn dùng (ngày)` và `Bảo quản (ngày)` để làm metadata fallback cho sort hạn còn lại khi lô chưa có HSD thật
+  - khi sửa giá nhập/giá bán mặc định, nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng thì phải hiện message cảnh báo ngay tại vùng edit; ở list/view chỉ gắn nhãn cảnh báo ngắn
 
 ### `purchases` - Quản lý nhập hàng
 
@@ -204,6 +210,7 @@ Liên kết detail hiện có:
   - ngay trên từng card gợi ý nhập phải có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
+  - với mọi chỗ đang sửa giá nhập theo mặt hàng, nếu `giá nhập < 1.000đ` thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
   - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu để đối chiếu số tiền thực trả NCC
   - mỗi dòng nhập cần có input `Mã lô` và phần nhập HSD hỗ trợ 2 mode: nhập trực tiếp `Hạn dùng` hoặc nhập gián tiếp `Ngày sản xuất`; mode mặc định là nhập trực tiếp HSD, còn mode gián tiếp sẽ tự tính `HSD = NSX + thời gian bảo quản`
   - metadata phiếu nhập được bung/thu gọn bằng button `Detail` thay vì badge tĩnh để phần đầu phiếu gọn hơn
@@ -220,6 +227,7 @@ Liên kết detail hiện có:
   - màn này phải có cảnh báo active lock riêng để user biết ai đang giữ batch mode và vì sao phiếu `Nháp/Đã đặt` đang bị siết quyền
   - nếu chưa có `Nhà cung cấp`, button `Đã đặt hàng` và `Nhập kho` phải bị khóa; UI cần hiện cảnh báo ngắn để user biết thiếu dữ liệu gì
   - ô NCC và nút `NCC` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
+  - thanh chọn nhiều phiếu ở list nhập hàng có thêm nút `Đặt hàng`; action này chuyển nhanh các phiếu `draft` hợp lệ sang `ordered` và giữ nguyên phiếu lỗi để user xử lý tiếp
   - list phiếu nhập cho phép tick nhiều phiếu `draft/ordered` cùng NCC để mở preview `gộp đơn`; nếu khác NCC thì app báo lỗi và không điều hướng
   - khi phiếu còn `Nháp`, bấm nút `NCC` từ một phiếu đã có NCC vẫn phải cho sang danh sách NCC để đổi sang NCC khác, không được kẹt ở chế độ sửa NCC hiện tại
   - nếu bỏ trống `Mã lô`, app tự sinh batch code khi nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` để FEFO vẫn có mốc hạn

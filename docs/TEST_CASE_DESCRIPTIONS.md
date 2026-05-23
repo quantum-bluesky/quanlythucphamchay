@@ -62,6 +62,7 @@ Lưu ý:
 | 41 | `IT-PURSUP-08` | Kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC, ghi chú, giảm giá và dòng hàng, nhưng reset `Mã lô`, `HSD` và `NSX` để nhập lại theo lô mới. |
 | 119 | `IT-PURSUP-09` | Kiểm tra phiếu nhập `Đã nhập kho` vẫn sửa được `Ghi chú` tới trước khi `Đã thanh toán`, rồi khóa lại sau khi phiếu chuyển sang `Đã thanh toán`. |
 | 120 | `IT-PURSUP-10` | Kiểm tra chỉ gộp được phiếu nhập `Nháp/Đã đặt` cùng NCC, báo lỗi khi khác NCC, và bấm `Hủy` trong preview sẽ quay lại đúng danh sách phiếu. |
+| 122 | `IT-PURSUP-11` | Kiểm tra thanh chọn nhiều phiếu ở màn nhập hàng có thể `Đặt hàng` hàng loạt, chỉ chuyển các phiếu `draft` có NCC hợp lệ sang `ordered` và giữ nguyên phiếu lỗi để user xử lý tiếp. |
 | 42 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
 | 41 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
 | 42 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |
@@ -70,6 +71,7 @@ Lưu ý:
 | 45 | `IT-ORD-04` | Kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hiện hỏi có dồn thêm vào đơn nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đó thay vì tạo draft mới. |
 | 46 | `IT-ORD-05` | Kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện confirm cảnh báo bổ sung trước khi `Chốt đơn`. |
 | 121 | `IT-ORD-06` | Kiểm tra chỉ gộp được phiếu xuất `Nháp/Chốt đơn` cùng khách, báo lỗi khi khác khách, và bấm `Hủy` trong preview sẽ quay lại đúng danh sách đơn. |
+| 123 | `IT-ORD-07` | Kiểm tra thanh chọn nhiều phiếu ở màn đơn hàng có thể `Chốt đơn` hàng loạt, chỉ chốt các đơn `draft` hợp lệ và giữ nguyên phiếu lỗi để user xử lý tiếp. |
 | 47 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
 | 45 | `IT-NAV-02` | Kiểm tra menu trên PC/tablet bung ra từ nút `Mở menu`, tự thu gọn khi rê chuột hoặc bấm ra ngoài, đồng thời giữ chiều rộng menu gọn. |
 | 46 | `IT-NAV-03` | Kiểm tra sau khi xoay giữa màn hình dọc và ngang thì vẫn bấm được các item trong menu nghiệp vụ để chuyển màn bình thường. |
@@ -148,7 +150,7 @@ Lưu ý:
 | 122 | `IT-PROC-05` | Kiểm tra màn `Xử lý nhập thiếu` chặn thao tác `Gộp đơn` khi user chọn lẫn phiếu nhập và phiếu xuất trong cùng một lần thao tác. |
 | 114 | `UT-ORD-17` | Kiểm tra backend tạo nhiều đơn ở mode `commit_valid` chỉ commit các đơn đủ hàng, giữ đơn lỗi ở `draft`, ghi audit batch và replay an toàn theo `request_id`. |
 | 115 | `UT-AUTH-09` | Kiểm tra route `/api/orders/bulk-create` tách rõ quyền `bulk_order_create` và `bulk_order_commit`: user chỉ có quyền tạo được lưu nháp nhưng bị chặn chốt nhiều đơn. |
-| 116 | `ACC-ORD-17` | Kiểm tra màn `Tạo nhiều đơn` trên mobile giữ giao diện card theo khách, cuối màn chỉ có 2 CTA chính, và action `Chốt đơn hợp lệ` chỉ commit các đơn đủ điều kiện còn đơn lỗi giữ lại để sửa. |
+| 116 | `ACC-ORD-17` | Kiểm tra màn `Tạo nhiều đơn` trên mobile giữ giao diện card theo khách, cho tiếp tục sửa card sau khi `Lưu nháp` hoặc `Chốt đơn`, action `Chốt đơn hợp lệ` chỉ commit các đơn đủ điều kiện còn đơn lỗi giữ lại để sửa, và khi lỗi do thiếu hàng thì khối kết quả mở được luồng nhập hàng tương ứng. |
 | 123 | `UT-ORD-18` | Kiểm tra backend approval request của màn `Xuất nhanh` giữ request ở `pending_approval`, replay an toàn theo `request_id`, chặn request trùng cho tới khi request cũ được `processed`, rồi mới cho đi tiếp. |
 | 124 | `UT-AUTH-10` | Kiểm tra user có `order_batch_manage` và quyền chốt nhiều đơn bị cảnh báo duplicate request active ở route `/api/orders/bulk-create`, nhưng vẫn có thể override khi gửi lại với cờ xác nhận. |
 | 125 | `UT-AUTH-11` | Kiểm tra route approval của màn `Xuất nhanh` cho manager xem request chung, `approve/reject`, lưu lý do reject và cho owner xử lý request đã `approved`. |
@@ -159,3 +161,4 @@ Lưu ý:
 | 130 | `UT-ORD-20` | Kiểm tra store cho xóa request `pending_approval`, mở lại duplicate-check để tạo request mới, và vẫn chặn xóa request đã `approved`. |
 | 131 | `UT-AUTH-13` | Kiểm tra route xóa request `Xuất nhanh` chỉ cho owner hoặc user có `order_batch_manage`; user khác bị chặn và manager xóa được request của staff. |
 | 132 | `ACC-ORD-20` | Kiểm tra mobile UI `Xuất nhanh` hiện nút `Xóa` cho request `pending_approval`, cho owner tự xóa request tạo nhầm và cho manager xóa request của user khác. |
+| 133 | `UT-ORD-21` | Kiểm tra `Xuất nhanh` khi lưu lại card đã có cart `draft/committed` sẽ cập nhật đúng cart cũ, không tạo cart mới và không làm tụt trạng thái đơn đã chốt. |

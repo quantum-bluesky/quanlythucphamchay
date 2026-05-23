@@ -68,6 +68,98 @@ export function registerPurchasesControllerEvents(contract) {
     state.selectedPurchaseMergeIds = [];
   }
 
+  function buildBulkPurchaseFailureSummary(failures) {
+    if (!failures.length) {
+      return "";
+    }
+    return [
+      "Các phiếu nhập chưa chuyển sang Đã đặt hàng:",
+      ...failures.map((entry) => `- ${entry.label}: ${entry.message}`),
+    ].join("\n");
+  }
+
+  async function markSelectedPurchasesOrdered() {
+    const selectedIds = (Array.isArray(state.selectedPurchaseMergeIds) ? state.selectedPurchaseMergeIds : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean);
+    if (!selectedIds.length) {
+      actions.showToast("Chưa chọn phiếu nhập nào.", true);
+      return;
+    }
+
+    if (!window.confirm(
+      `Chuyển ${selectedIds.length} phiếu nhập đã chọn sang Đã đặt hàng?\n\nChỉ các phiếu nháp có NCC và còn được phép sửa mới được xử lý. Phiếu chưa hợp lệ sẽ được giữ nguyên để bạn rà lại sau.`
+    )) {
+      return;
+    }
+
+    const activeSelectedPurchaseId = String(state.activePurchaseId || "").trim();
+    if (activeSelectedPurchaseId && selectedIds.includes(activeSelectedPurchaseId)) {
+      const activePurchase = queries.getActivePurchase();
+      if (activePurchase && queries.canEditPurchase(activePurchase)) {
+        actions.updatePurchase(activePurchase.id, () => ({
+          supplierName: dom.purchaseSupplierInput.value.trim(),
+          note: dom.purchaseNoteInput.value.trim(),
+        }));
+      }
+    }
+
+    await actions.flushPendingPersistCollections();
+
+    const successes = [];
+    const failures = [];
+
+    for (const purchaseId of selectedIds) {
+      const purchase = state.purchases.find((entry) => String(entry.id) === purchaseId) || null;
+      const label = getPurchaseDisplayName(purchase || { receiptCode: purchaseId });
+      if (!purchase) {
+        failures.push({ id: purchaseId, label, message: "Không còn tìm thấy phiếu trong dữ liệu hiện tại." });
+        continue;
+      }
+      if (!queries.canEditPurchase(purchase) || String(purchase.status || "").trim() !== "draft") {
+        failures.push({ id: purchaseId, label, message: "Chỉ phiếu nháp còn được sửa mới chuyển sang Đã đặt hàng." });
+        continue;
+      }
+      if (!queries.hasPurchaseSupplier(purchase)) {
+        failures.push({ id: purchaseId, label, message: "Cần chọn nhà cung cấp trước khi đặt hàng." });
+        continue;
+      }
+
+      actions.updatePurchase(purchase.id, (currentPurchase) => ({
+        status: "ordered",
+        supplierName: String(currentPurchase.supplierName || "").trim(),
+        note: String(currentPurchase.note || "").trim(),
+      }));
+
+      try {
+        await actions.persistCollections(["purchases"]);
+        successes.push({ id: purchaseId, label });
+        await actions.refreshData();
+      } catch (error) {
+        failures.push({ id: purchaseId, label, message: error.message });
+        try {
+          await actions.refreshData();
+        } catch (refreshError) {
+          failures[failures.length - 1].message = `${error.message} Không tải lại được dữ liệu mới: ${refreshError.message}`;
+        }
+      }
+    }
+
+    state.selectedPurchaseMergeIds = failures.map((entry) => entry.id);
+    renderers.renderPurchasePanel();
+    renderers.renderPurchaseOrders();
+
+    if (successes.length) {
+      actions.showToast(`Đã chuyển ${successes.length} phiếu sang Đã đặt hàng.`);
+    }
+    if (failures.length) {
+      window.alert(buildBulkPurchaseFailureSummary(failures));
+      if (!successes.length) {
+        actions.showToast("Chưa có phiếu nào được chuyển sang Đã đặt hàng.", true);
+      }
+    }
+  }
+
   function confirmPurchaseStatusAction(purchase, action) {
     const label = getPurchaseDisplayName(purchase);
     const messages = {
@@ -818,6 +910,11 @@ export function registerPurchasesControllerEvents(contract) {
   });
 
   dom.purchasePanel.addEventListener("input", (event) => {
+    const warningInput = event.target.closest("[data-price-warning-input]");
+    if (warningInput) {
+      utils.syncPriceWarningGroup(warningInput.closest("[data-price-warning-group]"));
+      return;
+    }
     const supplierInput = event.target.closest("[data-supplier-return-supplier-input]");
     if (supplierInput) {
       state.supplierReturnDraft.supplierName = supplierInput.value;
@@ -898,6 +995,10 @@ export function registerPurchasesControllerEvents(contract) {
     if (button.dataset.purchaseListAction === "clear-merge-selection") {
       clearSelectedPurchaseMergeIds();
       renderers.renderPurchaseOrders();
+      return;
+    }
+    if (button.dataset.purchaseListAction === "mark-selected-ordered") {
+      await markSelectedPurchasesOrdered();
       return;
     }
     if (button.dataset.purchaseListAction === "start-merge-preview") {

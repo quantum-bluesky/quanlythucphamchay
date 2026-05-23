@@ -227,9 +227,13 @@ import {
   formatDate,
   formatMonthLabel,
   formatDateOnly,
+  getPriceWarningAlerts,
   escapeHtml,
   renderOverflowMenu,
+  renderPriceWarningMarkup,
   normalizeText,
+  syncPriceWarningGroup,
+  syncPriceWarningGroups,
 } from "./modules/utils.js";
 
 const pendingPersistCollections = new Set();
@@ -732,6 +736,8 @@ function getProductsUi() {
       formatCurrency,
       formatDate,
       escapeHtml,
+      getPriceWarningAlerts,
+      renderPriceWarningMarkup,
       isSearchResultMode,
       paginateItems,
       renderPagination,
@@ -759,6 +765,8 @@ function getInventoryUi() {
       formatCurrency,
       formatDate,
       escapeHtml,
+      getPriceWarningAlerts,
+      renderPriceWarningMarkup,
       mobileQuery,
       getPendingDemandByProductId,
       getDraftDemandByProductId,
@@ -962,6 +970,8 @@ function getSalesUi() {
       formatCurrency,
       formatDate,
       escapeHtml,
+      getPriceWarningAlerts,
+      renderPriceWarningMarkup,
       mobileQuery,
       getActiveCart,
       getPendingMergeCommittedCarts,
@@ -1002,6 +1012,8 @@ function getBulkOrdersUi() {
       escapeHtml,
       formatCurrency,
       formatQuantity,
+      getPriceWarningAlerts,
+      renderPriceWarningMarkup,
       normalizeText,
       getCustomerDraftHint: (entry) => bulkOrderUiHelpers.getCustomerDraftHint(entry),
       getCanCreateBulkDraft: () => bulkOrderUiHelpers.getCanCreateBulkDraft(),
@@ -1031,6 +1043,8 @@ function getPurchasesUi() {
       formatCurrency,
       formatDate,
       escapeHtml,
+      getPriceWarningAlerts,
+      renderPriceWarningMarkup,
       mobileQuery,
       getActivePurchase,
       canEditPurchase,
@@ -3483,18 +3497,24 @@ function renderProcurementReviewPanel() {
       <label class="wide-field"><span>Ghi chú</span><input type="text" value="${escapeHtml(purchase.note || "")}" data-procurement-review-field="note"></label>
     </div>
     <div class="cart-items-list">
-      ${(purchase.items || []).map((item) => `
+      ${(purchase.items || []).map((item) => {
+        const linePriceAlerts = getPriceWarningAlerts({ purchasePrice: item.unitCost || item.unit_cost || 0 });
+        return `
         <article class="cart-item">
           <div class="cart-item-main">
             <strong>${escapeHtml(item.productName)}</strong>
-            <span>${escapeHtml(item.unit || "")}</span>
+            <span>${escapeHtml(item.unit || "")} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</span>
           </div>
-          <div class="procurement-review-grid">
-            <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(item.quantity)}" data-procurement-item-field="quantity" data-item-id="${escapeHtml(item.id)}"></label>
-            <label><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(item.unitCost || item.unit_cost || 0)}" data-procurement-item-field="unitCost" data-item-id="${escapeHtml(item.id)}"></label>
+          <div data-price-warning-group data-price-warning-mode="edit">
+            <div class="procurement-review-grid">
+              <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(item.quantity)}" data-procurement-item-field="quantity" data-item-id="${escapeHtml(item.id)}"></label>
+              <label data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(item.unitCost || item.unit_cost || 0)}" data-procurement-item-field="unitCost" data-item-id="${escapeHtml(item.id)}" data-price-warning-input="purchase"></label>
+            </div>
+            <div data-price-warning-host>${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>
           </div>
         </article>
-      `).join("")}
+      `;
+      }).join("")}
     </div>
     <div class="cart-queue-list">
       ${reviewIds.map((id, index) => {
@@ -3548,12 +3568,15 @@ function renderProcurementExtraPanel(canEditBatch) {
               ? `Tồn ${formatQuantity(candidate.currentStock)} ${candidate.unit} • Chờ nhập ${formatQuantity(candidate.incomingQuantity)} • Cần nhập ${formatQuantity(candidate.requiredPurchase)}`
               : `Tồn hiện tại ${formatQuantity(candidate.currentStock)} ${candidate.unit}`;
             const inputBlock = isSelected ? `
-              <div class="procurement-input-grid">
-                <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(selectedRow?.supplierName || "")}" data-procurement-extra-field="supplierName" data-product-id="${escapeHtml(candidate.productId)}"></label>
-                <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(selectedRow?.quantity || "1")}" data-procurement-extra-field="quantity" data-product-id="${escapeHtml(candidate.productId)}"></label>
-                <label class="desktop-only-field"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(selectedRow?.unitCost || String(product?.price ?? 0))}" data-procurement-extra-field="unitCost" data-product-id="${escapeHtml(candidate.productId)}"></label>
-                <label class="desktop-only-field"><span>Giảm KM</span><input type="number" min="0" step="1000" value="${escapeHtml(selectedRow?.discountAmount || "0")}" data-procurement-extra-field="discountAmount" data-product-id="${escapeHtml(candidate.productId)}"></label>
-                <label class="wide-field"><span>Ghi chú dòng</span><input type="text" value="${escapeHtml(selectedRow?.sourceNote || "Ngoài nhu cầu đơn")}" data-procurement-extra-field="sourceNote" data-product-id="${escapeHtml(candidate.productId)}"></label>
+              <div data-price-warning-group data-price-warning-mode="edit">
+                <div class="procurement-input-grid">
+                  <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(selectedRow?.supplierName || "")}" data-procurement-extra-field="supplierName" data-product-id="${escapeHtml(candidate.productId)}"></label>
+                  <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(selectedRow?.quantity || "1")}" data-procurement-extra-field="quantity" data-product-id="${escapeHtml(candidate.productId)}"></label>
+                  <label class="desktop-only-field" data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(selectedRow?.unitCost || String(product?.price ?? 0))}" data-procurement-extra-field="unitCost" data-product-id="${escapeHtml(candidate.productId)}" data-price-warning-input="purchase"></label>
+                  <label class="desktop-only-field"><span>Giảm KM</span><input type="number" min="0" step="1000" value="${escapeHtml(selectedRow?.discountAmount || "0")}" data-procurement-extra-field="discountAmount" data-product-id="${escapeHtml(candidate.productId)}"></label>
+                  <label class="wide-field"><span>Ghi chú dòng</span><input type="text" value="${escapeHtml(selectedRow?.sourceNote || "Ngoài nhu cầu đơn")}" data-procurement-extra-field="sourceNote" data-product-id="${escapeHtml(candidate.productId)}"></label>
+                </div>
+                <div data-price-warning-host>${renderPriceWarningMarkup(getPriceWarningAlerts({ purchasePrice: selectedRow?.unitCost || String(product?.price ?? 0) }), "edit")}</div>
               </div>
             ` : "";
             return `
@@ -3707,16 +3730,20 @@ function renderProcurementPlanner() {
   }
   renderProcurementReviewPanel();
   renderProcurementExtraPanel(canEditBatch);
+  syncPriceWarningGroups(procurementReviewPanel);
+  syncPriceWarningGroups(procurementExtraPanel);
   const mergePanelMarkup = renderProcurementMergePanel();
 
   if (state.procurementPlanner.loading) {
     procurementPlannerList.innerHTML = `${mergePanelMarkup}<div class="empty-state">Đang tải dữ liệu xử lý nhập thiếu...</div>`;
+    syncPriceWarningGroups(procurementPlannerList);
     return;
   }
   const rows = Array.isArray(state.procurementPlanner.rows) ? state.procurementPlanner.rows : [];
   const visibleRows = rows.filter((row) => Number(row.required_purchase || 0) > 0);
   if (!visibleRows.length) {
     procurementPlannerList.innerHTML = `${mergePanelMarkup}<div class="empty-state">Chưa có mặt hàng thiếu hoặc cần cảnh báo theo phạm vi hiện tại.</div>`;
+    syncPriceWarningGroups(procurementPlannerList);
     return;
   }
 
@@ -3737,11 +3764,14 @@ function renderProcurementPlanner() {
       : "";
     const inputBlock = canEditBatch && isSelected && !assignment
       ? `
-        <div class="procurement-input-grid">
-          <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(selection.supplierName || "")}" data-procurement-field="supplier" data-product-id="${escapeHtml(row.product_id)}"></label>
-          <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(selection.quantity || row.required_purchase || "")}" data-procurement-field="quantity" data-product-id="${escapeHtml(row.product_id)}"></label>
-          <label class="desktop-only-field"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(selection.unitCost || row.unit_cost || 0)}" data-procurement-field="unitCost" data-product-id="${escapeHtml(row.product_id)}"></label>
-          <label class="desktop-only-field"><span>Giảm KM</span><input type="number" min="0" step="1000" value="${escapeHtml(selection.discountAmount || 0)}" data-procurement-field="discountAmount" data-product-id="${escapeHtml(row.product_id)}"></label>
+        <div data-price-warning-group data-price-warning-mode="edit">
+          <div class="procurement-input-grid">
+            <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(selection.supplierName || "")}" data-procurement-field="supplier" data-product-id="${escapeHtml(row.product_id)}"></label>
+            <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(selection.quantity || row.required_purchase || "")}" data-procurement-field="quantity" data-product-id="${escapeHtml(row.product_id)}"></label>
+            <label class="desktop-only-field" data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(selection.unitCost || row.unit_cost || 0)}" data-procurement-field="unitCost" data-product-id="${escapeHtml(row.product_id)}" data-price-warning-input="purchase"></label>
+            <label class="desktop-only-field"><span>Giảm KM</span><input type="number" min="0" step="1000" value="${escapeHtml(selection.discountAmount || 0)}" data-procurement-field="discountAmount" data-product-id="${escapeHtml(row.product_id)}"></label>
+          </div>
+          <div data-price-warning-host>${renderPriceWarningMarkup(getPriceWarningAlerts({ purchasePrice: selection.unitCost || row.unit_cost || 0 }), "edit")}</div>
         </div>
       `
       : "";
@@ -3769,6 +3799,7 @@ function renderProcurementPlanner() {
       </article>
     `;
   }).join("");
+  syncPriceWarningGroups(procurementPlannerList);
 }
 
 function addSuggestionToPurchase(productId, quantity, unitCost) {
@@ -4138,6 +4169,24 @@ function createPurchaseSuggestionFromCart(cart, shortagePlan = null) {
   return { created: true, supplierSuggestion };
 }
 
+function getCartCommitPurchaseShortagePlan(cart) {
+  return getCartCommitShortages(cart)
+    .filter((entry) => entry.shortage > 0 && entry.product)
+    .map((entry) => {
+      const incomingQuantity = getOpenIncomingQuantityForProduct(entry.product.id);
+      const orderedIncomingQuantity = Number(entry.orderedIncomingQuantity || 0);
+      const draftIncomingQuantity = Math.max(0, Number((incomingQuantity - orderedIncomingQuantity).toFixed(2)));
+      return {
+        ...entry,
+        incomingQuantity,
+        orderedIncomingQuantity,
+        draftIncomingQuantity,
+        otherIncomingQuantity: incomingQuantity,
+        requiredFromSource: Math.max(0, Number((entry.shortage - draftIncomingQuantity).toFixed(2))),
+      };
+    });
+}
+
 function getCartShortages(cart) {
   return cart.items
     .map((item) => {
@@ -4185,6 +4234,65 @@ function getCartCommitShortages(cart) {
         commitAvailableQuantity,
       };
     });
+}
+
+async function routeBulkOrderShortagesFromResult(result) {
+  const rows = Array.isArray(result?.results) ? result.results : [];
+  const failedCartIds = [...new Set(rows
+    .filter((entry) => entry?.status === "failed" && String(entry?.cart_id || "").trim())
+    .map((entry) => String(entry.cart_id || "").trim()))];
+  const failedCarts = failedCartIds
+    .map((cartId) => getCartById(cartId))
+    .filter(Boolean);
+  if (!failedCarts.length) {
+    throw new Error("Không tìm thấy đơn thiếu hàng để chuyển sang xử lý nhập.");
+  }
+
+  if (isProcurementBatchMode()) {
+    await openProcurementPlanner(
+      failedCarts.length === 1
+        ? { type: "cart", code: String(failedCarts[0].id || "") }
+        : { type: "all", code: "" }
+    );
+    return {
+      targetMenu: "procurement-planner",
+      handledCount: failedCarts.length,
+    };
+  }
+
+  let createdOrUpdatedCount = 0;
+  let openedExistingCount = 0;
+  let openedExisting = false;
+  failedCarts.forEach((cart) => {
+    const shortagePlan = getCartCommitPurchaseShortagePlan(cart);
+    if (!shortagePlan.length) {
+      return;
+    }
+    const hasEnoughDraftCoverage = shortagePlan.every((entry) => entry.draftIncomingQuantity >= entry.shortage);
+    if (hasEnoughDraftCoverage && !openedExisting) {
+      openRelatedPurchasesForShortagePlan(cart, shortagePlan);
+      openedExisting = true;
+      openedExistingCount += 1;
+      return;
+    }
+    const created = createPurchaseSuggestionFromCart(cart, shortagePlan);
+    if (created) {
+      createdOrUpdatedCount += 1;
+    }
+  });
+
+  if (!createdOrUpdatedCount && !openedExistingCount) {
+    throw new Error("Không tìm thấy phần thiếu cần xử lý thêm qua phiếu nhập.");
+  }
+
+  if (!openedExisting) {
+    switchMenu("purchases");
+    focusPurchasePanel();
+  }
+  return {
+    targetMenu: "purchases",
+    handledCount: createdOrUpdatedCount + openedExistingCount,
+  };
 }
 
 function setQuickPanelCollapsed(collapsed) {
@@ -4743,6 +4851,7 @@ function renderSupplierOptions() {
 
 function renderProducts() {
   getInventoryUi().renderProducts();
+  syncPriceWarningGroups(productGrid);
 }
 
 function renderTransactions() {
@@ -5144,10 +5253,12 @@ function renderActiveCartPanel() {
 
 function renderSalesProductList() {
   getSalesUi().renderSalesProductList();
+  syncPriceWarningGroups(salesProductList);
 }
 
 function renderCartItems() {
   getSalesUi().renderCartItems();
+  syncPriceWarningGroups(cartItemsList);
 }
 
 function renderCartQueue() {
@@ -5156,6 +5267,7 @@ function renderCartQueue() {
 
 function renderBulkOrdersScreen() {
   getBulkOrdersUi().renderBulkOrdersScreen();
+  syncPriceWarningGroups(bulkOrderList);
 }
 
 function renderCustomers() {
@@ -5164,10 +5276,12 @@ function renderCustomers() {
 
 function renderProductManageList() {
   getProductsUi().renderProductManageList();
+  syncPriceWarningGroups(productManageList);
 }
 
 function renderPurchasePanel() {
   getPurchasesUi().renderPurchasePanel();
+  syncPriceWarningGroups(purchasePanel);
 }
 
 function renderPurchaseSuggestions() {
@@ -5808,21 +5922,7 @@ async function commitActiveCart() {
     throw new Error("Đơn hàng đang trống.");
   }
 
-  const shortagePlan = getCartCommitShortages(cart)
-    .filter((entry) => entry.shortage > 0 && entry.product)
-    .map((entry) => {
-      const incomingQuantity = getOpenIncomingQuantityForProduct(entry.product.id);
-      const orderedIncomingQuantity = Number(entry.orderedIncomingQuantity || 0);
-      const draftIncomingQuantity = Math.max(0, Number((incomingQuantity - orderedIncomingQuantity).toFixed(2)));
-      return {
-        ...entry,
-        incomingQuantity,
-        orderedIncomingQuantity,
-        draftIncomingQuantity,
-        otherIncomingQuantity: incomingQuantity,
-        requiredFromSource: Math.max(0, Number((entry.shortage - draftIncomingQuantity).toFixed(2))),
-      };
-    });
+  const shortagePlan = getCartCommitPurchaseShortagePlan(cart);
 
   if (shortagePlan.length) {
     if (isProcurementBatchMode()) {
@@ -6045,6 +6145,8 @@ registerProductsControllerEvents({
   },
   utils: {
     formatQuantity,
+    syncPriceWarningGroup,
+    syncPriceWarningGroups,
   },
 });
 
@@ -6114,6 +6216,10 @@ registerInventoryControllerEvents({
     getProductById,
     getInventoryAdjustmentReason,
   },
+  utils: {
+    syncPriceWarningGroup,
+    syncPriceWarningGroups,
+  },
 });
 
 registerSalesControllerEvents({
@@ -6152,6 +6258,7 @@ registerSalesControllerEvents({
     persistCollections,
     flushPendingPersistCollections,
     refreshData,
+    apiRequest,
     commitCart,
     commitActiveCart,
     shipCart,
@@ -6189,6 +6296,7 @@ registerSalesControllerEvents({
   utils: {
     formatCurrency,
     nowIso,
+    syncPriceWarningGroup,
   },
 });
 
@@ -6199,6 +6307,7 @@ registerBulkOrdersControllerEvents({
     bulkAddCustomerButton,
     bulkOrderSearchInput,
     bulkOrderRequestsPanel,
+    bulkOrderResultSummary,
     bulkOrderList,
     bulkOrderSaveDraftButton,
     bulkOrderCommitValidButton,
@@ -6211,6 +6320,7 @@ registerBulkOrdersControllerEvents({
     apiRequest,
     refreshData,
     showToast,
+    routeBulkOrderShortagesFromResult,
     openBulkOrderRequestAuditHistory,
     createId,
     createRequestId,
@@ -6391,6 +6501,7 @@ registerPurchasesControllerEvents({
   utils: {
     nowIso,
     mobileQuery,
+    syncPriceWarningGroup,
   },
 });
 
@@ -6571,6 +6682,10 @@ procurementPlannerList?.addEventListener("click", async (event) => {
 });
 
 procurementPlannerList?.addEventListener("input", (event) => {
+  const warningInput = event.target.closest("[data-price-warning-input]");
+  if (warningInput) {
+    syncPriceWarningGroup(warningInput.closest("[data-price-warning-group]"));
+  }
   const input = event.target.closest("[data-procurement-field]");
   if (!input) return;
   const selection = getProcurementSelection(input.dataset.productId);
@@ -6643,6 +6758,10 @@ procurementExtraPanel?.addEventListener("input", (event) => {
     state.procurementPlanner.extraSearchTerm = searchInput.value;
     applyProcurementExtraSearchFilter();
     return;
+  }
+  const warningInput = event.target.closest("[data-price-warning-input]");
+  if (warningInput) {
+    syncPriceWarningGroup(warningInput.closest("[data-price-warning-group]"));
   }
   const input = event.target.closest("[data-procurement-extra-field]");
   if (!input) return;
@@ -6772,6 +6891,12 @@ procurementReviewPanel?.addEventListener("click", async (event) => {
       showToast(error.message, true);
     }
   }
+});
+
+procurementReviewPanel?.addEventListener("input", (event) => {
+  const warningInput = event.target.closest("[data-price-warning-input]");
+  if (!warningInput) return;
+  syncPriceWarningGroup(warningInput.closest("[data-price-warning-group]"));
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
