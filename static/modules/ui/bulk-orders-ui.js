@@ -5,6 +5,8 @@ export function createBulkOrdersUi(deps) {
     escapeHtml,
     formatCurrency,
     formatQuantity,
+    getPriceWarningAlerts,
+    renderPriceWarningMarkup,
     normalizeText,
     getCustomerDraftHint,
     getCanCreateBulkDraft,
@@ -325,11 +327,18 @@ export function createBulkOrdersUi(deps) {
             </label>
             <div class="bulk-order-item-list">
               ${(entry.items || []).length ? entry.items.map((item) => `
-                <article class="cart-item">
+                ${(() => {
+                  const product = state.products.find((productEntry) => Number(productEntry.id) === Number(item.productId)) || null;
+                  const linePriceAlerts = getPriceWarningAlerts({
+                    purchasePrice: product?.price ?? 0,
+                    salePrice: item.unitPrice || 0,
+                  });
+                  return `
+                <article class="cart-item" data-price-warning-group data-price-warning-mode="edit" data-price-warning-purchase="${escapeHtml(product?.price ?? 0)}">
                   <div class="cart-item-header">
                     <div class="cart-item-primary">
                       <strong class="cart-item-name">${escapeHtml(item.productName)}</strong>
-                      <div class="cart-line-note">Giá bán ${escapeHtml(formatCurrency(item.unitPrice || 0))}</div>
+                      <div class="cart-line-note">Giá bán ${escapeHtml(formatCurrency(item.unitPrice || 0))} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
                     </div>
                     <button type="button" class="danger-button compact-button" data-bulk-order-action="remove-item" data-entry-id="${entry.id}" data-item-id="${item.id}">Xóa</button>
                   </div>
@@ -338,12 +347,15 @@ export function createBulkOrdersUi(deps) {
                       <span>SL</span>
                       <input type="number" min="0.01" step="0.01" value="${escapeHtml(String(item.quantity || 0))}" data-bulk-order-item-field="quantity" data-entry-id="${entry.id}" data-item-id="${item.id}">
                     </label>
-                    <label class="price-field">
+                    <label class="price-field" data-price-warning-field="sale">
                       <span>Giá</span>
-                      <input type="number" min="0" step="1000" value="${escapeHtml(String(item.unitPrice || 0))}" data-bulk-order-item-field="unit-price" data-entry-id="${entry.id}" data-item-id="${item.id}">
+                      <input type="number" min="0" step="1000" value="${escapeHtml(String(item.unitPrice || 0))}" data-bulk-order-item-field="unit-price" data-entry-id="${entry.id}" data-item-id="${item.id}" data-price-warning-input="sale">
                     </label>
                   </div>
+                  <div data-price-warning-host>${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>
                 </article>
+              `;
+                })()}
               `).join("") : '<div class="empty-state">Khách này chưa có mặt hàng nào.</div>'}
             </div>
             <label>
@@ -400,13 +412,19 @@ export function createBulkOrdersUi(deps) {
       return normalizeText(haystack).includes(keyword);
     });
     dom.bulkItemPickerList.innerHTML = products.length ? products.map((product) => `
+      ${(() => {
+        const productPriceAlerts = getPriceWarningAlerts({
+          purchasePrice: product.price,
+          salePrice: product.sale_price ?? product.price ?? 0,
+        });
+        return `
       <article class="sales-product-row">
         <div class="sales-product-head">
           <strong>${escapeHtml(product.name)}</strong>
           <span class="status-pill ${Number(product.current_stock || 0) > 0 ? "draft" : "cancelled"}">${escapeHtml(`Tồn ${formatQuantity(product.current_stock || 0)} ${product.unit || ""}`)}</span>
         </div>
         <div class="sales-product-meta-row">
-          <div class="sales-product-meta">Giá bán ${escapeHtml(formatCurrency(product.sale_price ?? product.price ?? 0))}</div>
+          <div class="sales-product-meta">Giá bán ${escapeHtml(formatCurrency(product.sale_price ?? product.price ?? 0))} ${renderPriceWarningMarkup(productPriceAlerts, "view")}</div>
         </div>
         <div class="bulk-item-picker-row">
           <label class="sales-inline-qty">
@@ -416,6 +434,8 @@ export function createBulkOrdersUi(deps) {
           <button type="button" class="primary-button compact-button" data-bulk-picker-action="add-item" data-product-id="${product.id}">Thêm</button>
         </div>
       </article>
+    `;
+      })()}
     `).join("") : '<div class="empty-state">Không tìm thấy mặt hàng phù hợp.</div>';
   }
 

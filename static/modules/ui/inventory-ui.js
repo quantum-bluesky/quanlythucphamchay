@@ -6,6 +6,8 @@ export function createInventoryUi(deps) {
     formatCurrency,
     formatDate,
     escapeHtml,
+    getPriceWarningAlerts,
+    renderPriceWarningMarkup,
     mobileQuery,
     getPendingDemandByProductId,
     getDraftDemandByProductId,
@@ -231,6 +233,11 @@ export function createInventoryUi(deps) {
     dom.productGrid.innerHTML = topPagination + pageData.items.map((product) => {
       const isExpanded = state.expandedProductId === product.id;
       const isEditingPrice = isAdmin && state.editingPriceId === product.id;
+      const priceAlerts = getPriceWarningAlerts({
+        purchasePrice: product.price,
+        salePrice: product.sale_price ?? 0,
+      });
+      const priceWarningLabels = renderPriceWarningMarkup(priceAlerts, "view");
       const signals = getInventoryProductSignals(product, {
         pending: pendingDemandMap,
         draft: draftDemandMap,
@@ -277,6 +284,7 @@ export function createInventoryUi(deps) {
               <div class="product-row-stock">${escapeHtml(signals.stockLabel)}</div>
               <div class="inventory-product-side-meta">
                 <span>Giá ${formatCurrency(product.price)}</span>
+                ${priceWarningLabels ? `<div class="price-warning-inline">${priceWarningLabels}</div>` : ""}
                 ${sortSignalMarkup}
                 <span class="status-pill ${signals.statusClass}">${escapeHtml(signals.statusLabel)}</span>
               </div>
@@ -303,6 +311,7 @@ export function createInventoryUi(deps) {
                 <span>Giá ${formatCurrency(product.price)}</span>
                 <span>Giá trị tồn ${formatCurrency(product.inventory_value)}</span>
                 <span>${escapeHtml(String(product.lot_count || 0))} lô</span>
+                ${priceWarningLabels}
                 ${sortSignalMarkup}
                 <span class="status-pill ${signals.statusClass}">${escapeHtml(signals.statusLabel)}</span>
               </div>
@@ -396,10 +405,11 @@ export function createInventoryUi(deps) {
               ` : ""}
 
               ${isEditingPrice ? `
-                <div class="inline-price-edit">
-                  <input type="number" min="0" step="1000" value="${product.price}" data-price-input="${product.id}">
+                <div class="inline-price-edit" data-price-warning-group data-price-warning-mode="edit" data-price-warning-sale="${escapeHtml(product.sale_price ?? 0)}">
+                  <input type="number" min="0" step="1000" value="${product.price}" data-price-input="${product.id}" data-price-warning-input="purchase" data-price-warning-field="purchase">
                   <button type="button" class="ghost-button compact-button" data-save-price="${product.id}">Lưu giá</button>
                   <button type="button" class="ghost-button compact-button" data-product-action="cancel-price-edit" data-product-id="${product.id}">Hủy</button>
+                  <div data-price-warning-host>${renderPriceWarningMarkup(priceAlerts, "edit")}</div>
                 </div>
               ` : ""}
 

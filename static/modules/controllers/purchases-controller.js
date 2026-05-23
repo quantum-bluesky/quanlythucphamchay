@@ -910,6 +910,11 @@ export function registerPurchasesControllerEvents(contract) {
   });
 
   dom.purchasePanel.addEventListener("input", (event) => {
+    const warningInput = event.target.closest("[data-price-warning-input]");
+    if (warningInput) {
+      utils.syncPriceWarningGroup(warningInput.closest("[data-price-warning-group]"));
+      return;
+    }
     const supplierInput = event.target.closest("[data-supplier-return-supplier-input]");
     if (supplierInput) {
       state.supplierReturnDraft.supplierName = supplierInput.value;

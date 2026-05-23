@@ -1261,6 +1261,23 @@ button:disabled {
   color: var(--warning);
 }
 
+.price-warning-message {
+  margin-top: 8px;
+}
+
+.price-warning-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.price-warning-field {
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(200, 100, 48, 0.28);
+  background: linear-gradient(180deg, #fffaf7 0%, rgba(248, 225, 214, 0.48) 100%);
+}
+
 .active-cart-card {
   padding: 18px;
   border-radius: var(--radius-md);

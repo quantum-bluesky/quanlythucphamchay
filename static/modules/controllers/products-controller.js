@@ -17,7 +17,10 @@ export function registerProductsControllerEvents(contract) {
     dom.productForm.low_stock_threshold.value = "5";
     if (dom.productForm.shelf_life_days) dom.productForm.shelf_life_days.value = "";
     if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = "";
+    utils.syncPriceWarningGroups(dom.productForm);
   };
+
+  utils.syncPriceWarningGroups(dom.productForm);
 
   dom.productForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -61,6 +64,18 @@ export function registerProductsControllerEvents(contract) {
     state.productManageSearchTerm = event.target.value;
     state.pagination.productManage = 1;
     renderers.renderProductManageList();
+    utils.syncPriceWarningGroups(dom.productManageList);
+  });
+
+  dom.productForm.addEventListener("input", (event) => {
+    if (!event.target.closest("[data-price-warning-input]")) return;
+    utils.syncPriceWarningGroups(dom.productForm);
+  });
+
+  dom.productManageList.addEventListener("input", (event) => {
+    if (!event.target.closest("[data-price-warning-input]")) return;
+    const group = event.target.closest("[data-price-warning-group]");
+    utils.syncPriceWarningGroup(group);
   });
 
   dom.productHistoryActorInput?.addEventListener("input", async (event) => {
@@ -104,12 +119,14 @@ export function registerProductsControllerEvents(contract) {
     if (button.dataset.productManageAction === "edit") {
       state.editingProductId = productId;
       renderers.renderProductManageList();
+      utils.syncPriceWarningGroups(dom.productManageList);
       return;
     }
 
     if (button.dataset.productManageAction === "cancel") {
       state.editingProductId = null;
       renderers.renderProductManageList();
+      utils.syncPriceWarningGroups(dom.productManageList);
       return;
     }
 
@@ -133,6 +150,7 @@ export function registerProductsControllerEvents(contract) {
         });
         state.editingProductId = null;
         await actions.refreshData();
+        utils.syncPriceWarningGroups(dom.productManageList);
         actions.showToast(data.message);
       } catch (error) {
         actions.showToast(error.message, true);
