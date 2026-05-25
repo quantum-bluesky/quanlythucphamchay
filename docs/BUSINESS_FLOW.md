@@ -65,7 +65,7 @@ Nếu cần can thiệp đặc biệt
 - sửa giá bán riêng cho đơn
 - sửa địa chỉ giao riêng của đơn
 - có thể nhập thêm `giảm giá khuyến mại` cho toàn đơn; app tự tính lại số tiền cần thu
-- nếu cần, cập nhật luôn giá bán mặc định
+- nếu cần, cập nhật luôn giá bán mặc định nhưng UI phải hỏi confirm trước khi áp dụng
 - trong lúc đơn còn `draft` hoặc `committed`, vẫn có thể thêm bớt dòng và chỉnh số lượng/giá; chỉ sau `completed` mới khóa nội dung
 - từ `committed` trở đi, khách hàng của đơn bị khóa và không được đổi nữa
 - đơn xuất có thể được in từ lúc còn `draft` cho tới khi `paid`
@@ -162,7 +162,7 @@ Nếu cần can thiệp đặc biệt
 - bắt buộc có nhà cung cấp trước khi chuyển phiếu sang `ordered`
 - có thể nhập thêm `giảm giá khuyến mại` cho toàn phiếu để phản ánh số tiền thực trả NCC
 - phiếu nhập có thể được in từ lúc còn `draft` cho tới khi `paid`; ở list phiếu, nút `In` được ẩn khi phiếu đã thanh toán để giao diện gọn hơn
-- có thể đổi giá nhập mặc định
+- có thể đổi giá nhập mặc định nhưng UI phải hỏi confirm trước khi áp dụng
 - nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB; nếu phiếu đang là `draft` và đã có NCC thì bấm nút `NCC` vẫn phải cho chọn NCC khác
 - nhà cung cấp chỉ được đổi khi phiếu còn `draft`; từ `ordered` trở đi phải giữ nguyên NCC đã chốt
 - ngoại lệ compatibility: nếu DB cũ còn phiếu `ordered` nhưng thiếu `supplierName` hoặc thiếu item hợp lệ, app phải nhận diện đó là phiếu lỗi dữ liệu có thể repair để cho sửa NCC hoặc hủy/xóa dọn dữ liệu, thay vì khóa chết UI

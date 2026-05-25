@@ -102,7 +102,7 @@ Lưu ý:
 | 66 | `UT-REP-01` | Kiểm tra monthly report backend tách riêng sale/purchase với trả khách, trả NCC và điều chỉnh tồn. |
 | 67 | `ACC-PUR-03` | Kiểm tra phiếu nhập nháp phải được chuyển sang `Đã đặt hàng` trước khi `Nhập kho`, phiếu `Đã đặt hàng` vẫn chỉnh sửa được kể cả thêm mặt hàng mới nhưng NCC đã bị khóa, và tồn kho hiển thị số mới ngay sau khi nhập kho không cần F5. |
 | 68 | `UT-DB-11` | Kiểm tra backend chặn `draft -> received`, cho phép `ordered` tiếp tục chỉnh sửa kể cả thêm dòng hàng mới, rồi mới chuyển sang `received` hợp lệ. |
-| 69 | `IT-STS-01` | Kiểm tra các action đổi trạng thái, hủy và xóa phiếu ở đơn hàng và phiếu nhập đều hiện dialog confirm trước khi app áp dụng thay đổi, đồng thời tồn kho hiển thị số mới ngay sau khi xuất kho không cần F5. |
+| 69 | `IT-STS-01` | Kiểm tra các action đổi trạng thái, hủy, xóa phiếu và thao tác `Giá chung` ở đơn hàng/phiếu nhập đều hiện dialog confirm; nếu `Cancel` thì không đổi dữ liệu, còn `Confirm` mới áp dụng, đồng thời tồn kho hiển thị số mới ngay sau khi xuất kho không cần F5. |
 | 70 | `UT-AUTH-06` | Kiểm tra server serve `index.html` và `app.js` với cache-control phù hợp, đồng thời HTML/JS đã được gắn URL version cho client asset. |
 | 71 | `UT-JSVER-01` | Kiểm tra manifest version của từng file `.js` tăng đúng theo lần đổi nội dung và tự reset về `1` khi version chính đổi. |
 | 72 | `UT-AUD-04` | Kiểm tra import master sản phẩm ghi đúng actor cho các log `restore` và `update`. |

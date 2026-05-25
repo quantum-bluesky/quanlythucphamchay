@@ -118,7 +118,7 @@ Trong `Giỏ hiện hành`:
 3. Gõ trực tiếp số lượng
 4. Gõ giá bán cho khách
 5. Bấm `Lưu dòng`
-6. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung` và xác nhận
+6. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung`; app sẽ mở popup confirm trước, chỉ khi chọn `Xác nhận` mới cập nhật
 7. Nếu không cần dòng hàng đó nữa, bấm `Bỏ khỏi giỏ`
 8. Nếu có khuyến mại cho cả đơn, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
 9. Nếu cần gửi trước cho khách, có thể bấm `In` ngay từ lúc đơn còn `Nháp`
@@ -351,7 +351,7 @@ Màn này có 2 phần:
 13. Với mỗi dòng, mặc định app để cách nhập HSD là nhập trực tiếp `Hạn dùng`; nếu muốn nhập gián tiếp thì đổi sang `Ngày sản xuất` để app tự tính `HSD = NSX + thời gian bảo quản`
 14. Nếu cùng một sản phẩm về nhiều lô khác nhau, bấm `+ Lô` để nhân dòng đó thành dòng mới rồi nhập lại `Mã lô` / `HSD` hoặc `NSX` riêng
 15. Bấm `Lưu dòng` nếu có chỉnh
-16. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung` và xác nhận
+16. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung`; app sẽ mở popup confirm trước, chỉ khi chọn `Xác nhận` mới cập nhật
 17. Nếu có khuyến mại cho cả phiếu, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
 18. Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; nếu phiếu đang trống thì app chỉ giữ trạng thái mở tạm trên màn hình
 19. Nếu đổi ý ngay lúc phiếu nháp còn trống, có thể bấm `Xóa phiếu` để đóng phiếu nháp tạm mà không cần lưu xuống DB

@@ -107,6 +107,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Tồn kho liên kết trực tiếp với đơn chờ xuất và phiếu chờ nhập, thay cho nhập/xuất nhanh thủ công
 - Quản lý riêng `giá nhập` và `giá bán mặc định` của sản phẩm
 - Ở các màn đang sửa giá/mặt hàng, app sẽ hiện cảnh báo nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng; ở các màn chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
+- Khi bấm `Giá chung` để đẩy `giá nhập` hoặc `giá bán` hiện tại lên giá mặc định của mặt hàng, app luôn hiện hộp xác nhận trước để tránh cập nhật nhầm trên mobile
 - Có badge `Chờ xuất` / `Chờ nhập` ngay trên card tồn kho để nhảy nhanh sang màn liên quan, đồng thời hiện `số phiếu / tổng số lượng` đang chờ theo từng mặt hàng
 - Quản lý khách hàng, đơn nháp, `Chốt đơn` và `Xuất hàng` nhiều mặt hàng trong một lần
 - Có màn `Tạo nhiều đơn / Xuất nhanh` theo kiểu mobile-first: mỗi khách là một card riêng, cuối màn chỉ có `Lưu nháp` và `Chốt đơn hợp lệ`

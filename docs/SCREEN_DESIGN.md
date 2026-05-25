@@ -86,6 +86,7 @@ Liên kết detail hiện có:
   - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
   - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
   - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
+  - action `Giá chung` trong editor giá bán phải hiện message confirm trước khi cập nhật giá bán mặc định của mặt hàng để tránh bấm nhầm trên mobile
   - với mọi chỗ đang sửa giá bán theo mặt hàng, nếu `giá xuất < giá nhập` của 1 mặt hàng thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
   - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu, không phải per-line
   - nếu `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` của các dòng hàng, panel phải hiện cảnh báo ngắn và trước `Chốt đơn`/`Xuất hàng` phải hỏi xác nhận thêm
@@ -212,6 +213,7 @@ Liên kết detail hiện có:
   - ngay trên từng card gợi ý nhập phải có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
+  - action `Giá chung` trong editor giá nhập phải hiện message confirm trước khi cập nhật giá nhập mặc định của mặt hàng
   - với mọi chỗ đang sửa giá nhập theo mặt hàng, nếu `giá nhập < 1.000đ` thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
   - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu để đối chiếu số tiền thực trả NCC
   - mỗi dòng nhập cần có input `Mã lô` và phần nhập HSD hỗ trợ 2 mode: nhập trực tiếp `Hạn dùng` hoặc nhập gián tiếp `Ngày sản xuất`; mode mặc định là nhập trực tiếp HSD, còn mode gián tiếp sẽ tự tính `HSD = NSX + thời gian bảo quản`

@@ -67,6 +67,7 @@ Button `Detail` phải cho phép expand/collapse ngay trong card hoặc panel hi
 Khi list phiếu dùng panel detail riêng, panel đó phải có nút `Previous / Next` để chuyển theo đúng danh sách hiện đang lọc/search và có nút `Đóng` để ẩn detail mà không reset list.
 Detail của phiếu xuất phải vẫn mở được với đơn `Chốt đơn`, `Đã xuất hàng` và `Đã thanh toán`, kể cả khi người dùng đi từ màn khách hàng sang bằng link nội bộ.
 Detail của phiếu xuất và phiếu nhập phải luôn giữ action `In` từ lúc phiếu còn `Nháp` cho tới khi đã `Đã thanh toán`.
+Các action có thể đổi giá mặc định của mặt hàng từ trong detail như `Giá chung` cũng phải có confirm riêng trước khi ghi đè dữ liệu master.
 Các action hiếm như `Trả hàng` và `Trả NCC` chỉ nên xuất hiện trong detail của đúng phiếu nguồn; không đặt form độc lập ở phía ngoài list để tránh user nhầm đó là thao tác mở phiếu thông thường.
 
 Khi chứng từ có dữ liệu theo lô, phần danh sách dòng hoặc note đi kèm nên hiện thêm:
