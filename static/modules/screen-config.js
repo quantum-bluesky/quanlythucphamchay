@@ -1,5 +1,5 @@
 const MOBILE_FLOATING_HINT =
-  "Trên điện thoại, menu nổi, tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi bạn chạm ra ngoài; chạm lại vào phần mép còn lộ ra để mở đúng cụm cần dùng.";
+  "Trên điện thoại, menu nổi, tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi bạn chạm ra ngoài; chạm lại vào phần mép còn lộ ra để mở đúng cụm cần dùng. Nếu sau khi search/filter danh sách chỉ còn 1-4 mục thì thanh phân trang đầu list sẽ tự về dạng tĩnh ở đầu danh sách để không che item; từ 5 mục trở lên thanh này mới nổi khi cuộn.";
 const DESKTOP_MENU_HINT =
   "Trên PC/tablet, menu nghiệp vụ sẽ tự thu gọn khi bạn rê chuột hoặc bấm ra ngoài khung menu; hover hoặc bấm nút Mở menu để bung lại nhanh.";
 const DESKTOP_PAGINATION_HINT =
@@ -19,6 +19,7 @@ export const SCREEN_HELP = {
       "Nếu kỳ gom nhập đang active lock, màn này sẽ hiện cảnh báo cho biết ai đang giữ batch mode và các thiếu hàng sẽ đi về `Xử lý nhập thiếu` cho tới khi kỳ gom kết thúc.",
       "Nếu có máy khác vừa cập nhật tồn hoặc giá, màn hình sẽ tự nạp lại khi bạn đang rảnh thao tác; trong lúc đang gõ thì app sẽ tạm hoãn để tránh mất dữ liệu đang nhập.",
       "Chỉ Master Admin mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho và bắt buộc nhập lý do điều chỉnh.",
+      "Trên mobile hoặc tablet portrait, khi bạn là Master Admin thì khối `Chỉnh tồn trực tiếp` sẽ được ưu tiên mở gần đầu màn hình và chừa khoảng cuộn an toàn để các dock nổi không che mất field hay nút thao tác.",
       "Nếu cần xử lý sai lệch sau khi chứng từ đã xử lý, dùng nút Phiếu DC hoặc mở khối Phiếu điều chỉnh tồn để lập chứng từ tăng/giảm mới thay vì sửa ngược đơn/phiếu cũ.",
       "Phần Lịch sử gần đây mặc định thu gọn; bấm Lịch sử để nhảy nhanh xuống section đó hoặc bấm Mở lịch sử để bung danh sách giao dịch mới nhất.",
       "Với các dòng có mã đơn hoặc mã phiếu như DH/PN/DC/THK/TNCC, bấm trực tiếp vào mã để mở đúng chứng từ liên quan.",
@@ -44,7 +45,7 @@ export const SCREEN_HELP = {
       "Các mặt hàng đã chọn sẽ được gom lên khối giỏ hiện hành phía trên và mặc định ẩn khỏi danh sách dưới để tránh sót dòng; riêng card mà bạn chủ động bấm `...` thì vẫn được giữ lại để thao tác.",
       "Nếu máy khác vừa nhập thêm hàng hoặc đổi giá nhập mặc định, danh sách chọn hàng sẽ tự cập nhật khi bạn không còn focus ở ô đang gõ.",
       "Nếu có 2 máy cùng sửa một giỏ nháp, app sẽ chặn ghi đè và báo xung đột để bạn tải lại dữ liệu mới nhất trước khi lưu tiếp.",
-      "Trong Giỏ hiện hành, mỗi dòng đã chọn hiển thị dưới dạng card gọn 2 dòng; bấm `...` để mở detail rồi đổi số lượng, giá bán cho riêng đơn này hoặc bấm Giá chung để cập nhật giá bán mặc định của sản phẩm sau khi xác nhận.",
+      "Trong Giỏ hiện hành, mỗi dòng đã chọn hiển thị dưới dạng card gọn 2 dòng; bấm `...` để mở detail rồi đổi số lượng, giá bán cho riêng đơn này hoặc bấm `Giá chung` để mở hộp xác nhận trước khi cập nhật giá bán mặc định của sản phẩm.",
       "Nếu tại chỗ sửa giá bán mà `giá xuất < giá nhập` của 1 mặt hàng, app sẽ hiện cảnh báo ngay dưới editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn.",
       "Từ lúc `Chốt đơn`, app sẽ khóa khách hàng nhưng vẫn cho sửa dòng hàng, địa chỉ giao và giảm giá khuyến mại cho tới trước khi `Xuất hàng`.",
       "Địa chỉ giao là field riêng của đơn xuất; bạn có thể chỉnh trên panel/detail của đơn tới khi đã `Xuất hàng`.",
@@ -173,6 +174,7 @@ export const SCREEN_HELP = {
       "Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; phiếu trống chỉ là trạng thái mở tạm trên giao diện.",
       "Phiếu đang ở trạng thái `Nháp` hoặc `Đã đặt` vẫn có thể chỉnh sửa số lượng, giá và thêm bớt dòng; nút `Nhập kho` chỉ xuất hiện khi phiếu đã `Đã đặt`.",
       "Nếu tại chỗ sửa giá nhập mà `giá nhập < 1.000đ`, app sẽ hiện cảnh báo ngay dưới editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn.",
+      "Khi bấm `Giá chung` ở từng dòng nhập, app luôn mở hộp xác nhận trước rồi mới cập nhật giá nhập mặc định của sản phẩm.",
       "Bắt buộc chọn `Nhà cung cấp` trước khi chuyển phiếu sang `Đã đặt hàng`; nếu chưa có NCC thì app sẽ khóa luôn bước `Nhập kho`.",
       "Mỗi nhà cung cấp chỉ giữ 1 phiếu nhập nháp riêng: nếu chọn lại đúng NCC đã có nháp thì app mở lại phiếu đó để nhập tiếp, còn nếu chọn NCC khác thì app giữ nguyên phiếu cũ và mở nháp riêng cho NCC mới.",
       "Nếu phiếu nháp chưa có NCC, app tự chọn NCC khi mặt hàng vừa thêm chỉ từng nhập từ đúng một NCC; nếu từng nhập từ nhiều NCC thì ô NCC vẫn cho nhập tự do nhưng danh sách gợi ý sẽ đưa NCC nhập nhiều hơn lên trước.",

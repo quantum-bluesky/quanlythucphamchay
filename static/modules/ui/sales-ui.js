@@ -22,6 +22,7 @@ export function createSalesUi(deps) {
     isSearchResultMode,
     paginateItems,
     renderPagination,
+    buildTopPaginationClass,
   } = deps;
 
   function getCartStatusMeta(cart) {
@@ -429,7 +430,9 @@ export function createSalesUi(deps) {
 
     const pageData = paginateItems(filtered, "salesProducts");
     const paginationMarkup = renderPagination("salesProducts", pageData);
-    const topPagination = paginationMarkup ? `<div class="sales-top-pagination">${paginationMarkup}</div>` : "";
+    const topPagination = paginationMarkup
+      ? `<div class="${escapeHtml(buildTopPaginationClass("sales-top-pagination", filtered.length))}">${paginationMarkup}</div>`
+      : "";
     const bottomPagination = paginationMarkup ? `<div class="sales-bottom-pagination">${paginationMarkup}</div>` : "";
     const listMarkup = pageData.items
       .map((product) => {
@@ -537,7 +540,9 @@ export function createSalesUi(deps) {
     }
     const pageData = paginateItems(visibleCarts, "orders");
     const paginationMarkup = renderPagination("orders", pageData);
-    const topPagination = paginationMarkup ? `<div class="orders-top-pagination">${paginationMarkup}</div>` : "";
+    const topPagination = paginationMarkup
+      ? `<div class="${escapeHtml(buildTopPaginationClass("orders-top-pagination", visibleCarts.length))}">${paginationMarkup}</div>`
+      : "";
     const bottomPagination = paginationMarkup ? `<div class="orders-bottom-pagination">${paginationMarkup}</div>` : "";
     const selectedMergeIds = (Array.isArray(state.selectedOrderMergeIds) ? state.selectedOrderMergeIds : [])
       .filter((cartId) => visibleCarts.some((cart) => String(cart.id) === String(cartId)));

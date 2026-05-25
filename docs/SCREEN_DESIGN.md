@@ -34,6 +34,7 @@ Liên kết detail hiện có:
 - mỗi màn có search nhanh riêng
 - popup/help phải đóng được và có liên kết qua lại giữa các màn liên quan
 - luồng chính ưu tiên thao tác nhanh cho cửa hàng nhỏ
+- trên mobile, thanh phân trang đầu list chỉ nổi khi danh sách còn từ 5 mục trở lên; nếu search/filter chỉ còn 1-4 mục thì thanh này phải neo tĩnh ngay phần đầu list để tránh che item
 - với action có ghi dữ liệu lên server hoặc đồng bộ SQLite/state, UI phải hiện loading overlay toàn cục và khóa tạm thao tác còn lại cho tới khi trạng thái mới render xong để tránh bấm chồng
 - khi Batch procurement mode còn active lock, các màn liên quan như `inventory`, `create-order`, `orders`, `purchases`, `suppliers`, `procurement-planner` phải hiện cảnh báo ngắn cho biết owner của lock, thời điểm hết hạn gần nhất và impact chính trên màn hiện tại
 
@@ -63,6 +64,7 @@ Liên kết detail hiện có:
   - sort nằm ở pagination đầu list; pagination cuối không lặp sort control
   - mode `Ưu tiên nhập/xử lý` hiển thị thêm điểm ưu tiên trên card
   - mode `Hạn còn ít` hiển thị theo HSD thật của lô gần nhất nếu có; chỉ fallback về ước tính sản phẩm khi chưa có lô nào có HSD
+  - nếu user là `Master Admin`, panel `Chỉnh tồn trực tiếp` trên mobile/ tablet portrait phải ưu tiên nằm sát đầu màn hình, tự mở được ngay khi vào màn và cuộn tới hết form mà không bị dock nổi che phần nhập liệu hay action
   - khối `Lịch sử gần đây` mặc định thu gọn, có nút `Mở lịch sử/Thu gọn`
   - nếu dòng lịch sử có mã `DH/PN/DC/THK/TNCC` thì mã đó là link nội bộ để mở đúng chứng từ liên quan
   - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết thiếu hàng sẽ đi qua planner batch thay vì flow nhập thiếu nhanh
@@ -84,6 +86,7 @@ Liên kết detail hiện có:
   - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
   - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
   - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
+  - action `Giá chung` trong editor giá bán phải hiện message confirm trước khi cập nhật giá bán mặc định của mặt hàng để tránh bấm nhầm trên mobile
   - với mọi chỗ đang sửa giá bán theo mặt hàng, nếu `giá xuất < giá nhập` của 1 mặt hàng thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
   - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu, không phải per-line
   - nếu `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` của các dòng hàng, panel phải hiện cảnh báo ngắn và trước `Chốt đơn`/`Xuất hàng` phải hỏi xác nhận thêm
@@ -210,6 +213,7 @@ Liên kết detail hiện có:
   - ngay trên từng card gợi ý nhập phải có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
+  - action `Giá chung` trong editor giá nhập phải hiện message confirm trước khi cập nhật giá nhập mặc định của mặt hàng
   - với mọi chỗ đang sửa giá nhập theo mặt hàng, nếu `giá nhập < 1.000đ` thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
   - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu để đối chiếu số tiền thực trả NCC
   - mỗi dòng nhập cần có input `Mã lô` và phần nhập HSD hỗ trợ 2 mode: nhập trực tiếp `Hạn dùng` hoặc nhập gián tiếp `Ngày sản xuất`; mode mặc định là nhập trực tiếp HSD, còn mode gián tiếp sẽ tự tính `HSD = NSX + thời gian bảo quản`

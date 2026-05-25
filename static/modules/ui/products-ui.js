@@ -11,6 +11,7 @@ export function createProductsUi(deps) {
     isSearchResultMode,
     paginateItems,
     renderPagination,
+    buildTopPaginationClass,
   } = deps;
 
   function renderProductSections() {
@@ -46,7 +47,7 @@ export function createProductsUi(deps) {
     const pageData = paginateItems(filtered, "productManage");
     const paginationMarkup = renderPagination("productManage", pageData);
     const topPagination = paginationMarkup
-      ? `<div class="products-top-pagination">${paginationMarkup}</div>`
+      ? `<div class="${escapeHtml(buildTopPaginationClass("products-top-pagination", filtered.length))}">${paginationMarkup}</div>`
       : "";
     const bottomPagination = paginationMarkup
       ? `<div class="products-bottom-pagination">${paginationMarkup}</div>`
