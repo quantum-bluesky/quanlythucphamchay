@@ -22,11 +22,17 @@ async function setFloatingSearch(page, term) {
   await page.waitForTimeout(250);
 }
 
-async function captureDialogMessage(page, trigger) {
+async function captureDialogMessage(page, trigger, { accept = true } = {}) {
   const dialogPromise = page.waitForEvent("dialog");
   await trigger();
   const dialog = await dialogPromise;
-  return dialog.message();
+  const message = dialog.message();
+  if (accept) {
+    await dialog.accept();
+  } else {
+    await dialog.dismiss();
+  }
+  return message;
 }
 
 function expectedQuantityText(value) {
@@ -502,7 +508,7 @@ test("IT-PUR-01 purchase suggestions allow overriding quantity before adding to 
 });
 
 test("IT-STS-01 status-changing order and purchase actions show confirm dialogs before applying", async ({ page, request }) => {
-  const runtime = attachRuntimeTracking(page);
+  const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
   let userCookie = await autoLoginUserRequest(request);
   const timestamp = Date.now();
   const draftCustomerName = `Khách confirm ${timestamp}`;
@@ -517,6 +523,8 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
   const draftPurchaseId = `purchase_confirm_${timestamp}`;
   const cancelOrderedPurchaseId = `purchase_cancel_confirm_${timestamp}`;
   const deleteDraftPurchaseId = `purchase_delete_confirm_${timestamp}`;
+  const draftCartItemId = `cart_item_confirm_${timestamp}`;
+  const draftPurchaseItemId = `purchase_item_confirm_${timestamp}`;
 
   const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
@@ -527,6 +535,10 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
   const product = productsPayload.products?.find((entry) => Number(entry.current_stock || 0) >= 2) || productsPayload.products?.[0];
   expect(product).toBeTruthy();
   const startingStock = Number(product.current_stock || 0);
+  const originalSalePrice = Number(product.sale_price || product.price || 0) || 1000;
+  const originalUnitCost = Number(product.price || 0) || 1000;
+  const updatedSalePrice = originalSalePrice + 2000;
+  const updatedUnitCost = originalUnitCost + 1000;
 
   const draftCart = {
     id: draftCartId,
@@ -538,11 +550,11 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     orderCode: "",
     items: [
       {
-        id: `cart_item_confirm_${timestamp}`,
+        id: draftCartItemId,
         productId: product.id,
         productName: product.name,
         quantity: 1,
-        unitPrice: Number(product.sale_price || product.price || 0) || 1000,
+        unitPrice: originalSalePrice,
         note: "",
       },
     ],
@@ -557,11 +569,11 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     receiptCode: "",
     items: [
       {
-        id: `purchase_item_confirm_${timestamp}`,
+        id: draftPurchaseItemId,
         productId: product.id,
         productName: product.name,
         quantity: 1,
-        unitCost: Number(product.price || 0) || 1000,
+        unitCost: originalUnitCost,
       },
     ],
   };
@@ -661,6 +673,29 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const draftOrderCard = page.locator(".cart-queue-item", { hasText: draftCustomerName }).first();
     await draftOrderCard.locator('[data-queue-action="open"]').click();
     await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    await page.locator(`[data-cart-item-action="toggle-detail"][data-item-id="${draftCartItemId}"]`).click();
+    const salePriceInput = page.locator(`[data-price-input="${draftCartItemId}"]`);
+    await expect(salePriceInput).toBeVisible();
+    await salePriceInput.fill(String(updatedSalePrice));
+    const saleDefaultCancelDialog = await captureDialogMessage(page, async () => {
+      await page.locator(`[data-cart-item-action="update-default-price"][data-item-id="${draftCartItemId}"]`).click();
+    }, { accept: false });
+    expect(saleDefaultCancelDialog).toBe("Xác nhận cập nhật giá bán hiện tại thành giá bán mặc định của mặt hàng?");
+    let latestProductsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+    expect(latestProductsResponse.ok()).toBeTruthy();
+    let latestProductsPayload = await latestProductsResponse.json();
+    expect(Number(latestProductsPayload.products?.find((entry) => Number(entry.id) === Number(product.id))?.sale_price || 0)).toBe(originalSalePrice);
+
+    const saleDefaultConfirmDialog = await captureDialogMessage(page, async () => {
+      await page.locator(`[data-cart-item-action="update-default-price"][data-item-id="${draftCartItemId}"]`).click();
+    });
+    expect(saleDefaultConfirmDialog).toBe("Xác nhận cập nhật giá bán hiện tại thành giá bán mặc định của mặt hàng?");
+    const salePriceToast = await collectToast(page, runtime, "it-sts-01-sale-default-price", { errorPattern: /^$/ });
+    expect(salePriceToast).toContain("Đã cập nhật giá bán");
+    latestProductsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+    expect(latestProductsResponse.ok()).toBeTruthy();
+    latestProductsPayload = await latestProductsResponse.json();
+    expect(Number(latestProductsPayload.products?.find((entry) => Number(entry.id) === Number(product.id))?.sale_price || 0)).toBe(updatedSalePrice);
     if (!await page.locator('[data-cart-action="commit"]').isVisible().catch(() => false)) {
       await page.locator('[data-cart-action="toggle-panel"]').click();
       await expect(page.locator('[data-cart-action="commit"]')).toBeVisible();
@@ -715,6 +750,29 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     await setFloatingSearch(page, draftSupplierName);
     const draftPurchaseCard = page.locator(".cart-queue-item", { hasText: draftSupplierName }).first();
     await draftPurchaseCard.locator('[data-purchase-list-action="open"]').click();
+    const purchaseCostInput = page.locator(`[data-purchase-cost-input="${draftPurchaseItemId}"]`);
+    await expect(purchaseCostInput).toBeVisible();
+    await purchaseCostInput.fill(String(updatedUnitCost));
+
+    const purchaseDefaultCancelDialog = await captureDialogMessage(page, async () => {
+      await page.locator(`[data-purchase-item-action="update-default-cost"][data-purchase-item-id="${draftPurchaseItemId}"]`).click();
+    }, { accept: false });
+    expect(purchaseDefaultCancelDialog).toBe("Xác nhận cập nhật giá nhập hiện tại thành giá nhập mặc định của mặt hàng?");
+    latestProductsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+    expect(latestProductsResponse.ok()).toBeTruthy();
+    latestProductsPayload = await latestProductsResponse.json();
+    expect(Number(latestProductsPayload.products?.find((entry) => Number(entry.id) === Number(product.id))?.price || 0)).toBe(originalUnitCost);
+
+    const purchaseDefaultConfirmDialog = await captureDialogMessage(page, async () => {
+      await page.locator(`[data-purchase-item-action="update-default-cost"][data-purchase-item-id="${draftPurchaseItemId}"]`).click();
+    });
+    expect(purchaseDefaultConfirmDialog).toBe("Xác nhận cập nhật giá nhập hiện tại thành giá nhập mặc định của mặt hàng?");
+    const purchasePriceToast = await collectToast(page, runtime, "it-sts-01-purchase-default-price", { errorPattern: /^$/ });
+    expect(purchasePriceToast).toContain("Đã cập nhật giá nhập");
+    latestProductsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+    expect(latestProductsResponse.ok()).toBeTruthy();
+    latestProductsPayload = await latestProductsResponse.json();
+    expect(Number(latestProductsPayload.products?.find((entry) => Number(entry.id) === Number(product.id))?.price || 0)).toBe(updatedUnitCost);
 
     const markOrderedDialog = await captureDialogMessage(page, async () => {
       await page.locator('[data-purchase-action="mark-ordered"]').click();
@@ -814,6 +872,18 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const deletedPurchaseState = await deletedPurchaseStateResponse.json();
     expect((deletedPurchaseState.purchases || []).some((purchase) => purchase.id === deleteDraftPurchaseId)).toBeFalsy();
   } finally {
+    await request.put(`/api/products/${product.id}/sale-price`, {
+      headers: { Cookie: userCookie },
+      data: {
+        sale_price: originalSalePrice,
+      },
+    });
+    await request.put(`/api/products/${product.id}/price`, {
+      headers: { Cookie: userCookie },
+      data: {
+        price: originalUnitCost,
+      },
+    });
     await request.put("/api/state", {
       headers: { Cookie: userCookie },
       data: {

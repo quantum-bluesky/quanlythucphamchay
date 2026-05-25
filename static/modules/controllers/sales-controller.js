@@ -32,6 +32,10 @@ export function registerSalesControllerEvents(contract) {
     );
   }
 
+  function confirmUpdateDefaultSalePrice() {
+    return window.confirm("Xác nhận cập nhật giá bán hiện tại thành giá bán mặc định của mặt hàng?");
+  }
+
   function normalizeCustomerKey(value) {
     return String(value || "").trim().toLocaleLowerCase("vi");
   }
@@ -447,7 +451,7 @@ export function registerSalesControllerEvents(contract) {
         actions.showToast("Giá bán không hợp lệ.", true);
         return;
       }
-      if (!window.confirm(`Cập nhật giá bán chung của "${product.name}" thành ${utils.formatCurrency(unitPrice)}?`)) return;
+      if (!confirmUpdateDefaultSalePrice()) return;
       try {
         await actions.updateProductSalePrice(actionButton.dataset.productId, unitPrice);
       } catch (error) {
@@ -511,8 +515,16 @@ export function registerSalesControllerEvents(contract) {
     if (lineAction === "update-default-price") {
       const priceInput = dom.cartItemsList.querySelector(`[data-price-input-cart="${lineButton.dataset.itemId}"], [data-price-input="${lineButton.dataset.itemId}"]`);
       const unitPrice = Number(priceInput?.value);
+      const product = state.products.find((entry) => Number(entry.id) === Number(lineButton.dataset.productId));
+      if (!product) {
+        actions.showToast("Không tìm thấy sản phẩm.", true);
+        return;
+      }
       if (!Number.isFinite(unitPrice) || unitPrice < 0) {
         actions.showToast("Giá bán không hợp lệ.", true);
+        return;
+      }
+      if (!confirmUpdateDefaultSalePrice()) {
         return;
       }
       try {

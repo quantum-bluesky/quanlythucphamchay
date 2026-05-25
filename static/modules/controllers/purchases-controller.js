@@ -175,6 +175,10 @@ export function registerPurchasesControllerEvents(contract) {
     return window.confirm(message);
   }
 
+  function confirmUpdateDefaultCost() {
+    return window.confirm("Xác nhận cập nhật giá nhập hiện tại thành giá nhập mặc định của mặt hàng?");
+  }
+
   function savePurchaseDiscount(purchaseId, inputSelectorRoot, options = {}) {
     const { silent = false, persist = true } = options;
     const purchase = queries.getActivePurchase()?.id === purchaseId
@@ -636,7 +640,7 @@ export function registerPurchasesControllerEvents(contract) {
           actions.showToast("Không tìm thấy sản phẩm.", true);
           return;
         }
-        if (!window.confirm(`Cập nhật giá nhập chung của "${product.name}" thành ${unitCost.toLocaleString("vi-VN")} đ?\nGiá mặc định này sẽ được dùng cho các phiếu nhập mới sau đó.`)) {
+        if (!confirmUpdateDefaultCost()) {
           return;
         }
         actions.updatePurchase(purchase.id, (currentPurchase) => ({
