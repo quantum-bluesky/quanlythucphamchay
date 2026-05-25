@@ -128,6 +128,7 @@ export function createInventoryUi(deps) {
     const noteLabel = dom.noteInput.closest("label")?.querySelector("span");
 
     dom.quickPanel.hidden = !isAdmin;
+    dom.quickPanel.classList.toggle("is-direct-adjust-mode", isAdmin);
     if (!isAdmin) {
       if (kicker) {
         kicker.textContent = "Nhập / xuất nhanh";

@@ -199,7 +199,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Có module `Master Admin` để export/import file master (JSON/CSV) và backup/restore toàn bộ database
 - `Master Admin` có thêm khối `Legacy Audit` để quét DB đang dùng, áp dụng các backfill an toàn và cho admin gắn lại `receipt_code` / `đơn nguồn` cho record legacy còn dang dở
 - Timeout phiên tách riêng trong config: `session_timeout_minutes` cho user thường và `admin_session_timeout_minutes` cho admin; khi không có thao tác đủ lâu thì phiên sẽ tự hết hạn và quay về trạng thái cần login, không hiện dialog gia hạn phiên
-- Chỉ `Master Admin` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit
+- Chỉ `Master Admin` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit; trên mobile/tablet, panel chỉnh tồn được ưu tiên mở sát đầu màn hình và có khoảng cuộn an toàn để không bị thanh nổi che field hoặc button
 - Luồng Phase B đã có UI ngay trong app: `Phiếu DC` ở màn tồn kho, còn `Phiếu trả hàng khách` và `Phiếu trả NCC` chỉ mở trong detail của đúng đơn/phiếu nguồn để tránh bấm nhầm
 - Các chứng từ đã `completed/received/paid/cancelled` vẫn bị khóa xóa/hủy trực tiếp kể cả với `Master Admin`; muốn điều chỉnh phải lập phiếu mới để giữ audit
 - Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất

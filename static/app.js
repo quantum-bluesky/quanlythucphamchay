@@ -4332,6 +4332,24 @@ function openQuickPanel() {
   setQuickPanelCollapsed(false);
 }
 
+function shouldPrioritizeInventoryQuickPanel() {
+  return state.activeMenu === "inventory"
+    && Boolean(state.admin?.isAdmin)
+    && window.matchMedia("(max-width: 1100px)").matches;
+}
+
+function maybeAutoOpenInventoryQuickPanel() {
+  if (!shouldPrioritizeInventoryQuickPanel()) {
+    state.inventoryQuickPanelAutoOpened = false;
+    return;
+  }
+  if (state.inventoryQuickPanelAutoOpened) {
+    return;
+  }
+  openQuickPanel();
+  state.inventoryQuickPanelAutoOpened = true;
+}
+
 function renderInventoryDirectEditAccess() {
   getInventoryUi().renderInventoryDirectEditAccess();
 }
@@ -5444,6 +5462,7 @@ function renderAll() {
   renderPurchaseEntryState();
   renderReportSections();
   renderEntityForms();
+  maybeAutoOpenInventoryQuickPanel();
   renderScreenToolbox();
   renderFloatingSearchDock();
   refreshSearchClearButtons();

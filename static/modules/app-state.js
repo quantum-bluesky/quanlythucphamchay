@@ -139,6 +139,7 @@ export const state = {
     note: "",
     items: [],
   },
+  inventoryQuickPanelAutoOpened: false,
   inventoryHistoryCollapsed: true,
   customerReturnDraft: {
     collapsed: true,

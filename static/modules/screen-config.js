@@ -19,6 +19,7 @@ export const SCREEN_HELP = {
       "Nếu kỳ gom nhập đang active lock, màn này sẽ hiện cảnh báo cho biết ai đang giữ batch mode và các thiếu hàng sẽ đi về `Xử lý nhập thiếu` cho tới khi kỳ gom kết thúc.",
       "Nếu có máy khác vừa cập nhật tồn hoặc giá, màn hình sẽ tự nạp lại khi bạn đang rảnh thao tác; trong lúc đang gõ thì app sẽ tạm hoãn để tránh mất dữ liệu đang nhập.",
       "Chỉ Master Admin mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho và bắt buộc nhập lý do điều chỉnh.",
+      "Trên mobile hoặc tablet portrait, khi bạn là Master Admin thì khối `Chỉnh tồn trực tiếp` sẽ được ưu tiên mở gần đầu màn hình và chừa khoảng cuộn an toàn để các dock nổi không che mất field hay nút thao tác.",
       "Nếu cần xử lý sai lệch sau khi chứng từ đã xử lý, dùng nút Phiếu DC hoặc mở khối Phiếu điều chỉnh tồn để lập chứng từ tăng/giảm mới thay vì sửa ngược đơn/phiếu cũ.",
       "Phần Lịch sử gần đây mặc định thu gọn; bấm Lịch sử để nhảy nhanh xuống section đó hoặc bấm Mở lịch sử để bung danh sách giao dịch mới nhất.",
       "Với các dòng có mã đơn hoặc mã phiếu như DH/PN/DC/THK/TNCC, bấm trực tiếp vào mã để mở đúng chứng từ liên quan.",

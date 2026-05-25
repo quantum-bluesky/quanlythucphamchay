@@ -566,6 +566,18 @@ h3 {
   overflow: hidden;
 }
 
+.quick-panel.is-direct-adjust-mode {
+  scroll-margin-top: calc(var(--screen-header-bar-top) + var(--screen-header-bar-offset) + 8px);
+}
+
+.quick-panel.is-direct-adjust-mode .panel-heading {
+  margin-bottom: 14px;
+}
+
+.quick-panel.is-direct-adjust-mode .quick-panel-tools {
+  justify-items: start;
+}
+
 .panel-heading,
 .subheading {
   display: flex;
@@ -1950,6 +1962,38 @@ button:disabled {
     top: calc(110px + var(--screen-header-bar-offset));
   }
 
+  .quick-panel.is-direct-adjust-mode {
+    position: static;
+    top: auto;
+    z-index: auto;
+    margin-top: 0;
+    padding: 16px 16px 12px;
+  }
+
+  .quick-panel.is-direct-adjust-mode .panel-heading {
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+
+  .quick-panel.is-direct-adjust-mode .panel-heading h2 {
+    font-size: 1.16rem;
+    line-height: 1.2;
+  }
+
+  .quick-panel.is-direct-adjust-mode .quick-panel-tools {
+    gap: 6px;
+  }
+
+  .quick-panel.is-direct-adjust-mode .quick-panel-body {
+    max-height: none;
+    overflow: visible;
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .quick-panel.is-direct-adjust-mode .quick-form {
+    gap: 12px;
+  }
+
   .sticky-toolbar {
     top: calc(184px + var(--screen-header-bar-offset));
   }
@@ -3122,6 +3166,36 @@ button:disabled {
 
   .quick-panel {
     top: calc(78px + var(--screen-header-bar-offset));
+  }
+
+  .quick-panel.is-direct-adjust-mode {
+    top: calc(62px + var(--screen-header-bar-offset));
+    padding-bottom: 16px;
+  }
+
+  .quick-panel.is-direct-adjust-mode .panel-heading {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .quick-panel.is-direct-adjust-mode .quick-panel-tools {
+    gap: 8px;
+  }
+
+  .quick-panel.is-direct-adjust-mode .quick-panel-body {
+    max-height: none;
+    overflow: visible;
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .quick-panel.is-direct-adjust-mode .quick-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .quick-panel.is-direct-adjust-mode .quick-form .action-row {
+    grid-column: 1 / -1;
   }
 
   [data-menu-section="purchases"] .sales-product-list,

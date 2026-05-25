@@ -64,6 +64,7 @@ Liên kết detail hiện có:
   - sort nằm ở pagination đầu list; pagination cuối không lặp sort control
   - mode `Ưu tiên nhập/xử lý` hiển thị thêm điểm ưu tiên trên card
   - mode `Hạn còn ít` hiển thị theo HSD thật của lô gần nhất nếu có; chỉ fallback về ước tính sản phẩm khi chưa có lô nào có HSD
+  - nếu user là `Master Admin`, panel `Chỉnh tồn trực tiếp` trên mobile/ tablet portrait phải ưu tiên nằm sát đầu màn hình, tự mở được ngay khi vào màn và cuộn tới hết form mà không bị dock nổi che phần nhập liệu hay action
   - khối `Lịch sử gần đây` mặc định thu gọn, có nút `Mở lịch sử/Thu gọn`
   - nếu dòng lịch sử có mã `DH/PN/DC/THK/TNCC` thì mã đó là link nội bộ để mở đúng chứng từ liên quan
   - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết thiếu hàng sẽ đi qua planner batch thay vì flow nhập thiếu nhanh
