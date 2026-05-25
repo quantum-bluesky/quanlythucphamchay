@@ -1,0 +1,13 @@
+[mkdocs]
+nav = [
+  { path = "README.md", title = "Trang chủ" },
+  { path = "HUONG_DAN_SU_DUNG.md", title = "Hướng dẫn" }
+]
+
+[loaders]
+theme = "pkg://mkdocs/default"
+docs  = "dir://docs"
+
+[context]
+title   = "Quản lý Thực phẩm Chay"
+favicon = "📘"
