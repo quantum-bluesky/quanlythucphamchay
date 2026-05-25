@@ -3158,6 +3158,18 @@ button:disabled {
     background: rgba(255, 252, 246, 0.96);
   }
 
+  .list-top-pagination.is-static-mobile {
+    position: static !important;
+    top: auto !important;
+    z-index: auto !important;
+    padding: 0 0 8px;
+    background: none;
+  }
+
+  .list-top-pagination.is-static-mobile .pagination-bar {
+    background: rgba(255, 252, 246, 0.96);
+  }
+
   [data-menu-section="create-order"] .sales-bottom-pagination,
   [data-menu-section="purchases"] .purchase-suggestions-bottom-pagination,
   [data-menu-section="purchases"] .purchase-orders-bottom-pagination,

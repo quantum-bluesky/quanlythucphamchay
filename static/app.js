@@ -741,6 +741,7 @@ function getProductsUi() {
       isSearchResultMode,
       paginateItems,
       renderPagination,
+      buildTopPaginationClass,
     });
   }
   return productsUi;
@@ -785,6 +786,7 @@ function getInventoryUi() {
       isSearchResultMode,
       paginateItems,
       renderPagination,
+      buildTopPaginationClass,
     });
   }
   return inventoryUi;
@@ -986,6 +988,7 @@ function getSalesUi() {
       isSearchResultMode,
       paginateItems,
       renderPagination,
+      buildTopPaginationClass,
     });
   }
   return salesUi;
@@ -1072,6 +1075,7 @@ function getPurchasesUi() {
       isSearchResultMode,
       paginateItems,
       renderPagination,
+      buildTopPaginationClass,
     });
   }
   return purchasesUi;
@@ -1564,12 +1568,22 @@ function shouldShowPaginationSizePicker(key) {
   return !mobileQuery.matches && Boolean(PAGINATION_GROUP_MAP[key]);
 }
 
+function buildTopPaginationClass(baseClass, totalVisibleItems) {
+  const classes = [String(baseClass || "").trim(), "list-top-pagination"].filter(Boolean);
+  const visibleItems = Number(totalVisibleItems);
+  if (mobileQuery.matches && Number.isFinite(visibleItems) && visibleItems > 0 && visibleItems < 5) {
+    classes.push("is-static-mobile");
+  }
+  return classes.join(" ");
+}
+
 function renderPagination(key, pageData, options = {}) {
   const pageSize = getPageSize(key);
   const showPageSizePicker = shouldShowPaginationSizePicker(key);
   const force = Boolean(options.force);
   const extraControls = String(options.extraControls || "");
-  if (!force && pageData.totalItems <= pageSize && (!showPageSizePicker || pageData.totalItems <= PAGINATION_PAGE_SIZE_OPTIONS[0])) {
+  const searchResultMode = isSearchResultMode(key);
+  if (!force && !searchResultMode && pageData.totalItems <= pageSize && (!showPageSizePicker || pageData.totalItems <= PAGINATION_PAGE_SIZE_OPTIONS[0])) {
     return "";
   }
 
@@ -1584,7 +1598,7 @@ function renderPagination(key, pageData, options = {}) {
       </label>
     ` : "";
   return `
-    <div class="pagination-bar ${isSearchResultMode(key) ? "is-search-pagination" : ""}">
+    <div class="pagination-bar ${searchResultMode ? "is-search-pagination" : ""}">
       <div class="pagination-nav">
         <button type="button" class="ghost-button compact-button" data-page-key="${key}" data-page-action="prev" ${pageData.page <= 1 ? "disabled" : ""}>← Trước</button>
         <span class="pagination-status">Trang ${pageData.page}/${pageData.totalPages} • ${pageData.totalItems} mục</span>

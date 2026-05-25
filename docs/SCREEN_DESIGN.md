@@ -34,6 +34,7 @@ Liên kết detail hiện có:
 - mỗi màn có search nhanh riêng
 - popup/help phải đóng được và có liên kết qua lại giữa các màn liên quan
 - luồng chính ưu tiên thao tác nhanh cho cửa hàng nhỏ
+- trên mobile, thanh phân trang đầu list chỉ nổi khi danh sách còn từ 5 mục trở lên; nếu search/filter chỉ còn 1-4 mục thì thanh này phải neo tĩnh ngay phần đầu list để tránh che item
 - với action có ghi dữ liệu lên server hoặc đồng bộ SQLite/state, UI phải hiện loading overlay toàn cục và khóa tạm thao tác còn lại cho tới khi trạng thái mới render xong để tránh bấm chồng
 - khi Batch procurement mode còn active lock, các màn liên quan như `inventory`, `create-order`, `orders`, `purchases`, `suppliers`, `procurement-planner` phải hiện cảnh báo ngắn cho biết owner của lock, thời điểm hết hạn gần nhất và impact chính trên màn hiện tại
 
