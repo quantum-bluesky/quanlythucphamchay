@@ -23,16 +23,41 @@ async function setFloatingSearch(page, term) {
 }
 
 async function captureDialogMessage(page, trigger, { accept = true } = {}) {
-  const dialogPromise = page.waitForEvent("dialog");
+  const dialogPromise = page.waitForEvent("dialog").then(async (dialog) => {
+    const message = dialog.message();
+    if (accept) {
+      await dialog.accept();
+    } else {
+      await dialog.dismiss();
+    }
+    return message;
+  });
   await trigger();
-  const dialog = await dialogPromise;
-  const message = dialog.message();
-  if (accept) {
-    await dialog.accept();
-  } else {
-    await dialog.dismiss();
+  return dialogPromise;
+}
+
+async function ensureSelectedCartItemsExpanded(page, itemId) {
+  const lineToggleButton = page.locator(`[data-cart-item-action="toggle-detail"][data-item-id="${itemId}"]`);
+  if (await lineToggleButton.isVisible().catch(() => false)) {
+    return;
   }
-  return message;
+  const sectionToggleButton = page.locator("#selectedCartToggleButton");
+  if (await sectionToggleButton.isVisible().catch(() => false)) {
+    await sectionToggleButton.click();
+  }
+  await expect(lineToggleButton).toBeVisible();
+}
+
+async function ensureSelectedPurchaseItemsExpanded(page, itemId) {
+  const costInput = page.locator(`[data-purchase-cost-input="${itemId}"]`);
+  if (await costInput.isVisible().catch(() => false)) {
+    return;
+  }
+  const sectionToggleButton = page.locator('[data-purchase-selected-action="toggle"]');
+  if (await sectionToggleButton.isVisible().catch(() => false)) {
+    await sectionToggleButton.click();
+  }
+  await expect(costInput).toBeVisible();
 }
 
 function expectedQuantityText(value) {
@@ -508,6 +533,7 @@ test("IT-PUR-01 purchase suggestions allow overriding quantity before adding to 
 });
 
 test("IT-STS-01 status-changing order and purchase actions show confirm dialogs before applying", async ({ page, request }) => {
+  test.slow();
   const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
   let userCookie = await autoLoginUserRequest(request);
   const timestamp = Date.now();
@@ -673,6 +699,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const draftOrderCard = page.locator(".cart-queue-item", { hasText: draftCustomerName }).first();
     await draftOrderCard.locator('[data-queue-action="open"]').click();
     await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    await ensureSelectedCartItemsExpanded(page, draftCartItemId);
     await page.locator(`[data-cart-item-action="toggle-detail"][data-item-id="${draftCartItemId}"]`).click();
     const salePriceInput = page.locator(`[data-price-input="${draftCartItemId}"]`);
     await expect(salePriceInput).toBeVisible();
@@ -750,6 +777,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     await setFloatingSearch(page, draftSupplierName);
     const draftPurchaseCard = page.locator(".cart-queue-item", { hasText: draftSupplierName }).first();
     await draftPurchaseCard.locator('[data-purchase-list-action="open"]').click();
+    await ensureSelectedPurchaseItemsExpanded(page, draftPurchaseItemId);
     const purchaseCostInput = page.locator(`[data-purchase-cost-input="${draftPurchaseItemId}"]`);
     await expect(purchaseCostInput).toBeVisible();
     await purchaseCostInput.fill(String(updatedUnitCost));
