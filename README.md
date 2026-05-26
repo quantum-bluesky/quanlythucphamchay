@@ -158,7 +158,6 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Client `.js` được gắn version riêng theo dạng `version-chính.N`; trong cùng version chính, `N` tăng theo số lần nội dung file đổi, bỏ qua khác biệt `CRLF/LF`, còn khi version chính đổi thì `N` reset về `1`
 - Có kiểm tra xung đột khi nhiều máy cùng lưu `giỏ nháp` hoặc `phiếu nhập nháp`; app sẽ chặn ghi đè và yêu cầu tải dữ liệu mới nhất trước khi lưu tiếp
 - Trên mobile, menu nổi, ô tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi chạm ra ngoài; chạm vào phần mép còn lộ ra để mở lại
-- Nếu sau khi search/filter một list chỉ còn 1-4 mục, thanh phân trang đầu list sẽ tự chuyển về dạng tĩnh ở đầu danh sách để không che item; từ 5 mục trở lên thanh này mới nổi khi cuộn như bình thường
 - Trên PC/tablet, menu nghiệp vụ mặc định thu gọn; hover hoặc bấm `Mở menu` để bung ra nhanh, và menu sẽ tự gọn lại khi rê chuột hoặc bấm ra ngoài
 - In nhanh phiếu xuất cho khách và phiếu nhập cho NCC từ lúc còn `Nháp` cho tới `Đã thanh toán`; ở list phiếu, nút `In` được ẩn khi phiếu đã thanh toán để giữ giao diện gọn hơn
 - Giao diện theo menu nghiệp vụ riêng cho tồn kho, tạo đơn, đơn hàng, khách hàng và sản phẩm

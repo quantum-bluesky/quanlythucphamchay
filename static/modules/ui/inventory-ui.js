@@ -26,7 +26,6 @@ export function createInventoryUi(deps) {
     isSearchResultMode,
     paginateItems,
     renderPagination,
-    buildTopPaginationClass,
   } = deps;
   const INVENTORY_HISTORY_DOCUMENT_PREFIXES = [
     { prefix: "DH-", type: "order", label: "Đơn" },
@@ -229,9 +228,7 @@ export function createInventoryUi(deps) {
       extraControls: renderInventorySortControl(),
     });
     const bottomPaginationMarkup = renderPagination("inventory", pageData);
-    const topPagination = topPaginationMarkup
-      ? `<div class="${escapeHtml(buildTopPaginationClass("inventory-top-pagination", filtered.length))}">${topPaginationMarkup}</div>`
-      : "";
+    const topPagination = topPaginationMarkup ? `<div class="inventory-top-pagination">${topPaginationMarkup}</div>` : "";
     const bottomPagination = bottomPaginationMarkup ? `<div class="inventory-bottom-pagination">${bottomPaginationMarkup}</div>` : "";
 
     dom.productGrid.innerHTML = topPagination + pageData.items.map((product) => {

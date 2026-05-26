@@ -34,7 +34,6 @@ export function createPurchasesUi(deps) {
     isSearchResultMode,
     paginateItems,
     renderPagination,
-    buildTopPaginationClass,
   } = deps;
 
   function getPurchaseStatusMeta(purchase) {
@@ -427,9 +426,7 @@ export function createPurchasesUi(deps) {
     }
     const pageData = paginateItems(filtered, "purchaseSuggestions");
     const paginationMarkup = renderPagination("purchaseSuggestions", pageData);
-    const topPagination = paginationMarkup
-      ? `<div class="${escapeHtml(buildTopPaginationClass("purchase-suggestions-top-pagination", filtered.length))}">${paginationMarkup}</div>`
-      : "";
+    const topPagination = paginationMarkup ? `<div class="purchase-suggestions-top-pagination">${paginationMarkup}</div>` : "";
     const bottomPagination = paginationMarkup ? `<div class="purchase-suggestions-bottom-pagination">${paginationMarkup}</div>` : "";
     dom.purchaseSuggestionList.innerHTML = topPagination + pageData.items.map((entry) => {
       const productPriceAlerts = getPriceWarningAlerts({
@@ -478,9 +475,7 @@ export function createPurchasesUi(deps) {
     }
     const pageData = paginateItems(visiblePurchases, "purchaseOrders");
     const paginationMarkup = renderPagination("purchaseOrders", pageData);
-    const topPagination = paginationMarkup
-      ? `<div class="${escapeHtml(buildTopPaginationClass("purchase-orders-top-pagination", visiblePurchases.length))}">${paginationMarkup}</div>`
-      : "";
+    const topPagination = paginationMarkup ? `<div class="purchase-orders-top-pagination">${paginationMarkup}</div>` : "";
     const bottomPagination = paginationMarkup ? `<div class="purchase-orders-bottom-pagination">${paginationMarkup}</div>` : "";
     const selectedMergeIds = (Array.isArray(state.selectedPurchaseMergeIds) ? state.selectedPurchaseMergeIds : [])
       .filter((purchaseId) => visiblePurchases.some((purchase) => String(purchase.id) === String(purchaseId)));

@@ -24,7 +24,6 @@ Nếu gặp các trạng thái hoặc thuật ngữ tiếng Anh như `draft`, `o
 - Có thể bấm `Version` ở đầu ứng dụng để mở màn `About` và kiểm tra phiên bản app đang chạy
 - Trên điện thoại, nếu cần xem danh sách dài thì dùng `Thu gọn` hoặc nút chuyển trang `Trước / Sau`
 - Trên điện thoại, menu nổi, tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi bạn chạm ra ngoài; chạm lại vào phần mép còn lộ ra để mở đúng cụm cần dùng
-- Nếu sau khi search/filter một danh sách chỉ còn 1-4 mục, thanh phân trang đầu danh sách sẽ tự về dạng tĩnh ở phần đầu list để không che item; từ 5 mục trở lên thanh này mới nổi khi cuộn
 - Trên PC/tablet, menu nghiệp vụ mặc định ở dạng gọn; hover hoặc bấm `Mở menu` để bung ra nhanh, rồi rê chuột hoặc bấm ra ngoài để menu tự thu lại
 - Nếu có máy khác vừa cập nhật dữ liệu, app sẽ tự nạp lại khi bạn không còn gõ dở ở ô nhập hiện tại
 - Khi đổi màn hình bằng menu, app vẫn giữ lịch sử `Quay lại / Tiến tới`, nên có thể nhảy qua lại giữa các màn đang xử lý mà không cần tìm lại từ đầu
