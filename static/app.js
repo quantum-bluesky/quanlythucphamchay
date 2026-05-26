@@ -1545,6 +1545,7 @@ function paginateItems(items, key) {
   return {
     items: items.slice(start, start + pageSize),
     page: currentPage,
+    pageSize,
     totalPages,
     totalItems: items.length,
   };

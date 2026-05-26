@@ -223,12 +223,15 @@ export function createInventoryUi(deps) {
     }
 
     const pageData = paginateItems(filtered, "inventory");
+    const shouldFloatTopPagination = pageData.totalItems >= pageData.pageSize;
     const topPaginationMarkup = renderPagination("inventory", pageData, {
       force: true,
       extraControls: renderInventorySortControl(),
     });
     const bottomPaginationMarkup = renderPagination("inventory", pageData);
-    const topPagination = topPaginationMarkup ? `<div class="inventory-top-pagination">${topPaginationMarkup}</div>` : "";
+    const topPagination = topPaginationMarkup
+      ? `<div class="inventory-top-pagination ${shouldFloatTopPagination ? "is-floating-pagination" : "is-static-pagination"}">${topPaginationMarkup}</div>`
+      : "";
     const bottomPagination = bottomPaginationMarkup ? `<div class="inventory-bottom-pagination">${bottomPaginationMarkup}</div>` : "";
 
     dom.productGrid.innerHTML = topPagination + pageData.items.map((product) => {
