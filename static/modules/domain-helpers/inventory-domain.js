@@ -42,7 +42,7 @@ export function createInventoryDomainHelpers(deps) {
     if (shortageAfterPending > 0) {
       return {
         statusClass: "warning",
-        statusLabel: incoming >= shortageAfterPending ? "Đang chờ nhập" : "Đang kín chỗ",
+        statusLabel: incoming >= shortageAfterPending ? "Sắp nhập về" : "Sắp xuất hết",
         stockLabel: `${formatQuantity(currentStock)} ${product.unit}`,
         shortage: shortageAfterPending,
         committedShortage: 0,
