@@ -1,5 +1,5 @@
 const MOBILE_FLOATING_HINT =
-  "Trên điện thoại, menu nổi, tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi bạn chạm ra ngoài; chạm lại vào phần mép còn lộ ra để mở đúng cụm cần dùng. Nếu sau khi search/filter danh sách chỉ còn 1-4 mục thì thanh phân trang đầu list sẽ tự về dạng tĩnh ở đầu danh sách để không che item; từ 5 mục trở lên thanh này mới nổi khi cuộn.";
+  "Trên điện thoại, menu nổi, tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi bạn chạm ra ngoài; chạm lại vào phần mép còn lộ ra để mở đúng cụm cần dùng.";
 const DESKTOP_MENU_HINT =
   "Trên PC/tablet, menu nghiệp vụ sẽ tự thu gọn khi bạn rê chuột hoặc bấm ra ngoài khung menu; hover hoặc bấm nút Mở menu để bung lại nhanh.";
 const DESKTOP_PAGINATION_HINT =
