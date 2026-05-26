@@ -148,6 +148,32 @@ test("IT-NAV-05 inventory paging only floats when filtered results fill a mobile
   await expect(topPagination).toHaveClass(/is-floating-pagination/);
   await expect(topPagination).toHaveCSS("position", "sticky");
 
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
+  await expectScreenTitle(page, "Kiểm tra tồn kho");
+
+  const tabletTopPagination = page.locator(".inventory-top-pagination").first();
+  const tabletSearchInput = page.locator("#searchInput");
+  const tabletProductGrid = page.locator("#productGrid");
+  const tabletProductRow = page.locator("#productGrid .product-row").first();
+
+  await tabletSearchInput.fill("Bò kho");
+  await expect(tabletProductGrid.locator(".product-row")).toHaveCount(1);
+  await expect(tabletTopPagination).toHaveClass(/is-static-pagination/);
+  await expect(tabletTopPagination).toHaveCSS("position", "static");
+
+  const [gridBox, paginationBox, productBox] = await Promise.all([
+    tabletProductGrid.boundingBox(),
+    tabletTopPagination.boundingBox(),
+    tabletProductRow.boundingBox(),
+  ]);
+  expect(gridBox).toBeTruthy();
+  expect(paginationBox).toBeTruthy();
+  expect(productBox).toBeTruthy();
+  expect(Math.abs(paginationBox.width - gridBox.width)).toBeLessThan(8);
+  expect(productBox.y).toBeGreaterThanOrEqual(paginationBox.y + paginationBox.height - 1);
+
   expectNoRuntimeErrors(runtime);
 });
 
