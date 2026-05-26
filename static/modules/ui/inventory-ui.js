@@ -259,6 +259,7 @@ export function createInventoryUi(deps) {
       const relatedDraftCarts = getDraftCartsForProduct(product.id);
       const relatedCommittedCarts = getCommittedCartsForProduct(product.id);
       const relatedPurchases = getOpenPurchasesForProduct(product.id);
+      const shouldShowDetails = isExpanded || isEditingPrice;
       const sortSignalMarkup = renderInventorySortSignal(product);
       const inventoryBadgeMarkup = pendingCount || committedCount || incomingCount
         ? `
@@ -339,7 +340,7 @@ export function createInventoryUi(deps) {
               </div>
             `}
 
-          ${isExpanded || isEditingPrice || relatedPendingCarts.length > 1 || relatedPurchases.length > 1 ? `
+          ${shouldShowDetails ? `
             <div class="product-row-body">
               <div class="meta-row">
                 <span class="pill">Cảnh báo dưới ${formatQuantity(product.low_stock_threshold)} ${escapeHtml(product.unit)}</span>

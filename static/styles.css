@@ -2652,7 +2652,17 @@ button:disabled {
   [data-menu-section="inventory"] .inventory-top-pagination.is-static-pagination {
     position: static;
     padding: 4px 0 8px;
+    margin-bottom: 12px;
     background: none;
+  }
+
+  [data-menu-section="inventory"] .inventory-top-pagination.is-static-pagination .pagination-bar.is-search-pagination {
+    position: static;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    width: 100%;
+    box-shadow: none;
   }
 
   [data-menu-section="inventory"] .inventory-top-pagination .pagination-bar {
@@ -3244,6 +3254,7 @@ button:disabled {
   [data-menu-section="inventory"] .inventory-top-pagination.is-static-pagination {
     position: static;
     padding: 4px 0 8px;
+    margin-bottom: 12px;
     background: none;
   }
 
