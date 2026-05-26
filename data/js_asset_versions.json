@@ -1,9 +1,9 @@
 {
-  "app_version": "3.8.7",
+  "app_version": "3.8.8",
   "files": {
     "app.js": {
-      "counter": 2,
-      "sha256": "53188ed2bce363d7cf7c9c488afa071abcb3cd9d429e8f8bbc1b74bf5c3344c3"
+      "counter": 1,
+      "sha256": "8347e3884d740e237e3eec58d76096c77ed00b3b781ba7a2f32624154724fded"
     },
     "modules/app-state.js": {
       "counter": 1,
@@ -66,7 +66,7 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "24578e284ea4e98bc501f74252c5f0fed00a88e2cb709116e1d623a1f65991e4"
     },
     "modules/sync-runtime.js": {
@@ -86,8 +86,8 @@
       "sha256": "33fb462097eb7cf3e81bf20a7d75308d8f8cca9c53801724f7b00ed826c07c49"
     },
     "modules/ui/inventory-ui.js": {
-      "counter": 2,
-      "sha256": "371f81b40c67f6887ca9b5c1434d1c25bc757a7c68a796a9f3d8a2b6569de049"
+      "counter": 1,
+      "sha256": "06bcf81873110620048d75e945284bca1639567e33a8875c4122c692ac616d3c"
     },
     "modules/ui/products-ui.js": {
       "counter": 1,
