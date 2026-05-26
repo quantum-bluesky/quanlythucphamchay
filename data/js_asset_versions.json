@@ -46,8 +46,8 @@
       "sha256": "67f750773c14ddfa79c335cfdc4c19ffbd367cd07825bc53feda0b9466773984"
     },
     "modules/domain-helpers/inventory-domain.js": {
-      "counter": 1,
-      "sha256": "045d553f4af91187fcca855f98838f538b806f40b56e8aa0967db16697c7aab0"
+      "counter": 2,
+      "sha256": "8343b65f049b272db6dba979d53fd2eeb94a2fe9f0108854d87b92d1b5d9178a"
     },
     "modules/domain-helpers/purchases-domain.js": {
       "counter": 1,
@@ -86,8 +86,8 @@
       "sha256": "33fb462097eb7cf3e81bf20a7d75308d8f8cca9c53801724f7b00ed826c07c49"
     },
     "modules/ui/inventory-ui.js": {
-      "counter": 1,
-      "sha256": "06bcf81873110620048d75e945284bca1639567e33a8875c4122c692ac616d3c"
+      "counter": 4,
+      "sha256": "43c47246650b428da64441bc081df81504d974351c0b05955ddea02470b683f7"
     },
     "modules/ui/products-ui.js": {
       "counter": 1,

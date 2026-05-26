@@ -34,6 +34,28 @@ async function ensureMinimumProductCount(request, cookie, minimumCount) {
   }
 }
 
+async function clickVisibleCenter(page, locator) {
+  const box = await locator.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.click(box.x + (box.width / 2), box.y + (box.height / 2));
+}
+
+async function fillInventorySearch(page, text) {
+  const inlineSearchInput = page.locator("#searchInput");
+  if (await inlineSearchInput.isVisible()) {
+    await inlineSearchInput.fill(text);
+    return;
+  }
+  const floatingSearchDock = page.locator("#floatingSearchDock");
+  const floatingSearchToggle = page.locator("#floatingSearchToggle");
+  const floatingSearchInput = page.locator("#floatingSearchInput");
+  if (!await floatingSearchDock.evaluate((node) => node.classList.contains("is-expanded"))) {
+    await floatingSearchToggle.click();
+    await expect(floatingSearchDock).toHaveClass(/is-expanded/);
+  }
+  await floatingSearchInput.fill(text);
+}
+
 test("IT-MOB-01 mobile floating clusters auto-hide to screen edges and reveal without firing actions", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
@@ -140,9 +162,26 @@ test("IT-NAV-05 inventory paging only floats when filtered results fill a mobile
   await floatingSearchToggle.click();
   await expect(floatingSearchDock).toHaveClass(/is-expanded/);
   await floatingSearchInput.fill("Bò kho");
-  await expect(page.locator("#productGrid .product-row")).toHaveCount(1);
+  const mobileProductRows = page.locator("#productGrid .product-row");
+  const mobileFirstRow = mobileProductRows.first();
+  await expect(mobileProductRows).toHaveCount(1);
   await expect(topPagination).toHaveClass(/is-static-pagination/);
   await expect(topPagination).toHaveCSS("position", "static");
+
+  const [mobilePaginationBox, mobileProductBox] = await Promise.all([
+    topPagination.boundingBox(),
+    mobileFirstRow.boundingBox(),
+  ]);
+  expect(mobilePaginationBox).toBeTruthy();
+  expect(mobileProductBox).toBeTruthy();
+  expect(mobileProductBox.y).toBeGreaterThanOrEqual(mobilePaginationBox.y + mobilePaginationBox.height - 1);
+
+  const mobileToggleButton = mobileFirstRow.locator('[data-product-action="toggle-expand"]');
+  await clickVisibleCenter(page, mobileToggleButton);
+  await expect(mobileFirstRow.locator(".product-row-body")).toHaveCount(1);
+  await clickVisibleCenter(page, mobileFirstRow.locator('[data-product-action="toggle-expand"]'));
+  await expect(mobileFirstRow.locator(".product-row-body")).toHaveCount(0);
+  await expect(page.locator("#productGrid")).not.toContainText("Đang kín chỗ");
 
   await floatingSearchInput.fill("");
   await expect(topPagination).toHaveClass(/is-floating-pagination/);
@@ -154,11 +193,10 @@ test("IT-NAV-05 inventory paging only floats when filtered results fill a mobile
   await expectScreenTitle(page, "Kiểm tra tồn kho");
 
   const tabletTopPagination = page.locator(".inventory-top-pagination").first();
-  const tabletSearchInput = page.locator("#searchInput");
   const tabletProductGrid = page.locator("#productGrid");
   const tabletProductRow = page.locator("#productGrid .product-row").first();
 
-  await tabletSearchInput.fill("Bò kho");
+  await fillInventorySearch(page, "Bò kho");
   await expect(tabletProductGrid.locator(".product-row")).toHaveCount(1);
   await expect(tabletTopPagination).toHaveClass(/is-static-pagination/);
   await expect(tabletTopPagination).toHaveCSS("position", "static");
