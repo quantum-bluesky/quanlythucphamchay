@@ -1,12 +1,38 @@
 const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
+  autoLoginAdminRequest,
   autoLoginUser,
   expectNoRuntimeErrors,
   expectScreenTitle,
   switchMenu,
   waitForAppReady,
 } = require("./support/ui");
+
+async function ensureMinimumProductCount(request, cookie, minimumCount) {
+  const productsResponse = await request.get("/api/products", {
+    headers: { Cookie: cookie },
+  });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const existingCount = Array.isArray(productsPayload.products) ? productsPayload.products.length : 0;
+  const missingCount = Math.max(0, minimumCount - existingCount);
+
+  for (let index = 0; index < missingCount; index += 1) {
+    const createResponse = await request.post("/api/products", {
+      headers: { Cookie: cookie },
+      data: {
+        name: `INV FLOAT TEST ${Date.now()} ${index + 1}`,
+        category: "Regression",
+        unit: "gói",
+        price: 10000 + index,
+        sale_price: 12000 + index,
+        low_stock_threshold: 5,
+      },
+    });
+    expect(createResponse.ok()).toBeTruthy();
+  }
+}
 
 test("IT-MOB-01 mobile floating clusters auto-hide to screen edges and reveal without firing actions", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
@@ -86,6 +112,41 @@ test("IT-MOB-02 screen header stays visible on tablet and version button still o
   await versionButton.click();
   await expectScreenTitle(page, "About ứng dụng");
   await expect(page.locator("#aboutSection")).toHaveClass(/is-active/);
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-NAV-05 inventory paging only floats when filtered results fill a mobile page", async ({ page, request }) => {
+  test.slow();
+  const runtime = attachRuntimeTracking(page);
+
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  const adminCookie = await autoLoginAdminRequest(request);
+  await ensureMinimumProductCount(request, adminCookie, 21);
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
+  await expectScreenTitle(page, "Kiểm tra tồn kho");
+
+  const topPagination = page.locator(".inventory-top-pagination").first();
+  const floatingSearchDock = page.locator("#floatingSearchDock");
+  const floatingSearchToggle = page.locator("#floatingSearchToggle");
+  const floatingSearchInput = page.locator("#floatingSearchInput");
+
+  await expect(topPagination).toHaveClass(/is-floating-pagination/);
+  await expect(topPagination).toHaveCSS("position", "sticky");
+
+  await floatingSearchToggle.click();
+  await expect(floatingSearchDock).toHaveClass(/is-expanded/);
+  await floatingSearchInput.fill("Bò kho");
+  await expect(page.locator("#productGrid .product-row")).toHaveCount(1);
+  await expect(topPagination).toHaveClass(/is-static-pagination/);
+  await expect(topPagination).toHaveCSS("position", "static");
+
+  await floatingSearchInput.fill("");
+  await expect(topPagination).toHaveClass(/is-floating-pagination/);
+  await expect(topPagination).toHaveCSS("position", "sticky");
 
   expectNoRuntimeErrors(runtime);
 });
