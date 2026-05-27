@@ -130,6 +130,13 @@ export const supplierFormToggleButton = document.getElementById("supplierFormTog
 export const supplierSearchInput = document.getElementById("supplierSearchInput");
 export const supplierDetailPanel = document.getElementById("supplierDetailPanel");
 export const supplierList = document.getElementById("supplierList");
+export const paymentsSection = document.querySelector('[data-menu-section="payments"]');
+export const paymentTabBar = document.getElementById("paymentTabBar");
+export const paymentsSearchInput = document.getElementById("paymentsSearchInput");
+export const paymentFilterSelect = document.getElementById("paymentFilterSelect");
+export const paymentSummaryCards = document.getElementById("paymentSummaryCards");
+export const paymentDetailPanel = document.getElementById("paymentDetailPanel");
+export const paymentDocumentList = document.getElementById("paymentDocumentList");
 export const reportMonthInput = document.getElementById("reportMonthInput");
 export const reportStartDateInput = document.getElementById("reportStartDateInput");
 export const reportEndDateInput = document.getElementById("reportEndDateInput");

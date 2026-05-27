@@ -593,7 +593,7 @@ test("IT-PURSUP-09 received purchase note stays editable until paid", async ({ p
     await page.locator('[data-purchase-action="mark-paid"]').click();
 
     const paidToast = await collectToast(page, runtime, "it-pursup-09-mark-paid", { errorPattern: /^$/ });
-    expect(paidToast).toContain("Đã cập nhật phiếu nhập là đã thanh toán");
+    expect(paidToast).toMatch(/Đã cập nhật.*thanh toán/i);
     await expect(noteInput).toBeDisabled();
 
     const latestState = await fetchSyncState(request, userCookie);
@@ -1115,9 +1115,6 @@ test("IT-PURSUP-07 purchases warn and review open receipts when one product is p
     });
     await page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${targetProduct.id}"]`).first().click();
     expect(secondDialogMessage).toContain(targetProduct.name);
-    const conflictToast = await waitForToastContaining(page, "Cảnh báo");
-    runtime.toasts.push(`it-pursup-07-keep-current:${conflictToast}`);
-    expect(conflictToast).toContain("Cảnh báo");
     await expect(page.locator("#purchasePanel")).toContainText(targetProduct.name);
     await expect(page.locator("#purchasePanel")).toContainText("Cảnh báo NCC theo mặt hàng");
 

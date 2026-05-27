@@ -78,6 +78,8 @@ export function createSalesUi(deps) {
       cart.completedAt ? { label: "Ngày xuất", value: formatDate(cart.completedAt) || "Chưa có" } : null,
       cart.cancelledAt ? { label: "Ngày hủy", value: formatDate(cart.cancelledAt) || "Chưa có" } : null,
       cart.paidAt ? { label: "Ngày thanh toán", value: formatDate(cart.paidAt) || "Chưa có" } : null,
+      cart.paymentMethod ? { label: "Phương thức TT", value: cart.paymentMethod === "cash" ? "Tiền mặt" : cart.paymentMethod === "bank_transfer" ? "Chuyển khoản" : "Khác" } : null,
+      cart.paymentNote ? { label: "Ghi chú TT", value: cart.paymentNote } : null,
       { label: "Cập nhật cuối", value: formatDate(cart.updatedAt) || "Chưa có" },
     ].filter(Boolean);
   }

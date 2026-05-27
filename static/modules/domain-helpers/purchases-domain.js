@@ -203,6 +203,8 @@ export function createPurchasesDomainHelpers(deps) {
       id: purchase.id || createId("purchase"),
       supplierName: String(purchase.supplierName || "").trim(),
       note: String(purchase.note || "").trim(),
+      paymentMethod: String(purchase.paymentMethod || purchase.payment_method || "").trim(),
+      paymentNote: String(purchase.paymentNote || purchase.payment_note || "").trim(),
       status: purchase.status || "draft",
       discountAmount: Number(discountAmount.toFixed(2)),
       discount_amount: Number(discountAmount.toFixed(2)),

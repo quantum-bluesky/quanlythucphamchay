@@ -132,6 +132,13 @@ import {
   supplierSearchInput,
   supplierDetailPanel,
   supplierList,
+  paymentsSection,
+  paymentTabBar,
+  paymentsSearchInput,
+  paymentFilterSelect,
+  paymentSummaryCards,
+  paymentDetailPanel,
+  paymentDocumentList,
   reportMonthInput,
   reportStartDateInput,
   reportEndDateInput,
@@ -214,6 +221,7 @@ import { createSalesUi } from "./modules/ui/sales-ui.js";
 import { createBulkOrdersUi } from "./modules/ui/bulk-orders-ui.js";
 import { createPurchasesUi } from "./modules/ui/purchases-ui.js";
 import { createEntitiesUi } from "./modules/ui/entities-ui.js";
+import { createPaymentsUi } from "./modules/ui/payments-ui.js";
 import { createReportsAdminUi } from "./modules/ui/reports-admin-ui.js";
 import { registerCoreControllerEvents } from "./modules/controllers/core-controller.js";
 import { registerProductsControllerEvents } from "./modules/controllers/products-controller.js";
@@ -222,6 +230,7 @@ import { registerSalesControllerEvents } from "./modules/controllers/sales-contr
 import { registerBulkOrdersControllerEvents } from "./modules/controllers/bulk-orders-controller.js";
 import { registerPurchasesControllerEvents } from "./modules/controllers/purchases-controller.js";
 import { registerEntitiesControllerEvents } from "./modules/controllers/entities-controller.js";
+import { registerPaymentsControllerEvents } from "./modules/controllers/payments-controller.js";
 import { registerReportsAdminControllerEvents } from "./modules/controllers/reports-admin-controller.js";
 import {
   formatQuantity,
@@ -268,6 +277,7 @@ let salesUi = null;
 let bulkOrdersUi = null;
 let purchasesUi = null;
 let entitiesUi = null;
+let paymentsUi = null;
 let reportsAdminUi = null;
 let stickyLayoutUpdateFrame = 0;
 let stickyLayoutResizeObserver = null;
@@ -311,6 +321,8 @@ const PAGINATION_GROUP_MAP = {
   deletedSuppliers: "items",
   orders: "documents",
   purchaseOrders: "documents",
+  paymentCustomers: "documents",
+  paymentSuppliers: "documents",
   reportReceipts: "documents",
 };
 let savingUiLockCount = 0;
@@ -1116,6 +1128,31 @@ function getEntitiesUi() {
     });
   }
   return entitiesUi;
+}
+
+function getPaymentsUi() {
+  if (!paymentsUi) {
+    paymentsUi = createPaymentsUi({
+      state,
+      dom: {
+        paymentsSection,
+        paymentTabBar,
+        paymentsSearchInput,
+        paymentFilterSelect,
+        paymentSummaryCards,
+        paymentDetailPanel,
+        paymentDocumentList,
+      },
+      escapeHtml,
+      formatCurrency,
+      formatDate,
+      formatDateOnly,
+      paginateItems,
+      renderPagination,
+      mobileQuery,
+    });
+  }
+  return paymentsUi;
 }
 
 function getReportsAdminUi() {
@@ -2800,6 +2837,37 @@ async function shipCart(cartId) {
     state.activeCartId = previousActiveCartId;
     throw error;
   }
+}
+
+async function updateCartPaymentDetails(cartId, { paymentStatus = "paid", paidAt = "", paymentMethod = "", paymentNote = "" } = {}) {
+  const data = await apiRequest("/api/carts/payment", {
+    method: "POST",
+    body: JSON.stringify({
+      cart_id: cartId,
+      payment_status: paymentStatus,
+      paid_at: paidAt || "",
+      payment_method: paymentMethod || "",
+      payment_note: paymentNote || "",
+    }),
+  });
+  await refreshData();
+  return data;
+}
+
+async function updatePurchasePaymentDetails(purchaseId, { paidAt = "", paymentMethod = "", paymentNote = "" } = {}) {
+  const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
+  const data = await apiRequest("/api/purchases/payment", {
+    method: "POST",
+    body: JSON.stringify({
+      purchase_id: purchaseId,
+      discount_amount: purchase?.discountAmount || purchase?.discount_amount || 0,
+      paid_at: paidAt || "",
+      payment_method: paymentMethod || "",
+      payment_note: paymentNote || "",
+    }),
+  });
+  await refreshData();
+  return data;
 }
 
 function renameCustomer(customerId, newName) {
@@ -4803,6 +4871,28 @@ function openPurchaseDocumentById(purchaseId) {
   focusPurchasePanel();
 }
 
+function openOrderDocumentById(cartId) {
+  const cart = state.carts.find((entry) => entry.id === cartId) || null;
+  if (!cart) {
+    throw new Error("Không tìm thấy đơn hàng cần mở.");
+  }
+  state.showArchivedCarts = true;
+  if (String(cart.paymentStatus || "").trim() === "paid") {
+    state.showPaidOrders = true;
+  }
+  state.orderFilterCustomerId = "";
+  state.orderSearchTerm = String(cart.orderCode || cart.customerName || cart.id || "").trim();
+  state.pagination.orders = 1;
+  state.expandedOrderId = cart.id;
+  state.orderDetailItemsCollapsed = true;
+  if (orderSearchInput) {
+    orderSearchInput.value = state.orderSearchTerm;
+  }
+  switchMenu("orders");
+  renderCartQueue();
+  focusOrderDetailPanel();
+}
+
 function openPurchaseConflictReview(productId, options = {}) {
   const product = getProductById(productId);
   state.purchaseConflictReview = {
@@ -5320,6 +5410,10 @@ function renderSuppliers() {
   getEntitiesUi().renderSuppliers();
 }
 
+function renderPaymentsScreen() {
+  getPaymentsUi().renderPaymentsScreen();
+}
+
 function renderProductHistory() {
   getProductsUi().renderProductHistory();
 }
@@ -5452,6 +5546,7 @@ function renderAll() {
   renderPurchaseOrders();
   renderProcurementPlanner();
   renderSuppliers();
+  renderPaymentsScreen();
   renderDeletedProducts();
   renderDeletedCustomers();
   renderDeletedSuppliers();
@@ -6313,6 +6408,7 @@ registerSalesControllerEvents({
     addCustomerReturnDraftItem,
     resetCustomerReturnDraft,
     submitCustomerReturnDraft,
+    updateCartPaymentDetails,
     setPaginationPageForItem,
   },
   renderers: {
@@ -6509,6 +6605,7 @@ registerPurchasesControllerEvents({
     addSupplierReturnDraftItem,
     resetSupplierReturnDraft,
     submitSupplierReturnDraft,
+    updatePurchasePaymentDetails,
     setPaginationPageForItem,
   },
   renderers: {
@@ -6541,6 +6638,28 @@ registerPurchasesControllerEvents({
     nowIso,
     mobileQuery,
     syncPriceWarningGroup,
+  },
+});
+
+registerPaymentsControllerEvents({
+  state,
+  dom: {
+    paymentTabBar,
+    paymentsSearchInput,
+    paymentFilterSelect,
+    paymentDetailPanel,
+    paymentDocumentList,
+  },
+  actions: {
+    showToast,
+    openOrderDocumentById,
+    openPurchaseDocumentById,
+    updateCartPaymentDetails,
+    updatePurchasePaymentDetails,
+  },
+  renderers: {
+    renderPaymentsScreen,
+    renderAll,
   },
 });
 

@@ -70,9 +70,10 @@
         <button type="button" class="menu-button" data-menu="purchases">7. Nhập hàng</button>
         <button type="button" class="menu-button" data-menu="procurement-planner">8. Xử lý nhập thiếu</button>
         <button type="button" class="menu-button" data-menu="suppliers">9. Nhà cung cấp</button>
-        <button type="button" class="menu-button" data-menu="reports">10. Báo cáo</button>
-        <button type="button" class="menu-button" data-menu="history">11. Khôi phục</button>
-        <button type="button" class="menu-button" data-menu="admin">12. Admin</button>
+        <button type="button" class="menu-button" data-menu="payments">10. Thanh toán</button>
+        <button type="button" class="menu-button" data-menu="reports">11. Báo cáo</button>
+        <button type="button" class="menu-button" data-menu="history">12. Khôi phục</button>
+        <button type="button" class="menu-button" data-menu="admin">13. Admin</button>
       </div>
     </nav>
 
@@ -641,6 +642,45 @@
         <div class="master-detail-layout entity-master-detail">
           <section id="supplierDetailPanel" class="sales-card detail-panel entity-detail-panel" hidden></section>
           <div id="supplierList" class="customer-list"></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="payments">
+      <section class="panel payments-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Thanh toán & công nợ</p>
+            <h2>Theo dõi phiếu đã thu / đã trả</h2>
+          </div>
+          <p class="panel-note">Màn này gom các phiếu xuất và phiếu nhập đã tới bước thanh toán để dễ kiểm tra trên mobile, không cần theo dõi thêm bằng Excel.</p>
+        </div>
+
+        <div class="inline-menu-actions payments-tab-bar" id="paymentTabBar">
+          <button type="button" class="ghost-button compact-button" data-payment-tab="customers">Khách hàng</button>
+          <button type="button" class="ghost-button compact-button" data-payment-tab="suppliers">Nhà cung cấp</button>
+        </div>
+
+        <div class="sticky-toolbar payments-toolbar list-search-toolbar">
+          <label class="search-box">
+            <span class="sr-only">Tìm phiếu thanh toán</span>
+            <input id="paymentsSearchInput" type="search" placeholder="Tìm theo mã phiếu, khách hàng hoặc nhà cung cấp...">
+          </label>
+          <label>
+            <span>Lọc nhanh</span>
+            <select id="paymentFilterSelect">
+              <option value="unpaid">Chưa thanh toán</option>
+              <option value="paid">Đã thanh toán</option>
+              <option value="all">Tất cả</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="paymentSummaryCards" class="hero-stats report-summary-grid"></div>
+
+        <div class="master-detail-layout payments-master-detail">
+          <section id="paymentDetailPanel" class="sales-card detail-panel payment-detail-panel" hidden></section>
+          <div id="paymentDocumentList" class="cart-queue-list payment-document-list"></div>
         </div>
       </section>
     </section>

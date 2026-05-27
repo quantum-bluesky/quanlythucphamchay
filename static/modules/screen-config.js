@@ -273,6 +273,25 @@ export const SCREEN_HELP = {
       { menu: "history", label: "Khôi phục NCC đã xóa" },
     ],
   },
+  payments: {
+    title: "Quản lý thanh toán",
+    overview: "Dùng màn này để xem nhanh phiếu nào còn nợ, phiếu nào đã thanh toán, rồi cập nhật ngày, phương thức và ghi chú thanh toán theo từng phiếu.",
+    steps: [
+      "Chọn tab `Khách hàng` nếu muốn theo dõi phiếu xuất, hoặc `Nhà cung cấp` nếu muốn theo dõi phiếu nhập.",
+      "Gõ mã phiếu, tên khách hoặc tên NCC ở ô tìm kiếm để thu gọn danh sách cần xem.",
+      "Dùng bộ lọc `Chưa thanh toán / Đã thanh toán / Tất cả` để tập trung đúng nhóm phiếu đang cần xử lý.",
+      "Chạm vào một dòng để mở panel chi tiết. Nếu phiếu chưa thanh toán, bấm `Đánh dấu đã thanh toán`; nếu phiếu đã thanh toán rồi, vẫn có thể lưu lại ngày, phương thức hoặc ghi chú thanh toán.",
+      "Nếu cần đối chiếu chứng từ gốc, bấm `Mở phiếu gốc` để sang đúng màn Đơn hàng hoặc Nhập hàng.",
+      DESKTOP_PAGINATION_HINT,
+      DESKTOP_MENU_HINT,
+      MOBILE_FLOATING_HINT,
+    ],
+    related: [
+      { menu: "orders", label: "Xem đơn hàng" },
+      { menu: "purchases", label: "Xem phiếu nhập" },
+      { menu: "reports", label: "Đối chiếu báo cáo" },
+    ],
+  },
   reports: {
     title: "Báo cáo và lợi nhuận",
     overview: "Theo dõi nhập xuất, doanh thu, giá vốn, lãi gộp, chứng từ trả hàng/điều chỉnh và danh sách mặt hàng cần nhập thêm.",
@@ -385,6 +404,10 @@ export const SCREEN_META = {
     title: "Nhà cung cấp",
     subtitle: "Quản lý nguồn hàng và thông tin liên hệ.",
   },
+  payments: {
+    title: "Thanh toán",
+    subtitle: "Xem phiếu còn nợ, đã thanh toán và cập nhật thông tin thu/chi.",
+  },
   reports: {
     title: "Báo cáo",
     subtitle: "Xem doanh thu, giá vốn, lãi gộp và xu hướng nhập xuất.",
@@ -435,5 +458,9 @@ export const FLOATING_SEARCH_CONFIG = {
   suppliers: {
     sourceId: "supplierSearchInput",
     placeholder: "Tìm nhà cung cấp",
+  },
+  payments: {
+    sourceId: "paymentsSearchInput",
+    placeholder: "Tìm phiếu theo mã, khách hàng hoặc nhà cung cấp",
   },
 };

@@ -200,6 +200,7 @@ Các nhóm kiểm tra chính:
 - `Tạo đơn xuất hàng -> Tạo đơn mới`: khi user chủ động tách đơn mới, app phải hỏi confirm nếu đang có dữ liệu/preview cũ, rồi mở một draft trắng riêng mà không reuse draft đang có
 - `Tạo đơn xuất hàng -> Ghi chú phiếu xuất`: user tạo draft mới, nhập ghi chú ở form, mở `Detail` để xem/sửa lại, và ghi chú phải còn tồn tại trong DB sau khi reload dữ liệu
 - `Tạo nhiều đơn mobile-first`: mỗi khách là một card riêng, `Lưu nháp` giữ lại card thành công để sửa tiếp trên cùng màn, `Chốt đơn hợp lệ` chỉ commit các đơn đủ hàng, đơn lỗi giữ lại để sửa tiếp, và khi lỗi do thiếu hàng phải có CTA sang luồng nhập hàng phù hợp
+- `Thanh toán`: màn `Thanh toán` phải lọc đúng phiếu chưa thanh toán, cho cập nhật `ngày / phương thức / ghi chú`, rồi mở lại được phiếu gốc từ cả tab khách hàng và tab nhà cung cấp
 - `Approve request xuất nhanh`: user thường gửi request `pending_approval`, user quản lý duyệt/từ chối, owner có thể xử lý tiếp request đã `approved`, và UI vẫn nhìn thấy trạng thái chung để tránh tạo trùng
 - `Audit log đơn xuất nhanh`: popup `Lịch sử` phải đọc đúng timeline của request và đơn, hiển thị mới nhất trước và không làm chậm list vì chỉ fetch khi user mở popup
 - `Reload số lượng sau đổi trạng thái`: sau `Xuất kho` hoặc `Nhập kho`, các màn `Tồn kho`, `Xuất hàng`, `Nhập hàng` phải nạp lại dữ liệu server mới mà không cần F5
@@ -271,6 +272,7 @@ Ngoài click thao tác, suite còn kiểm tra:
   - `tests/integration/cross-client-sync.spec.js`
   - `tests/integration/workflow-phase-a.spec.js`
   - `tests/integration/workflow-phase-c.spec.js`
+  - `tests/integration/payments-management.spec.js`
 
 Case mới cho Phase A:
 
@@ -339,7 +341,9 @@ Case mới cho Phase B.4:
 - `UT-SYNC-03`: chỉ cho sửa `giảm giá khuyến mại` trước thanh toán, và khóa lại sau khi chứng từ đã được đánh dấu thanh toán
 - `UT-SYNC-04`: đơn hàng chỉ được thanh toán sau khi đã `Đã xuất hàng`, vẫn cho hủy khi còn `draft`, và khóa luôn nhánh mở lại/hạ thanh toán sau khi đã `cancelled/paid`
 - `UT-SYNC-05`: đơn `Chốt đơn` khóa khách hàng nhưng còn sửa được `Địa chỉ giao` và dòng hàng; sync thẳng không được phép tự đổi sang `Đã xuất hàng`
+- `UT-SYNC-06`: backend cập nhật thanh toán đơn giản phải persist đúng `payment_status`, `paid_at`, `payment_method`, `payment_note` cho đơn hàng và phiếu nhập
 - `UT-ORD-15`: test trực tiếp API backend cho flow `draft -> committed -> completed`
+- `IT-PAY-01`: màn `Thanh toán` phải lọc đúng phiếu chưa thanh toán, đánh dấu đã thanh toán cho cả đơn xuất và phiếu nhập, rồi mở lại được phiếu gốc
 - `IT-STS-01`: sau `Chốt đơn -> Xuất hàng`, test chuyển sang `Tồn kho` và kiểm tra số lượng mới hiển thị ngay, đồng thời vẫn bắt confirm cho các action trạng thái/xóa/hủy và cho thao tác `Giá chung` ở cả đơn xuất lẫn phiếu nhập
 
 Case regression UI báo cáo:
