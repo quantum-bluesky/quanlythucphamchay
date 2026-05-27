@@ -197,6 +197,8 @@ Các nhóm kiểm tra chính:
 
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, cho phép chốt khi phần thiếu đã được phiếu nhập `Đã đặt` cover đủ, còn với thiếu hàng chưa đặt đủ thì user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu mở liên quan
+- `Tạo đơn xuất hàng -> Tạo đơn mới`: khi user chủ động tách đơn mới, app phải hỏi confirm nếu đang có dữ liệu/preview cũ, rồi mở một draft trắng riêng mà không reuse draft đang có
+- `Tạo đơn xuất hàng -> Ghi chú phiếu xuất`: user tạo draft mới, nhập ghi chú ở form, mở `Detail` để xem/sửa lại, và ghi chú phải còn tồn tại trong DB sau khi reload dữ liệu
 - `Tạo nhiều đơn mobile-first`: mỗi khách là một card riêng, `Lưu nháp` giữ lại card thành công để sửa tiếp trên cùng màn, `Chốt đơn hợp lệ` chỉ commit các đơn đủ hàng, đơn lỗi giữ lại để sửa tiếp, và khi lỗi do thiếu hàng phải có CTA sang luồng nhập hàng phù hợp
 - `Approve request xuất nhanh`: user thường gửi request `pending_approval`, user quản lý duyệt/từ chối, owner có thể xử lý tiếp request đã `approved`, và UI vẫn nhìn thấy trạng thái chung để tránh tạo trùng
 - `Audit log đơn xuất nhanh`: popup `Lịch sử` phải đọc đúng timeline của request và đơn, hiển thị mới nhất trước và không làm chậm list vì chỉ fetch khi user mở popup
@@ -285,6 +287,8 @@ Case mới cho Phase A:
 - `IT-ORD-03`: kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được đơn nháp mới cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng
 - `IT-ORD-04`: kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hỏi có dồn thêm vào nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đang có
 - `IT-ORD-05`: kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện cảnh báo bổ sung trước khi `Chốt đơn`
+- `IT-ORD-08`: kiểm tra màn `Tạo đơn xuất hàng` có thể bấm `Tạo đơn mới` để mở một draft trắng riêng, không reuse đơn nháp đang mở và không làm mất đơn cũ
+- `IT-ORD-09`: kiểm tra ghi chú phiếu xuất lưu được từ form tạo đơn và sửa/xem lại được trong `Detail` của màn đơn hàng
 - `IT-ORD-07`: kiểm tra màn đơn hàng có thể `Chốt đơn` hàng loạt cho các phiếu đã chọn, chỉ chốt các đơn nháp hợp lệ và giữ nguyên phiếu lỗi để user xử lý tiếp
 - `IT-ORD-06`: kiểm tra chỉ gộp được phiếu xuất `Nháp/Chốt đơn` cùng khách, báo lỗi khi khác khách, và `Hủy` preview sẽ quay lại đúng danh sách
 - `IT-ORD-07`: kiểm tra màn đơn hàng có thể `Chốt đơn` hàng loạt cho các phiếu đã chọn, chỉ chốt các đơn nháp hợp lệ và giữ nguyên phiếu lỗi để user xử lý tiếp

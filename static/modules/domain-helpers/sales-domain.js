@@ -58,6 +58,10 @@ export function createSalesDomainHelpers(deps) {
     );
   }
 
+  function canEditCartNote(cart) {
+    return canEditCartDiscount(cart);
+  }
+
   function getCartCostWarning(cart) {
     if (!cart || !Array.isArray(cart.items) || !cart.items.length) {
       return {
@@ -118,6 +122,7 @@ export function createSalesDomainHelpers(deps) {
       customerName: cart.customerName || "Khách lẻ",
       status: cart.status || "draft",
       paymentStatus: cart.paymentStatus || "unpaid",
+      note: String(cart.note || "").trim(),
       discountAmount: Number(discountAmount.toFixed(2)),
       discount_amount: Number(discountAmount.toFixed(2)),
       shipAddress: String(cart.shipAddress || cart.ship_address || "").trim(),
@@ -171,6 +176,18 @@ export function createSalesDomainHelpers(deps) {
     saveAndRenderAll();
   }
 
+  function resetCreateOrderEditingState(customerName = "") {
+    state.activeCartPanelCollapsed = mobileQuery.matches;
+    state.activeCartDetailExpanded = false;
+    state.selectedCartItemsCollapsed = false;
+    state.expandedSelectedCartItemId = null;
+    state.expandedSalesProductId = null;
+    state.visibleSelectedSalesProductId = null;
+    clearPendingCartMergePrompt();
+    clearCartMergePreview();
+    customerLookupInput.value = customerName;
+  }
+
   function createDraftCartForCustomer(customer) {
     const cart = decorateCart({
       id: createId("cart"),
@@ -178,6 +195,7 @@ export function createSalesDomainHelpers(deps) {
       customerName: customer.name,
       status: "draft",
       paymentStatus: "unpaid",
+      note: "",
       discountAmount: 0,
       shipAddress: customer.address || "",
       items: [],
@@ -218,11 +236,16 @@ export function createSalesDomainHelpers(deps) {
     state.pendingCartMergeCustomerName = "";
   }
 
-  function openCartForCustomer(customerName) {
+  function openCartForCustomer(customerName, options = {}) {
+    const forceNewDraft = Boolean(options.forceNewDraft);
     const customer = resolveCustomerFromText(customerName);
-    let cart = state.carts.find((entry) => entry.status === "draft" && entry.customerId === customer.id);
+    let cart = forceNewDraft
+      ? null
+      : state.carts.find((entry) => entry.status === "draft" && entry.customerId === customer.id);
     if (!cart) {
-      const committedCarts = getCommittedCarts().filter((entry) => entry.customerId === customer.id);
+      const committedCarts = forceNewDraft
+        ? []
+        : getCommittedCarts().filter((entry) => entry.customerId === customer.id);
       if (committedCarts.length) {
         state.activeCartId = null;
         state.activeCartPanelCollapsed = false;
@@ -238,14 +261,16 @@ export function createSalesDomainHelpers(deps) {
       cart = createDraftCartForCustomer(customer);
     }
     state.activeCartId = cart.id;
-    state.activeCartPanelCollapsed = mobileQuery.matches;
-    state.activeCartDetailExpanded = false;
-    clearPendingCartMergePrompt();
-    customerLookupInput.value = customer.name;
+    resetCreateOrderEditingState(customer.name);
     saveAndRenderAll(["customers", "carts"]);
     switchMenu("create-order");
     focusActiveCartPanel();
+    if (forceNewDraft) {
+      showToast("Đã tạo đơn nháp mới tách biệt đơn cũ.");
+      return cart;
+    }
     showToast(cart.itemCount ? "Đã mở lại giỏ hàng đang chờ." : "Đã tạo giỏ hàng mới.");
+    return cart;
   }
 
   function createNewDraftForPendingMergeCustomer() {
@@ -259,10 +284,7 @@ export function createSalesDomainHelpers(deps) {
     }
     const cart = createDraftCartForCustomer(customer);
     state.activeCartId = cart.id;
-    state.activeCartPanelCollapsed = mobileQuery.matches;
-    state.activeCartDetailExpanded = false;
-    clearPendingCartMergePrompt();
-    customerLookupInput.value = customer.name;
+    resetCreateOrderEditingState(customer.name);
     saveAndRenderAll(["customers", "carts"]);
     focusActiveCartPanel();
     showToast("Đã tạo đơn nháp mới cho khách.");
@@ -390,6 +412,7 @@ export function createSalesDomainHelpers(deps) {
       const mergedCart = updateCart(existingDraft.id, (currentCart) => ({
         ...currentCart,
         items: mergeRepeatCartItems(currentCart.items, clonedItems),
+        note: String(currentCart.note || "").trim() || String(sourceCart.note || "").trim(),
         shipAddress: String(currentCart.shipAddress || currentCart.ship_address || "").trim()
           || String(sourceCart.shipAddress || sourceCart.ship_address || "").trim(),
         ship_address: String(currentCart.shipAddress || currentCart.ship_address || "").trim()
@@ -422,6 +445,7 @@ export function createSalesDomainHelpers(deps) {
       customerName: sourceCart.customerName || "Khách lẻ",
       status: "draft",
       paymentStatus: "unpaid",
+      note: String(sourceCart.note || "").trim(),
       discountAmount: Number(sourceCart.discountAmount || sourceCart.discount_amount || 0),
       shipAddress: String(sourceCart.shipAddress || sourceCart.ship_address || "").trim(),
       ship_address: String(sourceCart.shipAddress || sourceCart.ship_address || "").trim(),
@@ -455,6 +479,14 @@ export function createSalesDomainHelpers(deps) {
 
   function canMergeCart(cart) {
     return Boolean(cart && ["draft", "committed"].includes(String(cart.status || "").trim()));
+  }
+
+  function buildMergedCartNote(carts = []) {
+    return [...new Set(
+      carts
+        .map((cart) => String(cart?.note || "").trim())
+        .filter(Boolean)
+    )].join(" | ");
   }
 
   function getCartMergePriority(cart) {
@@ -573,6 +605,7 @@ export function createSalesDomainHelpers(deps) {
     const mergedCart = updateCart(preview.targetId, (currentCart) => ({
       ...currentCart,
       items: mergedItems,
+      note: buildMergedCartNote([preview.targetCart, ...preview.sourceCarts]),
       shipAddress: mergedShipAddress,
       ship_address: mergedShipAddress,
       discountAmount: mergedDiscountAmount,
@@ -796,6 +829,7 @@ export function createSalesDomainHelpers(deps) {
     getPendingCartsForProduct,
     startInventoryOutFlow,
     setActiveCart,
+    canEditCartNote,
     canEditCartDiscount,
     getCartCostWarning,
   };

@@ -36,6 +36,80 @@ export function registerSalesControllerEvents(contract) {
     return window.confirm("Xác nhận cập nhật giá bán hiện tại thành giá bán mặc định của mặt hàng?");
   }
 
+  function getCreateNewCartTargetName() {
+    const lookupName = String(dom.customerLookupInput?.value || "").trim();
+    if (lookupName) {
+      return lookupName;
+    }
+    const activeCart = queries.getActiveCart();
+    if (activeCart?.customerName) {
+      return String(activeCart.customerName || "").trim();
+    }
+    return String(state.pendingCartMergeCustomerName || "").trim();
+  }
+
+  function hasCreateOrderResetCandidate() {
+    if (queries.getPendingCartMergePreview()) {
+      return true;
+    }
+    if (state.pendingCartMergeCustomerId) {
+      return true;
+    }
+    const activeCart = queries.getActiveCart();
+    if (!activeCart) {
+      return false;
+    }
+    const visibleNoteInput = dom.activeCartPanel?.querySelector(`[data-cart-note-input="${activeCart.id}"]`);
+    const visibleShipAddressInput = dom.activeCartPanel?.querySelector(`[data-cart-ship-address-input="${activeCart.id}"]`);
+    const visibleDiscountInput = dom.activeCartPanel?.querySelector(`[data-cart-discount-input="${activeCart.id}"]`);
+    const typedNote = String(
+      dom.salesNoteInput?.value
+      || visibleNoteInput?.value
+      || ""
+    ).trim();
+    const typedShipAddress = String(visibleShipAddressInput?.value || "").trim();
+    const typedDiscount = Number(visibleDiscountInput?.value ?? Number(activeCart.discountAmount || activeCart.discount_amount || 0));
+    return Boolean(
+      String(activeCart.customerName || "").trim()
+      || activeCart.itemCount
+      || String(activeCart.note || "").trim()
+      || typedNote !== String(activeCart.note || "").trim()
+      || Number(activeCart.discountAmount || activeCart.discount_amount || 0) > 0
+      || typedDiscount !== Number(activeCart.discountAmount || activeCart.discount_amount || 0)
+      || String(activeCart.shipAddress || activeCart.ship_address || "").trim()
+      || typedShipAddress !== String(activeCart.shipAddress || activeCart.ship_address || "").trim()
+      || String(activeCart.status || "").trim() === "committed"
+    );
+  }
+
+  function confirmCreateNewCartReset(targetCustomerName) {
+    if (!hasCreateOrderResetCandidate()) {
+      return true;
+    }
+    const targetLabel = targetCustomerName || "khách đang chọn";
+    return window.confirm(
+      [
+        `Tạo đơn mới cho "${targetLabel}"?`,
+        "",
+        "Form đơn hiện tại sẽ được reset để mở một đơn nháp trắng, tách biệt đơn cũ.",
+        "Đơn đang mở hoặc khối chọn gộp hiện tại sẽ không bị xóa và vẫn có thể mở lại từ danh sách đơn.",
+      ].join("\n")
+    );
+  }
+
+  async function startSeparatedDraftCart() {
+    const targetCustomerName = getCreateNewCartTargetName();
+    if (!targetCustomerName) {
+      throw new Error("Hãy nhập hoặc chọn khách hàng trước khi tạo đơn mới.");
+    }
+    if (!confirmCreateNewCartReset(targetCustomerName)) {
+      return;
+    }
+    await actions.flushPendingPersistCollections();
+    actions.openCartForCustomer(targetCustomerName, { forceNewDraft: true });
+    renderers.renderCreateOrderEntryState();
+  }
+
   function normalizeCustomerKey(value) {
     return String(value || "").trim().toLocaleLowerCase("vi");
   }
@@ -86,6 +160,25 @@ export function registerSalesControllerEvents(contract) {
       ...failures.map((entry) => `- ${entry.label}: ${entry.message}`),
     ].join("\n");
   }
+
+  dom.createNewCartButton?.addEventListener("click", async () => {
+    try {
+      await startSeparatedDraftCart();
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
+
+  dom.salesNoteInput?.addEventListener("change", () => {
+    const cart = queries.getActiveCart();
+    if (!cart) return;
+    if (!queries.canEditCartNote(cart)) {
+      actions.showToast("Chỉ đơn chưa thanh toán mới được sửa ghi chú.", true);
+      renderers.renderActiveCartPanel();
+      return;
+    }
+    saveActiveCartHeaderNote();
+  });
 
   async function commitSelectedOrders() {
     const selectedIds = (Array.isArray(state.selectedOrderMergeIds) ? state.selectedOrderMergeIds : [])
@@ -227,6 +320,50 @@ export function registerSalesControllerEvents(contract) {
     return true;
   }
 
+  function saveCartNote(cartId, inputSelectorRoot, options = {}) {
+    const { silent = false, persist = true } = options;
+    const cart = queries.getCartById(cartId);
+    if (!cart) {
+      actions.showToast("Không tìm thấy đơn hàng.", true);
+      return false;
+    }
+    if (!queries.canEditCartNote(cart)) {
+      actions.showToast("Chỉ đơn chưa thanh toán mới được sửa ghi chú.", true);
+      return false;
+    }
+    const noteInput = inputSelectorRoot.querySelector(`[data-cart-note-input="${cartId}"]`);
+    const note = String(noteInput?.value || "").trim();
+    actions.updateCart(cartId, (currentCart) => ({
+      ...currentCart,
+      note,
+      updatedAt: utils.nowIso(),
+    }));
+    actions.saveAndRenderAll(persist ? ["carts"] : []);
+    if (!silent) {
+      actions.showToast("Đã lưu ghi chú phiếu xuất.");
+    }
+    return true;
+  }
+
+  function saveActiveCartHeaderNote(options = {}) {
+    const activeCart = queries.getActiveCart();
+    if (!activeCart || !dom.salesNoteInput) {
+      return true;
+    }
+    const currentNote = String(activeCart.note || "").trim();
+    const nextNote = String(dom.salesNoteInput.value || "").trim();
+    if (currentNote === nextNote) {
+      return true;
+    }
+    return saveCartNote(activeCart.id, {
+      querySelector: (selector) => (
+        selector === `[data-cart-note-input="${activeCart.id}"]`
+          ? dom.salesNoteInput
+          : null
+      ),
+    }, options);
+  }
+
   function saveCartShipAddress(cartId, inputSelectorRoot, options = {}) {
     const { silent = false, persist = true } = options;
     const cart = queries.getCartById(cartId);
@@ -277,6 +414,13 @@ export function registerSalesControllerEvents(contract) {
   }
 
   function saveCartEditorsBeforeStatusChange(cartId, root) {
+    if (queries.getActiveCart()?.id === cartId && !saveActiveCartHeaderNote({ silent: true, persist: false })) {
+      return false;
+    }
+    const hasNoteInput = Boolean(root.querySelector(`[data-cart-note-input="${cartId}"]`));
+    if (hasNoteInput && !saveCartNote(cartId, root, { silent: true, persist: false })) {
+      return false;
+    }
     const hasShipAddressInput = Boolean(root.querySelector(`[data-cart-ship-address-input="${cartId}"]`));
     if (hasShipAddressInput && !saveCartShipAddress(cartId, root, { silent: true, persist: false })) {
       return false;
@@ -597,6 +741,14 @@ export function registerSalesControllerEvents(contract) {
       }
       return;
     }
+    if (button.dataset.cartAction === "create-new") {
+      try {
+        await startSeparatedDraftCart();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (button.dataset.cartAction === "toggle-detail") {
       state.activeCartDetailExpanded = !state.activeCartDetailExpanded;
       renderers.renderActiveCartPanel();
@@ -640,6 +792,10 @@ export function registerSalesControllerEvents(contract) {
     }
     if (button.dataset.cartAction === "save-discount") {
       saveCartDiscount(cart.id, dom.activeCartPanel);
+      return;
+    }
+    if (button.dataset.cartAction === "save-note") {
+      saveCartNote(cart.id, dom.activeCartPanel);
       return;
     }
     if (button.dataset.cartAction === "save-ship-address") {
@@ -809,6 +965,10 @@ export function registerSalesControllerEvents(contract) {
     }
     if (action === "save-discount") {
       saveCartDiscount(cart.id, dom.cartQueueList);
+      return;
+    }
+    if (action === "save-note") {
+      saveCartNote(cart.id, dom.cartQueueList);
       return;
     }
     if (action === "save-ship-address") {
@@ -984,6 +1144,10 @@ export function registerSalesControllerEvents(contract) {
       saveCartDiscount(cart.id, dom.orderDetailPanel);
       return;
     }
+    if (action === "save-note") {
+      saveCartNote(cart.id, dom.orderDetailPanel);
+      return;
+    }
     if (action === "save-ship-address") {
       saveCartShipAddress(cart.id, dom.orderDetailPanel);
       return;
@@ -1064,6 +1228,13 @@ export function registerSalesControllerEvents(contract) {
 
   dom.activeCartPanel.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
+    const noteInput = event.target.closest("[data-cart-note-input]");
+    if (noteInput) {
+      event.preventDefault();
+      const saveButton = dom.activeCartPanel.querySelector('[data-cart-action="save-note"]');
+      saveButton?.click();
+      return;
+    }
     const discountInput = event.target.closest("[data-cart-discount-input]");
     if (discountInput) {
       event.preventDefault();
@@ -1088,6 +1259,14 @@ export function registerSalesControllerEvents(contract) {
       }
     }
     if (event.key !== "Enter") return;
+    const noteInput = event.target.closest("[data-cart-note-input]");
+    if (noteInput) {
+      event.preventDefault();
+      const cartId = noteInput.dataset.cartNoteInput;
+      const saveButton = dom.cartQueueList.querySelector(`[data-queue-action="save-note"][data-cart-id="${cartId}"]`);
+      saveButton?.click();
+      return;
+    }
     const discountInput = event.target.closest("[data-cart-discount-input]");
     if (discountInput) {
       event.preventDefault();
@@ -1106,6 +1285,12 @@ export function registerSalesControllerEvents(contract) {
 
   dom.orderDetailPanel?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
+    const noteInput = event.target.closest("[data-cart-note-input]");
+    if (noteInput) {
+      event.preventDefault();
+      dom.orderDetailPanel.querySelector('[data-order-detail-action="save-note"]')?.click();
+      return;
+    }
     const discountInput = event.target.closest("[data-cart-discount-input]");
     if (discountInput) {
       event.preventDefault();
