@@ -109,7 +109,11 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
     await page.reload({ waitUntil: "networkidle" });
     await switchMenu(page, "orders");
     await expectScreenTitle(page, "Đơn hàng");
-    await page.locator("#showArchivedCarts").check();
+    await page.locator("#showPaidOrders").check();
+    await setFloatingSearch(page, completedCustomerName);
+    await expect(page.locator(".cart-queue-item", { hasText: completedCustomerName }).first()).toBeVisible();
+
+    await setFloatingSearch(page, "");
     await setFloatingSearch(page, draftCustomerName);
     const draftOrderCard = page.locator(".cart-queue-item", { hasText: draftCustomerName }).first();
     await expect(draftOrderCard).toBeVisible();

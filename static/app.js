@@ -1679,14 +1679,12 @@ function getDeletedSuppliers() {
 
 function getVisibleOrders() {
   const customerFilterId = String(state.orderFilterCustomerId || "");
-  const pending = state.carts.filter((cart) => ["draft", "committed"].includes(cart.status));
-  const archived = state.carts.filter((cart) => {
-    if (["draft", "committed"].includes(cart.status)) return false;
-    if (!state.showCancelledOrders && cart.status === "cancelled") return false;
-    if (!state.showPaidOrders && cart.paymentStatus === "paid") return false;
-    return true;
-  });
-  return (state.showArchivedCarts ? [...pending, ...archived] : pending).filter((cart) => {
+  return state.carts.filter((cart) => {
+    if (["draft", "committed"].includes(cart.status)) return true;
+    if (cart.paymentStatus === "paid") return state.showPaidOrders;
+    if (cart.status === "cancelled") return state.showArchivedCarts && state.showCancelledOrders;
+    return state.showArchivedCarts;
+  }).filter((cart) => {
     if (customerFilterId && String(cart.customerId || "") !== customerFilterId) return false;
     if (!state.orderSearchTerm) return true;
     const haystack = `${cart.customerName} ${cart.orderCode} ${cart.items.map((item) => item.productName).join(" ")}`.toLowerCase();
