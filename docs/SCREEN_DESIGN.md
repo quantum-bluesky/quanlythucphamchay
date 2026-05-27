@@ -83,6 +83,7 @@ Liên kết detail hiện có:
   - search sản phẩm trong bán hàng
 - nguyên tắc UI:
   - khu chọn khách phải có cả `Mở giỏ hàng` và `Tạo đơn mới`; `Tạo đơn mới` là action tách draft trắng khỏi đơn/preview hiện tại, không phải alias của mở lại giỏ cũ
+  - khu chọn khách phải có thêm ô `Ghi chú phiếu xuất` để user nhập nhanh yêu cầu riêng cho toàn phiếu ngay từ màn tạo đơn
   - nút `...` luôn hiện trên card sản phẩm để toggle detail
   - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
   - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
@@ -90,14 +91,15 @@ Liên kết detail hiện có:
   - action `Giá chung` trong editor giá bán phải hiện message confirm trước khi cập nhật giá bán mặc định của mặt hàng để tránh bấm nhầm trên mobile
   - với mọi chỗ đang sửa giá bán theo mặt hàng, nếu `giá xuất < giá nhập` của 1 mặt hàng thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
   - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu, không phải per-line
+  - `Detail` của phiếu xuất phải hiện thêm `Ghi chú` trong metadata; nếu đơn chưa thanh toán thì detail cho sửa và lưu lại ghi chú này
   - nếu `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` của các dòng hàng, panel phải hiện cảnh báo ngắn và trước `Chốt đơn`/`Xuất hàng` phải hỏi xác nhận thêm
   - từ màn `orders`, user có thể tick nhiều phiếu `draft/committed` cùng khách để mở preview `gộp đơn`; nếu khác khách thì giữ nguyên list và báo lỗi thân thiện
   - khối `Giỏ hiện hành` có thêm button `Detail` để bung metadata phiếu xuất mà không chuyển màn
   - phiếu xuất được phép `In` từ lúc còn `Nháp` cho tới `Đã thanh toán`
   - detail đơn phải có thêm `Địa chỉ giao`; field này là snapshot riêng của đơn và cho sửa tới trước khi `Đã xuất hàng`
   - không dùng cụm nút tăng giảm nhanh trong `Giỏ hiện hành` để tránh rối trên mobile
-  - sau khi đơn đã `Chốt đơn`, app khóa khách hàng nhưng vẫn cho sửa dòng hàng, địa chỉ giao và `Giảm giá khuyến mại`
-  - sau khi đơn đã `Đã xuất hàng` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Giảm giá khuyến mại`; không mở khóa lại dòng hàng
+  - sau khi đơn đã `Chốt đơn`, app khóa khách hàng nhưng vẫn cho sửa dòng hàng, địa chỉ giao, `Ghi chú phiếu xuất` và `Giảm giá khuyến mại`
+  - sau khi đơn đã `Đã xuất hàng` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Ghi chú phiếu xuất` và `Giảm giá khuyến mại`; không mở khóa lại dòng hàng
   - khi mở đơn mới cho khách đang có đơn `Chốt đơn`, panel phải hiện lựa chọn `Mở đơn đã chốt` hoặc `Tạo đơn mới`
   - khi user chủ động bấm `Tạo đơn mới`, UI phải hỏi confirm nếu form hiện tại đang có dữ liệu hoặc đang ở preview đơn cũ, rồi reset toàn bộ editor về một draft trắng riêng; không reuse draft cũ và không tự gộp vào preview đang mở
   - khi chốt đơn, hệ thống được phép tính thêm phần hàng đã nằm trong phiếu nhập `Đã đặt`; chỉ khi phần thiếu còn lại chưa được `Đã đặt` cover đủ thì app mới báo trước khi tạo/cập nhật phiếu nhập

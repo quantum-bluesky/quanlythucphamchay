@@ -64,6 +64,7 @@ Nếu cần can thiệp đặc biệt
 - trong `Giỏ hiện hành`, mỗi dòng hiển thị dưới dạng card gọn 2 dòng; bấm `...` để mở detail
 - sửa số lượng
 - sửa giá bán riêng cho đơn
+- nhập hoặc sửa `ghi chú phiếu xuất` ở cấp toàn đơn
 - sửa địa chỉ giao riêng của đơn
 - có thể nhập thêm `giảm giá khuyến mại` cho toàn đơn; app tự tính lại số tiền cần thu
 - nếu cần, cập nhật luôn giá bán mặc định nhưng UI phải hỏi confirm trước khi áp dụng
@@ -110,9 +111,10 @@ Nếu cần can thiệp đặc biệt
 - từ đơn `completed/paid`, có thể bấm `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng của phiếu đã chọn; nếu khách đã có đơn `draft` thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có để giảm số lần gửi hàng hay tạo nháp mới riêng
 - nếu đi từ màn `customers`, app có thể lọc danh sách đơn đúng theo khách; nếu khách chỉ có 1 phiếu thì mở sẵn detail để xem ngay kể cả với đơn đã `completed/paid`
 - đơn `draft` có nút `Chốt đơn`, đơn `committed` có nút `Xuất hàng`
-- đơn `committed` vẫn cho sửa dòng hàng, địa chỉ giao và giảm giá; không đổi được khách, không được xóa
+- đơn `committed` vẫn cho sửa dòng hàng, địa chỉ giao, ghi chú và giảm giá; không đổi được khách, không được xóa
 - đơn `draft/committed` cùng khách vẫn có thể đi vào flow `gộp đơn`; hệ thống giữ lại một phiếu đích rồi chuyển các phiếu nguồn sang `cancelled`
-- đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; ngoại lệ duy nhất trước thanh toán là vẫn cho sửa `giảm giá khuyến mại` của toàn đơn
+- khi gộp nhiều phiếu xuất cùng khách, phiếu đích sẽ hợp nhất `ghi chú phiếu xuất` theo danh sách duy nhất ngăn bằng ` | `
+- đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; ngoại lệ trước thanh toán là vẫn cho sửa `ghi chú phiếu xuất` và `giảm giá khuyến mại` của toàn đơn
 
 ### Luồng tạo nhiều đơn mobile-first
 

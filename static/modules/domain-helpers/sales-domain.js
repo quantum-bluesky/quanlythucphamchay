@@ -58,6 +58,10 @@ export function createSalesDomainHelpers(deps) {
     );
   }
 
+  function canEditCartNote(cart) {
+    return canEditCartDiscount(cart);
+  }
+
   function getCartCostWarning(cart) {
     if (!cart || !Array.isArray(cart.items) || !cart.items.length) {
       return {
@@ -118,6 +122,7 @@ export function createSalesDomainHelpers(deps) {
       customerName: cart.customerName || "Khách lẻ",
       status: cart.status || "draft",
       paymentStatus: cart.paymentStatus || "unpaid",
+      note: String(cart.note || "").trim(),
       discountAmount: Number(discountAmount.toFixed(2)),
       discount_amount: Number(discountAmount.toFixed(2)),
       shipAddress: String(cart.shipAddress || cart.ship_address || "").trim(),
@@ -190,6 +195,7 @@ export function createSalesDomainHelpers(deps) {
       customerName: customer.name,
       status: "draft",
       paymentStatus: "unpaid",
+      note: "",
       discountAmount: 0,
       shipAddress: customer.address || "",
       items: [],
@@ -406,6 +412,7 @@ export function createSalesDomainHelpers(deps) {
       const mergedCart = updateCart(existingDraft.id, (currentCart) => ({
         ...currentCart,
         items: mergeRepeatCartItems(currentCart.items, clonedItems),
+        note: String(currentCart.note || "").trim() || String(sourceCart.note || "").trim(),
         shipAddress: String(currentCart.shipAddress || currentCart.ship_address || "").trim()
           || String(sourceCart.shipAddress || sourceCart.ship_address || "").trim(),
         ship_address: String(currentCart.shipAddress || currentCart.ship_address || "").trim()
@@ -438,6 +445,7 @@ export function createSalesDomainHelpers(deps) {
       customerName: sourceCart.customerName || "Khách lẻ",
       status: "draft",
       paymentStatus: "unpaid",
+      note: String(sourceCart.note || "").trim(),
       discountAmount: Number(sourceCart.discountAmount || sourceCart.discount_amount || 0),
       shipAddress: String(sourceCart.shipAddress || sourceCart.ship_address || "").trim(),
       ship_address: String(sourceCart.shipAddress || sourceCart.ship_address || "").trim(),
@@ -471,6 +479,14 @@ export function createSalesDomainHelpers(deps) {
 
   function canMergeCart(cart) {
     return Boolean(cart && ["draft", "committed"].includes(String(cart.status || "").trim()));
+  }
+
+  function buildMergedCartNote(carts = []) {
+    return [...new Set(
+      carts
+        .map((cart) => String(cart?.note || "").trim())
+        .filter(Boolean)
+    )].join(" | ");
   }
 
   function getCartMergePriority(cart) {
@@ -589,6 +605,7 @@ export function createSalesDomainHelpers(deps) {
     const mergedCart = updateCart(preview.targetId, (currentCart) => ({
       ...currentCart,
       items: mergedItems,
+      note: buildMergedCartNote([preview.targetCart, ...preview.sourceCarts]),
       shipAddress: mergedShipAddress,
       ship_address: mergedShipAddress,
       discountAmount: mergedDiscountAmount,
@@ -812,6 +829,7 @@ export function createSalesDomainHelpers(deps) {
     getPendingCartsForProduct,
     startInventoryOutFlow,
     setActiveCart,
+    canEditCartNote,
     canEditCartDiscount,
     getCartCostWarning,
   };

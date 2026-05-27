@@ -35,8 +35,10 @@ import {
   menuToggleButton,
   viewSections,
   customerLookupInput,
+  salesNoteInput,
   customerOptions,
   openCartButton,
+  createNewCartButton,
   draftCartBadge,
   salesSearchInput,
   salesProductList,
@@ -978,6 +980,7 @@ function getSalesUi() {
       getProductById,
       canDeleteCart,
       canMergeCart,
+      canEditCartNote,
       canEditCartDiscount,
       getCartCostWarning,
       getPendingCartMergePreview,
@@ -1783,6 +1786,10 @@ function canDeleteCart(cart) {
 
 function canEditCartDiscount(cart) {
   return getSalesDomainHelpers().canEditCartDiscount(cart);
+}
+
+function canEditCartNote(cart) {
+  return getSalesDomainHelpers().canEditCartNote(cart);
 }
 
 function getCartCostWarning(cart) {
@@ -5377,8 +5384,14 @@ function renderAll() {
   showCancelledPurchases.checked = state.showCancelledPurchases || false;
   showPaidPurchases.checked = state.showPaidPurchases || false;
   const activeCart = getActiveCart();
+  const cartNoteEditable = canEditCartNote(activeCart);
   if (activeCart) {
     customerLookupInput.value = activeCart.customerName;
+    if (salesNoteInput) {
+      salesNoteInput.value = activeCart.note || "";
+    }
+  } else if (salesNoteInput) {
+    salesNoteInput.value = "";
   }
   const activePurchase = getActivePurchase();
   const supplierEditable = canEditPurchaseSupplier(activePurchase);
@@ -5395,6 +5408,9 @@ function renderAll() {
   }
   if (purchaseNoteInput) {
     purchaseNoteInput.disabled = Boolean(activePurchase) && !noteEditable;
+  }
+  if (salesNoteInput) {
+    salesNoteInput.disabled = !activeCart || !cartNoteEditable;
   }
   if (purchaseSupplierMenuButton) {
     purchaseSupplierMenuButton.disabled = Boolean(activePurchase) && !supplierEditable;
@@ -5615,6 +5631,7 @@ function buildCartPrintMarkup(cart) {
     metadata: [
       { label: "Khách hàng", value: cart.customerName || "Chưa có" },
       { label: "Địa chỉ giao", value: cart.shipAddress || "Chưa có" },
+      { label: "Ghi chú", value: cart.note || "Chưa có" },
       { label: "Trạng thái", value: getCartPrintStatusLabel(cart) },
       { label: "Thời gian", value: formatDate(cart.paidAt || cart.completedAt || cart.committedAt || cart.updatedAt || cart.createdAt) || "Chưa có" },
     ],
@@ -6246,6 +6263,7 @@ registerSalesControllerEvents({
   state,
   dom: {
     customerLookupInput,
+    salesNoteInput,
     createNewCartButton,
     salesSearchInput,
     orderSearchInput,
@@ -6311,6 +6329,7 @@ registerSalesControllerEvents({
     getCartById,
     canMergeCart,
     getPendingCartMergePreview,
+    canEditCartNote,
     canEditCartDiscount,
     getCartCostWarning,
     getVisibleOrders,

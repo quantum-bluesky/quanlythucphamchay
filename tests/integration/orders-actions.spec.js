@@ -259,6 +259,87 @@ test("IT-ORD-08 create-order screen can create a separate new draft without reus
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-ORD-09 sales order note can be created from form and edited from order detail", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const customerName = `Khách note ORD ${timestamp}`;
+  const initialNote = `Ghi chú tạo mới ${timestamp}`;
+  const updatedNote = `Ghi chú đã sửa ${timestamp}`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+
+  try {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "create-order");
+    await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    await page.locator("#customerLookupInput").fill(customerName);
+    await page.locator("#createNewCartButton").click();
+    const createToast = await collectToast(page, runtime, "it-ord-09-create-cart", { errorPattern: /^$/ });
+    expect(createToast).toContain("Đã tạo đơn nháp mới tách biệt đơn cũ.");
+
+    const salesNoteInput = page.locator("#salesNoteInput");
+    await expect(salesNoteInput).toBeEnabled();
+    await salesNoteInput.fill(initialNote);
+    await salesNoteInput.press("Tab");
+    const saveDraftNoteToast = await collectToast(page, runtime, "it-ord-09-save-draft-note", { errorPattern: /^$/ });
+    expect(saveDraftNoteToast).toContain("Đã lưu ghi chú phiếu xuất.");
+
+    const draftStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(draftStateResponse.ok()).toBeTruthy();
+    const draftState = await draftStateResponse.json();
+    const createdDraft = (draftState.carts || []).find((cart) =>
+      cart.status === "draft" &&
+      cart.customerName === customerName
+    );
+    expect(createdDraft).toBeTruthy();
+    expect(String(createdDraft.note || "")).toBe(initialNote);
+
+    await switchMenu(page, "orders");
+    await expectScreenTitle(page, "Đơn hàng");
+    await setFloatingSearch(page, customerName);
+
+    const orderCard = page.locator(".cart-queue-item", { hasText: customerName }).first();
+    await expect(orderCard).toBeVisible();
+    await orderCard.locator('[data-queue-action="toggle-detail"]').click();
+
+    const detailPanel = page.locator("#orderDetailPanel");
+    await expect(detailPanel).toContainText(initialNote);
+    const detailNoteInput = detailPanel.locator(`[data-cart-note-input="${createdDraft.id}"]`);
+    await expect(detailNoteInput).toHaveValue(initialNote);
+
+    await detailNoteInput.fill(updatedNote);
+    await detailPanel.locator('[data-order-detail-action="save-note"]').click();
+    const saveDetailNoteToast = await collectToast(page, runtime, "it-ord-09-save-detail-note", { errorPattern: /^$/ });
+    expect(saveDetailNoteToast).toContain("Đã lưu ghi chú phiếu xuất.");
+
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(latestStateResponse.ok()).toBeTruthy();
+    const latestState = await latestStateResponse.json();
+    const updatedDraft = (latestState.carts || []).find((cart) => cart.id === createdDraft.id);
+    expect(updatedDraft).toBeTruthy();
+    expect(String(updatedDraft.note || "")).toBe(updatedNote);
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-ORD-05 commit warns when sale total is lower than purchase total", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
   const userCookie = await autoLoginUserRequest(request);

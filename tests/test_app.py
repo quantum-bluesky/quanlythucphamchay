@@ -1613,6 +1613,7 @@ class InventoryStoreTests(unittest.TestCase):
                         "customerName": "Khách discount",
                         "status": "completed",
                         "paymentStatus": "unpaid",
+                        "note": "Ghi chú trước thanh toán",
                         "discountAmount": 0,
                         "completedAt": "2026-05-06T09:10:00+07:00",
                         "updatedAt": "2026-05-06T09:10:00+07:00",
@@ -1659,6 +1660,7 @@ class InventoryStoreTests(unittest.TestCase):
         editable_carts = copy.deepcopy(editable_state["carts"])
         editable_purchases = copy.deepcopy(editable_state["purchases"])
         editable_carts[0]["discountAmount"] = 5000
+        editable_carts[0]["note"] = "Da xuat, cho sua ghi chu"
         editable_purchases[0]["discountAmount"] = 4000
         editable_purchases[0]["note"] = "Da nhap kho, cho sua ghi chu"
         updated_state = self.store.save_sync_state(
@@ -1673,6 +1675,7 @@ class InventoryStoreTests(unittest.TestCase):
         )
 
         self.assertEqual(updated_state["carts"][0]["discountAmount"], 5000.0)
+        self.assertEqual(updated_state["carts"][0]["note"], "Da xuat, cho sua ghi chu")
         self.assertEqual(updated_state["purchases"][0]["discountAmount"], 4000.0)
         self.assertEqual(updated_state["purchases"][0]["note"], "Da nhap kho, cho sua ghi chu")
 
@@ -1703,6 +1706,17 @@ class InventoryStoreTests(unittest.TestCase):
             self.store.save_sync_state(
                 {
                     "carts": final_carts,
+                    "expected_updated_at": {"carts": locked_state["updated_at"]["carts"]},
+                }
+            )
+
+        final_note_carts = copy.deepcopy(locked_state["carts"])
+        final_note_carts[0]["note"] = "Khong duoc sua sau thanh toan"
+
+        with self.assertRaisesRegex(ValueError, "không thể sửa ghi chú"):
+            self.store.save_sync_state(
+                {
+                    "carts": final_note_carts,
                     "expected_updated_at": {"carts": locked_state["updated_at"]["carts"]},
                 }
             )
@@ -1985,6 +1999,7 @@ class InventoryStoreTests(unittest.TestCase):
                         "customerName": "Khách commit ship",
                         "status": "draft",
                         "paymentStatus": "unpaid",
+                        "note": "Giao sau 18h",
                         "shipAddress": "1 Trần Hưng Đạo",
                         "createdAt": "2026-05-06T08:00:00+07:00",
                         "updatedAt": "2026-05-06T08:00:00+07:00",
@@ -2012,6 +2027,19 @@ class InventoryStoreTests(unittest.TestCase):
         shipped = self.store.ship_cart_order("cart-commit-ship-01", actor="tester")
         self.assertEqual(shipped["cart"]["status"], "completed")
         self.assertTrue(shipped["cart"]["completedAt"])
+        with self.store._connect() as connection:
+            transaction_row = connection.execute(
+                """
+                SELECT note
+                FROM transactions
+                WHERE note LIKE ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (f"%{committed['order_code']}%",),
+            ).fetchone()
+        self.assertIsNotNone(transaction_row)
+        self.assertIn("Giao sau 18h", transaction_row["note"])
         self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 3.0)
 
     def test_ut_ord_16_commit_can_use_ordered_purchase_coverage_without_double_reserve(self) -> None:

@@ -179,7 +179,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - header đơn hàng nháp / đã chốt / đã xuất
 - cột chính:
   - `id`, `customer_id`, `customer_name`
-  - `status`, `payment_status`, `discount_amount`
+  - `status`, `payment_status`, `note`, `discount_amount`
   - `ship_address`
   - `created_at`, `updated_at`, `committed_at`, `completed_at`, `cancelled_at`, `paid_at`
   - `order_code`
@@ -188,6 +188,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 
 - `discount_amount` là giảm giá khuyến mại ở cấp toàn đơn
 - không đổi số lượng tồn kho hay line item, chỉ ảnh hưởng số tiền cần thu và báo cáo doanh thu net
+- `note` là ghi chú cấp toàn phiếu xuất; phục vụ yêu cầu giao/chốt riêng của đơn và không tác động tới tồn kho hay trạng thái
 - `ship_address` là snapshot địa chỉ giao ở cấp đơn; không phụ thuộc động vào hồ sơ khách hàng
 - `committed_at` là mốc đơn được chốt để giữ hàng logic trước khi xuất thật
 - khả dụng để `commit` được suy ra từ `tồn hiện tại + số lượng của phiếu nhập ordered - phần đã giữ cho các đơn committed khác`; bước `ship` vẫn chỉ dựa trên tồn vật lý đã nhập kho

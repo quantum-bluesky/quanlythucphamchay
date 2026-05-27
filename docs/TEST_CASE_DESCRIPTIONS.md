@@ -73,6 +73,7 @@ Lưu ý:
 | 121 | `IT-ORD-06` | Kiểm tra chỉ gộp được phiếu xuất `Nháp/Chốt đơn` cùng khách, báo lỗi khi khác khách, và bấm `Hủy` trong preview sẽ quay lại đúng danh sách đơn. |
 | 123 | `IT-ORD-07` | Kiểm tra thanh chọn nhiều phiếu ở màn đơn hàng có thể `Chốt đơn` hàng loạt, chỉ chốt các đơn `draft` hợp lệ và giữ nguyên phiếu lỗi để user xử lý tiếp. |
 | 124 | `IT-ORD-08` | Kiểm tra màn `Tạo đơn xuất hàng` cho bấm `Tạo đơn mới` để mở một draft trắng riêng, có confirm khi đang đứng ở đơn cũ và không reuse đơn nháp hiện có. |
+| 125 | `IT-ORD-09` | Kiểm tra người dùng tạo draft mới ở màn `Tạo đơn xuất hàng`, nhập `Ghi chú phiếu xuất`, rồi mở `Detail` ở màn `Đơn hàng` để xem và sửa lại ghi chú; giá trị mới phải được lưu trong DB. |
 | 47 | `IT-REP-01` | Kiểm tra nút shortcut `Audit` trên màn `Báo cáo` tự cuộn xuống khối `Audit chứng từ` để người dùng xem lịch sử chứng từ ngay. |
 | 45 | `IT-NAV-02` | Kiểm tra menu trên PC/tablet bung ra từ nút `Mở menu`, tự thu gọn khi rê chuột hoặc bấm ra ngoài, đồng thời giữ chiều rộng menu gọn. |
 | 46 | `IT-NAV-03` | Kiểm tra sau khi xoay giữa màn hình dọc và ngang thì vẫn bấm được các item trong menu nghiệp vụ để chuyển màn bình thường. |

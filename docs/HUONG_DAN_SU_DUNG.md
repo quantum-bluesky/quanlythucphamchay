@@ -89,6 +89,7 @@ Vào menu:
 2. Nếu khách đã có sẵn, chọn đúng tên
 3. Nếu khách chưa có, cứ gõ tên rồi bấm `Mở giỏ hàng`
 4. Nếu đang muốn bỏ hẳn đơn đang mở để làm một phiếu trắng riêng cho cùng khách hoặc khách khác, bấm `Tạo đơn mới`
+5. Khi đã mở giỏ, có thể nhập thêm `Ghi chú phiếu xuất` ngay cạnh ô khách hàng để lưu yêu cầu giao riêng cho đơn
 
 Ứng dụng sẽ tự tạo giỏ hàng nháp cho khách đó.
 
@@ -108,6 +109,7 @@ Lưu ý:
 
 - nếu máy khác vừa nhập thêm hàng hoặc đổi giá nhập mặc định, danh sách chọn hàng sẽ tự cập nhật mà không cần refresh tay
 - nếu đang mở một đơn cũ nhưng cần tách sang đơn mới hoàn toàn, có thể bấm `Tạo đơn mới` ngay trong khối `Giỏ hiện hành`; app không xóa đơn cũ mà chỉ mở một draft trắng riêng
+- ghi chú phiếu xuất là field riêng của đơn; có thể nhập ở form tạo đơn và xem lại trong `Detail` của đơn
 
 Khi chọn, sản phẩm sẽ xuất hiện ở `Giỏ hiện hành`.
 
@@ -150,7 +152,7 @@ Nếu đủ hàng:
 - hệ thống giữ hàng logic cho đơn này nhưng chưa trừ kho thật
 - đơn chuyển sang trạng thái `Chốt đơn`
 - khóa khách hàng của đơn, không cho xóa phiếu
-- vẫn cho sửa dòng hàng, địa chỉ giao và `Giảm giá khuyến mại` cho tới trước khi xuất hàng
+- vẫn cho sửa dòng hàng, địa chỉ giao, `Ghi chú phiếu xuất` và `Giảm giá khuyến mại` cho tới trước khi xuất hàng
 - vẫn có thể in / gửi phiếu cho khách; app cũng cho in từ lúc đơn còn `Nháp`
 - nếu đã nhập `Giảm giá khuyến mại`, số `Cần thanh toán` trên phiếu và bản in sẽ là số đã trừ khuyến mại
 - nếu `Cần thanh toán` đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app sẽ hiện thêm cảnh báo xác nhận trước khi chốt để bạn rà lại giá bán
@@ -246,6 +248,7 @@ Dùng màn này để:
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền
 - `Hủy`: dùng khi khách không lấy nữa
 - `Xóa`: chỉ áp dụng cho giỏ nháp tạo nhầm; đơn đã chốt phải giữ lại lịch sử
+- `Lưu ghi chú`: cập nhật ghi chú riêng của phiếu xuất khi đơn chưa thanh toán
 - `Lưu giảm giá`: chỉnh lại tổng khuyến mại của cả đơn khi đơn chưa thanh toán
 - `Lưu địa chỉ giao`: cập nhật địa chỉ giao riêng của đơn cho tới trước khi đã xuất hàng
 
@@ -256,6 +259,7 @@ Lưu ý:
 - nếu đang mở đơn ở màn `Tạo đơn xuất hàng` mà muốn tách hẳn ra một đơn khác, bấm `Tạo đơn mới`; app sẽ hỏi trước khi reset form hiện tại nhưng vẫn giữ nguyên đơn cũ trong danh sách để mở lại sau
 - đơn đã `Chốt đơn` không đổi được khách hàng và không được xóa, nhưng vẫn hủy được nếu khách không lấy nữa
 - đơn đã `Đã xuất hàng` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao
+- trước khi `Đã thanh toán`, vẫn được sửa riêng `Ghi chú phiếu xuất` của cả đơn
 - nếu khách cần mua lại gần giống một đơn cũ, bấm `Xuất lại`; app sẽ tạo một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng của phiếu đã chọn. Nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
 - trước khi `Đã thanh toán`, vẫn được sửa riêng `Giảm giá khuyến mại` của cả đơn; riêng địa chỉ giao chỉ được sửa tới trước `Đã xuất hàng`
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
