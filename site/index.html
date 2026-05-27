@@ -1,0 +1,436 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Trang chủ - Quản lý Thực phẩm Chay</title>
+        <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 100 100&quot;&gt;&lt;text y=&quot;.9em&quot; font-size=&quot;90&quot;&gt;📘&lt;/text&gt;&lt;/svg&gt;">
+        <link rel="stylesheet" href="css/highlightjs.min.css">
+        <link rel="stylesheet" href="css/highlightjs-copy.min.css">
+        <link rel="stylesheet" href="css/theme.css">
+        <script src="js/highlightjs.min.js"></script>
+        <script src="js/highlightjs-copy.min.js"></script>
+        <script src="js/theme.js"></script>
+    </head>
+    <body>
+        <nav class="left">
+            <ul>
+<li><a class="active" href=".">Trang chủ</a></li>
+<li><a href="huong_dan_su_dung/">Hướng dẫn</a></li>
+</ul>
+        </nav>
+        <nav class="right">
+            <div class="toc">
+<ul>
+<li><a href="#quan-ly-nhanh-o-thuc-pham-chay">Quản lý nhanh đồ thực phẩm chay</a><ul>
+<li><a href="#tai-lieu">Tài liệu</a></li>
+<li><a href="#cau-truc-frontend-e-lam-song-song">Cấu trúc frontend để làm song song</a></li>
+<li><a href="#viet-tat-man-hinh">Viết tắt màn hình</a></li>
+<li><a href="#tinh-nang-chinh">Tính năng chính</a></li>
+<li><a href="#chay-ung-dung">Chạy ứng dụng</a></li>
+<li><a href="#setup-moi-truong-tren-may-moi">Setup môi trường trên máy mới</a></li>
+<li><a href="#khoi-tao-danh-muc-tu-datalisttxt">Khởi tạo danh mục từ data\List.txt</a></li>
+<li><a href="#chay-test">Chạy test</a></li>
+<li><a href="#api-chung-tu-ieu-chinh-phase-b">API chứng từ điều chỉnh (Phase B)</a></li>
+<li><a href="#api-audit-lich-su-san-pham-phase-d">API audit lịch sử sản phẩm (Phase D)</a></li>
+</ul>
+</li>
+</ul>
+</div>
+
+        </nav>
+        <main>
+            <h1 id="quan-ly-nhanh-o-thuc-pham-chay"><a class="toclink" href="#quan-ly-nhanh-o-thuc-pham-chay">Quản lý nhanh đồ thực phẩm chay</a></h1>
+<p>Ứng dụng web nhẹ để theo dõi tồn kho cá nhân cho thực phẩm chay đông lạnh. Hệ thống dùng Python chuẩn và SQLite, không cần cài thêm package ngoài.</p>
+<p>App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ <code>https://domain/qltp/</code>; client sẽ tự suy ra <code>app root</code> để gọi <code>static/*</code> và <code>api/*</code> theo đường dẫn hiện hành thay vì khóa cứng ở <code>/</code>.</p>
+<h2 id="tai-lieu"><a class="toclink" href="#tai-lieu">Tài liệu</a></h2>
+<ul>
+<li>Deploy Windows: <a href="docs/DEPLOY_WINDOWS.md">docs/DEPLOY_WINDOWS.md</a></li>
+<li>Hướng dẫn sử dụng: <a href="docs/HUONG_DAN_SU_DUNG.md">docs/HUONG_DAN_SU_DUNG.md</a></li>
+<li>Bảng thuật ngữ Anh - Việt: <a href="docs/TERM_GLOSSARY.md">docs/TERM_GLOSSARY.md</a></li>
+<li>Design màn hình chung: <a href="docs/SCREEN_DESIGN.md">docs/SCREEN_DESIGN.md</a></li>
+<li>Design database: <a href="docs/DB_DESIGN.md">docs/DB_DESIGN.md</a></li>
+<li>Business flow: <a href="docs/BUSINESS_FLOW.md">docs/BUSINESS_FLOW.md</a></li>
+<li>Bảng chuyển trạng thái: <a href="docs/STATUS_TRANSITION_TABLE.md">docs/STATUS_TRANSITION_TABLE.md</a></li>
+<li>Design hiển thị phiếu: <a href="docs/PHIEU_DISPLAY_DESIGN.md">docs/PHIEU_DISPLAY_DESIGN.md</a></li>
+<li>Thiết kế Issue 110 - Chốt đơn / Đã xuất hàng: <a href="docs/ISSUE_110_ORDER_COMMIT_DESIGN.md">docs/ISSUE_110_ORDER_COMMIT_DESIGN.md</a></li>
+<li>Thiết kế Issue 113 - Batch procurement mode / Xử lý nhập thiếu: <a href="docs/ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md">docs/ISSUE_113_BATCH_PROCUREMENT_MODE_DESIGN.md</a></li>
+<li>Hướng dẫn test: <a href="docs/TESTING.md">docs/TESTING.md</a></li>
+<li>Acceptance checklist: <a href="docs/ACCEPTANCE_CHECKLIST.md">docs/ACCEPTANCE_CHECKLIST.md</a></li>
+<li>Phân tích workflow: <a href="docs/WORKFLOW_REVIEW.md">docs/WORKFLOW_REVIEW.md</a></li>
+</ul>
+<h2 id="cau-truc-frontend-e-lam-song-song"><a class="toclink" href="#cau-truc-frontend-e-lam-song-song">Cấu trúc frontend để làm song song</a></h2>
+<ul>
+<li><code>static/app.js</code>: bootstrap app và wiring giữa các module</li>
+<li><code>static/modules/ui/</code>: renderer/UI helpers; ưu tiên sửa ở đây khi Issue chỉ đổi hiển thị</li>
+<li><code>static/modules/controllers/</code>: đăng ký event handler/controller; ưu tiên sửa ở đây khi Issue chỉ đổi điều hướng hoặc tương tác</li>
+<li><code>static/modules/domain-helpers/</code>: helper nghiệp vụ theo domain như <code>sales</code>, <code>purchases</code>, <code>inventory</code></li>
+<li><code>static/modules/navigation-runtime.js</code>: menu history, floating search, help modal, edge-hidden navigation orchestration</li>
+<li><code>static/modules/sync-runtime.js</code>: sync state nhiều máy, auto refresh, migrate dữ liệu cũ, persist queue</li>
+<li><code>static/modules/entity-product-mutations.js</code>: mutate customer/supplier/product impact helpers</li>
+<li><code>static/modules/</code>: state, DOM refs, config màn hình và utility dùng chung</li>
+<li><code>data/js_asset_versions.json</code>: manifest version cache-busting cho từng file client <code>.js</code></li>
+</ul>
+<p>Quy ước tách việc:</p>
+<ul>
+<li>Issue UI nên ưu tiên chạm <code>static/modules/ui/*</code></li>
+<li>Issue controller nên ưu tiên chạm <code>static/modules/controllers/*</code></li>
+<li>Issue runtime điều hướng nên ưu tiên chạm <code>static/modules/navigation-runtime.js</code></li>
+<li>Issue sync/runtime nhiều máy nên ưu tiên chạm <code>static/modules/sync-runtime.js</code></li>
+<li>Issue helper nghiệp vụ nên ưu tiên chạm <code>static/modules/domain-helpers/*</code> hoặc <code>static/modules/entity-product-mutations.js</code></li>
+<li>Chỉ sửa <code>static/app.js</code> khi cần đổi contract dùng chung hoặc wiring bootstrap</li>
+</ul>
+<p>Pattern hiện tại đã áp dụng trước cho domain <code>products</code>:</p>
+<ul>
+<li>UI: <code>static/modules/ui/products-ui.js</code></li>
+<li>Controller: <code>static/modules/controllers/products-controller.js</code></li>
+</ul>
+<p>Các domain đã có file UI riêng để giảm conflict khi làm song song:</p>
+<ul>
+<li><code>static/modules/ui/inventory-ui.js</code></li>
+<li><code>static/modules/ui/sales-ui.js</code></li>
+<li><code>static/modules/ui/bulk-orders-ui.js</code></li>
+<li><code>static/modules/ui/purchases-ui.js</code></li>
+<li><code>static/modules/ui/entities-ui.js</code></li>
+<li><code>static/modules/ui/reports-admin-ui.js</code></li>
+</ul>
+<p>Các domain đã có file controller riêng:</p>
+<ul>
+<li><code>static/modules/controllers/inventory-controller.js</code></li>
+<li><code>static/modules/controllers/sales-controller.js</code></li>
+<li><code>static/modules/controllers/bulk-orders-controller.js</code></li>
+<li><code>static/modules/controllers/purchases-controller.js</code></li>
+<li><code>static/modules/controllers/entities-controller.js</code></li>
+<li><code>static/modules/controllers/reports-admin-controller.js</code></li>
+</ul>
+<p>Các helper/runtime đã được tách riêng:</p>
+<ul>
+<li><code>static/modules/domain-helpers/sales-domain.js</code></li>
+<li><code>static/modules/domain-helpers/purchases-domain.js</code></li>
+<li><code>static/modules/domain-helpers/inventory-domain.js</code></li>
+<li><code>static/modules/navigation-runtime.js</code></li>
+<li><code>static/modules/sync-runtime.js</code></li>
+<li><code>static/modules/entity-product-mutations.js</code></li>
+</ul>
+<p>Contract chuẩn giữa các controller:</p>
+<ul>
+<li><code>state</code>: shared app state</li>
+<li><code>dom</code>: DOM refs và input/output element theo domain</li>
+<li><code>actions</code>: hàm gây side-effect hoặc mutate state/server</li>
+<li><code>renderers</code>: hàm render lại UI của domain hoặc màn liên quan</li>
+<li><code>queries</code>: hàm getter/check điều kiện, không nên gây side-effect</li>
+<li><code>utils</code>: formatter, helper hoặc constant nhẹ</li>
+</ul>
+<p>Quy ước này giúp khi tách Issue song song, team UI chỉ bám <code>ui/*</code>, team controller chỉ bám <code>controllers/*</code>, còn dependency contract giữa các file vẫn đồng nhất.</p>
+<h2 id="viet-tat-man-hinh"><a class="toclink" href="#viet-tat-man-hinh">Viết tắt màn hình</a></h2>
+<ul>
+<li><code>SP</code>: Sản phẩm</li>
+<li><code>NH</code>: Nhập hàng</li>
+<li><code>AD</code>: Admin</li>
+<li><code>KP</code>: Khôi phục</li>
+<li><code>XH</code>: Xuất hàng</li>
+<li><code>TK</code>: Tồn kho</li>
+<li><code>ĐH</code>: Đơn hàng</li>
+<li><code>XL</code>: Xử lý nhập thiếu</li>
+<li><code>NCC</code>: Nhà cung cấp</li>
+<li><code>KH</code>: Khách hàng</li>
+</ul>
+<h2 id="tinh-nang-chinh"><a class="toclink" href="#tinh-nang-chinh">Tính năng chính</a></h2>
+<ul>
+<li>Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết</li>
+<li>Màn tồn kho có dropdown sắp xếp trong khu vực phân trang để xem theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít</li>
+<li>Quản lý tồn kho theo lô còn hàng; card tồn kho có thể hiện các lô active, mã lô, HSD gần nhất và số lượng còn lại theo từng lô</li>
+<li>Xuất kho và trả NCC dùng FEFO theo HSD thật của từng lô; nếu chứng từ trả NCC chỉ rõ mã lô thì hệ thống ưu tiên trừ đúng lô đó</li>
+<li>Màn tồn kho có nút <code>Lịch sử</code> để nhảy nhanh xuống phần <code>Lịch sử gần đây</code>; khối này mặc định thu gọn và mã <code>DH/PN/DC/THK/TNCC</code> trong từng dòng có thể bấm để mở đúng chứng từ liên quan</li>
+<li>Tồn kho liên kết trực tiếp với đơn chờ xuất và phiếu chờ nhập, thay cho nhập/xuất nhanh thủ công</li>
+<li>Quản lý riêng <code>giá nhập</code> và <code>giá bán mặc định</code> của sản phẩm</li>
+<li>Ở các màn đang sửa giá/mặt hàng, app sẽ hiện cảnh báo nếu <code>giá nhập &lt; 1.000đ</code> hoặc <code>giá xuất &lt; giá nhập</code> cho 1 mặt hàng; ở các màn chỉ xem thì chỉ gắn nhãn cảnh báo ngắn</li>
+<li>Có badge <code>Chờ xuất</code> / <code>Chờ nhập</code> ngay trên card tồn kho để nhảy nhanh sang màn liên quan, đồng thời hiện <code>số phiếu / tổng số lượng</code> đang chờ theo từng mặt hàng</li>
+<li>Quản lý khách hàng, đơn nháp, <code>Chốt đơn</code> và <code>Xuất hàng</code> nhiều mặt hàng trong một lần</li>
+<li>Có màn <code>Tạo nhiều đơn / Xuất nhanh</code> theo kiểu mobile-first: mỗi khách là một card riêng, cuối màn chỉ có <code>Lưu nháp</code> và <code>Chốt đơn hợp lệ</code></li>
+<li>Nếu bật login và user không có quyền <code>order_batch_manage</code>, màn <code>Xuất nhanh</code> sẽ tạo <code>yêu cầu xuất nhanh</code> ở trạng thái <code>pending_approval</code>; user quản lý hoặc <code>Master Admin</code> duyệt xong thì owner mới xử lý tiếp thành đơn thật</li>
+<li>Request <code>pending_approval</code> tạo nhầm có thể xóa ngay trên màn <code>Xuất nhanh</code>; owner của request hoặc user có <code>order_batch_manage</code>/<code>Master Admin</code> đều xóa được, không cần thêm status mới</li>
+<li>Có popup <code>Lịch sử</code> xem nhanh audit timeline cho từng yêu cầu xuất nhanh và từng đơn đã tạo, ưu tiên mobile và chỉ nạp khi user mở detail để không làm nặng list</li>
+<li><code>Lưu nháp</code> ở màn tạo nhiều đơn chỉ tạo/cập nhật cart <code>draft</code> cho từng khách, không giữ hàng và không trừ kho; card lưu thành công vẫn ở lại trên màn để sửa tiếp và lưu lại vào đúng đơn cũ</li>
+<li><code>Chốt đơn hợp lệ</code> chỉ đẩy các đơn đủ tồn sang <code>committed</code>, còn đơn lỗi giữ lại để sửa tiếp; card đã chốt vẫn có thể sửa tiếp ngay trên màn <code>Xuất nhanh</code> và lần lưu/chốt sau sẽ cập nhật đúng đơn đã chốt thay vì tạo bản sao</li>
+<li>Nếu <code>Chốt đơn hợp lệ</code> báo thiếu hàng ở màn <code>Xuất nhanh</code>, khối kết quả sẽ có nút chuyển nhanh sang <code>Nhập hàng</code> để xử lý các đơn đang thiếu; riêng khi Batch procurement mode đang bật thì nút này sẽ đi sang <code>Xử lý nhập thiếu</code> để giữ nguyên workflow batch</li>
+<li>Ở màn xuất hàng và nhập hàng, các mặt hàng đã chọn sẽ được gom lên phần tóm tắt đơn/phiếu phía trên để thao tác nhanh</li>
+<li>Ở màn nhập hàng, mỗi card gợi ý có ô <code>SL</code> để đổi nhanh số lượng trước khi bấm <code>+ Phiếu</code></li>
+<li>Khi thêm hàng vào phiếu chưa có NCC, app sẽ tự chọn NCC nếu mặt hàng chỉ từng nhập từ 1 NCC; nếu từng nhập từ nhiều NCC thì danh sách gợi ý NCC ưu tiên NCC đã nhập mặt hàng đó nhiều hơn</li>
+<li>Khi chọn một mặt hàng mà đang có phiếu nhập <code>Nháp/Đã đặt</code> của NCC khác, app sẽ hiện cảnh báo; nếu người dùng đồng ý review thì màn <code>Nhập hàng</code> mở danh sách các phiếu liên quan để chọn phiếu cần chỉnh về cùng một NCC hoặc giữ nguyên hiện trạng</li>
+<li>Mỗi nhà cung cấp giữ tối đa 1 phiếu nhập nháp riêng; nếu chọn lại đúng NCC đã có nháp thì app mở lại phiếu đó để thêm tiếp, còn nếu chọn NCC khác thì app giữ nguyên phiếu cũ và tạo nháp riêng cho NCC mới</li>
+<li>Riêng màn xuất hàng giữ nút <code>...</code> luôn hiện trên card sản phẩm để mở/thu gọn detail; hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót, nhưng nếu user chủ động bấm <code>...</code> thì app vẫn giữ lại đúng card đang thao tác</li>
+<li>Khối <code>Giỏ hiện hành</code> ở màn xuất hàng hiển thị từng dòng đã chọn dưới dạng card gọn 2 dòng; bấm <code>...</code> trên từng card để mở detail sửa số lượng, giá bán hoặc bỏ khỏi giỏ</li>
+<li>Phiếu xuất và phiếu nhập có thêm <code>giảm giá khuyến mại</code> ở cấp toàn phiếu; app tự tính <code>Tạm tính / Giảm KM / Cần thanh toán</code> ngay trên panel, detail và bản in</li>
+<li>Nếu <code>Cần thanh toán</code> của phiếu xuất đang thấp hơn tổng <code>giá nhập mặc định</code> của các dòng hàng, app sẽ hiện cảnh báo trước khi <code>Chốt đơn</code> hoặc <code>Xuất hàng</code></li>
+<li>Trước các thao tác đổi trạng thái hoặc xóa phiếu như <code>Xuất hàng</code>, <code>Đã thanh toán</code>, <code>Đã đặt hàng</code>, <code>Nhập kho</code>, <code>Hủy</code>, <code>Xóa</code>, app sẽ hiện message confirm để tránh bấm nhầm</li>
+<li>Ở màn <code>Nhập hàng</code>, có thể tick nhiều phiếu rồi bấm <code>Đặt hàng</code> để chuyển nhanh các phiếu nháp hợp lệ sang <code>Đã đặt hàng</code>; phiếu thiếu NCC hoặc không còn sửa được sẽ được giữ nguyên và app báo lại theo từng phiếu</li>
+<li>Ở màn <code>Đơn hàng</code>, có thể tick nhiều phiếu <code>Nháp/Chốt đơn</code> cùng khách để mở flow <code>Gộp đơn</code>; hệ thống sẽ chặn nếu chọn khác khách</li>
+<li>Ở màn <code>Đơn hàng</code>, có thể tick nhiều phiếu rồi bấm <code>Chốt đơn</code> để xử lý hàng loạt các đơn nháp hợp lệ; đơn thiếu hàng hoặc không còn ở trạng thái nháp sẽ được giữ nguyên và app báo lại theo từng phiếu</li>
+<li>Khi một action đang lưu thay đổi lên server, app sẽ phủ <code>Loading</code> toàn màn hình và khóa tạm các thao tác khác cho tới khi trạng thái mới được cập nhật xong, để tránh bấm chồng nhiều action liên tiếp</li>
+<li>Khi chốt đơn bị thiếu hàng, app vẫn cho chốt nếu phần thiếu đã được cover đủ bởi phiếu nhập <code>Đã đặt</code>; nếu mới chỉ có phiếu <code>Nháp</code> hoặc vẫn thiếu số lượng thì app sẽ báo trước khi tạo/cập nhật phiếu nhập và cho mở lại phiếu liên quan khi người dùng xác nhận cần chỉnh</li>
+<li>Màn <code>Xử lý nhập thiếu</code> cho phép bật kỳ gom nhập định kỳ, gom nhu cầu của cả đơn nháp và đơn đã chốt theo từng mặt hàng để tạo phiếu nhập batch</li>
+<li>Trong kỳ gom nhập, shortage flow không auto-create phiếu nhập theo từng đơn; người giữ khóa batch phải xử lý trên planner và mỗi sản phẩm thiếu chỉ được gán vào một phiếu nhập mở để tránh tách logistics</li>
+<li>Danh sách shortage chính ở màn <code>Xử lý nhập thiếu</code> chỉ hiện các mặt hàng còn nhu cầu nhập thực tế (<code>Cần nhập &gt; 0</code>) để người dùng tập trung đúng các dòng có thể tạo phiếu</li>
+<li>Khi kỳ gom nhập còn hiệu lực, chỉ người giữ khóa batch hoặc <code>Master Admin</code> mới được tạo mới hay sửa cấu trúc phiếu nhập <code>Nháp/Đã đặt</code>; user khác chỉ được <code>Nhập kho</code> với phiếu không phải <code>procurement_batch</code> đã <code>Đã đặt</code> từ trước lúc batch hiện tại bắt đầu, rồi đi tiếp <code>Đã thanh toán</code> như bình thường</li>
+<li>Trước khi bắt đầu kỳ gom nhập, app sẽ audit nhanh các phiếu nhập mở; nếu một sản phẩm đang bị cover bởi nhiều phiếu mở thì phải dọn conflict trước khi acquire lock</li>
+<li>Khi bị chặn vì conflict đầu kỳ gom, màn planner sẽ hiện ngay danh sách sản phẩm và các mã phiếu nhập mở liên quan để bấm sang màn <code>Nhập hàng</code> xử lý</li>
+<li>Planner batch cho tick chọn nhiều mặt hàng, chọn NCC từ danh bạ, chỉnh số lượng/giá nhập/giảm giá, rồi gom các mặt hàng cùng NCC vào một phiếu nhập nháp</li>
+<li>Trong <code>Xử lý nhập thiếu</code>, khối phiếu liên quan cũng cho mở <code>Gộp đơn</code>; không được gộp lẫn phiếu nhập với phiếu xuất trong cùng một lần thao tác</li>
+<li>Khi kỳ gom nhập còn active lock, các màn <code>Tồn kho</code>, <code>Xuất hàng</code>, <code>Đơn hàng</code>, <code>Nhập hàng</code>, <code>Nhà cung cấp</code> sẽ hiện cảnh báo đang ở Batch mode, ai đang giữ lock và màn đó bị ảnh hưởng gì</li>
+<li>Trong Batch mode, người giữ khóa còn có thể mở khối <code>Chọn thêm sản phẩm khác</code> để tick chọn nhanh các mặt hàng ngoài nhu cầu đơn trên một danh sách riêng; khối này ưu tiên các sản phẩm planner đang theo dõi nhưng hiện <code>Cần nhập = 0</code>, sau đó hiện tiếp toàn bộ sản phẩm active còn lại ngoài planner</li>
+<li>Các dòng extra được tick sẽ có badge <code>Ngoài nhu cầu đơn</code>, không tham gia tính <code>Cần nhập</code>, nhưng vẫn được gom chung theo NCC</li>
+<li>Các dòng <code>Ngoài nhu cầu đơn</code> không tạo <code>procurement_assignment</code>; rule <code>mỗi sản phẩm thiếu chỉ có một assignment active</code> chỉ tiếp tục áp dụng cho các dòng shortage</li>
+<li>Nếu owner rời các màn trong flow xử lý batch sang màn ngoài flow khi kỳ gom vẫn còn mở, app sẽ hỏi có muốn <code>Kết thúc kỳ gom</code> ngay hay không; nếu không kết thúc thì app hỏi tiếp để chọn <code>ở lại</code> hoặc <code>chuyển sang màn khác mà vẫn giữ nguyên batch mode</code></li>
+<li>Nếu NCC chưa có trong danh bạ, app hỏi để chuyển sang màn <code>Nhà cung cấp</code> tạo mới, lưu xong quay lại planner để chọn tiếp</li>
+<li>Sau khi tạo phiếu batch, có màn review detail với nút <code>Trước / Sau</code> để chỉnh nhanh các phiếu vừa tạo rồi quay lại planner refresh trạng thái</li>
+<li>Quyền xử lý kỳ gom nhập có thể cấp cho <code>Master Admin</code>, user có permission <code>procurement_batch_manage</code>, hoặc username nằm trong config <code>procurement.planner_manager_usernames</code></li>
+<li>Nút <code>Detail</code> ở <code>Giỏ hiện hành</code> và <code>Đơn hàng</code> cho phép bung nhanh metadata phiếu xuất và danh sách dòng hàng mà không phải mở sang chỗ chỉnh sửa</li>
+<li>Từ màn <code>Đơn hàng</code>, có thể bấm <code>Xuất lại</code> trên đơn đã <code>Đã xuất hàng</code> hoặc <code>Đã thanh toán</code> để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và các dòng hàng; nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay không</li>
+<li>Từ màn Khách hàng có thể bấm badge <code>đơn chờ</code> / <code>đơn</code> để mở danh sách phiếu của đúng khách; nếu khách chỉ có 1 phiếu thì màn Đơn hàng sẽ tự mở detail kể cả với đơn đã xuất hàng hoặc đã thanh toán</li>
+<li>Màn <code>Đơn hàng</code> mặc định ẩn đơn đã hủy; khi cần đối chiếu lịch sử có thể bật checkbox <code>Hiện đơn đã hủy</code></li>
+<li>Đơn <code>Chốt đơn</code> khóa khách hàng nhưng vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới trước <code>Đã xuất hàng</code>; sau <code>Đã xuất hàng</code> chỉ còn được sửa <code>giảm giá khuyến mại</code> trước thanh toán</li>
+<li>Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server</li>
+<li>Tự nạp lại dữ liệu mới từ máy khác ở các màn chính khi màn hình đang rảnh thao tác, giúp thấy tồn kho và giá mới hơn mà không cần <code>F5</code></li>
+<li>Client <code>.js</code> được gắn version riêng theo dạng <code>version-chính.N</code>; trong cùng version chính, <code>N</code> tăng theo số lần nội dung file đổi, bỏ qua khác biệt <code>CRLF/LF</code>, còn khi version chính đổi thì <code>N</code> reset về <code>1</code></li>
+<li>Có kiểm tra xung đột khi nhiều máy cùng lưu <code>giỏ nháp</code> hoặc <code>phiếu nhập nháp</code>; app sẽ chặn ghi đè và yêu cầu tải dữ liệu mới nhất trước khi lưu tiếp</li>
+<li>Trên mobile, menu nổi, ô tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi chạm ra ngoài; chạm vào phần mép còn lộ ra để mở lại</li>
+<li>Trên PC/tablet, menu nghiệp vụ mặc định thu gọn; hover hoặc bấm <code>Mở menu</code> để bung ra nhanh, và menu sẽ tự gọn lại khi rê chuột hoặc bấm ra ngoài</li>
+<li>In nhanh phiếu xuất cho khách và phiếu nhập cho NCC từ lúc còn <code>Nháp</code> cho tới <code>Đã thanh toán</code>; ở list phiếu, nút <code>In</code> được ẩn khi phiếu đã thanh toán để giữ giao diện gọn hơn</li>
+<li>Giao diện theo menu nghiệp vụ riêng cho tồn kho, tạo đơn, đơn hàng, khách hàng và sản phẩm</li>
+<li>Các màn chọn đối tượng đều có ô tìm kiếm/gõ tên để thao tác nhanh trên điện thoại</li>
+<li>Quản lý nhập hàng với phiếu nhập nháp, trạng thái đặt hàng/nhập kho và gợi ý sản phẩm cần nhập</li>
+<li>Phiếu nhập bắt buộc có nhà cung cấp trước khi chuyển sang <code>Đã đặt hàng</code> hoặc <code>Nhập kho</code></li>
+<li>Ở màn <code>Nhập hàng</code>, có thể tick nhiều phiếu <code>Nháp/Đã đặt</code> cùng NCC để mở flow <code>Gộp đơn</code>; hệ thống sẽ chặn nếu chọn khác NCC</li>
+<li>Cùng thanh chọn nhiều phiếu ở màn <code>Nhập hàng</code> có thêm nút <code>Đặt hàng</code> để đẩy nhanh loạt phiếu nháp đủ điều kiện sang trạng thái <code>Đã đặt hàng</code></li>
+<li>Sau khi phiếu đã <code>Đã nhập kho</code> nhưng chưa <code>Đã thanh toán</code>, vẫn được sửa <code>Ghi chú</code> và <code>Giảm giá khuyến mại</code>; app không mở khóa lại số lượng, giá, mã lô, NCC hay cấu trúc dòng nhập</li>
+<li>Mỗi dòng nhập có thể khai báo riêng <code>Mã lô</code> và <code>Hạn dùng</code>; có thể nhập HSD trực tiếp hoặc nhập gián tiếp qua <code>Ngày sản xuất</code> để app tự tính <code>HSD = NSX + thời gian bảo quản</code>; nếu cùng một sản phẩm về nhiều lô khác nhau có thể tách nhanh bằng nút <code>+ Lô</code></li>
+<li>Nếu để trống <code>Hạn dùng</code>, khi <code>Nhập kho</code> app có thể fallback sang HSD tự tính <code>ngày nhập kho + thời gian bảo quản</code> của sản phẩm</li>
+<li>Nếu phiếu nhập được tạo từ một đơn đang thiếu hàng, app giữ liên kết nguồn đơn riêng trong metadata phiếu; ô ghi chú vẫn để trống để user tự nhập</li>
+<li>Phiếu nhập có nút <code>Detail</code> để bung/thu gọn metadata gồm mã phiếu, nhà cung cấp, trạng thái và các mốc ngày xử lý nhằm đối chiếu dữ liệu legacy/restore dễ hơn</li>
+<li>Từ màn <code>Nhập hàng</code>, có thể bấm <code>Nhập lại</code> trên phiếu đã <code>Đã nhập kho</code> hoặc <code>Đã thanh toán</code> để tạo nhanh phiếu nháp mới cùng NCC/nội dung; nếu NCC đó đang có phiếu nháp sẵn thì app sẽ dồn thêm vào phiếu nháp hiện có</li>
+<li>Có nút <code>NCC</code> ở màn nhập hàng để mở nhanh form tạo/sửa nhà cung cấp với tên đang gõ khi phiếu còn <code>Nháp</code>; từ <code>Đã đặt</code> trở đi app khóa đổi NCC để giữ đúng workflow</li>
+<li>Phiếu nhập chỉ được chuyển sang <code>Đã thanh toán</code> sau khi đã <code>Nhập kho</code>, để tránh trả tiền khi hàng chưa được nhận vào tồn</li>
+<li>Nếu dữ liệu cũ làm phiếu bị lệch trạng thái, ví dụ đang dính marker <code>Đã thanh toán</code> nhưng chưa có <code>Nhập kho</code> thật hoặc ngoài màn hình lại đang hiện như <code>Nháp</code>, app sẽ hiện cảnh báo và cho phép <code>Hủy phiếu</code> hoặc <code>Xóa phiếu</code> để dọn dữ liệu lỗi mà không khôi phục lại thành nháp</li>
+<li>Màn <code>Nhập hàng</code> mặc định ẩn phiếu đã hủy; khi cần đối chiếu lịch sử có thể bật checkbox <code>Hiện phiếu đã hủy</code></li>
+<li>Có API chứng từ điều chỉnh cho Phase B gồm: <code>phiếu điều chỉnh tồn</code>, <code>phiếu trả hàng khách</code>, <code>phiếu trả NCC</code> để không sửa ngược chứng từ cũ</li>
+<li>Có audit log Phase D cho thay đổi trạng thái đơn/phiếu, thay đổi giá chung và lưu người thao tác để truy vết</li>
+<li>Báo cáo nhập xuất theo tháng, tách riêng <code>hoàn khách</code>, <code>trả NCC</code>, <code>điều chỉnh tồn</code>, có thêm khối audit chứng từ để tra cứu ngay trong màn <code>Báo cáo</code></li>
+<li>Khối audit chứng từ ở màn <code>Báo cáo</code> hỗ trợ tìm theo mã phiếu và mã tham chiếu nguồn để đối chiếu nhanh</li>
+<li>Quản lý khách hàng có thêm số liên lạc, địa chỉ ship và link Zalo</li>
+<li>Màn Khách hàng trên mobile được nén còn khoảng 3 dòng mỗi card để thấy nhiều khách hơn; dòng cuối ưu tiên số liên lạc và action ngắn</li>
+<li>Màn Khách hàng và Nhà cung cấp ưu tiên hiển thị danh sách; form tạo/sửa được thu gọn và chỉ mở khi bấm <code>Thêm mới</code> hoặc <code>Sửa</code>; khi chọn một card sẽ mở panel detail riêng có <code>Previous / Next</code> và <code>Đóng</code></li>
+<li>Màn Đơn hàng và danh sách Phiếu nhập dùng pattern <code>list là chính, detail mở riêng</code>: chọn card để mở detail đầy đủ, giữ nguyên bộ lọc/search hiện tại, có <code>Previous / Next</code> để chuyển nhanh trong danh sách đang xem</li>
+<li>Ở màn Đơn hàng, danh sách mặt hàng trong detail mặc định thu gọn để màn mobile gọn hơn; ở màn Phiếu nhập, detail vẫn hiện trọn danh sách dòng hàng để rà phiếu nhanh</li>
+<li>Màn Sản phẩm cũng ưu tiên hiển thị danh sách; phần <code>Thêm sản phẩm</code> và <code>Lịch sử sản phẩm</code> được thu gọn sẵn và chỉ mở khi cần</li>
+<li>Quản lý đơn hàng có thêm trạng thái <code>Chốt đơn</code>, <code>Đã xuất hàng</code>, thanh toán và các nút <code>Chốt đơn</code> / <code>Xuất hàng</code> nhanh theo từng card</li>
+<li>Ở màn <code>Đơn hàng</code>, thanh chọn nhiều phiếu có thêm nút <code>Chốt đơn</code> để chốt hàng loạt các đơn nháp đủ điều kiện ngay trên danh sách</li>
+<li>Quản lý danh mục sản phẩm gồm tên, loại thực phẩm, đơn vị tính, giá nhập, giá bán mặc định và ngưỡng cảnh báo</li>
+<li>Danh mục sản phẩm có thêm <code>hạn dùng</code> và <code>thời gian bảo quản</code> theo số ngày để app làm fallback ước tính khi lô chưa có HSD thật, cũng như tự tính HSD từ <code>Ngày sản xuất</code> hoặc <code>Ngày nhập kho</code>; nếu lô đã có HSD riêng thì tồn kho ưu tiên dữ liệu lô</li>
+<li>Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần</li>
+<li>Có lịch sử quản lý sản phẩm hiển thị rõ field nào đã đổi, người thao tác và vẫn giữ đúng actor khi import master; kèm màn quản lý các đối tượng đã xóa để khôi phục an toàn</li>
+<li>Có login hệ thống cho <code>user</code> thường và <code>Master Admin</code>; có thể bật <code>EnableLogin</code> để bắt buộc login mới dùng app</li>
+<li>Nếu bật login, có thể tách quyền <code>bulk_order_create</code> và <code>bulk_order_commit</code> để user chỉ được lưu nháp nhiều đơn hoặc được chốt nhiều đơn</li>
+<li>Permission <code>order_batch_manage</code> cho phép user quản lý xem toàn bộ yêu cầu xuất nhanh, duyệt/từ chối, xóa request còn <code>pending_approval</code> và xử lý tiếp request đã <code>approved</code></li>
+<li>Nếu cùng một domain chạy nhiều instance app ở các port khác nhau như <code>:4000</code> và <code>:9999</code>, session login sẽ được tách riêng theo từng port để không tự đá nhau</li>
+<li>Có module <code>Master Admin</code> để export/import file master (JSON/CSV) và backup/restore toàn bộ database</li>
+<li><code>Master Admin</code> có thêm khối <code>Legacy Audit</code> để quét DB đang dùng, áp dụng các backfill an toàn và cho admin gắn lại <code>receipt_code</code> / <code>đơn nguồn</code> cho record legacy còn dang dở</li>
+<li>Timeout phiên tách riêng trong config: <code>session_timeout_minutes</code> cho user thường và <code>admin_session_timeout_minutes</code> cho admin; khi không có thao tác đủ lâu thì phiên sẽ tự hết hạn và quay về trạng thái cần login, không hiện dialog gia hạn phiên</li>
+<li>Chỉ <code>Master Admin</code> mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit</li>
+<li>Luồng Phase B đã có UI ngay trong app: <code>Phiếu DC</code> ở màn tồn kho, còn <code>Phiếu trả hàng khách</code> và <code>Phiếu trả NCC</code> chỉ mở trong detail của đúng đơn/phiếu nguồn để tránh bấm nhầm</li>
+<li>Các chứng từ đã <code>completed/received/paid/cancelled</code> vẫn bị khóa xóa/hủy trực tiếp kể cả với <code>Master Admin</code>; muốn điều chỉnh phải lập phiếu mới để giữ audit</li>
+<li>Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất</li>
+<li>Các list dài có phân trang <code>Trước / Sau</code> để thao tác gọn hơn trên mobile</li>
+<li>Hiển thị <code>Version</code> ngay đầu ứng dụng; bấm vào để mở màn <code>About</code> và xem phiên bản đang chạy</li>
+</ul>
+<h2 id="chay-ung-dung"><a class="toclink" href="#chay-ung-dung">Chạy ứng dụng</a></h2>
+<pre><code class="language-powershell">python app.py
+</code></pre>
+<p>Sau đó mở trình duyệt tại <code>http://127.0.0.1:8000</code>.</p>
+<p>Dữ liệu nghiệp vụ được lưu trong <code>data\inventory.db</code>. Nếu nhiều máy cùng mở vào cùng một địa chỉ app/server thì sẽ dùng chung một nguồn dữ liệu.</p>
+<p>Khi một máy khác vừa nhập hàng, xuất hàng, sửa giá hoặc cập nhật đơn/phiếu, các màn hình chính sẽ tự nạp lại dữ liệu mới khi người dùng đang không gõ dở vào ô nhập.</p>
+<p>File cấu hình hệ thống:</p>
+<pre><code class="language-text">data\system_config.json
+</code></pre>
+<p>App sẽ tự tạo file này nếu chưa có.</p>
+<p>Ví dụ:</p>
+<pre><code class="language-text">{
+  &quot;server&quot;: {
+    &quot;host&quot;: &quot;127.0.0.1&quot;,
+    &quot;port&quot;: 8000
+  },
+  &quot;EnableLogin&quot;: false,
+  &quot;session_timeout_minutes&quot;: 360,
+  &quot;admin_session_timeout_minutes&quot;: 30,
+  &quot;admin&quot;: {
+    &quot;username&quot;: &quot;masteradmin&quot;,
+    &quot;password&quot;: &quot;admin12345&quot;
+  },
+  &quot;users&quot;: [
+    {
+      &quot;username&quot;: &quot;staff&quot;,
+      &quot;password&quot;: &quot;staff12345&quot;
+    }
+  ],
+  &quot;debug&quot;: {
+    &quot;sync_state&quot;: false
+  },
+  &quot;pagination&quot;: {
+    &quot;items_per_page&quot;: 10,
+    &quot;documents_per_page&quot;: 10
+  }
+}
+</code></pre>
+<p>Muốn đổi tài khoản user/admin, bật <code>EnableLogin</code>, đổi timeout phiên rảnh, hoặc đổi base phân trang thì sửa trực tiếp <code>system_config.json</code>. App không tự ghi đè lại các giá trị này trong lúc đang chạy.</p>
+<p>Rà soát dữ liệu legacy bằng CLI:</p>
+<pre><code class="language-powershell">python app.py legacy-audit
+python app.py legacy-audit --apply-safe-fixes
+</code></pre>
+<p><code>legacy-audit</code> dùng chung logic với panel <code>Legacy Audit</code> trong màn <code>Master Admin</code>: chỉ auto-fix các mốc thời gian chắc chắn, còn các trường hợp cần đối chiếu chứng từ thật vẫn phải review thủ công trong app.</p>
+<p>Ý nghĩa cấu hình phân trang:</p>
+<ul>
+<li><code>pagination.items_per_page</code>: base cho các danh sách item/card như mặt hàng, khách hàng, nhà cung cấp.</li>
+<li><code>pagination.documents_per_page</code>: base cho các danh sách phiếu/đơn/chứng từ.</li>
+<li>Khi mở app, frontend tự suy ra số mục mặc định theo thiết bị hiện hành từ base này:</li>
+<li><code>Mobile</code>: giữ nguyên base config, mặc định là <code>10</code></li>
+<li><code>Tablet</code>: scale lên mức chuẩn khoảng <code>25</code></li>
+<li><code>PC</code>: scale lên mức chuẩn khoảng <code>100</code></li>
+<li>Trên <code>PC/Tablet</code>, thanh phân trang có thêm combobox <code>25/50/100</code> để đổi nhanh số mục hiển thị trên mỗi trang.</li>
+</ul>
+<p>Nếu cần điều tra lỗi đồng bộ nhiều máy như <code>PUT /api/state 400</code>, bật:</p>
+<pre><code class="language-text">&quot;debug&quot;: {
+  &quot;sync_state&quot;: true
+}
+</code></pre>
+<p>Khi bật, server sẽ in log tóm tắt request <code>/api/state</code> ra console và browser cũng ghi thêm log debug sync để dễ đối chiếu payload, collection và lỗi trả về.</p>
+<p>Có thể xem nhanh config hiện tại bằng:</p>
+<pre><code class="language-powershell">python app.py config
+</code></pre>
+<p>Có thể bind theo IP / domain / port tùy ý:</p>
+<pre><code class="language-powershell">python app.py --host 0.0.0.0 --port 8080
+</code></pre>
+<p>Hoặc:</p>
+<pre><code class="language-powershell">python app.py --host 192.168.1.10 --port 9000 serve
+</code></pre>
+<h2 id="setup-moi-truong-tren-may-moi"><a class="toclink" href="#setup-moi-truong-tren-may-moi">Setup môi trường trên máy mới</a></h2>
+<p>Các tool nên có khi làm việc với project này:</p>
+<ul>
+<li><code>Python 3.11+</code> để chạy app, unit test và script backend</li>
+<li><code>PyYAML</code> cho Python tooling của bộ skill Git Issue, ví dụ <code>quick_validate.py</code></li>
+<li><code>Node.js LTS + npm</code> để cài tooling test frontend/integration</li>
+<li><code>Playwright Chromium</code> để chạy integration test và chụp ảnh UI</li>
+<li><code>Git</code> để pull/push mã nguồn</li>
+<li><code>GitHub CLI (gh)</code> để tạo issue / branch / PR từ máy local</li>
+<li><code>winget</code> trên Windows để script setup tự cài phần còn thiếu</li>
+</ul>
+<p>Script setup idempotent:</p>
+<pre><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+</code></pre>
+<p>Có thể chạy lại nhiều lần. Script sẽ:</p>
+<ul>
+<li>bỏ qua tool đã có sẵn</li>
+<li>chỉ cài phần còn thiếu</li>
+<li>cài thêm Python package <code>PyYAML</code> nếu môi trường chưa có</li>
+<li>chạy <code>npm install</code></li>
+<li>chạy <code>npx playwright install chromium</code></li>
+<li>kiểm tra nhanh bằng <code>python -m py_compile app.py</code> và <code>node --check static/app.js</code></li>
+</ul>
+<p>Chế độ chỉ kiểm tra:</p>
+<pre><code class="language-powershell">powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 -CheckOnly
+</code></pre>
+<p>Nếu đã có <code>Node.js</code>, có thể gọi nhanh qua <code>npm</code>:</p>
+<pre><code class="language-powershell">npm run setup:windows
+</code></pre>
+<p>Riêng workflow GitHub cần đăng nhập <code>gh</code> sau khi cài:</p>
+<pre><code class="language-powershell">gh auth login
+</code></pre>
+<h2 id="khoi-tao-danh-muc-tu-datalisttxt"><a class="toclink" href="#khoi-tao-danh-muc-tu-datalisttxt">Khởi tạo danh mục từ <code>data\List.txt</code></a></h2>
+<pre><code class="language-powershell">python app.py init
+</code></pre>
+<p>Mặc định lệnh này sẽ đọc <code>data\List_price.txt</code>. Mỗi dòng có thể ở dạng:</p>
+<pre><code class="language-text">1. Tên sản phẩm | 0
+</code></pre>
+<p>Hoặc dạng đầy đủ:</p>
+<pre><code class="language-text">Tên sản phẩm | Loại thực phẩm | Đơn vị | Ngưỡng cảnh báo | Giá
+</code></pre>
+<p>Nếu muốn khai báo thêm dữ liệu hạn dùng để màn tồn kho sắp xếp theo hạn còn lại, dùng dạng:</p>
+<pre><code class="language-text">Tên sản phẩm | Loại thực phẩm | Đơn vị | Ngưỡng cảnh báo | Giá nhập | Hạn dùng ngày | Bảo quản ngày
+</code></pre>
+<p>Hệ thống sẽ tự bỏ số thứ tự đầu dòng như <code>1.</code> hoặc <code>2.</code>, rồi thêm sản phẩm vào database. Nếu chạy lại, các tên đã có sẽ được tự động bỏ qua.</p>
+<p>Nếu muốn xóa toàn bộ dữ liệu hiện có rồi import lại sạch từ <code>List.txt</code>:</p>
+<pre><code class="language-powershell">python app.py init --reset
+</code></pre>
+<h2 id="chay-test"><a class="toclink" href="#chay-test">Chạy test</a></h2>
+<p>Test unit:</p>
+<pre><code class="language-powershell">python -m unittest discover -s tests
+</code></pre>
+<p>Integration test UI trên fixture DB riêng:</p>
+<pre><code class="language-powershell">npm install
+npx playwright install chromium
+npm run test:integration
+</code></pre>
+<p>Acceptance automation theo checklist:</p>
+<pre><code class="language-powershell">npm run test:acceptance
+</code></pre>
+<p>Suite integration sẽ:</p>
+<ul>
+<li>tự dựng server test riêng trên <code>fixture DB</code> tạm</li>
+<li>không dùng <code>data\inventory.db</code> đang vận hành</li>
+<li>kiểm tra các màn chính, điều hướng, refresh, và luồng <code>Master Admin</code></li>
+<li>có thêm bộ acceptance automation bám checklist ở <code>docs/ACCEPTANCE_CHECKLIST.md</code></li>
+</ul>
+<h2 id="api-chung-tu-ieu-chinh-phase-b"><a class="toclink" href="#api-chung-tu-ieu-chinh-phase-b">API chứng từ điều chỉnh (Phase B)</a></h2>
+<p>Các API mới để tạo chứng từ điều chỉnh, giữ tương thích dữ liệu cũ vì vẫn ghi vào bảng <code>transactions</code> hiện có:</p>
+<ul>
+<li><code>POST /api/adjustments/inventory</code> (yêu cầu Master Admin)</li>
+<li>tạo <code>phiếu điều chỉnh tồn</code>, nhận <code>items[].quantity_delta</code> âm/dương và <code>reason</code></li>
+<li><code>POST /api/returns/customers</code></li>
+<li>tạo <code>phiếu trả hàng khách</code>, cộng tồn kho theo danh sách hàng khách trả</li>
+<li><code>POST /api/returns/suppliers</code></li>
+<li>tạo <code>phiếu trả NCC</code>, trừ tồn kho khi trả hàng lỗi/không đạt về nhà cung cấp</li>
+</ul>
+<p>UI tương ứng:</p>
+<ul>
+<li>màn <code>Tồn kho</code>: <code>Phiếu DC</code> hoặc khối <code>Phiếu điều chỉnh tồn</code></li>
+<li>màn <code>Đơn hàng</code>: action <code>Trả hàng</code> chỉ hiện trong detail của đơn đã xuất để mở sẵn phiếu trả khách theo đúng đơn nguồn</li>
+<li>màn <code>Nhập hàng</code>: action <code>Trả NCC</code> chỉ hiện trong detail của phiếu đã nhập kho / đã thanh toán để mở sẵn phiếu trả theo đúng phiếu nguồn</li>
+<li>màn <code>Báo cáo</code>: thẻ tổng hợp, xu hướng tháng, chi tiết sản phẩm và khối <code>Audit chứng từ</code> để tra cứu 3 loại phiếu Phase B</li>
+</ul>
+<p>Quy tắc workflow vẫn giữ nguyên:</p>
+<ul>
+<li>không sửa ngược đơn đã chốt</li>
+<li>không sửa ngược phiếu đã nhập kho / đã thanh toán</li>
+<li>không mở quyền <code>Master Admin</code> để xóa hoặc hủy ngược các chứng từ đã khóa</li>
+</ul>
+<p>API tra cứu audit chứng từ Phase B:</p>
+<ul>
+<li><code>GET /api/receipts/history</code></li>
+<li>query hỗ trợ:<ul>
+<li><code>limit</code>: số dòng lịch sử (mặc định 40, tối đa 200)</li>
+<li><code>receipt_type</code>: lọc theo <code>inventory_adjustment</code>, <code>customer_return</code>, <code>supplier_return</code></li>
+<li><code>start_date</code>: lọc từ mốc thời gian ISO (<code>YYYY-MM-DDTHH:MM:SS</code>)</li>
+<li><code>end_date</code>: lọc đến mốc thời gian ISO (<code>YYYY-MM-DDTHH:MM:SS</code>)</li>
+</ul>
+</li>
+</ul>
+<h2 id="api-audit-lich-su-san-pham-phase-d"><a class="toclink" href="#api-audit-lich-su-san-pham-phase-d">API audit lịch sử sản phẩm (Phase D)</a></h2>
+<ul>
+<li><code>GET /api/products/history</code></li>
+<li>query hỗ trợ:<ul>
+<li><code>limit</code>: số dòng lịch sử (mặc định 40, tối đa 200)</li>
+<li><code>actor</code>: lọc theo người thao tác</li>
+<li><code>start_date</code>: lọc từ mốc thời gian ISO (<code>YYYY-MM-DDTHH:MM:SS</code>)</li>
+<li><code>end_date</code>: lọc đến mốc thời gian ISO (<code>YYYY-MM-DDTHH:MM:SS</code>)</li>
+</ul>
+</li>
+</ul>
+            
+            <div class="pagination">
+                
+                
+                <a class="next" href="huong_dan_su_dung/">Hướng dẫn →</a>
+                
+            </div>
+            
+        </main>
+    </body>
+</html>
