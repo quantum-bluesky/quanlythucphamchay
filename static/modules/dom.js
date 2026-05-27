@@ -35,6 +35,7 @@ export const viewSections = Array.from(document.querySelectorAll("[data-menu-sec
 export const customerLookupInput = document.getElementById("customerLookupInput");
 export const customerOptions = document.getElementById("customerOptions");
 export const openCartButton = document.getElementById("openCartButton");
+export const createNewCartButton = document.getElementById("createNewCartButton");
 export const draftCartBadge = document.getElementById("draftCartBadge");
 export const salesSearchInput = document.getElementById("salesSearchInput");
 export const salesProductList = document.getElementById("salesProductList");

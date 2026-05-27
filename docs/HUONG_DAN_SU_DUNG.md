@@ -88,8 +88,14 @@ Vào menu:
 1. Gõ tên khách hàng
 2. Nếu khách đã có sẵn, chọn đúng tên
 3. Nếu khách chưa có, cứ gõ tên rồi bấm `Mở giỏ hàng`
+4. Nếu đang muốn bỏ hẳn đơn đang mở để làm một phiếu trắng riêng cho cùng khách hoặc khách khác, bấm `Tạo đơn mới`
 
 Ứng dụng sẽ tự tạo giỏ hàng nháp cho khách đó.
+
+Lưu ý:
+
+- `Mở giỏ hàng` sẽ ưu tiên mở lại đơn nháp đang có của khách nếu tồn tại
+- `Tạo đơn mới` luôn tạo một đơn nháp trắng tách biệt; nếu đang có dữ liệu chưa lưu hoặc đang đứng ở khối chọn đơn cũ, app sẽ hỏi confirm trước khi reset form
 
 ### Bước 2: Chọn hàng vào giỏ
 
@@ -101,6 +107,7 @@ Vào menu:
 Lưu ý:
 
 - nếu máy khác vừa nhập thêm hàng hoặc đổi giá nhập mặc định, danh sách chọn hàng sẽ tự cập nhật mà không cần refresh tay
+- nếu đang mở một đơn cũ nhưng cần tách sang đơn mới hoàn toàn, có thể bấm `Tạo đơn mới` ngay trong khối `Giỏ hiện hành`; app không xóa đơn cũ mà chỉ mở một draft trắng riêng
 
 Khi chọn, sản phẩm sẽ xuất hiện ở `Giỏ hiện hành`.
 
@@ -246,6 +253,7 @@ Lưu ý:
 
 - mặc định danh sách không hiện đơn đã hủy; chỉ bật checkbox `Hiện đơn đã hủy` khi cần tra cứu lại lịch sử hủy
 - một khách có thể có nhiều đơn `Chốt đơn`; khi mở đơn mới cho khách mà khách chưa có đơn nháp nhưng đang có đơn đã chốt, app sẽ hiện khối chọn để `Mở đơn đã chốt` hoặc `Tạo đơn mới`
+- nếu đang mở đơn ở màn `Tạo đơn xuất hàng` mà muốn tách hẳn ra một đơn khác, bấm `Tạo đơn mới`; app sẽ hỏi trước khi reset form hiện tại nhưng vẫn giữ nguyên đơn cũ trong danh sách để mở lại sau
 - đơn đã `Chốt đơn` không đổi được khách hàng và không được xóa, nhưng vẫn hủy được nếu khách không lấy nữa
 - đơn đã `Đã xuất hàng` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao
 - nếu khách cần mua lại gần giống một đơn cũ, bấm `Xuất lại`; app sẽ tạo một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng của phiếu đã chọn. Nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
@@ -585,6 +593,21 @@ Làm như sau:
 4. Chưa cần chốt
 
 Giỏ sẽ nằm ở trạng thái chờ để mở lại sau.
+
+### Muốn tạo một đơn mới tách biệt, không dùng lại đơn đang mở
+
+Làm như sau:
+
+1. Vào `Tạo đơn xuất hàng`
+2. Chọn hoặc nhập tên khách
+3. Bấm `Tạo đơn mới`
+4. Nếu app hỏi confirm vì đang có dữ liệu chưa lưu hoặc đang đứng ở đơn cũ, chọn `OK`
+
+Kết quả:
+
+- form hiện tại được reset về một đơn nháp trắng
+- đơn cũ không bị xóa
+- app không tự dồn thêm vào draft cũ hoặc preview gộp đang mở
 
 ### Thiếu hàng khi đang chốt đơn
 

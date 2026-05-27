@@ -2656,8 +2656,8 @@ function setActivePurchase(purchaseId) {
   return getPurchasesDomainHelpers().setActivePurchase(purchaseId);
 }
 
-function openCartForCustomer(customerName) {
-  return getSalesDomainHelpers().openCartForCustomer(customerName);
+function openCartForCustomer(customerName, options = {}) {
+  return getSalesDomainHelpers().openCartForCustomer(customerName, options);
 }
 
 function openOrdersForCustomer(customerId) {
@@ -6245,6 +6245,8 @@ registerInventoryControllerEvents({
 registerSalesControllerEvents({
   state,
   dom: {
+    customerLookupInput,
+    createNewCartButton,
     salesSearchInput,
     orderSearchInput,
     showArchivedCarts,

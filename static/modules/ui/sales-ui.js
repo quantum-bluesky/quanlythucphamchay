@@ -342,8 +342,8 @@ export function createSalesUi(deps) {
     const statusMeta = getCartStatusMeta(cart);
     const canPrint = canPrintCartDocument(cart);
     const noteText = cart.status === "committed"
-      ? "Đơn đã chốt: khóa khách hàng, vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới khi xuất."
-      : "Đơn nháp: có thể chọn khách, sửa dòng hàng, địa chỉ giao và giảm giá trước khi chốt.";
+      ? "Đơn đã chốt: khóa khách hàng, vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới khi xuất. Nếu cần làm đơn khác riêng hẳn, bấm `Tạo đơn mới`."
+      : "Đơn nháp: có thể chọn khách, sửa dòng hàng, địa chỉ giao và giảm giá trước khi chốt. Nếu không muốn dùng lại đơn cũ, bấm `Tạo đơn mới`.";
     if (state.activeCartPanelCollapsed) {
       dom.activeCartPanel.innerHTML = `
         <article class="active-cart-card is-collapsed">
@@ -393,6 +393,7 @@ export function createSalesUi(deps) {
           discountActionAttribute: 'data-cart-action="save-discount"',
         }) : `${shipAddressMarkup}${discountMarkup}`}
         <div class="cart-toolbar">
+          <button type="button" class="ghost-button" data-cart-action="create-new">Tạo đơn mới</button>
           <button type="button" class="ghost-button" data-cart-action="toggle-detail">${detailButtonLabel}</button>
           ${canPrint ? `<button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In phiếu"}</button>` : ""}
           ${cart.status === "draft"

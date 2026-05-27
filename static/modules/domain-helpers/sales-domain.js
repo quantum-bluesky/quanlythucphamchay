@@ -171,6 +171,18 @@ export function createSalesDomainHelpers(deps) {
     saveAndRenderAll();
   }
 
+  function resetCreateOrderEditingState(customerName = "") {
+    state.activeCartPanelCollapsed = mobileQuery.matches;
+    state.activeCartDetailExpanded = false;
+    state.selectedCartItemsCollapsed = false;
+    state.expandedSelectedCartItemId = null;
+    state.expandedSalesProductId = null;
+    state.visibleSelectedSalesProductId = null;
+    clearPendingCartMergePrompt();
+    clearCartMergePreview();
+    customerLookupInput.value = customerName;
+  }
+
   function createDraftCartForCustomer(customer) {
     const cart = decorateCart({
       id: createId("cart"),
@@ -218,11 +230,16 @@ export function createSalesDomainHelpers(deps) {
     state.pendingCartMergeCustomerName = "";
   }
 
-  function openCartForCustomer(customerName) {
+  function openCartForCustomer(customerName, options = {}) {
+    const forceNewDraft = Boolean(options.forceNewDraft);
     const customer = resolveCustomerFromText(customerName);
-    let cart = state.carts.find((entry) => entry.status === "draft" && entry.customerId === customer.id);
+    let cart = forceNewDraft
+      ? null
+      : state.carts.find((entry) => entry.status === "draft" && entry.customerId === customer.id);
     if (!cart) {
-      const committedCarts = getCommittedCarts().filter((entry) => entry.customerId === customer.id);
+      const committedCarts = forceNewDraft
+        ? []
+        : getCommittedCarts().filter((entry) => entry.customerId === customer.id);
       if (committedCarts.length) {
         state.activeCartId = null;
         state.activeCartPanelCollapsed = false;
@@ -238,14 +255,16 @@ export function createSalesDomainHelpers(deps) {
       cart = createDraftCartForCustomer(customer);
     }
     state.activeCartId = cart.id;
-    state.activeCartPanelCollapsed = mobileQuery.matches;
-    state.activeCartDetailExpanded = false;
-    clearPendingCartMergePrompt();
-    customerLookupInput.value = customer.name;
+    resetCreateOrderEditingState(customer.name);
     saveAndRenderAll(["customers", "carts"]);
     switchMenu("create-order");
     focusActiveCartPanel();
+    if (forceNewDraft) {
+      showToast("Đã tạo đơn nháp mới tách biệt đơn cũ.");
+      return cart;
+    }
     showToast(cart.itemCount ? "Đã mở lại giỏ hàng đang chờ." : "Đã tạo giỏ hàng mới.");
+    return cart;
   }
 
   function createNewDraftForPendingMergeCustomer() {
@@ -259,10 +278,7 @@ export function createSalesDomainHelpers(deps) {
     }
     const cart = createDraftCartForCustomer(customer);
     state.activeCartId = cart.id;
-    state.activeCartPanelCollapsed = mobileQuery.matches;
-    state.activeCartDetailExpanded = false;
-    clearPendingCartMergePrompt();
-    customerLookupInput.value = customer.name;
+    resetCreateOrderEditingState(customer.name);
     saveAndRenderAll(["customers", "carts"]);
     focusActiveCartPanel();
     showToast("Đã tạo đơn nháp mới cho khách.");

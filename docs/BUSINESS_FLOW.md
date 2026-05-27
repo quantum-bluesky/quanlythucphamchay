@@ -49,7 +49,8 @@ Nếu cần can thiệp đặc biệt
 ### Bước 1: Mở giỏ theo khách
 
 - chọn khách có sẵn hoặc gõ tên mới
-- app tạo hoặc mở `draft cart`
+- mặc định app tạo hoặc mở `draft cart`
+- nếu user chủ động bấm `Tạo đơn mới`, hệ thống phải tạo một `draft cart` trắng tách biệt với đơn đang mở, không reuse draft cũ và không tự gộp vào preview hiện tại
 
 ### Bước 2: Chọn mặt hàng
 

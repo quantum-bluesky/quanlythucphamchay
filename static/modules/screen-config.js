@@ -37,8 +37,9 @@ export const SCREEN_HELP = {
     title: "Tạo đơn xuất hàng",
     overview: "Màn này dành cho luồng bán hàng: chọn khách, thêm nhiều mặt hàng vào đơn, chốt đơn trước rồi mới xuất hàng khi giao thật.",
     steps: [
-      "Chọn khách hàng có sẵn hoặc gõ tên để mở giỏ hàng cho khách hiện hành.",
+      "Chọn khách hàng có sẵn hoặc gõ tên để mở giỏ hàng cho khách hiện hành; nếu muốn bỏ hẳn đơn đang mở và tạo một phiếu trắng tách biệt, dùng nút `Tạo đơn mới` ngay cạnh ô khách hàng hoặc trong khối `Giỏ hiện hành`.",
       "Nếu khách chưa có đơn nháp nhưng đang có đơn `Chốt đơn`, app sẽ hiện khối chọn để bạn mở đúng đơn đã chốt đó hoặc tạo đơn nháp mới riêng.",
+      "Khi bấm `Tạo đơn mới`, app sẽ hỏi confirm nếu đang có dữ liệu chưa lưu hoặc đang đứng ở khối chọn đơn cũ; sau khi xác nhận, form sẽ reset về một đơn nháp trắng và không tự dồn vào draft/preview gộp đang mở.",
       "Ở màn `Đơn hàng`, có thể tick chọn nhiều phiếu `Nháp/Chốt đơn` cùng khách rồi bấm `Gộp đơn`; app sẽ mở phiếu được giữ lại để bạn rà lại trước khi xác nhận.",
       "Tìm mặt hàng ở danh sách chọn hàng, tick để thêm vào giỏ. Giá bán mặc định sẽ lấy theo giá bán chung của sản phẩm.",
       "Nút `...` trên từng card sản phẩm dùng để bung hoặc thu gọn detail; nút này luôn hiện kể cả trước và sau khi chọn hàng.",
@@ -110,6 +111,7 @@ export const SCREEN_HELP = {
       "Khi một đơn `Nháp` hoặc `Chốt đơn` đang có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định`, detail sẽ hiện cảnh báo để bạn rà lại giá bán trước khi đi tiếp.",
       "Đơn `Đã xuất hàng` không còn cho sửa trực tiếp mặt hàng, số lượng, địa chỉ giao hay giá; trước thanh toán chỉ còn được sửa `Giảm giá khuyến mại` của toàn đơn.",
       "Nếu khách cần mua lại gần giống một đơn đã `Đã xuất hàng`, bấm `Xuất lại`; app sẽ tạo nhanh đơn nháp mới cùng khách, địa chỉ giao, giảm giá và các dòng hàng. Nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay không để giảm số lần gửi hàng.",
+      "Nếu đang mở một đơn ở màn `Tạo đơn xuất hàng` mà muốn tách hẳn sang đơn mới, dùng nút `Tạo đơn mới`; thao tác này không xóa đơn cũ mà chỉ reset form để mở một draft trắng riêng.",
       "Nếu kỳ gom nhập đang active lock, màn này sẽ hiện cảnh báo lock batch và các trường hợp thiếu hàng sẽ được điều hướng sang `Xử lý nhập thiếu` để xử lý tập trung.",
       "Nếu phát hiện sai sau khi đã `Đã xuất hàng`, mở `Detail` của đúng đơn rồi bấm `Trả hàng` để tạo sẵn phiếu trả khách; app không còn hiện form trả hàng độc lập ngoài list để tránh bấm nhầm.",
       "Master Admin cũng không được xóa hoặc hủy ngược đơn đã xuất; các đơn đó phải được điều chỉnh bằng phiếu mới để giữ audit.",

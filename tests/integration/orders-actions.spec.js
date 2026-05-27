@@ -144,6 +144,121 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-ORD-08 create-order screen can create a separate new draft without reusing the current one", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
+  const userCookie = await autoLoginUserRequest(request);
+  const timestamp = Date.now();
+  const customerId = `customer_new_separate_${timestamp}`;
+  const customerName = `Khách tách đơn ${timestamp}`;
+
+  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  expect(stateResponse.ok()).toBeTruthy();
+  const originalState = await stateResponse.json();
+  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = productsPayload.products?.[0];
+  expect(product).toBeTruthy();
+
+  const existingDraftCart = {
+    id: `order_existing_draft_${timestamp}`,
+    customerId,
+    customerName,
+    status: "draft",
+    paymentStatus: "unpaid",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    orderCode: "",
+    items: [
+      {
+        id: `order_existing_item_${timestamp}`,
+        productId: product.id,
+        productName: product.name,
+        quantity: 2,
+        unitPrice: Number(product.sale_price || product.price || 0) || 1000,
+        note: "",
+      },
+    ],
+  };
+  const seededCustomer = {
+    id: customerId,
+    name: customerName,
+    phone: "",
+    address: "",
+    zaloUrl: "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const dialogs = [];
+  page.on("dialog", async (dialog) => {
+    dialogs.push(dialog.message());
+    await dialog.accept();
+  });
+
+  try {
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: [seededCustomer, ...(originalState.customers || [])],
+        carts: [existingDraftCart, ...(originalState.carts || [])],
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+
+    await switchMenu(page, "create-order");
+    await expectScreenTitle(page, "Tạo đơn xuất hàng");
+    await page.locator("#customerLookupInput").fill(customerName);
+    await page.locator("#openCartButton").click();
+    await collectToast(page, runtime, "it-ord-08-open-existing", { errorPattern: /^$/ });
+
+    await expect(page.locator("#customerLookupInput")).toHaveValue(customerName);
+    await expect(page.locator("#createNewCartButton")).toBeVisible();
+
+    await page.locator("#createNewCartButton").click();
+
+    const createToast = await collectToast(page, runtime, "it-ord-08-create-new", { errorPattern: /^$/ });
+    expect(createToast).toContain("Đã tạo đơn nháp mới tách biệt đơn cũ.");
+    if (dialogs.length) {
+      expect(dialogs[0]).toContain("Tạo đơn mới");
+    }
+
+    await expect(page.locator("#selectedCartSection")).toBeHidden();
+
+    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    expect(latestStateResponse.ok()).toBeTruthy();
+    const latestState = await latestStateResponse.json();
+    const draftCarts = (latestState.carts || []).filter((cart) => (
+      String(cart.customerId || cart.customer_id || "") === customerId
+      && String(cart.status || "") === "draft"
+    ));
+    expect(draftCarts).toHaveLength(2);
+    const reusedExistingCart = draftCarts.find((cart) => String(cart.id || "") === existingDraftCart.id);
+    const newDraftCart = draftCarts.find((cart) => String(cart.id || "") !== existingDraftCart.id);
+    expect(reusedExistingCart).toBeTruthy();
+    expect(newDraftCart).toBeTruthy();
+    expect(reusedExistingCart.items || []).toHaveLength(1);
+    expect(newDraftCart.items || []).toHaveLength(0);
+  } finally {
+    await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: originalState.suppliers,
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+  }
+
+  expectNoRuntimeErrors(runtime);
+});
+
 test("IT-ORD-05 commit warns when sale total is lower than purchase total", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
   const userCookie = await autoLoginUserRequest(request);

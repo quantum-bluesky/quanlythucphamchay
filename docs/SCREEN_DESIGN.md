@@ -82,6 +82,7 @@ Liên kết detail hiện có:
   - giỏ hiện hành
   - search sản phẩm trong bán hàng
 - nguyên tắc UI:
+  - khu chọn khách phải có cả `Mở giỏ hàng` và `Tạo đơn mới`; `Tạo đơn mới` là action tách draft trắng khỏi đơn/preview hiện tại, không phải alias của mở lại giỏ cũ
   - nút `...` luôn hiện trên card sản phẩm để toggle detail
   - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
   - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
@@ -98,6 +99,7 @@ Liên kết detail hiện có:
   - sau khi đơn đã `Chốt đơn`, app khóa khách hàng nhưng vẫn cho sửa dòng hàng, địa chỉ giao và `Giảm giá khuyến mại`
   - sau khi đơn đã `Đã xuất hàng` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Giảm giá khuyến mại`; không mở khóa lại dòng hàng
   - khi mở đơn mới cho khách đang có đơn `Chốt đơn`, panel phải hiện lựa chọn `Mở đơn đã chốt` hoặc `Tạo đơn mới`
+  - khi user chủ động bấm `Tạo đơn mới`, UI phải hỏi confirm nếu form hiện tại đang có dữ liệu hoặc đang ở preview đơn cũ, rồi reset toàn bộ editor về một draft trắng riêng; không reuse draft cũ và không tự gộp vào preview đang mở
   - khi chốt đơn, hệ thống được phép tính thêm phần hàng đã nằm trong phiếu nhập `Đã đặt`; chỉ khi phần thiếu còn lại chưa được `Đã đặt` cover đủ thì app mới báo trước khi tạo/cập nhật phiếu nhập
   - nếu phần thiếu mới đang nằm ở phiếu nhập `Nháp` hoặc phiếu mở chưa đặt đủ thì app chỉ mở lại phiếu liên quan sau khi user xác nhận cần chỉnh
   - khi hệ thống đang ở Batch procurement mode, shortage không được auto-create phiếu nhập theo từng cart mà phải chuyển sang màn `procurement-planner`

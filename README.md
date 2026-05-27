@@ -124,6 +124,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Mỗi nhà cung cấp giữ tối đa 1 phiếu nhập nháp riêng; nếu chọn lại đúng NCC đã có nháp thì app mở lại phiếu đó để thêm tiếp, còn nếu chọn NCC khác thì app giữ nguyên phiếu cũ và tạo nháp riêng cho NCC mới
 - Riêng màn xuất hàng giữ nút `...` luôn hiện trên card sản phẩm để mở/thu gọn detail; hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót, nhưng nếu user chủ động bấm `...` thì app vẫn giữ lại đúng card đang thao tác
 - Khối `Giỏ hiện hành` ở màn xuất hàng hiển thị từng dòng đã chọn dưới dạng card gọn 2 dòng; bấm `...` trên từng card để mở detail sửa số lượng, giá bán hoặc bỏ khỏi giỏ
+- Màn `Tạo đơn xuất hàng` có thêm nút `Tạo đơn mới` ngay cạnh ô khách hàng và trong khối `Giỏ hiện hành`; nếu đang mở đơn cũ hoặc đang ở khối chọn/gộp đơn thì app sẽ hỏi confirm rồi reset form sang một đơn nháp trắng, không tự dồn vào draft cũ
 - Phiếu xuất và phiếu nhập có thêm `giảm giá khuyến mại` ở cấp toàn phiếu; app tự tính `Tạm tính / Giảm KM / Cần thanh toán` ngay trên panel, detail và bản in
 - Nếu `Cần thanh toán` của phiếu xuất đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app sẽ hiện cảnh báo trước khi `Chốt đơn` hoặc `Xuất hàng`
 - Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm

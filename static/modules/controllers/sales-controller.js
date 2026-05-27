@@ -36,6 +36,70 @@ export function registerSalesControllerEvents(contract) {
     return window.confirm("Xác nhận cập nhật giá bán hiện tại thành giá bán mặc định của mặt hàng?");
   }
 
+  function getCreateNewCartTargetName() {
+    const lookupName = String(dom.customerLookupInput?.value || "").trim();
+    if (lookupName) {
+      return lookupName;
+    }
+    const activeCart = queries.getActiveCart();
+    if (activeCart?.customerName) {
+      return String(activeCart.customerName || "").trim();
+    }
+    return String(state.pendingCartMergeCustomerName || "").trim();
+  }
+
+  function hasCreateOrderResetCandidate() {
+    if (queries.getPendingCartMergePreview()) {
+      return true;
+    }
+    if (state.pendingCartMergeCustomerId) {
+      return true;
+    }
+    const activeCart = queries.getActiveCart();
+    if (!activeCart) {
+      return false;
+    }
+    return Boolean(
+      String(activeCart.customerName || "").trim()
+      || activeCart.itemCount
+      || Number(activeCart.discountAmount || activeCart.discount_amount || 0) > 0
+      || String(activeCart.shipAddress || activeCart.ship_address || "").trim()
+      || String(activeCart.status || "").trim() === "committed"
+    );
+  }
+
+  function confirmCreateNewCartReset(targetCustomerName) {
+    if (!hasCreateOrderResetCandidate()) {
+      return true;
+    }
+    const targetLabel = targetCustomerName || "khách đang chọn";
+    return window.confirm(
+      [
+        `Tạo đơn mới cho "${targetLabel}"?`,
+        "",
+        "Form đơn hiện tại sẽ được reset để mở một đơn nháp trắng, tách biệt đơn cũ.",
+        "Đơn đang mở hoặc khối chọn gộp hiện tại sẽ không bị xóa và vẫn có thể mở lại từ danh sách đơn.",
+      ].join("\n")
+    );
+  }
+
+  async function startSeparatedDraftCart() {
+    const targetCustomerName = getCreateNewCartTargetName();
+    if (!targetCustomerName) {
+      throw new Error("Hãy nhập hoặc chọn khách hàng trước khi tạo đơn mới.");
+    }
+    const activeCart = queries.getActiveCart();
+    if (activeCart && !saveCartEditorsBeforeStatusChange(activeCart.id, dom.activeCartPanel)) {
+      return;
+    }
+    if (!confirmCreateNewCartReset(targetCustomerName)) {
+      return;
+    }
+    await actions.flushPendingPersistCollections();
+    actions.openCartForCustomer(targetCustomerName, { forceNewDraft: true });
+    renderers.renderCreateOrderEntryState();
+  }
+
   function normalizeCustomerKey(value) {
     return String(value || "").trim().toLocaleLowerCase("vi");
   }
@@ -86,6 +150,14 @@ export function registerSalesControllerEvents(contract) {
       ...failures.map((entry) => `- ${entry.label}: ${entry.message}`),
     ].join("\n");
   }
+
+  dom.createNewCartButton?.addEventListener("click", async () => {
+    try {
+      await startSeparatedDraftCart();
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
 
   async function commitSelectedOrders() {
     const selectedIds = (Array.isArray(state.selectedOrderMergeIds) ? state.selectedOrderMergeIds : [])
@@ -594,6 +666,14 @@ export function registerSalesControllerEvents(contract) {
       renderers.renderActiveCartPanel();
       if (!state.activeCartPanelCollapsed) {
         actions.focusActiveCartPanel();
+      }
+      return;
+    }
+    if (button.dataset.cartAction === "create-new") {
+      try {
+        await startSeparatedDraftCart();
+      } catch (error) {
+        actions.showToast(error.message, true);
       }
       return;
     }
