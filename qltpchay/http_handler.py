@@ -1047,6 +1047,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     result = store.mark_purchase_paid(
                         payload.get("purchase_id", ""),
                         discount_amount=payload.get("discount_amount"),
+                        paid_at=payload.get("paid_at"),
+                        payment_method=payload.get("payment_method", ""),
+                        payment_note=payload.get("payment_note", ""),
                         actor_username=self._get_current_username() or "",
                         actor_role=self._get_current_role(),
                     )
@@ -1056,6 +1059,48 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "message": result["message"],
                             "purchase": result["purchase"],
                             "purchases": result["purchases"],
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
+                if route == "/api/purchases/payment":
+                    result = store.update_purchase_payment(
+                        payload.get("purchase_id", ""),
+                        discount_amount=payload.get("discount_amount"),
+                        paid_at=payload.get("paid_at"),
+                        payment_method=payload.get("payment_method", ""),
+                        payment_note=payload.get("payment_note", ""),
+                        actor_username=self._get_current_username() or "",
+                        actor_role=self._get_current_role(),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": result["message"],
+                            "purchase": result["purchase"],
+                            "purchases": result["purchases"],
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
+                if route == "/api/carts/payment":
+                    result = store.update_cart_payment(
+                        payload.get("cart_id", ""),
+                        payment_status=payload.get("payment_status", "paid"),
+                        paid_at=payload.get("paid_at"),
+                        payment_method=payload.get("payment_method", ""),
+                        payment_note=payload.get("payment_note", ""),
+                        actor_username=self._get_current_username() or "",
+                        actor_role=self._get_current_role(),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": result["message"],
+                            "cart": result["cart"],
+                            "carts": result["carts"],
                             "summary": store.get_summary(),
                         },
                     )

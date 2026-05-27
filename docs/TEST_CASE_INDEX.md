@@ -170,6 +170,8 @@ Mục tiêu:
 | 131 | `UT-AUTH-13` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_13_pending_bulk_order_request_delete_allows_owner_and_manager_only` |
 | 132 | `ACC-ORD-20` | `tests/integration/bulk-orders-mobile.spec.js` | `npx playwright test tests/integration/bulk-orders-mobile.spec.js --grep "ACC-ORD-20"` |
 | 133 | `UT-ORD-21` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_21_bulk_editing_saved_draft_or_committed_updates_same_cart` |
+| 134 | `UT-SYNC-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_06_payment_updates_persist_payment_metadata_for_cart_and_purchase` |
+| 135 | `IT-PAY-01` | `tests/integration/payments-management.spec.js` | `npx playwright test tests/integration/payments-management.spec.js --grep "IT-PAY-01"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

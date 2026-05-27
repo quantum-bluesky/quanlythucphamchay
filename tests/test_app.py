@@ -1979,6 +1979,110 @@ class InventoryStoreTests(unittest.TestCase):
                 }
             )
 
+    def test_ut_sync_06_payment_updates_persist_payment_metadata_for_cart_and_purchase(self) -> None:
+        product = self.store.create_product(
+            name="SP thanh toán",
+            category="Khô",
+            unit="gói",
+            price=12000,
+            sale_price=18000,
+            low_stock_threshold=1,
+        )
+        initial_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-payment-01",
+                        "customerId": "customer-payment-01",
+                        "customerName": "Khách thanh toán",
+                        "status": "completed",
+                        "paymentStatus": "unpaid",
+                        "createdAt": "2026-05-06T08:00:00+07:00",
+                        "updatedAt": "2026-05-06T08:30:00+07:00",
+                        "completedAt": "2026-05-06T08:30:00+07:00",
+                        "orderCode": "DH-PAY-01",
+                        "items": [
+                            {
+                                "id": "cart-payment-item-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitPrice": 18000,
+                            }
+                        ],
+                    }
+                ],
+                "purchases": [
+                    {
+                        "id": "purchase-payment-01",
+                        "supplierId": "supplier-payment-01",
+                        "supplierName": "NCC thanh toán",
+                        "status": "received",
+                        "note": "Phiếu chờ trả tiền",
+                        "createdAt": "2026-05-06T07:00:00+07:00",
+                        "updatedAt": "2026-05-06T09:00:00+07:00",
+                        "orderedAt": "2026-05-06T07:30:00+07:00",
+                        "receivedAt": "2026-05-06T09:00:00+07:00",
+                        "receiptCode": "PN-PAY-01",
+                        "items": [
+                            {
+                                "id": "purchase-payment-item-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 3,
+                                "unitCost": 12000,
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {
+                    "carts": initial_state["updated_at"]["carts"],
+                    "purchases": initial_state["updated_at"]["purchases"],
+                },
+            }
+        )
+
+        paid_cart_result = self.store.update_cart_payment(
+            "cart-payment-01",
+            paid_at="2026-05-06",
+            payment_method="bank_transfer",
+            payment_note="Khách đã chuyển khoản",
+            actor_username="cashier",
+            actor_role="user",
+        )
+        self.assertEqual(paid_cart_result["cart"]["paymentStatus"], "paid")
+        self.assertEqual(paid_cart_result["cart"]["paidAt"], "2026-05-06")
+        self.assertEqual(paid_cart_result["cart"]["paymentMethod"], "bank_transfer")
+        self.assertEqual(paid_cart_result["cart"]["paymentNote"], "Khách đã chuyển khoản")
+
+        paid_purchase_result = self.store.update_purchase_payment(
+            "purchase-payment-01",
+            paid_at="2026-05-07",
+            payment_method="cash",
+            payment_note="Đã trả tiền mặt cho NCC",
+            actor_username="cashier",
+            actor_role="user",
+        )
+        self.assertEqual(paid_purchase_result["purchase"]["status"], "paid")
+        self.assertEqual(paid_purchase_result["purchase"]["paidAt"], "2026-05-07")
+        self.assertEqual(paid_purchase_result["purchase"]["paymentMethod"], "cash")
+        self.assertEqual(paid_purchase_result["purchase"]["paymentNote"], "Đã trả tiền mặt cho NCC")
+
+        final_state = self.store.get_sync_state()
+        persisted_cart = next(
+            cart for cart in final_state["carts"] if cart["id"] == "cart-payment-01"
+        )
+        persisted_purchase = next(
+            purchase for purchase in final_state["purchases"] if purchase["id"] == "purchase-payment-01"
+        )
+        self.assertEqual(persisted_cart["paymentStatus"], "paid")
+        self.assertEqual(persisted_cart["paymentMethod"], "bank_transfer")
+        self.assertEqual(persisted_cart["paymentNote"], "Khách đã chuyển khoản")
+        self.assertEqual(persisted_purchase["status"], "paid")
+        self.assertEqual(persisted_purchase["paymentMethod"], "cash")
+        self.assertEqual(persisted_purchase["paymentNote"], "Đã trả tiền mặt cho NCC")
+
     def test_ut_ord_15_commit_and_ship_cart_order_follow_new_workflow(self) -> None:
         product = self.store.create_product(
             name="Đơn commit rồi ship",

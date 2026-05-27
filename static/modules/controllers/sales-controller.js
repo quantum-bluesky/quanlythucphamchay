@@ -1032,15 +1032,15 @@ export function registerSalesControllerEvents(contract) {
       if (!confirmCartStatusAction(cart, "mark-paid")) {
         return;
       }
-      await actions.flushPendingPersistCollections();
-      actions.updateCart(latestCart.id, (currentCart) => ({
-        ...currentCart,
-        paymentStatus: "paid",
-        paidAt: utils.nowIso(),
-        updatedAt: utils.nowIso(),
-      }));
-      actions.saveAndRenderAll();
-      await persistCartStatusChange("Đã cập nhật đơn là đã thanh toán.");
+      try {
+        await actions.flushPendingPersistCollections();
+        const data = await actions.updateCartPaymentDetails(latestCart.id, {
+          paymentStatus: "paid",
+        });
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
       return;
     }
     if (action === "cancel") {
@@ -1193,15 +1193,16 @@ export function registerSalesControllerEvents(contract) {
       if (!saveCartEditorsBeforeStatusChange(cart.id, dom.orderDetailPanel)) return;
       const latestCart = queries.getCartById(cart.id) || cart;
       if (!confirmCartStatusAction(cart, "mark-paid")) return;
-      await actions.flushPendingPersistCollections();
-      actions.updateCart(latestCart.id, (currentCart) => ({
-        ...currentCart,
-        paymentStatus: "paid",
-        paidAt: utils.nowIso(),
-        updatedAt: utils.nowIso(),
-      }));
-      actions.saveAndRenderAll();
-      await persistCartStatusChange("Đã cập nhật đơn là đã thanh toán.");
+      try {
+        await actions.flushPendingPersistCollections();
+        const data = await actions.updateCartPaymentDetails(latestCart.id, {
+          paymentStatus: "paid",
+        });
+        state.expandedOrderId = latestCart.id;
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
       return;
     }
     if (action === "cancel") {

@@ -18,8 +18,8 @@ Khi cần confirm nhanh một nhánh `được chuyển / không được chuy�
 
 ```text
 Kiểm tra tồn kho
-  -> nếu đủ hàng: Tạo đơn xuất hàng -> Quản lý đơn hàng -> Đã thanh toán
-  -> nếu thiếu hàng: Quản lý nhập hàng -> Đã đặt -> Đã nhập kho -> Đã thanh toán
+  -> nếu đủ hàng: Tạo đơn xuất hàng -> Quản lý đơn hàng -> Thanh toán
+  -> nếu thiếu hàng: Quản lý nhập hàng -> Đã đặt -> Đã nhập kho -> Thanh toán
   -> nếu đang gom nhập batch: Xử lý nhập thiếu -> Quản lý nhập hàng -> Đã đặt -> Đã nhập kho
 
 Nếu phát hiện sai sau khi chứng từ đã xử lý
@@ -107,6 +107,7 @@ Nếu cần can thiệp đặc biệt
 
 - màn `orders`
 - chỉ xem/in/thanh toán/hủy theo rule
+- với user mới, các đơn `completed/paid` còn được gom thêm ở màn `payments` để nhìn nhóm phiếu cần thu tiền riêng
 - ở list đơn, nút `In` hiện cho các phiếu chưa thanh toán; với phiếu đã thanh toán thì mở detail để in lại
 - từ đơn `completed/paid`, có thể bấm `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng của phiếu đã chọn; nếu khách đã có đơn `draft` thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có để giảm số lần gửi hàng hay tạo nháp mới riêng
 - nếu đi từ màn `customers`, app có thể lọc danh sách đơn đúng theo khách; nếu khách chỉ có 1 phiếu thì mở sẵn detail để xem ngay kể cả với đơn đã `completed/paid`
@@ -192,11 +193,35 @@ ordered -> cancelled
 - `Legacy Audit` chỉ auto-fix các mốc thời gian chắc chắn; các thao tác gắn `receipt_code` hoặc `đơn nguồn` luôn cần admin xác nhận thủ công
 - chỉ `received` mới được `paid`
 - `received` chỉ còn cho sửa `ghi chú`, `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
+- với user mới, các phiếu `received/paid` còn được gom thêm ở màn `payments` để nhìn nhóm phiếu cần trả tiền riêng
 - từ phiếu `received/paid`, có thể bấm `Nhập lại` để tạo nhanh một phiếu nháp mới cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có để không tạo draft thứ hai
 - khi `Nhập lại`, app chỉ sao chép nội dung đặt hàng; metadata lô như `batchCode`, `expiryDate`, `manufactureDate` phải reset về trống để nhập lại theo lô mới
 - flow `gộp đơn` phiếu nhập giữ lại một phiếu đích, dồn tất cả dòng hàng và giảm giá vào phiếu đó, hợp nhất `ghi chú` theo danh sách duy nhất ngăn bằng ` | `, rồi chuyển các phiếu nguồn sang `cancelled`
 - khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `draft/ordered`; user khác chỉ được đi tiếp `ordered -> received` nếu phiếu không phải batch và đã `ordered` trước lúc lock hiện tại được acquire, rồi mới đi tiếp `received -> paid`
 - trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
+
+## 4A. Luồng quản lý thanh toán đơn giản
+
+- màn chính: `payments`
+- mục tiêu:
+  - gom riêng các phiếu đã tới bước thu/chi tiền để user mới không phải rà lẫn trong toàn bộ list đơn và phiếu nhập
+  - cho cập nhật nhanh `ngày thanh toán`, `phương thức`, `ghi chú`
+- phạm vi phase hiện tại:
+  - mỗi phiếu chỉ có một trạng thái thanh toán `unpaid/paid`
+  - không có thanh toán nhiều lần
+  - không có thanh toán một phần
+- tab `Khách hàng`:
+  - lấy các đơn `completed` hoặc `paid`
+  - phiếu `completed + payment_status=unpaid` hiện là `Chưa thanh toán`
+  - khi user bấm `Đánh dấu đã thanh toán`, hệ thống lưu `payment_status=paid`, `paid_at`, `payment_method`, `payment_note`
+- tab `Nhà cung cấp`:
+  - lấy các phiếu nhập `received` hoặc `paid`
+  - phiếu `received` hiện là `Chưa thanh toán`
+  - khi user bấm `Đánh dấu đã thanh toán`, hệ thống chuyển `status=paid` đồng thời lưu `paid_at`, `payment_method`, `payment_note`
+- cả 2 tab đều phải cho:
+  - search theo mã phiếu và tên đối tượng
+  - filter `Chưa thanh toán / Đã thanh toán / Tất cả`
+  - mở nhanh lại phiếu gốc ở màn `orders` hoặc `purchases`
 
 ## 5. Luồng xử lý nhập thiếu batch
 

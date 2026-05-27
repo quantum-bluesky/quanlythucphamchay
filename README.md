@@ -155,6 +155,8 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Từ màn Khách hàng có thể bấm badge `đơn chờ` / `đơn` để mở danh sách phiếu của đúng khách; nếu khách chỉ có 1 phiếu thì màn Đơn hàng sẽ tự mở detail kể cả với đơn đã xuất hàng hoặc đã thanh toán
 - Màn `Đơn hàng` mặc định ẩn đơn đã hủy; khi cần đối chiếu lịch sử có thể bật checkbox `Hiện đơn đã hủy`
 - Đơn `Chốt đơn` khóa khách hàng nhưng vẫn cho sửa địa chỉ giao, dòng hàng, ghi chú và giảm giá cho tới trước `Đã xuất hàng`; sau `Đã xuất hàng` chỉ còn được sửa `ghi chú` và `giảm giá khuyến mại` trước thanh toán
+- Có thêm màn `Thanh toán` riêng cho user mới: tách 2 tab `Khách hàng` và `Nhà cung cấp`, cho tìm nhanh phiếu còn nợ, lọc `Chưa thanh toán / Đã thanh toán`, cập nhật `ngày thanh toán / phương thức / ghi chú`, và mở nhanh lại phiếu gốc
+- Luồng thanh toán hiện giữ ở mức đơn giản: mỗi phiếu chỉ có một trạng thái thanh toán `unpaid/paid`, chưa có thanh toán nhiều lần hay thanh toán một phần
 - Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server
 - Tự nạp lại dữ liệu mới từ máy khác ở các màn chính khi màn hình đang rảnh thao tác, giúp thấy tồn kho và giá mới hơn mà không cần `F5`
 - Client `.js` được gắn version riêng theo dạng `version-chính.N`; trong cùng version chính, `N` tăng theo số lần nội dung file đổi, bỏ qua khác biệt `CRLF/LF`, còn khi version chính đổi thì `N` reset về `1`

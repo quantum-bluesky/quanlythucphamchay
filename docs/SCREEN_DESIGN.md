@@ -164,6 +164,7 @@ Liên kết detail hiện có:
   - preview `gộp đơn` của phiếu xuất tái sử dụng màn `create-order`: chọn một phiếu làm đích, hiển thị danh sách phiếu sẽ nhập vào, cho `Thực hiện gộp` hoặc `Hủy`
   - card đơn `completed` chưa thanh toán chỉ còn hiện input `Giảm giá khuyến mại` trong detail
   - card đơn `completed` hoặc `paid` có action `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và danh sách dòng hàng của phiếu đã chọn; nếu khách đã có đơn `draft` thì UI phải hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
+  - ngoài action nhanh `Đã thanh toán` trong detail, các đơn `completed/paid` còn phải hiện đúng ở màn `payments` để user mới theo dõi công nợ dễ hơn
   - action `Trả hàng` chỉ hiện trong detail của đơn `completed`; không đặt form hay button trả hàng độc lập ở ngoài list để tránh bấm nhầm
   - trên mobile, `Chốt đơn`, `Xuất hàng` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
   - các nút đổi trạng thái hoặc xóa phiếu như `Chốt đơn`, `Xuất hàng`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
@@ -244,10 +245,32 @@ Liên kết detail hiện có:
   - phiếu `received/paid` có action `Nhập lại` để tạo nhanh phiếu nháp mới với cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đó đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có thay vì tạo draft thứ hai
   - preview `gộp đơn` của phiếu nhập tái sử dụng panel chi tiết hiện hành, giữ lại phiếu ưu tiên `ordered` trước `draft`, rồi mới xét phiếu đang mở và thời điểm cập nhật
   - khi `Nhập lại`, metadata theo lô như `Mã lô`, `Hạn dùng`, `Ngày sản xuất` phải được reset về trống để user nhập lại theo lô hàng mới
+  - ngoài action nhanh `Đã thanh toán` ở màn nhập hàng, các phiếu `received/paid` còn phải xuất hiện đúng ở màn `payments` để user mới rà nhóm phiếu cần trả tiền riêng
   - action `Trả NCC` chỉ hiện trong detail của phiếu `received/paid`; không đặt form hay button trả NCC độc lập ở ngoài list để tránh nhầm với thao tác mở phiếu nhập
   - các nút đổi trạng thái hoặc xóa phiếu như `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu`, `Xóa phiếu` phải hiện message confirm trước khi app cập nhật
 - tài liệu detail:
   - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
+
+### `payments` - Quản lý thanh toán
+
+- mục tiêu:
+  - gom các phiếu xuất/phiếu nhập đã tới bước thanh toán vào một chỗ dễ rà
+  - giúp user mới biết phiếu nào còn nợ, phiếu nào đã thu/đã trả
+  - cập nhật nhanh thông tin thanh toán mà không phải mở Excel theo dõi ngoài app
+- thành phần chính:
+  - tab `Khách hàng` và `Nhà cung cấp`
+  - search theo mã phiếu / tên khách / tên NCC
+  - filter `Chưa thanh toán / Đã thanh toán / Tất cả`
+  - summary cards
+  - danh sách phiếu dạng card
+  - panel detail thanh toán
+- nguyên tắc UI:
+  - ưu tiên list gọn, highlight phiếu `Chưa thanh toán` trước
+  - user chỉ cần bấm vào một card để thấy ngay `ngày thanh toán`, `phương thức`, `ghi chú` và nút `Đánh dấu đã thanh toán`
+  - giữ ngôn ngữ đơn giản như `Còn nợ`, `Đã thanh toán`; tránh thuật ngữ kế toán khó
+  - mỗi phiếu hiện chỉ có một trạng thái thanh toán duy nhất; không thiết kế UI cho trả góp hay nhiều lần thanh toán ở phase này
+  - phải có nút `Mở phiếu gốc` để quay lại đúng màn `orders` hoặc `purchases` mà vẫn giữ trải nghiệm mobile đơn giản
+  - tab `Khách hàng` chỉ lấy đơn `completed/paid`; tab `Nhà cung cấp` chỉ lấy phiếu nhập `received/paid`
 
 ### `procurement-planner` - Xử lý nhập thiếu
 

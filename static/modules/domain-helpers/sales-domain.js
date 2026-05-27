@@ -122,6 +122,8 @@ export function createSalesDomainHelpers(deps) {
       customerName: cart.customerName || "Khách lẻ",
       status: cart.status || "draft",
       paymentStatus: cart.paymentStatus || "unpaid",
+      paymentMethod: String(cart.paymentMethod || cart.payment_method || "").trim(),
+      paymentNote: String(cart.paymentNote || cart.payment_note || "").trim(),
       note: String(cart.note || "").trim(),
       discountAmount: Number(discountAmount.toFixed(2)),
       discount_amount: Number(discountAmount.toFixed(2)),
@@ -195,6 +197,8 @@ export function createSalesDomainHelpers(deps) {
       customerName: customer.name,
       status: "draft",
       paymentStatus: "unpaid",
+      paymentMethod: "",
+      paymentNote: "",
       note: "",
       discountAmount: 0,
       shipAddress: customer.address || "",
@@ -421,6 +425,9 @@ export function createSalesDomainHelpers(deps) {
           ? Number(currentCart.discountAmount || currentCart.discount_amount || 0)
           : Number(sourceCart.discountAmount || sourceCart.discount_amount || 0),
         paymentStatus: "unpaid",
+        paymentMethod: "",
+        paymentNote: "",
+        paidAt: null,
       }));
       state.activeCartId = mergedCart.id;
       state.activeCartPanelCollapsed = mobileQuery.matches;
@@ -445,6 +452,8 @@ export function createSalesDomainHelpers(deps) {
       customerName: sourceCart.customerName || "Khách lẻ",
       status: "draft",
       paymentStatus: "unpaid",
+      paymentMethod: "",
+      paymentNote: "",
       note: String(sourceCart.note || "").trim(),
       discountAmount: Number(sourceCart.discountAmount || sourceCart.discount_amount || 0),
       shipAddress: String(sourceCart.shipAddress || sourceCart.ship_address || "").trim(),
@@ -610,6 +619,9 @@ export function createSalesDomainHelpers(deps) {
       ship_address: mergedShipAddress,
       discountAmount: mergedDiscountAmount,
       paymentStatus: "unpaid",
+      paymentMethod: "",
+      paymentNote: "",
+      paidAt: null,
       updatedAt: now,
     }));
     preview.sourceIds.forEach((cartId) => {
