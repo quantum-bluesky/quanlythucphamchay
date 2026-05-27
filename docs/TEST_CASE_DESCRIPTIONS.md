@@ -66,7 +66,7 @@ Lưu ý:
 | 42 | `IT-MOB-01` | Kiểm tra menu nổi/search/toolbox trên mobile tự ẩn vào mép màn hình và mở lại an toàn. |
 | 41 | `IT-MOB-02` | Kiểm tra screen header vẫn hiển thị tốt trên tablet và nút Version vẫn mở được About. |
 | 42 | `IT-NAV-01` | Kiểm tra khi mở giỏ nháp ở màn Đơn hàng hoặc mở phiếu ở màn Nhập hàng thì viewport tự cuộn lên đúng khối thông tin của phiếu vừa mở. |
-| 43 | `IT-ORD-01` | Kiểm tra màn đơn hàng hỗ trợ mở rộng chi tiết, đánh dấu đã thanh toán và mở lại giỏ nháp. |
+| 43 | `IT-ORD-01` | Kiểm tra màn đơn hàng hỗ trợ mở rộng chi tiết, đánh dấu đã thanh toán, chỉ cần bật `Hiện đơn đã thanh toán` để thấy phiếu paid, và mở lại giỏ nháp. |
 | 44 | `IT-ORD-03` | Kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng. |
 | 45 | `IT-ORD-04` | Kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hiện hỏi có dồn thêm vào đơn nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đó thay vì tạo draft mới. |
 | 46 | `IT-ORD-05` | Kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện confirm cảnh báo bổ sung trước khi `Chốt đơn`. |
