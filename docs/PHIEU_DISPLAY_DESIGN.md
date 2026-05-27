@@ -95,6 +95,7 @@ Thông tin nên hiện trong detail:
 - mã đơn / mã phiếu
 - khách hàng
 - địa chỉ giao
+- ghi chú phiếu xuất
 - trạng thái xử lý
 - tạm tính / giảm khuyến mại / cần thanh toán
 - ngày tạo

@@ -206,12 +206,19 @@
         </div>
 
         <article class="sales-customer-card">
-          <div class="sales-customer-form sales-customer-single">
+          <div class="sales-customer-form">
             <label>
               <span>Khách hàng</span>
               <input id="customerLookupInput" type="text" list="customerOptions" maxlength="80" placeholder="Gõ tên khách hàng để tìm hoặc tạo mới">
             </label>
-            <button type="button" id="openCartButton" class="primary-button">Mở giỏ hàng</button>
+            <label>
+              <span>Ghi chú phiếu xuất</span>
+              <input id="salesNoteInput" type="text" maxlength="160" placeholder="Ví dụ: Giao trước 17h, nhớ gọi khách">
+            </label>
+            <div class="inline-menu-actions">
+              <button type="button" id="openCartButton" class="primary-button">Mở giỏ hàng</button>
+              <button type="button" id="createNewCartButton" class="ghost-button compact-button">Tạo đơn mới</button>
+            </div>
           </div>
           <div class="sales-badge-row">
             <div class="cart-badge">

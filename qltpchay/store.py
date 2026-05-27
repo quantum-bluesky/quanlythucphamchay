@@ -257,6 +257,7 @@ class InventoryStore:
                     customer_name TEXT NOT NULL DEFAULT '',
                     status TEXT NOT NULL DEFAULT 'draft',
                     payment_status TEXT NOT NULL DEFAULT 'unpaid',
+                    note TEXT NOT NULL DEFAULT '',
                     discount_amount REAL NOT NULL DEFAULT 0,
                     ship_address TEXT NOT NULL DEFAULT '',
                     created_at TEXT NOT NULL,
@@ -500,6 +501,10 @@ class InventoryStore:
             cart_columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(carts)").fetchall()
             }
+            if "note" not in cart_columns:
+                connection.execute(
+                    "ALTER TABLE carts ADD COLUMN note TEXT NOT NULL DEFAULT ''"
+                )
             if "discount_amount" not in cart_columns:
                 connection.execute(
                     "ALTER TABLE carts ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0"
@@ -1652,7 +1657,7 @@ class InventoryStore:
         if state_key == "carts":
             cart_rows = connection.execute(
                 """
-                SELECT id, customer_id, customer_name, status, payment_status, discount_amount, ship_address, created_at, updated_at,
+                SELECT id, customer_id, customer_name, status, payment_status, note, discount_amount, ship_address, created_at, updated_at,
                        committed_at, completed_at, cancelled_at, paid_at, order_code
                 FROM carts
                 ORDER BY datetime(updated_at) DESC, id
@@ -1678,6 +1683,7 @@ class InventoryStore:
                         "customerName": row["customer_name"] or "",
                         "status": row["status"] or "draft",
                         "paymentStatus": row["payment_status"] or "unpaid",
+                        "note": row["note"] or "",
                         "discountAmount": round(float(row["discount_amount"] or 0), 2),
                         "discount_amount": round(float(row["discount_amount"] or 0), 2),
                         "shipAddress": row["ship_address"] or "",
@@ -1866,10 +1872,10 @@ class InventoryStore:
                 connection.execute(
                     """
                     INSERT INTO carts(
-                        id, customer_id, customer_name, status, payment_status, discount_amount, ship_address, created_at, updated_at,
+                        id, customer_id, customer_name, status, payment_status, note, discount_amount, ship_address, created_at, updated_at,
                         committed_at, completed_at, cancelled_at, paid_at, order_code
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         cart_id,
@@ -1877,6 +1883,7 @@ class InventoryStore:
                         str(record.get("customerName") or "").strip(),
                         str(record.get("status") or "draft"),
                         str(record.get("paymentStatus") or "unpaid"),
+                        str(record.get("note") or "").strip(),
                         discount_amount,
                         str(record.get("shipAddress") or record.get("ship_address") or "").strip(),
                         str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
@@ -3425,7 +3432,7 @@ class InventoryStore:
     def _get_cart_document(self, connection: sqlite3.Connection, cart_id: str) -> dict:
         row = connection.execute(
             """
-            SELECT id, customer_id, customer_name, status, payment_status, discount_amount, ship_address, created_at, updated_at,
+            SELECT id, customer_id, customer_name, status, payment_status, note, discount_amount, ship_address, created_at, updated_at,
                    committed_at, completed_at, cancelled_at, paid_at, order_code
             FROM carts
             WHERE id = ?
@@ -3449,6 +3456,7 @@ class InventoryStore:
             "customerName": row["customer_name"] or "",
             "status": row["status"] or "draft",
             "paymentStatus": row["payment_status"] or "unpaid",
+            "note": row["note"] or "",
             "discountAmount": round(float(row["discount_amount"] or 0), 2),
             "discount_amount": round(float(row["discount_amount"] or 0), 2),
             "shipAddress": row["ship_address"] or "",
@@ -3810,6 +3818,7 @@ class InventoryStore:
             or str(resolved_customer.get("address") or "").strip()
             or self._get_cart_ship_address(existing_cart)
         )
+        clean_note = str(raw_order.get("note") or "").strip() or str(existing_cart.get("note") or "").strip()
         subtotal = sum(item["quantity"] * item["unit_price"] for item in grouped_items.values())
         validated_discount_amount = self._validate_discount_amount(
             raw_order.get("discount_amount", raw_order.get("discountAmount", 0)),
@@ -3832,6 +3841,7 @@ class InventoryStore:
             UPDATE carts
             SET customer_id = ?,
                 customer_name = ?,
+                note = ?,
                 discount_amount = ?,
                 ship_address = ?,
                 updated_at = ?
@@ -3840,6 +3850,7 @@ class InventoryStore:
             (
                 str(resolved_customer.get("id") or "").strip(),
                 str(resolved_customer.get("name") or "").strip(),
+                clean_note,
                 validated_discount_amount,
                 clean_ship_address,
                 created_at,
@@ -4373,6 +4384,7 @@ class InventoryStore:
             )
         merge_strategy = str(raw_order.get("merge_strategy") or raw_order.get("mergeStrategy") or "merge_existing_draft").strip() or "merge_existing_draft"
         clean_ship_address = str(raw_order.get("ship_address") or raw_order.get("shipAddress") or "").strip() or str(resolved_customer.get("address") or "").strip()
+        clean_note = str(raw_order.get("note") or "").strip()
         subtotal = sum(
             item["quantity"] * item["unit_price"]
             for item in grouped_items.values()
@@ -4406,6 +4418,7 @@ class InventoryStore:
                 UPDATE carts
                 SET customer_id = ?,
                     customer_name = ?,
+                    note = ?,
                     discount_amount = ?,
                     ship_address = ?,
                     updated_at = ?
@@ -4414,6 +4427,7 @@ class InventoryStore:
                 (
                     str(resolved_customer.get("id") or "").strip(),
                     str(resolved_customer.get("name") or "").strip(),
+                    clean_note or str(existing_draft.get("note") or "").strip(),
                     next_discount,
                     clean_ship_address or self._get_cart_ship_address(existing_draft),
                     created_at,
@@ -4445,15 +4459,16 @@ class InventoryStore:
         connection.execute(
             """
             INSERT INTO carts(
-                id, customer_id, customer_name, status, payment_status, discount_amount, ship_address,
+                id, customer_id, customer_name, status, payment_status, note, discount_amount, ship_address,
                 created_at, updated_at, committed_at, completed_at, cancelled_at, paid_at, order_code
             )
-            VALUES(?, ?, ?, 'draft', 'unpaid', ?, ?, ?, ?, NULL, NULL, NULL, NULL, '')
+            VALUES(?, ?, ?, 'draft', 'unpaid', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, '')
             """,
             (
                 cart_id,
                 str(resolved_customer.get("id") or "").strip(),
                 str(resolved_customer.get("name") or "").strip(),
+                clean_note,
                 validated_discount_amount,
                 clean_ship_address,
                 created_at,
@@ -4869,7 +4884,7 @@ class InventoryStore:
                 products_by_id=products_by_id,
                 current_stock_by_id=current_stock_by_id,
                 created_at=now,
-                note="",
+                note=str(cart.get("note") or "").strip(),
                 discount_amount=cart.get("discountAmount") or cart.get("discount_amount") or 0,
             )
             connection.execute(
@@ -8301,6 +8316,22 @@ class InventoryStore:
                 created_at=created_at,
             )
 
+        previous_note = str(previous.get("note") or "").strip()
+        current_note = str(current.get("note") or "").strip()
+        if previous_note != current_note:
+            self._record_entity_change(
+                connection,
+                entity_type="cart",
+                entity_id=cart_id,
+                entity_code=cart_code,
+                action="edit-note",
+                actor=clean_actor,
+                before_status=previous_status,
+                after_status=current_status,
+                note=f"{prefix}Ghi chú đổi từ {previous_note or 'trống'} sang {current_note or 'trống'}.",
+                created_at=created_at,
+            )
+
         item_note = self._build_cart_item_change_note(previous, current)
         if item_note:
             self._record_entity_change(
@@ -8354,6 +8385,10 @@ class InventoryStore:
     @staticmethod
     def _get_cart_ship_address(cart: dict) -> str:
         return str(cart.get("shipAddress") or cart.get("ship_address") or "").strip()
+
+    @staticmethod
+    def _get_cart_note(cart: dict) -> str:
+        return str(cart.get("note") or "").strip()
 
     @staticmethod
     def _get_purchase_ordered_timestamp_text(purchase: dict | None) -> str:
@@ -8538,6 +8573,8 @@ class InventoryStore:
                     raise ValueError("Đơn hàng đã thanh toán không thể sửa ngược trạng thái.")
                 if previous_payment_status == "paid" and self._get_cart_discount_amount(previous) != self._get_cart_discount_amount(cart):
                     raise ValueError("Đơn hàng đã thanh toán không thể sửa giảm giá khuyến mại.")
+                if previous_payment_status == "paid" and self._get_cart_note(previous) != self._get_cart_note(cart):
+                    raise ValueError("Đơn hàng đã thanh toán không thể sửa ghi chú.")
             elif previous_status == "cancelled":
                 if next_status != "cancelled":
                     raise ValueError("Giỏ hàng đã hủy không thể mở lại hoặc sửa trực tiếp.")
@@ -8545,6 +8582,8 @@ class InventoryStore:
                     raise ValueError("Giỏ hàng đã hủy không thể sửa trực tiếp.")
                 if self._get_cart_discount_amount(previous) != self._get_cart_discount_amount(cart):
                     raise ValueError("Giỏ hàng đã hủy không thể sửa giảm giá khuyến mại.")
+                if self._get_cart_note(previous) != self._get_cart_note(cart):
+                    raise ValueError("Giỏ hàng đã hủy không thể sửa ghi chú.")
                 if next_payment_status != previous_payment_status:
                     raise ValueError("Giỏ hàng đã hủy không thể đổi trạng thái thanh toán.")
 

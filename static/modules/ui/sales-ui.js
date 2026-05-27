@@ -44,6 +44,16 @@ export function createSalesUi(deps) {
     return Boolean(cart && ["draft", "committed"].includes(String(cart.status || "").trim()));
   }
 
+  function canEditCartNote(cart) {
+    return Boolean(
+      cart && (
+        cart.status === "draft"
+        || cart.status === "committed"
+        || (cart.status === "completed" && cart.paymentStatus !== "paid")
+      )
+    );
+  }
+
   function canPrintCartDocument(cart) {
     return Boolean(cart && cart.status !== "cancelled" && Array.isArray(cart.items) && cart.items.length);
   }
@@ -58,6 +68,7 @@ export function createSalesUi(deps) {
       { label: "Mã đơn", value: cart.orderCode || "Chưa có" },
       { label: "Khách hàng", value: cart.customerName || "Chưa có" },
       { label: "Địa chỉ giao", value: cart.shipAddress || "Chưa có" },
+      { label: "Ghi chú", value: cart.note || "Chưa có" },
       { label: "Trạng thái", value: statusMeta.label },
       { label: "Tạm tính", value: formatCurrency(cart.subtotalAmount || 0) },
       { label: "Giảm KM", value: formatCurrency(cart.discountAmount || 0) },
@@ -100,6 +111,23 @@ export function createSalesUi(deps) {
         </label>
         <div class="line-actions">
           <button type="button" class="ghost-button compact-button" ${actionAttribute} data-cart-id="${cart.id}">Lưu địa chỉ giao</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderCartNoteEditor(cart, actionAttribute) {
+    if (!canEditCartNote(cart)) {
+      return "";
+    }
+    return `
+      <div class="document-discount-editor">
+        <label class="price-field">
+          <span>Ghi chú phiếu xuất</span>
+          <input type="text" maxlength="160" value="${escapeHtml(cart.note || "")}" data-cart-note-input="${cart.id}" placeholder="Ví dụ: Giao trước 17h, nhớ gọi khách">
+        </label>
+        <div class="line-actions">
+          <button type="button" class="ghost-button compact-button" ${actionAttribute} data-cart-id="${cart.id}">Lưu ghi chú</button>
         </div>
       </div>
     `;
@@ -155,6 +183,7 @@ export function createSalesUi(deps) {
       includeItems = false,
       discountActionAttribute = "",
       shipAddressActionAttribute = "",
+      noteActionAttribute = "",
       itemsCollapsed = false,
       itemToggleActionAttribute = "",
     } = options;
@@ -190,6 +219,7 @@ export function createSalesUi(deps) {
         : '<div class="empty-state">Phiếu xuất này chưa có dòng hàng.</div>')
       : "";
     const shipAddressMarkup = shipAddressActionAttribute ? renderCartShipAddressEditor(cart, shipAddressActionAttribute) : "";
+    const noteMarkup = noteActionAttribute ? renderCartNoteEditor(cart, noteActionAttribute) : "";
     const discountEditorMarkup = discountActionAttribute ? renderCartDiscountEditor(cart, discountActionAttribute) : "";
     return `
       <div class="document-detail-block">
@@ -203,6 +233,7 @@ export function createSalesUi(deps) {
           </article>
         </div>
         ${shipAddressMarkup}
+        ${noteMarkup}
         ${discountEditorMarkup}
         ${itemsMarkup}
       </div>
@@ -249,6 +280,7 @@ export function createSalesUi(deps) {
         itemsCollapsed: state.orderDetailItemsCollapsed,
         itemToggleActionAttribute: 'data-order-detail-action="toggle-items"',
         shipAddressActionAttribute: 'data-order-detail-action="save-ship-address"',
+        noteActionAttribute: 'data-order-detail-action="save-note"',
         discountActionAttribute: 'data-order-detail-action="save-discount"',
       })}
       ${renderCartCostWarning(selectedCart)}
@@ -342,8 +374,8 @@ export function createSalesUi(deps) {
     const statusMeta = getCartStatusMeta(cart);
     const canPrint = canPrintCartDocument(cart);
     const noteText = cart.status === "committed"
-      ? "Đơn đã chốt: khóa khách hàng, vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới khi xuất."
-      : "Đơn nháp: có thể chọn khách, sửa dòng hàng, địa chỉ giao và giảm giá trước khi chốt.";
+      ? "Đơn đã chốt: khóa khách hàng, vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới khi xuất. Nếu cần làm đơn khác riêng hẳn, bấm `Tạo đơn mới`."
+      : "Đơn nháp: có thể chọn khách, sửa dòng hàng, địa chỉ giao và giảm giá trước khi chốt. Nếu không muốn dùng lại đơn cũ, bấm `Tạo đơn mới`.";
     if (state.activeCartPanelCollapsed) {
       dom.activeCartPanel.innerHTML = `
         <article class="active-cart-card is-collapsed">
@@ -366,6 +398,7 @@ export function createSalesUi(deps) {
 
     const detailButtonLabel = state.activeCartDetailExpanded ? (compact ? "Ẩn detail" : "Thu gọn detail") : "Detail";
     const shipAddressMarkup = renderCartShipAddressEditor(cart, 'data-cart-action="save-ship-address"');
+    const noteMarkup = renderCartNoteEditor(cart, 'data-cart-action="save-note"');
     const discountMarkup = renderCartDiscountEditor(cart, 'data-cart-action="save-discount"');
     dom.activeCartPanel.innerHTML = `
       <article class="active-cart-card">
@@ -390,9 +423,11 @@ export function createSalesUi(deps) {
         ${renderCartCostWarning(cart)}
         ${state.activeCartDetailExpanded ? renderCartDocumentDetail(cart, {
           shipAddressActionAttribute: 'data-cart-action="save-ship-address"',
+          noteActionAttribute: 'data-cart-action="save-note"',
           discountActionAttribute: 'data-cart-action="save-discount"',
-        }) : `${shipAddressMarkup}${discountMarkup}`}
+        }) : `${shipAddressMarkup}${noteMarkup}${discountMarkup}`}
         <div class="cart-toolbar">
+          <button type="button" class="ghost-button" data-cart-action="create-new">Tạo đơn mới</button>
           <button type="button" class="ghost-button" data-cart-action="toggle-detail">${detailButtonLabel}</button>
           ${canPrint ? `<button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In phiếu"}</button>` : ""}
           ${cart.status === "draft"
