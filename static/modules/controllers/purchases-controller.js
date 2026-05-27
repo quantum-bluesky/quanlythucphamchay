@@ -812,14 +812,7 @@ export function registerPurchasesControllerEvents(contract) {
       }
       try {
         await actions.flushPendingPersistCollections();
-        const data = await actions.apiRequest("/api/purchases/mark-paid", {
-          method: "POST",
-          body: JSON.stringify({
-            purchase_id: latestPurchase.id,
-            discount_amount: latestPurchase.discountAmount || 0,
-          }),
-        });
-        await actions.refreshData();
+        const data = await actions.updatePurchasePaymentDetails(latestPurchase.id);
         state.activePurchaseId = latestPurchase.id;
         actions.showToast(data.message);
       } catch (error) {

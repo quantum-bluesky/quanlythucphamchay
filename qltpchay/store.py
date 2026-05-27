@@ -257,6 +257,8 @@ class InventoryStore:
                     customer_name TEXT NOT NULL DEFAULT '',
                     status TEXT NOT NULL DEFAULT 'draft',
                     payment_status TEXT NOT NULL DEFAULT 'unpaid',
+                    payment_method TEXT NOT NULL DEFAULT '',
+                    payment_note TEXT NOT NULL DEFAULT '',
                     note TEXT NOT NULL DEFAULT '',
                     discount_amount REAL NOT NULL DEFAULT 0,
                     ship_address TEXT NOT NULL DEFAULT '',
@@ -292,6 +294,8 @@ class InventoryStore:
                     supplier_id TEXT NOT NULL DEFAULT '',
                     supplier_name TEXT NOT NULL DEFAULT '',
                     note TEXT NOT NULL DEFAULT '',
+                    payment_method TEXT NOT NULL DEFAULT '',
+                    payment_note TEXT NOT NULL DEFAULT '',
                     source_type TEXT NOT NULL DEFAULT '',
                     source_code TEXT NOT NULL DEFAULT '',
                     source_name TEXT NOT NULL DEFAULT '',
@@ -505,6 +509,14 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE carts ADD COLUMN note TEXT NOT NULL DEFAULT ''"
                 )
+            if "payment_method" not in cart_columns:
+                connection.execute(
+                    "ALTER TABLE carts ADD COLUMN payment_method TEXT NOT NULL DEFAULT ''"
+                )
+            if "payment_note" not in cart_columns:
+                connection.execute(
+                    "ALTER TABLE carts ADD COLUMN payment_note TEXT NOT NULL DEFAULT ''"
+                )
             if "discount_amount" not in cart_columns:
                 connection.execute(
                     "ALTER TABLE carts ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0"
@@ -534,6 +546,14 @@ class InventoryStore:
             if "source_name" not in purchase_columns:
                 connection.execute(
                     "ALTER TABLE purchases ADD COLUMN source_name TEXT NOT NULL DEFAULT ''"
+                )
+            if "payment_method" not in purchase_columns:
+                connection.execute(
+                    "ALTER TABLE purchases ADD COLUMN payment_method TEXT NOT NULL DEFAULT ''"
+                )
+            if "payment_note" not in purchase_columns:
+                connection.execute(
+                    "ALTER TABLE purchases ADD COLUMN payment_note TEXT NOT NULL DEFAULT ''"
                 )
             if "discount_amount" not in purchase_columns:
                 connection.execute(
@@ -1570,6 +1590,27 @@ class InventoryStore:
         )
 
     @staticmethod
+    def _normalize_payment_method(value) -> str:
+        clean_method = str(value or "").strip()
+        if not clean_method:
+            return ""
+        if clean_method not in {"cash", "bank_transfer", "other"}:
+            raise ValueError("Phương thức thanh toán không hợp lệ.")
+        return clean_method
+
+    @staticmethod
+    def _normalize_payment_note(value) -> str:
+        clean_note = str(value or "").strip()
+        if len(clean_note) > 160:
+            raise ValueError("Ghi chú thanh toán tối đa 160 ký tự.")
+        return clean_note
+
+    @staticmethod
+    def _normalize_payment_date_text(value) -> str | None:
+        clean_text = str(value or "").strip()
+        return clean_text or None
+
+    @staticmethod
     def _purchase_has_items(purchase: dict) -> bool:
         items = purchase.get("items")
         return isinstance(items, list) and bool(items)
@@ -1657,7 +1698,8 @@ class InventoryStore:
         if state_key == "carts":
             cart_rows = connection.execute(
                 """
-                SELECT id, customer_id, customer_name, status, payment_status, note, discount_amount, ship_address, created_at, updated_at,
+                SELECT id, customer_id, customer_name, status, payment_status, payment_method, payment_note,
+                       note, discount_amount, ship_address, created_at, updated_at,
                        committed_at, completed_at, cancelled_at, paid_at, order_code
                 FROM carts
                 ORDER BY datetime(updated_at) DESC, id
@@ -1683,6 +1725,10 @@ class InventoryStore:
                         "customerName": row["customer_name"] or "",
                         "status": row["status"] or "draft",
                         "paymentStatus": row["payment_status"] or "unpaid",
+                        "paymentMethod": row["payment_method"] or "",
+                        "payment_method": row["payment_method"] or "",
+                        "paymentNote": row["payment_note"] or "",
+                        "payment_note": row["payment_note"] or "",
                         "note": row["note"] or "",
                         "discountAmount": round(float(row["discount_amount"] or 0), 2),
                         "discount_amount": round(float(row["discount_amount"] or 0), 2),
@@ -1704,7 +1750,8 @@ class InventoryStore:
         if state_key == "purchases":
             purchase_rows = connection.execute(
                 """
-                SELECT id, supplier_id, supplier_name, note, source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
+                SELECT id, supplier_id, supplier_name, note, payment_method, payment_note,
+                       source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
                        ordered_at, received_at, paid_at, receipt_code
                 FROM purchases
                 ORDER BY datetime(updated_at) DESC, id
@@ -1781,6 +1828,10 @@ class InventoryStore:
                         "supplierId": row["supplier_id"] or "",
                         "supplierName": row["supplier_name"] or "",
                         "note": row["note"] or "",
+                        "paymentMethod": row["payment_method"] or "",
+                        "payment_method": row["payment_method"] or "",
+                        "paymentNote": row["payment_note"] or "",
+                        "payment_note": row["payment_note"] or "",
                         "sourceType": row["source_type"] or "",
                         "source_type": row["source_type"] or "",
                         "sourceCode": row["source_code"] or "",
@@ -1872,10 +1923,11 @@ class InventoryStore:
                 connection.execute(
                     """
                     INSERT INTO carts(
-                        id, customer_id, customer_name, status, payment_status, note, discount_amount, ship_address, created_at, updated_at,
+                        id, customer_id, customer_name, status, payment_status, payment_method, payment_note,
+                        note, discount_amount, ship_address, created_at, updated_at,
                         committed_at, completed_at, cancelled_at, paid_at, order_code
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         cart_id,
@@ -1883,6 +1935,8 @@ class InventoryStore:
                         str(record.get("customerName") or "").strip(),
                         str(record.get("status") or "draft"),
                         str(record.get("paymentStatus") or "unpaid"),
+                        self._normalize_payment_method(record.get("paymentMethod", record.get("payment_method", ""))),
+                        self._normalize_payment_note(record.get("paymentNote", record.get("payment_note", ""))),
                         str(record.get("note") or "").strip(),
                         discount_amount,
                         str(record.get("shipAddress") or record.get("ship_address") or "").strip(),
@@ -1923,16 +1977,18 @@ class InventoryStore:
                 connection.execute(
                     """
                     INSERT INTO purchases(
-                        id, supplier_id, supplier_name, note, source_type, source_code, source_name,
+                        id, supplier_id, supplier_name, note, payment_method, payment_note, source_type, source_code, source_name,
                         status, discount_amount, created_at, updated_at, ordered_at, received_at, paid_at, receipt_code
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         purchase_id,
                         str(record.get("supplierId") or "").strip(),
                         str(record.get("supplierName") or "").strip(),
                         str(record.get("note") or "").strip(),
+                        self._normalize_payment_method(record.get("paymentMethod", record.get("payment_method", ""))),
+                        self._normalize_payment_note(record.get("paymentNote", record.get("payment_note", ""))),
                         str(record.get("sourceType") or record.get("source_type") or "").strip(),
                         str(record.get("sourceCode") or record.get("source_code") or "").strip(),
                         str(record.get("sourceName") or record.get("source_name") or "").strip(),
@@ -3432,7 +3488,8 @@ class InventoryStore:
     def _get_cart_document(self, connection: sqlite3.Connection, cart_id: str) -> dict:
         row = connection.execute(
             """
-            SELECT id, customer_id, customer_name, status, payment_status, note, discount_amount, ship_address, created_at, updated_at,
+            SELECT id, customer_id, customer_name, status, payment_status, payment_method, payment_note,
+                   note, discount_amount, ship_address, created_at, updated_at,
                    committed_at, completed_at, cancelled_at, paid_at, order_code
             FROM carts
             WHERE id = ?
@@ -3456,6 +3513,10 @@ class InventoryStore:
             "customerName": row["customer_name"] or "",
             "status": row["status"] or "draft",
             "paymentStatus": row["payment_status"] or "unpaid",
+            "paymentMethod": row["payment_method"] or "",
+            "payment_method": row["payment_method"] or "",
+            "paymentNote": row["payment_note"] or "",
+            "payment_note": row["payment_note"] or "",
             "note": row["note"] or "",
             "discountAmount": round(float(row["discount_amount"] or 0), 2),
             "discount_amount": round(float(row["discount_amount"] or 0), 2),
@@ -5286,20 +5347,107 @@ class InventoryStore:
             "purchases": canonical,
         }
 
-    def mark_purchase_paid(
+    def update_cart_payment(
+        self,
+        cart_id: str,
+        *,
+        payment_status: str = "paid",
+        paid_at: str | None = None,
+        payment_method: str = "",
+        payment_note: str = "",
+        actor_username: str = "",
+        actor_role: str = "",
+    ) -> dict:
+        clean_cart_id = str(cart_id or "").strip()
+        if not clean_cart_id:
+            raise ValueError("Thiếu mã đơn hàng cần cập nhật thanh toán.")
+
+        clean_payment_status = str(payment_status or "paid").strip() or "paid"
+        if clean_payment_status not in {"unpaid", "paid"}:
+            raise ValueError("Trạng thái thanh toán đơn hàng không hợp lệ.")
+        clean_payment_method = self._normalize_payment_method(payment_method)
+        clean_payment_note = self._normalize_payment_note(payment_note)
+        actor = str(actor_username or "").strip()
+
+        with self._connect() as connection:
+            carts = self._load_sync_collection_from_tables(connection, "carts")
+            target = next(
+                (cart for cart in carts if str(cart.get("id") or "") == clean_cart_id),
+                None,
+            )
+            if target is None:
+                raise ValueError("Không tìm thấy đơn hàng cần cập nhật thanh toán.")
+
+            current_status = str(target.get("status") or "draft").strip()
+            current_payment_status = str(target.get("paymentStatus") or "unpaid").strip()
+            if current_status != "completed":
+                raise ValueError("Đơn hàng chỉ được cập nhật thanh toán sau khi đã xuất hàng.")
+            if current_payment_status == "paid" and clean_payment_status != "paid":
+                raise ValueError("Đơn hàng đã thanh toán không thể sửa ngược trạng thái.")
+            if clean_payment_status != "paid":
+                raise ValueError("Phiên bản hiện tại chỉ hỗ trợ đánh dấu đã thanh toán một lần.")
+
+            resolved_paid_at = (
+                self._normalize_payment_date_text(paid_at)
+                or self._normalize_payment_date_text(target.get("paidAt") or target.get("paid_at"))
+                or utc_now_iso()
+            )
+            updated_at = utc_now_iso()
+            next_carts: list[dict] = []
+            for cart in carts:
+                if str(cart.get("id") or "") != clean_cart_id:
+                    next_carts.append(cart)
+                    continue
+                next_carts.append(
+                    {
+                        **cart,
+                        "paymentStatus": "paid",
+                        "payment_status": "paid",
+                        "paidAt": resolved_paid_at,
+                        "paid_at": resolved_paid_at,
+                        "paymentMethod": clean_payment_method,
+                        "payment_method": clean_payment_method,
+                        "paymentNote": clean_payment_note,
+                        "payment_note": clean_payment_note,
+                        "updatedAt": updated_at,
+                        "updated_at": updated_at,
+                    }
+                )
+            self._audit_cart_changes(connection, carts, next_carts, actor=actor)
+            self._validate_cart_workflow_locks(carts, next_carts)
+            self._replace_sync_collection_records(connection, "carts", next_carts)
+            canonical = self._refresh_sync_collection_cache(
+                connection,
+                "carts",
+                updated_at=updated_at,
+            )
+
+        cart = next((entry for entry in canonical if str(entry.get("id") or "") == clean_cart_id), None)
+        return {
+            "message": "Đã cập nhật thanh toán cho đơn hàng.",
+            "cart": cart,
+            "carts": canonical,
+        }
+
+    def update_purchase_payment(
         self,
         purchase_id: str,
         *,
         discount_amount=None,
+        paid_at: str | None = None,
+        payment_method: str = "",
+        payment_note: str = "",
         actor_username: str = "",
         actor_role: str = "",
     ) -> dict:
         clean_purchase_id = str(purchase_id or "").strip()
         if not clean_purchase_id:
-            raise ValueError("Thiếu mã phiếu nhập cần đánh dấu đã thanh toán.")
+            raise ValueError("Thiếu mã phiếu nhập cần cập nhật thanh toán.")
 
+        clean_payment_method = self._normalize_payment_method(payment_method)
+        clean_payment_note = self._normalize_payment_note(payment_note)
         actor = str(actor_username or "").strip()
-        paid_at = utc_now_iso()
+        updated_at = utc_now_iso()
         with self._connect() as connection:
             purchases = self._load_sync_collection_from_tables(connection, "purchases")
             target = next(
@@ -5307,11 +5455,11 @@ class InventoryStore:
                 None,
             )
             if target is None:
-                raise ValueError("Không tìm thấy phiếu nhập cần đánh dấu đã thanh toán.")
+                raise ValueError("Không tìm thấy phiếu nhập cần cập nhật thanh toán.")
 
             current_status = str(target.get("status") or "draft").strip()
-            if current_status != "received":
-                raise ValueError("Phiếu nhập chỉ được đánh dấu đã thanh toán sau khi đã nhập kho.")
+            if current_status not in {"received", "paid"}:
+                raise ValueError("Phiếu nhập chỉ được cập nhật thanh toán sau khi đã nhập kho.")
 
             next_discount_amount = (
                 self._get_purchase_discount_amount(target)
@@ -5322,7 +5470,12 @@ class InventoryStore:
                     "Giảm giá khuyến mại phiếu nhập",
                 )
             )
-            next_purchases = []
+            resolved_paid_at = (
+                self._normalize_payment_date_text(paid_at)
+                or self._normalize_payment_date_text(target.get("paidAt") or target.get("paid_at"))
+                or updated_at
+            )
+            next_purchases: list[dict] = []
             for purchase in purchases:
                 if str(purchase.get("id") or "") != clean_purchase_id:
                     next_purchases.append(purchase)
@@ -5333,10 +5486,14 @@ class InventoryStore:
                         "status": "paid",
                         "discountAmount": next_discount_amount,
                         "discount_amount": next_discount_amount,
-                        "paidAt": paid_at,
-                        "paid_at": paid_at,
-                        "updatedAt": paid_at,
-                        "updated_at": paid_at,
+                        "paidAt": resolved_paid_at,
+                        "paid_at": resolved_paid_at,
+                        "paymentMethod": clean_payment_method,
+                        "payment_method": clean_payment_method,
+                        "paymentNote": clean_payment_note,
+                        "payment_note": clean_payment_note,
+                        "updatedAt": updated_at,
+                        "updated_at": updated_at,
                     }
                 )
             next_purchases = self._preserve_purchase_ordered_timestamps(purchases, next_purchases)
@@ -5353,21 +5510,42 @@ class InventoryStore:
                 purchases,
                 next_purchases,
                 actor=actor,
-                updated_at=paid_at,
+                updated_at=updated_at,
             )
             self._replace_sync_collection_records(connection, "purchases", next_purchases)
             canonical = self._refresh_sync_collection_cache(
                 connection,
                 "purchases",
-                updated_at=paid_at,
+                updated_at=updated_at,
             )
 
         purchase = next((entry for entry in canonical if str(entry.get("id") or "") == clean_purchase_id), None)
         return {
-            "message": "Đã cập nhật phiếu nhập là đã thanh toán.",
+            "message": "Đã cập nhật thanh toán cho phiếu nhập.",
             "purchase": purchase,
             "purchases": canonical,
         }
+
+    def mark_purchase_paid(
+        self,
+        purchase_id: str,
+        *,
+        discount_amount=None,
+        paid_at: str | None = None,
+        payment_method: str = "",
+        payment_note: str = "",
+        actor_username: str = "",
+        actor_role: str = "",
+    ) -> dict:
+        return self.update_purchase_payment(
+            purchase_id,
+            discount_amount=discount_amount,
+            paid_at=paid_at,
+            payment_method=payment_method,
+            payment_note=payment_note,
+            actor_username=actor_username,
+            actor_role=actor_role,
+        )
 
     @staticmethod
     def _build_purchase_receipt_transaction_note(

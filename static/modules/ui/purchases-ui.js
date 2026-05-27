@@ -282,8 +282,10 @@ export function createPurchasesUi(deps) {
       { label: "Ngày tạo", value: formatDate(purchase.createdAt) || "Chưa có" },
       { label: "Nhập kho", value: formatDate(purchase.receivedAt) || "Chưa có" },
       { label: "Thanh toán", value: formatDate(purchase.paidAt) || "Chưa có" },
+      purchase.paymentMethod ? { label: "Phương thức TT", value: purchase.paymentMethod === "cash" ? "Tiền mặt" : purchase.paymentMethod === "bank_transfer" ? "Chuyển khoản" : "Khác" } : null,
+      purchase.paymentNote ? { label: "Ghi chú TT", value: purchase.paymentNote } : null,
       { label: "Cập nhật cuối", value: formatDate(purchase.updatedAt) || "Chưa có" },
-    ];
+    ].filter(Boolean);
     const selectedItemsMarkup = purchase.items.length ? purchase.items.map((item) => {
       const linePriceAlerts = getPriceWarningAlerts({ purchasePrice: item.unitCost });
       const expiryMeta = resolvePurchaseItemExpiryMeta(purchase, item);

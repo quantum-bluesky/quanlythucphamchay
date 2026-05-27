@@ -164,3 +164,5 @@ Lưu ý:
 | 131 | `UT-AUTH-13` | Kiểm tra route xóa request `Xuất nhanh` chỉ cho owner hoặc user có `order_batch_manage`; user khác bị chặn và manager xóa được request của staff. |
 | 132 | `ACC-ORD-20` | Kiểm tra mobile UI `Xuất nhanh` hiện nút `Xóa` cho request `pending_approval`, cho owner tự xóa request tạo nhầm và cho manager xóa request của user khác. |
 | 133 | `UT-ORD-21` | Kiểm tra `Xuất nhanh` khi lưu lại card đã có cart `draft/committed` sẽ cập nhật đúng cart cũ, không tạo cart mới và không làm tụt trạng thái đơn đã chốt. |
+| 134 | `UT-SYNC-06` | Kiểm tra backend cập nhật thanh toán đơn giản persist đúng `payment_status`, `paid_at`, `payment_method`, `payment_note` cho đơn hàng và phiếu nhập. |
+| 135 | `IT-PAY-01` | Kiểm tra màn `Thanh toán` lọc đúng phiếu chưa thanh toán, cập nhật được thông tin thanh toán cho cả tab khách hàng và nhà cung cấp, rồi mở lại được phiếu gốc để đối chiếu. |

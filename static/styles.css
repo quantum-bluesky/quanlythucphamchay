@@ -3436,3 +3436,45 @@ button:disabled {
     grid-template-columns: repeat(4, minmax(var(--desktop-menu-button-min-width), max-content));
   }
 }
+
+.payments-tab-bar {
+  margin-bottom: 12px;
+}
+
+.payments-toolbar {
+  align-items: end;
+  gap: 12px;
+}
+
+.payments-toolbar label:not(.search-box) {
+  min-width: 180px;
+}
+
+.payment-document-card.is-unpaid {
+  border-color: #d97706;
+  box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.15);
+}
+
+.payment-document-card.is-paid {
+  border-color: #b6d7c0;
+}
+
+.payments-form-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.payments-note-field {
+  grid-column: 1 / -1;
+}
+
+.payments-detail-actions {
+  margin-top: 16px;
+}
+
+@media (min-width: 760px) {
+  .payments-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

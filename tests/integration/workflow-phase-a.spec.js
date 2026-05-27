@@ -764,7 +764,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     });
     expect(markPaidDialog).toContain("đã thanh toán");
     const orderPaidToast = await collectToast(page, runtime, "it-sts-01-order-paid", { errorPattern: /^$/ });
-    expect(orderPaidToast).toContain("Đã cập nhật đơn là đã thanh toán");
+    expect(orderPaidToast).toMatch(/Đã cập nhật.*thanh toán/i);
     await page.waitForTimeout(700);
 
     const paidOrderStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
@@ -825,7 +825,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     });
     expect(markPurchasePaidDialog).toContain("đã thanh toán");
     const purchasePaidToast = await collectToast(page, runtime, "it-sts-01-paid", { errorPattern: /^$/ });
-    expect(purchasePaidToast).toContain("Đã cập nhật phiếu nhập là đã thanh toán");
+    expect(purchasePaidToast).toMatch(/Đã cập nhật.*thanh toán/i);
 
     const paidPurchaseStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(paidPurchaseStateResponse.ok()).toBeTruthy();
@@ -1017,7 +1017,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
     await page.locator("#showArchivedCarts").check();
     await page.waitForTimeout(300);
     await setFloatingSearch(page, completedCustomerName);
-    await expect(page.locator(".cart-queue-item", { hasText: completedCustomerName })).toBeVisible();
+    await expect(page.locator('#cartQueueList .cart-queue-item[data-order-select]', { hasText: completedCustomerName }).first()).toBeVisible();
 
     await switchMenu(page, "purchases");
     await expectScreenTitle(page, "Nhập hàng");

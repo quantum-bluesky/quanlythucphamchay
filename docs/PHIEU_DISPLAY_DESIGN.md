@@ -56,6 +56,8 @@ Khi bấm button `Detail`, phải có khối metadata riêng hiển thị:
 - `Ngày tạo`
 - `Ngày nhập kho`
 - `Ngày thanh toán`
+- `Phương thức thanh toán`
+- `Ghi chú thanh toán`
 - `Cập nhật cuối`
 
 Nếu thiếu dữ liệu thật thì hiện:
@@ -96,6 +98,8 @@ Thông tin nên hiện trong detail:
 - khách hàng
 - địa chỉ giao
 - ghi chú phiếu xuất
+- phương thức thanh toán
+- ghi chú thanh toán
 - trạng thái xử lý
 - tạm tính / giảm khuyến mại / cần thanh toán
 - ngày tạo
@@ -121,6 +125,8 @@ Thông tin nên hiện trong detail:
 - mã phiếu
 - nhà cung cấp
 - trạng thái xử lý
+- phương thức thanh toán
+- ghi chú thanh toán
 - tạm tính / giảm khuyến mại / cần thanh toán
 - dòng hàng nên cho sửa/xem `Mã lô`, `Hạn dùng` hoặc `Ngày sản xuất` theo từng lô nhập; nếu user chọn nhập qua NSX thì UI phải hiện HSD tự tính tương ứng
 - ngày tạo
@@ -274,6 +280,13 @@ Rule lọc:
 - detail phiếu thêm trường `Tạm tính / Giảm KM / Cần thanh toán`
 - phiếu legacy thiếu timestamp nhưng có status xử lý sẽ không còn bị kẹt thanh toán chỉ vì thiếu `receivedAt`
 - phiếu nháp tạo từ `Xử lý nhập thiếu` vẫn hiển thị trong danh sách nhập hàng và đi tiếp theo workflow chuẩn
+
+### Màn `Thanh toán`
+
+- list chỉ hiện 2 nhóm `Khách hàng` và `Nhà cung cấp`
+- card phiếu ưu tiên trạng thái `Chưa thanh toán` để user mới rà nhanh phần còn nợ
+- detail thanh toán hiện đủ `Ngày thanh toán / Phương thức / Ghi chú`
+- có nút `Mở phiếu gốc` để quay lại đúng đơn hoặc phiếu nhập đang đối chiếu
 
 ### Màn `Xử lý nhập thiếu`
 

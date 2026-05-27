@@ -502,12 +502,44 @@ Nên lưu:
 6. Nếu đi từ màn `NH` sang bằng nút `NCC`, app sẽ mở sẵn form theo tên đang gõ; thao tác này chỉ dùng được khi phiếu nhập còn là `Nháp`
 7. Có thể bấm `Dùng cho phiếu nhập` để chuyển nhanh sang màn nhập hàng
 
-## 11. Luồng báo cáo tháng
+## 11. Luồng thanh toán đơn giản
 
 Vào menu:
 
 ```text
-10. Báo cáo tháng
+10. Thanh toán
+```
+
+Màn này dùng để:
+
+- xem nhanh phiếu nào `Chưa thanh toán`
+- xem phiếu nào `Đã thanh toán`
+- cập nhật `Ngày thanh toán`, `Phương thức`, `Ghi chú`
+- mở lại phiếu gốc để đối chiếu nếu cần
+
+### Cách dùng nhanh
+
+1. Chọn tab `Khách hàng` nếu đang rà tiền khách trả, hoặc `Nhà cung cấp` nếu đang rà tiền phải trả NCC
+2. Gõ mã phiếu, tên khách hoặc tên NCC để thu gọn danh sách
+3. Dùng bộ lọc `Chưa thanh toán / Đã thanh toán / Tất cả` để tập trung đúng nhóm phiếu cần xem
+4. Chạm vào một phiếu trong list để mở panel detail thanh toán
+5. Nếu phiếu còn nợ, nhập `Ngày thanh toán`, chọn `Phương thức`, thêm `Ghi chú` nếu cần rồi bấm `Đánh dấu đã thanh toán`
+6. Nếu phiếu đã thanh toán rồi nhưng thiếu thông tin, vẫn có thể mở lại và bấm `Lưu thông tin thanh toán`
+7. Khi cần đối chiếu lại chứng từ, bấm `Mở phiếu gốc` để quay sang đúng màn `Quản lý đơn hàng` hoặc `Quản lý nhập hàng`
+
+Lưu ý:
+
+- màn này chỉ quản lý thanh toán đơn giản theo từng phiếu
+- hiện tại chưa có thanh toán nhiều lần hoặc thanh toán một phần
+- tab `Khách hàng` chỉ hiện đơn đã `Đã xuất hàng` hoặc `Đã thanh toán`
+- tab `Nhà cung cấp` chỉ hiện phiếu đã `Đã nhập kho` hoặc `Đã thanh toán`
+
+## 12. Luồng báo cáo tháng
+
+Vào menu:
+
+```text
+11. Báo cáo tháng
 ```
 
 Màn này dùng để:
@@ -519,7 +551,7 @@ Màn này dùng để:
 
 ### Cách đọc nhanh
 
-## 12. Luồng điều chỉnh tồn và trả hàng (Phase B)
+## 13. Luồng điều chỉnh tồn và trả hàng (Phase B)
 
 Khi đã chốt đơn hoặc đã nhập kho mà phát hiện sai, không sửa ngược chứng từ cũ.
 
@@ -586,7 +618,7 @@ Dự báo nhập dựa trên:
 - đơn hàng nháp đang chờ
 - phiếu nhập draft / ordered đang mở
 
-## 13. Các tình huống thường gặp
+## 14. Các tình huống thường gặp
 
 ### Khách gọi đặt hàng nhưng chưa chốt ngay
 
@@ -665,7 +697,14 @@ Vào `Quản lý nhập hàng` rồi bật:
 Hiện phiếu đã hủy
 ```
 
-## 14. Lưu ý sử dụng chung nhiều máy
+### Muốn rà nhanh các phiếu còn nợ
+
+Vào `Thanh toán`, rồi:
+
+- chọn tab `Khách hàng` để xem đơn đã xuất nhưng chưa thu tiền
+- chọn tab `Nhà cung cấp` để xem phiếu đã nhập nhưng chưa trả NCC
+
+## 15. Lưu ý sử dụng chung nhiều máy
 
 - Tất cả thiết bị phải mở cùng một địa chỉ app/server
 - Không nên có nhiều máy cùng sửa đúng một đơn hoặc một phiếu nhập tại cùng một thời điểm
@@ -675,7 +714,7 @@ Hiện phiếu đã hủy
 - Trong lúc người dùng đang nhập dở vào ô text/number/date, app sẽ tạm hoãn tự refresh để tránh mất nội dung đang gõ
 - Nếu 2 máy cùng lưu vào cùng một giỏ nháp hoặc phiếu nháp, app sẽ báo xung đột đồng bộ và tự tải lại dữ liệu mới nhất để tránh ghi đè lẫn nhau
 
-## 15. Quy trình đề xuất cho cửa hàng nhỏ
+## 16. Quy trình đề xuất cho cửa hàng nhỏ
 
 ### Đầu ngày
 
@@ -688,7 +727,7 @@ Hiện phiếu đã hủy
 
 1. Tạo đơn cho khách ở `Tạo đơn xuất hàng`
 2. Theo dõi đơn ở `Quản lý đơn hàng`
-3. Cập nhật thanh toán khi khách đã trả tiền
+3. Cập nhật thanh toán ở `Thanh toán` khi khách đã trả tiền hoặc đã thanh toán cho NCC
 
 ### Cuối ngày
 
@@ -696,12 +735,12 @@ Hiện phiếu đã hủy
 2. Xem `Báo cáo tháng`
 3. Ghi nhận mặt hàng bán mạnh để chuẩn bị nhập tiếp
 
-## 16. Module Master Admin
+## 17. Module Master Admin
 
 Vào menu:
 
 ```text
-12. Master Admin
+13. Master Admin
 ```
 
 Chỉ người quản trị hệ thống mới nên dùng màn này.
