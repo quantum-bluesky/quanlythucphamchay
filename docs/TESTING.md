@@ -287,6 +287,7 @@ Case mới cho Phase A:
 - `IT-ORD-03`: kiểm tra `Xuất lại` từ đơn `Đã xuất hàng` tạo được đơn nháp mới cùng khách hàng, địa chỉ giao, giảm giá và các dòng hàng
 - `IT-ORD-04`: kiểm tra `Xuất lại` khi khách đã có đơn nháp sẽ hỏi có dồn thêm vào nháp hiện có hay không; nếu chọn dồn thì app merge vào đúng đơn nháp đang có
 - `IT-ORD-05`: kiểm tra đơn nháp có `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` sẽ hiện cảnh báo bổ sung trước khi `Chốt đơn`
+- `IT-ORD-01`: kiểm tra màn đơn hàng mở detail được, đánh dấu `Đã thanh toán` được, checkbox `Hiện đơn đã thanh toán` hoạt động độc lập, và vẫn mở lại được giỏ nháp cũ
 - `IT-ORD-08`: kiểm tra màn `Tạo đơn xuất hàng` có thể bấm `Tạo đơn mới` để mở một draft trắng riêng, không reuse đơn nháp đang mở và không làm mất đơn cũ
 - `IT-ORD-09`: kiểm tra ghi chú phiếu xuất lưu được từ form tạo đơn và sửa/xem lại được trong `Detail` của màn đơn hàng
 - `IT-ORD-07`: kiểm tra màn đơn hàng có thể `Chốt đơn` hàng loạt cho các phiếu đã chọn, chỉ chốt các đơn nháp hợp lệ và giữ nguyên phiếu lỗi để user xử lý tiếp

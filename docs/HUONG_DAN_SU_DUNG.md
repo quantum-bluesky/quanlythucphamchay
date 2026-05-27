@@ -255,6 +255,7 @@ Dùng màn này để:
 Lưu ý:
 
 - mặc định danh sách không hiện đơn đã hủy; chỉ bật checkbox `Hiện đơn đã hủy` khi cần tra cứu lại lịch sử hủy
+- nếu muốn xem đơn đã `Đã thanh toán`, chỉ cần bật checkbox `Hiện đơn đã thanh toán`; không cần bật thêm `Hiện đơn lưu trữ`
 - một khách có thể có nhiều đơn `Chốt đơn`; khi mở đơn mới cho khách mà khách chưa có đơn nháp nhưng đang có đơn đã chốt, app sẽ hiện khối chọn để `Mở đơn đã chốt` hoặc `Tạo đơn mới`
 - nếu đang mở đơn ở màn `Tạo đơn xuất hàng` mà muốn tách hẳn ra một đơn khác, bấm `Tạo đơn mới`; app sẽ hỏi trước khi reset form hiện tại nhưng vẫn giữ nguyên đơn cũ trong danh sách để mở lại sau
 - đơn đã `Chốt đơn` không đổi được khách hàng và không được xóa, nhưng vẫn hủy được nếu khách không lấy nữa
@@ -630,6 +631,14 @@ Vào `Quản lý đơn hàng` rồi bật:
 
 ```text
 Hiện đơn lưu trữ
+```
+
+### Muốn xem lại đơn đã thanh toán
+
+Vào `Quản lý đơn hàng` rồi bật:
+
+```text
+Hiện đơn đã thanh toán
 ```
 
 ### Muốn xem lại đơn đã hủy

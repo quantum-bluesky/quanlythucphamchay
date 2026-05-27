@@ -99,7 +99,8 @@ export const SCREEN_HELP = {
     overview: "Theo dõi các đơn nháp, đơn đã chốt, đơn đã xuất hàng, đơn đã thanh toán và tra cứu lịch sử đơn theo khách hay mặt hàng.",
     steps: [
       "Dùng ô tìm kiếm để lọc theo khách hàng, mã đơn hoặc tên mặt hàng.",
-      "Mặc định list ưu tiên các đơn đang chờ xử lý gồm `Nháp` và `Chốt đơn`; bật `Hiện đơn lưu trữ` khi cần xem cả đơn đã xuất hoặc đã hủy.",
+      "Mặc định list ưu tiên các đơn đang chờ xử lý gồm `Nháp` và `Chốt đơn`; bật `Hiện đơn lưu trữ` khi cần xem các đơn đã xuất chưa thanh toán hoặc đơn đã hủy.",
+      "Checkbox `Hiện đơn đã thanh toán` hoạt động độc lập: chỉ cần bật checkbox này là list sẽ hiện các đơn đã thu tiền, không cần bật thêm `Hiện đơn lưu trữ`.",
       "Khi đi từ màn Khách hàng sang, app có thể tự lọc đúng theo khách; nếu khách chỉ có 1 phiếu hàng thì màn này sẽ tự mở thẳng phần detail của phiếu đó, kể cả khi đơn đã `Đã xuất hàng` hoặc `Đã thanh toán`.",
       "Danh sách đơn là phần chính của màn này. Chạm vào một card hoặc bấm `Detail` để mở panel detail riêng ở phía trên; panel có nút `Previous / Next` để chuyển nhanh theo đúng danh sách đang lọc hiện tại và có nút `Đóng` để ẩn detail mà không mất bộ lọc.",
       "Với đơn `Nháp`, bấm `Chốt đơn` ngay trên card để khóa khách hàng và giữ hàng; bước này có thể dựa trên tồn hiện tại cộng với phần hàng đã được NCC xác nhận ở phiếu nhập `Đã đặt`. Với đơn `Chốt đơn`, bấm `Xuất hàng` khi giao thật.",

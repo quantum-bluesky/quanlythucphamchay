@@ -150,6 +150,7 @@ Liên kết detail hiện có:
   - danh sách order card
   - detail panel có nút `Lịch sử`
 - nguyên tắc UI:
+  - checkbox `Hiện đơn đã thanh toán` phải hoạt động độc lập; user không cần bật thêm `Hiện đơn lưu trữ` mới xem được đơn đã thu tiền
   - đơn đã hủy mặc định ẩn để list gọn hơn; user chỉ bật lại khi cần tra cứu
   - list đơn là trung tâm; detail của đơn mở ở panel riêng khi user chọn card, có nút `Previous / Next` để đi theo đúng danh sách đang lọc và có nút `Đóng` để ẩn panel
   - đơn `draft` có nút `Chốt đơn` nhanh ngay trên card trên tablet/PC
