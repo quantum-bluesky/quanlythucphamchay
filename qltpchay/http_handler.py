@@ -215,6 +215,28 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 )
                 return
 
+            if route == "/api/product-movements":
+                query = parse_qs(parsed.query)
+                product_id = query.get("product_id", [""])[0]
+                from_date = query.get("from_date", [None])[0]
+                to_date = query.get("to_date", [None])[0]
+                movement_type = query.get("movement_type", [""])[0]
+                keyword = query.get("keyword", [""])[0]
+                try:
+                    self._send_json(
+                        HTTPStatus.OK,
+                        store.get_product_movements(
+                            product_id=int(product_id),
+                            from_date=from_date,
+                            to_date=to_date,
+                            movement_type=movement_type,
+                            keyword=keyword,
+                        ),
+                    )
+                except (TypeError, ValueError) as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
             if route == "/api/receipts/history":
                 query = parse_qs(parsed.query)
                 limit = query.get("limit", ["40"])[0]

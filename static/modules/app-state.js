@@ -146,6 +146,17 @@ export const state = {
     note: "",
     items: [],
   },
+  productMovementHistory: {
+    productText: "",
+    productId: null,
+    fromDate: "",
+    toDate: new Date().toISOString().slice(0, 10),
+    movementType: "all",
+    keyword: "",
+    loading: false,
+    error: "",
+    data: null,
+  },
   inventoryQuickPanelAutoOpened: false,
   inventoryHistoryCollapsed: true,
   customerReturnDraft: {

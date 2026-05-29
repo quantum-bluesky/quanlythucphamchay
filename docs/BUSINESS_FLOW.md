@@ -43,6 +43,12 @@ Nếu cần can thiệp đặc biệt
   - danh sách tồn kho có thể sắp xếp trong khu vực phân trang theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít
   - `Ưu tiên nhập/xử lý` dùng sức bán thật đã chuẩn hóa theo tồn chuẩn và mức thiếu hàng
   - `Hạn còn ít` ưu tiên theo HSD thật của từng lô còn hàng; nếu chưa có HSD lô thì mới fallback về metadata cấp sản phẩm
+  - nếu cần điều tra lệch tồn của một mặt hàng, user đi sang màn `product-movements` từ nút `Lịch sử biến động` hoặc từ action `Xem lịch sử` trong detail sản phẩm
+  - màn `product-movements` chỉ đọc dữ liệu đã thực sự ảnh hưởng tồn kho; không tính phiếu nháp, phiếu hủy hoặc trạng thái chưa cộng/trừ kho
+  - công thức đối chiếu:
+    - `tồn đầu kỳ = tồn ban đầu theo ledger trước from_date`
+    - `tồn cuối kỳ = tồn đầu kỳ + tổng nhập trong kỳ - tổng xuất trong kỳ`
+    - nếu `to_date` là hôm nay hoặc để trống, app mới so sánh tiếp với tồn hiện tại trên hệ thống để báo `OK/Cảnh báo`
 
 ## 3. Luồng bán hàng
 

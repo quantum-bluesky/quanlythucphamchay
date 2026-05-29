@@ -7,6 +7,17 @@ import {
   inventoryHistoryWrap,
   inventoryHistoryToggleButton,
   inventoryHistoryShortcutButton,
+  productMovementForm,
+  productMovementProductInput,
+  productMovementFromDateInput,
+  productMovementToDateInput,
+  productMovementTypeSelect,
+  productMovementKeywordInput,
+  productMovementResetButton,
+  productMovementSummaryCards,
+  productMovementStatus,
+  productMovementMeta,
+  productMovementList,
   inventoryReceiptSection,
   inventoryReceiptWrap,
   inventoryReceiptToggleButton,
@@ -774,6 +785,15 @@ function getInventoryUi() {
         inventoryHistoryWrap,
         inventoryHistoryToggleButton,
         inventoryHistoryShortcutButton,
+        productMovementProductInput,
+        productMovementFromDateInput,
+        productMovementToDateInput,
+        productMovementTypeSelect,
+        productMovementKeywordInput,
+        productMovementSummaryCards,
+        productMovementStatus,
+        productMovementMeta,
+        productMovementList,
       },
       formatQuantity,
       formatCurrency,
@@ -1223,6 +1243,89 @@ function openProductHistorySection() {
   window.setTimeout(() => {
     productHistorySection?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, 30);
+}
+
+async function refreshProductMovementHistory({ sessionActivity = "active" } = {}) {
+  const historyState = state.productMovementHistory;
+  if (!historyState.productId) {
+    historyState.loading = false;
+    historyState.error = "";
+    historyState.data = null;
+    renderProductMovementScreen();
+    return null;
+  }
+
+  historyState.loading = true;
+  historyState.error = "";
+  renderProductMovementScreen();
+  try {
+    const params = new URLSearchParams({
+      product_id: String(historyState.productId),
+      movement_type: historyState.movementType || "all",
+      keyword: historyState.keyword || "",
+    });
+    if (historyState.fromDate) {
+      params.set("from_date", historyState.fromDate);
+    }
+    if (historyState.toDate) {
+      params.set("to_date", historyState.toDate);
+    }
+    const payload = await apiRequest(`/api/product-movements?${params.toString()}`, { sessionActivity });
+    historyState.data = payload;
+    historyState.error = "";
+    if (payload?.product?.name) {
+      historyState.productText = payload.product.name;
+    }
+    return payload;
+  } catch (error) {
+    historyState.data = null;
+    historyState.error = error.message;
+    throw error;
+  } finally {
+    historyState.loading = false;
+    renderProductMovementScreen();
+  }
+}
+
+async function submitProductMovementFilters() {
+  const historyState = state.productMovementHistory;
+  const product = resolveProductFromText(productMovementProductInput?.value || historyState.productText || "");
+  historyState.productId = Number(product.id);
+  historyState.productText = product.name;
+  historyState.fromDate = String(productMovementFromDateInput?.value || "").trim();
+  historyState.toDate = String(productMovementToDateInput?.value || "").trim();
+  historyState.movementType = String(productMovementTypeSelect?.value || "all").trim() || "all";
+  historyState.keyword = String(productMovementKeywordInput?.value || "").trim();
+  await refreshProductMovementHistory();
+}
+
+async function resetProductMovementFilters() {
+  state.productMovementHistory.fromDate = "";
+  state.productMovementHistory.toDate = new Date().toISOString().slice(0, 10);
+  state.productMovementHistory.movementType = "all";
+  state.productMovementHistory.keyword = "";
+  await refreshProductMovementHistory();
+}
+
+async function openProductMovementHistory(productId = null) {
+  const historyState = state.productMovementHistory;
+  if (productId !== null && productId !== undefined && productId !== "") {
+    const product = getProductById(productId);
+    if (!product) {
+      throw new Error("Không tìm thấy sản phẩm.");
+    }
+    historyState.productId = Number(product.id);
+    historyState.productText = product.name;
+  }
+  if (!historyState.toDate) {
+    historyState.toDate = new Date().toISOString().slice(0, 10);
+  }
+  switchMenu("product-movements");
+  renderProductMovementScreen();
+  if (!historyState.productId) {
+    return;
+  }
+  await refreshProductMovementHistory();
 }
 
 function renderReportSections() {
@@ -2193,7 +2296,7 @@ function saveAndRenderAll(changedCollections = []) {
   return getSyncRuntimeHelpers().saveAndRenderAll(changedCollections, renderAll);
 }
 
-const BUSINESS_FRESHNESS_MENUS = new Set(["inventory", "create-order", "orders", "purchases", "procurement-planner"]);
+const BUSINESS_FRESHNESS_MENUS = new Set(["inventory", "product-movements", "create-order", "orders", "purchases", "procurement-planner"]);
 const PROCUREMENT_FLOW_RELATED_MENUS = new Set(["procurement-planner", "purchases", "suppliers"]);
 
 function scheduleBusinessScreenRefresh(menu) {
@@ -4972,6 +5075,10 @@ function renderTransactions() {
   getInventoryUi().renderTransactions();
 }
 
+function renderProductMovementScreen() {
+  getInventoryUi().renderProductMovementScreen();
+}
+
 function resetInventoryReceiptDraft({ keepCollapsed = false } = {}) {
   state.inventoryReceiptDraft = {
     collapsed: keepCollapsed ? state.inventoryReceiptDraft?.collapsed ?? true : true,
@@ -5535,6 +5642,7 @@ function renderAll() {
   renderProductHistory();
   renderProductSections();
   renderTransactions();
+  renderProductMovementScreen();
   renderActiveCartPanel();
   renderBulkOrdersScreen();
   renderSalesProductList();
@@ -6294,6 +6402,14 @@ registerInventoryControllerEvents({
     transactionList,
     inventoryHistoryToggleButton,
     inventoryHistoryShortcutButton,
+    productMovementForm,
+    productMovementProductInput,
+    productMovementFromDateInput,
+    productMovementToDateInput,
+    productMovementTypeSelect,
+    productMovementKeywordInput,
+    productMovementResetButton,
+    productMovementList,
     inventoryReceiptToggleButton,
     inventoryReceiptProductInput,
     inventoryReceiptDeltaInput,
@@ -6316,6 +6432,9 @@ registerInventoryControllerEvents({
     showToast,
     updateProductPrice,
     prefillProduct,
+    openProductMovementHistory,
+    submitProductMovementFilters,
+    resetProductMovementFilters,
     focusCreateOrderSelection,
     focusActiveCartPanel,
     focusPurchasePanel,
@@ -6337,6 +6456,7 @@ registerInventoryControllerEvents({
   renderers: {
     renderProducts,
     renderTransactions,
+    renderProductMovementScreen,
     renderCartQueue,
     renderPurchaseSuggestions,
     renderPurchaseOrders,

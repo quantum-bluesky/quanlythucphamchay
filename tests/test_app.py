@@ -28,6 +28,30 @@ class InventoryStoreTests(unittest.TestCase):
         for suffix in ("", "-wal", "-shm"):
             self.db_path.with_name(self.db_path.name + suffix).unlink(missing_ok=True)
 
+    def _create_purchase_receipt_at(
+        self,
+        *,
+        supplier_name: str,
+        items: list[dict],
+        created_at: str,
+        note: str = "",
+    ) -> dict:
+        with self.store._connect() as connection:
+            return self.store._create_purchase_receipt_in_connection(
+                connection,
+                supplier_name=supplier_name,
+                items=items,
+                note=note,
+                created_at=created_at,
+            )
+
+    def _set_transaction_created_at(self, transaction_id: int, created_at: str) -> None:
+        with self.store._connect() as connection:
+            connection.execute(
+                "UPDATE transactions SET created_at = ? WHERE id = ?",
+                (created_at, int(transaction_id)),
+            )
+
     def test_ut_db_01_create_product_and_stock_summary(self) -> None:
         product = self.store.create_product(
             name="Chả lụa chay",
@@ -2887,6 +2911,253 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertIn("Ngưỡng cảnh báo: 2 -> 4", log_entry["message"])
         self.assertIn("Hạn dùng (ngày): 30 -> 60", log_entry["message"])
         self.assertIn("Bảo quản (ngày): 45 -> (trống)", log_entry["message"])
+
+    def test_ut_mov_01_product_movements_return_empty_summary_for_product_without_transactions(self) -> None:
+        product = self.store.create_product(
+            name="Há cảo chay mới",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+
+        result = self.store.get_product_movements(
+            product_id=product["id"],
+            to_date=datetime.now().astimezone().date().isoformat(),
+        )
+
+        self.assertEqual(result["product"]["name"], "Há cảo chay mới")
+        self.assertEqual(result["summary"]["opening_stock"], 0.0)
+        self.assertEqual(result["summary"]["total_in"], 0.0)
+        self.assertEqual(result["summary"]["total_out"], 0.0)
+        self.assertEqual(result["summary"]["calculated_ending_stock"], 0.0)
+        self.assertEqual(result["summary"]["current_stock"], 0.0)
+        self.assertEqual(result["summary"]["difference"], 0.0)
+        self.assertTrue(result["summary"]["is_match"])
+        self.assertEqual(result["movements"], [])
+
+    def test_ut_mov_02_product_movements_support_product_with_only_in_transactions(self) -> None:
+        product = self.store.create_product(
+            name="Há cảo chay nhập",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        self._create_purchase_receipt_at(
+            supplier_name="NCC Hà Nội",
+            items=[{"product_id": product["id"], "quantity": 12, "unit_cost": 22000}],
+            created_at="2026-05-28T08:30:00+07:00",
+            note="Nhập test only in",
+        )
+
+        result = self.store.get_product_movements(
+            product_id=product["id"],
+            from_date="2026-05-28",
+            to_date=datetime.now().astimezone().date().isoformat(),
+        )
+
+        self.assertEqual(result["summary"]["opening_stock"], 0.0)
+        self.assertEqual(result["summary"]["total_in"], 12.0)
+        self.assertEqual(result["summary"]["total_out"], 0.0)
+        self.assertEqual(result["summary"]["calculated_ending_stock"], 12.0)
+        self.assertEqual(len(result["movements"]), 1)
+        self.assertEqual(result["movements"][0]["movement_type"], "in")
+        self.assertEqual(result["movements"][0]["balance_after"], 12.0)
+        self.assertEqual(result["movements"][0]["document_type"], "purchase")
+        self.assertEqual(result["movements"][0]["related_party_name"], "NCC Hà Nội")
+
+    def test_ut_mov_03_product_movements_support_product_with_only_out_transactions(self) -> None:
+        product = self.store.create_product(
+            name="Há cảo chay xuất",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        opening_transaction = self.store.create_transaction(product["id"], "in", 9, "Tồn đầu test only out")
+        self._set_transaction_created_at(opening_transaction["id"], "2026-05-20T08:00:00+07:00")
+        order = self.store.create_checkout_order(
+            customer_name="Khách xuất",
+            items=[{"product_id": product["id"], "quantity": 4, "unit_price": 29000}],
+            note="Xuất test only out",
+        )
+        self._set_transaction_created_at(order["transactions"][0]["id"], "2026-05-28T15:45:00+07:00")
+
+        result = self.store.get_product_movements(
+            product_id=product["id"],
+            from_date="2026-05-28",
+            to_date=datetime.now().astimezone().date().isoformat(),
+        )
+
+        self.assertEqual(result["summary"]["opening_stock"], 9.0)
+        self.assertEqual(result["summary"]["total_in"], 0.0)
+        self.assertEqual(result["summary"]["total_out"], 4.0)
+        self.assertEqual(result["summary"]["calculated_ending_stock"], 5.0)
+        self.assertEqual(len(result["movements"]), 1)
+        self.assertEqual(result["movements"][0]["movement_type"], "out")
+        self.assertEqual(result["movements"][0]["document_type"], "order")
+        self.assertEqual(result["movements"][0]["document_code"], order["order_code"])
+        self.assertEqual(result["movements"][0]["related_party_name"], "Khách xuất")
+
+    def test_ut_mov_04_product_movements_compute_opening_totals_running_balance_and_document_links(self) -> None:
+        product = self.store.create_product(
+            name="Sản phẩm rà tồn",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        self._create_purchase_receipt_at(
+            supplier_name="NCC A",
+            items=[{"product_id": product["id"], "quantity": 100, "unit_cost": 18000}],
+            created_at="2026-03-20T08:00:00+07:00",
+            note="Nhập đầu kỳ",
+        )
+        first_order = self.store.create_checkout_order(
+            customer_name="Khách A",
+            items=[{"product_id": product["id"], "quantity": 70, "unit_price": 24000}],
+            note="Xuất đầu kỳ",
+        )
+        self._set_transaction_created_at(first_order["transactions"][0]["id"], "2026-03-20T16:00:00+07:00")
+        second_receipt = self._create_purchase_receipt_at(
+            supplier_name="NCC B",
+            items=[{"product_id": product["id"], "quantity": 5, "unit_cost": 19000}],
+            created_at="2026-05-27T09:00:00+07:00",
+            note="Nhập bù thiếu",
+        )
+        second_order = self.store.create_checkout_order(
+            customer_name="Khách B",
+            items=[{"product_id": product["id"], "quantity": 35, "unit_price": 25000}],
+            note="Xuất bù thiếu",
+        )
+        self._set_transaction_created_at(second_order["transactions"][0]["id"], "2026-05-27T18:00:00+07:00")
+
+        result = self.store.get_product_movements(
+            product_id=product["id"],
+            from_date="2026-05-20",
+            to_date=datetime.now().astimezone().date().isoformat(),
+        )
+
+        self.assertEqual(result["summary"]["opening_stock"], 30.0)
+        self.assertEqual(result["summary"]["total_in"], 5.0)
+        self.assertEqual(result["summary"]["total_out"], 35.0)
+        self.assertEqual(result["summary"]["calculated_ending_stock"], 0.0)
+        self.assertEqual(result["summary"]["current_stock"], 0.0)
+        self.assertEqual([entry["document_code"] for entry in result["movements"]], [
+            second_receipt["receipt_code"],
+            second_order["order_code"],
+        ])
+        self.assertEqual([entry["balance_after"] for entry in result["movements"]], [35.0, 0.0])
+        self.assertEqual(result["movements"][0]["related_party_name"], "NCC B")
+        self.assertEqual(result["movements"][1]["related_party_name"], "Khách B")
+
+    def test_ut_mov_05_product_movements_warn_on_filtered_mismatch_and_skip_compare_for_past_date(self) -> None:
+        product = self.store.create_product(
+            name="Sản phẩm lọc lệch",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        self._create_purchase_receipt_at(
+            supplier_name="NCC Lọc",
+            items=[{"product_id": product["id"], "quantity": 10, "unit_cost": 15000}],
+            created_at="2026-05-28T07:00:00+07:00",
+            note="Nhập cho test cảnh báo",
+        )
+        order = self.store.create_checkout_order(
+            customer_name="Khách lọc",
+            items=[{"product_id": product["id"], "quantity": 4, "unit_price": 22000}],
+            note="Xuất cho test cảnh báo",
+        )
+        self._set_transaction_created_at(order["transactions"][0]["id"], "2026-05-28T12:00:00+07:00")
+        today = datetime.now().astimezone().date().isoformat()
+
+        warning_result = self.store.get_product_movements(
+            product_id=product["id"],
+            to_date=today,
+            movement_type="out",
+        )
+        self.assertEqual(warning_result["summary"]["opening_stock"], 0.0)
+        self.assertEqual(warning_result["summary"]["total_in"], 0.0)
+        self.assertEqual(warning_result["summary"]["total_out"], 4.0)
+        self.assertEqual(warning_result["summary"]["calculated_ending_stock"], -4.0)
+        self.assertEqual(warning_result["summary"]["current_stock"], 6.0)
+        self.assertEqual(warning_result["summary"]["difference"], 10.0)
+        self.assertFalse(warning_result["summary"]["is_match"])
+        self.assertIn("Cảnh báo", warning_result["summary"]["status_message"])
+
+        past_result = self.store.get_product_movements(
+            product_id=product["id"],
+            to_date="2026-05-28",
+            movement_type="out",
+        )
+        self.assertFalse(past_result["period"]["compare_with_current_stock"])
+        self.assertIsNone(past_result["summary"]["difference"])
+        self.assertEqual(past_result["summary"]["status_message"], "")
+
+    def test_ut_mov_06_product_movements_ignore_unaffected_drafts_and_validate_date_range(self) -> None:
+        product = self.store.create_product(
+            name="Sản phẩm draft không tính",
+            category="Đông lạnh",
+            unit="gói",
+            low_stock_threshold=2,
+        )
+        sync_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-movement-draft-01",
+                        "customerName": "Khách draft",
+                        "status": "draft",
+                        "createdAt": "2026-05-28T08:00:00+07:00",
+                        "updatedAt": "2026-05-28T08:00:00+07:00",
+                        "items": [
+                            {
+                                "id": "cart-movement-draft-item-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 5,
+                                "unitPrice": 21000,
+                            }
+                        ],
+                    }
+                ],
+                "purchases": [
+                    {
+                        "id": "purchase-movement-draft-01",
+                        "supplierName": "NCC draft",
+                        "status": "draft",
+                        "createdAt": "2026-05-28T08:00:00+07:00",
+                        "updatedAt": "2026-05-28T08:00:00+07:00",
+                        "items": [
+                            {
+                                "id": "purchase-movement-draft-item-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 5,
+                                "unitCost": 15000,
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {
+                    "carts": sync_state["updated_at"]["carts"],
+                    "purchases": sync_state["updated_at"]["purchases"],
+                },
+            }
+        )
+
+        result = self.store.get_product_movements(
+            product_id=product["id"],
+            to_date=datetime.now().astimezone().date().isoformat(),
+        )
+        self.assertEqual(result["movements"], [])
+        self.assertEqual(result["summary"]["current_stock"], 0.0)
+
+        with self.assertRaisesRegex(ValueError, "Từ ngày không được lớn hơn Đến ngày"):
+            self.store.get_product_movements(
+                product_id=product["id"],
+                from_date="2026-05-29",
+                to_date="2026-05-28",
+            )
 
     def test_ut_norm_01_save_sync_state_persists_relational_tables(self) -> None:
         payload = {

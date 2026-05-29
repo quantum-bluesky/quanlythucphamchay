@@ -103,7 +103,8 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Màn tồn kho có dropdown sắp xếp trong khu vực phân trang để xem theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít
 - Quản lý tồn kho theo lô còn hàng; card tồn kho có thể hiện các lô active, mã lô, HSD gần nhất và số lượng còn lại theo từng lô
 - Xuất kho và trả NCC dùng FEFO theo HSD thật của từng lô; nếu chứng từ trả NCC chỉ rõ mã lô thì hệ thống ưu tiên trừ đúng lô đó
-- Màn tồn kho có nút `Lịch sử` để nhảy nhanh xuống phần `Lịch sử gần đây`; khối này mặc định thu gọn và mã `DH/PN/DC/THK/TNCC` trong từng dòng có thể bấm để mở đúng chứng từ liên quan
+- Màn tồn kho có nút `Lịch sử biến động` để mở màn đối chiếu nhập/xuất theo từng sản phẩm; trong detail từng mặt hàng có thêm nút `Xem lịch sử` để mở nhanh đúng sản phẩm đang kiểm tra
+- Màn `Lịch sử biến động sản phẩm` cho lọc theo `Sản phẩm / Từ ngày / Đến ngày / Loại biến động / Từ khóa`, tính `Tồn đầu kỳ / Tổng nhập / Tổng xuất / Tồn cuối kỳ / Tồn hệ thống / Chênh lệch`, và hiển thị running balance ổn định theo `ngày -> created_at -> id`
 - Tồn kho liên kết trực tiếp với đơn chờ xuất và phiếu chờ nhập, thay cho nhập/xuất nhanh thủ công
 - Quản lý riêng `giá nhập` và `giá bán mặc định` của sản phẩm
 - Ở các màn đang sửa giá/mặt hàng, app sẽ hiện cảnh báo nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng; ở các màn chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
@@ -206,7 +207,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Chỉ `Master Admin` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit; trên mobile/tablet, panel chỉnh tồn được ưu tiên mở sát đầu màn hình và có khoảng cuộn an toàn để không bị thanh nổi che field hoặc button
 - Luồng Phase B đã có UI ngay trong app: `Phiếu DC` ở màn tồn kho, còn `Phiếu trả hàng khách` và `Phiếu trả NCC` chỉ mở trong detail của đúng đơn/phiếu nguồn để tránh bấm nhầm
 - Các chứng từ đã `completed/received/paid/cancelled` vẫn bị khóa xóa/hủy trực tiếp kể cả với `Master Admin`; muốn điều chỉnh phải lập phiếu mới để giữ audit
-- Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất
+- Có màn `Lịch sử biến động sản phẩm` riêng để điều tra sai lệch tồn, đối chiếu tồn tính toán với tồn hiện tại và mở lại đúng đơn/phiếu liên quan
 - Các list dài có phân trang `Trước / Sau` để thao tác gọn hơn trên mobile
 - Hiển thị `Version` ngay đầu ứng dụng; bấm vào để mở màn `About` và xem phiên bản đang chạy
 
@@ -457,3 +458,18 @@ API tra cứu audit chứng từ Phase B:
     - `actor`: lọc theo người thao tác
     - `start_date`: lọc từ mốc thời gian ISO (`YYYY-MM-DDTHH:MM:SS`)
     - `end_date`: lọc đến mốc thời gian ISO (`YYYY-MM-DDTHH:MM:SS`)
+
+## API lịch sử biến động sản phẩm
+
+- `GET /api/product-movements`
+  - query hỗ trợ:
+    - `product_id`: bắt buộc
+    - `from_date`: ngày bắt đầu `YYYY-MM-DD`
+    - `to_date`: ngày kết thúc `YYYY-MM-DD`, để trống sẽ mặc định là hôm nay
+    - `movement_type`: `all`, `in`, `out`
+    - `keyword`: lọc theo mã phiếu, khách hàng, nhà cung cấp, ghi chú, người xử lý
+  - response gồm:
+    - `product`
+    - `period`
+    - `summary`
+    - `movements`
