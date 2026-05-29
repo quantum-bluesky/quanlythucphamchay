@@ -121,7 +121,7 @@
           <div class="inventory-heading-actions">
             <div class="hero-stats" id="summaryCards"></div>
             <button type="button" class="ghost-button compact-button" data-go-menu="procurement-planner">Xử lý nhập thiếu</button>
-            <button type="button" id="inventoryHistoryShortcutButton" class="ghost-button compact-button">Lịch sử</button>
+            <button type="button" id="inventoryHistoryShortcutButton" class="ghost-button compact-button">Lịch sử biến động</button>
           </div>
         </div>
 
@@ -181,20 +181,76 @@
           </div>
         </section>
 
-        <section id="inventoryHistorySection" class="panel product-collapse-card is-collapsed">
+      </section>
+
+    <section class="view-section" data-menu-section="product-movements">
+      <section id="productMovementSection" class="panel inventory-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Kiểm tra biến động</p>
+            <h2>Lịch sử biến động sản phẩm</h2>
+          </div>
+          <div class="inline-menu-actions">
+            <button type="button" class="ghost-button compact-button" data-go-menu="inventory">Quay lại tồn kho</button>
+          </div>
+        </div>
+
+        <section class="sales-card product-movement-filter-card">
           <div class="subheading">
             <div>
-              <p class="panel-kicker">Lịch sử gần đây</p>
-              <h3>Nhập / xuất mới nhất</h3>
-              <p class="panel-note">Chỉ hiện lịch sử kho để đối chiếu nhanh.</p>
+              <p class="panel-kicker">Bộ lọc</p>
+              <h3>Chọn sản phẩm và khoảng thời gian</h3>
             </div>
-            <button type="button" id="inventoryHistoryToggleButton" class="ghost-button compact-button">Mở lịch sử</button>
           </div>
-          <div id="inventoryHistoryWrap" class="product-collapse-body" hidden>
-            <div id="transactionList" class="transaction-list"></div>
+          <form id="productMovementForm" class="quick-form product-movement-form">
+            <label class="product-movement-product-field">
+              <span>Sản phẩm</span>
+              <input id="productMovementProductInput" type="text" list="productOptions" placeholder="Gõ tên sản phẩm..." required>
+            </label>
+            <label>
+              <span>Từ ngày</span>
+              <input id="productMovementFromDateInput" type="date">
+            </label>
+            <label>
+              <span>Đến ngày</span>
+              <input id="productMovementToDateInput" type="date">
+            </label>
+            <label>
+              <span>Loại biến động</span>
+              <select id="productMovementTypeSelect">
+                <option value="all">Tất cả</option>
+                <option value="in">Nhập</option>
+                <option value="out">Xuất</option>
+              </select>
+            </label>
+            <label>
+              <span>Từ khóa</span>
+              <input id="productMovementKeywordInput" type="search" placeholder="Mã phiếu, khách, NCC, ghi chú...">
+            </label>
+            <div class="product-movement-filter-actions">
+              <button type="submit" class="primary-button">Xem lịch sử</button>
+              <button type="button" id="productMovementResetButton" class="ghost-button">Làm mới lọc</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="sales-card product-movement-summary-card">
+          <div id="productMovementMeta" class="panel-note"></div>
+          <div id="productMovementStatus" hidden></div>
+          <div id="productMovementSummaryCards" class="hero-stats product-movement-summary-grid"></div>
+        </section>
+
+        <section class="sales-card">
+          <div class="subheading">
+            <div>
+              <p class="panel-kicker">Chi tiết biến động</p>
+              <h3>Danh sách nhập / xuất theo sản phẩm</h3>
+            </div>
           </div>
+          <div id="productMovementList" class="transaction-list"></div>
         </section>
       </section>
+    </section>
 
     <section class="view-section" data-menu-section="create-order">
       <section class="panel sales-panel">

@@ -1035,6 +1035,85 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(manager_delete_payload["request"]["request_id"], "bulk-delete-flow-002")
         self.assertEqual(manager_delete_payload["bulk_order_requests"], [])
 
+    def test_ut_auth_14_product_movements_route_returns_selected_product_history(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [
+                {
+                    "username": "staff",
+                    "password": "staff12345",
+                    "permissions": ["bulk_order_commit"],
+                }
+            ],
+            "debug": {"sync_state": False},
+        }
+        self._start_server(config)
+
+        product = self.store.create_product(
+            name="Sản phẩm route movement",
+            category="Đồ chay",
+            unit="gói",
+            price=15000,
+            sale_price=22000,
+            low_stock_threshold=1,
+        )
+        with self.store._connect() as connection:
+            self.store._create_purchase_receipt_in_connection(
+                connection,
+                supplier_name="NCC route movement",
+                items=[{"product_id": product["id"], "quantity": 10, "unit_cost": 15000}],
+                note="Nhập cho route movement",
+                created_at="2026-05-28T07:00:00+07:00",
+            )
+        order = self.store.create_checkout_order(
+            customer_name="Khách route movement",
+            items=[{"product_id": product["id"], "quantity": 4, "unit_price": 22000}],
+            note="Xuất cho route movement",
+        )
+        with self.store._connect() as connection:
+            connection.execute(
+                "UPDATE transactions SET created_at = ? WHERE id = ?",
+                ("2026-05-28T12:00:00+07:00", int(order["transactions"][0]["id"])),
+            )
+
+        unauthorized_status, unauthorized_payload, _ = self._request_json(
+            "GET",
+            f"/api/product-movements?product_id={product['id']}",
+        )
+        self.assertEqual(unauthorized_status, 401)
+        self.assertIn("Cần đăng nhập", unauthorized_payload["error"])
+
+        _, _, staff_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+        )
+        staff_cookie = self._extract_cookie(staff_login_headers)
+
+        ok_status, ok_payload, _ = self._request_json(
+            "GET",
+            f"/api/product-movements?product_id={product['id']}&movement_type=out&to_date={datetime.now().astimezone().date().isoformat()}",
+            cookie=staff_cookie,
+        )
+        self.assertEqual(ok_status, 200)
+        self.assertEqual(ok_payload["product"]["name"], "Sản phẩm route movement")
+        self.assertEqual(ok_payload["period"]["movement_type"], "out")
+        self.assertEqual(len(ok_payload["movements"]), 1)
+        self.assertEqual(ok_payload["movements"][0]["document_type"], "order")
+        self.assertEqual(ok_payload["movements"][0]["related_party_name"], "Khách route movement")
+        self.assertIn("Cảnh báo", ok_payload["summary"]["status_message"])
+
+        invalid_status, invalid_payload, _ = self._request_json(
+            "GET",
+            f"/api/product-movements?product_id={product['id']}&from_date=2026-05-29&to_date=2026-05-28",
+            cookie=staff_cookie,
+        )
+        self.assertEqual(invalid_status, 400)
+        self.assertIn("Từ ngày không được lớn hơn Đến ngày", invalid_payload["error"])
+
 
 if __name__ == "__main__":
     unittest.main()

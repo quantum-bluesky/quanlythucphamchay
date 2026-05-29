@@ -52,6 +52,7 @@ Quy ước mã case unit:
 - `UT-SYNC-*`: case sync state / conflict
 - `UT-AUD-*`: case audit
 - `UT-HIS-*`: case history filter
+- `UT-MOV-*`: case lịch sử biến động sản phẩm
 
 Tên method đã được chuẩn hóa theo mã case ở đầu, ví dụ:
 
@@ -196,6 +197,7 @@ Mỗi lần chạy Playwright sẽ tự khởi động lại test server fixture
 Các nhóm kiểm tra chính:
 
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
+- `Tồn kho -> Lịch sử biến động sản phẩm`: mở từ shortcut hoặc từ card sản phẩm, tính đúng `Tồn đầu kỳ / Tổng nhập / Tổng xuất / Tồn cuối kỳ / Chênh lệch`, và giữ layout card ổn định trên mobile
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, cho phép chốt khi phần thiếu đã được phiếu nhập `Đã đặt` cover đủ, còn với thiếu hàng chưa đặt đủ thì user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu mở liên quan
 - `Tạo đơn xuất hàng -> Tạo đơn mới`: khi user chủ động tách đơn mới, app phải hỏi confirm nếu đang có dữ liệu/preview cũ, rồi mở một draft trắng riêng mà không reuse draft đang có
 - `Tạo đơn xuất hàng -> Ghi chú phiếu xuất`: user tạo draft mới, nhập ghi chú ở form, mở `Detail` để xem/sửa lại, và ghi chú phải còn tồn tại trong DB sau khi reload dữ liệu

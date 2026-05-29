@@ -56,6 +56,31 @@ def extract_order_code_from_note(note: str) -> str:
     return match.group(0) if match else ""
 
 
+def extract_receipt_code_from_note(note: str) -> str:
+    match = re.search(r"\b(?:PN|DC|THK|TNCC)-\d{8}-\d{6}-[a-f0-9]{6}\b", note or "")
+    return match.group(0) if match else ""
+
+
+def extract_labeled_text_from_note(note: str, label: str) -> str:
+    match = re.search(rf"{re.escape(label)}:\s*([^|]+)", note or "")
+    return match.group(1).strip() if match else ""
+
+
+def infer_document_type_from_code(document_code: str) -> str:
+    clean_code = str(document_code or "").strip()
+    if clean_code.startswith("DH-"):
+        return "order"
+    if clean_code.startswith("PN-"):
+        return "purchase"
+    if clean_code.startswith("DC-"):
+        return "inventory_adjustment"
+    if clean_code.startswith("THK-"):
+        return "customer_return"
+    if clean_code.startswith("TNCC-"):
+        return "supplier_return"
+    return ""
+
+
 class SyncConflictError(ValueError):
     def __init__(self, state_key: str, expected_updated_at: str, actual_updated_at: str):
         self.state_key = state_key
@@ -3193,6 +3218,280 @@ class InventoryStore:
             "current_stock": product_summary["current_stock"],
             "lot_allocations": allocations,
             "created_batch": created_batch,
+        }
+
+    @staticmethod
+    def _build_product_movement_document_info(
+        *,
+        note: str,
+        receipt_code: str,
+        receipt_type: str,
+    ) -> dict:
+        clean_receipt_code = str(receipt_code or "").strip()
+        clean_receipt_type = str(receipt_type or "").strip()
+        if clean_receipt_code:
+            return {
+                "document_code": clean_receipt_code,
+                "document_type": infer_document_type_from_code(clean_receipt_code) or clean_receipt_type,
+            }
+
+        order_code = extract_order_code_from_note(note)
+        if order_code:
+            return {
+                "document_code": order_code,
+                "document_type": "order",
+            }
+
+        inferred_receipt_code = extract_receipt_code_from_note(note)
+        if inferred_receipt_code:
+            return {
+                "document_code": inferred_receipt_code,
+                "document_type": infer_document_type_from_code(inferred_receipt_code),
+            }
+
+        return {
+            "document_code": "",
+            "document_type": "",
+        }
+
+    def get_product_movements(
+        self,
+        *,
+        product_id: int,
+        from_date: str | None = None,
+        to_date: str | None = None,
+        movement_type: str = "",
+        keyword: str = "",
+    ) -> dict:
+        try:
+            clean_product_id = int(product_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Sản phẩm không hợp lệ.") from exc
+
+        clean_movement_type = normalize_key(movement_type)
+        if clean_movement_type in {"", "all"}:
+            clean_movement_type = ""
+        elif clean_movement_type not in {"in", "out"}:
+            raise ValueError("Loại biến động không hợp lệ.")
+
+        period_start = parse_date_key(from_date) if from_date else None
+        period_end = parse_date_key(to_date) if to_date else datetime.now(timezone.utc).astimezone().date()
+        if period_start and period_start > period_end:
+            raise ValueError("Từ ngày không được lớn hơn Đến ngày.")
+
+        clean_keyword = normalize_key(keyword)
+        today = datetime.now(timezone.utc).astimezone().date()
+
+        with self._connect() as connection:
+            product = self._get_product_or_raise(connection, clean_product_id, allow_deleted=True)
+            current_stock = round(float(self._get_stock_for_product(connection, clean_product_id)), 2)
+            carts = self._load_sync_collection_from_tables(connection, "carts")
+            purchases = self._load_sync_collection_from_tables(connection, "purchases")
+            rows = connection.execute(
+                """
+                SELECT
+                    t.id,
+                    t.transaction_type,
+                    t.quantity,
+                    t.note,
+                    t.created_at,
+                    iri.stock_after,
+                    ir.receipt_code,
+                    ir.receipt_type,
+                    ir.customer_name AS receipt_customer_name,
+                    ir.supplier_name AS receipt_supplier_name,
+                    ir.actor AS receipt_actor,
+                    ir.reason AS receipt_reason,
+                    ir.note AS receipt_note,
+                    ir.created_at AS receipt_created_at
+                FROM transactions t
+                LEFT JOIN inventory_receipt_items iri ON iri.transaction_id = t.id
+                LEFT JOIN inventory_receipts ir ON ir.id = iri.receipt_id
+                WHERE t.product_id = ?
+                  AND substr(t.created_at, 1, 10) <= ?
+                ORDER BY substr(t.created_at, 1, 10) ASC, t.created_at ASC, t.id ASC
+                """,
+                (clean_product_id, period_end.isoformat()),
+            ).fetchall()
+
+        carts_by_order_code = {
+            str(cart.get("orderCode") or "").strip(): cart
+            for cart in carts
+            if str(cart.get("orderCode") or "").strip()
+        }
+        purchases_by_receipt_code = {
+            str(purchase.get("receiptCode") or purchase.get("receipt_code") or "").strip(): purchase
+            for purchase in purchases
+            if str(purchase.get("receiptCode") or purchase.get("receipt_code") or "").strip()
+        }
+
+        opening_stock = 0.0
+        running_balance = 0.0
+        total_in = 0.0
+        total_out = 0.0
+        movements: list[dict] = []
+
+        for row in rows:
+            created_at = str(row["created_at"] or "").strip()
+            transaction_date = parse_date_key(created_at[:10]) if created_at else None
+            if transaction_date is None:
+                continue
+
+            quantity = round(float(row["quantity"] or 0), 2)
+            quantity_delta = quantity if row["transaction_type"] == "in" else -quantity
+            running_balance = round(running_balance + quantity_delta, 2)
+
+            if period_start and transaction_date < period_start:
+                opening_stock = running_balance
+                continue
+
+            document_info = self._build_product_movement_document_info(
+                note=str(row["note"] or ""),
+                receipt_code=str(row["receipt_code"] or ""),
+                receipt_type=str(row["receipt_type"] or ""),
+            )
+            document_code = document_info["document_code"]
+            document_type = document_info["document_type"]
+            related_cart = carts_by_order_code.get(document_code) if document_type == "order" else None
+            related_purchase = purchases_by_receipt_code.get(document_code) if document_type == "purchase" else None
+
+            related_party_name = ""
+            related_party_label = ""
+            if str(row["receipt_customer_name"] or "").strip():
+                related_party_name = str(row["receipt_customer_name"] or "").strip()
+                related_party_label = "Khách hàng"
+            elif str(row["receipt_supplier_name"] or "").strip():
+                related_party_name = str(row["receipt_supplier_name"] or "").strip()
+                related_party_label = "Nhà cung cấp"
+            elif related_cart:
+                related_party_name = str(related_cart.get("customerName") or "").strip()
+                related_party_label = "Khách hàng"
+            elif related_purchase:
+                related_party_name = str(related_purchase.get("supplierName") or "").strip()
+                related_party_label = "Nhà cung cấp"
+            elif document_type == "order":
+                related_party_name = extract_labeled_text_from_note(row["note"], "Khách")
+                related_party_label = "Khách hàng" if related_party_name else ""
+            elif document_type == "purchase":
+                related_party_name = extract_labeled_text_from_note(row["note"], "NCC")
+                related_party_label = "Nhà cung cấp" if related_party_name else ""
+
+            actor = str(row["receipt_actor"] or "").strip()
+            if not actor:
+                actor = extract_labeled_text_from_note(row["note"], "Người chỉnh")
+            if not actor and str(row["note"] or "").startswith("Điều chỉnh trực tiếp bởi"):
+                actor_match = re.search(r"^Điều chỉnh trực tiếp bởi\s+([^|]+)", str(row["note"] or ""))
+                if actor_match:
+                    actor = actor_match.group(1).strip()
+
+            document_updated_at = ""
+            if related_cart:
+                document_updated_at = str(
+                    related_cart.get("updatedAt")
+                    or related_cart.get("paidAt")
+                    or related_cart.get("completedAt")
+                    or related_cart.get("committedAt")
+                    or related_cart.get("createdAt")
+                    or ""
+                ).strip()
+            elif related_purchase:
+                document_updated_at = str(
+                    related_purchase.get("updatedAt")
+                    or related_purchase.get("paidAt")
+                    or related_purchase.get("receivedAt")
+                    or related_purchase.get("orderedAt")
+                    or related_purchase.get("createdAt")
+                    or ""
+                ).strip()
+            elif str(row["receipt_created_at"] or "").strip():
+                document_updated_at = str(row["receipt_created_at"] or "").strip()
+
+            search_blob = normalize_key(
+                " | ".join(
+                    part
+                    for part in (
+                        row["note"],
+                        row["receipt_note"],
+                        row["receipt_reason"],
+                        document_code,
+                        related_party_name,
+                        actor,
+                    )
+                    if str(part or "").strip()
+                )
+            )
+            if clean_movement_type and clean_movement_type != str(row["transaction_type"] or "").strip():
+                continue
+            if clean_keyword and clean_keyword not in search_blob:
+                continue
+
+            if row["transaction_type"] == "in":
+                total_in = round(total_in + quantity, 2)
+            else:
+                total_out = round(total_out + quantity, 2)
+
+            movements.append(
+                {
+                    "id": int(row["id"]),
+                    "date": transaction_date.isoformat(),
+                    "created_at": created_at,
+                    "updated_at": document_updated_at,
+                    "movement_type": row["transaction_type"],
+                    "quantity": quantity,
+                    "quantity_delta": round(quantity_delta, 2),
+                    "balance_after": round(float(row["stock_after"] or running_balance), 2),
+                    "document_code": document_code,
+                    "document_type": document_type,
+                    "related_party_label": related_party_label,
+                    "related_party_name": related_party_name,
+                    "note": str(row["note"] or "").strip(),
+                    "actor": actor,
+                }
+            )
+
+        calculated_ending_stock = round(opening_stock + total_in - total_out, 2)
+        compare_with_current = period_end == today
+        difference = round(current_stock - calculated_ending_stock, 2) if compare_with_current else None
+        is_match = False
+        status_label = ""
+        status_message = ""
+        if compare_with_current:
+            is_match = abs(difference or 0) < 0.0001
+            status_label = "OK" if is_match else "Cảnh báo"
+            status_message = (
+                "OK - Tồn tính toán khớp với hệ thống."
+                if is_match
+                else "Cảnh báo - Tồn tính toán không khớp với tồn hiện tại trên hệ thống. Vui lòng kiểm tra lại các phiếu nhập/xuất trong khoảng thời gian này."
+            )
+
+        return {
+            "product": {
+                "id": clean_product_id,
+                "name": str(product["name"] or "").strip(),
+                "category": str(product["category"] or "").strip(),
+                "unit": str(product["unit"] or "").strip(),
+                "current_stock": current_stock,
+            },
+            "period": {
+                "from_date": period_start.isoformat() if period_start else "",
+                "to_date": period_end.isoformat(),
+                "movement_type": clean_movement_type or "all",
+                "keyword": str(keyword or "").strip(),
+                "compare_with_current_stock": compare_with_current,
+                "summary_uses_filtered_movements": bool(clean_movement_type or clean_keyword),
+            },
+            "summary": {
+                "opening_stock": round(opening_stock, 2),
+                "total_in": round(total_in, 2),
+                "total_out": round(total_out, 2),
+                "calculated_ending_stock": calculated_ending_stock,
+                "current_stock": current_stock,
+                "difference": difference,
+                "is_match": is_match,
+                "status_label": status_label,
+                "status_message": status_message,
+            },
+            "movements": movements,
         }
 
     def get_transactions(self, limit: int = 20) -> list[dict]:
