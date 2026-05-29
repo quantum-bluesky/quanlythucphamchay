@@ -32,6 +32,7 @@
 <li><a href="#chay-test">Chạy test</a></li>
 <li><a href="#api-chung-tu-ieu-chinh-phase-b">API chứng từ điều chỉnh (Phase B)</a></li>
 <li><a href="#api-audit-lich-su-san-pham-phase-d">API audit lịch sử sản phẩm (Phase D)</a></li>
+<li><a href="#api-lich-su-bien-ong-san-pham">API lịch sử biến động sản phẩm</a></li>
 </ul>
 </li>
 </ul>
@@ -140,15 +141,20 @@
 <li>Màn tồn kho có dropdown sắp xếp trong khu vực phân trang để xem theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít</li>
 <li>Quản lý tồn kho theo lô còn hàng; card tồn kho có thể hiện các lô active, mã lô, HSD gần nhất và số lượng còn lại theo từng lô</li>
 <li>Xuất kho và trả NCC dùng FEFO theo HSD thật của từng lô; nếu chứng từ trả NCC chỉ rõ mã lô thì hệ thống ưu tiên trừ đúng lô đó</li>
-<li>Màn tồn kho có nút <code>Lịch sử</code> để nhảy nhanh xuống phần <code>Lịch sử gần đây</code>; khối này mặc định thu gọn và mã <code>DH/PN/DC/THK/TNCC</code> trong từng dòng có thể bấm để mở đúng chứng từ liên quan</li>
+<li>Màn tồn kho có nút <code>Lịch sử biến động</code> để mở màn đối chiếu nhập/xuất theo từng sản phẩm; trong detail từng mặt hàng có thêm nút <code>Xem lịch sử</code> để mở nhanh đúng sản phẩm đang kiểm tra</li>
+<li>Màn <code>Lịch sử biến động sản phẩm</code> cho lọc theo <code>Sản phẩm / Từ ngày / Đến ngày / Loại biến động / Từ khóa</code>, tính <code>Tồn đầu kỳ / Tổng nhập / Tổng xuất / Tồn cuối kỳ / Tồn hệ thống / Chênh lệch</code>, và hiển thị running balance ổn định theo <code>ngày -&gt; created_at -&gt; id</code></li>
 <li>Tồn kho liên kết trực tiếp với đơn chờ xuất và phiếu chờ nhập, thay cho nhập/xuất nhanh thủ công</li>
 <li>Quản lý riêng <code>giá nhập</code> và <code>giá bán mặc định</code> của sản phẩm</li>
 <li>Ở các màn đang sửa giá/mặt hàng, app sẽ hiện cảnh báo nếu <code>giá nhập &lt; 1.000đ</code> hoặc <code>giá xuất &lt; giá nhập</code> cho 1 mặt hàng; ở các màn chỉ xem thì chỉ gắn nhãn cảnh báo ngắn</li>
+<li>Khi bấm <code>Giá chung</code> để đẩy <code>giá nhập</code> hoặc <code>giá bán</code> hiện tại lên giá mặc định của mặt hàng, app luôn hiện hộp xác nhận trước để tránh cập nhật nhầm trên mobile</li>
 <li>Có badge <code>Chờ xuất</code> / <code>Chờ nhập</code> ngay trên card tồn kho để nhảy nhanh sang màn liên quan, đồng thời hiện <code>số phiếu / tổng số lượng</code> đang chờ theo từng mặt hàng</li>
 <li>Quản lý khách hàng, đơn nháp, <code>Chốt đơn</code> và <code>Xuất hàng</code> nhiều mặt hàng trong một lần</li>
 <li>Có màn <code>Tạo nhiều đơn / Xuất nhanh</code> theo kiểu mobile-first: mỗi khách là một card riêng, cuối màn chỉ có <code>Lưu nháp</code> và <code>Chốt đơn hợp lệ</code></li>
 <li>Nếu bật login và user không có quyền <code>order_batch_manage</code>, màn <code>Xuất nhanh</code> sẽ tạo <code>yêu cầu xuất nhanh</code> ở trạng thái <code>pending_approval</code>; user quản lý hoặc <code>Master Admin</code> duyệt xong thì owner mới xử lý tiếp thành đơn thật</li>
 <li>Request <code>pending_approval</code> tạo nhầm có thể xóa ngay trên màn <code>Xuất nhanh</code>; owner của request hoặc user có <code>order_batch_manage</code>/<code>Master Admin</code> đều xóa được, không cần thêm status mới</li>
+<li>Màn <code>Tạo đơn xuất hàng</code> có thêm card <code>Xử lý nhanh</code>: nhập khách, ngày xuất, các dòng hàng rồi lưu một lần để đi thẳng sang <code>Chỉ chốt đơn</code> hoặc <code>Đã xuất hàng</code>, có thể tick thêm <code>Đã thanh toán luôn</code></li>
+<li>Màn <code>Nhập hàng</code> có thêm card <code>Xử lý nhanh</code>: nhập NCC, ngày nhập, các dòng hàng rồi lưu một lần để đi thẳng sang <code>Đã đặt hàng</code> hoặc <code>Đã nhập hàng</code>, có thể tick thêm <code>Đã thanh toán luôn</code></li>
+<li>Phiếu đi qua card <code>Xử lý nhanh</code> vẫn giữ nguyên trạng thái cũ của hệ thống, chỉ gắn thêm <code>created_mode = quick_export/quick_import</code> để phân biệt nguồn tạo, audit timeline và biến động kho</li>
 <li>Có popup <code>Lịch sử</code> xem nhanh audit timeline cho từng yêu cầu xuất nhanh và từng đơn đã tạo, ưu tiên mobile và chỉ nạp khi user mở detail để không làm nặng list</li>
 <li><code>Lưu nháp</code> ở màn tạo nhiều đơn chỉ tạo/cập nhật cart <code>draft</code> cho từng khách, không giữ hàng và không trừ kho; card lưu thành công vẫn ở lại trên màn để sửa tiếp và lưu lại vào đúng đơn cũ</li>
 <li><code>Chốt đơn hợp lệ</code> chỉ đẩy các đơn đủ tồn sang <code>committed</code>, còn đơn lỗi giữ lại để sửa tiếp; card đã chốt vẫn có thể sửa tiếp ngay trên màn <code>Xuất nhanh</code> và lần lưu/chốt sau sẽ cập nhật đúng đơn đã chốt thay vì tạo bản sao</li>
@@ -160,6 +166,8 @@
 <li>Mỗi nhà cung cấp giữ tối đa 1 phiếu nhập nháp riêng; nếu chọn lại đúng NCC đã có nháp thì app mở lại phiếu đó để thêm tiếp, còn nếu chọn NCC khác thì app giữ nguyên phiếu cũ và tạo nháp riêng cho NCC mới</li>
 <li>Riêng màn xuất hàng giữ nút <code>...</code> luôn hiện trên card sản phẩm để mở/thu gọn detail; hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót, nhưng nếu user chủ động bấm <code>...</code> thì app vẫn giữ lại đúng card đang thao tác</li>
 <li>Khối <code>Giỏ hiện hành</code> ở màn xuất hàng hiển thị từng dòng đã chọn dưới dạng card gọn 2 dòng; bấm <code>...</code> trên từng card để mở detail sửa số lượng, giá bán hoặc bỏ khỏi giỏ</li>
+<li>Màn <code>Tạo đơn xuất hàng</code> có thêm nút <code>Tạo đơn mới</code> ngay cạnh ô khách hàng và trong khối <code>Giỏ hiện hành</code>; nếu đang mở đơn cũ hoặc đang ở khối chọn/gộp đơn thì app sẽ hỏi confirm rồi reset form sang một đơn nháp trắng, không tự dồn vào draft cũ</li>
+<li>Phiếu xuất có thêm <code>ghi chú phiếu xuất</code> ở cấp toàn phiếu; ghi chú này được lưu trong DB, hiện ở detail/bản in và còn sửa được tới trước khi đơn đã thanh toán</li>
 <li>Phiếu xuất và phiếu nhập có thêm <code>giảm giá khuyến mại</code> ở cấp toàn phiếu; app tự tính <code>Tạm tính / Giảm KM / Cần thanh toán</code> ngay trên panel, detail và bản in</li>
 <li>Nếu <code>Cần thanh toán</code> của phiếu xuất đang thấp hơn tổng <code>giá nhập mặc định</code> của các dòng hàng, app sẽ hiện cảnh báo trước khi <code>Chốt đơn</code> hoặc <code>Xuất hàng</code></li>
 <li>Trước các thao tác đổi trạng thái hoặc xóa phiếu như <code>Xuất hàng</code>, <code>Đã thanh toán</code>, <code>Đã đặt hàng</code>, <code>Nhập kho</code>, <code>Hủy</code>, <code>Xóa</code>, app sẽ hiện message confirm để tránh bấm nhầm</li>
@@ -188,7 +196,9 @@
 <li>Từ màn <code>Đơn hàng</code>, có thể bấm <code>Xuất lại</code> trên đơn đã <code>Đã xuất hàng</code> hoặc <code>Đã thanh toán</code> để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và các dòng hàng; nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay không</li>
 <li>Từ màn Khách hàng có thể bấm badge <code>đơn chờ</code> / <code>đơn</code> để mở danh sách phiếu của đúng khách; nếu khách chỉ có 1 phiếu thì màn Đơn hàng sẽ tự mở detail kể cả với đơn đã xuất hàng hoặc đã thanh toán</li>
 <li>Màn <code>Đơn hàng</code> mặc định ẩn đơn đã hủy; khi cần đối chiếu lịch sử có thể bật checkbox <code>Hiện đơn đã hủy</code></li>
-<li>Đơn <code>Chốt đơn</code> khóa khách hàng nhưng vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới trước <code>Đã xuất hàng</code>; sau <code>Đã xuất hàng</code> chỉ còn được sửa <code>giảm giá khuyến mại</code> trước thanh toán</li>
+<li>Đơn <code>Chốt đơn</code> khóa khách hàng nhưng vẫn cho sửa địa chỉ giao, dòng hàng, ghi chú và giảm giá cho tới trước <code>Đã xuất hàng</code>; sau <code>Đã xuất hàng</code> chỉ còn được sửa <code>ghi chú</code> và <code>giảm giá khuyến mại</code> trước thanh toán</li>
+<li>Có thêm màn <code>Thanh toán</code> riêng cho user mới: tách 2 tab <code>Khách hàng</code> và <code>Nhà cung cấp</code>, cho tìm nhanh phiếu còn nợ, lọc <code>Chưa thanh toán / Đã thanh toán</code>, cập nhật <code>ngày thanh toán / phương thức / ghi chú</code>, và mở nhanh lại phiếu gốc</li>
+<li>Luồng thanh toán hiện giữ ở mức đơn giản: mỗi phiếu chỉ có một trạng thái thanh toán <code>unpaid/paid</code>, chưa có thanh toán nhiều lần hay thanh toán một phần</li>
 <li>Lưu khách hàng, nhà cung cấp, giỏ hàng nháp và phiếu nhập vào SQLite để mở tiếp trên máy khác cùng server</li>
 <li>Tự nạp lại dữ liệu mới từ máy khác ở các màn chính khi màn hình đang rảnh thao tác, giúp thấy tồn kho và giá mới hơn mà không cần <code>F5</code></li>
 <li>Client <code>.js</code> được gắn version riêng theo dạng <code>version-chính.N</code>; trong cùng version chính, <code>N</code> tăng theo số lần nội dung file đổi, bỏ qua khác biệt <code>CRLF/LF</code>, còn khi version chính đổi thì <code>N</code> reset về <code>1</code></li>
@@ -235,10 +245,10 @@
 <li>Có module <code>Master Admin</code> để export/import file master (JSON/CSV) và backup/restore toàn bộ database</li>
 <li><code>Master Admin</code> có thêm khối <code>Legacy Audit</code> để quét DB đang dùng, áp dụng các backfill an toàn và cho admin gắn lại <code>receipt_code</code> / <code>đơn nguồn</code> cho record legacy còn dang dở</li>
 <li>Timeout phiên tách riêng trong config: <code>session_timeout_minutes</code> cho user thường và <code>admin_session_timeout_minutes</code> cho admin; khi không có thao tác đủ lâu thì phiên sẽ tự hết hạn và quay về trạng thái cần login, không hiện dialog gia hạn phiên</li>
-<li>Chỉ <code>Master Admin</code> mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit</li>
+<li>Chỉ <code>Master Admin</code> mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit; trên mobile/tablet, panel chỉnh tồn được ưu tiên mở sát đầu màn hình và có khoảng cuộn an toàn để không bị thanh nổi che field hoặc button</li>
 <li>Luồng Phase B đã có UI ngay trong app: <code>Phiếu DC</code> ở màn tồn kho, còn <code>Phiếu trả hàng khách</code> và <code>Phiếu trả NCC</code> chỉ mở trong detail của đúng đơn/phiếu nguồn để tránh bấm nhầm</li>
 <li>Các chứng từ đã <code>completed/received/paid/cancelled</code> vẫn bị khóa xóa/hủy trực tiếp kể cả với <code>Master Admin</code>; muốn điều chỉnh phải lập phiếu mới để giữ audit</li>
-<li>Lịch sử giao dịch gần đây để kiểm tra lại thao tác mới nhất</li>
+<li>Có màn <code>Lịch sử biến động sản phẩm</code> riêng để điều tra sai lệch tồn, đối chiếu tồn tính toán với tồn hiện tại và mở lại đúng đơn/phiếu liên quan</li>
 <li>Các list dài có phân trang <code>Trước / Sau</code> để thao tác gọn hơn trên mobile</li>
 <li>Hiển thị <code>Version</code> ngay đầu ứng dụng; bấm vào để mở màn <code>About</code> và xem phiên bản đang chạy</li>
 </ul>
@@ -420,6 +430,25 @@ npm run test:integration
 <li><code>actor</code>: lọc theo người thao tác</li>
 <li><code>start_date</code>: lọc từ mốc thời gian ISO (<code>YYYY-MM-DDTHH:MM:SS</code>)</li>
 <li><code>end_date</code>: lọc đến mốc thời gian ISO (<code>YYYY-MM-DDTHH:MM:SS</code>)</li>
+</ul>
+</li>
+</ul>
+<h2 id="api-lich-su-bien-ong-san-pham"><a class="toclink" href="#api-lich-su-bien-ong-san-pham">API lịch sử biến động sản phẩm</a></h2>
+<ul>
+<li><code>GET /api/product-movements</code></li>
+<li>query hỗ trợ:<ul>
+<li><code>product_id</code>: bắt buộc</li>
+<li><code>from_date</code>: ngày bắt đầu <code>YYYY-MM-DD</code></li>
+<li><code>to_date</code>: ngày kết thúc <code>YYYY-MM-DD</code>, để trống sẽ mặc định là hôm nay</li>
+<li><code>movement_type</code>: <code>all</code>, <code>in</code>, <code>out</code></li>
+<li><code>keyword</code>: lọc theo mã phiếu, khách hàng, nhà cung cấp, ghi chú, người xử lý</li>
+</ul>
+</li>
+<li>response gồm:<ul>
+<li><code>product</code></li>
+<li><code>period</code></li>
+<li><code>summary</code></li>
+<li><code>movements</code></li>
 </ul>
 </li>
 </ul>
