@@ -1304,6 +1304,86 @@ button:disabled {
   color: var(--warning);
 }
 
+.inline-alert.success {
+  border-color: rgba(59, 121, 87, 0.22);
+  background: linear-gradient(180deg, #f7fff9 0%, rgba(221, 241, 230, 0.84) 100%);
+  color: #1f5b3f;
+}
+
+.quick-document-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.quick-doc-grid,
+.quick-doc-line-entry,
+.quick-doc-footer,
+.quick-doc-shortcuts,
+.quick-doc-footer-actions,
+.quick-doc-item,
+.quick-doc-item-actions,
+.quick-doc-result-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-doc-grid,
+.quick-doc-line-entry {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.quick-doc-grid .quick-doc-note,
+.quick-doc-line-entry .quick-doc-line-actions {
+  grid-column: 1 / -1;
+}
+
+.quick-doc-shortcuts {
+  grid-template-columns: repeat(auto-fit, minmax(140px, max-content));
+  align-items: center;
+}
+
+.quick-doc-hint {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.quick-doc-items {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-doc-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.quick-doc-item.is-warning {
+  border-color: rgba(200, 100, 48, 0.28);
+  background: linear-gradient(180deg, #fffaf7 0%, rgba(248, 225, 214, 0.56) 100%);
+}
+
+.quick-doc-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.quick-doc-footer-actions {
+  grid-template-columns: repeat(2, minmax(0, max-content)) minmax(180px, 1fr);
+  align-items: center;
+}
+
+.quick-doc-result-grid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  margin-top: 8px;
+  color: inherit;
+  font-weight: 600;
+}
+
 .price-warning-message {
   margin-top: 8px;
 }
@@ -1872,6 +1952,21 @@ button:disabled {
 @media (max-width: 759px) {
   .desktop-only-field {
     display: none !important;
+  }
+
+  .quick-doc-grid,
+  .quick-doc-line-entry,
+  .quick-doc-footer-actions,
+  .quick-doc-result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-doc-shortcuts {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-doc-item {
+    grid-template-columns: 1fr;
   }
 
   .procurement-input-grid,

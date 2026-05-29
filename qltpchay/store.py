@@ -280,6 +280,7 @@ class InventoryStore:
                     id TEXT PRIMARY KEY,
                     customer_id TEXT NOT NULL DEFAULT '',
                     customer_name TEXT NOT NULL DEFAULT '',
+                    created_mode TEXT NOT NULL DEFAULT 'normal',
                     status TEXT NOT NULL DEFAULT 'draft',
                     payment_status TEXT NOT NULL DEFAULT 'unpaid',
                     payment_method TEXT NOT NULL DEFAULT '',
@@ -318,6 +319,7 @@ class InventoryStore:
                     id TEXT PRIMARY KEY,
                     supplier_id TEXT NOT NULL DEFAULT '',
                     supplier_name TEXT NOT NULL DEFAULT '',
+                    created_mode TEXT NOT NULL DEFAULT 'normal',
                     note TEXT NOT NULL DEFAULT '',
                     payment_method TEXT NOT NULL DEFAULT '',
                     payment_note TEXT NOT NULL DEFAULT '',
@@ -534,6 +536,10 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE carts ADD COLUMN note TEXT NOT NULL DEFAULT ''"
                 )
+            if "created_mode" not in cart_columns:
+                connection.execute(
+                    "ALTER TABLE carts ADD COLUMN created_mode TEXT NOT NULL DEFAULT 'normal'"
+                )
             if "payment_method" not in cart_columns:
                 connection.execute(
                     "ALTER TABLE carts ADD COLUMN payment_method TEXT NOT NULL DEFAULT ''"
@@ -557,6 +563,10 @@ class InventoryStore:
             purchase_columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(purchases)").fetchall()
             }
+            if "created_mode" not in purchase_columns:
+                connection.execute(
+                    "ALTER TABLE purchases ADD COLUMN created_mode TEXT NOT NULL DEFAULT 'normal'"
+                )
             purchase_item_columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(purchase_items)").fetchall()
             }
@@ -1436,6 +1446,69 @@ class InventoryStore:
             "deleted_at": None,
         }
 
+    def _ensure_supplier_for_quick_purchase(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        supplier_id: str = "",
+        supplier_name: str = "",
+        created_at: str,
+    ) -> dict:
+        clean_supplier_id = str(supplier_id or "").strip()
+        clean_supplier_name = str(supplier_name or "").strip()
+        if clean_supplier_id:
+            row = connection.execute(
+                """
+                SELECT id, name, phone, address, note, created_at, updated_at, deleted_at
+                FROM suppliers
+                WHERE id = ?
+                  AND deleted_at IS NULL
+                """,
+                (clean_supplier_id,),
+            ).fetchone()
+            if row:
+                return self._serialize_supplier_row(row)
+        if clean_supplier_name:
+            row = connection.execute(
+                """
+                SELECT id, name, phone, address, note, created_at, updated_at, deleted_at
+                FROM suppliers
+                WHERE deleted_at IS NULL
+                  AND lower(name) = lower(?)
+                ORDER BY datetime(updated_at) DESC, id
+                LIMIT 1
+                """,
+                (clean_supplier_name,),
+            ).fetchone()
+            if row:
+                return self._serialize_supplier_row(row)
+        if not clean_supplier_name:
+            raise ValueError("Nhà cung cấp là bắt buộc.")
+        resolved_supplier_id = clean_supplier_id or f"supplier_{secrets.token_hex(6)}"
+        connection.execute(
+            """
+            INSERT INTO suppliers(id, name, phone, address, note, created_at, updated_at, deleted_at)
+            VALUES(?, ?, '', '', '', ?, ?, NULL)
+            """,
+            (
+                resolved_supplier_id,
+                clean_supplier_name,
+                created_at,
+                created_at,
+            ),
+        )
+        return {
+            "id": resolved_supplier_id,
+            "name": clean_supplier_name,
+            "phone": "",
+            "address": "",
+            "note": "",
+            "createdAt": created_at,
+            "updatedAt": created_at,
+            "deletedAt": None,
+            "deleted_at": None,
+        }
+
     def _get_existing_draft_cart_for_customer(
         self,
         connection: sqlite3.Connection,
@@ -1636,6 +1709,50 @@ class InventoryStore:
         return clean_text or None
 
     @staticmethod
+    def _normalize_document_event_at(value, field_name: str) -> str | None:
+        clean_text = str(value or "").strip()
+        if not clean_text:
+            return None
+        try:
+            parsed = datetime.fromisoformat(clean_text)
+        except ValueError:
+            try:
+                parsed_date = parse_date_key(clean_text)
+            except ValueError as exc:
+                raise ValueError(f"{field_name} không hợp lệ. Định dạng đúng là YYYY-MM-DD.") from exc
+            parsed = datetime(
+                parsed_date.year,
+                parsed_date.month,
+                parsed_date.day,
+                12,
+                0,
+                0,
+                tzinfo=datetime.now().astimezone().tzinfo,
+            )
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=datetime.now().astimezone().tzinfo)
+        return parsed.isoformat(timespec="seconds")
+
+    @staticmethod
+    def _normalize_document_created_mode(value) -> str:
+        clean_mode = str(value or "normal").strip() or "normal"
+        return clean_mode if clean_mode in {"normal", "quick_import", "quick_export"} else "normal"
+
+    @staticmethod
+    def _normalize_quick_sale_final_status(value) -> str:
+        clean_status = str(value or "completed").strip().lower()
+        if clean_status in {"committed", "completed"}:
+            return clean_status
+        raise ValueError("Trạng thái xử lý nhanh xuất hàng không hợp lệ.")
+
+    @staticmethod
+    def _normalize_quick_purchase_final_status(value) -> str:
+        clean_status = str(value or "received").strip().lower()
+        if clean_status in {"ordered", "received"}:
+            return clean_status
+        raise ValueError("Trạng thái xử lý nhanh nhập hàng không hợp lệ.")
+
+    @staticmethod
     def _purchase_has_items(purchase: dict) -> bool:
         items = purchase.get("items")
         return isinstance(items, list) and bool(items)
@@ -1723,7 +1840,7 @@ class InventoryStore:
         if state_key == "carts":
             cart_rows = connection.execute(
                 """
-                SELECT id, customer_id, customer_name, status, payment_status, payment_method, payment_note,
+                SELECT id, customer_id, customer_name, created_mode, status, payment_status, payment_method, payment_note,
                        note, discount_amount, ship_address, created_at, updated_at,
                        committed_at, completed_at, cancelled_at, paid_at, order_code
                 FROM carts
@@ -1748,6 +1865,8 @@ class InventoryStore:
                         "id": row["id"],
                         "customerId": row["customer_id"] or "",
                         "customerName": row["customer_name"] or "",
+                        "createdMode": self._normalize_document_created_mode(row["created_mode"] or "normal"),
+                        "created_mode": self._normalize_document_created_mode(row["created_mode"] or "normal"),
                         "status": row["status"] or "draft",
                         "paymentStatus": row["payment_status"] or "unpaid",
                         "paymentMethod": row["payment_method"] or "",
@@ -1775,7 +1894,7 @@ class InventoryStore:
         if state_key == "purchases":
             purchase_rows = connection.execute(
                 """
-                SELECT id, supplier_id, supplier_name, note, payment_method, payment_note,
+                SELECT id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note,
                        source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
                        ordered_at, received_at, paid_at, receipt_code
                 FROM purchases
@@ -1852,6 +1971,8 @@ class InventoryStore:
                         "id": row["id"],
                         "supplierId": row["supplier_id"] or "",
                         "supplierName": row["supplier_name"] or "",
+                        "createdMode": self._normalize_document_created_mode(row["created_mode"] or "normal"),
+                        "created_mode": self._normalize_document_created_mode(row["created_mode"] or "normal"),
                         "note": row["note"] or "",
                         "paymentMethod": row["payment_method"] or "",
                         "payment_method": row["payment_method"] or "",
@@ -1948,16 +2069,19 @@ class InventoryStore:
                 connection.execute(
                     """
                     INSERT INTO carts(
-                        id, customer_id, customer_name, status, payment_status, payment_method, payment_note,
+                        id, customer_id, customer_name, created_mode, status, payment_status, payment_method, payment_note,
                         note, discount_amount, ship_address, created_at, updated_at,
                         committed_at, completed_at, cancelled_at, paid_at, order_code
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         cart_id,
                         str(record.get("customerId") or "").strip(),
                         str(record.get("customerName") or "").strip(),
+                        self._normalize_document_created_mode(
+                            record.get("createdMode") or record.get("created_mode") or "normal"
+                        ),
                         str(record.get("status") or "draft"),
                         str(record.get("paymentStatus") or "unpaid"),
                         self._normalize_payment_method(record.get("paymentMethod", record.get("payment_method", ""))),
@@ -2002,15 +2126,18 @@ class InventoryStore:
                 connection.execute(
                     """
                     INSERT INTO purchases(
-                        id, supplier_id, supplier_name, note, payment_method, payment_note, source_type, source_code, source_name,
+                        id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note, source_type, source_code, source_name,
                         status, discount_amount, created_at, updated_at, ordered_at, received_at, paid_at, receipt_code
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         purchase_id,
                         str(record.get("supplierId") or "").strip(),
                         str(record.get("supplierName") or "").strip(),
+                        self._normalize_document_created_mode(
+                            record.get("createdMode") or record.get("created_mode") or "normal"
+                        ),
                         str(record.get("note") or "").strip(),
                         self._normalize_payment_method(record.get("paymentMethod", record.get("payment_method", ""))),
                         self._normalize_payment_note(record.get("paymentNote", record.get("payment_note", ""))),
@@ -2262,6 +2389,7 @@ class InventoryStore:
             "edit-customer": "Đổi khách hàng",
             "edit-ship-address": "Sửa địa chỉ giao",
             "edit-discount": "Sửa giảm giá",
+            "edit-note": "Sửa ghi chú",
             "edit-items": "Sửa mặt hàng",
             "create-request": "Tạo yêu cầu",
             "approve-request": "Approve",
@@ -2323,6 +2451,13 @@ class InventoryStore:
         return self.get_entity_change_history(
             entity_type="cart",
             entity_id=str(cart_id or "").strip(),
+            limit=limit,
+        )
+
+    def get_purchase_change_history(self, purchase_id: str, *, limit: int = 40) -> list[dict]:
+        return self.get_entity_change_history(
+            entity_type="purchase",
+            entity_id=str(purchase_id or "").strip(),
             limit=limit,
         )
 
@@ -3669,9 +3804,11 @@ class InventoryStore:
         created_at: str,
         note: str = "",
         discount_amount=0,
+        created_mode: str = "normal",
     ) -> dict:
         clean_customer_name = str(customer_name or "").strip()
         clean_note = str(note or "").strip()
+        quick_marker = "Tạo bằng Xử lý nhanh xuất hàng" if self._normalize_document_created_mode(created_mode) == "quick_export" else ""
         subtotal_amount = Decimal("0")
         total_quantity = Decimal("0")
         for item in grouped_items.values():
@@ -3696,6 +3833,8 @@ class InventoryStore:
                 base_transaction_note += f" | {clean_note}"
             if item["note"]:
                 base_transaction_note += f" | {item['note']}"
+            if quick_marker:
+                base_transaction_note += f" | {quick_marker}"
 
             cursor = connection.execute(
                 """
@@ -3787,7 +3926,7 @@ class InventoryStore:
     def _get_cart_document(self, connection: sqlite3.Connection, cart_id: str) -> dict:
         row = connection.execute(
             """
-            SELECT id, customer_id, customer_name, status, payment_status, payment_method, payment_note,
+            SELECT id, customer_id, customer_name, created_mode, status, payment_status, payment_method, payment_note,
                    note, discount_amount, ship_address, created_at, updated_at,
                    committed_at, completed_at, cancelled_at, paid_at, order_code
             FROM carts
@@ -3810,6 +3949,8 @@ class InventoryStore:
             "id": row["id"],
             "customerId": row["customer_id"] or "",
             "customerName": row["customer_name"] or "",
+            "createdMode": self._normalize_document_created_mode(row["created_mode"] or "normal"),
+            "created_mode": self._normalize_document_created_mode(row["created_mode"] or "normal"),
             "status": row["status"] or "draft",
             "paymentStatus": row["payment_status"] or "unpaid",
             "paymentMethod": row["payment_method"] or "",
@@ -3831,6 +3972,13 @@ class InventoryStore:
             "orderCode": row["order_code"] or "",
             "items": [self._serialize_cart_item_row(item_row) for item_row in item_rows],
         }
+
+    def _get_purchase_document(self, connection: sqlite3.Connection, purchase_id: str) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        for purchase in self._load_sync_collection_from_tables(connection, "purchases"):
+            if str(purchase.get("id") or "").strip() == clean_purchase_id:
+                return purchase
+        raise ValueError("Không tìm thấy phiếu nhập.")
 
     @staticmethod
     def _format_bulk_quantity(value: float) -> str:
@@ -3888,6 +4036,7 @@ class InventoryStore:
         *,
         actor: str = "",
         committed_at: str,
+        history_note_prefix: str = "",
     ) -> dict:
         clean_cart_id = str(cart_id or "").strip()
         cart = self._get_cart_document(connection, clean_cart_id)
@@ -3940,8 +4089,185 @@ class InventoryStore:
             actor=actor,
             before_status="draft",
             after_status="committed",
-            note="Chốt đơn.",
+            note=(
+                f"{str(history_note_prefix).strip()}. Chốt đơn."
+                if str(history_note_prefix).strip()
+                else "Chốt đơn."
+            ),
             created_at=committed_at,
+        )
+        return self._get_cart_document(connection, clean_cart_id)
+
+    def _ship_cart_order_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        cart_id: str,
+        *,
+        actor: str = "",
+        shipped_at: str,
+        history_note_prefix: str = "",
+    ) -> dict:
+        clean_cart_id = str(cart_id or "").strip()
+        cart = self._get_cart_document(connection, clean_cart_id)
+        if str(cart.get("status") or "") != "committed":
+            raise ValueError("Chỉ đơn đã chốt mới được xuất hàng.")
+        if not cart.get("items"):
+            raise ValueError("Đơn đang trống.")
+        clean_customer_name = str(cart.get("customerName") or "").strip()
+        if not clean_customer_name:
+            raise ValueError("Khách hàng là bắt buộc.")
+
+        order_code = str(cart.get("orderCode") or "").strip()
+        if not order_code:
+            raise ValueError("Đơn đã chốt phải có mã đơn trước khi xuất hàng.")
+
+        grouped_items = self._group_sale_items(cart.get("items") or [])
+        products_by_id, current_stock_by_id = self._validate_sale_items_against_physical_stock(
+            connection,
+            grouped_items,
+        )
+        sale_result = self._create_sale_transactions_for_order(
+            connection,
+            order_code=order_code,
+            customer_name=clean_customer_name,
+            grouped_items=grouped_items,
+            products_by_id=products_by_id,
+            current_stock_by_id=current_stock_by_id,
+            created_at=shipped_at,
+            note=str(cart.get("note") or "").strip(),
+            discount_amount=cart.get("discountAmount") or cart.get("discount_amount") or 0,
+            created_mode=cart.get("createdMode") or cart.get("created_mode") or "normal",
+        )
+        connection.execute(
+            """
+            UPDATE carts
+            SET status = 'completed',
+                payment_status = COALESCE(NULLIF(payment_status, ''), 'unpaid'),
+                updated_at = ?,
+                completed_at = ?
+            WHERE id = ?
+            """,
+            (shipped_at, shipped_at, clean_cart_id),
+        )
+        self._record_audit(
+            connection,
+            entity_type="cart",
+            entity_id=clean_cart_id,
+            entity_name=order_code or clean_cart_id,
+            action="status-change",
+            actor=actor,
+            message="Trạng thái đơn đổi từ committed sang completed.",
+        )
+        self._record_entity_change(
+            connection,
+            entity_type="cart",
+            entity_id=clean_cart_id,
+            entity_code=order_code or clean_cart_id,
+            action="status-change",
+            actor=actor,
+            before_status="committed",
+            after_status="completed",
+            note=(
+                f"{str(history_note_prefix).strip()}. Xuất hàng hoàn tất."
+                if str(history_note_prefix).strip()
+                else "Xuất hàng hoàn tất."
+            ),
+            created_at=shipped_at,
+        )
+        return {
+            "cart": self._get_cart_document(connection, clean_cart_id),
+            "order": {
+                "order_code": order_code,
+                "completed_at": shipped_at,
+                "transactions": sale_result["transactions"],
+                "total_quantity": sale_result["total_quantity"],
+                "subtotal_amount": sale_result["subtotal_amount"],
+                "discount_amount": sale_result["discount_amount"],
+                "total_amount": sale_result["total_amount"],
+            },
+        }
+
+    def _apply_cart_payment_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        cart_id: str,
+        *,
+        payment_status: str = "paid",
+        paid_at: str | None = None,
+        payment_method: str = "",
+        payment_note: str = "",
+        actor: str = "",
+        updated_at: str = "",
+        history_note_prefix: str = "",
+    ) -> dict:
+        clean_cart_id = str(cart_id or "").strip()
+        if not clean_cart_id:
+            raise ValueError("Thiếu mã đơn hàng cần cập nhật thanh toán.")
+
+        clean_payment_status = str(payment_status or "paid").strip() or "paid"
+        if clean_payment_status not in {"unpaid", "paid"}:
+            raise ValueError("Trạng thái thanh toán đơn hàng không hợp lệ.")
+        clean_payment_method = self._normalize_payment_method(payment_method)
+        clean_payment_note = self._normalize_payment_note(payment_note)
+        safe_updated_at = str(updated_at or utc_now_iso()).strip() or utc_now_iso()
+        cart = self._get_cart_document(connection, clean_cart_id)
+        current_status = str(cart.get("status") or "draft").strip()
+        current_payment_status = str(cart.get("paymentStatus") or "unpaid").strip()
+        if current_status != "completed":
+            raise ValueError("Đơn hàng chỉ được cập nhật thanh toán sau khi đã xuất hàng.")
+        if current_payment_status == "paid" and clean_payment_status != "paid":
+            raise ValueError("Đơn hàng đã thanh toán không thể sửa ngược trạng thái.")
+        if clean_payment_status != "paid":
+            raise ValueError("Phiên bản hiện tại chỉ hỗ trợ đánh dấu đã thanh toán một lần.")
+
+        resolved_paid_at = (
+            self._normalize_payment_date_text(paid_at)
+            or self._normalize_payment_date_text(cart.get("paidAt") or cart.get("paid_at"))
+            or safe_updated_at
+        )
+        connection.execute(
+            """
+            UPDATE carts
+            SET payment_status = 'paid',
+                payment_method = ?,
+                payment_note = ?,
+                paid_at = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                clean_payment_method,
+                clean_payment_note,
+                resolved_paid_at,
+                safe_updated_at,
+                clean_cart_id,
+            ),
+        )
+        entity_name = str(cart.get("orderCode") or clean_cart_id).strip()
+        self._record_audit(
+            connection,
+            entity_type="cart",
+            entity_id=clean_cart_id,
+            entity_name=entity_name,
+            action="payment-status",
+            actor=actor,
+            message="Đã cập nhật thanh toán đơn hàng sang paid.",
+        )
+        self._record_entity_change(
+            connection,
+            entity_type="cart",
+            entity_id=clean_cart_id,
+            entity_code=entity_name,
+            action="payment-status",
+            actor=actor,
+            before_status=str(cart.get("status") or "completed").strip(),
+            after_status=str(cart.get("status") or "completed").strip(),
+            note=(
+                f"{str(history_note_prefix).strip()}. Thanh toán đổi từ {current_payment_status or 'unpaid'} sang paid."
+                if str(history_note_prefix).strip()
+                else f"Thanh toán đổi từ {current_payment_status or 'unpaid'} sang paid."
+            ),
+            created_at=safe_updated_at,
         )
         return self._get_cart_document(connection, clean_cart_id)
 
@@ -5306,9 +5632,11 @@ class InventoryStore:
         supplier_name: str = "",
         discount_amount=0,
         created_at: str = "",
+        created_mode: str = "normal",
     ) -> dict:
         clean_note = (note or "").strip()
         clean_supplier_name = (supplier_name or "").strip()
+        quick_marker = "Tạo bằng Xử lý nhanh nhập hàng" if self._normalize_document_created_mode(created_mode) == "quick_import" else ""
         if not items:
             raise ValueError("Phiếu nhập đang trống.")
 
@@ -5414,6 +5742,8 @@ class InventoryStore:
                 transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
             if clean_note:
                 transaction_note += f" | {clean_note}"
+            if quick_marker:
+                transaction_note += f" | {quick_marker}"
             transaction_note += f" | Giá nhập: {float(item['unit_cost']):.0f}"
             transaction_note += f" | Lô nhập: {resolved_batch_code} {float(item['quantity']):g}"
             if resolved_expiry_date:
@@ -5511,6 +5841,142 @@ class InventoryStore:
                 discount_amount=discount_amount,
             )
 
+    def _receive_purchase_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        purchase_id: str,
+        *,
+        discount_amount=None,
+        actor: str = "",
+        actor_username: str = "",
+        actor_role: str = "",
+        received_at: str,
+        history_note_prefix: str = "",
+    ) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        if not clean_purchase_id:
+            raise ValueError("Thiếu mã phiếu nhập cần nhập kho.")
+
+        purchases = self._load_sync_collection_from_tables(connection, "purchases")
+        target = next(
+            (purchase for purchase in purchases if str(purchase.get("id") or "") == clean_purchase_id),
+            None,
+        )
+        if target is None:
+            raise ValueError("Không tìm thấy phiếu nhập cần nhập kho.")
+
+        current_status = str(target.get("status") or "draft").strip()
+        if current_status != "ordered":
+            raise ValueError("Chỉ phiếu đã đặt hàng mới được nhập kho.")
+        if not str(target.get("supplierName") or "").strip():
+            raise ValueError("Phiếu nhập phải có nhà cung cấp trước khi nhập kho.")
+        if not self._purchase_has_items(target):
+            raise ValueError("Phiếu nhập đang trống.")
+
+        next_discount_amount = (
+            self._get_purchase_discount_amount(target)
+            if discount_amount is None
+            else self._validate_discount_amount(
+                discount_amount,
+                self._get_purchase_subtotal_amount(target),
+                "Giảm giá khuyến mại phiếu nhập",
+            )
+        )
+        preview_purchase = {
+            **target,
+            "status": "received",
+            "discountAmount": next_discount_amount,
+            "discount_amount": next_discount_amount,
+            "receivedAt": received_at,
+            "received_at": received_at,
+            "updatedAt": received_at,
+            "updated_at": received_at,
+        }
+        preview_purchases = [
+            preview_purchase if str(purchase.get("id") or "") == clean_purchase_id else purchase
+            for purchase in purchases
+        ]
+        preview_purchases = self._preserve_purchase_ordered_timestamps(purchases, preview_purchases)
+        self._validate_purchase_workflow_locks(
+            connection,
+            purchases,
+            preview_purchases,
+            actor_username=actor_username,
+            actor_role=actor_role,
+        )
+
+        receipt = self._create_purchase_receipt_in_connection(
+            connection,
+            items=[
+                {
+                    "purchase_item_id": str(item.get("id") or "").strip(),
+                    "product_id": item.get("productId") or item.get("product_id"),
+                    "product_name": item.get("productName") or item.get("product_name") or "",
+                    "quantity": item.get("quantity"),
+                    "unit_cost": item.get("unitCost", item.get("unit_cost", 0)),
+                    "batch_code": item.get("batchCode") or item.get("batch_code") or "",
+                    "expiry_input_mode": item.get("expiryInputMode") or item.get("expiry_input_mode") or "direct",
+                    "manufacture_date": item.get("manufactureDate") or item.get("manufacture_date") or "",
+                    "expiry_date": item.get("expiryDate") or item.get("expiry_date") or "",
+                }
+                for item in (target.get("items") or [])
+            ],
+            note=str(target.get("note") or "").strip(),
+            supplier_name=str(target.get("supplierName") or "").strip(),
+            discount_amount=next_discount_amount,
+            created_at=received_at,
+            created_mode=target.get("createdMode") or target.get("created_mode") or "normal",
+        )
+
+        connection.execute(
+            """
+            UPDATE purchases
+            SET status = 'received',
+                discount_amount = ?,
+                updated_at = ?,
+                received_at = ?,
+                receipt_code = ?
+            WHERE id = ?
+            """,
+            (
+                next_discount_amount,
+                receipt["created_at"],
+                receipt["created_at"],
+                receipt["receipt_code"],
+                clean_purchase_id,
+            ),
+        )
+        entity_name = receipt["receipt_code"] or clean_purchase_id
+        self._record_audit(
+            connection,
+            entity_type="purchase",
+            entity_id=clean_purchase_id,
+            entity_name=entity_name,
+            action="status-change",
+            actor=actor,
+            message="Trạng thái phiếu nhập đổi từ ordered sang received.",
+        )
+        self._record_entity_change(
+            connection,
+            entity_type="purchase",
+            entity_id=clean_purchase_id,
+            entity_code=entity_name,
+            action="status-change",
+            actor=actor,
+            before_status="ordered",
+            after_status="received",
+            note=(
+                f"{str(history_note_prefix).strip()}. Nhập hàng hoàn tất."
+                if str(history_note_prefix).strip()
+                else "Nhập hàng hoàn tất."
+            ),
+            created_at=receipt["created_at"],
+        )
+        return {
+            "receipt": receipt,
+            "purchase": self._get_purchase_document(connection, clean_purchase_id),
+        }
+
     def receive_purchase(
         self,
         purchase_id: str,
@@ -5525,123 +5991,25 @@ class InventoryStore:
 
         actor = str(actor_username or "").strip()
         with self._connect() as connection:
-            purchases = self._load_sync_collection_from_tables(connection, "purchases")
-            target = next(
-                (purchase for purchase in purchases if str(purchase.get("id") or "") == clean_purchase_id),
-                None,
-            )
-            if target is None:
-                raise ValueError("Không tìm thấy phiếu nhập cần nhập kho.")
-
-            current_status = str(target.get("status") or "draft").strip()
-            if current_status != "ordered":
-                raise ValueError("Chỉ phiếu đã đặt hàng mới được nhập kho.")
-            if not str(target.get("supplierName") or "").strip():
-                raise ValueError("Phiếu nhập phải có nhà cung cấp trước khi nhập kho.")
-            if not self._purchase_has_items(target):
-                raise ValueError("Phiếu nhập đang trống.")
-
-            next_discount_amount = (
-                self._get_purchase_discount_amount(target)
-                if discount_amount is None
-                else self._validate_discount_amount(
-                    discount_amount,
-                    self._get_purchase_subtotal_amount(target),
-                    "Giảm giá khuyến mại phiếu nhập",
-                )
-            )
-            received_at = utc_now_iso()
-            preview_purchase = {
-                **target,
-                "status": "received",
-                "discountAmount": next_discount_amount,
-                "discount_amount": next_discount_amount,
-                "receivedAt": received_at,
-                "received_at": received_at,
-                "updatedAt": received_at,
-                "updated_at": received_at,
-            }
-            preview_purchases = [
-                preview_purchase if str(purchase.get("id") or "") == clean_purchase_id else purchase
-                for purchase in purchases
-            ]
-            preview_purchases = self._preserve_purchase_ordered_timestamps(purchases, preview_purchases)
-            self._validate_purchase_workflow_locks(
+            result = self._receive_purchase_in_connection(
                 connection,
-                purchases,
-                preview_purchases,
-                actor_username=actor_username,
-                actor_role=actor_role,
-            )
-
-            receipt = self._create_purchase_receipt_in_connection(
-                connection,
-                items=[
-                    {
-                        "purchase_item_id": str(item.get("id") or "").strip(),
-                        "product_id": item.get("productId") or item.get("product_id"),
-                        "product_name": item.get("productName") or item.get("product_name") or "",
-                        "quantity": item.get("quantity"),
-                        "unit_cost": item.get("unitCost", item.get("unit_cost", 0)),
-                        "batch_code": item.get("batchCode") or item.get("batch_code") or "",
-                        "expiry_input_mode": item.get("expiryInputMode") or item.get("expiry_input_mode") or "direct",
-                        "manufacture_date": item.get("manufactureDate") or item.get("manufacture_date") or "",
-                        "expiry_date": item.get("expiryDate") or item.get("expiry_date") or "",
-                    }
-                    for item in (target.get("items") or [])
-                ],
-                note=str(target.get("note") or "").strip(),
-                supplier_name=str(target.get("supplierName") or "").strip(),
-                discount_amount=next_discount_amount,
-                created_at=received_at,
-            )
-
-            next_purchases = []
-            for purchase in purchases:
-                if str(purchase.get("id") or "") != clean_purchase_id:
-                    next_purchases.append(purchase)
-                    continue
-                next_purchases.append(
-                    {
-                        **purchase,
-                        "status": "received",
-                        "discountAmount": next_discount_amount,
-                        "discount_amount": next_discount_amount,
-                        "receivedAt": receipt["created_at"],
-                        "received_at": receipt["created_at"],
-                        "receiptCode": receipt["receipt_code"],
-                        "receipt_code": receipt["receipt_code"],
-                        "updatedAt": receipt["created_at"],
-                        "updated_at": receipt["created_at"],
-                    }
-                )
-            next_purchases = self._preserve_purchase_ordered_timestamps(purchases, next_purchases)
-            self._audit_purchase_changes(connection, purchases, next_purchases, actor=actor)
-            self._validate_purchase_workflow_locks(
-                connection,
-                purchases,
-                next_purchases,
-                actor_username=actor_username,
-                actor_role=actor_role,
-            )
-            self._sync_procurement_assignments_for_purchases(
-                connection,
-                purchases,
-                next_purchases,
+                clean_purchase_id,
+                discount_amount=discount_amount,
                 actor=actor,
-                updated_at=receipt["created_at"],
+                actor_username=actor_username,
+                actor_role=actor_role,
+                received_at=utc_now_iso(),
             )
-            self._replace_sync_collection_records(connection, "purchases", next_purchases)
             canonical = self._refresh_sync_collection_cache(
                 connection,
                 "purchases",
-                updated_at=receipt["created_at"],
+                updated_at=result["receipt"]["created_at"],
             )
 
         purchase = next((entry for entry in canonical if str(entry.get("id") or "") == clean_purchase_id), None)
         return {
             "message": "Đã nhập hàng vào kho.",
-            "receipt": receipt,
+            "receipt": result["receipt"],
             "purchase": purchase,
             "purchases": canonical,
         }
@@ -5669,52 +6037,17 @@ class InventoryStore:
         actor = str(actor_username or "").strip()
 
         with self._connect() as connection:
-            carts = self._load_sync_collection_from_tables(connection, "carts")
-            target = next(
-                (cart for cart in carts if str(cart.get("id") or "") == clean_cart_id),
-                None,
-            )
-            if target is None:
-                raise ValueError("Không tìm thấy đơn hàng cần cập nhật thanh toán.")
-
-            current_status = str(target.get("status") or "draft").strip()
-            current_payment_status = str(target.get("paymentStatus") or "unpaid").strip()
-            if current_status != "completed":
-                raise ValueError("Đơn hàng chỉ được cập nhật thanh toán sau khi đã xuất hàng.")
-            if current_payment_status == "paid" and clean_payment_status != "paid":
-                raise ValueError("Đơn hàng đã thanh toán không thể sửa ngược trạng thái.")
-            if clean_payment_status != "paid":
-                raise ValueError("Phiên bản hiện tại chỉ hỗ trợ đánh dấu đã thanh toán một lần.")
-
-            resolved_paid_at = (
-                self._normalize_payment_date_text(paid_at)
-                or self._normalize_payment_date_text(target.get("paidAt") or target.get("paid_at"))
-                or utc_now_iso()
-            )
             updated_at = utc_now_iso()
-            next_carts: list[dict] = []
-            for cart in carts:
-                if str(cart.get("id") or "") != clean_cart_id:
-                    next_carts.append(cart)
-                    continue
-                next_carts.append(
-                    {
-                        **cart,
-                        "paymentStatus": "paid",
-                        "payment_status": "paid",
-                        "paidAt": resolved_paid_at,
-                        "paid_at": resolved_paid_at,
-                        "paymentMethod": clean_payment_method,
-                        "payment_method": clean_payment_method,
-                        "paymentNote": clean_payment_note,
-                        "payment_note": clean_payment_note,
-                        "updatedAt": updated_at,
-                        "updated_at": updated_at,
-                    }
-                )
-            self._audit_cart_changes(connection, carts, next_carts, actor=actor)
-            self._validate_cart_workflow_locks(carts, next_carts)
-            self._replace_sync_collection_records(connection, "carts", next_carts)
+            self._apply_cart_payment_in_connection(
+                connection,
+                clean_cart_id,
+                payment_status=clean_payment_status,
+                paid_at=paid_at,
+                payment_method=clean_payment_method,
+                payment_note=clean_payment_note,
+                actor=actor,
+                updated_at=updated_at,
+            )
             canonical = self._refresh_sync_collection_cache(
                 connection,
                 "carts",
@@ -5727,6 +6060,139 @@ class InventoryStore:
             "cart": cart,
             "carts": canonical,
         }
+
+    def _apply_purchase_payment_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        purchase_id: str,
+        *,
+        discount_amount=None,
+        paid_at: str | None = None,
+        payment_method: str = "",
+        payment_note: str = "",
+        actor: str = "",
+        actor_username: str = "",
+        actor_role: str = "",
+        updated_at: str = "",
+        history_note_prefix: str = "",
+    ) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        if not clean_purchase_id:
+            raise ValueError("Thiếu mã phiếu nhập cần cập nhật thanh toán.")
+
+        clean_payment_method = self._normalize_payment_method(payment_method)
+        clean_payment_note = self._normalize_payment_note(payment_note)
+        safe_updated_at = str(updated_at or utc_now_iso()).strip() or utc_now_iso()
+        purchases = self._load_sync_collection_from_tables(connection, "purchases")
+        target = next(
+            (purchase for purchase in purchases if str(purchase.get("id") or "") == clean_purchase_id),
+            None,
+        )
+        if target is None:
+            raise ValueError("Không tìm thấy phiếu nhập cần cập nhật thanh toán.")
+
+        current_status = str(target.get("status") or "draft").strip()
+        if current_status not in {"received", "paid"}:
+            raise ValueError("Phiếu nhập chỉ được cập nhật thanh toán sau khi đã nhập kho.")
+
+        next_discount_amount = (
+            self._get_purchase_discount_amount(target)
+            if discount_amount is None
+            else self._validate_discount_amount(
+                discount_amount,
+                self._get_purchase_subtotal_amount(target),
+                "Giảm giá khuyến mại phiếu nhập",
+            )
+        )
+        resolved_paid_at = (
+            self._normalize_payment_date_text(paid_at)
+            or self._normalize_payment_date_text(target.get("paidAt") or target.get("paid_at"))
+            or safe_updated_at
+        )
+        preview_purchases: list[dict] = []
+        for purchase in purchases:
+            if str(purchase.get("id") or "") != clean_purchase_id:
+                preview_purchases.append(purchase)
+                continue
+            preview_purchases.append(
+                {
+                    **purchase,
+                    "status": "paid",
+                    "discountAmount": next_discount_amount,
+                    "discount_amount": next_discount_amount,
+                    "paidAt": resolved_paid_at,
+                    "paid_at": resolved_paid_at,
+                    "paymentMethod": clean_payment_method,
+                    "payment_method": clean_payment_method,
+                    "paymentNote": clean_payment_note,
+                    "payment_note": clean_payment_note,
+                    "updatedAt": safe_updated_at,
+                    "updated_at": safe_updated_at,
+                }
+            )
+        preview_purchases = self._preserve_purchase_ordered_timestamps(purchases, preview_purchases)
+        self._validate_purchase_workflow_locks(
+            connection,
+            purchases,
+            preview_purchases,
+            actor_username=actor_username,
+            actor_role=actor_role,
+        )
+        self._sync_procurement_assignments_for_purchases(
+            connection,
+            purchases,
+            preview_purchases,
+            actor=actor,
+            updated_at=safe_updated_at,
+        )
+        connection.execute(
+            """
+            UPDATE purchases
+            SET status = 'paid',
+                discount_amount = ?,
+                payment_method = ?,
+                payment_note = ?,
+                paid_at = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                next_discount_amount,
+                clean_payment_method,
+                clean_payment_note,
+                resolved_paid_at,
+                safe_updated_at,
+                clean_purchase_id,
+            ),
+        )
+        purchase = self._get_purchase_document(connection, clean_purchase_id)
+        entity_name = str(purchase.get("receiptCode") or purchase.get("receipt_code") or clean_purchase_id).strip()
+        self._record_audit(
+            connection,
+            entity_type="purchase",
+            entity_id=clean_purchase_id,
+            entity_name=entity_name,
+            action="payment-status",
+            actor=actor,
+            message="Đã cập nhật thanh toán phiếu nhập sang paid.",
+        )
+        self._record_entity_change(
+            connection,
+            entity_type="purchase",
+            entity_id=clean_purchase_id,
+            entity_code=entity_name,
+            action="payment-status",
+            actor=actor,
+            before_status="received" if current_status == "received" else "paid",
+            after_status="paid",
+            note=(
+                f"{str(history_note_prefix).strip()}. Thanh toán phiếu nhập đã hoàn tất."
+                if str(history_note_prefix).strip()
+                else "Thanh toán phiếu nhập đã hoàn tất."
+            ),
+            created_at=safe_updated_at,
+        )
+        return purchase
 
     def update_purchase_payment(
         self,
@@ -5748,70 +6214,18 @@ class InventoryStore:
         actor = str(actor_username or "").strip()
         updated_at = utc_now_iso()
         with self._connect() as connection:
-            purchases = self._load_sync_collection_from_tables(connection, "purchases")
-            target = next(
-                (purchase for purchase in purchases if str(purchase.get("id") or "") == clean_purchase_id),
-                None,
-            )
-            if target is None:
-                raise ValueError("Không tìm thấy phiếu nhập cần cập nhật thanh toán.")
-
-            current_status = str(target.get("status") or "draft").strip()
-            if current_status not in {"received", "paid"}:
-                raise ValueError("Phiếu nhập chỉ được cập nhật thanh toán sau khi đã nhập kho.")
-
-            next_discount_amount = (
-                self._get_purchase_discount_amount(target)
-                if discount_amount is None
-                else self._validate_discount_amount(
-                    discount_amount,
-                    self._get_purchase_subtotal_amount(target),
-                    "Giảm giá khuyến mại phiếu nhập",
-                )
-            )
-            resolved_paid_at = (
-                self._normalize_payment_date_text(paid_at)
-                or self._normalize_payment_date_text(target.get("paidAt") or target.get("paid_at"))
-                or updated_at
-            )
-            next_purchases: list[dict] = []
-            for purchase in purchases:
-                if str(purchase.get("id") or "") != clean_purchase_id:
-                    next_purchases.append(purchase)
-                    continue
-                next_purchases.append(
-                    {
-                        **purchase,
-                        "status": "paid",
-                        "discountAmount": next_discount_amount,
-                        "discount_amount": next_discount_amount,
-                        "paidAt": resolved_paid_at,
-                        "paid_at": resolved_paid_at,
-                        "paymentMethod": clean_payment_method,
-                        "payment_method": clean_payment_method,
-                        "paymentNote": clean_payment_note,
-                        "payment_note": clean_payment_note,
-                        "updatedAt": updated_at,
-                        "updated_at": updated_at,
-                    }
-                )
-            next_purchases = self._preserve_purchase_ordered_timestamps(purchases, next_purchases)
-            self._audit_purchase_changes(connection, purchases, next_purchases, actor=actor)
-            self._validate_purchase_workflow_locks(
+            self._apply_purchase_payment_in_connection(
                 connection,
-                purchases,
-                next_purchases,
+                clean_purchase_id,
+                discount_amount=discount_amount,
+                paid_at=paid_at,
+                payment_method=clean_payment_method,
+                payment_note=clean_payment_note,
+                actor=actor,
                 actor_username=actor_username,
                 actor_role=actor_role,
-            )
-            self._sync_procurement_assignments_for_purchases(
-                connection,
-                purchases,
-                next_purchases,
-                actor=actor,
                 updated_at=updated_at,
             )
-            self._replace_sync_collection_records(connection, "purchases", next_purchases)
             canonical = self._refresh_sync_collection_cache(
                 connection,
                 "purchases",
@@ -5845,6 +6259,361 @@ class InventoryStore:
             actor_username=actor_username,
             actor_role=actor_role,
         )
+
+    def _build_quick_cart_summary(self, cart: dict) -> dict:
+        subtotal = self._get_cart_subtotal_amount(cart)
+        discount_amount = Decimal(str(self._get_cart_discount_amount(cart)))
+        return {
+            "document_id": str(cart.get("id") or "").strip(),
+            "document_code": str(cart.get("orderCode") or "").strip(),
+            "item_count": len(cart.get("items") or []),
+            "total_amount": round(float(subtotal - discount_amount), 2),
+            "status": str(cart.get("status") or "draft").strip(),
+            "payment_status": str(cart.get("paymentStatus") or cart.get("payment_status") or "unpaid").strip(),
+            "created_mode": self._normalize_document_created_mode(
+                cart.get("createdMode") or cart.get("created_mode") or "normal"
+            ),
+        }
+
+    def _build_quick_purchase_summary(self, purchase: dict) -> dict:
+        subtotal = self._get_purchase_subtotal_amount(purchase)
+        discount_amount = Decimal(str(self._get_purchase_discount_amount(purchase)))
+        return {
+            "document_id": str(purchase.get("id") or "").strip(),
+            "document_code": str(purchase.get("receiptCode") or purchase.get("receipt_code") or "").strip(),
+            "item_count": len(purchase.get("items") or []),
+            "total_amount": round(float(subtotal - discount_amount), 2),
+            "status": str(purchase.get("status") or "draft").strip(),
+            "payment_status": "paid" if str(purchase.get("status") or "").strip() == "paid" else "unpaid",
+            "created_mode": self._normalize_document_created_mode(
+                purchase.get("createdMode") or purchase.get("created_mode") or "normal"
+            ),
+        }
+
+    def create_quick_sale(
+        self,
+        *,
+        customer_id: str = "",
+        customer_name: str = "",
+        document_date: str = "",
+        note: str = "",
+        items: list[dict] | None = None,
+        final_status: str = "completed",
+        mark_paid: bool = False,
+        payment_method: str = "",
+        payment_note: str = "",
+        actor_username: str = "",
+    ) -> dict:
+        clean_final_status = self._normalize_quick_sale_final_status(final_status)
+        if mark_paid and clean_final_status != "completed":
+            raise ValueError("Chỉ được thanh toán luôn khi đã xuất hàng.")
+        effective_at = self._normalize_document_event_at(document_date, "Ngày xuất") or utc_now_iso()
+        clean_note = str(note or "").strip()
+        clean_actor = str(actor_username or "").strip()
+        with self._connect() as connection:
+            resolved_customer = self._ensure_customer_for_bulk_order(
+                connection,
+                customer_id=customer_id,
+                customer_name=customer_name,
+                created_at=effective_at,
+            )
+            grouped_items = self._group_sale_items(items or [])
+            if not grouped_items:
+                raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
+            cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
+            cart_id = f"cart_{secrets.token_hex(6)}"
+            connection.execute(
+                """
+                INSERT INTO carts(
+                    id, customer_id, customer_name, created_mode, status, payment_status, payment_method, payment_note,
+                    note, discount_amount, ship_address, created_at, updated_at,
+                    committed_at, completed_at, cancelled_at, paid_at, order_code
+                )
+                VALUES(?, ?, ?, 'quick_export', 'draft', 'unpaid', '', '', ?, 0, ?, ?, ?, NULL, NULL, NULL, NULL, '')
+                """,
+                (
+                    cart_id,
+                    str(resolved_customer.get("id") or "").strip(),
+                    str(resolved_customer.get("name") or "").strip(),
+                    clean_note,
+                    str(resolved_customer.get("address") or "").strip(),
+                    effective_at,
+                    effective_at,
+                ),
+            )
+            self._replace_cart_items(connection, cart_id=cart_id, items=cart_items)
+            created_cart = self._get_cart_document(connection, cart_id)
+            self._validate_cart_workflow_locks([], [created_cart])
+            self._record_audit(
+                connection,
+                entity_type="cart",
+                entity_id=cart_id,
+                entity_name=str(created_cart.get("orderCode") or cart_id).strip(),
+                action="create",
+                actor=clean_actor,
+                message="Tạo đơn bằng Xử lý nhanh xuất hàng.",
+            )
+            self._record_cart_change_history(
+                connection,
+                previous=None,
+                current=created_cart,
+                actor=clean_actor,
+                created_at=effective_at,
+                note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+            )
+
+            current_cart = created_cart
+            order_payload = None
+            if clean_final_status in {"committed", "completed"}:
+                current_cart = self._commit_cart_order_in_connection(
+                    connection,
+                    cart_id,
+                    actor=clean_actor,
+                    committed_at=effective_at,
+                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                )
+            if clean_final_status == "completed":
+                ship_result = self._ship_cart_order_in_connection(
+                    connection,
+                    cart_id,
+                    actor=clean_actor,
+                    shipped_at=effective_at,
+                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                )
+                current_cart = ship_result["cart"]
+                order_payload = ship_result["order"]
+            if mark_paid:
+                current_cart = self._apply_cart_payment_in_connection(
+                    connection,
+                    cart_id,
+                    payment_status="paid",
+                    paid_at=effective_at,
+                    payment_method=payment_method,
+                    payment_note=payment_note,
+                    actor=clean_actor,
+                    updated_at=effective_at,
+                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                )
+
+            customers = self._refresh_sync_collection_cache(connection, "customers", updated_at=effective_at)
+            carts = self._refresh_sync_collection_cache(connection, "carts", updated_at=effective_at)
+            final_cart = next((entry for entry in carts if str(entry.get("id") or "") == cart_id), None) or current_cart
+        return {
+            "message": "Đã lưu phiếu xử lý nhanh xuất hàng.",
+            "cart": final_cart,
+            "order": order_payload,
+            "customers": customers,
+            "carts": carts,
+            "summary": self._build_quick_cart_summary(final_cart),
+        }
+
+    def create_quick_purchase(
+        self,
+        *,
+        supplier_id: str = "",
+        supplier_name: str = "",
+        document_date: str = "",
+        note: str = "",
+        items: list[dict] | None = None,
+        final_status: str = "received",
+        mark_paid: bool = False,
+        payment_method: str = "",
+        payment_note: str = "",
+        actor_username: str = "",
+        actor_role: str = "",
+    ) -> dict:
+        clean_final_status = self._normalize_quick_purchase_final_status(final_status)
+        if mark_paid and clean_final_status != "received":
+            raise ValueError("Chỉ được thanh toán luôn khi đã nhập hàng.")
+        effective_at = self._normalize_document_event_at(document_date, "Ngày nhập") or utc_now_iso()
+        clean_note = str(note or "").strip()
+        clean_actor = str(actor_username or "").strip()
+        with self._connect() as connection:
+            resolved_supplier = self._ensure_supplier_for_quick_purchase(
+                connection,
+                supplier_id=supplier_id,
+                supplier_name=supplier_name,
+                created_at=effective_at,
+            )
+            raw_items = items or []
+            if not raw_items:
+                raise ValueError("Phiếu nhập phải có ít nhất một mặt hàng.")
+            purchase_id = f"purchase_{secrets.token_urlsafe(8)}"
+            connection.execute(
+                """
+                INSERT INTO purchases(
+                    id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note,
+                    source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
+                    ordered_at, received_at, paid_at, receipt_code
+                )
+                VALUES(?, ?, ?, 'quick_import', ?, '', '', '', '', '', 'draft', 0, ?, ?, '', NULL, NULL, '')
+                """,
+                (
+                    purchase_id,
+                    str(resolved_supplier.get("id") or "").strip(),
+                    str(resolved_supplier.get("name") or "").strip(),
+                    clean_note,
+                    effective_at,
+                    effective_at,
+                ),
+            )
+            normalized_items: list[dict] = []
+            for index, raw_item in enumerate(raw_items):
+                product_id = int(raw_item.get("productId") or raw_item.get("product_id") or 0)
+                product = self._get_product_or_raise(connection, product_id)
+                quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
+                unit_cost = parse_non_negative_decimal(
+                    raw_item.get("unitCost", raw_item.get("unit_cost", 0)),
+                    "Giá nhập",
+                )
+                normalized_items.append(
+                    {
+                        "id": str(raw_item.get("id") or f"purchase_item_{secrets.token_urlsafe(8)}"),
+                        "productId": product_id,
+                        "productName": str(product["name"] or "").strip(),
+                        "sourceKind": "extra",
+                        "sourceNote": "Tạo bằng Xử lý nhanh nhập hàng",
+                        "quantity": round(float(quantity), 2),
+                        "unitCost": round(float(unit_cost), 2),
+                        "batchCode": str(raw_item.get("batchCode") or raw_item.get("batch_code") or "").strip(),
+                        "expiryInputMode": raw_item.get("expiryInputMode") or raw_item.get("expiry_input_mode") or "direct",
+                        "manufactureDate": raw_item.get("manufactureDate") or raw_item.get("manufacture_date") or "",
+                        "expiryDate": raw_item.get("expiryDate") or raw_item.get("expiry_date") or "",
+                        "sortOrder": index,
+                    }
+                )
+            for index, item in enumerate(normalized_items):
+                connection.execute(
+                    """
+                    INSERT INTO purchase_items(
+                        id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
+                        expiry_input_mode, manufacture_date, expiry_date, sort_order
+                    )
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        item["id"],
+                        purchase_id,
+                        item["productId"],
+                        item["productName"],
+                        item["sourceKind"],
+                        item["sourceNote"],
+                        item["quantity"],
+                        item["unitCost"],
+                        item["batchCode"],
+                        item["expiryInputMode"],
+                        item["manufactureDate"] or None,
+                        item["expiryDate"] or None,
+                        index,
+                    ),
+                )
+            created_purchase = self._get_purchase_document(connection, purchase_id)
+            self._record_audit(
+                connection,
+                entity_type="purchase",
+                entity_id=purchase_id,
+                entity_name=purchase_id,
+                action="create",
+                actor=clean_actor,
+                message="Tạo phiếu bằng Xử lý nhanh nhập hàng.",
+            )
+            self._record_purchase_change_history(
+                connection,
+                previous=None,
+                current=created_purchase,
+                actor=clean_actor,
+                created_at=effective_at,
+                note_prefix="Tạo bằng Xử lý nhanh nhập hàng",
+            )
+
+            current_purchase = created_purchase
+            receipt_payload = None
+            if clean_final_status in {"ordered", "received"}:
+                ordered_preview = {
+                    **created_purchase,
+                    "status": "ordered",
+                    "orderedAt": effective_at,
+                    "ordered_at": effective_at,
+                    "updatedAt": effective_at,
+                    "updated_at": effective_at,
+                }
+                self._validate_purchase_workflow_locks(
+                    connection,
+                    [],
+                    [ordered_preview],
+                    actor_username=actor_username,
+                    actor_role=actor_role,
+                )
+                connection.execute(
+                    """
+                    UPDATE purchases
+                    SET status = 'ordered',
+                        updated_at = ?,
+                        ordered_at = ?
+                    WHERE id = ?
+                    """,
+                    (effective_at, effective_at, purchase_id),
+                )
+                ordered_purchase = self._get_purchase_document(connection, purchase_id)
+                self._record_audit(
+                    connection,
+                    entity_type="purchase",
+                    entity_id=purchase_id,
+                    entity_name=purchase_id,
+                    action="status-change",
+                    actor=clean_actor,
+                    message="Trạng thái phiếu nhập đổi từ draft sang ordered.",
+                )
+                self._record_entity_change(
+                    connection,
+                    entity_type="purchase",
+                    entity_id=purchase_id,
+                    entity_code=purchase_id,
+                    action="status-change",
+                    actor=clean_actor,
+                    before_status="draft",
+                    after_status="ordered",
+                    note="Tạo bằng Xử lý nhanh nhập hàng. Đặt hàng.",
+                    created_at=effective_at,
+                )
+                current_purchase = ordered_purchase
+            if clean_final_status == "received":
+                receive_result = self._receive_purchase_in_connection(
+                    connection,
+                    purchase_id,
+                    actor=clean_actor,
+                    actor_username=actor_username,
+                    actor_role=actor_role,
+                    received_at=effective_at,
+                    history_note_prefix="Tạo bằng Xử lý nhanh nhập hàng",
+                )
+                current_purchase = receive_result["purchase"]
+                receipt_payload = receive_result["receipt"]
+            if mark_paid:
+                current_purchase = self._apply_purchase_payment_in_connection(
+                    connection,
+                    purchase_id,
+                    paid_at=effective_at,
+                    payment_method=payment_method,
+                    payment_note=payment_note,
+                    actor=clean_actor,
+                    actor_username=actor_username,
+                    actor_role=actor_role,
+                    updated_at=effective_at,
+                    history_note_prefix="Tạo bằng Xử lý nhanh nhập hàng",
+                )
+
+            suppliers = self._refresh_sync_collection_cache(connection, "suppliers", updated_at=effective_at)
+            purchases = self._refresh_sync_collection_cache(connection, "purchases", updated_at=effective_at)
+            final_purchase = next((entry for entry in purchases if str(entry.get("id") or "") == purchase_id), None) or current_purchase
+        return {
+            "message": "Đã lưu phiếu xử lý nhanh nhập hàng.",
+            "purchase": final_purchase,
+            "receipt": receipt_payload,
+            "suppliers": suppliers,
+            "purchases": purchases,
+            "summary": self._build_quick_purchase_summary(final_purchase),
+        }
 
     @staticmethod
     def _build_purchase_receipt_transaction_note(
@@ -8679,6 +9448,43 @@ class InventoryStore:
                 notes.append(f"{label}: {'; '.join(item_changes)}.")
         return " ".join(notes[:8]).strip()
 
+    @staticmethod
+    def _build_purchase_history_item_map(purchase: dict | None) -> dict[tuple[int, str], dict]:
+        item_map: dict[tuple[int, str], dict] = {}
+        for raw_item in (purchase or {}).get("items") or []:
+            product_id = int(raw_item.get("productId") or raw_item.get("product_id") or 0)
+            product_name = str(raw_item.get("productName") or raw_item.get("product_name") or "").strip()
+            key = (product_id, product_name)
+            item_map[key] = {
+                "product_name": product_name or f"Sản phẩm {product_id}",
+                "quantity": round(float(raw_item.get("quantity") or 0), 2),
+                "unit_cost": round(float(raw_item.get("unitCost") or raw_item.get("unit_cost") or 0), 2),
+            }
+        return item_map
+
+    def _build_purchase_item_change_note(self, previous: dict, current: dict) -> str:
+        previous_items = self._build_purchase_history_item_map(previous)
+        current_items = self._build_purchase_history_item_map(current)
+        notes: list[str] = []
+        for key in sorted(set(previous_items) | set(current_items), key=lambda entry: (normalize_key(entry[1]), entry[0])):
+            previous_item = previous_items.get(key)
+            current_item = current_items.get(key)
+            label = (current_item or previous_item or {}).get("product_name") or "Mặt hàng"
+            if previous_item is None and current_item is not None:
+                notes.append(f"Thêm {label}: SL {current_item['quantity']}, giá nhập {current_item['unit_cost']}.")
+                continue
+            if previous_item is not None and current_item is None:
+                notes.append(f"Bỏ {label} khỏi phiếu.")
+                continue
+            item_changes: list[str] = []
+            if round(previous_item["quantity"], 2) != round(current_item["quantity"], 2):
+                item_changes.append(f"SL {previous_item['quantity']} -> {current_item['quantity']}")
+            if round(previous_item["unit_cost"], 2) != round(current_item["unit_cost"], 2):
+                item_changes.append(f"Giá nhập {previous_item['unit_cost']} -> {current_item['unit_cost']}")
+            if item_changes:
+                notes.append(f"{label}: {'; '.join(item_changes)}.")
+        return " ".join(notes[:8]).strip()
+
     def _record_cart_change_history(
         self,
         connection: sqlite3.Connection,
@@ -8824,6 +9630,101 @@ class InventoryStore:
                 created_at=created_at,
             )
 
+    def _record_purchase_change_history(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        previous: dict | None,
+        current: dict,
+        actor: str = "",
+        created_at: str | None = None,
+        note_prefix: str = "",
+    ) -> None:
+        clean_actor = str(actor or "").strip()
+        current_status = str(current.get("status") or "draft").strip()
+        purchase_id = str(current.get("id") or "").strip()
+        purchase_code = str(current.get("receiptCode") or current.get("receipt_code") or purchase_id).strip()
+        prefix = str(note_prefix or "").strip()
+        if prefix:
+            prefix = f"{prefix}. "
+        if not previous:
+            supplier_name = str(current.get("supplierName") or current.get("supplier_name") or "").strip()
+            self._record_entity_change(
+                connection,
+                entity_type="purchase",
+                entity_id=purchase_id,
+                entity_code=purchase_code,
+                action="create",
+                actor=clean_actor,
+                before_status="",
+                after_status=current_status,
+                note=f"{prefix}Tạo phiếu nhập cho {supplier_name or 'nhà cung cấp'}.".strip(),
+                created_at=created_at,
+            )
+            return
+
+        previous_status = str(previous.get("status") or "draft").strip()
+        if previous_status != current_status:
+            self._record_entity_change(
+                connection,
+                entity_type="purchase",
+                entity_id=purchase_id,
+                entity_code=purchase_code,
+                action="status-change",
+                actor=clean_actor,
+                before_status=previous_status,
+                after_status=current_status,
+                note=f"{prefix}Trạng thái phiếu nhập đổi từ {previous_status} sang {current_status}.",
+                created_at=created_at,
+            )
+
+        previous_discount = round(float(previous.get("discountAmount") or previous.get("discount_amount") or 0), 2)
+        current_discount = round(float(current.get("discountAmount") or current.get("discount_amount") or 0), 2)
+        if previous_discount != current_discount:
+            self._record_entity_change(
+                connection,
+                entity_type="purchase",
+                entity_id=purchase_id,
+                entity_code=purchase_code,
+                action="edit-discount",
+                actor=clean_actor,
+                before_status=previous_status,
+                after_status=current_status,
+                note=f"{prefix}Giảm giá đổi từ {previous_discount} sang {current_discount}.",
+                created_at=created_at,
+            )
+
+        previous_note = str(previous.get("note") or "").strip()
+        current_note = str(current.get("note") or "").strip()
+        if previous_note != current_note:
+            self._record_entity_change(
+                connection,
+                entity_type="purchase",
+                entity_id=purchase_id,
+                entity_code=purchase_code,
+                action="edit-note",
+                actor=clean_actor,
+                before_status=previous_status,
+                after_status=current_status,
+                note=f"{prefix}Ghi chú đổi từ {previous_note or 'trống'} sang {current_note or 'trống'}.",
+                created_at=created_at,
+            )
+
+        item_note = self._build_purchase_item_change_note(previous, current)
+        if item_note:
+            self._record_entity_change(
+                connection,
+                entity_type="purchase",
+                entity_id=purchase_id,
+                entity_code=purchase_code,
+                action="edit-items",
+                actor=clean_actor,
+                before_status=previous_status,
+                after_status=current_status,
+                note=f"{prefix}{item_note}".strip(),
+                created_at=created_at,
+            )
+
     def _audit_cart_changes(
         self,
         connection: sqlite3.Connection,
@@ -8931,6 +9832,12 @@ class InventoryStore:
             if not purchase_id:
                 continue
             previous = existing_by_id.get(purchase_id)
+            self._record_purchase_change_history(
+                connection,
+                previous=previous,
+                current=purchase,
+                actor=actor,
+            )
             if not previous:
                 continue
             previous_status = str(previous.get("status") or "draft")
@@ -8944,6 +9851,20 @@ class InventoryStore:
                     action="status-change",
                     actor=actor,
                     message=f"Trạng thái phiếu nhập đổi từ {previous_status} sang {next_status}.",
+                )
+            previous_payment_method = str(previous.get("paymentMethod") or previous.get("payment_method") or "").strip()
+            next_payment_method = str(purchase.get("paymentMethod") or purchase.get("payment_method") or "").strip()
+            previous_paid_at = str(previous.get("paidAt") or previous.get("paid_at") or "").strip()
+            next_paid_at = str(purchase.get("paidAt") or purchase.get("paid_at") or "").strip()
+            if previous_payment_method != next_payment_method or previous_paid_at != next_paid_at:
+                self._record_audit(
+                    connection,
+                    entity_type="purchase",
+                    entity_id=purchase_id,
+                    entity_name=str(purchase.get("receiptCode") or purchase_id),
+                    action="payment-status",
+                    actor=actor,
+                    message="Đã cập nhật thanh toán phiếu nhập.",
                 )
 
     def _validate_cart_workflow_locks(

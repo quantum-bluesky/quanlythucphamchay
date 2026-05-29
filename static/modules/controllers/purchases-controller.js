@@ -78,6 +78,111 @@ export function registerPurchasesControllerEvents(contract) {
     ].join("\n");
   }
 
+  function normalizeLookup(value) {
+    return String(value || "").trim().toLocaleLowerCase("vi");
+  }
+
+  function syncQuickPurchaseDraftFromInputs() {
+    if (!dom.quickPurchasePanel) {
+      return;
+    }
+    state.quickPurchaseDraft.supplierText = String(dom.quickPurchasePanel.querySelector("#quickPurchaseSupplierInput")?.value || "").trim();
+    state.quickPurchaseDraft.documentDate = String(dom.quickPurchasePanel.querySelector("#quickPurchaseDateInput")?.value || "").trim();
+    state.quickPurchaseDraft.note = String(dom.quickPurchasePanel.querySelector("#quickPurchaseNoteInput")?.value || "").trim();
+    state.quickPurchaseDraft.productText = String(dom.quickPurchasePanel.querySelector("#quickPurchaseProductInput")?.value || "").trim();
+    state.quickPurchaseDraft.quantity = String(dom.quickPurchasePanel.querySelector("#quickPurchaseQuantityInput")?.value || "").trim() || "1";
+    state.quickPurchaseDraft.unitCost = String(dom.quickPurchasePanel.querySelector("#quickPurchaseUnitCostInput")?.value || "").trim();
+    const selectedStatus = dom.quickPurchasePanel.querySelector('input[name="quickPurchaseFinalStatus"]:checked');
+    state.quickPurchaseDraft.finalStatus = selectedStatus?.value || "received";
+    state.quickPurchaseDraft.markPaid = Boolean(dom.quickPurchasePanel.querySelector("#quickPurchaseMarkPaidInput")?.checked);
+  }
+
+  function resolveQuickPurchaseProduct() {
+    const draft = state.quickPurchaseDraft || {};
+    const normalizedText = normalizeLookup(draft.productText);
+    if (!normalizedText) {
+      return null;
+    }
+    const exactMatch = state.products.find((product) => normalizeLookup(product.name) === normalizedText);
+    if (exactMatch) {
+      return exactMatch;
+    }
+    const partialMatches = state.products.filter((product) => normalizeLookup(product.name).includes(normalizedText));
+    return partialMatches.length === 1 ? partialMatches[0] : null;
+  }
+
+  function addQuickPurchaseItem() {
+    syncQuickPurchaseDraftFromInputs();
+    const draft = state.quickPurchaseDraft || {};
+    const product = resolveQuickPurchaseProduct();
+    if (!product) {
+      actions.showToast("Chọn đúng sản phẩm để thêm vào nhập nhanh.", true);
+      return;
+    }
+    const quantity = Number(draft.quantity || 0);
+    const unitCost = Number(draft.unitCost || product.price || 0);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      actions.showToast("Số lượng phải lớn hơn 0.", true);
+      return;
+    }
+    if (!Number.isFinite(unitCost) || unitCost < 0) {
+      actions.showToast("Giá nhập không hợp lệ.", true);
+      return;
+    }
+    const existing = (draft.items || []).find((item) => Number(item.productId) === Number(product.id));
+    if (existing) {
+      existing.quantity = Number((Number(existing.quantity || 0) + quantity).toFixed(2));
+      existing.unitCost = Number(unitCost.toFixed(2));
+      existing.productName = product.name;
+    } else {
+      draft.items.push({
+        productId: Number(product.id),
+        productName: product.name,
+        quantity: Number(quantity.toFixed(2)),
+        unitCost: Number(unitCost.toFixed(2)),
+      });
+    }
+    draft.productText = "";
+    draft.quantity = "1";
+    draft.unitCost = "";
+    draft.lastResult = null;
+    renderers.renderQuickPurchasePanel();
+    utils.syncPriceWarningGroup(dom.quickPurchasePanel?.querySelector("[data-price-warning-group]"));
+    dom.quickPurchasePanel?.querySelector("#quickPurchaseProductInput")?.focus();
+  }
+
+  async function submitQuickPurchase() {
+    syncQuickPurchaseDraftFromInputs();
+    const draft = state.quickPurchaseDraft || {};
+    if (!String(draft.supplierText || "").trim()) {
+      actions.showToast("Nhà cung cấp là bắt buộc.", true);
+      return;
+    }
+    if (!Array.isArray(draft.items) || !draft.items.length) {
+      actions.showToast("Cần ít nhất 1 mặt hàng để nhập nhanh.", true);
+      return;
+    }
+    const hasZeroPrice = draft.items.some((item) => Number(item.unitCost || 0) <= 0);
+    if (hasZeroPrice && !window.confirm("Có mặt hàng giá nhập bằng 0. Vẫn lưu phiếu nhập nhanh?")) {
+      return;
+    }
+    const data = await actions.createQuickPurchaseDocument({
+      supplier_name: draft.supplierText,
+      document_date: draft.documentDate,
+      note: draft.note,
+      items: draft.items.map((item) => ({
+        product_id: item.productId,
+        quantity: item.quantity,
+        unit_cost: item.unitCost,
+      })),
+      final_status: draft.finalStatus,
+      mark_paid: Boolean(draft.markPaid && draft.finalStatus === "received"),
+    });
+    state.quickPurchaseDraft.lastResult = data.quick_summary || null;
+    renderers.renderQuickPurchasePanel();
+    actions.showToast(data.message || "Đã lưu nhập nhanh.");
+  }
+
   async function markSelectedPurchasesOrdered() {
     const selectedIds = (Array.isArray(state.selectedPurchaseMergeIds) ? state.selectedPurchaseMergeIds : [])
       .map((id) => String(id || "").trim())
@@ -258,6 +363,73 @@ export function registerPurchasesControllerEvents(contract) {
     if (!state.purchasePanelCollapsed) {
       actions.focusPurchasePanel();
     }
+  });
+
+  dom.quickPurchasePanel?.addEventListener("click", async (event) => {
+    const actionButton = event.target.closest("[data-quick-purchase-action]");
+    if (!actionButton) {
+      return;
+    }
+    const action = actionButton.dataset.quickPurchaseAction;
+    try {
+      if (action === "add-item") {
+        addQuickPurchaseItem();
+        return;
+      }
+      if (action === "remove-item") {
+        syncQuickPurchaseDraftFromInputs();
+        const index = Number(actionButton.dataset.itemIndex || -1);
+        if (index >= 0) {
+          state.quickPurchaseDraft.items.splice(index, 1);
+          state.quickPurchaseDraft.lastResult = null;
+          renderers.renderQuickPurchasePanel();
+        }
+        return;
+      }
+      if (action === "submit") {
+        await submitQuickPurchase();
+        return;
+      }
+      if (action === "continue") {
+        actions.resetQuickPurchaseDraft();
+        renderers.renderQuickPurchasePanel();
+        return;
+      }
+      if (action === "view-document") {
+        const documentId = String(actionButton.dataset.documentId || "").trim();
+        if (!documentId) {
+          return;
+        }
+        state.activePurchaseId = documentId;
+        state.purchasePanelCollapsed = false;
+        state.purchaseDetailExpanded = true;
+        actions.saveAndRenderAll();
+        actions.focusPurchasePanel();
+        return;
+      }
+      if (action === "open-list") {
+        actions.focusPurchaseOrders();
+        return;
+      }
+      if (action === "use-active-purchase") {
+        actions.cloneActivePurchaseIntoQuickPurchaseDraft();
+        renderers.renderQuickPurchasePanel();
+        return;
+      }
+      if (action === "open-products") {
+        actions.switchMenu("products");
+      }
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
+
+  dom.quickPurchasePanel?.addEventListener("change", (event) => {
+    if (!event.target.closest("#quickPurchasePanel")) {
+      return;
+    }
+    syncQuickPurchaseDraftFromInputs();
+    renderers.renderQuickPurchasePanel();
   });
 
   dom.purchaseSupplierInput.addEventListener("change", () => {

@@ -123,6 +123,30 @@ Nếu cần can thiệp đặc biệt
 - khi gộp nhiều phiếu xuất cùng khách, phiếu đích sẽ hợp nhất `ghi chú phiếu xuất` theo danh sách duy nhất ngăn bằng ` | `
 - đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; ngoại lệ trước thanh toán là vẫn cho sửa `ghi chú phiếu xuất` và `giảm giá khuyến mại` của toàn đơn
 
+### Luồng xử lý nhanh xuất hàng
+
+- card `Xử lý nhanh` nằm ngay trong màn `create-order`; đây là luồng tạo một phiếu xuất đã xử lý xong ngoài thực tế rồi mới ghi lại vào app
+- flow này không thay thế `draft -> committed -> completed -> paid`; nó chỉ tự chạy nhanh các bước sẵn có trên một màn và lưu một lần
+- user nhập `khách / ngày xuất / ghi chú / mặt hàng`; sau khi chọn khách, UI ưu tiên đưa focus sang khu vực thêm hàng để thao tác nhanh trên mobile
+- mỗi dòng hàng hiển thị `số lượng / giá bán / thành tiền / tồn hiện tại`
+- validation:
+  - bắt buộc có khách
+  - bắt buộc có ít nhất một dòng hàng
+  - số lượng phải `> 0`
+  - nếu giá bán bằng `0` hoặc bỏ trống thì UI chỉ cảnh báo/confirm theo rule hiện tại
+  - nếu số lượng xuất vượt tồn hiện tại thì chặn lưu; Issue này chưa mở nhánh override theo quyền riêng
+- trạng thái cuối cùng chỉ dùng trạng thái sẵn có của repo:
+  - chọn `Chỉ chốt đơn` -> tạo phiếu `committed`, chưa trừ tồn
+  - chọn `Đã xuất hàng` -> tạo phiếu `completed`, trừ tồn và ghi stock movement `OUT`
+  - chọn `Đã xuất hàng` + `Đã thanh toán luôn` -> tạo phiếu `paid`, vẫn đi nội bộ qua `draft -> committed -> completed -> paid`
+- mọi phiếu tạo từ flow này đều gắn `created_mode = quick_export`
+- audit/history phải ghi rõ `Tạo bằng Xử lý nhanh xuất hàng`, người thực hiện, thời gian thực hiện và các bước tự động đã chạy
+- sau khi lưu thành công, card hiển thị summary `mã phiếu / số mặt hàng / tổng tiền / trạng thái / thanh toán` cùng CTA `Tiếp tục xuất nhanh / Xem phiếu / Về danh sách`
+- shortcut hiện có trong card:
+  - `Lấy từ đơn đang mở`
+  - `Thêm hàng mới`
+- flow `bulk-orders` vẫn là luồng khác để tạo nhiều đơn cùng lúc; không dùng chung dữ liệu trạng thái với card `Xử lý nhanh`
+
 ### Luồng tạo nhiều đơn mobile-first
 
 - màn `bulk-orders` vừa là chỗ nhập nhanh nhiều cart, vừa có thêm lớp request approval khi login bật cho user không có quyền `order_batch_manage`
@@ -205,6 +229,28 @@ ordered -> cancelled
 - flow `gộp đơn` phiếu nhập giữ lại một phiếu đích, dồn tất cả dòng hàng và giảm giá vào phiếu đó, hợp nhất `ghi chú` theo danh sách duy nhất ngăn bằng ` | `, rồi chuyển các phiếu nguồn sang `cancelled`
 - khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `draft/ordered`; user khác chỉ được đi tiếp `ordered -> received` nếu phiếu không phải batch và đã `ordered` trước lúc lock hiện tại được acquire, rồi mới đi tiếp `received -> paid`
 - trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
+
+### Luồng xử lý nhanh nhập hàng
+
+- card `Xử lý nhanh` nằm ngay trong màn `purchases`; đây là luồng ghi nhanh một phiếu nhập đã đặt/nhận hàng xong ngoài thực tế rồi mới cập nhật app
+- flow này không thay thế `draft -> ordered -> received -> paid`; nó chỉ gom thao tác vào một màn và tự đi các bước nội bộ cần thiết
+- user nhập `NCC / ngày nhập / ghi chú / mặt hàng`; sau khi chọn NCC, UI ưu tiên đưa focus sang khu vực thêm hàng
+- mỗi dòng hàng hiển thị `số lượng / giá nhập / thành tiền`
+- validation:
+  - bắt buộc có NCC
+  - bắt buộc có ít nhất một dòng hàng
+  - số lượng phải `> 0`
+  - nếu giá nhập bằng `0` hoặc bỏ trống thì UI chỉ cảnh báo/confirm theo rule hiện tại
+- trạng thái cuối cùng chỉ dùng trạng thái sẵn có của repo:
+  - chọn `Chỉ đặt hàng` -> tạo phiếu `ordered`, chưa cộng tồn
+  - chọn `Đã nhập hàng` -> tạo phiếu `received`, cộng tồn và ghi stock movement `IN`
+  - chọn `Đã nhập hàng` + `Đã thanh toán luôn` -> tạo phiếu `paid`, vẫn đi nội bộ qua `draft -> ordered -> received -> paid`
+- mọi phiếu tạo từ flow này đều gắn `created_mode = quick_import`
+- audit/history phải ghi rõ `Tạo bằng Xử lý nhanh nhập hàng`, người thực hiện, thời gian thực hiện và các bước tự động đã chạy
+- sau khi lưu thành công, card hiển thị summary `mã phiếu / số mặt hàng / tổng tiền / trạng thái / thanh toán` cùng CTA `Tiếp tục nhập nhanh / Xem phiếu / Về danh sách`
+- shortcut hiện có trong card:
+  - `Lấy từ phiếu đang mở`
+  - `Thêm hàng mới`
 
 ## 4A. Luồng quản lý thanh toán đơn giản
 

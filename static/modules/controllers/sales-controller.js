@@ -114,6 +114,117 @@ export function registerSalesControllerEvents(contract) {
     return String(value || "").trim().toLocaleLowerCase("vi");
   }
 
+  function normalizeLookup(value) {
+    return String(value || "").trim().toLocaleLowerCase("vi");
+  }
+
+  function syncQuickSaleDraftFromInputs() {
+    if (!dom.quickSalePanel) {
+      return;
+    }
+    state.quickSaleDraft.customerText = String(dom.quickSalePanel.querySelector("#quickSaleCustomerInput")?.value || "").trim();
+    state.quickSaleDraft.documentDate = String(dom.quickSalePanel.querySelector("#quickSaleDateInput")?.value || "").trim();
+    state.quickSaleDraft.note = String(dom.quickSalePanel.querySelector("#quickSaleNoteInput")?.value || "").trim();
+    state.quickSaleDraft.productText = String(dom.quickSalePanel.querySelector("#quickSaleProductInput")?.value || "").trim();
+    state.quickSaleDraft.quantity = String(dom.quickSalePanel.querySelector("#quickSaleQuantityInput")?.value || "").trim() || "1";
+    state.quickSaleDraft.unitPrice = String(dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput")?.value || "").trim();
+    const selectedStatus = dom.quickSalePanel.querySelector('input[name="quickSaleFinalStatus"]:checked');
+    state.quickSaleDraft.finalStatus = selectedStatus?.value || "completed";
+    state.quickSaleDraft.markPaid = Boolean(dom.quickSalePanel.querySelector("#quickSaleMarkPaidInput")?.checked);
+  }
+
+  function resolveQuickSaleProduct() {
+    const draft = state.quickSaleDraft || {};
+    const normalizedText = normalizeLookup(draft.productText);
+    if (!normalizedText) {
+      return null;
+    }
+    const exactMatch = state.products.find((product) => normalizeLookup(product.name) === normalizedText);
+    if (exactMatch) {
+      return exactMatch;
+    }
+    const partialMatches = state.products.filter((product) => normalizeLookup(product.name).includes(normalizedText));
+    return partialMatches.length === 1 ? partialMatches[0] : null;
+  }
+
+  function addQuickSaleItem() {
+    syncQuickSaleDraftFromInputs();
+    const draft = state.quickSaleDraft || {};
+    const product = resolveQuickSaleProduct();
+    if (!product) {
+      actions.showToast("Chọn đúng sản phẩm để thêm vào xuất nhanh.", true);
+      return;
+    }
+    const quantity = Number(draft.quantity || 0);
+    const unitPrice = Number(draft.unitPrice || product.sale_price || 0);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      actions.showToast("Số lượng phải lớn hơn 0.", true);
+      return;
+    }
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      actions.showToast("Giá bán không hợp lệ.", true);
+      return;
+    }
+    const existing = (draft.items || []).find((item) => Number(item.productId) === Number(product.id));
+    if (existing) {
+      existing.quantity = Number((Number(existing.quantity || 0) + quantity).toFixed(2));
+      existing.unitPrice = Number(unitPrice.toFixed(2));
+      existing.productName = product.name;
+    } else {
+      draft.items.push({
+        productId: Number(product.id),
+        productName: product.name,
+        quantity: Number(quantity.toFixed(2)),
+        unitPrice: Number(unitPrice.toFixed(2)),
+      });
+    }
+    draft.productText = "";
+    draft.quantity = "1";
+    draft.unitPrice = "";
+    draft.lastResult = null;
+    renderers.renderQuickSalePanel();
+    utils.syncPriceWarningGroup(dom.quickSalePanel?.querySelector("[data-price-warning-group]"));
+    dom.quickSalePanel?.querySelector("#quickSaleProductInput")?.focus();
+  }
+
+  async function submitQuickSale() {
+    syncQuickSaleDraftFromInputs();
+    const draft = state.quickSaleDraft || {};
+    if (!String(draft.customerText || "").trim()) {
+      actions.showToast("Khách hàng là bắt buộc.", true);
+      return;
+    }
+    if (!Array.isArray(draft.items) || !draft.items.length) {
+      actions.showToast("Cần ít nhất 1 mặt hàng để xuất nhanh.", true);
+      return;
+    }
+    const overStockItem = draft.items.find((item) => Number(item.quantity || 0) > Number(queries.getProductById(item.productId)?.current_stock || 0));
+    if (overStockItem) {
+      const product = queries.getProductById(overStockItem.productId);
+      actions.showToast(`Không đủ tồn để xuất ${product?.name || "mặt hàng đã chọn"}.`, true);
+      return;
+    }
+    const hasZeroPrice = draft.items.some((item) => Number(item.unitPrice || 0) <= 0);
+    if (hasZeroPrice && !window.confirm("Có mặt hàng giá bán bằng 0. Vẫn lưu phiếu xuất nhanh?")) {
+      return;
+    }
+    const data = await actions.createQuickSaleDocument({
+      customer_name: draft.customerText,
+      document_date: draft.documentDate,
+      note: draft.note,
+      items: draft.items.map((item) => ({
+        product_id: item.productId,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+      })),
+      final_status: draft.finalStatus,
+      mark_paid: Boolean(draft.markPaid && draft.finalStatus === "completed"),
+    });
+    state.quickSaleDraft.lastResult = data.quick_summary || null;
+    renderers.renderQuickSalePanel();
+    actions.showToast(data.message || "Đã lưu xuất nhanh.");
+  }
+
   function findExistingDraftForSameCustomer(sourceCart) {
     const sourceCartId = String(sourceCart?.id || "").trim();
     const customerId = String(sourceCart?.customerId || "").trim();
@@ -167,6 +278,73 @@ export function registerSalesControllerEvents(contract) {
     } catch (error) {
       actions.showToast(error.message, true);
     }
+  });
+
+  dom.quickSalePanel?.addEventListener("click", async (event) => {
+    const actionButton = event.target.closest("[data-quick-sale-action]");
+    if (!actionButton) {
+      return;
+    }
+    const action = actionButton.dataset.quickSaleAction;
+    try {
+      if (action === "add-item") {
+        addQuickSaleItem();
+        return;
+      }
+      if (action === "remove-item") {
+        syncQuickSaleDraftFromInputs();
+        const index = Number(actionButton.dataset.itemIndex || -1);
+        if (index >= 0) {
+          state.quickSaleDraft.items.splice(index, 1);
+          state.quickSaleDraft.lastResult = null;
+          renderers.renderQuickSalePanel();
+        }
+        return;
+      }
+      if (action === "submit") {
+        await submitQuickSale();
+        return;
+      }
+      if (action === "continue") {
+        actions.resetQuickSaleDraft();
+        renderers.renderQuickSalePanel();
+        return;
+      }
+      if (action === "view-document") {
+        const documentId = String(actionButton.dataset.documentId || "").trim();
+        if (!documentId) {
+          return;
+        }
+        state.activeCartId = documentId;
+        state.expandedOrderId = documentId;
+        actions.switchMenu("orders");
+        actions.saveAndRenderAll();
+        actions.focusOrderDetailPanel();
+        return;
+      }
+      if (action === "open-list") {
+        actions.switchMenu("orders");
+        return;
+      }
+      if (action === "use-active-cart") {
+        actions.cloneActiveCartIntoQuickSaleDraft();
+        renderers.renderQuickSalePanel();
+        return;
+      }
+      if (action === "open-products") {
+        actions.switchMenu("products");
+      }
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
+
+  dom.quickSalePanel?.addEventListener("change", (event) => {
+    if (!event.target.closest("#quickSalePanel")) {
+      return;
+    }
+    syncQuickSaleDraftFromInputs();
+    renderers.renderQuickSalePanel();
   });
 
   dom.salesNoteInput?.addEventListener("change", () => {

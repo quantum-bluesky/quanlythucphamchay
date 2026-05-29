@@ -179,6 +179,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - header đơn hàng nháp / đã chốt / đã xuất
 - cột chính:
   - `id`, `customer_id`, `customer_name`
+  - `created_mode`: `normal` hoặc `quick_export`
   - `status`, `payment_status`, `payment_method`, `payment_note`, `note`, `discount_amount`
   - `ship_address`
   - `created_at`, `updated_at`, `committed_at`, `completed_at`, `cancelled_at`, `paid_at`
@@ -193,6 +194,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - `committed_at` là mốc đơn được chốt để giữ hàng logic trước khi xuất thật
 - `payment_status` vẫn chỉ là cờ đơn giản `unpaid/paid` cho mỗi đơn; phase này chưa tách bảng transaction thanh toán riêng
 - `payment_method`, `payment_note`, `paid_at` lưu metadata thanh toán một lần để màn `payments` và detail đơn hàng dùng chung
+- `created_mode` dùng để phân biệt đơn đi theo flow chuẩn hay được tạo từ card `Xử lý nhanh xuất hàng`; không tạo thêm trạng thái mới
 - khả dụng để `commit` được suy ra từ `tồn hiện tại + số lượng của phiếu nhập ordered - phần đã giữ cho các đơn committed khác`; bước `ship` vẫn chỉ dựa trên tồn vật lý đã nhập kho
 - `status` hiện dùng theo workflow:
   - `draft`: đơn nháp
@@ -264,7 +266,8 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 ### Vai trò nghiệp vụ bổ sung cho audit timeline
 
 - endpoint history chỉ nạp khi user mở popup `Lịch sử`, nên không làm nặng list đơn hiện tại
-- log phải đủ để truy ra các mốc chính như `tạo request`, `approve`, `reject`, `process`, `đổi trạng thái đơn`, `sửa địa chỉ giao`, `sửa giảm giá`, `sửa dòng hàng`
+- log phải đủ để truy ra các mốc chính như `tạo request`, `approve`, `reject`, `process`, `đổi trạng thái đơn`, `đổi trạng thái phiếu nhập`, `cập nhật thanh toán`, `sửa địa chỉ giao`, `sửa giảm giá`, `sửa dòng hàng`
+- với chứng từ tạo bằng card `Xử lý nhanh`, note history phải ghi rõ `Tạo bằng Xử lý nhanh ...` và từng bước tự động như `draft -> committed -> completed` hoặc `draft -> ordered -> received -> paid`
 - `metadata_json` giữ chỗ cho các domain khác tái dùng sau này mà không cần thay schema ngay
 
 ### `purchases`
@@ -272,6 +275,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - header phiếu nhập
 - cột chính:
 - `id`, `supplier_id`, `supplier_name`
+- `created_mode`: `normal` hoặc `quick_import`
 - `note`, `source_type`, `source_code`, `source_name`, `status`, `payment_method`, `payment_note`, `discount_amount`
 - `created_at`, `updated_at`, `ordered_at`, `received_at`, `paid_at`
 - `receipt_code`
@@ -282,6 +286,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - không đổi tồn kho đã nhận hay từng dòng nhập, chỉ ảnh hưởng số tiền thực trả NCC và báo cáo chi nhập net
 - `status = paid` vẫn là cờ thanh toán đơn giản ở cấp phiếu; chưa có bảng lịch sử nhiều lần trả tiền
 - `payment_method`, `payment_note`, `paid_at` lưu metadata thanh toán một lần để màn `payments` và detail phiếu nhập dùng chung
+- `created_mode` dùng để phân biệt phiếu đi theo flow chuẩn hay được tạo từ card `Xử lý nhanh nhập hàng`; không tạo thêm trạng thái mới
 - `ordered_at` giữ mốc phiếu chuyển sang `ordered` lần đầu để các rule batch mode vẫn nhận diện đúng phiếu đã đặt từ trước, kể cả khi owner/admin sửa phiếu sau đó làm `updated_at` thay đổi
 - với DB cũ chưa có `ordered_at`, migration sẽ ưu tiên backfill từ audit status-change; nếu vẫn không có dấu vết đặt hàng thì chỉ fallback về `created_at` cho các phiếu còn dấu hiệu đã đi vào nhánh `ordered/received/paid`
 - phiếu `draft -> cancelled` chưa từng qua `ordered` không được tự sinh `ordered_at` chỉ vì đang ở trạng thái `cancelled`

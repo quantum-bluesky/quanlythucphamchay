@@ -52,6 +52,7 @@ export const createNewCartButton = document.getElementById("createNewCartButton"
 export const draftCartBadge = document.getElementById("draftCartBadge");
 export const salesSearchInput = document.getElementById("salesSearchInput");
 export const salesProductList = document.getElementById("salesProductList");
+export const quickSalePanel = document.getElementById("quickSalePanel");
 export const activeCartPanel = document.getElementById("activeCartPanel");
 export const bulkCustomerLookupInput = document.getElementById("bulkCustomerLookupInput");
 export const bulkAddCustomerButton = document.getElementById("bulkAddCustomerButton");
@@ -108,6 +109,7 @@ export const purchaseSupplierInput = document.getElementById("purchaseSupplierIn
 export const purchaseNoteInput = document.getElementById("purchaseNoteInput");
 export const createPurchaseDraftButton = document.getElementById("createPurchaseDraftButton");
 export const togglePurchasePanelButton = document.getElementById("togglePurchasePanelButton");
+export const quickPurchasePanel = document.getElementById("quickPurchasePanel");
 export const purchasePanel = document.getElementById("purchasePanel");
 export const purchaseSupplierMenuButton = document.querySelector('.purchases-panel [data-go-menu="suppliers"]');
 export const purchaseSearchInput = document.getElementById("purchaseSearchInput");

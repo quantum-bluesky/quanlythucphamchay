@@ -14,7 +14,7 @@
     <body>
         <nav class="left">
             <ul>
-<li><a href="README.md">Trang chủ</a></li>
+<li><a href="../">Trang chủ</a></li>
 <li><a class="active" href=".">Hướng dẫn</a></li>
 </ul>
         </nav>
@@ -27,6 +27,7 @@
 <li><a href="#21-viet-tat-man-hinh">2.1. Viết tắt màn hình</a></li>
 <li><a href="#3-luong-lam-viec-hang-ngay">3. Luồng làm việc hằng ngày</a><ul>
 <li><a href="#luong-a-kiem-tra-ton-kho-au-ngay">Luồng A: Kiểm tra tồn kho đầu ngày</a></li>
+<li><a href="#luong-a1-kiem-tra-lich-su-bien-ong-cua-mot-san-pham">Luồng A1: Kiểm tra lịch sử biến động của một sản phẩm</a></li>
 </ul>
 </li>
 <li><a href="#4-luong-ban-hang-cho-khach">4. Luồng bán hàng cho khách</a><ul>
@@ -35,6 +36,7 @@
 <li><a href="#buoc-3-sua-so-luong-va-gia-ban">Bước 3: Sửa số lượng và giá bán</a></li>
 <li><a href="#buoc-4-chot-on">Bước 4: Chốt đơn</a></li>
 <li><a href="#buoc-5-xuat-hang">Bước 5: Xuất hàng</a></li>
+<li><a href="#xu-ly-nhanh-xuat-hang">Xử lý nhanh xuất hàng</a></li>
 <li><a href="#man-tao-nhieu-on-mobile-first">Màn tạo nhiều đơn mobile-first</a></li>
 </ul>
 </li>
@@ -52,6 +54,7 @@
 </li>
 <li><a href="#8-luong-nhap-hang">8. Luồng nhập hàng</a><ul>
 <li><a href="#luong-nhap-hang-chuan">Luồng nhập hàng chuẩn</a></li>
+<li><a href="#xu-ly-nhanh-nhap-hang">Xử lý nhanh nhập hàng</a></li>
 <li><a href="#y-nghia-trang-thai-phieu-nhap">Ý nghĩa trạng thái phiếu nhập</a></li>
 </ul>
 </li>
@@ -173,8 +176,11 @@
 <li>Nếu cần xử lý một mặt hàng:</li>
 <li>bấm <code>Xuất</code> để sang đơn chờ xuất hoặc tạo luồng xuất mới</li>
 <li>bấm <code>Nhập</code> để sang phiếu nhập chờ hoặc tạo phiếu nhập mới</li>
-<li>Nếu cần đối chiếu nhập/xuất mới nhất, bấm <code>Lịch sử</code> để nhảy nhanh xuống khối <code>Lịch sử gần đây</code>; khối này mặc định thu gọn nên có thể bấm <code>Mở lịch sử</code> để bung ra</li>
-<li>Với các dòng lịch sử có mã <code>DH/PN/DC/THK/TNCC</code>, bấm trực tiếp vào mã để mở đúng đơn hoặc phiếu liên quan</li>
+<li>Nếu cần điều tra lệch tồn của một mặt hàng, bấm <code>Lịch sử biến động</code> ở đầu màn để mở màn tra cứu riêng</li>
+<li>Nếu đang đứng trên đúng card sản phẩm nghi ngờ lệch tồn, bấm <code>Detail</code> rồi chọn <code>Xem lịch sử</code>; app sẽ mở màn mới và chọn sẵn sản phẩm đó</li>
+<li>Ở màn <code>Lịch sử biến động sản phẩm</code>, chọn thêm <code>Từ ngày / Đến ngày / Loại biến động / Từ khóa</code> nếu cần để đối chiếu theo đúng khoảng thời gian</li>
+<li>Kiểm tra phần summary gồm <code>Tồn đầu kỳ</code>, <code>Tổng nhập</code>, <code>Tổng xuất</code>, <code>Tồn cuối kỳ</code>, <code>Tồn hệ thống</code> và <code>Chênh lệch</code></li>
+<li>Với các dòng có mã <code>DH/PN/DC/THK/TNCC</code>, bấm trực tiếp vào mã để mở đúng đơn hoặc phiếu liên quan</li>
 </ol>
 <p>Lưu ý:</p>
 <ul>
@@ -185,6 +191,34 @@
 <li>sort <code>Ưu tiên nhập/xử lý</code> dùng sức bán đã chuẩn hóa theo ngưỡng tồn và mức thiếu hàng, không so sánh thô theo số lượng tuyệt đối giữa các sản phẩm</li>
 <li>sort <code>Hạn còn ít</code> ưu tiên theo HSD thật của từng lô còn hàng; nếu mặt hàng chưa có lô nào có HSD thì app mới fallback về ước tính từ metadata sản phẩm</li>
 <li>nếu máy khác vừa nhập hoặc xuất hàng, trạng thái tồn kho sẽ tự cập nhật lại khi màn hình đang rảnh</li>
+</ul>
+<h3 id="luong-a1-kiem-tra-lich-su-bien-ong-cua-mot-san-pham"><a class="toclink" href="#luong-a1-kiem-tra-lich-su-bien-ong-cua-mot-san-pham">Luồng A1: Kiểm tra lịch sử biến động của một sản phẩm</a></h3>
+<p>Vào bằng một trong hai cách:</p>
+<pre><code class="language-text">1. Từ màn Kiểm tra tồn kho -&gt; bấm Lịch sử biến động
+2. Từ card sản phẩm -&gt; Detail -&gt; Xem lịch sử
+</code></pre>
+<p>Thực hiện:</p>
+<ol>
+<li>Chọn đúng sản phẩm cần kiểm tra</li>
+<li>Nhập <code>Từ ngày</code> nếu muốn rà theo kỳ; <code>Đến ngày</code> để trống thì app tự lấy hôm nay</li>
+<li>Chọn <code>Tất cả / Nhập / Xuất</code> nếu cần tách riêng một chiều biến động</li>
+<li>Có thể nhập thêm từ khóa như mã đơn, mã phiếu, khách hàng, nhà cung cấp hoặc ghi chú</li>
+<li>Xem phần summary:</li>
+<li><code>Tồn đầu kỳ</code></li>
+<li><code>Tổng nhập</code></li>
+<li><code>Tổng xuất</code></li>
+<li><code>Tồn cuối kỳ</code></li>
+<li><code>Tồn hệ thống</code></li>
+<li><code>Chênh lệch</code></li>
+<li>Xem danh sách chi tiết theo thứ tự ngày tăng dần; mỗi dòng có <code>Tồn sau giao dịch</code> để dò lại từng bước</li>
+<li>Nếu màn báo <code>OK - Tồn tính toán khớp với hệ thống.</code> thì số tính toán đang khớp với tồn hiện tại</li>
+<li>Nếu màn báo <code>Cảnh báo - Tồn tính toán không khớp với tồn hiện tại trên hệ thống...</code> thì cần mở lại các phiếu liên quan để kiểm tra</li>
+</ol>
+<p>Lưu ý:</p>
+<ul>
+<li>màn này chỉ đọc dữ liệu, không sửa/xóa trực tiếp giao dịch cũ</li>
+<li>nếu chọn <code>Đến ngày</code> là ngày quá khứ, app chỉ hiển thị tồn cuối kỳ tính toán và không so sánh với tồn hiện tại</li>
+<li>nếu chưa chọn sản phẩm, màn sẽ nhắc <code>Vui lòng chọn sản phẩm để xem lịch sử biến động.</code></li>
 </ul>
 <h2 id="4-luong-ban-hang-cho-khach"><a class="toclink" href="#4-luong-ban-hang-cho-khach">4. Luồng bán hàng cho khách</a></h2>
 <p>Vào menu:</p>
@@ -276,6 +310,23 @@
 <li>với <code>Master Admin</code>, hệ thống mới cho phép chọn sang màn tồn kho để chỉnh trực tiếp nếu thực sự cần</li>
 <li>nếu đang bật kỳ gom nhập, app sẽ không tạo phiếu nhập tự động theo từng đơn; app chuyển sang màn <code>Xử lý nhập thiếu</code> để người giữ khóa xử lý tập trung</li>
 <li>nếu cần đối chiếu nhanh metadata phiếu xuất hiện hành, bấm <code>Detail</code> trong khối <code>Giỏ hiện hành</code></li>
+</ul>
+<h3 id="xu-ly-nhanh-xuat-hang"><a class="toclink" href="#xu-ly-nhanh-xuat-hang">Xử lý nhanh xuất hàng</a></h3>
+<p>Ngay trong màn <code>Tạo đơn xuất hàng</code> có thêm card <code>Xử lý nhanh</code> dành cho tình huống hàng đã giao xong rồi mới ghi vào app:</p>
+<ol>
+<li>Nhập hoặc chọn khách hàng</li>
+<li>Chọn <code>Ngày xuất</code></li>
+<li>Thêm từng mặt hàng với <code>SL</code> và <code>Giá bán</code></li>
+<li>Chọn <code>Đã xuất hàng</code> hoặc <code>Chỉ chốt đơn</code></li>
+<li>Nếu khách đã trả đủ tiền, tick <code>Đã thanh toán luôn</code></li>
+<li>Bấm <code>Lưu xuất nhanh</code></li>
+</ol>
+<p>Kết quả:</p>
+<ul>
+<li><code>Chỉ chốt đơn</code>: hệ thống tạo phiếu ở trạng thái <code>Chốt đơn</code>, chưa trừ kho</li>
+<li><code>Đã xuất hàng</code>: hệ thống tự đi <code>draft -&gt; committed -&gt; completed</code>, trừ kho và ghi biến động <code>OUT</code></li>
+<li><code>Đã xuất hàng</code> + <code>Đã thanh toán luôn</code>: hệ thống tự đi <code>draft -&gt; committed -&gt; completed -&gt; paid</code></li>
+<li>phiếu được gắn <code>created_mode = quick_export</code> để phân biệt với flow chuẩn nhưng vẫn dùng cùng trạng thái cũ của hệ thống</li>
 </ul>
 <h3 id="man-tao-nhieu-on-mobile-first"><a class="toclink" href="#man-tao-nhieu-on-mobile-first">Màn tạo nhiều đơn mobile-first</a></h3>
 <p>Vào menu:</p>
@@ -459,6 +510,23 @@
 <li>Panel detail của phiếu nhập có nút <code>Previous / Next</code> để chuyển nhanh theo đúng danh sách phiếu đang lọc; nút <code>Đóng</code> chỉ ẩn detail, không làm mất filter/search</li>
 <li>Trước khi đổi trạng thái <code>Đã đặt hàng</code>, <code>Nhập kho</code>, <code>Đã thanh toán</code>, <code>Hủy phiếu</code> hoặc <code>Xóa phiếu</code>, app sẽ hiện message confirm để tránh thao tác nhầm</li>
 </ol>
+<h3 id="xu-ly-nhanh-nhap-hang"><a class="toclink" href="#xu-ly-nhanh-nhap-hang">Xử lý nhanh nhập hàng</a></h3>
+<p>Ngay trong màn <code>Nhập hàng</code> có thêm card <code>Xử lý nhanh</code> dành cho tình huống hàng đã nhận xong rồi mới ghi vào app:</p>
+<ol>
+<li>Nhập hoặc chọn nhà cung cấp</li>
+<li>Chọn <code>Ngày nhập</code></li>
+<li>Thêm từng mặt hàng với <code>SL</code> và <code>Giá nhập</code></li>
+<li>Chọn <code>Đã nhập hàng</code> hoặc <code>Chỉ đặt hàng</code></li>
+<li>Nếu đã trả đủ tiền, tick <code>Đã thanh toán luôn</code></li>
+<li>Bấm <code>Lưu nhập nhanh</code></li>
+</ol>
+<p>Kết quả:</p>
+<ul>
+<li><code>Chỉ đặt hàng</code>: hệ thống tạo phiếu ở trạng thái <code>Đã đặt</code>, chưa cộng kho</li>
+<li><code>Đã nhập hàng</code>: hệ thống tự đi <code>draft -&gt; ordered -&gt; received</code>, cộng kho và ghi biến động <code>IN</code></li>
+<li><code>Đã nhập hàng</code> + <code>Đã thanh toán luôn</code>: hệ thống tự đi <code>draft -&gt; ordered -&gt; received -&gt; paid</code></li>
+<li>phiếu được gắn <code>created_mode = quick_import</code> để phân biệt với flow chuẩn nhưng vẫn dùng cùng trạng thái cũ của hệ thống</li>
+</ul>
 <p>Nếu phiếu được tạo từ một đơn đang thiếu hàng:</p>
 <ul>
 <li>app giữ liên kết <code>đơn thiếu nguồn</code> ở phần <code>Detail</code></li>
@@ -754,7 +822,7 @@
 </ol>
 <h3 id="cuoi-ngay"><a class="toclink" href="#cuoi-ngay">Cuối ngày</a></h3>
 <ol>
-<li>Kiểm tra lại <code>Lịch sử gần đây</code></li>
+<li>Kiểm tra lại <code>Lịch sử biến động sản phẩm</code> cho các mặt hàng có nghi ngờ lệch tồn hoặc bán/nhập mạnh trong ngày</li>
 <li>Xem <code>Báo cáo tháng</code></li>
 <li>Ghi nhận mặt hàng bán mạnh để chuẩn bị nhập tiếp</li>
 </ol>
@@ -846,6 +914,13 @@
 <li>luôn backup trước khi restore</li>
 <li>chỉ dùng file backup đúng của hệ thống này</li>
 </ul>
+            
+            <div class="pagination">
+                
+                <a class="previous" href="../">← Trang chủ</a>
+                
+                
+            </div>
             
         </main>
     </body>

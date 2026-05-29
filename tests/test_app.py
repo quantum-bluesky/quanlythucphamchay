@@ -2255,6 +2255,176 @@ class InventoryStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Không đủ hàng để chốt đơn"):
             self.store.commit_cart_order("cart-ordered-cover-02", actor="tester")
 
+    def test_ut_quick_01_create_quick_purchase_ordered_does_not_increase_stock(self) -> None:
+        product = self.store.create_product(
+            name="Nhập nhanh đã đặt",
+            category="Đông lạnh",
+            unit="gói",
+            price=12000,
+            sale_price=18000,
+            low_stock_threshold=1,
+        )
+
+        result = self.store.create_quick_purchase(
+            supplier_name="NCC Nhập nhanh",
+            document_date="2026-05-20",
+            items=[{"product_id": product["id"], "quantity": 3, "unit_cost": 12500}],
+            final_status="ordered",
+            actor_username="tester",
+        )
+
+        self.assertEqual(result["purchase"]["status"], "ordered")
+        self.assertEqual(result["purchase"]["createdMode"], "quick_import")
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 0.0)
+        with self.store._connect() as connection:
+            transaction_count = connection.execute(
+                "SELECT COUNT(*) AS count FROM transactions WHERE product_id = ?",
+                (product["id"],),
+            ).fetchone()["count"]
+        self.assertEqual(transaction_count, 0)
+
+    def test_ut_quick_02_create_quick_purchase_paid_records_stock_and_history(self) -> None:
+        product = self.store.create_product(
+            name="Nhập nhanh đã trả",
+            category="Đông lạnh",
+            unit="gói",
+            price=15000,
+            sale_price=22000,
+            low_stock_threshold=1,
+        )
+
+        result = self.store.create_quick_purchase(
+            supplier_name="NCC Quick Paid",
+            document_date="2026-05-21",
+            note="Ghi cuối ngày",
+            items=[{"product_id": product["id"], "quantity": 4, "unit_cost": 15500}],
+            final_status="received",
+            mark_paid=True,
+            actor_username="tester",
+            actor_role="user",
+        )
+
+        purchase = result["purchase"]
+        self.assertEqual(purchase["status"], "paid")
+        self.assertEqual(purchase["createdMode"], "quick_import")
+        self.assertEqual(result["summary"]["payment_status"], "paid")
+        self.assertTrue(purchase["receiptCode"])
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 4.0)
+        history = self.store.get_purchase_change_history(purchase["id"], limit=10)
+        history_notes = " ".join(entry["note"] for entry in history)
+        self.assertIn("Tạo bằng Xử lý nhanh nhập hàng", history_notes)
+        self.assertIn("Nhập hàng hoàn tất", history_notes)
+        self.assertIn("Thanh toán phiếu nhập đã hoàn tất", history_notes)
+        with self.store._connect() as connection:
+            transaction_row = connection.execute(
+                """
+                SELECT note
+                FROM transactions
+                WHERE note LIKE ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (f"%{purchase['receiptCode']}%",),
+            ).fetchone()
+        self.assertIsNotNone(transaction_row)
+        self.assertIn("Tạo bằng Xử lý nhanh nhập hàng", transaction_row["note"])
+
+    def test_ut_quick_03_create_quick_sale_committed_does_not_decrease_stock(self) -> None:
+        product = self.store.create_product(
+            name="Xuất nhanh chốt đơn",
+            category="Đông lạnh",
+            unit="gói",
+            price=11000,
+            sale_price=17000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 5, "Tồn đầu quick sale committed")
+
+        result = self.store.create_quick_sale(
+            customer_name="Khách quick committed",
+            document_date="2026-05-22",
+            items=[{"product_id": product["id"], "quantity": 2, "unit_price": 17000}],
+            final_status="committed",
+            actor_username="tester",
+        )
+
+        self.assertEqual(result["cart"]["status"], "committed")
+        self.assertEqual(result["cart"]["createdMode"], "quick_export")
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 5.0)
+
+    def test_ut_quick_04_create_quick_sale_paid_records_stock_and_history(self) -> None:
+        product = self.store.create_product(
+            name="Xuất nhanh đã thu",
+            category="Đông lạnh",
+            unit="gói",
+            price=13000,
+            sale_price=19000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 6, "Tồn đầu quick sale paid")
+
+        result = self.store.create_quick_sale(
+            customer_name="Khách quick paid",
+            document_date="2026-05-23",
+            note="Khách lấy cuối ngày",
+            items=[{"product_id": product["id"], "quantity": 3, "unit_price": 19000}],
+            final_status="completed",
+            mark_paid=True,
+            actor_username="tester",
+        )
+
+        cart = result["cart"]
+        self.assertEqual(cart["status"], "completed")
+        self.assertEqual(cart["paymentStatus"], "paid")
+        self.assertEqual(cart["createdMode"], "quick_export")
+        self.assertEqual(result["summary"]["payment_status"], "paid")
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 3.0)
+        history = self.store.get_cart_change_history(cart["id"], limit=10)
+        history_notes = " ".join(entry["note"] for entry in history)
+        self.assertIn("Tạo bằng Xử lý nhanh xuất hàng", history_notes)
+        self.assertIn("Xuất hàng hoàn tất", history_notes)
+        with self.store._connect() as connection:
+            transaction_row = connection.execute(
+                """
+                SELECT note
+                FROM transactions
+                WHERE note LIKE ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (f"%{cart['orderCode']}%",),
+            ).fetchone()
+        self.assertIsNotNone(transaction_row)
+        self.assertIn("Tạo bằng Xử lý nhanh xuất hàng", transaction_row["note"])
+
+    def test_ut_quick_05_quick_documents_validate_required_party_and_stock(self) -> None:
+        product = self.store.create_product(
+            name="Quick validate",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=16000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 1, "Tồn đầu quick validate")
+
+        with self.assertRaisesRegex(ValueError, "Khách hàng là bắt buộc"):
+            self.store.create_quick_sale(
+                customer_name="",
+                items=[{"product_id": product["id"], "quantity": 1, "unit_price": 16000}],
+            )
+        with self.assertRaisesRegex(ValueError, "Nhà cung cấp là bắt buộc"):
+            self.store.create_quick_purchase(
+                supplier_name="",
+                items=[{"product_id": product["id"], "quantity": 1, "unit_cost": 10000}],
+            )
+        with self.assertRaisesRegex(ValueError, "Thiếu"):
+            self.store.create_quick_sale(
+                customer_name="Khách quá tồn",
+                items=[{"product_id": product["id"], "quantity": 2, "unit_price": 16000}],
+                final_status="completed",
+            )
+
     def test_ut_ord_17_bulk_create_orders_commit_valid_is_partial_and_idempotent(self) -> None:
         ok_product = self.store.create_product(
             name="Chả quế bulk",
