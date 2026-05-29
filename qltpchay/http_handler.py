@@ -307,6 +307,28 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 )
                 return
 
+            purchase_history_match = re.fullmatch(r"/api/purchases/([^/]+)/history", route)
+            if purchase_history_match:
+                query = parse_qs(parsed.query)
+                limit = query.get("limit", ["30"])[0]
+                purchase_id = purchase_history_match.group(1)
+                purchases = store.get_sync_state().get("purchases", [])
+                purchase = next(
+                    (entry for entry in purchases if str(entry.get("id") or "").strip() == str(purchase_id or "").strip()),
+                    None,
+                )
+                if not purchase:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Không tìm thấy phiếu nhập."})
+                    return
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "purchase": purchase,
+                        "history": store.get_purchase_change_history(purchase_id, limit=int(limit)),
+                    },
+                )
+                return
+
             if route == "/api/state":
                 query = parse_qs(parsed.query)
                 limit = query.get("transaction_limit", ["16"])[0]
@@ -819,6 +841,33 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
+                if route == "/api/orders/quick-create":
+                    result = store.create_quick_sale(
+                        customer_id=payload.get("customer_id", ""),
+                        customer_name=payload.get("customer_name", ""),
+                        document_date=payload.get("document_date", ""),
+                        note=payload.get("note", ""),
+                        items=payload.get("items", []),
+                        final_status=payload.get("final_status", "completed"),
+                        mark_paid=bool(payload.get("mark_paid")),
+                        payment_method=payload.get("payment_method", ""),
+                        payment_note=payload.get("payment_note", ""),
+                        actor_username=self._get_current_username() or "",
+                    )
+                    self._send_json(
+                        HTTPStatus.CREATED,
+                        {
+                            "message": result["message"],
+                            "cart": result["cart"],
+                            "order": result["order"],
+                            "quick_summary": result["summary"],
+                            "carts": result["carts"],
+                            "customers": result["customers"],
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
                 if route == "/api/orders/commit":
                     result = store.commit_cart_order(
                         payload.get("cart_id", ""),
@@ -1060,6 +1109,34 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "receipt": result["receipt"],
                             "purchase": result["purchase"],
                             "purchases": result["purchases"],
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
+                if route == "/api/purchases/quick-create":
+                    result = store.create_quick_purchase(
+                        supplier_id=payload.get("supplier_id", ""),
+                        supplier_name=payload.get("supplier_name", ""),
+                        document_date=payload.get("document_date", ""),
+                        note=payload.get("note", ""),
+                        items=payload.get("items", []),
+                        final_status=payload.get("final_status", "received"),
+                        mark_paid=bool(payload.get("mark_paid")),
+                        payment_method=payload.get("payment_method", ""),
+                        payment_note=payload.get("payment_note", ""),
+                        actor_username=self._get_current_username() or "",
+                        actor_role=self._get_current_role(),
+                    )
+                    self._send_json(
+                        HTTPStatus.CREATED,
+                        {
+                            "message": result["message"],
+                            "purchase": result["purchase"],
+                            "receipt": result["receipt"],
+                            "quick_summary": result["summary"],
+                            "purchases": result["purchases"],
+                            "suppliers": result["suppliers"],
                             "summary": store.get_summary(),
                         },
                     )
