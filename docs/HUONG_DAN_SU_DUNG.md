@@ -71,9 +71,9 @@ Thực hiện:
 Lưu ý:
 
 - user thường không chỉnh tăng/giảm tồn trực tiếp ở màn này nữa
-- chỉ `Master Admin` mới có chế độ chỉnh tồn trực tiếp và sẽ thấy cảnh báo rõ khi dùng
-- khi `Master Admin` chỉnh tồn trực tiếp, bắt buộc phải nhập lý do để lưu vào lịch sử và audit
-- trên mobile/tablet portrait, panel `Chỉnh tồn trực tiếp` được ưu tiên nằm sát đầu màn hình, tự mở sẵn khi vào màn tồn kho và chừa khoảng cuộn an toàn để không bị thanh nổi che mất field hay button thao tác
+- chỉ `Master Admin` hoặc user có permission `inventory_adjust_manage` mới có chế độ chỉnh tồn trực tiếp và sẽ thấy cảnh báo rõ khi dùng
+- khi dùng chế độ chỉnh tồn trực tiếp, bắt buộc phải nhập lý do để lưu vào lịch sử và audit
+- trên mobile/tablet portrait, panel `Chỉnh tồn trực tiếp` được ưu tiên nằm sát đầu màn hình, tự mở sẵn khi vào màn tồn kho; khi thu gọn không để thừa khoảng trắng và khi mở vẫn chừa khoảng cuộn an toàn để không bị thanh nổi che mất field hay button thao tác
 - sort `Ưu tiên nhập/xử lý` dùng sức bán đã chuẩn hóa theo ngưỡng tồn và mức thiếu hàng, không so sánh thô theo số lượng tuyệt đối giữa các sản phẩm
 - sort `Hạn còn ít` ưu tiên theo HSD thật của từng lô còn hàng; nếu mặt hàng chưa có lô nào có HSD thì app mới fallback về ước tính từ metadata sản phẩm
 - nếu máy khác vừa nhập hoặc xuất hàng, trạng thái tồn kho sẽ tự cập nhật lại khi màn hình đang rảnh
@@ -215,7 +215,7 @@ Nếu thiếu hàng:
 - nếu phần thiếu khi `Chốt đơn` đã được cover đủ bởi phiếu nhập `Đã đặt`, app vẫn cho chốt đơn; tới bước `Xuất hàng` vẫn phải chờ hàng nhập kho thật
 - nếu mới chỉ có phiếu `Nháp` hoặc phiếu nhập mở chưa đủ số lượng cho các mặt hàng đang thiếu, app sẽ báo và chỉ mở lại phiếu đó nếu bạn xác nhận cần chỉnh
 - với user thường, sau khi xác nhận app mới chuyển sang `Quản lý nhập hàng` để tạo hoặc mở phiếu nhập tương ứng
-- với `Master Admin`, hệ thống mới cho phép chọn sang màn tồn kho để chỉnh trực tiếp nếu thực sự cần
+- với `Master Admin` hoặc user có permission `inventory_adjust_manage`, hệ thống mới cho phép chọn sang màn tồn kho để chỉnh trực tiếp nếu thực sự cần
 - nếu đang bật kỳ gom nhập, app sẽ không tạo phiếu nhập tự động theo từng đơn; app chuyển sang màn `Xử lý nhập thiếu` để người giữ khóa xử lý tập trung
 - nếu cần đối chiếu nhanh metadata phiếu xuất hiện hành, bấm `Detail` trong khối `Giỏ hiện hành`
 
@@ -634,7 +634,7 @@ Dùng 1 trong 3 loại chứng từ điều chỉnh:
 
 Lưu ý:
 
-- `Phiếu điều chỉnh tồn` nên dùng bởi `Master Admin` khi cần xử lý chênh lệch gấp
+- `Phiếu điều chỉnh tồn` nên dùng bởi `Master Admin` hoặc user có permission `inventory_adjust_manage` khi cần xử lý chênh lệch gấp
 - Mỗi phiếu đều lưu thành giao dịch kho mới để giữ lịch sử và audit
 - Các phiếu tăng/giảm tồn có thể nhập thêm `Mã lô` và `HSD`; riêng phiếu trả NCC có thể chỉ rõ `Mã lô` để trừ đúng lô thay vì FEFO chung
 - Các chứng từ cũ vẫn giữ nguyên, không bị sửa đè
@@ -821,6 +821,7 @@ Từ phiên bản này, màn `Master Admin` cũng là nơi login hệ thống:
 - `user` thường: dùng các màn nghiệp vụ chung
 - `Master Admin`: có thêm phần quản trị master data, backup/restore, legacy audit và chỉnh tồn trực tiếp
 - user quản lý kinh doanh có thể được cấp riêng quyền `procurement_batch_manage` để xử lý kỳ gom nhập mà không có quyền chỉnh tồn trực tiếp
+- user được cấp `inventory_adjust_manage` có thể chỉnh tồn trực tiếp và tạo `Phiếu DC` mà không mở quyền quản trị `Master Admin`
 - user quản lý xuất nhanh có thể được cấp quyền `order_batch_manage` để duyệt/từ chối/xử lý tiếp các yêu cầu xuất nhanh của user thường
 - nếu `EnableLogin = true` trong `system_config.json`, người dùng phải login thì mới dùng được app
 

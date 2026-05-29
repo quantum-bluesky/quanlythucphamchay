@@ -267,7 +267,79 @@ class AuthHttpTests(unittest.TestCase):
             cookie=cookie,
         )
         self.assertEqual(adjust_status, 401)
-        self.assertIn("Master Admin", adjust_payload["error"])
+        self.assertIn("điều chỉnh tồn trực tiếp", adjust_payload["error"])
+
+    def test_ut_auth_15_inventory_adjust_permission_user_can_adjust_without_admin_role(self) -> None:
+        created_product = self.store.create_product(
+            name="Rau cải UT-AUTH-15",
+            category="Rau củ",
+            unit="kg",
+            price=12000,
+            sale_price=18000,
+        )
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [
+                {
+                    "username": "stocklead",
+                    "password": "stock12345",
+                    "permissions": ["inventory_adjust_manage"],
+                }
+            ],
+            "debug": {"sync_state": False},
+        }
+        self._start_server(config)
+
+        login_status, login_payload, login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "stocklead", "password": "stock12345"},
+        )
+        self.assertEqual(login_status, 200)
+        self.assertFalse(login_payload["is_admin"])
+        self.assertIn("inventory_adjust_manage", login_payload["permissions"])
+        cookie = self._extract_cookie(login_headers)
+
+        state_status, _, _ = self._request_json("GET", "/api/state?transaction_limit=16", cookie=cookie)
+        self.assertEqual(state_status, 200)
+
+        transaction_status, transaction_payload, _ = self._request_json(
+            "POST",
+            "/api/transactions",
+            payload={
+                "product_id": created_product["id"],
+                "transaction_type": "in",
+                "quantity": 1,
+                "adjustment_reason": "UT-AUTH-15 direct adjust",
+            },
+            cookie=cookie,
+        )
+        self.assertEqual(transaction_status, 201)
+        self.assertIn("Đã cập nhật tồn kho", transaction_payload["message"])
+
+        receipt_status, receipt_payload, _ = self._request_json(
+            "POST",
+            "/api/adjustments/inventory",
+            payload={
+                "reason": "UT-AUTH-15 receipt",
+                "items": [
+                    {
+                        "product_id": created_product["id"],
+                        "quantity_delta": 1,
+                    }
+                ],
+            },
+            cookie=cookie,
+        )
+        self.assertEqual(receipt_status, 201)
+        self.assertIn("Đã tạo phiếu điều chỉnh tồn", receipt_payload["message"])
+
+        admin_status, admin_payload, _ = self._request_json("GET", "/api/admin/backup", cookie=cookie)
+        self.assertEqual(admin_status, 401)
+        self.assertIn("Master Admin", admin_payload["error"])
 
     def test_ut_auth_05_logout_clears_session_and_relocks_system(self) -> None:
         config = {

@@ -2,6 +2,7 @@ const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
   autoLoginAdmin,
+  autoLoginProcurementManager,
   autoLoginUser,
   collectToast,
   expectNoRuntimeErrors,
@@ -9,7 +10,7 @@ const {
   switchMenu,
 } = require("./support/ui");
 
-test("ACC-LOG-01 normal user and admin login update header state and permissions correctly", async ({ page, request }) => {
+test("ACC-LOG-01 normal user, delegated stock adjust user, and admin update header state and permissions correctly", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   await page.goto("/");
@@ -38,6 +39,28 @@ test("ACC-LOG-01 normal user and admin login update header state and permissions
   });
   await page.reload({ waitUntil: "networkidle" });
   await collectToast(page, runtime, "user-logout");
+  await expect(page.locator("#adminLogoutButton")).toHaveText("Login");
+  await expect(page.locator("#adminSessionUserLabel")).toBeHidden();
+
+  await autoLoginProcurementManager(page, request);
+  await page.reload({ waitUntil: "networkidle" });
+  await collectToast(page, runtime, "inventory-manager-login");
+  await switchMenu(page, "inventory");
+  await expect(page.locator("#adminSessionUserLabel")).toHaveText("bizmanager");
+  await expect(page.locator("#adminModulePanel")).toBeHidden();
+  await expect(page.locator("#quickPanel")).toBeVisible();
+  await expect(page.locator("#noteInput")).toHaveAttribute("required", "");
+  await page.locator('[data-product-action="toggle-expand"]').first().click();
+  await expect(page.locator(".product-row-body").first()).toBeVisible();
+  await expect(page.locator("[data-adjust-reason-input]").first()).toBeVisible();
+  await expect(page.locator('[data-delta="1"]').first()).toBeVisible();
+  await expect(page.locator('[data-product-action="start-price-edit"]')).toHaveCount(0);
+
+  await page.evaluate(async () => {
+    await fetch("/api/session/logout", { method: "POST" });
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await collectToast(page, runtime, "inventory-manager-logout");
   await expect(page.locator("#adminLogoutButton")).toHaveText("Login");
   await expect(page.locator("#adminSessionUserLabel")).toBeHidden();
 

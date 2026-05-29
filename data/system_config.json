@@ -1,5 +1,5 @@
 {
-  "version": "3.13.0",
+  "version": "3.14.0",
   "server": {
     "host": "0.0.0.0",
     "port": 4000
@@ -20,7 +20,7 @@
     {
       "username": "bizmanager",
       "password": "biz12345",
-      "permissions": ["procurement_batch_manage", "order_batch_manage","bulk_order_create", "bulk_order_commit"]
+      "permissions": ["procurement_batch_manage", "order_batch_manage", "bulk_order_create", "bulk_order_commit", "inventory_adjust_manage"]
     }
   ],
   "debug": {

@@ -187,6 +187,7 @@ Mục tiêu:
 | 148 | `UT-QUICK-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_quick_04_create_quick_sale_paid_records_stock_and_history` |
 | 149 | `UT-QUICK-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_quick_05_quick_documents_validate_required_party_and_stock` |
 | 150 | `UT-AUTH-12B` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_12b_quick_purchase_and_sale_routes_create_documents_with_history` |
+| 151 | `UT-AUTH-15` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_15_inventory_adjust_permission_user_can_adjust_without_admin_role` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

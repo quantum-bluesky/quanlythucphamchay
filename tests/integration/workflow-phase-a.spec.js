@@ -2,6 +2,7 @@ const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
   autoLoginAdmin,
+  autoLoginProcurementManager,
   autoLoginUser,
   autoLoginUserRequest,
   collectToast,
@@ -1066,7 +1067,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
   expectNoRuntimeErrors(runtime);
 });
 
-test("ACC-ADM-03 direct stock adjustment requires admin login and a reason", async ({ page, request }) => {
+test("ACC-ADM-03 direct stock adjustment requires privileged login and a reason", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
   const anonymousResponse = await request.post("/api/transactions", {
@@ -1080,21 +1081,19 @@ test("ACC-ADM-03 direct stock adjustment requires admin login and a reason", asy
   expect(anonymousResponse.status()).toBe(401);
 
   await gotoWithRetry(page, "/", { waitUntil: "networkidle" });
-  await autoLoginAdmin(page, request);
+  await autoLoginProcurementManager(page, request);
   await page.reload({ waitUntil: "networkidle" });
-
-  await switchMenu(page, "admin");
-  await expectScreenTitle(page, "Master Admin");
-  await collectToast(page, runtime, "admin-login-auto", { errorPattern: /^$/ });
 
   await switchMenu(page, "inventory");
   await expectScreenTitle(page, "Kiểm tra tồn kho");
+  await collectToast(page, runtime, "inventory-manager-login-auto", { errorPattern: /^$/ });
   const adminToggle = page.locator('[data-product-action="toggle-expand"]').first();
   const productId = await adminToggle.getAttribute("data-product-id");
   await adminToggle.click();
   await page.waitForTimeout(300);
 
   const expandedRow = page.locator(".product-row-body").first();
+  await expect(page.locator('[data-product-action="start-price-edit"]')).toHaveCount(0);
   await expandedRow.locator('[data-delta="1"]').click();
   const missingReasonToast = await collectToast(page, runtime, "inventory-adjust-missing-reason", {
     errorPattern: /^$/,

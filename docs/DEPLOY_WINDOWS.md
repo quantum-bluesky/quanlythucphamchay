@@ -170,6 +170,10 @@ Nếu muốn đổi tài khoản admin, host/port mặc định hoặc base phâ
 
 - `pagination.items_per_page`: base cho list item/card
 - `pagination.documents_per_page`: base cho list phiếu/đơn
+- nếu cấu hình thêm `users[].permissions`, có thể tách quyền theo user:
+  - `inventory_adjust_manage`: cho chỉnh tồn trực tiếp và tạo `Phiếu DC`
+  - `procurement_batch_manage`: cho xử lý kỳ gom nhập
+  - `order_batch_manage`: cho duyệt/xử lý request ở màn `Xuất nhanh`
 - app sẽ tự scale base này theo thiết bị khi render lần đầu; trên `PC/Tablet` người dùng còn có thể đổi nhanh bằng combobox `25/50/100`
 
 Có thể xem config hiện tại bằng:

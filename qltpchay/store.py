@@ -3278,7 +3278,7 @@ class InventoryStore:
                     message=clean_note,
                 )
             elif clean_actor:
-                raise ValueError("Master Admin phải nhập lý do khi chỉnh tồn trực tiếp.")
+                raise ValueError("Phải nhập lý do khi chỉnh tồn trực tiếp.")
 
             cursor = connection.execute(
                 """
