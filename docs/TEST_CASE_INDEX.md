@@ -172,6 +172,15 @@ Mục tiêu:
 | 133 | `UT-ORD-21` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_21_bulk_editing_saved_draft_or_committed_updates_same_cart` |
 | 134 | `UT-SYNC-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_06_payment_updates_persist_payment_metadata_for_cart_and_purchase` |
 | 135 | `IT-PAY-01` | `tests/integration/payments-management.spec.js` | `npx playwright test tests/integration/payments-management.spec.js --grep "IT-PAY-01"` |
+| 136 | `UT-MOV-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_mov_01_product_movements_return_empty_summary_for_product_without_transactions` |
+| 137 | `UT-MOV-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_mov_02_product_movements_support_product_with_only_in_transactions` |
+| 138 | `UT-MOV-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_mov_03_product_movements_support_product_with_only_out_transactions` |
+| 139 | `UT-MOV-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_mov_04_product_movements_compute_opening_totals_running_balance_and_document_links` |
+| 140 | `UT-MOV-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_mov_05_product_movements_warn_on_filtered_mismatch_and_skip_compare_for_past_date` |
+| 141 | `UT-MOV-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_mov_06_product_movements_ignore_unaffected_drafts_and_validate_date_range` |
+| 142 | `UT-AUTH-14` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_14_product_movements_route_returns_selected_product_history` |
+| 143 | `IT-MOV-01` | `tests/integration/product-movements.spec.js` | `npx playwright test tests/integration/product-movements.spec.js --grep "IT-MOV-01"` |
+| 144 | `IT-MOV-02` | `tests/integration/product-movements.spec.js` | `npx playwright test tests/integration/product-movements.spec.js --grep "IT-MOV-02"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

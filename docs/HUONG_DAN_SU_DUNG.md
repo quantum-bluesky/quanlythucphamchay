@@ -62,8 +62,11 @@ Thực hiện:
 5. Nếu cần xử lý một mặt hàng:
    - bấm `Xuất` để sang đơn chờ xuất hoặc tạo luồng xuất mới
    - bấm `Nhập` để sang phiếu nhập chờ hoặc tạo phiếu nhập mới
-6. Nếu cần đối chiếu nhập/xuất mới nhất, bấm `Lịch sử` để nhảy nhanh xuống khối `Lịch sử gần đây`; khối này mặc định thu gọn nên có thể bấm `Mở lịch sử` để bung ra
-7. Với các dòng lịch sử có mã `DH/PN/DC/THK/TNCC`, bấm trực tiếp vào mã để mở đúng đơn hoặc phiếu liên quan
+6. Nếu cần điều tra lệch tồn của một mặt hàng, bấm `Lịch sử biến động` ở đầu màn để mở màn tra cứu riêng
+7. Nếu đang đứng trên đúng card sản phẩm nghi ngờ lệch tồn, bấm `Detail` rồi chọn `Xem lịch sử`; app sẽ mở màn mới và chọn sẵn sản phẩm đó
+8. Ở màn `Lịch sử biến động sản phẩm`, chọn thêm `Từ ngày / Đến ngày / Loại biến động / Từ khóa` nếu cần để đối chiếu theo đúng khoảng thời gian
+9. Kiểm tra phần summary gồm `Tồn đầu kỳ`, `Tổng nhập`, `Tổng xuất`, `Tồn cuối kỳ`, `Tồn hệ thống` và `Chênh lệch`
+10. Với các dòng có mã `DH/PN/DC/THK/TNCC`, bấm trực tiếp vào mã để mở đúng đơn hoặc phiếu liên quan
 
 Lưu ý:
 
@@ -74,6 +77,38 @@ Lưu ý:
 - sort `Ưu tiên nhập/xử lý` dùng sức bán đã chuẩn hóa theo ngưỡng tồn và mức thiếu hàng, không so sánh thô theo số lượng tuyệt đối giữa các sản phẩm
 - sort `Hạn còn ít` ưu tiên theo HSD thật của từng lô còn hàng; nếu mặt hàng chưa có lô nào có HSD thì app mới fallback về ước tính từ metadata sản phẩm
 - nếu máy khác vừa nhập hoặc xuất hàng, trạng thái tồn kho sẽ tự cập nhật lại khi màn hình đang rảnh
+
+### Luồng A1: Kiểm tra lịch sử biến động của một sản phẩm
+
+Vào bằng một trong hai cách:
+
+```text
+1. Từ màn Kiểm tra tồn kho -> bấm Lịch sử biến động
+2. Từ card sản phẩm -> Detail -> Xem lịch sử
+```
+
+Thực hiện:
+
+1. Chọn đúng sản phẩm cần kiểm tra
+2. Nhập `Từ ngày` nếu muốn rà theo kỳ; `Đến ngày` để trống thì app tự lấy hôm nay
+3. Chọn `Tất cả / Nhập / Xuất` nếu cần tách riêng một chiều biến động
+4. Có thể nhập thêm từ khóa như mã đơn, mã phiếu, khách hàng, nhà cung cấp hoặc ghi chú
+5. Xem phần summary:
+   - `Tồn đầu kỳ`
+   - `Tổng nhập`
+   - `Tổng xuất`
+   - `Tồn cuối kỳ`
+   - `Tồn hệ thống`
+   - `Chênh lệch`
+6. Xem danh sách chi tiết theo thứ tự ngày tăng dần; mỗi dòng có `Tồn sau giao dịch` để dò lại từng bước
+7. Nếu màn báo `OK - Tồn tính toán khớp với hệ thống.` thì số tính toán đang khớp với tồn hiện tại
+8. Nếu màn báo `Cảnh báo - Tồn tính toán không khớp với tồn hiện tại trên hệ thống...` thì cần mở lại các phiếu liên quan để kiểm tra
+
+Lưu ý:
+
+- màn này chỉ đọc dữ liệu, không sửa/xóa trực tiếp giao dịch cũ
+- nếu chọn `Đến ngày` là ngày quá khứ, app chỉ hiển thị tồn cuối kỳ tính toán và không so sánh với tồn hiện tại
+- nếu chưa chọn sản phẩm, màn sẽ nhắc `Vui lòng chọn sản phẩm để xem lịch sử biến động.`
 
 ## 4. Luồng bán hàng cho khách
 
@@ -731,7 +766,7 @@ Vào `Thanh toán`, rồi:
 
 ### Cuối ngày
 
-1. Kiểm tra lại `Lịch sử gần đây`
+1. Kiểm tra lại `Lịch sử biến động sản phẩm` cho các mặt hàng có nghi ngờ lệch tồn hoặc bán/nhập mạnh trong ngày
 2. Xem `Báo cáo tháng`
 3. Ghi nhận mặt hàng bán mạnh để chuẩn bị nhập tiếp
 

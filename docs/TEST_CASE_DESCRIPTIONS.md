@@ -166,3 +166,12 @@ Lưu ý:
 | 133 | `UT-ORD-21` | Kiểm tra `Xuất nhanh` khi lưu lại card đã có cart `draft/committed` sẽ cập nhật đúng cart cũ, không tạo cart mới và không làm tụt trạng thái đơn đã chốt. |
 | 134 | `UT-SYNC-06` | Kiểm tra backend cập nhật thanh toán đơn giản persist đúng `payment_status`, `paid_at`, `payment_method`, `payment_note` cho đơn hàng và phiếu nhập. |
 | 135 | `IT-PAY-01` | Kiểm tra màn `Thanh toán` lọc đúng phiếu chưa thanh toán, cập nhật được thông tin thanh toán cho cả tab khách hàng và nhà cung cấp, rồi mở lại được phiếu gốc để đối chiếu. |
+| 136 | `UT-MOV-01` | Kiểm tra backend lịch sử biến động trả summary rỗng đúng cho sản phẩm chưa có giao dịch nhập/xuất. |
+| 137 | `UT-MOV-02` | Kiểm tra backend lịch sử biến động tính đúng cho sản phẩm chỉ có giao dịch nhập. |
+| 138 | `UT-MOV-03` | Kiểm tra backend lịch sử biến động tính đúng cho sản phẩm chỉ có giao dịch xuất. |
+| 139 | `UT-MOV-04` | Kiểm tra backend lịch sử biến động tính đúng tồn đầu kỳ, tổng nhập/xuất, running balance và link mã chứng từ liên quan. |
+| 140 | `UT-MOV-05` | Kiểm tra backend cảnh báo chênh lệch khi lọc làm lệch tồn tính toán và bỏ so sánh với tồn hiện tại khi `to_date` là ngày quá khứ. |
+| 141 | `UT-MOV-06` | Kiểm tra backend bỏ qua dữ liệu chưa ảnh hưởng tồn kho và chặn khoảng ngày không hợp lệ ở lịch sử biến động sản phẩm. |
+| 142 | `UT-AUTH-14` | Kiểm tra route `GET /api/product-movements` yêu cầu đăng nhập, trả đúng lịch sử của sản phẩm đã chọn và báo lỗi `400` khi khoảng ngày không hợp lệ. |
+| 143 | `IT-MOV-01` | Kiểm tra từ card sản phẩm ở màn `Tồn kho`, nút `Xem lịch sử` mở đúng màn `Lịch sử biến động sản phẩm` và chọn sẵn sản phẩm tương ứng. |
+| 144 | `IT-MOV-02` | Kiểm tra màn `Lịch sử biến động sản phẩm` vẫn giữ layout card gọn, không tràn ngang trên mobile sau khi tải summary và danh sách biến động. |

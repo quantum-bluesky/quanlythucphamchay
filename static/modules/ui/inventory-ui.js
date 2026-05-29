@@ -55,6 +55,54 @@ export function createInventoryUi(deps) {
     return Number.isFinite(parsed) ? parsed : null;
   };
 
+  const extractTransactionReference = (note) => {
+    const text = String(note || "");
+    for (const meta of INVENTORY_HISTORY_DOCUMENT_PREFIXES) {
+      const match = text.match(new RegExp(`\\b${meta.prefix.replace(/-/g, "\\-")}[A-Za-z0-9-]+\\b`));
+      if (match) {
+        return {
+          code: match[0],
+          type: meta.type,
+          label: meta.label,
+        };
+      }
+    }
+    return null;
+  };
+
+  const renderTransactionReferenceLine = (note, reference) => {
+    if (!reference) {
+      return "";
+    }
+    const parts = String(note || "").split("|").map((part) => part.trim()).filter(Boolean);
+    const referencePart = parts.find((part) => part.includes(reference.code)) || `${reference.label} ${reference.code}`;
+    const prefixText = referencePart.slice(0, referencePart.indexOf(reference.code)).trim() || reference.label;
+    return `
+      <div class="transaction-reference-line">
+        <span>${escapeHtml(prefixText)}</span>
+        <button
+          type="button"
+          class="transaction-document-link"
+          data-transaction-document-code="${escapeHtml(reference.code)}"
+          data-transaction-document-type="${escapeHtml(reference.type)}"
+        >${escapeHtml(reference.code)}</button>
+      </div>
+    `;
+  };
+
+  const renderTransactionMetaLines = (note, reference, fallbackLabel) => {
+    const parts = String(note || "").split("|").map((part) => part.trim()).filter(Boolean);
+    const filteredParts = reference
+      ? parts.filter((part) => !part.includes(reference.code))
+      : parts;
+    if (!filteredParts.length) {
+      return `<div class="transaction-meta-line">${escapeHtml(fallbackLabel)}</div>`;
+    }
+    return filteredParts
+      .map((part) => `<div class="transaction-meta-line">${escapeHtml(part)}</div>`)
+      .join("");
+  };
+
   function compareInventoryProducts(left, right) {
     const sortMode = state.inventorySortMode || "name";
     if (sortMode === "stock-desc") {
@@ -326,6 +374,7 @@ export function createInventoryUi(deps) {
               <div class="row-actions">
                 <button type="button" class="ghost-button compact-button" data-inventory-flow="out" data-product-id="${product.id}">Xuất hàng</button>
                 <button type="button" class="ghost-button compact-button" data-inventory-flow="in" data-product-id="${product.id}">Nhập hàng</button>
+                <button type="button" class="ghost-button compact-button" data-product-action="open-movement-history" data-product-id="${product.id}">Xem lịch sử</button>
                 <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
                   ${isExpanded ? "Thu" : "Detail"}
                 </button>
@@ -348,6 +397,7 @@ export function createInventoryUi(deps) {
               </div>
 
               <div class="inventory-inline-links">
+                <button type="button" class="ghost-button compact-button" data-product-action="open-movement-history" data-product-id="${product.id}">Xem lịch sử</button>
                 ${pendingCount ? `<button type="button" class="ghost-button compact-button" data-inventory-link="orders" data-product-id="${product.id}">Đơn chờ xử lý ${pendingCount}</button>` : ""}
                 ${committedCount ? `<button type="button" class="ghost-button compact-button" data-inventory-link="orders" data-product-id="${product.id}">Đơn đã chốt ${committedCount}</button>` : ""}
                 ${draftCount ? `<button type="button" class="ghost-button compact-button" data-inventory-link="orders" data-product-id="${product.id}">Đơn nháp ${draftCount}</button>` : ""}
@@ -445,13 +495,16 @@ export function createInventoryUi(deps) {
   }
 
   function renderTransactions() {
+    if (!dom.transactionList) {
+      return;
+    }
     if (dom.inventoryHistorySection && dom.inventoryHistoryWrap && dom.inventoryHistoryToggleButton) {
       dom.inventoryHistorySection.classList.toggle("is-collapsed", state.inventoryHistoryCollapsed);
       dom.inventoryHistoryWrap.hidden = state.inventoryHistoryCollapsed;
       dom.inventoryHistoryToggleButton.textContent = state.inventoryHistoryCollapsed ? "Mở lịch sử" : "Thu gọn";
     }
     if (dom.inventoryHistoryShortcutButton) {
-      dom.inventoryHistoryShortcutButton.textContent = "Lịch sử";
+      dom.inventoryHistoryShortcutButton.textContent = "Lịch sử biến động";
     }
     if (state.inventoryHistoryCollapsed) {
       dom.transactionList.innerHTML = "";
@@ -462,54 +515,6 @@ export function createInventoryUi(deps) {
       dom.transactionList.innerHTML = '<div class="empty-state">Chưa có giao dịch nào.</div>';
       return;
     }
-
-    const extractTransactionReference = (note) => {
-      const text = String(note || "");
-      for (const meta of INVENTORY_HISTORY_DOCUMENT_PREFIXES) {
-        const match = text.match(new RegExp(`\\b${meta.prefix.replace(/-/g, "\\-")}[A-Za-z0-9-]+\\b`));
-        if (match) {
-          return {
-            code: match[0],
-            type: meta.type,
-            label: meta.label,
-          };
-        }
-      }
-      return null;
-    };
-
-    const renderTransactionReferenceLine = (note, reference) => {
-      if (!reference) {
-        return "";
-      }
-      const parts = String(note || "").split("|").map((part) => part.trim()).filter(Boolean);
-      const referencePart = parts.find((part) => part.includes(reference.code)) || `${reference.label} ${reference.code}`;
-      const prefixText = referencePart.slice(0, referencePart.indexOf(reference.code)).trim() || reference.label;
-      return `
-        <div class="transaction-reference-line">
-          <span>${escapeHtml(prefixText)}</span>
-          <button
-            type="button"
-            class="transaction-document-link"
-            data-transaction-document-code="${escapeHtml(reference.code)}"
-            data-transaction-document-type="${escapeHtml(reference.type)}"
-          >${escapeHtml(reference.code)}</button>
-        </div>
-      `;
-    };
-
-    const renderTransactionMetaLines = (note, reference, fallbackLabel) => {
-      const parts = String(note || "").split("|").map((part) => part.trim()).filter(Boolean);
-      const filteredParts = reference
-        ? parts.filter((part) => !part.includes(reference.code))
-        : parts;
-      if (!filteredParts.length) {
-        return `<div class="transaction-meta-line">${escapeHtml(fallbackLabel)}</div>`;
-      }
-      return filteredParts
-        .map((part) => `<div class="transaction-meta-line">${escapeHtml(part)}</div>`)
-        .join("");
-    };
 
     dom.transactionList.innerHTML = state.transactions.map((transaction) => {
       const reference = extractTransactionReference(transaction.note);
@@ -540,10 +545,154 @@ export function createInventoryUi(deps) {
     }).join("");
   }
 
+  function renderProductMovementScreen() {
+    if (dom.productMovementProductInput) {
+      dom.productMovementProductInput.value = state.productMovementHistory.productText || "";
+    }
+    if (dom.productMovementFromDateInput) {
+      dom.productMovementFromDateInput.value = state.productMovementHistory.fromDate || "";
+    }
+    if (dom.productMovementToDateInput) {
+      dom.productMovementToDateInput.value = state.productMovementHistory.toDate || "";
+    }
+    if (dom.productMovementTypeSelect) {
+      dom.productMovementTypeSelect.value = state.productMovementHistory.movementType || "all";
+    }
+    if (dom.productMovementKeywordInput) {
+      dom.productMovementKeywordInput.value = state.productMovementHistory.keyword || "";
+    }
+
+    if (!dom.productMovementSummaryCards || !dom.productMovementStatus || !dom.productMovementMeta || !dom.productMovementList) {
+      return;
+    }
+
+    const movementState = state.productMovementHistory || {};
+    const data = movementState.data || null;
+    const product = data?.product || null;
+    const period = data?.period || null;
+    const summary = data?.summary || null;
+    const movements = Array.isArray(data?.movements) ? data.movements : [];
+
+    if (movementState.loading) {
+      dom.productMovementMeta.textContent = "Đang nạp lịch sử biến động...";
+      dom.productMovementStatus.hidden = true;
+      dom.productMovementSummaryCards.innerHTML = "";
+      dom.productMovementList.innerHTML = '<div class="empty-state">Đang nạp dữ liệu lịch sử biến động...</div>';
+      return;
+    }
+
+    if (movementState.error) {
+      dom.productMovementMeta.textContent = "";
+      dom.productMovementStatus.hidden = false;
+      dom.productMovementStatus.className = "inline-alert warning";
+      dom.productMovementStatus.textContent = movementState.error;
+      dom.productMovementSummaryCards.innerHTML = "";
+      dom.productMovementList.innerHTML = `<div class="empty-state">${escapeHtml(movementState.error)}</div>`;
+      return;
+    }
+
+    if (!movementState.productId || !product) {
+      dom.productMovementMeta.textContent = "";
+      dom.productMovementStatus.hidden = false;
+      dom.productMovementStatus.className = "inline-alert";
+      dom.productMovementStatus.textContent = "Vui lòng chọn sản phẩm để xem lịch sử biến động.";
+      dom.productMovementSummaryCards.innerHTML = "";
+      dom.productMovementList.innerHTML = '<div class="empty-state">Vui lòng chọn sản phẩm để xem lịch sử biến động.</div>';
+      return;
+    }
+
+    const metaParts = [
+      product.name,
+      period?.from_date ? `Từ ${formatDate(period.from_date)}` : "Từ đầu dữ liệu",
+      `đến ${formatDate(period?.to_date || "")}`,
+    ];
+    if (period?.summary_uses_filtered_movements) {
+      metaParts.push("Tóm tắt đang tính theo bộ lọc hiện tại.");
+    }
+    dom.productMovementMeta.textContent = metaParts.join(" • ");
+
+    const differenceValue = Number(summary?.difference || 0);
+    const differenceLabel = summary?.difference === null || summary?.difference === undefined
+      ? "Không so sánh"
+      : `${differenceValue > 0 ? "+" : differenceValue < 0 ? "-" : ""}${formatQuantity(Math.abs(differenceValue))} ${escapeHtml(product.unit)}`;
+    const cards = [
+      { label: "Tồn đầu kỳ", value: `${formatQuantity(summary?.opening_stock || 0)} ${escapeHtml(product.unit)}` },
+      { label: "Tổng nhập", value: `+${formatQuantity(summary?.total_in || 0)} ${escapeHtml(product.unit)}` },
+      { label: "Tổng xuất", value: `-${formatQuantity(summary?.total_out || 0)} ${escapeHtml(product.unit)}` },
+      { label: "Tồn cuối kỳ", value: `${formatQuantity(summary?.calculated_ending_stock || 0)} ${escapeHtml(product.unit)}` },
+      { label: "Tồn hệ thống", value: `${formatQuantity(summary?.current_stock || 0)} ${escapeHtml(product.unit)}` },
+      { label: "Chênh lệch", value: differenceLabel },
+    ];
+    dom.productMovementSummaryCards.innerHTML = cards.map((card) => `
+      <article class="summary-card product-movement-summary-card">
+        <span>${escapeHtml(card.label)}</span>
+        <strong>${card.value}</strong>
+      </article>
+    `).join("");
+
+    dom.productMovementStatus.hidden = false;
+    if (summary?.status_message) {
+      dom.productMovementStatus.className = summary?.is_match ? "inline-alert" : "inline-alert warning";
+      dom.productMovementStatus.textContent = summary.status_message;
+    } else {
+      dom.productMovementStatus.className = "inline-alert";
+      dom.productMovementStatus.textContent = "Đang xem lịch sử tới ngày quá khứ nên không so sánh với tồn hiện tại trên hệ thống.";
+    }
+
+    if (!movements.length) {
+      dom.productMovementList.innerHTML = '<div class="empty-state">Không có biến động nhập/xuất trong khoảng thời gian đã chọn.</div>';
+      return;
+    }
+
+    dom.productMovementList.innerHTML = movements.map((movement) => {
+      const reference = movement.document_code
+        ? {
+          code: movement.document_code,
+          type: movement.document_type,
+          label: movement.document_type === "order" ? "Đơn" : "Chứng từ",
+        }
+        : extractTransactionReference(movement.note);
+      const quantityPrefix = movement.movement_type === "in" ? "+" : "-";
+      const updatedText = movement.updated_at && movement.updated_at !== movement.created_at
+        ? formatDate(movement.updated_at)
+        : "";
+      return `
+        <article class="transaction-item product-movement-item">
+          <div class="top-line">
+            <div>
+              <strong>${escapeHtml(formatDate(movement.date || movement.created_at) || movement.date || "")}</strong>
+              <div class="transaction-meta-line">${escapeHtml(movement.movement_type === "in" ? "Nhập kho" : "Xuất kho")}</div>
+            </div>
+            <div class="product-movement-amount">
+              <span class="status-pill ${movement.movement_type === "in" ? "draft" : "cancelled"}">${escapeHtml(movement.movement_type === "in" ? "Nhập" : "Xuất")}</span>
+              <strong class="transaction-kind ${escapeHtml(movement.movement_type)}">${quantityPrefix}${formatQuantity(movement.quantity || 0)} ${escapeHtml(product.unit)}</strong>
+            </div>
+          </div>
+          <div class="product-movement-meta-grid">
+            <div class="report-card-row"><span>Tồn sau giao dịch</span><strong>${escapeHtml(formatQuantity(movement.balance_after || 0))} ${escapeHtml(product.unit)}</strong></div>
+            ${reference ? `<div class="product-movement-inline">${renderTransactionReferenceLine(movement.note, reference)}</div>` : ""}
+            ${movement.related_party_name ? `<div class="report-card-row"><span>${escapeHtml(movement.related_party_label || "Liên quan")}</span><strong>${escapeHtml(movement.related_party_name)}</strong></div>` : ""}
+            ${movement.actor ? `<div class="report-card-row"><span>Người xử lý</span><strong>${escapeHtml(movement.actor)}</strong></div>` : ""}
+            <div class="report-card-row"><span>Tạo lúc</span><strong>${escapeHtml(formatDate(movement.created_at) || movement.created_at || "")}</strong></div>
+            ${updatedText ? `<div class="report-card-row"><span>Cập nhật</span><strong>${escapeHtml(updatedText)}</strong></div>` : ""}
+          </div>
+          <div class="transaction-meta-block">
+            ${renderTransactionMetaLines(
+              movement.note,
+              reference,
+              movement.movement_type === "in" ? "Nhập kho" : "Xuất kho"
+            )}
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
   return {
     renderInventoryDirectEditAccess,
     renderSummary,
     renderProducts,
     renderTransactions,
+    renderProductMovementScreen,
   };
 }

@@ -21,16 +21,39 @@ export const SCREEN_HELP = {
       "Chỉ Master Admin mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho và bắt buộc nhập lý do điều chỉnh.",
       "Trên mobile hoặc tablet portrait, khi bạn là Master Admin thì khối `Chỉnh tồn trực tiếp` sẽ được ưu tiên mở gần đầu màn hình và chừa khoảng cuộn an toàn để các dock nổi không che mất field hay nút thao tác.",
       "Nếu cần xử lý sai lệch sau khi chứng từ đã xử lý, dùng nút Phiếu DC hoặc mở khối Phiếu điều chỉnh tồn để lập chứng từ tăng/giảm mới thay vì sửa ngược đơn/phiếu cũ.",
-      "Phần Lịch sử gần đây mặc định thu gọn; bấm Lịch sử để nhảy nhanh xuống section đó hoặc bấm Mở lịch sử để bung danh sách giao dịch mới nhất.",
-      "Với các dòng có mã đơn hoặc mã phiếu như DH/PN/DC/THK/TNCC, bấm trực tiếp vào mã để mở đúng chứng từ liên quan.",
+      "Nút `Lịch sử biến động` ở đầu màn sẽ mở sang màn riêng để chọn một sản phẩm và đối chiếu toàn bộ nhập/xuất theo khoảng ngày.",
+      "Trong detail từng mặt hàng có thêm nút `Xem lịch sử` để mở nhanh đúng sản phẩm đang nghi ngờ lệch tồn.",
       DESKTOP_PAGINATION_HINT,
       DESKTOP_MENU_HINT,
       MOBILE_FLOATING_HINT,
     ],
     related: [
+      { menu: "product-movements", label: "Xem lịch sử biến động sản phẩm" },
       { menu: "create-order", label: "Sang tạo đơn xuất" },
       { menu: "purchases", label: "Sang nhập hàng" },
       { menu: "products", label: "Quản lý sản phẩm" },
+    ],
+  },
+  "product-movements": {
+    title: "Lịch sử biến động sản phẩm",
+    overview: "Màn này dùng để chọn một sản phẩm, lọc theo khoảng ngày và đối chiếu toàn bộ biến động nhập/xuất đã thực sự ảnh hưởng tồn kho.",
+    steps: [
+      "Chọn đúng sản phẩm cần kiểm tra. Nếu đi từ màn `Tồn kho` bằng nút `Xem lịch sử` thì app sẽ chọn sẵn sản phẩm đó.",
+      "Nhập `Từ ngày` nếu cần rà theo kỳ. Nếu để trống `Đến ngày`, app mặc định lấy hôm nay.",
+      "Có thể lọc thêm theo `Tất cả / Nhập / Xuất` và nhập `Từ khóa` như mã đơn, mã phiếu, khách hàng, nhà cung cấp hoặc ghi chú.",
+      "Phần summary luôn hiện `Tồn đầu kỳ`, `Tổng nhập`, `Tổng xuất`, `Tồn cuối kỳ`, `Tồn hệ thống` và `Chênh lệch` để so nhanh.",
+      "Nếu `Đến ngày` là hôm nay, app sẽ báo `OK` hoặc `Cảnh báo` theo chênh lệch giữa tồn tính toán và tồn hiện tại.",
+      "Nếu đang xem tới một ngày quá khứ, app chỉ hiện tồn cuối kỳ tính toán và không so sánh với tồn hiện tại trên hệ thống.",
+      "Danh sách chi tiết được sort tăng dần theo ngày phát sinh, rồi theo thời gian tạo và id để `Tồn sau giao dịch` ổn định khi rà từng bước.",
+      "Với các dòng có mã đơn hoặc mã phiếu như `DH/PN/DC/THK/TNCC`, bấm trực tiếp vào mã để mở đúng chứng từ liên quan.",
+      "Màn này chỉ đọc dữ liệu, không cho sửa hoặc xóa trực tiếp giao dịch cũ.",
+      DESKTOP_MENU_HINT,
+      MOBILE_FLOATING_HINT,
+    ],
+    related: [
+      { menu: "inventory", label: "Quay lại tồn kho" },
+      { menu: "reports", label: "Xem báo cáo tháng" },
+      { menu: "purchases", label: "Đối chiếu phiếu nhập" },
     ],
   },
   "create-order": {
@@ -372,6 +395,10 @@ export const SCREEN_META = {
     title: "Kiểm tra tồn kho",
     subtitle: "Xem tồn hiện tại, đơn chờ nhập/xuất và đối chiếu lịch sử kho.",
   },
+  "product-movements": {
+    title: "Lịch sử biến động sản phẩm",
+    subtitle: "Lọc một sản phẩm theo khoảng ngày để rà toàn bộ nhập/xuất và chênh lệch tồn.",
+  },
   "create-order": {
     title: "Tạo đơn xuất hàng",
     subtitle: "Chọn khách, thêm hàng vào giỏ và chốt đơn nhanh.",
@@ -430,6 +457,10 @@ export const FLOATING_SEARCH_CONFIG = {
   inventory: {
     sourceId: "searchInput",
     placeholder: "Tìm mặt hàng tồn kho",
+  },
+  "product-movements": {
+    sourceId: "productMovementKeywordInput",
+    placeholder: "Tìm mã phiếu, khách, NCC, ghi chú",
   },
   "create-order": {
     sourceId: "salesSearchInput",

@@ -416,6 +416,24 @@ Hệ quả thiết kế:
 - buộc workflow điều chỉnh phải đi qua chứng từ hoặc transaction hợp lệ
 - tồn theo lô được suy ra song song qua `inventory_batches.remaining_quantity`; nếu lệch thì phải sửa bằng chứng từ mới thay vì sửa tay số dư lô
 
+### Service tra cứu lịch sử biến động sản phẩm
+
+- endpoint: `GET /api/product-movements`
+- nguồn dữ liệu chính:
+  - `transactions`
+  - `inventory_receipt_items`
+  - `inventory_receipts`
+  - sync collections `carts` và `purchases` để bổ sung metadata chứng từ
+- chỉ lấy các dòng đã thực sự ghi vào `transactions`, nên mặc định không tính phiếu `draft`, `cancelled` hoặc trạng thái chưa cộng/trừ tồn
+- sort chi tiết theo `date ASC, created_at ASC, id ASC` để `running balance` ổn định
+- công thức summary:
+  - `opening_stock = tổng ledger trước from_date`
+  - `total_in = tổng quantity của transaction_type = 'in' trong kỳ`
+  - `total_out = tổng quantity của transaction_type = 'out' trong kỳ`
+  - `calculated_ending_stock = opening_stock + total_in - total_out`
+- nếu `to_date` là hôm nay, backend trả thêm `current_stock`, `difference`, `is_match`, `status_message` để UI báo `OK/Cảnh báo`
+- nếu `to_date` là ngày quá khứ, backend chỉ trả tồn cuối kỳ tính toán của mốc đó và bỏ so sánh với tồn hiện tại
+
 ## 12. Chiến lược migration
 
 Schema được migrate inline trong `initialize_schema()` bằng:

@@ -66,6 +66,14 @@ export function registerInventoryControllerEvents(contract) {
         actions.focusInventoryReceiptSection();
         return;
       }
+      if (actionButton.dataset.productAction === "open-movement-history") {
+        try {
+          await actions.openProductMovementHistory(productId);
+        } catch (error) {
+          actions.showToast(error.message, true);
+        }
+        return;
+      }
     }
 
     const inventoryFlowButton = event.target.closest("[data-inventory-flow]");
@@ -263,15 +271,47 @@ export function registerInventoryControllerEvents(contract) {
     }
   });
 
-  dom.inventoryHistoryShortcutButton?.addEventListener("click", () => {
-    if (state.inventoryHistoryCollapsed) {
-      state.inventoryHistoryCollapsed = false;
-      renderers.renderTransactions();
+  dom.inventoryHistoryShortcutButton?.addEventListener("click", async () => {
+    try {
+      await actions.openProductMovementHistory();
+    } catch (error) {
+      actions.showToast(error.message, true);
     }
-    actions.focusInventoryHistorySection();
   });
 
   dom.transactionList?.addEventListener("click", async (event) => {
+    const linkButton = event.target.closest("[data-transaction-document-code]");
+    if (!linkButton) return;
+    try {
+      await actions.openInventoryHistoryDocument(
+        linkButton.dataset.transactionDocumentType,
+        linkButton.dataset.transactionDocumentCode
+      );
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
+
+  dom.productMovementForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await actions.submitProductMovementFilters();
+      renderers.renderProductMovementScreen();
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
+
+  dom.productMovementResetButton?.addEventListener("click", async () => {
+    try {
+      await actions.resetProductMovementFilters();
+      renderers.renderProductMovementScreen();
+    } catch (error) {
+      actions.showToast(error.message, true);
+    }
+  });
+
+  dom.productMovementList?.addEventListener("click", async (event) => {
     const linkButton = event.target.closest("[data-transaction-document-code]");
     if (!linkButton) return;
     try {

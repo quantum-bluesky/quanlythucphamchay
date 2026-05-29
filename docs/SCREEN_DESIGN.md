@@ -52,11 +52,11 @@ Liên kết detail hiện có:
   - danh sách lô còn hàng trong phần detail card
   - badge `Chờ xuất` / `Chờ nhập` có thêm `số phiếu / tổng số lượng` đang chờ theo sản phẩm
   - nút `Xử lý nhập thiếu` để mở planner batch khi cần gom nhập định kỳ
-  - nút `Lịch sử` để nhảy nhanh xuống phần lịch sử
-  - lịch sử gần đây
+  - nút `Lịch sử biến động` để mở màn tra cứu riêng
 - hành động chính:
   - `Xuất`
   - `Nhập`
+  - `Xem lịch sử`
   - direct adjust chỉ cho Master Admin
 - nguyên tắc UI:
   - search toolbar chỉ giữ ô tìm kiếm
@@ -65,9 +65,27 @@ Liên kết detail hiện có:
   - mode `Ưu tiên nhập/xử lý` hiển thị thêm điểm ưu tiên trên card
   - mode `Hạn còn ít` hiển thị theo HSD thật của lô gần nhất nếu có; chỉ fallback về ước tính sản phẩm khi chưa có lô nào có HSD
   - nếu user là `Master Admin`, panel `Chỉnh tồn trực tiếp` trên mobile/ tablet portrait phải ưu tiên nằm sát đầu màn hình, tự mở được ngay khi vào màn và cuộn tới hết form mà không bị dock nổi che phần nhập liệu hay action
-  - khối `Lịch sử gần đây` mặc định thu gọn, có nút `Mở lịch sử/Thu gọn`
-  - nếu dòng lịch sử có mã `DH/PN/DC/THK/TNCC` thì mã đó là link nội bộ để mở đúng chứng từ liên quan
+  - phần detail của từng card sản phẩm phải có nút/link `Xem lịch sử` để mở sang màn mới và chọn sẵn sản phẩm tương ứng
   - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết thiếu hàng sẽ đi qua planner batch thay vì flow nhập thiếu nhanh
+
+### `product-movements` - Lịch sử biến động sản phẩm
+
+- mục tiêu:
+  - tra cứu toàn bộ nhập/xuất đã thực sự ảnh hưởng tồn kho của 1 sản phẩm
+  - đối chiếu `tồn đầu kỳ -> tồn cuối kỳ tính toán -> tồn hiện tại`
+  - mở nhanh lại đơn hoặc phiếu liên quan khi phát hiện lệch tồn
+- thành phần chính:
+  - form lọc gọn theo `Sản phẩm`, `Từ ngày`, `Đến ngày`, `Loại biến động`, `Từ khóa`
+  - summary card theo `Tồn đầu kỳ`, `Tổng nhập`, `Tổng xuất`, `Tồn cuối kỳ`, `Tồn hệ thống`, `Chênh lệch`
+  - khối trạng thái `OK/Cảnh báo`
+  - list card chi tiết từng biến động
+- nguyên tắc UI:
+  - mobile-first, không dùng bảng rộng làm layout chính trên điện thoại
+  - trên mobile, bộ lọc phải là card gọn; summary và movement đều hiển thị dạng card không tràn ngang
+  - `Sản phẩm` là field bắt buộc; khi chưa chọn phải hiện message hướng dẫn rõ
+  - danh sách biến động sort tăng dần theo `ngày -> created_at -> id` để running balance ổn định
+  - mỗi dòng phải có tối thiểu `Ngày`, `Loại`, `Số lượng +/-`, `Tồn sau giao dịch`, `Mã phiếu/link`, `Khách/NCC`, `Ghi chú`, `Người xử lý`, `Tạo lúc/Cập nhật`
+  - màn chỉ đọc dữ liệu; không cho sửa hoặc xóa trực tiếp từ đây
 
 ### `create-order` - Tạo đơn xuất hàng
 
@@ -385,6 +403,7 @@ Các cặp điều hướng chính:
 
 - `inventory` <-> `create-order`
 - `inventory` <-> `purchases`
+- `inventory` <-> `product-movements`
 - `create-order` <-> `orders`
 - `create-order` <-> `customers`
 - `purchases` <-> `suppliers`
