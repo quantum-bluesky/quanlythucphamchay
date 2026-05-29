@@ -826,6 +826,7 @@ function getInventoryUi() {
       getOpenPurchasesForProduct,
       getInventoryProductSignals,
       getInventoryAdjustmentReason,
+      canAdjustInventoryDirectly,
       isSearchResultMode,
       paginateItems,
       renderPagination,
@@ -4596,9 +4597,22 @@ function openQuickPanel() {
   setQuickPanelCollapsed(false);
 }
 
+function hasAdminPermission(permissionName) {
+  const cleanPermissionName = String(permissionName || "").trim();
+  if (!cleanPermissionName) {
+    return Boolean(state.admin?.isAdmin);
+  }
+  const permissions = new Set((state.admin?.permissions || []).map((entry) => String(entry || "").trim()));
+  return Boolean(state.admin?.isAdmin || permissions.has(cleanPermissionName));
+}
+
+function canAdjustInventoryDirectly() {
+  return hasAdminPermission("inventory_adjust_manage");
+}
+
 function shouldPrioritizeInventoryQuickPanel() {
   return state.activeMenu === "inventory"
-    && Boolean(state.admin?.isAdmin)
+    && canAdjustInventoryDirectly()
     && window.matchMedia("(max-width: 1100px)").matches;
 }
 
@@ -5233,9 +5247,9 @@ function renderInventoryReceiptSection() {
   if (!inventoryReceiptSection || !inventoryReceiptWrap || !inventoryReceiptToggleButton) {
     return;
   }
-  const isAdmin = Boolean(state.admin?.isAdmin);
-  inventoryReceiptSection.hidden = !isAdmin;
-  if (!isAdmin) {
+  const canAdjustInventory = canAdjustInventoryDirectly();
+  inventoryReceiptSection.hidden = !canAdjustInventory;
+  if (!canAdjustInventory) {
     return;
   }
   const draft = state.inventoryReceiptDraft;
@@ -6196,8 +6210,8 @@ async function checkoutActiveCart() {
       throw new Error("Đơn đang thiếu hàng nhưng đã có phiếu nhập chờ đủ số lượng. Kiểm tra hàng về rồi chốt lại.");
     }
 
-    if (state.admin?.isAdmin) {
-      const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng:\n${shortageSummary}\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel nếu muốn xử lý tiếp qua phiếu nhập.`);
+    if (canAdjustInventoryDirectly()) {
+      const shouldAdjustStock = window.confirm(`Đơn đang thiếu hàng:\n${shortageSummary}\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo quyền điều chỉnh tồn hiện tại.\nChọn Cancel nếu muốn xử lý tiếp qua phiếu nhập.`);
       if (shouldAdjustStock) {
         switchMenu("inventory");
         prefillProduct(shortagePlan[0].product?.id || shortagePlan[0].item.productId);
@@ -6296,8 +6310,8 @@ async function commitActiveCart() {
       throw new Error("Đơn chưa đủ hàng khả dụng để chốt. Hãy chuyển phiếu nhập liên quan sang Đã đặt hoặc bổ sung thêm số lượng.");
     }
 
-    if (state.admin?.isAdmin) {
-      const shouldAdjustStock = window.confirm(`Đơn chưa đủ hàng khả dụng để chốt:\n${shortageSummary}\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel nếu muốn xử lý tiếp qua phiếu nhập.`);
+    if (canAdjustInventoryDirectly()) {
+      const shouldAdjustStock = window.confirm(`Đơn chưa đủ hàng khả dụng để chốt:\n${shortageSummary}\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo quyền điều chỉnh tồn hiện tại.\nChọn Cancel nếu muốn xử lý tiếp qua phiếu nhập.`);
       if (shouldAdjustStock) {
         switchMenu("inventory");
         prefillProduct(shortagePlan[0].product?.id || shortagePlan[0].item.productId);
@@ -6358,8 +6372,8 @@ async function shipActiveCart() {
       throw new Error("Đơn đã chốt nhưng hiện chưa đủ hàng để xuất. Kiểm tra hàng về rồi xuất lại.");
     }
 
-    if (state.admin?.isAdmin) {
-      const shouldAdjustStock = window.confirm(`Đơn đã chốt nhưng hiện chưa đủ hàng để xuất:\n${shortageSummary}\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo chế độ Master Admin.\nChọn Cancel nếu muốn xử lý tiếp qua phiếu nhập.`);
+    if (canAdjustInventoryDirectly()) {
+      const shouldAdjustStock = window.confirm(`Đơn đã chốt nhưng hiện chưa đủ hàng để xuất:\n${shortageSummary}\n\nChọn OK để sang màn tồn kho và tự điều chỉnh số lượng tồn theo quyền điều chỉnh tồn hiện tại.\nChọn Cancel nếu muốn xử lý tiếp qua phiếu nhập.`);
       if (shouldAdjustStock) {
         switchMenu("inventory");
         prefillProduct(shortagePlan[0].product?.id || shortagePlan[0].item.productId);

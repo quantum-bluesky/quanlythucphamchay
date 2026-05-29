@@ -802,7 +802,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     return
 
                 if route == "/api/transactions":
-                    if not self._require_admin():
+                    if not self._require_inventory_adjust_permission():
                         return
                     transaction = store.create_transaction(
                         product_id=int(payload.get("product_id", 0)),
@@ -1245,7 +1245,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     return
 
                 if route == "/api/adjustments/inventory":
-                    if not self._require_admin():
+                    if not self._require_inventory_adjust_permission():
                         return
                     receipt = store.create_inventory_adjustment_receipt(
                         items=payload.get("items", []),
@@ -1731,6 +1731,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return True
             return clean_permission_name in set(self._get_current_permissions())
 
+        def _has_inventory_adjust_permission(self) -> bool:
+            return self._has_named_permission("inventory_adjust_manage")
+
         def _require_named_permission(self, permission_name: str, error_message: str) -> bool:
             if not self._is_login_enabled():
                 return True
@@ -1749,6 +1752,28 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self._send_json(
                 HTTPStatus.UNAUTHORIZED,
                 {"error": error_message},
+            )
+            return False
+
+        def _require_inventory_adjust_permission(self) -> bool:
+            session, expired = self._resolve_current_session()
+            if expired:
+                self._send_json(
+                    HTTPStatus.UNAUTHORIZED,
+                    self._build_auth_required_payload(session_expired=True),
+                )
+                return False
+            if not session:
+                self._send_json(
+                    HTTPStatus.UNAUTHORIZED,
+                    {"error": "Cần đăng nhập tài khoản có quyền điều chỉnh tồn."},
+                )
+                return False
+            if self._has_inventory_adjust_permission():
+                return True
+            self._send_json(
+                HTTPStatus.UNAUTHORIZED,
+                {"error": "Tài khoản này không có quyền điều chỉnh tồn trực tiếp."},
             )
             return False
 

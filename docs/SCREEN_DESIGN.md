@@ -57,14 +57,14 @@ Liên kết detail hiện có:
   - `Xuất`
   - `Nhập`
   - `Xem lịch sử`
-  - direct adjust chỉ cho Master Admin
+  - direct adjust chỉ cho `Master Admin` hoặc user có permission `inventory_adjust_manage`
 - nguyên tắc UI:
   - search toolbar chỉ giữ ô tìm kiếm
   - sort nằm ở pagination đầu list; pagination cuối không lặp sort control
   - pagination đầu list chỉ floating khi số kết quả đang hiển thị đủ lấp một trang; nếu filter/search còn ít hơn số mục tối đa trên một trang thì pagination đó quay về dạng tĩnh để không che card sản phẩm
   - mode `Ưu tiên nhập/xử lý` hiển thị thêm điểm ưu tiên trên card
   - mode `Hạn còn ít` hiển thị theo HSD thật của lô gần nhất nếu có; chỉ fallback về ước tính sản phẩm khi chưa có lô nào có HSD
-  - nếu user là `Master Admin`, panel `Chỉnh tồn trực tiếp` trên mobile/ tablet portrait phải ưu tiên nằm sát đầu màn hình, tự mở được ngay khi vào màn và cuộn tới hết form mà không bị dock nổi che phần nhập liệu hay action
+  - nếu user có quyền direct adjust, panel `Chỉnh tồn trực tiếp` trên mobile/ tablet portrait phải ưu tiên nằm sát đầu màn hình, tự mở được ngay khi vào màn, khi thu gọn không để thừa khoảng trắng và khi mở phải cuộn tới hết form mà không bị dock nổi che phần nhập liệu hay action
   - phần detail của từng card sản phẩm phải có nút/link `Xem lịch sử` để mở sang màn mới và chọn sẵn sản phẩm tương ứng
   - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết thiếu hàng sẽ đi qua planner batch thay vì flow nhập thiếu nhanh
 

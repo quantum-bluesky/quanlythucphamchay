@@ -8,11 +8,16 @@ export function registerInventoryControllerEvents(contract) {
     utils,
   } = contract;
 
-  const requireAdmin = () => {
-    if (Boolean(state.admin?.isAdmin)) {
+  const canAdjustInventoryDirectly = () => {
+    const permissions = new Set((state.admin?.permissions || []).map((entry) => String(entry || "").trim()));
+    return Boolean(state.admin?.isAdmin || permissions.has("inventory_adjust_manage"));
+  };
+
+  const requireInventoryAdjustAccess = () => {
+    if (canAdjustInventoryDirectly()) {
       return true;
     }
-    actions.showToast("Chỉ Master Admin mới được chỉnh trực tiếp ở màn tồn kho.", true);
+    actions.showToast("Tài khoản này không có quyền chỉnh trực tiếp ở màn tồn kho.", true);
     return false;
   };
 
@@ -47,7 +52,10 @@ export function registerInventoryControllerEvents(contract) {
         return;
       }
       if (actionButton.dataset.productAction === "start-price-edit") {
-        if (!requireAdmin()) return;
+        if (!Boolean(state.admin?.isAdmin)) {
+          actions.showToast("Chỉ Master Admin mới được sửa giá nhập.", true);
+          return;
+        }
         state.expandedProductId = productId;
         state.editingPriceId = productId;
         renderers.renderProducts();
@@ -60,7 +68,7 @@ export function registerInventoryControllerEvents(contract) {
         return;
       }
       if (actionButton.dataset.productAction === "create-receipt") {
-        if (!requireAdmin()) return;
+        if (!requireInventoryAdjustAccess()) return;
         actions.openInventoryReceiptDraft(productId);
         renderers.renderInventoryReceiptSection();
         actions.focusInventoryReceiptSection();
@@ -113,7 +121,10 @@ export function registerInventoryControllerEvents(contract) {
 
     const savePriceButton = event.target.closest("[data-save-price]");
     if (savePriceButton) {
-      if (!requireAdmin()) return;
+      if (!Boolean(state.admin?.isAdmin)) {
+        actions.showToast("Chỉ Master Admin mới được sửa giá nhập.", true);
+        return;
+      }
       const productId = savePriceButton.dataset.savePrice;
       const input = dom.productGrid.querySelector(`[data-price-input="${productId}"]`);
       if (!input || input.value === "") {
@@ -130,7 +141,7 @@ export function registerInventoryControllerEvents(contract) {
 
     const prefillButton = event.target.closest("[data-prefill]");
     if (prefillButton) {
-      if (!requireAdmin()) return;
+      if (!requireInventoryAdjustAccess()) return;
       actions.prefillProduct(prefillButton.dataset.prefill);
       return;
     }
@@ -166,7 +177,7 @@ export function registerInventoryControllerEvents(contract) {
 
     const quantityApplyButton = event.target.closest("[data-quantity-apply]");
     if (quantityApplyButton) {
-      if (!requireAdmin()) return;
+      if (!requireInventoryAdjustAccess()) return;
       const productId = Number(quantityApplyButton.dataset.product);
       const input = dom.productGrid.querySelector(`[data-quantity-input="${productId}"]`);
       const quantity = Number(input?.value);
@@ -176,7 +187,7 @@ export function registerInventoryControllerEvents(contract) {
       }
       const reason = queries.getInventoryAdjustmentReason(productId);
       if (!reason) {
-        actions.showToast("Master Admin phải nhập lý do khi chỉnh tồn trực tiếp.", true);
+        actions.showToast("Phải nhập lý do khi chỉnh tồn trực tiếp.", true);
         return;
       }
 
@@ -195,14 +206,14 @@ export function registerInventoryControllerEvents(contract) {
 
     const deltaButton = event.target.closest("[data-delta]");
     if (!deltaButton) return;
-    if (!requireAdmin()) return;
+    if (!requireInventoryAdjustAccess()) return;
 
     const delta = Number(deltaButton.dataset.delta);
     const productId = Number(deltaButton.dataset.product);
     const transactionType = delta > 0 ? "in" : "out";
     const reason = queries.getInventoryAdjustmentReason(productId);
     if (!reason) {
-      actions.showToast("Master Admin phải nhập lý do khi chỉnh tồn trực tiếp.", true);
+      actions.showToast("Phải nhập lý do khi chỉnh tồn trực tiếp.", true);
       return;
     }
 
@@ -238,7 +249,7 @@ export function registerInventoryControllerEvents(contract) {
 
   dom.productGrid.addEventListener("keydown", async (event) => {
     if (event.key === "Enter" && event.target.matches("[data-quantity-input]")) {
-      if (!requireAdmin()) return;
+      if (!requireInventoryAdjustAccess()) return;
       event.preventDefault();
       const productId = event.target.dataset.quantityInput;
       const applyButton = dom.productGrid.querySelector(`[data-quantity-apply="in"][data-product="${productId}"]`);
@@ -247,7 +258,10 @@ export function registerInventoryControllerEvents(contract) {
     }
 
     if (event.key !== "Enter" || !event.target.matches("[data-price-input]")) return;
-    if (!requireAdmin()) return;
+    if (!Boolean(state.admin?.isAdmin)) {
+      actions.showToast("Chỉ Master Admin mới được sửa giá nhập.", true);
+      return;
+    }
 
     event.preventDefault();
     try {
@@ -333,7 +347,7 @@ export function registerInventoryControllerEvents(contract) {
   });
 
   dom.inventoryReceiptAddButton?.addEventListener("click", () => {
-    if (!requireAdmin()) return;
+    if (!requireInventoryAdjustAccess()) return;
     try {
       actions.addInventoryReceiptDraftItem(
         dom.inventoryReceiptProductInput.value,
@@ -388,7 +402,7 @@ export function registerInventoryControllerEvents(contract) {
   });
 
   dom.inventoryReceiptSubmitButton?.addEventListener("click", async () => {
-    if (!requireAdmin()) return;
+    if (!requireInventoryAdjustAccess()) return;
     try {
       await actions.submitInventoryReceiptDraft();
     } catch (error) {

@@ -371,7 +371,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS audit_logs` trong `qltpchay/store.py`.
 
 - audit thay đổi giá nhập/giá bán mặc định
 - audit create/update/delete/restore sản phẩm với actor thực hiện; riêng update sản phẩm ghi rõ field cũ/mới thay vì chỉ ghi tên
-- audit direct adjustment bởi Master Admin
+- audit direct adjustment bởi `Master Admin` hoặc user có quyền `inventory_adjust_manage`
 - audit chuyển trạng thái cart và purchase
 - audit tạo chứng từ điều chỉnh/trả hàng và giữ đúng actor khi tạo/import từ các luồng quản trị
 
@@ -473,7 +473,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 
 - `products.price` là giá nhập mặc định
 - `products.sale_price` là giá bán mặc định
-- chỉ `Master Admin` mới được chỉnh tồn trực tiếp qua `POST /api/transactions`
+- chỉ `Master Admin` hoặc user có permission `inventory_adjust_manage` mới được chỉnh tồn trực tiếp qua `POST /api/transactions`
 - direct adjustment bắt buộc có `adjustment_reason`
 - đơn đã `completed` và phiếu nhập đã `received/paid` không được sửa ngược trực tiếp
 - phiếu nhập sinh ra từ đơn thiếu hàng lưu liên kết nguồn riêng ở `source_type/source_code/source_name`; `note` vẫn dành cho ghi chú user nhập tay
@@ -502,6 +502,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - `planner_manager_usernames`: danh sách user thường được phép xử lý batch ngoài permission trực tiếp
 
 User thường có thể có permission `procurement_batch_manage`; quyền này chỉ cho xử lý kỳ gom nhập, không cho chỉnh tồn trực tiếp.
+User thường có thể có permission `inventory_adjust_manage`; quyền này chỉ cho chỉnh tồn trực tiếp / tạo `Phiếu DC`, không mở quyền quản trị khác như backup/restore hay sửa giá nhập.
 
 ## 15. Điểm mạnh và giới hạn hiện tại
 
