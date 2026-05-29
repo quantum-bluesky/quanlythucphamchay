@@ -10,6 +10,8 @@ export function createPurchasesUi(deps) {
     renderPriceWarningMarkup,
     mobileQuery,
     getActivePurchase,
+    getProductById,
+    getSupplierByName,
     canEditPurchase,
     canEditPurchaseExpiryMetadata,
     canEditPurchaseDiscount,
@@ -171,6 +173,113 @@ export function createPurchasesUi(deps) {
         ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo/sửa phiếu nhập nháp hoặc đã đặt."
         : "";
     }
+  }
+
+  function renderQuickPurchasePanel() {
+    if (!dom.quickPurchasePanel) {
+      return;
+    }
+    const draft = state.quickPurchaseDraft || {};
+    const items = Array.isArray(draft.items) ? draft.items : [];
+    const finalStatus = String(draft.finalStatus || "received");
+    const markPaid = Boolean(draft.markPaid) && finalStatus === "received";
+    const supplier = getSupplierByName(String(draft.supplierText || "").trim());
+    const totalAmount = items.reduce(
+      (sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitCost || 0)),
+      0,
+    );
+    const lastResult = draft.lastResult || null;
+    dom.quickPurchasePanel.innerHTML = `
+      <div class="subheading">
+        <div>
+          <p class="panel-kicker">Xử lý nhanh</p>
+          <h3>Nhập hàng 1 lần lưu</h3>
+          <p class="panel-note">Dùng cho trường hợp hàng đã nhận xong trong ngày, chỉ cần ghi lại nhanh và vẫn giữ đủ lịch sử nhập kho.</p>
+        </div>
+      </div>
+      <div class="quick-doc-grid">
+        <label>
+          <span>Nhà cung cấp</span>
+          <input id="quickPurchaseSupplierInput" type="text" list="supplierOptions" maxlength="120" placeholder="Chọn hoặc nhập NCC mới" value="${escapeHtml(String(draft.supplierText || ""))}">
+        </label>
+        <label>
+          <span>Ngày nhập</span>
+          <input id="quickPurchaseDateInput" type="date" value="${escapeHtml(String(draft.documentDate || ""))}">
+        </label>
+        <label class="quick-doc-note">
+          <span>Ghi chú</span>
+          <input id="quickPurchaseNoteInput" type="text" maxlength="160" placeholder="Ví dụ: Ghi cuối ngày, đã nhận đủ" value="${escapeHtml(String(draft.note || ""))}">
+        </label>
+      </div>
+      <div class="quick-doc-shortcuts">
+        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="use-active-purchase">Lấy từ phiếu đang mở</button>
+        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="open-products">Thêm hàng mới</button>
+        ${supplier?.note ? `<span class="quick-doc-hint">Gợi ý: ${escapeHtml(supplier.note)}</span>` : ""}
+      </div>
+      <div class="quick-doc-line-entry" data-price-warning-group data-price-warning-mode="edit">
+        <label>
+          <span>Sản phẩm</span>
+          <input id="quickPurchaseProductInput" type="text" list="productOptions" placeholder="Tìm sản phẩm để nhập nhanh" value="${escapeHtml(String(draft.productText || ""))}">
+        </label>
+        <label>
+          <span>SL</span>
+          <input id="quickPurchaseQuantityInput" type="number" min="0.01" step="0.01" value="${escapeHtml(String(draft.quantity || "1"))}">
+        </label>
+        <label data-price-warning-field="purchase">
+          <span>Giá nhập</span>
+          <input id="quickPurchaseUnitCostInput" type="number" min="0" step="1000" value="${escapeHtml(String(draft.unitCost || ""))}" data-price-warning-input="purchase">
+        </label>
+        <div class="quick-doc-line-actions">
+          <button type="button" class="primary-button" data-quick-purchase-action="add-item">+ Thêm hàng</button>
+        </div>
+      </div>
+      <div class="quick-doc-items">
+        ${items.length ? items.map((item, index) => {
+          const product = getProductById(item.productId);
+          return `
+            <article class="quick-doc-item">
+              <div>
+                <strong>${escapeHtml(item.productName || product?.name || `SP #${item.productId}`)}</strong>
+                <div class="cart-line-note">SL ${escapeHtml(formatQuantity(item.quantity || 0))} • Giá nhập ${escapeHtml(formatCurrency(item.unitCost || 0))}</div>
+              </div>
+              <div class="quick-doc-item-actions">
+                <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitCost || 0)))}</strong>
+                <button type="button" class="ghost-button compact-button" data-quick-purchase-action="remove-item" data-item-index="${index}">Bỏ</button>
+              </div>
+            </article>
+          `;
+        }).join("") : '<div class="empty-state">Chưa có mặt hàng nào trong xử lý nhanh.</div>'}
+      </div>
+      <div class="quick-doc-footer">
+        <div class="quick-doc-statuses">
+          <label class="toggle-inline"><input type="radio" name="quickPurchaseFinalStatus" value="received" ${finalStatus === "received" ? "checked" : ""}> <span>Đã nhập hàng</span></label>
+          <label class="toggle-inline"><input type="radio" name="quickPurchaseFinalStatus" value="ordered" ${finalStatus === "ordered" ? "checked" : ""}> <span>Chỉ đặt hàng</span></label>
+          <label class="toggle-inline"><input id="quickPurchaseMarkPaidInput" type="checkbox" ${markPaid ? "checked" : ""} ${finalStatus !== "received" ? "disabled" : ""}> <span>Đã thanh toán luôn</span></label>
+        </div>
+        <div class="quick-doc-footer-actions">
+          <div class="stat-chip"><span>Số dòng</span><strong>${escapeHtml(String(items.length))}</strong></div>
+          <div class="stat-chip"><span>Tổng tiền</span><strong>${escapeHtml(formatCurrency(totalAmount))}</strong></div>
+          <button type="button" class="primary-button" data-quick-purchase-action="submit">Lưu nhập nhanh</button>
+        </div>
+      </div>
+      ${lastResult ? `
+        <article class="inline-alert success quick-doc-result">
+          <strong>Đã lưu phiếu nhập nhanh</strong>
+          <div class="quick-doc-result-grid">
+            <span>Mã phiếu: ${escapeHtml(lastResult.document_code || "Chưa có")}</span>
+            <span>Số mặt hàng: ${escapeHtml(String(lastResult.item_count || 0))}</span>
+            <span>Tổng tiền: ${escapeHtml(formatCurrency(lastResult.total_amount || 0))}</span>
+            <span>Trạng thái: ${escapeHtml(lastResult.status === "ordered" ? "Đã đặt hàng" : lastResult.status === "paid" ? "Đã nhập + đã trả" : "Đã nhập hàng")}</span>
+            <span>Thanh toán: ${escapeHtml(lastResult.payment_status === "paid" ? "Đã thanh toán" : "Chưa thanh toán")}</span>
+          </div>
+          <div class="line-actions">
+            <button type="button" class="primary-button compact-button" data-quick-purchase-action="continue">Tiếp tục nhập nhanh</button>
+            <button type="button" class="ghost-button compact-button" data-quick-purchase-action="view-document" data-document-id="${escapeHtml(String(lastResult.document_id || ""))}">Xem phiếu</button>
+            <button type="button" class="ghost-button compact-button" data-quick-purchase-action="open-list">Về danh sách</button>
+          </div>
+        </article>
+      ` : ""}
+    `;
   }
 
   function renderPurchaseDiscountEditor(purchase) {
@@ -515,6 +624,7 @@ export function createPurchasesUi(deps) {
 
   return {
     renderPurchaseEntryState,
+    renderQuickPurchasePanel,
     renderPurchasePanel,
     renderPurchaseSuggestions,
     renderPurchaseOrders,

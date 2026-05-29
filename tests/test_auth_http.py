@@ -911,6 +911,83 @@ class AuthHttpTests(unittest.TestCase):
         self.assertIn("create", order_actions)
         self.assertIn("status-change", order_actions)
 
+    def test_ut_auth_12b_quick_purchase_and_sale_routes_create_documents_with_history(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [
+                {
+                    "username": "staff",
+                    "password": "staff12345",
+                    "permissions": [],
+                }
+            ],
+        }
+        self._start_server(config)
+
+        product = self.store.create_product(
+            name="Sản phẩm quick route",
+            category="Đồ chay",
+            unit="gói",
+            price=12000,
+            sale_price=20000,
+            low_stock_threshold=1,
+        )
+        self.store.create_transaction(product["id"], "in", 10, "Tồn đầu quick route")
+
+        _, _, login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+        )
+        staff_cookie = self._extract_cookie(login_headers)
+
+        quick_purchase_status, quick_purchase_payload, _ = self._request_json(
+            "POST",
+            "/api/purchases/quick-create",
+            cookie=staff_cookie,
+            payload={
+                "supplier_name": "NCC Quick Route",
+                "document_date": "2026-05-25",
+                "items": [{"product_id": product["id"], "quantity": 2, "unit_cost": 13000}],
+                "final_status": "received",
+                "mark_paid": True,
+            },
+        )
+        self.assertEqual(quick_purchase_status, 201)
+        purchase_id = quick_purchase_payload["purchase"]["id"]
+        self.assertEqual(quick_purchase_payload["purchase"]["status"], "paid")
+        self.assertEqual(quick_purchase_payload["purchase"]["createdMode"], "quick_import")
+
+        purchase_history_status, purchase_history_payload, _ = self._request_json(
+            "GET",
+            f"/api/purchases/{purchase_id}/history?limit=10",
+            cookie=staff_cookie,
+        )
+        self.assertEqual(purchase_history_status, 200)
+        purchase_actions = [entry["action"] for entry in purchase_history_payload["history"]]
+        self.assertIn("create", purchase_actions)
+        self.assertIn("status-change", purchase_actions)
+        self.assertIn("payment-status", purchase_actions)
+
+        quick_sale_status, quick_sale_payload, _ = self._request_json(
+            "POST",
+            "/api/orders/quick-create",
+            cookie=staff_cookie,
+            payload={
+                "customer_name": "Khách Quick Route",
+                "document_date": "2026-05-25",
+                "items": [{"product_id": product["id"], "quantity": 1, "unit_price": 20000}],
+                "final_status": "completed",
+                "mark_paid": True,
+            },
+        )
+        self.assertEqual(quick_sale_status, 201)
+        self.assertEqual(quick_sale_payload["cart"]["paymentStatus"], "paid")
+        self.assertEqual(quick_sale_payload["cart"]["createdMode"], "quick_export")
+
     def test_ut_auth_13_pending_bulk_order_request_delete_allows_owner_and_manager_only(self) -> None:
         config = {
             "EnableLogin": True,

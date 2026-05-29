@@ -53,6 +53,7 @@ import {
   draftCartBadge,
   salesSearchInput,
   salesProductList,
+  quickSalePanel,
   activeCartPanel,
   bulkCustomerLookupInput,
   bulkAddCustomerButton,
@@ -109,6 +110,7 @@ import {
   purchaseNoteInput,
   createPurchaseDraftButton,
   togglePurchasePanelButton,
+  quickPurchasePanel,
   purchasePanel,
   purchaseSupplierMenuButton,
   purchaseSearchInput,
@@ -630,6 +632,10 @@ function renderCreateOrderEntryState() {
   getSalesUi().renderCreateOrderEntryState();
 }
 
+function renderQuickSalePanel() {
+  getSalesUi().renderQuickSalePanel();
+}
+
 function scrollToCreateOrderTop({ focusCustomer = false } = {}) {
   if (state.activeMenu !== "create-order") {
     switchMenu("create-order");
@@ -664,6 +670,10 @@ function focusActiveCartPanel() {
 
 function renderPurchaseEntryState() {
   getPurchasesUi().renderPurchaseEntryState();
+}
+
+function renderQuickPurchasePanel() {
+  getPurchasesUi().renderQuickPurchasePanel();
 }
 
 function focusPurchaseSuggestions() {
@@ -989,6 +999,7 @@ function getSalesUi() {
         createOrderSection,
         createOrderCustomerCard,
         openCartButton,
+        quickSalePanel,
         activeCartPanel,
         orderDetailPanel,
         salesProductList,
@@ -1010,6 +1021,7 @@ function getSalesUi() {
       getActiveCart,
       getPendingMergeCommittedCarts,
       getProductById,
+      getCustomerByName: (customerName) => state.customers.find((customer) => normalizeText(customer.name) === normalizeText(customerName)) || null,
       canDeleteCart,
       canMergeCart,
       canEditCartNote,
@@ -1067,6 +1079,7 @@ function getPurchasesUi() {
       dom: {
         purchasesSection,
         purchaseCustomerCard,
+        quickPurchasePanel,
         createPurchaseDraftButton,
         purchaseSupplierMenuButton,
         togglePurchasePanelButton,
@@ -1082,6 +1095,8 @@ function getPurchasesUi() {
       renderPriceWarningMarkup,
       mobileQuery,
       getActivePurchase,
+      getProductById,
+      getSupplierByName: (supplierName) => state.suppliers.find((supplier) => normalizeText(supplier.name) === normalizeText(supplierName)) || null,
       canEditPurchase,
       canEditPurchaseNote,
       canMergePurchase,
@@ -1868,6 +1883,74 @@ function writeStorage(key, value) {
 
 function getProductById(productId) {
   return state.products.find((product) => Number(product.id) === Number(productId)) || null;
+}
+
+function getTodayDateInputValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function resetQuickSaleDraft() {
+  state.quickSaleDraft = {
+    customerText: "",
+    documentDate: getTodayDateInputValue(),
+    note: "",
+    productText: "",
+    quantity: "1",
+    unitPrice: "",
+    finalStatus: "completed",
+    markPaid: false,
+    items: [],
+    lastResult: null,
+  };
+}
+
+function resetQuickPurchaseDraft() {
+  state.quickPurchaseDraft = {
+    supplierText: "",
+    documentDate: getTodayDateInputValue(),
+    note: "",
+    productText: "",
+    quantity: "1",
+    unitCost: "",
+    finalStatus: "received",
+    markPaid: false,
+    items: [],
+    lastResult: null,
+  };
+}
+
+function cloneActiveCartIntoQuickSaleDraft() {
+  const cart = getActiveCart();
+  if (!cart) {
+    throw new Error("Chưa có đơn hàng đang mở để lấy nhanh.");
+  }
+  state.quickSaleDraft.customerText = String(cart.customerName || "").trim();
+  state.quickSaleDraft.note = String(cart.note || "").trim();
+  state.quickSaleDraft.documentDate = getTodayDateInputValue();
+  state.quickSaleDraft.items = (Array.isArray(cart.items) ? cart.items : []).map((item) => ({
+    productId: Number(item.productId || item.product_id || 0),
+    productName: String(item.productName || "").trim(),
+    quantity: Number(item.quantity || 0),
+    unitPrice: Number(item.unitPrice || item.unit_price || 0),
+  })).filter((item) => item.productId > 0 && item.quantity > 0);
+  state.quickSaleDraft.lastResult = null;
+}
+
+function cloneActivePurchaseIntoQuickPurchaseDraft() {
+  const purchase = getActivePurchase();
+  if (!purchase) {
+    throw new Error("Chưa có phiếu nhập đang mở để lấy nhanh.");
+  }
+  state.quickPurchaseDraft.supplierText = String(purchase.supplierName || "").trim();
+  state.quickPurchaseDraft.note = String(purchase.note || "").trim();
+  state.quickPurchaseDraft.documentDate = getTodayDateInputValue();
+  state.quickPurchaseDraft.items = (Array.isArray(purchase.items) ? purchase.items : []).map((item) => ({
+    productId: Number(item.productId || item.product_id || 0),
+    productName: String(item.productName || "").trim(),
+    quantity: Number(item.quantity || 0),
+    unitCost: Number(item.unitCost || item.unit_cost || 0),
+  })).filter((item) => item.productId > 0 && item.quantity > 0);
+  state.quickPurchaseDraft.lastResult = null;
 }
 
 function getCartById(cartId) {
@@ -2968,6 +3051,24 @@ async function updatePurchasePaymentDetails(purchaseId, { paidAt = "", paymentMe
       payment_method: paymentMethod || "",
       payment_note: paymentNote || "",
     }),
+  });
+  await refreshData();
+  return data;
+}
+
+async function createQuickSaleDocument(payload) {
+  const data = await apiRequest("/api/orders/quick-create", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  await refreshData();
+  return data;
+}
+
+async function createQuickPurchaseDocument(payload) {
+  const data = await apiRequest("/api/purchases/quick-create", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
   await refreshData();
   return data;
@@ -5643,12 +5744,14 @@ function renderAll() {
   renderProductSections();
   renderTransactions();
   renderProductMovementScreen();
+  renderQuickSalePanel();
   renderActiveCartPanel();
   renderBulkOrdersScreen();
   renderSalesProductList();
   renderCartItems();
   renderCartQueue();
   renderCustomers();
+  renderQuickPurchasePanel();
   renderPurchasePanel();
   renderPurchaseSuggestions();
   renderPurchaseOrders();
@@ -6478,6 +6581,7 @@ registerSalesControllerEvents({
     customerLookupInput,
     salesNoteInput,
     createNewCartButton,
+    quickSalePanel,
     salesSearchInput,
     orderSearchInput,
     showArchivedCarts,
@@ -6521,6 +6625,9 @@ registerSalesControllerEvents({
     printCart,
     openCartAuditHistory,
     updateProductSalePrice,
+    createQuickSaleDocument,
+    resetQuickSaleDraft,
+    cloneActiveCartIntoQuickSaleDraft,
     focusActiveCartPanel,
     focusOrderDetailPanel,
     focusOrderQueueItem,
@@ -6532,6 +6639,7 @@ registerSalesControllerEvents({
     setPaginationPageForItem,
   },
   renderers: {
+    renderQuickSalePanel,
     renderSalesProductList,
     renderCartItems,
     renderActiveCartPanel,
@@ -6681,6 +6789,7 @@ registerPurchasesControllerEvents({
   dom: {
     createPurchaseDraftButton,
     togglePurchasePanelButton,
+    quickPurchasePanel,
     purchaseSupplierInput,
     purchaseNoteInput,
     purchaseSupplierMenuButton,
@@ -6726,9 +6835,13 @@ registerPurchasesControllerEvents({
     resetSupplierReturnDraft,
     submitSupplierReturnDraft,
     updatePurchasePaymentDetails,
+    createQuickPurchaseDocument,
+    resetQuickPurchaseDraft,
+    cloneActivePurchaseIntoQuickPurchaseDraft,
     setPaginationPageForItem,
   },
   renderers: {
+    renderQuickPurchasePanel,
     renderPurchasePanel,
     renderPurchaseSuggestions,
     renderPurchaseOrders,

@@ -53,6 +53,7 @@ Quy ước mã case unit:
 - `UT-AUD-*`: case audit
 - `UT-HIS-*`: case history filter
 - `UT-MOV-*`: case lịch sử biến động sản phẩm
+- `UT-QUICK-*`: case xử lý nhanh nhập/xuất hàng một màn
 
 Tên method đã được chuẩn hóa theo mã case ở đầu, ví dụ:
 
@@ -64,6 +65,7 @@ Phù hợp khi sửa:
 - logic `InventoryStore`
 - validate dữ liệu
 - tính tồn kho / báo cáo
+- luồng `Xử lý nhanh nhập hàng` / `Xử lý nhanh xuất hàng`, bao gồm validation, payment một lần, audit/history và stock movement
 - quản lý tồn theo lô, FEFO theo HSD thật và phân bổ lô khi xuất/trả hàng
 - sync state `purchases`, đặc biệt rule không lưu phiếu nhập nháp nếu chưa có mặt hàng
 - workflow phiếu nhập: thiếu NCC thì không được `Đã đặt hàng` hoặc `Nhập kho`
@@ -197,6 +199,7 @@ Mỗi lần chạy Playwright sẽ tự khởi động lại test server fixture
 Các nhóm kiểm tra chính:
 
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
+- `Xử lý nhanh nhập/xuất hàng`: hiện tại có unit/API coverage cho các nhánh `ordered/received/paid` của phiếu nhập và `committed/completed/paid` của phiếu xuất, kèm validation thiếu đối tượng, thiếu mặt hàng, số lượng không hợp lệ và chặn xuất vượt tồn
 - `Tồn kho -> Lịch sử biến động sản phẩm`: mở từ shortcut hoặc từ card sản phẩm, tính đúng `Tồn đầu kỳ / Tổng nhập / Tổng xuất / Tồn cuối kỳ / Chênh lệch`, và giữ layout card ổn định trên mobile
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, cho phép chốt khi phần thiếu đã được phiếu nhập `Đã đặt` cover đủ, còn với thiếu hàng chưa đặt đủ thì user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu mở liên quan
 - `Tạo đơn xuất hàng -> Tạo đơn mới`: khi user chủ động tách đơn mới, app phải hỏi confirm nếu đang có dữ liệu/preview cũ, rồi mở một draft trắng riêng mà không reuse draft đang có

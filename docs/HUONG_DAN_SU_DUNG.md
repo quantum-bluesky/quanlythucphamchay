@@ -219,6 +219,24 @@ Nếu thiếu hàng:
 - nếu đang bật kỳ gom nhập, app sẽ không tạo phiếu nhập tự động theo từng đơn; app chuyển sang màn `Xử lý nhập thiếu` để người giữ khóa xử lý tập trung
 - nếu cần đối chiếu nhanh metadata phiếu xuất hiện hành, bấm `Detail` trong khối `Giỏ hiện hành`
 
+### Xử lý nhanh xuất hàng
+
+Ngay trong màn `Tạo đơn xuất hàng` có thêm card `Xử lý nhanh` dành cho tình huống hàng đã giao xong rồi mới ghi vào app:
+
+1. Nhập hoặc chọn khách hàng
+2. Chọn `Ngày xuất`
+3. Thêm từng mặt hàng với `SL` và `Giá bán`
+4. Chọn `Đã xuất hàng` hoặc `Chỉ chốt đơn`
+5. Nếu khách đã trả đủ tiền, tick `Đã thanh toán luôn`
+6. Bấm `Lưu xuất nhanh`
+
+Kết quả:
+
+- `Chỉ chốt đơn`: hệ thống tạo phiếu ở trạng thái `Chốt đơn`, chưa trừ kho
+- `Đã xuất hàng`: hệ thống tự đi `draft -> committed -> completed`, trừ kho và ghi biến động `OUT`
+- `Đã xuất hàng` + `Đã thanh toán luôn`: hệ thống tự đi `draft -> committed -> completed -> paid`
+- phiếu được gắn `created_mode = quick_export` để phân biệt với flow chuẩn nhưng vẫn dùng cùng trạng thái cũ của hệ thống
+
 ### Màn tạo nhiều đơn mobile-first
 
 Vào menu:
@@ -420,6 +438,24 @@ Màn này có 2 phần:
 34. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`
 36. Panel detail của phiếu nhập có nút `Previous / Next` để chuyển nhanh theo đúng danh sách phiếu đang lọc; nút `Đóng` chỉ ẩn detail, không làm mất filter/search
 37. Trước khi đổi trạng thái `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu` hoặc `Xóa phiếu`, app sẽ hiện message confirm để tránh thao tác nhầm
+
+### Xử lý nhanh nhập hàng
+
+Ngay trong màn `Nhập hàng` có thêm card `Xử lý nhanh` dành cho tình huống hàng đã nhận xong rồi mới ghi vào app:
+
+1. Nhập hoặc chọn nhà cung cấp
+2. Chọn `Ngày nhập`
+3. Thêm từng mặt hàng với `SL` và `Giá nhập`
+4. Chọn `Đã nhập hàng` hoặc `Chỉ đặt hàng`
+5. Nếu đã trả đủ tiền, tick `Đã thanh toán luôn`
+6. Bấm `Lưu nhập nhanh`
+
+Kết quả:
+
+- `Chỉ đặt hàng`: hệ thống tạo phiếu ở trạng thái `Đã đặt`, chưa cộng kho
+- `Đã nhập hàng`: hệ thống tự đi `draft -> ordered -> received`, cộng kho và ghi biến động `IN`
+- `Đã nhập hàng` + `Đã thanh toán luôn`: hệ thống tự đi `draft -> ordered -> received -> paid`
+- phiếu được gắn `created_mode = quick_import` để phân biệt với flow chuẩn nhưng vẫn dùng cùng trạng thái cũ của hệ thống
 
 Nếu phiếu được tạo từ một đơn đang thiếu hàng:
 
