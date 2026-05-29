@@ -42,8 +42,8 @@ Lưu ý:
 | 23 | `ACC-HIS-01` | Kiểm tra màn lịch sử/khôi phục render ổn định và không lỗi runtime khi truy cập. |
 | 24 | `ACC-ADM-01` | Kiểm tra Master Admin login, export/import master data, backup và restore hoạt động trên fixture DB. |
 | 25 | `ACC-ADM-02` | Kiểm tra cùng luồng Master Admin ở trên vẫn hoạt động đầy đủ và ổn định trong cùng spec admin. |
-| 26 | `ACC-ADM-03` | Kiểm tra chỉnh tồn trực tiếp yêu cầu đăng nhập admin và bắt buộc có lý do điều chỉnh. |
-| 27 | `ACC-LOG-01` | Kiểm tra login user thường và admin cập nhật đúng header `Login/Logout`, ẩn/hiện đúng module quản trị, đồng thời chỉ admin mới thấy các control tồn kho đặc quyền như panel chỉnh tồn trực tiếp và action `Phiếu DC` / sửa giá. |
+| 26 | `ACC-ADM-03` | Kiểm tra chỉnh tồn trực tiếp yêu cầu đăng nhập quyền phù hợp và bắt buộc có lý do điều chỉnh. |
+| 27 | `ACC-LOG-01` | Kiểm tra login user thường, user có `inventory_adjust_manage` và admin cập nhật đúng header `Login/Logout`, ẩn/hiện đúng module quản trị, đồng thời chỉ user có quyền chỉnh tồn hoặc admin mới thấy panel chỉnh tồn trực tiếp / `Phiếu DC`, còn sửa giá vẫn chỉ dành cho admin. |
 | 28 | `ACC-SYNC-01` | Kiểm tra màn tạo đơn tự refresh tồn kho và giá sau khi có thay đổi từ client khác. |
 | 29 | `ACC-SYNC-02` | Kiểm tra sync state từ chối cập nhật giỏ hàng stale và trả metadata conflict đúng. |
 | 30 | `ACC-SYNC-03` | Kiểm tra sync state từ chối cập nhật phiếu nhập stale và trả metadata conflict đúng. |
@@ -144,7 +144,7 @@ Lưu ý:
 | 106 | `UT-PROC-06` | Kiểm tra backend chặn `Bắt đầu kỳ gom nhập` nếu đang có nhiều phiếu nhập mở cover cùng một sản phẩm, đặc biệt khi có phiếu nguồn từ đơn hàng chồng lấn với phiếu khác. |
 | 107 | `UT-PROC-07` | Kiểm tra backend tạo được purchase batch mixed lines `shortage + extra`, vẫn gom đúng theo NCC và chỉ tạo assignment cho dòng shortage. |
 | 108 | `UT-PROC-08` | Kiểm tra extra row cùng sản phẩm với shortage row sẽ merge vào đúng phiếu batch/NCC đang xử lý và không tạo thêm assignment ngoài shortage. |
-| 109 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không phải Master Admin. |
+| 109 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không có `inventory_adjust_manage`. |
 | 110 | `IT-PROC-01` | Kiểm tra UI planner khi bị chặn `Bắt đầu kỳ gom` sẽ hiện danh sách conflict và cho bấm mở đúng các phiếu nhập mở liên quan để dọn. |
 | 111 | `IT-PROC-02` | Kiểm tra user không giữ khóa batch vào màn `Nhập hàng` sẽ bị khóa create/edit cấu trúc phiếu `draft/ordered`; phiếu batch không còn nút `Nhập kho`, còn ngoại lệ phiếu thường đã `ordered` từ trước lúc batch bắt đầu vẫn được `Nhập kho` rồi `Đã thanh toán`, kể cả khi owner đã sửa lại ghi chú phiếu sau lúc batch mở và không bị fail oan do sync cả collection `purchases`. |
 | 112 | `IT-PROC-03` | Kiểm tra batch owner thêm được extra product có badge `Ngoài nhu cầu đơn`, tạo phiếu batch mixed lines thành công và review chung với shortage row cùng NCC. |
@@ -181,3 +181,4 @@ Lưu ý:
 | 148 | `UT-QUICK-04` | Kiểm tra backend `Xử lý nhanh xuất hàng` khi chọn `Đã xuất hàng + Đã thanh toán luôn` sẽ tạo phiếu `paid`, trừ tồn, ghi stock movement `OUT`, payment record và history có marker `Tạo bằng Xử lý nhanh xuất hàng`. |
 | 149 | `UT-QUICK-05` | Kiểm tra backend chặn thiếu khách/NCC, thiếu mặt hàng, số lượng không hợp lệ và xuất vượt tồn trong các route `Xử lý nhanh`. |
 | 150 | `UT-AUTH-12B` | Kiểm tra API `/api/purchases/quick-create` và `/api/orders/quick-create` yêu cầu đăng nhập, tạo đúng chứng từ `quick_import/quick_export` và trả được history tương ứng ngay sau khi tạo. |
+| 151 | `UT-AUTH-15` | Kiểm tra user có `inventory_adjust_manage` được gọi `POST /api/transactions` và `POST /api/adjustments/inventory` nhưng vẫn bị chặn ở route `Master Admin`. |

@@ -34,7 +34,7 @@ Khi nhập sai hoặc xuất sai, app hiện thiên về:
 
 - mở lại giỏ nháp
 - tạo phiếu nhập bổ sung
-- hoặc với admin thì chỉnh tồn trực tiếp
+- hoặc với tài khoản có quyền điều chỉnh tồn thì chỉnh tồn trực tiếp
 
 Thiếu:
 
@@ -170,7 +170,7 @@ Nên dùng:
 
 ## 4.4 Nếu cần sửa tồn gấp
 
-Chỉ `Master Admin` dùng chỉnh tồn trực tiếp.
+Chỉ `Master Admin` hoặc user có permission `inventory_adjust_manage` dùng chỉnh tồn trực tiếp.
 
 Đề xuất:
 
@@ -186,7 +186,7 @@ Chỉ `Master Admin` dùng chỉnh tồn trực tiếp.
 
 - chỉ cho `paid` phiếu nhập sau khi đã `received`
 - chặn sửa trực tiếp chứng từ sau khi đã `completed/received`
-- thêm lý do bắt buộc khi admin chỉnh tồn trực tiếp
+- thêm lý do bắt buộc khi tài khoản có quyền chỉnh tồn trực tiếp
 
 ## Pha B: Tạo chứng từ điều chỉnh
 

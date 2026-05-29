@@ -40,8 +40,8 @@ Mục tiêu:
 | 16  | ACC-HIS-01   | P1       | Khôi phục                      | Màn khôi phục hiển thị đủ nhóm đã xóa và thao tác không lỗi               | Auto | `tests/integration/acceptance-checklist.spec.js`, `tests/integration/management-screens.spec.js` |
 | 17  | ACC-ADM-01   | P0       | Master Admin                   | Đăng nhập admin thành công, mở module quản trị                            | Auto | `tests/integration/admin.spec.js`                                                                |
 | 18  | ACC-ADM-02   | P0       | Master Admin                   | Export / import / backup / restore chạy trên fixture DB                   | Auto | `tests/integration/admin.spec.js`                                                                |
-| 19  | ACC-ADM-03   | P0       | Tồn kho admin                  | Chỉnh tồn trực tiếp phải có đăng nhập admin và lý do                      | Auto | `tests/integration/workflow-phase-a.spec.js`                                                     |
-| 20  | ACC-LOG-01   | P1       | Đăng nhập hệ thống             | User thường và admin cập nhật đúng header, quyền truy cập và control admin-only trên màn tồn kho | Auto | `tests/integration/login.spec.js`                                                                |
+| 19  | ACC-ADM-03   | P0       | Tồn kho quyền chỉnh tồn        | Chỉnh tồn trực tiếp phải có đăng nhập quyền phù hợp và lý do              | Auto | `tests/integration/workflow-phase-a.spec.js`                                                     |
+| 20  | ACC-LOG-01   | P1       | Đăng nhập hệ thống             | User thường, user có quyền chỉnh tồn và admin cập nhật đúng header, quyền truy cập và control theo vai trò trên màn tồn kho | Auto | `tests/integration/login.spec.js`                                                                |
 | 21  | ACC-SYNC-01  | P0       | Nhiều máy / create-order       | Màn bán hàng tự refresh tồn kho và giá sau thay đổi từ máy khác           | Auto | `tests/integration/cross-client-sync.spec.js`                                                    |
 | 22  | ACC-SYNC-02  | P0       | Nhiều máy / draft cart         | Lưu dữ liệu stale bị chặn với conflict metadata                           | Auto | `tests/integration/workflow-phase-c.spec.js`                                                     |
 | 23  | ACC-SYNC-03  | P0       | Nhiều máy / draft purchase     | Lưu dữ liệu stale bị chặn với conflict metadata                           | Auto | `tests/integration/workflow-phase-c.spec.js`                                                     |
@@ -98,7 +98,7 @@ Ghi chú / ảnh chụp / log:
 Checklist hiện đã phủ tự động các case P0 chính. Các phần nên mở rộng tiếp nếu tăng scope release:
 
 - luồng `in / gửi khách` sau khi chốt đơn
-- nhánh thiếu hàng của `Master Admin` khi chọn sang màn tồn kho để bypass bằng điều chỉnh trực tiếp
+- nhánh thiếu hàng của tài khoản có quyền điều chỉnh tồn khi chọn sang màn tồn kho để bypass bằng điều chỉnh trực tiếp
 - các case validate âm cho Phase B:
   - phiếu điều chỉnh thiếu lý do
   - phiếu trả NCC vượt tồn

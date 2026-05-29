@@ -26,7 +26,7 @@ Nếu phát hiện sai sau khi chứng từ đã xử lý
   -> dùng phiếu điều chỉnh tồn / phiếu trả hàng khách / phiếu trả NCC
 
 Nếu cần can thiệp đặc biệt
-  -> Master Admin
+  -> Master Admin hoặc user có quyền điều chỉnh tồn khi chỉ cần sửa chênh lệch kho
 ```
 
 ## 2. Luồng tồn kho
@@ -38,7 +38,7 @@ Nếu cần can thiệp đặc biệt
   - phát hiện hàng đang chờ nhập/chờ xuất
 - quy tắc:
   - user thường không chỉnh tồn trực tiếp
-  - direct adjust là quyền riêng của Master Admin
+  - direct adjust là quyền riêng của `Master Admin` hoặc user có permission `inventory_adjust_manage`
   - direct adjust bắt buộc lý do
   - danh sách tồn kho có thể sắp xếp trong khu vực phân trang theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít
   - `Ưu tiên nhập/xử lý` dùng sức bán thật đã chuẩn hóa theo tồn chuẩn và mức thiếu hàng
@@ -397,7 +397,7 @@ ordered -> cancelled
 - `products.price` là giá nhập mặc định
 - `products.sale_price` là giá bán mặc định
 - tồn kho chuẩn phải đi qua `đơn chờ xuất` hoặc `phiếu chờ nhập`
-- chỉ `Master Admin` mới được bypass quy trình chuẩn để chỉnh tồn trực tiếp
+- chỉ `Master Admin` hoặc user có permission `inventory_adjust_manage` mới được bypass quy trình chuẩn để chỉnh tồn trực tiếp
 - sai sót sau khi chứng từ đã xử lý phải đi qua chứng từ điều chỉnh
 - trong Batch procurement mode, không auto-create phiếu nhập theo từng cart và không tách 1 sản phẩm thiếu sang nhiều phiếu nhập mở
 - trước khi bật Batch procurement mode, backend phải audit nhanh các phiếu nhập `draft/ordered`; nếu một sản phẩm đang bị cover bởi nhiều phiếu mở thì chặn acquire lock và yêu cầu dọn conflict trước

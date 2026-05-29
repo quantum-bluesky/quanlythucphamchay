@@ -237,7 +237,7 @@ Các nhóm kiểm tra chính:
 - `Input Tablet + bàn phím ảo`: khi viewport chỉ đổi chiều cao vì bàn phím bật/tắt, ô input đang nhập vẫn phải giữ focus và nhập tiếp được
 - `Phân trang PC/tablet`: list tự lấy số mục mặc định theo thiết bị và cho đổi nhanh `25/50/100` trên thanh phân trang
 - `Sắp xếp tồn kho`: dropdown sort nằm trong phân trang đầu list, không nằm trong search toolbar, và sắp đúng theo tồn, giá trị tồn, ưu tiên, hạn còn lại
-- `Đăng nhập hệ thống`: header `Login/Logout`, user thường, admin, timeout session, role-based access; user thường vẫn xem được detail tồn kho nhưng không thấy panel chỉnh tồn trực tiếp hay action admin như `Phiếu DC` / sửa giá
+- `Đăng nhập hệ thống`: header `Login/Logout`, user thường, user có `inventory_adjust_manage`, admin, timeout session, role-based access; user thường vẫn xem được detail tồn kho nhưng không thấy panel chỉnh tồn trực tiếp hay action `Phiếu DC` / sửa giá, user được cấp quyền chỉ thấy nhánh chỉnh tồn còn admin vẫn có đủ control quản trị
 - `Master Admin`: login admin, export/import file master (`JSON` + `CSV`), backup, restore
 - `CLI legacy-audit`: `python app.py legacy-audit` và `python app.py legacy-audit --apply-safe-fixes` phải chạy được trên DB thật mà không cần package ngoài
 - `Phase B API`: phiếu điều chỉnh tồn, phiếu trả hàng khách, phiếu trả NCC
@@ -334,6 +334,7 @@ Case mới cho Phase A:
 - `UT-PROC-07`: batch create hỗ trợ mixed lines `shortage + extra`, vẫn gom đúng theo NCC và chỉ tạo assignment cho dòng shortage
 - `UT-PROC-08`: extra row cùng sản phẩm với shortage row phải merge vào cùng phiếu batch/NCC đang xử lý, không tạo extra assignment
 - `UT-AUTH-04B`: user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn không có quyền chỉnh tồn trực tiếp
+- `UT-AUTH-15`: user có `inventory_adjust_manage` được chỉnh tồn trực tiếp và tạo `Phiếu DC` nhưng vẫn không vào được route `Master Admin`
 - `IT-PROC-03`: batch owner thêm extra product trong planner, thấy badge `Ngoài nhu cầu đơn`, tạo phiếu thành công và review chung với shortage row cùng NCC
 - `IT-PROC-05`: từ `Xử lý nhập thiếu`, chọn lẫn phiếu nhập và phiếu xuất trong khối phiếu liên quan rồi bấm `Gộp đơn` phải bị chặn và giữ nguyên màn planner
 

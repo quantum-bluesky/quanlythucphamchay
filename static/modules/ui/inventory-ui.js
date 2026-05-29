@@ -23,6 +23,7 @@ export function createInventoryUi(deps) {
     getOpenPurchasesForProduct,
     getInventoryProductSignals,
     getInventoryAdjustmentReason,
+    canAdjustInventoryDirectly,
     isSearchResultMode,
     paginateItems,
     renderPagination,
@@ -169,14 +170,15 @@ export function createInventoryUi(deps) {
 
   function renderInventoryDirectEditAccess() {
     const isAdmin = Boolean(state.admin?.isAdmin);
+    const canAdjustInventory = canAdjustInventoryDirectly();
     const kicker = dom.quickPanel.querySelector(".panel-kicker");
     const heading = dom.quickPanel.querySelector("h2");
     const note = dom.quickPanel.querySelector(".quick-panel-tools .panel-note");
     const noteLabel = dom.noteInput.closest("label")?.querySelector("span");
 
-    dom.quickPanel.hidden = !isAdmin;
-    dom.quickPanel.classList.toggle("is-direct-adjust-mode", isAdmin);
-    if (!isAdmin) {
+    dom.quickPanel.hidden = !canAdjustInventory;
+    dom.quickPanel.classList.toggle("is-direct-adjust-mode", canAdjustInventory);
+    if (!canAdjustInventory) {
       if (kicker) {
         kicker.textContent = "Nhập / xuất nhanh";
       }
@@ -195,13 +197,13 @@ export function createInventoryUi(deps) {
     }
 
     if (kicker) {
-      kicker.textContent = "Master Admin";
+      kicker.textContent = isAdmin ? "Master Admin" : "Quyền điều chỉnh tồn";
     }
     if (heading) {
       heading.textContent = "Chỉnh tồn trực tiếp";
     }
     if (note) {
-      note.textContent = "Cảnh báo: chế độ này bỏ qua quy trình đơn nhập / đơn xuất chuẩn. Chỉ dùng khi cần chỉnh kho đặc biệt.";
+      note.textContent = "Cảnh báo: chế độ này bỏ qua quy trình đơn nhập / đơn xuất chuẩn. Chỉ dùng khi cần chỉnh kho đặc biệt và luôn phải nhập lý do.";
     }
     if (noteLabel) {
       noteLabel.textContent = "Lý do điều chỉnh";
@@ -251,6 +253,7 @@ export function createInventoryUi(deps) {
   function renderProducts() {
     const compact = mobileQuery.matches;
     const isAdmin = Boolean(state.admin?.isAdmin);
+    const canAdjustInventory = canAdjustInventoryDirectly();
     const pendingDemandMap = getPendingDemandByProductId();
     const draftDemandMap = getDraftDemandByProductId();
     const committedDemandMap = getCommittedDemandByProductId();
@@ -378,10 +381,12 @@ export function createInventoryUi(deps) {
                 <button type="button" class="ghost-button compact-button" data-product-action="toggle-expand" data-product-id="${product.id}">
                   ${isExpanded ? "Thu" : "Detail"}
                 </button>
-                ${isAdmin ? `
+                ${canAdjustInventory ? `
                   <button type="button" class="ghost-button compact-button" data-product-action="create-receipt" data-product-id="${product.id}">
                     Phiếu DC
                   </button>
+                ` : ""}
+                ${isAdmin ? `
                   <button type="button" class="ghost-button compact-button" data-product-action="${isEditingPrice ? "cancel-price-edit" : "start-price-edit"}" data-product-id="${product.id}">
                     ${isEditingPrice ? "Hủy giá" : "Giá"}
                   </button>
@@ -455,8 +460,8 @@ export function createInventoryUi(deps) {
                 </div>
               ` : ""}
 
-              ${isAdmin ? `
-                <article class="inline-alert warning">Master Admin đang chỉnh tồn trực tiếp. Thao tác này bỏ qua quy trình đơn nhập / đơn xuất chuẩn.</article>
+              ${canAdjustInventory ? `
+                <article class="inline-alert warning">${escapeHtml(isAdmin ? "Master Admin" : "Tài khoản được cấp quyền")} đang chỉnh tồn trực tiếp. Thao tác này bỏ qua quy trình đơn nhập / đơn xuất chuẩn.</article>
               ` : ""}
 
               ${isEditingPrice ? `
@@ -468,7 +473,7 @@ export function createInventoryUi(deps) {
                 </div>
               ` : ""}
 
-              ${isAdmin ? `
+              ${canAdjustInventory ? `
                 <label class="price-field inventory-adjustment-reason">
                   <span>Lý do điều chỉnh</span>
                   <input type="text" maxlength="160" placeholder="Bắt buộc" value="${escapeHtml(getInventoryAdjustmentReason(product.id))}" data-adjust-reason-input="${product.id}">

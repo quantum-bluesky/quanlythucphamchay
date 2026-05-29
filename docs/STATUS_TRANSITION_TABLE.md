@@ -143,7 +143,7 @@ Mô hình hiện tại của phiếu nhập:
 - sửa sai sau `completed / received / paid`: dùng chứng từ mới
 - đơn đã xuất sai: `phiếu trả hàng khách` hoặc chứng từ phù hợp
 - phiếu nhập đã nhận sai: `phiếu trả NCC` hoặc điều chỉnh phù hợp
-- admin chỉnh tồn trực tiếp: không phải status transition của đơn/phiếu; đây là workflow đặc biệt riêng
+- tài khoản có quyền chỉnh tồn trực tiếp: không phải status transition của đơn/phiếu; đây là workflow đặc biệt riêng
 
 ## 8. Checklist Confirm Nhanh Trước Khi Code
 

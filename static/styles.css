@@ -2113,11 +2113,15 @@ button:disabled {
   .quick-panel.is-direct-adjust-mode .quick-panel-body {
     max-height: none;
     overflow: visible;
-    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 
   .quick-panel.is-direct-adjust-mode .quick-form {
-    gap: 12px;
+    gap: 10px;
+  }
+
+  .quick-panel.is-direct-adjust-mode.is-collapsed .quick-panel-body {
+    padding-bottom: 0;
   }
 
   .sticky-toolbar {
