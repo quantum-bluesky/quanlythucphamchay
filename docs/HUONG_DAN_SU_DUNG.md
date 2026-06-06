@@ -236,6 +236,7 @@ Kết quả:
 - `Đã xuất hàng`: hệ thống tự đi `draft -> committed -> completed`, trừ kho và ghi biến động `OUT`
 - `Đã xuất hàng` + `Đã thanh toán luôn`: hệ thống tự đi `draft -> committed -> completed -> paid`
 - phiếu được gắn `created_mode = quick_export` để phân biệt với flow chuẩn nhưng vẫn dùng cùng trạng thái cũ của hệ thống
+- sau khi lưu thành công, card hiện summary và khóa nút lưu ở nhãn `Đã tạo phiếu`; muốn nhập lượt mới phải bấm `Tiếp tục xuất nhanh` để tránh tạo trùng phiếu
 
 ### Màn tạo nhiều đơn mobile-first
 
@@ -458,6 +459,7 @@ Kết quả:
 - `Đã nhập hàng`: hệ thống tự đi `draft -> ordered -> received`, cộng kho và ghi biến động `IN`
 - `Đã nhập hàng` + `Đã thanh toán luôn`: hệ thống tự đi `draft -> ordered -> received -> paid`
 - phiếu được gắn `created_mode = quick_import` để phân biệt với flow chuẩn nhưng vẫn dùng cùng trạng thái cũ của hệ thống
+- sau khi lưu thành công, card hiện summary và khóa nút lưu ở nhãn `Đã tạo phiếu`; muốn nhập lượt mới phải bấm `Tiếp tục nhập nhanh` để tránh tạo trùng phiếu
 
 Nếu phiếu được tạo từ một đơn đang thiếu hàng:
 

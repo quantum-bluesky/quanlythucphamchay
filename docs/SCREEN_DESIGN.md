@@ -107,7 +107,7 @@ Liên kết detail hiện có:
   - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
   - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
   - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
-  - card `Xử lý nhanh xuất hàng` phải nằm ngay trong màn `create-order`, mobile-first, cho nhập `khách / ngày xuất / ghi chú / mặt hàng`, chọn `Đã xuất hàng` hoặc `Chỉ chốt đơn`, có checkbox `Đã thanh toán luôn`, và sau khi lưu phải hiện summary với CTA `Tiếp tục xuất nhanh / Xem phiếu / Về danh sách`
+  - card `Xử lý nhanh xuất hàng` phải nằm ngay trong màn `create-order`, mobile-first, cho nhập `khách / ngày xuất / ghi chú / mặt hàng`, chọn `Đã xuất hàng` hoặc `Chỉ chốt đơn`, có checkbox `Đã thanh toán luôn`; sau khi lưu phải khóa form ở trạng thái `Đã tạo phiếu` và hiện summary với CTA `Tiếp tục xuất nhanh / Xem phiếu / Về danh sách` để tránh tạo trùng
   - action `Giá chung` trong editor giá bán phải hiện message confirm trước khi cập nhật giá bán mặc định của mặt hàng để tránh bấm nhầm trên mobile
   - với mọi chỗ đang sửa giá bán theo mặt hàng, nếu `giá xuất < giá nhập` của 1 mặt hàng thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
   - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu, không phải per-line
@@ -239,7 +239,7 @@ Liên kết detail hiện có:
   - phiếu đã hủy mặc định ẩn để list gọn hơn; user chỉ bật lại khi cần tra cứu
   - khi user chọn một phiếu trong danh sách, panel phiếu nhập hiện hành đóng vai trò detail panel riêng: có `Previous / Next`, `Đóng`, metadata đầy đủ và danh sách dòng hàng hiện trọn vẹn
   - ngay trên từng card gợi ý nhập phải có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`
-  - card `Xử lý nhanh nhập hàng` phải nằm ngay trong màn `purchases`, mobile-first, cho nhập `NCC / ngày nhập / ghi chú / mặt hàng`, chọn `Đã nhập hàng` hoặc `Chỉ đặt hàng`, có checkbox `Đã thanh toán luôn`, và sau khi lưu phải hiện summary với CTA `Tiếp tục nhập nhanh / Xem phiếu / Về danh sách`
+  - card `Xử lý nhanh nhập hàng` phải nằm ngay trong màn `purchases`, mobile-first, cho nhập `NCC / ngày nhập / ghi chú / mặt hàng`, chọn `Đã nhập hàng` hoặc `Chỉ đặt hàng`, có checkbox `Đã thanh toán luôn`; sau khi lưu phải khóa form ở trạng thái `Đã tạo phiếu` và hiện summary với CTA `Tiếp tục nhập nhanh / Xem phiếu / Về danh sách` để tránh tạo trùng
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
   - action `Giá chung` trong editor giá nhập phải hiện message confirm trước khi cập nhật giá nhập mặc định của mặt hàng

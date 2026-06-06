@@ -169,6 +169,13 @@ export function registerPurchasesControllerEvents(contract) {
   async function submitQuickPurchase() {
     syncQuickPurchaseDraftFromInputs();
     const draft = state.quickPurchaseDraft || {};
+    if (draft.submitting) {
+      return;
+    }
+    if (draft.lastResult) {
+      actions.showToast("Phiếu nhập nhanh này đã được tạo. Bấm Tiếp tục nhập nhanh để nhập lượt mới.", true);
+      return;
+    }
     if (!String(draft.supplierText || "").trim()) {
       actions.showToast("Nhà cung cấp là bắt buộc.", true);
       return;
@@ -181,21 +188,27 @@ export function registerPurchasesControllerEvents(contract) {
     if (hasZeroPrice && !window.confirm("Có mặt hàng giá nhập bằng 0. Vẫn lưu phiếu nhập nhanh?")) {
       return;
     }
-    const data = await actions.createQuickPurchaseDocument({
-      supplier_name: draft.supplierText,
-      document_date: draft.documentDate,
-      note: draft.note,
-      items: draft.items.map((item) => ({
-        product_id: item.productId,
-        quantity: item.quantity,
-        unit_cost: item.unitCost,
-      })),
-      final_status: draft.finalStatus,
-      mark_paid: Boolean(draft.markPaid && draft.finalStatus === "received"),
-    });
-    state.quickPurchaseDraft.lastResult = data.quick_summary || null;
+    draft.submitting = true;
     renderers.renderQuickPurchasePanel();
-    actions.showToast(data.message || "Đã lưu nhập nhanh.");
+    try {
+      const data = await actions.createQuickPurchaseDocument({
+        supplier_name: draft.supplierText,
+        document_date: draft.documentDate,
+        note: draft.note,
+        items: draft.items.map((item) => ({
+          product_id: item.productId,
+          quantity: item.quantity,
+          unit_cost: item.unitCost,
+        })),
+        final_status: draft.finalStatus,
+        mark_paid: Boolean(draft.markPaid && draft.finalStatus === "received"),
+      });
+      state.quickPurchaseDraft.lastResult = data.quick_summary || null;
+      actions.showToast(data.message || "Đã lưu nhập nhanh.");
+    } finally {
+      state.quickPurchaseDraft.submitting = false;
+      renderers.renderQuickPurchasePanel();
+    }
   }
 
   async function markSelectedPurchasesOrdered() {

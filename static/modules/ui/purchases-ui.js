@@ -247,6 +247,9 @@ export function createPurchasesUi(deps) {
     const finalStatus = String(draft.finalStatus || "received");
     const markPaid = Boolean(draft.markPaid) && finalStatus === "received";
     const supplier = getSupplierByName(String(draft.supplierText || "").trim());
+    const isLockedAfterSave = Boolean(draft.lastResult);
+    const isSubmitting = Boolean(draft.submitting);
+    const disableEditAttr = isLockedAfterSave || isSubmitting ? "disabled" : "";
     const totalAmount = items.reduce(
       (sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitCost || 0)),
       0,
@@ -263,37 +266,37 @@ export function createPurchasesUi(deps) {
       <div class="quick-doc-grid">
         <label>
           <span>Nhà cung cấp</span>
-          <input id="quickPurchaseSupplierInput" type="text" list="supplierOptions" maxlength="120" placeholder="Chọn hoặc nhập NCC mới" value="${escapeHtml(String(draft.supplierText || ""))}">
+          <input id="quickPurchaseSupplierInput" type="text" list="supplierOptions" maxlength="120" placeholder="Chọn hoặc nhập NCC mới" value="${escapeHtml(String(draft.supplierText || ""))}" ${disableEditAttr}>
         </label>
         <label>
           <span>Ngày nhập</span>
-          <input id="quickPurchaseDateInput" type="date" value="${escapeHtml(String(draft.documentDate || ""))}">
+          <input id="quickPurchaseDateInput" type="date" value="${escapeHtml(String(draft.documentDate || ""))}" ${disableEditAttr}>
         </label>
         <label class="quick-doc-note">
           <span>Ghi chú</span>
-          <input id="quickPurchaseNoteInput" type="text" maxlength="160" placeholder="Ví dụ: Ghi cuối ngày, đã nhận đủ" value="${escapeHtml(String(draft.note || ""))}">
+          <input id="quickPurchaseNoteInput" type="text" maxlength="160" placeholder="Ví dụ: Ghi cuối ngày, đã nhận đủ" value="${escapeHtml(String(draft.note || ""))}" ${disableEditAttr}>
         </label>
       </div>
       <div class="quick-doc-shortcuts">
-        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="use-active-purchase">Lấy từ phiếu đang mở</button>
-        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="open-products">Thêm hàng mới</button>
+        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="use-active-purchase" ${disableEditAttr}>Lấy từ phiếu đang mở</button>
+        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="open-products" ${disableEditAttr}>Thêm hàng mới</button>
         ${supplier?.note ? `<span class="quick-doc-hint">Gợi ý: ${escapeHtml(supplier.note)}</span>` : ""}
       </div>
       <div class="quick-doc-line-entry" data-price-warning-group data-price-warning-mode="edit">
         <label>
           <span>Sản phẩm</span>
-          <input id="quickPurchaseProductInput" type="text" list="productOptions" placeholder="Tìm sản phẩm để nhập nhanh" value="${escapeHtml(String(draft.productText || ""))}">
+          <input id="quickPurchaseProductInput" type="text" list="productOptions" placeholder="Tìm sản phẩm để nhập nhanh" value="${escapeHtml(String(draft.productText || ""))}" ${disableEditAttr}>
         </label>
         <label>
           <span>SL</span>
-          <input id="quickPurchaseQuantityInput" type="number" min="0.01" step="0.01" value="${escapeHtml(String(draft.quantity || "1"))}">
+          <input id="quickPurchaseQuantityInput" type="number" min="0.01" step="0.01" value="${escapeHtml(String(draft.quantity || "1"))}" ${disableEditAttr}>
         </label>
         <label data-price-warning-field="purchase">
           <span>Giá nhập</span>
-          <input id="quickPurchaseUnitCostInput" type="number" min="0" step="1000" value="${escapeHtml(String(draft.unitCost || ""))}" data-price-warning-input="purchase">
+          <input id="quickPurchaseUnitCostInput" type="number" min="0" step="1000" value="${escapeHtml(String(draft.unitCost || ""))}" data-price-warning-input="purchase" ${disableEditAttr}>
         </label>
         <div class="quick-doc-line-actions">
-          <button type="button" class="primary-button" data-quick-purchase-action="add-item">+ Thêm hàng</button>
+          <button type="button" class="primary-button" data-quick-purchase-action="add-item" ${disableEditAttr}>+ Thêm hàng</button>
         </div>
       </div>
       <div class="quick-doc-items">
@@ -307,7 +310,7 @@ export function createPurchasesUi(deps) {
               </div>
               <div class="quick-doc-item-actions">
                 <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitCost || 0)))}</strong>
-                <button type="button" class="ghost-button compact-button" data-quick-purchase-action="remove-item" data-item-index="${index}">Bỏ</button>
+                <button type="button" class="ghost-button compact-button" data-quick-purchase-action="remove-item" data-item-index="${index}" ${disableEditAttr}>Bỏ</button>
               </div>
             </article>
           `;
@@ -315,14 +318,14 @@ export function createPurchasesUi(deps) {
       </div>
       <div class="quick-doc-footer">
         <div class="quick-doc-statuses">
-          <label class="toggle-inline"><input type="radio" name="quickPurchaseFinalStatus" value="received" ${finalStatus === "received" ? "checked" : ""}> <span>Đã nhập hàng</span></label>
-          <label class="toggle-inline"><input type="radio" name="quickPurchaseFinalStatus" value="ordered" ${finalStatus === "ordered" ? "checked" : ""}> <span>Chỉ đặt hàng</span></label>
-          <label class="toggle-inline"><input id="quickPurchaseMarkPaidInput" type="checkbox" ${markPaid ? "checked" : ""} ${finalStatus !== "received" ? "disabled" : ""}> <span>Đã thanh toán luôn</span></label>
+          <label class="toggle-inline"><input type="radio" name="quickPurchaseFinalStatus" value="received" ${finalStatus === "received" ? "checked" : ""} ${disableEditAttr}> <span>Đã nhập hàng</span></label>
+          <label class="toggle-inline"><input type="radio" name="quickPurchaseFinalStatus" value="ordered" ${finalStatus === "ordered" ? "checked" : ""} ${disableEditAttr}> <span>Chỉ đặt hàng</span></label>
+          <label class="toggle-inline"><input id="quickPurchaseMarkPaidInput" type="checkbox" ${markPaid ? "checked" : ""} ${finalStatus !== "received" || isLockedAfterSave || isSubmitting ? "disabled" : ""}> <span>Đã thanh toán luôn</span></label>
         </div>
         <div class="quick-doc-footer-actions">
           <div class="stat-chip"><span>Số dòng</span><strong>${escapeHtml(String(items.length))}</strong></div>
           <div class="stat-chip"><span>Tổng tiền</span><strong>${escapeHtml(formatCurrency(totalAmount))}</strong></div>
-          <button type="button" class="primary-button" data-quick-purchase-action="submit">Lưu nhập nhanh</button>
+          <button type="button" class="primary-button" data-quick-purchase-action="submit" ${isLockedAfterSave || isSubmitting ? "disabled" : ""}>${isSubmitting ? "Đang lưu..." : isLockedAfterSave ? "Đã tạo phiếu" : "Lưu nhập nhanh"}</button>
         </div>
       </div>
       ${lastResult ? `

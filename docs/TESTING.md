@@ -342,6 +342,7 @@ Case mới cho Phase A:
 - `UT-CANCEL-04`: từ chối yêu cầu hủy không được làm đổi trạng thái chứng từ nguồn
 - `UT-AUTH-12C`: route `cancel-request/approve/reject` phải yêu cầu đúng permission `document_cancel_approve`, cập nhật state chung và trả kết quả mail notification
 - `ACC-CANCEL-01`: mobile UI cho user gửi `Yêu cầu hủy` từ đơn `Đã xuất hàng` và phiếu `Đã nhập kho`, manager duyệt ngay trên detail, rồi state/tồn kho phải phản ánh đúng sau refresh
+- `ACC-QUICK-06`: mobile UI `Xử lý nhanh xuất/nhập hàng` phải khóa form sau khi lưu, đổi nút lưu thành `Đã tạo phiếu`, giữ CTA `Tiếp tục xuất/nhập nhanh` và không tạo duplicate từ cùng một form đã lưu
 - `IT-PROC-03`: batch owner thêm extra product trong planner, thấy badge `Ngoài nhu cầu đơn`, tạo phiếu thành công và review chung với shortage row cùng NCC
 - `IT-PROC-05`: từ `Xử lý nhập thiếu`, chọn lẫn phiếu nhập và phiếu xuất trong khối phiếu liên quan rồi bấm `Gộp đơn` phải bị chặn và giữ nguyên màn planner
 
