@@ -1,5 +1,5 @@
 {
-  "version": "3.15.0",
+  "version": "3.16.0",
   "server": {
     "host": "0.0.0.0",
     "port": 4000
@@ -20,9 +20,21 @@
     {
       "username": "bizmanager",
       "password": "biz12345",
-      "permissions": ["procurement_batch_manage", "order_batch_manage", "bulk_order_create", "bulk_order_commit", "inventory_adjust_manage"]
+      "permissions": ["procurement_batch_manage", "order_batch_manage", "bulk_order_create", "bulk_order_commit", "inventory_adjust_manage", "document_cancel_approve"]
     }
   ],
+  "mail": {
+    "enabled": false,
+    "smtp_host": "",
+    "smtp_port": 587,
+    "username": "",
+    "password": "",
+    "from_email": "",
+    "to_emails": [],
+    "use_tls": true,
+    "use_ssl": false,
+    "subject_prefix": "[QuanLyThucPhamChay]"
+  },
   "debug": {
     "sync_state": true
   },

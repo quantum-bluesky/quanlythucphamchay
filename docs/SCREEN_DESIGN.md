@@ -185,6 +185,7 @@ Liên kết detail hiện có:
   - card đơn `completed` chưa thanh toán chỉ còn hiện input `Giảm giá khuyến mại` trong detail
   - card đơn `completed` hoặc `paid` có action `Xuất lại` để tạo nhanh một đơn nháp mới với cùng khách, địa chỉ giao, giảm giá và danh sách dòng hàng của phiếu đã chọn; nếu khách đã có đơn `draft` thì UI phải hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
   - ngoài action nhanh `Đã thanh toán` trong detail, các đơn `completed/paid` còn phải hiện đúng ở màn `payments` để user mới theo dõi công nợ dễ hơn
+  - card/detail của đơn `completed/paid` có thêm action `Yêu cầu hủy`; UI bắt buộc nhập lý do, hiển thị trạng thái `chờ duyệt / bị từ chối / đã xử lý`, và nếu user có quyền `document_cancel_approve` thì phải có CTA `Duyệt / Từ chối` ngay trong detail
   - action `Trả hàng` chỉ hiện trong detail của đơn `completed`; không đặt form hay button trả hàng độc lập ở ngoài list để tránh bấm nhầm
   - trên mobile, `Chốt đơn`, `Xuất hàng` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
   - các nút đổi trạng thái hoặc xóa phiếu như `Chốt đơn`, `Xuất hàng`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
@@ -265,6 +266,7 @@ Liên kết detail hiện có:
   - nếu bỏ trống `Mã lô`, app tự sinh batch code khi nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` để FEFO vẫn có mốc hạn
   - sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, chỉ cho sửa `Ghi chú`, `Giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; không mở khóa lại số lượng, giá, mã lô, NCC hay cấu trúc dòng nhập
   - phiếu `received/paid` có action `Nhập lại` để tạo nhanh phiếu nháp mới với cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đó đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có thay vì tạo draft thứ hai
+  - phiếu `received/paid` có thêm action `Yêu cầu hủy`; UI bắt buộc nhập lý do, hiển thị trạng thái request hủy và cho user có quyền `document_cancel_approve` duyệt/từ chối ngay trong detail
   - preview `gộp đơn` của phiếu nhập tái sử dụng panel chi tiết hiện hành, giữ lại phiếu ưu tiên `ordered` trước `draft`, rồi mới xét phiếu đang mở và thời điểm cập nhật
   - khi `Nhập lại`, metadata theo lô như `Mã lô`, `Hạn dùng`, `Ngày sản xuất` phải được reset về trống để user nhập lại theo lô hàng mới
   - ngoài action nhanh `Đã thanh toán` ở màn nhập hàng, các phiếu `received/paid` còn phải xuất hiện đúng ở màn `payments` để user mới rà nhóm phiếu cần trả tiền riêng

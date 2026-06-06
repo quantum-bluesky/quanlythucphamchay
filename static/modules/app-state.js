@@ -119,6 +119,7 @@ export const state = {
   carts: [],
   purchases: [],
   bulkOrderRequests: [],
+  documentCancelRequests: [],
   quickPurchaseDraft: {
     supplierText: "",
     documentDate: new Date().toISOString().slice(0, 10),

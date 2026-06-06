@@ -42,8 +42,18 @@ export function createCoreUi(deps) {
       state.admin?.isAdmin
       || (state.admin?.permissions || []).some((permission) => String(permission || "").trim() === "order_batch_manage")
     );
+    const canApproveDocumentCancelRequests = Boolean(
+      state.admin?.isAdmin
+      || (state.admin?.permissions || []).some((permission) => String(permission || "").trim() === "document_cancel_approve")
+    );
     const pendingBulkOrderApprovals = (state.bulkOrderRequests || []).filter(
       (request) => String(request?.status || "").trim() === "pending_approval"
+    ).length;
+    const pendingOrderCancelApprovals = (state.documentCancelRequests || []).filter(
+      (request) => String(request?.status || "").trim() === "pending_approval" && String(request?.document_type || "").trim() === "order"
+    ).length;
+    const pendingPurchaseCancelApprovals = (state.documentCancelRequests || []).filter(
+      (request) => String(request?.status || "").trim() === "pending_approval" && String(request?.document_type || "").trim() === "purchase"
     ).length;
     dom.menuPanel.querySelectorAll("[data-menu]").forEach((button) => {
       if (!button.dataset.baseLabel) {
@@ -52,6 +62,14 @@ export function createCoreUi(deps) {
       if (button.dataset.menu === "bulk-orders") {
         button.textContent = canManageBulkOrderRequests && pendingBulkOrderApprovals > 0
           ? `${button.dataset.baseLabel} (${pendingBulkOrderApprovals} chờ duyệt)`
+          : button.dataset.baseLabel;
+      } else if (button.dataset.menu === "orders") {
+        button.textContent = canApproveDocumentCancelRequests && pendingOrderCancelApprovals > 0
+          ? `${button.dataset.baseLabel} (${pendingOrderCancelApprovals} hủy chờ duyệt)`
+          : button.dataset.baseLabel;
+      } else if (button.dataset.menu === "purchases") {
+        button.textContent = canApproveDocumentCancelRequests && pendingPurchaseCancelApprovals > 0
+          ? `${button.dataset.baseLabel} (${pendingPurchaseCancelApprovals} hủy chờ duyệt)`
           : button.dataset.baseLabel;
       }
       button.classList.toggle("is-active", button.dataset.menu === state.activeMenu);

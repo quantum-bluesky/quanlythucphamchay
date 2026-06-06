@@ -33,12 +33,18 @@ export function createPurchasesUi(deps) {
     getOpenPurchaseSupplierConflictInsight,
     resolvePurchaseItemExpiryMeta,
     getSupplierReturnEditorMarkup,
+    getLatestDocumentCancelRequest,
+    getPendingDocumentCancelRequest,
+    canApproveDocumentCancelRequests,
     isSearchResultMode,
     paginateItems,
     renderPagination,
   } = deps;
 
   function getPurchaseStatusMeta(purchase) {
+    if (purchase.status === "cancelled") {
+      return { label: "Đã hủy", statusClass: "cancelled" };
+    }
     if (purchase.status === "paid") {
       return { label: "Đã thanh toán", statusClass: "completed" };
     }
@@ -48,10 +54,67 @@ export function createPurchasesUi(deps) {
     if (purchase.status === "ordered") {
       return { label: "Đã đặt", statusClass: "draft" };
     }
-    if (purchase.status === "cancelled") {
-      return { label: "Đã hủy", statusClass: "cancelled" };
-    }
     return { label: "Nháp", statusClass: "draft" };
+  }
+
+  function getDocumentCancelRequestMeta(request) {
+    const status = String(request?.status || "").trim();
+    if (status === "processed") {
+      return { label: "Hủy đã duyệt", statusClass: "cancelled" };
+    }
+    if (status === "rejected") {
+      return { label: "Yêu cầu hủy bị từ chối", statusClass: "draft" };
+    }
+    return { label: "Yêu cầu hủy chờ duyệt", statusClass: "warning" };
+  }
+
+  function renderPurchaseCancelRequestPanel(purchase) {
+    const latestRequest = typeof getLatestDocumentCancelRequest === "function"
+      ? getLatestDocumentCancelRequest("purchase", purchase.id)
+      : null;
+    const pendingRequest = typeof getPendingDocumentCancelRequest === "function"
+      ? getPendingDocumentCancelRequest("purchase", purchase.id)
+      : null;
+    const canApprove = typeof canApproveDocumentCancelRequests === "function"
+      ? canApproveDocumentCancelRequests()
+      : false;
+    const allowCreateRequest = ["received", "paid"].includes(String(purchase.status || "").trim()) && !pendingRequest;
+    if (!latestRequest && !allowCreateRequest) {
+      return "";
+    }
+    if (!latestRequest) {
+      return `
+        <article class="inline-alert warning">
+          <strong>Nhập sai phiếu đã nhập kho?</strong> Gửi yêu cầu hủy để quản lý hoặc Admin duyệt trước khi app đảo tồn và loại trừ chi phí khỏi báo cáo.
+          <div class="line-actions">
+            <button type="button" class="secondary-button compact-button" data-purchase-action="request-cancel" data-purchase-id="${purchase.id}">Yêu cầu hủy</button>
+          </div>
+        </article>
+      `;
+    }
+    const requestMeta = getDocumentCancelRequestMeta(latestRequest);
+    const approveActions = pendingRequest && canApprove
+      ? `
+        <div class="line-actions">
+          <button type="button" class="secondary-button compact-button" data-purchase-action="approve-cancel-request" data-request-id="${latestRequest.request_id}" data-purchase-id="${purchase.id}">Duyệt hủy</button>
+          <button type="button" class="ghost-button compact-button" data-purchase-action="reject-cancel-request" data-request-id="${latestRequest.request_id}" data-purchase-id="${purchase.id}">Từ chối</button>
+        </div>
+      `
+      : "";
+    const retryAction = !pendingRequest && allowCreateRequest
+      ? `<div class="line-actions"><button type="button" class="secondary-button compact-button" data-purchase-action="request-cancel" data-purchase-id="${purchase.id}">Gửi lại yêu cầu</button></div>`
+      : "";
+    return `
+      <article class="inline-alert ${requestMeta.statusClass}">
+        <strong>${escapeHtml(requestMeta.label)}</strong>
+        <div class="cart-line-note">Lý do: ${escapeHtml(latestRequest.cancel_reason || "Chưa có")}</div>
+        <div class="cart-line-note">Người gửi: ${escapeHtml(latestRequest.requested_by || "Nhân viên")} • ${escapeHtml(formatDate(latestRequest.created_at) || latestRequest.created_at || "")}</div>
+        ${latestRequest.rejected_by ? `<div class="cart-line-note">Từ chối bởi ${escapeHtml(latestRequest.rejected_by)}: ${escapeHtml(latestRequest.reject_reason || "Không có lý do")}</div>` : ""}
+        ${latestRequest.processed_by ? `<div class="cart-line-note">Đã duyệt bởi ${escapeHtml(latestRequest.processed_by)} lúc ${escapeHtml(formatDate(latestRequest.processed_at) || latestRequest.processed_at || "")}</div>` : ""}
+        ${approveActions}
+        ${retryAction}
+      </article>
+    `;
   }
 
   function getPurchaseSourceLabel(purchase) {
@@ -498,6 +561,7 @@ export function createPurchasesUi(deps) {
         ${purchaseConflictWarnings.length ? `<article class="inline-alert warning"><strong>Cảnh báo NCC theo mặt hàng:</strong> ${purchaseConflictWarnings.map((entry) => `${escapeHtml(entry.productName)} đang có phiếu chờ ở ${escapeHtml(joinSupplierNames(entry.otherSupplierNames))}${entry.hasMultiSupplierOpenState ? `; hiện đang có ${escapeHtml(String(entry.openPurchaseCount))} phiếu mở cho mặt hàng này.` : "."}`).join(" ")}</article>` : ""}
         ${repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đang ở trạng thái lỗi dữ liệu: marker xử lý và trạng thái hiện tại không còn khớp nhau. Có thể hủy hoặc xóa để dọn dữ liệu lỗi, app sẽ không khôi phục lại thành nháp.</article>` : ""}
         ${purchaseLocked && !repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
+        ${renderPurchaseCancelRequestPanel(purchase)}
         <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">
           <div class="subheading selected-items-heading">
             <div>
@@ -602,7 +666,12 @@ export function createPurchasesUi(deps) {
         </article>
       `
       : "";
-    dom.purchaseOrderList.innerHTML = reviewMarkup + mergeToolbarMarkup + topPagination + pageData.items.map((purchase) => `
+    dom.purchaseOrderList.innerHTML = reviewMarkup + mergeToolbarMarkup + topPagination + pageData.items.map((purchase) => {
+      const latestCancelRequest = typeof getLatestDocumentCancelRequest === "function"
+        ? getLatestDocumentCancelRequest("purchase", purchase.id)
+        : null;
+      const cancelRequestMeta = latestCancelRequest ? getDocumentCancelRequestMeta(latestCancelRequest) : null;
+      return `
       <article class="cart-queue-item selectable-card ${String(state.activePurchaseId || "") === String(purchase.id) ? "is-selected-detail" : ""}" data-purchase-select="${purchase.id}" tabindex="0" role="button" aria-pressed="${String(state.activePurchaseId || "") === String(purchase.id) ? "true" : "false"}">
         <div class="queue-header">
           <strong>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
@@ -612,6 +681,7 @@ export function createPurchasesUi(deps) {
           <span>${escapeHtml(purchase.receiptCode || formatDate(purchase.updatedAt))}</span>
           <span>${formatCurrency(purchase.totalAmount || 0)}</span>
         </div>
+        ${cancelRequestMeta ? `<div class="queue-meta"><span class="status-pill ${escapeHtml(cancelRequestMeta.statusClass)}">${escapeHtml(cancelRequestMeta.label)}</span><span>${escapeHtml(latestCancelRequest?.requested_by || "")}</span></div>` : ""}
         <div class="queue-actions">
           ${canMergePurchase(purchase) ? `<label class="toggle-inline" data-purchase-list-action="toggle-merge-select" data-purchase-id="${purchase.id}"><input type="checkbox" data-purchase-list-action="toggle-merge-select" data-purchase-id="${purchase.id}" ${selectedMergeIds.some((purchaseId) => String(purchaseId) === String(purchase.id)) ? "checked" : ""}><span>Chọn</span></label>` : ""}
           <button type="button" class="ghost-button compact-button" data-purchase-list-action="open" data-purchase-id="${purchase.id}">Mở</button>
@@ -619,7 +689,8 @@ export function createPurchasesUi(deps) {
           ${["received", "paid"].includes(String(purchase.status || "").trim()) ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="repeat" data-purchase-id="${purchase.id}" ${repeatPurchaseDisabled ? "disabled" : ""} title="${repeatPurchaseDisabled ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo lại phiếu nhập." : ""}">Nhập lại</button>` : ""}
         </div>
       </article>
-    `).join("") + bottomPagination;
+    `;
+    }).join("") + bottomPagination;
   }
 
   return {

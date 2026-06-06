@@ -204,13 +204,14 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Nếu bật login, có thể tách quyền `bulk_order_create` và `bulk_order_commit` để user chỉ được lưu nháp nhiều đơn hoặc được chốt nhiều đơn
 - Permission `order_batch_manage` cho phép user quản lý xem toàn bộ yêu cầu xuất nhanh, duyệt/từ chối, xóa request còn `pending_approval` và xử lý tiếp request đã `approved`
 - Permission `inventory_adjust_manage` cho phép user đã login chỉnh tồn trực tiếp và tạo `Phiếu DC` trên màn `Tồn kho`, nhưng không mở quyền `Master Admin`, backup/restore hay sửa giá nhập
+- Permission `document_cancel_approve` cho phép quản lý/Admin duyệt hoặc từ chối `Yêu cầu hủy` cho đơn đã `Đã xuất hàng` và phiếu nhập đã `Đã nhập kho` / `Đã thanh toán`
 - Nếu cùng một domain chạy nhiều instance app ở các port khác nhau như `:4000` và `:9999`, session login sẽ được tách riêng theo từng port để không tự đá nhau
 - Có module `Master Admin` để export/import file master (JSON/CSV) và backup/restore toàn bộ database
 - `Master Admin` có thêm khối `Legacy Audit` để quét DB đang dùng, áp dụng các backfill an toàn và cho admin gắn lại `receipt_code` / `đơn nguồn` cho record legacy còn dang dở
 - Timeout phiên tách riêng trong config: `session_timeout_minutes` cho user thường và `admin_session_timeout_minutes` cho admin; khi không có thao tác đủ lâu thì phiên sẽ tự hết hạn và quay về trạng thái cần login, không hiện dialog gia hạn phiên
 - Chỉ `Master Admin` hoặc user có permission `inventory_adjust_manage` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit; trên mobile/tablet, panel chỉnh tồn được ưu tiên mở sát đầu màn hình, bản thu gọn không để thừa khoảng trắng và khi mở vẫn có khoảng cuộn an toàn để không bị thanh nổi che field hoặc button
 - Luồng Phase B đã có UI ngay trong app: `Phiếu DC` ở màn tồn kho, còn `Phiếu trả hàng khách` và `Phiếu trả NCC` chỉ mở trong detail của đúng đơn/phiếu nguồn để tránh bấm nhầm
-- Các chứng từ đã `completed/received/paid/cancelled` vẫn bị khóa xóa/hủy trực tiếp kể cả với `Master Admin`; muốn điều chỉnh phải lập phiếu mới để giữ audit
+- Các chứng từ đã `completed/received/paid/cancelled` vẫn bị khóa xóa/hủy trực tiếp kể cả với `Master Admin`; riêng đơn đã `Đã xuất hàng` hoặc phiếu nhập đã `Đã nhập kho` / `Đã thanh toán` chỉ được đi qua `Yêu cầu hủy` có lý do, chờ duyệt và nếu được duyệt thì app tự đảo tác động tồn kho, doanh thu hoặc chi phí mua bằng chứng từ bù trừ để giữ audit
 - Có màn `Lịch sử biến động sản phẩm` riêng để điều tra sai lệch tồn, đối chiếu tồn tính toán với tồn hiện tại và mở lại đúng đơn/phiếu liên quan
 - Các list dài có phân trang `Trước / Sau` để thao tác gọn hơn trên mobile
 - Hiển thị `Version` ngay đầu ứng dụng; bấm vào để mở màn `About` và xem phiên bản đang chạy
@@ -253,9 +254,27 @@ Ví dụ:
   "users": [
     {
       "username": "staff",
-      "password": "staff12345"
+      "password": "staff12345",
+      "permissions": []
+    },
+    {
+      "username": "bizmanager",
+      "password": "biz12345",
+      "permissions": ["document_cancel_approve"]
     }
   ],
+  "mail": {
+    "enabled": false,
+    "smtp_host": "smtp.example.com",
+    "smtp_port": 587,
+    "username": "noreply@example.com",
+    "password": "app-password",
+    "from_email": "noreply@example.com",
+    "to_emails": ["manager@example.com"],
+    "use_tls": true,
+    "use_ssl": false,
+    "subject_prefix": "[QuanLyThucPhamChay]"
+  },
   "debug": {
     "sync_state": false
   },
@@ -266,7 +285,7 @@ Ví dụ:
 }
 ```
 
-Muốn đổi tài khoản user/admin, bật `EnableLogin`, đổi timeout phiên rảnh, hoặc đổi base phân trang thì sửa trực tiếp `system_config.json`. App không tự ghi đè lại các giá trị này trong lúc đang chạy.
+Muốn đổi tài khoản user/admin, bật `EnableLogin`, cấp thêm permission như `document_cancel_approve`, cấu hình mail SMTP cho luồng `Yêu cầu hủy`, đổi timeout phiên rảnh, hoặc đổi base phân trang thì sửa trực tiếp `system_config.json`. App không tự ghi đè lại các giá trị này trong lúc đang chạy.
 
 Rà soát dữ liệu legacy bằng CLI:
 

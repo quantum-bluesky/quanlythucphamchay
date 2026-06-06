@@ -300,6 +300,7 @@ Dùng màn này để:
 - `Xuất lại`: tạo nhanh một đơn nháp mới từ đơn đã `Đã xuất hàng` hoặc `Đã thanh toán`
 - `Đã thanh toán`: đánh dấu đơn đã thu tiền
 - `Hủy`: dùng khi khách không lấy nữa
+- `Yêu cầu hủy`: dùng khi đơn đã `Đã xuất hàng` nhưng phát hiện nhập nhầm; bắt buộc nhập lý do để gửi quản lý/Admin duyệt
 - `Xóa`: chỉ áp dụng cho giỏ nháp tạo nhầm; đơn đã chốt phải giữ lại lịch sử
 - `Lưu ghi chú`: cập nhật ghi chú riêng của phiếu xuất khi đơn chưa thanh toán
 - `Lưu giảm giá`: chỉnh lại tổng khuyến mại của cả đơn khi đơn chưa thanh toán
@@ -317,7 +318,8 @@ Lưu ý:
 - nếu khách cần mua lại gần giống một đơn cũ, bấm `Xuất lại`; app sẽ tạo một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng của phiếu đã chọn. Nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
 - trước khi `Đã thanh toán`, vẫn được sửa riêng `Giảm giá khuyến mại` của cả đơn; riêng địa chỉ giao chỉ được sửa tới trước `Đã xuất hàng`
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
-- kể cả `Master Admin` cũng không được xóa hoặc hủy ngược đơn đã chốt
+- đơn đã `Đã xuất hàng` hoặc `Đã thanh toán` không cho hủy trực tiếp; nếu nhập nhầm phải mở `Detail` rồi bấm `Yêu cầu hủy`, nhập lý do, chờ user có quyền `document_cancel_approve` hoặc `Master Admin` duyệt
+- khi yêu cầu hủy đơn đã được duyệt, app sẽ chuyển đơn sang `Đã hủy`, đảo lại tồn kho theo đúng lô đã xuất, đồng thời loại trừ doanh thu và giá vốn của đơn đó ra khỏi báo cáo
 - panel detail có nút `Previous / Next` để chuyển nhanh giữa các đơn trong đúng danh sách đang lọc; nút `Đóng` chỉ ẩn detail, không làm mất search/filter hiện tại
 - trong panel detail của đơn, danh sách mặt hàng mặc định thu gọn để màn mobile gọn hơn; bấm `Mở mặt hàng` khi cần rà từng dòng
 - nếu đi từ màn `Khách hàng` sang bằng badge `đơn chờ` hoặc `đơn`, app sẽ tự lọc đúng các phiếu của khách; khi khách chỉ có 1 phiếu thì detail sẽ tự mở sẵn kể cả nếu đơn đã `Đã xuất hàng` hoặc `Đã thanh toán`
@@ -483,7 +485,8 @@ Lưu ý:
 - ngoại lệ: nếu app nhận diện một phiếu `Đã đặt` trên DB cũ đang bị lỗi dữ liệu, ví dụ thiếu NCC hoặc marker trạng thái lệch, app sẽ mở lại thao tác sửa NCC hoặc xóa/hủy để cứu phiếu đó
 - khi xuất kho hoặc trả NCC, app sẽ tự trừ theo FEFO từ lô có HSD sớm nhất; nếu lô chưa có HSD thì hệ thống để sau các lô có HSD
 - phiếu đã `Đã nhập kho` vẫn cho cập nhật lại `Ghi chú`, `Hạn dùng` hoặc `Ngày sản xuất` của từng dòng và sửa `Giảm giá khuyến mại`; từ `Đã thanh toán` hoặc `Đã hủy` trở đi mới chuyển sang chế độ chỉ xem hoàn toàn
-- kể cả `Master Admin` cũng không được xóa hoặc hủy ngược các phiếu đã khóa, trừ ngoại lệ phiếu lỗi dữ liệu bị lệch marker/trạng thái nói ở trên
+- phiếu đã `Đã nhập kho` hoặc `Đã thanh toán` không cho hủy trực tiếp; nếu nhập nhầm phải mở `Detail`, bấm `Yêu cầu hủy`, nhập lý do và chờ quản lý/Admin duyệt
+- khi yêu cầu hủy phiếu nhập được duyệt, app sẽ chuyển phiếu sang `Đã hủy`, rút lại đúng số hàng đã nhập từ các lô gốc nếu lô đó chưa bị dùng mất, đồng thời loại trừ chi phí mua của phiếu ra khỏi báo cáo
 - các nút đổi trạng thái và xóa phiếu đều có thêm bước confirm trước khi app ghi nhận thay đổi
 
 ## Version file JS phía client
@@ -823,6 +826,7 @@ Từ phiên bản này, màn `Master Admin` cũng là nơi login hệ thống:
 - user quản lý kinh doanh có thể được cấp riêng quyền `procurement_batch_manage` để xử lý kỳ gom nhập mà không có quyền chỉnh tồn trực tiếp
 - user được cấp `inventory_adjust_manage` có thể chỉnh tồn trực tiếp và tạo `Phiếu DC` mà không mở quyền quản trị `Master Admin`
 - user quản lý xuất nhanh có thể được cấp quyền `order_batch_manage` để duyệt/từ chối/xử lý tiếp các yêu cầu xuất nhanh của user thường
+- user quản lý hủy chứng từ có thể được cấp quyền `document_cancel_approve` để duyệt hoặc từ chối `Yêu cầu hủy` cho đơn/phiếu đã khóa
 - nếu `EnableLogin = true` trong `system_config.json`, người dùng phải login thì mới dùng được app
 
 Màn này có 3 nhóm chức năng:

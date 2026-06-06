@@ -1502,6 +1502,203 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(product_activity["adjustment_in_quantity"], 2.0)
         self.assertEqual(product_activity["adjustment_out_quantity"], 1.0)
 
+    def test_ut_cancel_01_completed_order_cancellation_request_approval_restores_stock_and_nets_report(self) -> None:
+        product = self.store.create_product(
+            name="Hủy đơn xuất",
+            category="Đông lạnh",
+            unit="gói",
+            price=12000,
+            sale_price=18000,
+            low_stock_threshold=1,
+        )
+        self.store.create_quick_purchase(
+            supplier_name="NCC hủy đơn xuất",
+            document_date=datetime.now().date().isoformat(),
+            items=[{"product_id": product["id"], "quantity": 5, "unit_cost": 12000}],
+            final_status="received",
+            actor_username="receiver",
+        )
+        sale_result = self.store.create_quick_sale(
+            customer_name="Khách hủy đơn xuất",
+            document_date=datetime.now().date().isoformat(),
+            items=[{"product_id": product["id"], "quantity": 3, "unit_price": 18000}],
+            final_status="completed",
+            mark_paid=True,
+            actor_username="seller",
+        )
+
+        request_doc = self.store.create_document_cancel_request(
+            document_type="order",
+            document_id=sale_result["cart"]["id"],
+            reason="Nhập nhầm phiếu xuất cuối ngày",
+            actor="staff",
+        )
+        result = self.store.approve_document_cancel_request(
+            request_doc["request_id"],
+            actor="bizmanager",
+        )
+
+        final_cart = next(
+            cart for cart in self.store.get_sync_state()["carts"]
+            if cart["id"] == sale_result["cart"]["id"]
+        )
+        self.assertEqual(request_doc["status"], "pending_approval")
+        self.assertEqual(result["request"]["status"], "processed")
+        self.assertEqual(final_cart["status"], "cancelled")
+        self.assertEqual(final_cart["paymentStatus"], "unpaid")
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 5.0)
+
+        report = self.store.get_monthly_report(
+            months=3,
+            focus_month=datetime.now().strftime("%Y-%m"),
+        )
+        focus = report["focus_summary"]
+        product_activity = next(entry for entry in report["product_activity"] if entry["product_id"] == product["id"])
+        self.assertEqual(focus["revenue_value"], 0.0)
+        self.assertEqual(focus["cogs_value"], 0.0)
+        self.assertEqual(focus["sale_cancellation_quantity"], 3.0)
+        self.assertEqual(product_activity["sale_cancellation_quantity"], 3.0)
+
+        history = self.store.get_receipt_history(limit=20)
+        cancellation_entry = next(
+            entry for entry in history
+            if entry["source_type"] == "sale_cancellation" and entry["source_code"] == sale_result["cart"]["orderCode"]
+        )
+        self.assertEqual(cancellation_entry["receipt_type"], "inventory_adjustment")
+        cart_history_notes = " ".join(entry["note"] for entry in self.store.get_cart_change_history(final_cart["id"], limit=10))
+        self.assertIn("Tạo yêu cầu hủy", cart_history_notes)
+        self.assertIn("Duyệt hủy chứng từ", cart_history_notes)
+
+    def test_ut_cancel_02_received_purchase_cancellation_request_approval_reduces_stock_and_nets_report(self) -> None:
+        product = self.store.create_product(
+            name="Hủy phiếu nhập",
+            category="Đông lạnh",
+            unit="gói",
+            price=15000,
+            sale_price=22000,
+            low_stock_threshold=1,
+        )
+        purchase_result = self.store.create_quick_purchase(
+            supplier_name="NCC hủy nhập",
+            document_date=datetime.now().date().isoformat(),
+            items=[{"product_id": product["id"], "quantity": 4, "unit_cost": 15500}],
+            final_status="received",
+            mark_paid=True,
+            actor_username="buyer",
+        )
+
+        request_doc = self.store.create_document_cancel_request(
+            document_type="purchase",
+            document_id=purchase_result["purchase"]["id"],
+            reason="Nhập nhầm phiếu mua cuối ngày",
+            actor="staff",
+        )
+        result = self.store.approve_document_cancel_request(
+            request_doc["request_id"],
+            actor="bizmanager",
+        )
+
+        final_purchase = next(
+            purchase for purchase in self.store.get_sync_state()["purchases"]
+            if purchase["id"] == purchase_result["purchase"]["id"]
+        )
+        self.assertEqual(result["request"]["status"], "processed")
+        self.assertEqual(final_purchase["status"], "cancelled")
+        self.assertIsNone(final_purchase["paidAt"])
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 0.0)
+
+        report = self.store.get_monthly_report(
+            months=3,
+            focus_month=datetime.now().strftime("%Y-%m"),
+        )
+        focus = report["focus_summary"]
+        product_activity = next(entry for entry in report["product_activity"] if entry["product_id"] == product["id"])
+        self.assertEqual(focus["purchase_value"], 0.0)
+        self.assertEqual(focus["purchase_cancellation_quantity"], 4.0)
+        self.assertEqual(product_activity["purchase_cancellation_quantity"], 4.0)
+
+        history = self.store.get_receipt_history(limit=20)
+        cancellation_entry = next(
+            entry for entry in history
+            if entry["source_type"] == "purchase_cancellation" and entry["source_code"] == purchase_result["purchase"]["receiptCode"]
+        )
+        self.assertEqual(cancellation_entry["receipt_type"], "inventory_adjustment")
+
+    def test_ut_cancel_03_purchase_cancellation_rejects_when_original_stock_was_partially_used(self) -> None:
+        product = self.store.create_product(
+            name="Hủy phiếu nhập đã dùng một phần",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=16000,
+            low_stock_threshold=1,
+        )
+        purchase_result = self.store.create_quick_purchase(
+            supplier_name="NCC dùng một phần",
+            document_date=datetime.now().date().isoformat(),
+            items=[{"product_id": product["id"], "quantity": 5, "unit_cost": 10500}],
+            final_status="received",
+            actor_username="buyer",
+        )
+        self.store.create_quick_sale(
+            customer_name="Khách lấy mất hàng",
+            document_date=datetime.now().date().isoformat(),
+            items=[{"product_id": product["id"], "quantity": 1, "unit_price": 16000}],
+            final_status="completed",
+            actor_username="seller",
+        )
+
+        with self.assertRaisesRegex(ValueError, "đã bị sử dụng một phần"):
+            self.store.create_document_cancel_request(
+                document_type="purchase",
+                document_id=purchase_result["purchase"]["id"],
+                reason="Muốn hủy nhưng hàng đã dùng mất một phần",
+                actor="staff",
+            )
+
+    def test_ut_cancel_04_reject_document_cancel_request_keeps_original_document_unchanged(self) -> None:
+        product = self.store.create_product(
+            name="Từ chối yêu cầu hủy",
+            category="Đông lạnh",
+            unit="gói",
+            price=9000,
+            sale_price=14000,
+            low_stock_threshold=1,
+        )
+        self.store.create_quick_purchase(
+            supplier_name="NCC từ chối",
+            document_date=datetime.now().date().isoformat(),
+            items=[{"product_id": product["id"], "quantity": 3, "unit_cost": 9000}],
+            final_status="received",
+            actor_username="buyer",
+        )
+        sale_result = self.store.create_quick_sale(
+            customer_name="Khách từ chối",
+            document_date=datetime.now().date().isoformat(),
+            items=[{"product_id": product["id"], "quantity": 2, "unit_price": 14000}],
+            final_status="completed",
+            actor_username="seller",
+        )
+        request_doc = self.store.create_document_cancel_request(
+            document_type="order",
+            document_id=sale_result["cart"]["id"],
+            reason="Nghi nhầm nhưng chưa đủ bằng chứng",
+            actor="staff",
+        )
+
+        rejected = self.store.reject_document_cancel_request(
+            request_doc["request_id"],
+            actor="bizmanager",
+            reason="Chưa xác minh được phiếu gốc.",
+        )
+        final_cart = next(
+            cart for cart in self.store.get_sync_state()["carts"]
+            if cart["id"] == sale_result["cart"]["id"]
+        )
+        self.assertEqual(rejected["status"], "rejected")
+        self.assertEqual(final_cart["status"], "completed")
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 1.0)
+
     def test_ut_aud_03_receipt_history_lists_phase_b_receipts_with_source_context(self) -> None:
         product = self.store.create_product(
             name="Cá viên chay",
