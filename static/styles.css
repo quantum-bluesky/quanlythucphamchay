@@ -468,6 +468,17 @@ h3 {
   line-height: 1.45;
 }
 
+.global-busy-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.global-busy-actions .primary-button {
+  min-width: min(220px, 100%);
+}
+
 .global-busy-spinner {
   width: 42px;
   height: 42px;

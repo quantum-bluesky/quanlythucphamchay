@@ -1110,10 +1110,108 @@
     <section id="globalBusyCard" class="global-busy-card" role="status" tabindex="-1">
       <div class="global-busy-spinner" aria-hidden="true"></div>
       <strong id="globalBusyLabel">Đang lưu thay đổi...</strong>
-      <p>Vui lòng chờ trạng thái cập nhật xong trước khi thao tác tiếp.</p>
+      <p id="globalBusyMessage">Vui lòng chờ trạng thái cập nhật xong trước khi thao tác tiếp.</p>
+      <div id="globalBusyActions" class="global-busy-actions" hidden>
+        <button type="button" id="globalBusyRetryButton" class="primary-button compact-button">Tải lại ứng dụng</button>
+      </div>
     </section>
   </div>
 
-  <script type="module" src="./static/bootstrap.js"></script>
+  <script>
+    (() => {
+      const RETRY_KEY = "qltpchay_bootstrap_retry_count";
+      const MAX_RETRIES = 1;
+
+      function getElements() {
+        return {
+          overlay: document.getElementById("globalBusyOverlay"),
+          label: document.getElementById("globalBusyLabel"),
+          message: document.getElementById("globalBusyMessage"),
+          actions: document.getElementById("globalBusyActions"),
+          retryButton: document.getElementById("globalBusyRetryButton"),
+        };
+      }
+
+      function show(title, detail, { retryable = false, onRetry = null } = {}) {
+        const { overlay, label, message, actions, retryButton } = getElements();
+        if (!overlay) {
+          return;
+        }
+        overlay.hidden = false;
+        overlay.dataset.owner = "bootstrap";
+        document.body.classList.add("app-is-busy");
+        document.body.setAttribute("aria-busy", "true");
+        if (label) {
+          label.textContent = title || "Đang tải ứng dụng...";
+        }
+        if (message) {
+          message.textContent = detail || "Vui lòng chờ trong giây lát.";
+        }
+        if (actions) {
+          actions.hidden = !retryable;
+        }
+        if (retryButton) {
+          retryButton.onclick = retryable && typeof onRetry === "function" ? onRetry : null;
+        }
+      }
+
+      function hide() {
+        const { overlay, actions, retryButton } = getElements();
+        if (!overlay || overlay.dataset.owner !== "bootstrap") {
+          return;
+        }
+        overlay.hidden = true;
+        delete overlay.dataset.owner;
+        document.body.classList.remove("app-is-busy");
+        document.body.setAttribute("aria-busy", "false");
+        if (actions) {
+          actions.hidden = true;
+        }
+        if (retryButton) {
+          retryButton.onclick = null;
+        }
+      }
+
+      function clearRetryCount() {
+        try {
+          sessionStorage.removeItem(RETRY_KEY);
+        } catch {}
+      }
+
+      function scheduleReload(detail) {
+        try {
+          const attemptCount = Number(sessionStorage.getItem(RETRY_KEY) || "0");
+          if (attemptCount < MAX_RETRIES) {
+            sessionStorage.setItem(RETRY_KEY, String(attemptCount + 1));
+            show("Đang tải lại ứng dụng...", detail, { retryable: false });
+            window.setTimeout(() => {
+              window.location.reload();
+            }, 250);
+            return true;
+          }
+        } catch {}
+        return false;
+      }
+
+      window.__qltpchayBootstrapUi = {
+        show,
+        hide,
+        clearRetryCount,
+        scheduleReload,
+      };
+
+      window.__qltpchayHandleBootstrapScriptError = () => {
+        const detail = "Không tải được mã khởi động của ứng dụng. Hãy kiểm tra kết nối rồi thử tải lại.";
+        if (scheduleReload(detail)) {
+          return;
+        }
+        show("Không tải được ứng dụng", detail, {
+          retryable: true,
+          onRetry: () => window.location.reload(),
+        });
+      };
+    })();
+  </script>
+  <script type="module" src="./static/bootstrap.js" onerror="window.__qltpchayHandleBootstrapScriptError && window.__qltpchayHandleBootstrapScriptError()"></script>
 </body>
 </html>
