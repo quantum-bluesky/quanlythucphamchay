@@ -2,12 +2,12 @@
   "app_version": "3.16.0",
   "files": {
     "app.js": {
-      "counter": 1,
-      "sha256": "4488ea21537b8b3bd69013b2b11a86ee5861fed33e949068bb5f2686998b1745"
+      "counter": 2,
+      "sha256": "3c96a903949a7cdf9b61723287a06dec9052c34d9d352994e272903f8a9ddcc7"
     },
     "bootstrap.js": {
-      "counter": 1,
-      "sha256": "73f36f3bf394e2326bf51ada8eedd163ae15af9f63c26c24e6e7ac989f5ad7a9"
+      "counter": 2,
+      "sha256": "6a8c5bef1b69204c49e7f6c5447c84dd6765519767e31d20f942ba835dec1184"
     },
     "modules/app-state.js": {
       "counter": 1,
@@ -50,8 +50,8 @@
       "sha256": "27d46d6572a0b021aa7888c687db25344c8a9ce3ea1797ebd56bf115a90fd945"
     },
     "modules/dom.js": {
-      "counter": 1,
-      "sha256": "a73f226a1bbbbfbfc10c77688e8ccb3b333f53090a645b5e4c8243fbb291f10c"
+      "counter": 2,
+      "sha256": "05cae27608f9c3c106927777b57c4b0ee4f39cd7190966ea0069b4ff8b92475a"
     },
     "modules/domain-helpers/inventory-domain.js": {
       "counter": 1,

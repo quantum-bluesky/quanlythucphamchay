@@ -9,6 +9,10 @@ const adminSessionUserLabel = document.getElementById("adminSessionUserLabel");
 const adminLogoutButton = document.getElementById("adminLogoutButton");
 const appVersionLabel = document.getElementById("appVersionLabel");
 const activeScreenBarTitle = document.getElementById("activeScreenBarTitle");
+const bootstrapUi = window.__qltpchayBootstrapUi || null;
+
+const BOOTSTRAP_IMPORT_DETAIL = "Đang nạp mã ứng dụng và khôi phục màn hình gần nhất.";
+const BOOTSTRAP_STATUS_DETAIL = "Vui lòng chờ trong giây lát. Ứng dụng sẽ tiếp tục ngay khi dữ liệu sẵn sàng.";
 
 let toastTimer = null;
 let loginBindingReady = false;
@@ -44,6 +48,22 @@ function showToast(message, isError = false) {
   }, isError ? 5000 : 2500);
 }
 
+function showBootstrapStatus(title, detail, options = {}) {
+  bootstrapUi?.show(title, detail, options);
+}
+
+function hideBootstrapStatus() {
+  bootstrapUi?.hide();
+}
+
+function clearBootstrapRetryCount() {
+  bootstrapUi?.clearRetryCount?.();
+}
+
+function scheduleBootstrapReload(detail) {
+  return bootstrapUi?.scheduleReload?.(detail) === true;
+}
+
 function updateVersionLabel(payload = {}) {
   if (!appVersionLabel) {
     return;
@@ -71,6 +91,7 @@ function activateLoginScreen() {
       adminUsernameInput?.focus();
     };
   }
+  hideBootstrapStatus();
 }
 
 function setLoginSubmitting(isSubmitting) {
@@ -98,6 +119,31 @@ async function requestJson(path, options = {}) {
   return data;
 }
 
+function handleBootstrapFailure(error, fallbackDetail) {
+  const rawMessage = String(error?.message || "").trim();
+  const detail = /failed to fetch dynamically imported module|importing a module script failed|failed to load module script/i.test(rawMessage)
+    ? "Không tải được mã ứng dụng do mạng chậm hoặc file phiên bản mới chưa kịp nạp. App sẽ thử tải lại."
+    : (rawMessage || fallbackDetail || "Không tải được ứng dụng. Hãy kiểm tra kết nối rồi thử lại.");
+  if (scheduleBootstrapReload(detail)) {
+    return;
+  }
+  showBootstrapStatus("Không tải được ứng dụng", detail, {
+    retryable: true,
+    onRetry: () => window.location.reload(),
+  });
+}
+
+async function waitForAppReady(timeoutMs = 20000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (window.__QLTPCHAY_APP_READY === true) {
+      return true;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 120));
+  }
+  throw new Error("Ứng dụng tải quá lâu. Hãy thử tải lại để nạp lại module và dữ liệu.");
+}
+
 function bindLoginForm() {
   if (loginBindingReady || !adminLoginForm) {
     return;
@@ -112,15 +158,17 @@ function bindLoginForm() {
       return;
     }
     setLoginSubmitting(true);
+    showBootstrapStatus("Đang đăng nhập...", "Ứng dụng đang kiểm tra tài khoản và mở lại phiên làm việc.");
     try {
       const payload = await requestJson("api/session/login", {
         method: "POST",
         body: JSON.stringify({ username, password }),
       });
       updateVersionLabel(payload);
-      showToast(payload.message || "Đã đăng nhập hệ thống.");
+      clearBootstrapRetryCount();
       window.location.reload();
     } catch (error) {
+      hideBootstrapStatus();
       showToast(error.message, true);
       adminPasswordInput?.focus();
       adminPasswordInput?.select?.();
@@ -131,10 +179,15 @@ function bindLoginForm() {
 }
 
 async function loadFullApplication() {
-  if (appShell) {
-    appShell.hidden = false;
+  showBootstrapStatus("Đang tải ứng dụng...", BOOTSTRAP_IMPORT_DETAIL);
+  try {
+    await import("./app.js");
+    await waitForAppReady();
+    clearBootstrapRetryCount();
+    hideBootstrapStatus();
+  } catch (error) {
+    handleBootstrapFailure(error, "Không nạp được mã ứng dụng chính.");
   }
-  await import("./app.js");
 }
 
 async function bootBootstrap() {
@@ -142,6 +195,7 @@ async function bootBootstrap() {
     if (appShell) {
       appShell.hidden = true;
     }
+    showBootstrapStatus("Đang tải ứng dụng...", BOOTSTRAP_STATUS_DETAIL);
     const payload = await requestJson("api/session/status", {
       headers: { "X-Session-Activity": "passive" },
     });
@@ -150,14 +204,12 @@ async function bootBootstrap() {
       await loadFullApplication();
       return;
     }
+    clearBootstrapRetryCount();
     activateLoginScreen();
     bindLoginForm();
     adminUsernameInput?.focus();
   } catch (error) {
-    if (appShell) {
-      appShell.hidden = false;
-    }
-    showToast(error.message, true);
+    handleBootstrapFailure(error, "Không lấy được trạng thái phiên đăng nhập.");
   }
 }
 
