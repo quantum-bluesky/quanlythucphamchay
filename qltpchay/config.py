@@ -23,6 +23,18 @@ DEFAULT_NORMAL_USERS = [
         "password": "staff12345",
     }
 ]
+DEFAULT_MAIL_CONFIG = {
+    "enabled": False,
+    "smtp_host": "",
+    "smtp_port": 587,
+    "username": "",
+    "password": "",
+    "from_email": "",
+    "to_emails": [],
+    "use_tls": True,
+    "use_ssl": False,
+    "subject_prefix": "[QLTP Chay]",
+}
 
 
 def _parse_env_flag(name: str, default: bool) -> bool:
@@ -119,6 +131,34 @@ def _normalize_procurement_config(raw_procurement, defaults: dict | None = None)
     }
 
 
+def _normalize_mail_config(raw_mail, defaults: dict | None = None) -> dict:
+    defaults = defaults or DEFAULT_MAIL_CONFIG
+    raw_mail = raw_mail if isinstance(raw_mail, dict) else {}
+    raw_to_emails = raw_mail.get("to_emails", defaults.get("to_emails", []))
+    to_emails = []
+    if isinstance(raw_to_emails, list):
+        to_emails = [
+            str(email or "").strip()
+            for email in raw_to_emails
+            if str(email or "").strip()
+        ]
+    return {
+        "enabled": bool(raw_mail.get("enabled", defaults["enabled"])),
+        "smtp_host": str(raw_mail.get("smtp_host") or defaults["smtp_host"]).strip(),
+        "smtp_port": _normalize_timeout_minutes(
+            raw_mail.get("smtp_port", defaults["smtp_port"]),
+            defaults["smtp_port"],
+        ),
+        "username": str(raw_mail.get("username") or defaults["username"]).strip(),
+        "password": str(raw_mail.get("password") or defaults["password"]),
+        "from_email": str(raw_mail.get("from_email") or defaults["from_email"]).strip(),
+        "to_emails": sorted(set(to_emails)),
+        "use_tls": bool(raw_mail.get("use_tls", defaults["use_tls"])),
+        "use_ssl": bool(raw_mail.get("use_ssl", defaults["use_ssl"])),
+        "subject_prefix": str(raw_mail.get("subject_prefix") or defaults["subject_prefix"]).strip(),
+    }
+
+
 def build_default_system_config(*, use_env_seed: bool) -> dict:
     config = {
         "version": DEFAULT_APP_VERSION,
@@ -142,6 +182,7 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
             "documents_per_page": DEFAULT_DOCUMENTS_PER_PAGE,
         },
         "procurement": _normalize_procurement_config({}),
+        "mail": _normalize_mail_config({}),
     }
     if use_env_seed:
         config["server"]["host"] = os.environ.get("APP_HOST", DEFAULT_HOST)
@@ -220,6 +261,10 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         "procurement": _normalize_procurement_config(
             raw_config.get("procurement", {}),
             defaults["procurement"],
+        ),
+        "mail": _normalize_mail_config(
+            raw_config.get("mail", {}),
+            defaults["mail"],
         ),
     }
 

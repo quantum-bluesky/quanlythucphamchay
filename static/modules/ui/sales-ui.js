@@ -20,17 +20,20 @@ export function createSalesUi(deps) {
     getPendingCartMergePreview,
     getVisibleOrders,
     getCustomerReturnEditorMarkup,
+    getLatestDocumentCancelRequest,
+    getPendingDocumentCancelRequest,
+    canApproveDocumentCancelRequests,
     isSearchResultMode,
     paginateItems,
     renderPagination,
   } = deps;
 
   function getCartStatusMeta(cart) {
-    if (cart.paymentStatus === "paid") {
-      return { label: "Đã thanh toán", statusClass: "completed" };
-    }
     if (cart.status === "cancelled") {
       return { label: "Đã hủy", statusClass: "cancelled" };
+    }
+    if (cart.paymentStatus === "paid") {
+      return { label: "Đã thanh toán", statusClass: "completed" };
     }
     if (cart.status === "completed") {
       return { label: "Đã xuất hàng", statusClass: "completed" };
@@ -83,6 +86,66 @@ export function createSalesUi(deps) {
       cart.paymentNote ? { label: "Ghi chú TT", value: cart.paymentNote } : null,
       { label: "Cập nhật cuối", value: formatDate(cart.updatedAt) || "Chưa có" },
     ].filter(Boolean);
+  }
+
+  function getDocumentCancelRequestMeta(request) {
+    const status = String(request?.status || "").trim();
+    if (status === "processed") {
+      return { label: "Hủy đã duyệt", statusClass: "cancelled" };
+    }
+    if (status === "rejected") {
+      return { label: "Yêu cầu hủy bị từ chối", statusClass: "draft" };
+    }
+    return { label: "Yêu cầu hủy chờ duyệt", statusClass: "warning" };
+  }
+
+  function renderOrderCancelRequestPanel(cart) {
+    const latestRequest = typeof getLatestDocumentCancelRequest === "function"
+      ? getLatestDocumentCancelRequest("order", cart.id)
+      : null;
+    const pendingRequest = typeof getPendingDocumentCancelRequest === "function"
+      ? getPendingDocumentCancelRequest("order", cart.id)
+      : null;
+    const canApprove = typeof canApproveDocumentCancelRequests === "function"
+      ? canApproveDocumentCancelRequests()
+      : false;
+    const allowCreateRequest = cart.status === "completed" && !pendingRequest;
+    if (!latestRequest && !allowCreateRequest) {
+      return "";
+    }
+    if (!latestRequest) {
+      return `
+        <article class="inline-alert warning">
+          <strong>Nhập/xuất nhầm?</strong> Gửi yêu cầu hủy để quản lý hoặc Admin duyệt trước khi app đảo tồn kho và doanh thu.
+          <div class="line-actions">
+            <button type="button" class="secondary-button compact-button" data-order-detail-action="request-cancel" data-cart-id="${cart.id}">Yêu cầu hủy</button>
+          </div>
+        </article>
+      `;
+    }
+    const requestMeta = getDocumentCancelRequestMeta(latestRequest);
+    const approveActions = pendingRequest && canApprove
+      ? `
+        <div class="line-actions">
+          <button type="button" class="secondary-button compact-button" data-order-detail-action="approve-cancel-request" data-request-id="${latestRequest.request_id}" data-cart-id="${cart.id}">Duyệt hủy</button>
+          <button type="button" class="ghost-button compact-button" data-order-detail-action="reject-cancel-request" data-request-id="${latestRequest.request_id}" data-cart-id="${cart.id}">Từ chối</button>
+        </div>
+      `
+      : "";
+    const retryAction = !pendingRequest && allowCreateRequest
+      ? `<div class="line-actions"><button type="button" class="secondary-button compact-button" data-order-detail-action="request-cancel" data-cart-id="${cart.id}">Gửi lại yêu cầu</button></div>`
+      : "";
+    return `
+      <article class="inline-alert ${requestMeta.statusClass}">
+        <strong>${escapeHtml(requestMeta.label)}</strong>
+        <div class="cart-line-note">Lý do: ${escapeHtml(latestRequest.cancel_reason || "Chưa có")}</div>
+        <div class="cart-line-note">Người gửi: ${escapeHtml(latestRequest.requested_by || "Nhân viên")} • ${escapeHtml(formatDate(latestRequest.created_at) || latestRequest.created_at || "")}</div>
+        ${latestRequest.rejected_by ? `<div class="cart-line-note">Từ chối bởi ${escapeHtml(latestRequest.rejected_by)}: ${escapeHtml(latestRequest.reject_reason || "Không có lý do")}</div>` : ""}
+        ${latestRequest.processed_by ? `<div class="cart-line-note">Đã duyệt bởi ${escapeHtml(latestRequest.processed_by)} lúc ${escapeHtml(formatDate(latestRequest.processed_at) || latestRequest.processed_at || "")}</div>` : ""}
+        ${approveActions}
+        ${retryAction}
+      </article>
+    `;
   }
 
   function renderCartDiscountEditor(cart, actionAttribute) {
@@ -286,6 +349,7 @@ export function createSalesUi(deps) {
         noteActionAttribute: 'data-order-detail-action="save-note"',
         discountActionAttribute: 'data-order-detail-action="save-discount"',
       })}
+      ${renderOrderCancelRequestPanel(selectedCart)}
       ${renderCartCostWarning(selectedCart)}
       <div class="detail-panel-actions">
         ${allowOpen ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="open" data-cart-id="${selectedCart.id}">${mobileQuery.matches ? "Mở" : "Tiếp tục xử lý"}</button>` : ""}
@@ -715,6 +779,10 @@ export function createSalesUi(deps) {
         const allowReturn = cart.status === "completed";
         const showExpandedCardActions = !compact || isSelected;
         const inlineCustomerReturnEditor = isSelected ? getCustomerReturnEditorMarkup(cart) : "";
+        const latestCancelRequest = typeof getLatestDocumentCancelRequest === "function"
+          ? getLatestDocumentCancelRequest("order", cart.id)
+          : null;
+        const cancelRequestMeta = latestCancelRequest ? getDocumentCancelRequestMeta(latestCancelRequest) : null;
         return `
         <article class="cart-queue-item selectable-card ${isSelected ? "is-selected-detail" : ""}" data-order-select="${cart.id}" tabindex="0" role="button" aria-pressed="${isSelected ? "true" : "false"}">
           <div class="queue-header">
@@ -733,6 +801,7 @@ export function createSalesUi(deps) {
                 <span>${escapeHtml(formatDate(cart.completedAt || cart.committedAt || cart.cancelledAt || cart.updatedAt))}</span>
               </div>
             `}
+          ${cancelRequestMeta ? `<div class="queue-meta"><span class="status-pill ${escapeHtml(cancelRequestMeta.statusClass)}">${escapeHtml(cancelRequestMeta.label)}</span><span>${escapeHtml(latestCancelRequest?.requested_by || "")}</span></div>` : ""}
           <div class="queue-actions">
             ${canMergeCart(cart) ? `<label class="toggle-inline" data-queue-action="toggle-merge-select" data-cart-id="${cart.id}"><input type="checkbox" data-queue-action="toggle-merge-select" data-cart-id="${cart.id}" ${isMergeSelected ? "checked" : ""}><span>Chọn</span></label>` : ""}
             ${allowOpen

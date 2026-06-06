@@ -153,9 +153,29 @@ Ví dụ:
     "host": "127.0.0.1",
     "port": 8000
   },
+  "EnableLogin": true,
   "admin": {
     "username": "masteradmin",
     "password": "admin12345"
+  },
+  "users": [
+    {
+      "username": "bizmanager",
+      "password": "biz12345",
+      "permissions": ["document_cancel_approve"]
+    }
+  ],
+  "mail": {
+    "enabled": false,
+    "smtp_host": "smtp.example.com",
+    "smtp_port": 587,
+    "username": "noreply@example.com",
+    "password": "app-password",
+    "from_email": "noreply@example.com",
+    "to_emails": ["manager@example.com"],
+    "use_tls": true,
+    "use_ssl": false,
+    "subject_prefix": "[QuanLyThucPhamChay]"
   },
   "pagination": {
     "items_per_page": 10,
@@ -164,7 +184,7 @@ Ví dụ:
 }
 ```
 
-Nếu muốn đổi tài khoản admin, host/port mặc định hoặc base phân trang, sửa trực tiếp file này rồi chạy lại app.
+Nếu muốn đổi tài khoản admin, host/port mặc định, cấp quyền như `document_cancel_approve`, cấu hình mail SMTP hoặc base phân trang, sửa trực tiếp file này rồi chạy lại app.
 
 Ý nghĩa nhanh:
 
@@ -174,6 +194,8 @@ Nếu muốn đổi tài khoản admin, host/port mặc định hoặc base phâ
   - `inventory_adjust_manage`: cho chỉnh tồn trực tiếp và tạo `Phiếu DC`
   - `procurement_batch_manage`: cho xử lý kỳ gom nhập
   - `order_batch_manage`: cho duyệt/xử lý request ở màn `Xuất nhanh`
+  - `document_cancel_approve`: cho duyệt/từ chối `Yêu cầu hủy` của đơn đã xuất hoặc phiếu nhập đã nhận
+- nếu muốn dùng mail cho luồng `Yêu cầu hủy`, phải bật `mail.enabled = true`, khai báo SMTP và ít nhất một địa chỉ trong `mail.to_emails`
 - app sẽ tự scale base này theo thiết bị khi render lần đầu; trên `PC/Tablet` người dùng còn có thể đổi nhanh bằng combobox `25/50/100`
 
 Có thể xem config hiện tại bằng:

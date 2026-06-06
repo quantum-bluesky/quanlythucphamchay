@@ -115,7 +115,7 @@ class SessionManager:
                 "username": self.admin_username,
                 "password": self.admin_password,
                 "role": "admin",
-                "permissions": ["procurement_batch_manage"],
+                "permissions": ["procurement_batch_manage", "document_cancel_approve"],
             }
         for user in self._users:
             if user["username"] == clean_username:

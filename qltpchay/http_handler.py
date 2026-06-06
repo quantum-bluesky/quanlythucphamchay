@@ -15,6 +15,7 @@ from urllib.parse import parse_qs, urlparse
 from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
 from .constants import ADMIN_SESSION_COOKIE, APP_NAME, JS_ASSET_VERSIONS_PATH, STATIC_DIR
 from .js_asset_versions import JavaScriptAssetVersionManager
+from .mailer import send_mail_notification
 from .store import BulkOrderRequestDuplicateError, ProcurementBatchStartConflictError, SyncConflictError
 
 
@@ -22,6 +23,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
     debug_config = (system_config or {}).get("debug", {})
     pagination_config = (system_config or {}).get("pagination", {})
     procurement_config = (system_config or {}).get("procurement", {})
+    mail_config = (system_config or {}).get("mail", {})
     auth_enabled = bool((system_config or {}).get("EnableLogin"))
     app_version = str((system_config or {}).get("version") or "").strip() or "2.3.1"
     asset_versions_path = Path((system_config or {}).get("asset_versions_path") or JS_ASSET_VERSIONS_PATH)
@@ -285,6 +287,26 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 )
                 return
 
+            cancel_request_history_match = re.fullmatch(r"/api/document-cancel-requests/([^/]+)/history", route)
+            if cancel_request_history_match:
+                query = parse_qs(parsed.query)
+                limit = query.get("limit", ["30"])[0]
+                request_doc = store.get_document_cancel_request(cancel_request_history_match.group(1))
+                if not request_doc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Không tìm thấy yêu cầu hủy."})
+                    return
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "request": request_doc,
+                        "history": store.get_document_cancel_request_change_history(
+                            cancel_request_history_match.group(1),
+                            limit=int(limit),
+                        ),
+                    },
+                )
+                return
+
             order_history_match = re.fullmatch(r"/api/orders/([^/]+)/history", route)
             if order_history_match:
                 query = parse_qs(parsed.query)
@@ -344,6 +366,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "runtime_version": store.get_runtime_version(),
                         "procurement": self._build_procurement_status_payload(),
                         "bulk_order_requests": store.list_bulk_order_requests(limit=30),
+                        "document_cancel_requests": store.list_document_cancel_requests(limit=30),
                         **store.get_sync_state(),
                     },
                 )
@@ -1079,6 +1102,101 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
+                order_cancel_request_match = re.fullmatch(r"/api/orders/([^/]+)/cancel-request", route)
+                if order_cancel_request_match:
+                    if not self._is_login_enabled():
+                        self._send_json(
+                            HTTPStatus.BAD_REQUEST,
+                            {"error": "Cần bật EnableLogin để dùng luồng hủy có phê duyệt."},
+                        )
+                        return
+                    request_doc = store.create_document_cancel_request(
+                        document_type="order",
+                        document_id=order_cancel_request_match.group(1),
+                        reason=payload.get("reason", ""),
+                        actor=self._get_current_username() or "",
+                    )
+                    mail_result = self._send_document_cancel_request_notification(request_doc)
+                    response_payload = {
+                        "message": "Đã gửi yêu cầu hủy đơn chờ phê duyệt.",
+                        "request": request_doc,
+                        "mail_notification": mail_result,
+                        "document_cancel_requests": store.list_document_cancel_requests(limit=30),
+                    }
+                    if mail_result.get("sent"):
+                        response_payload["notification_message"] = "Đã gửi mail thông báo phê duyệt."
+                    elif not mail_result.get("skipped"):
+                        response_payload["notification_warning"] = "Không gửi được mail thông báo, nhưng yêu cầu hủy đã được lưu."
+                    self._send_json(HTTPStatus.CREATED, response_payload)
+                    return
+
+                purchase_cancel_request_match = re.fullmatch(r"/api/purchases/([^/]+)/cancel-request", route)
+                if purchase_cancel_request_match:
+                    if not self._is_login_enabled():
+                        self._send_json(
+                            HTTPStatus.BAD_REQUEST,
+                            {"error": "Cần bật EnableLogin để dùng luồng hủy có phê duyệt."},
+                        )
+                        return
+                    request_doc = store.create_document_cancel_request(
+                        document_type="purchase",
+                        document_id=purchase_cancel_request_match.group(1),
+                        reason=payload.get("reason", ""),
+                        actor=self._get_current_username() or "",
+                    )
+                    mail_result = self._send_document_cancel_request_notification(request_doc)
+                    response_payload = {
+                        "message": "Đã gửi yêu cầu hủy phiếu nhập chờ phê duyệt.",
+                        "request": request_doc,
+                        "mail_notification": mail_result,
+                        "document_cancel_requests": store.list_document_cancel_requests(limit=30),
+                    }
+                    if mail_result.get("sent"):
+                        response_payload["notification_message"] = "Đã gửi mail thông báo phê duyệt."
+                    elif not mail_result.get("skipped"):
+                        response_payload["notification_warning"] = "Không gửi được mail thông báo, nhưng yêu cầu hủy đã được lưu."
+                    self._send_json(HTTPStatus.CREATED, response_payload)
+                    return
+
+                cancel_request_approve_match = re.fullmatch(r"/api/document-cancel-requests/([^/]+)/approve", route)
+                if cancel_request_approve_match:
+                    if not self._require_document_cancel_approval_permission():
+                        return
+                    result = store.approve_document_cancel_request(
+                        cancel_request_approve_match.group(1),
+                        actor=self._get_current_username() or "",
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã duyệt và hủy chứng từ.",
+                            **result,
+                            "document_cancel_requests": store.list_document_cancel_requests(limit=30),
+                            "summary": store.get_summary(),
+                            **store.get_sync_state(),
+                        },
+                    )
+                    return
+
+                cancel_request_reject_match = re.fullmatch(r"/api/document-cancel-requests/([^/]+)/reject", route)
+                if cancel_request_reject_match:
+                    if not self._require_document_cancel_approval_permission():
+                        return
+                    request_doc = store.reject_document_cancel_request(
+                        cancel_request_reject_match.group(1),
+                        actor=self._get_current_username() or "",
+                        reason=payload.get("reason", ""),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã từ chối yêu cầu hủy chứng từ.",
+                            "request": request_doc,
+                            "document_cancel_requests": store.list_document_cancel_requests(limit=30),
+                        },
+                    )
+                    return
+
                 if route == "/api/orders/ship":
                     result = store.ship_cart_order(
                         payload.get("cart_id", ""),
@@ -1734,6 +1852,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
         def _has_inventory_adjust_permission(self) -> bool:
             return self._has_named_permission("inventory_adjust_manage")
 
+        def _has_document_cancel_approval_permission(self) -> bool:
+            return self._has_named_permission("document_cancel_approve")
+
         def _require_named_permission(self, permission_name: str, error_message: str) -> bool:
             if not self._is_login_enabled():
                 return True
@@ -1776,6 +1897,65 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 {"error": "Tài khoản này không có quyền điều chỉnh tồn trực tiếp."},
             )
             return False
+
+        def _require_document_cancel_approval_permission(self) -> bool:
+            if not self._is_login_enabled():
+                self._send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"error": "Cần bật EnableLogin để dùng luồng hủy có phê duyệt."},
+                )
+                return False
+            session, expired = self._resolve_current_session()
+            if expired:
+                self._send_json(
+                    HTTPStatus.UNAUTHORIZED,
+                    self._build_auth_required_payload(session_expired=True),
+                )
+                return False
+            if not session:
+                self._send_json(HTTPStatus.UNAUTHORIZED, self._build_auth_required_payload())
+                return False
+            if self._has_document_cancel_approval_permission():
+                return True
+            self._send_json(
+                HTTPStatus.UNAUTHORIZED,
+                {"error": "Tài khoản này không có quyền duyệt yêu cầu hủy chứng từ."},
+            )
+            return False
+
+        @staticmethod
+        def _build_document_cancel_type_label(document_type: str) -> str:
+            return "đơn xuất" if str(document_type or "").strip() == "order" else "phiếu nhập"
+
+        def _send_document_cancel_request_notification(self, request_doc: dict) -> dict:
+            subject = (
+                f"Yêu cầu hủy {self._build_document_cancel_type_label(request_doc.get('document_type') or '')} "
+                f"{request_doc.get('document_code') or request_doc.get('document_id') or ''}"
+            ).strip()
+            body = "\n".join(
+                [
+                    "Có yêu cầu hủy chứng từ mới cần phê duyệt.",
+                    f"Request: {request_doc.get('request_code') or request_doc.get('request_id') or ''}",
+                    f"Loại chứng từ: {self._build_document_cancel_type_label(request_doc.get('document_type') or '')}",
+                    f"Mã chứng từ: {request_doc.get('document_code') or request_doc.get('document_id') or ''}",
+                    f"Người yêu cầu: {request_doc.get('requested_by') or ''}",
+                    f"Lý do: {request_doc.get('cancel_reason') or ''}",
+                    f"Thời gian: {request_doc.get('created_at') or ''}",
+                    "Mở màn Xuất hàng hoặc Nhập hàng trong app để duyệt/từ chối yêu cầu.",
+                ]
+            )
+            try:
+                return send_mail_notification(
+                    mail_config=mail_config,
+                    subject=subject,
+                    body=body,
+                )
+            except Exception as exc:
+                return {
+                    "sent": False,
+                    "skipped": False,
+                    "reason": str(exc),
+                }
 
         def _get_procurement_permission_payload(self) -> dict:
             return {

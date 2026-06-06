@@ -30,6 +30,21 @@ export function registerPurchasesControllerEvents(contract) {
     return purchase.receiptCode || purchase.supplierName || "phiếu nhập này";
   }
 
+  function promptPurchaseCancelReason(purchase, requestLabel = "Yêu cầu hủy") {
+    const reason = window.prompt(
+      `${requestLabel} cho "${getPurchaseDisplayName(purchase)}"\n\nNhập rõ lý do để quản lý hoặc Admin duyệt:`,
+      ""
+    );
+    if (reason === null) {
+      return null;
+    }
+    const cleanReason = String(reason || "").trim();
+    if (!cleanReason) {
+      throw new Error("Phải nhập lý do hủy.");
+    }
+    return cleanReason;
+  }
+
   function buildProductSupplierConflictMessage(productName, insight) {
     const distinctSuppliers = (insight?.distinctOpenSuppliers || []).filter(Boolean);
     if (!distinctSuppliers.length) {
@@ -964,6 +979,56 @@ export function registerPurchasesControllerEvents(contract) {
           }),
         });
         await actions.refreshData();
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (actionButton.dataset.purchaseAction === "request-cancel") {
+      try {
+        const reason = promptPurchaseCancelReason(purchase);
+        if (!reason) {
+          return;
+        }
+        const data = await actions.requestPurchaseCancellation(purchase.id, reason);
+        actions.showToast(data.notification_warning || data.notification_message || data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (actionButton.dataset.purchaseAction === "approve-cancel-request") {
+      const requestId = String(actionButton.dataset.requestId || queries.getPendingDocumentCancelRequest("purchase", purchase.id)?.request_id || "").trim();
+      if (!requestId) {
+        actions.showToast("Không tìm thấy yêu cầu hủy cần duyệt.", true);
+        return;
+      }
+      if (!window.confirm(`Duyệt hủy "${getPurchaseDisplayName(purchase)}"?\n\nApp sẽ đảo tồn kho và loại trừ chi phí của phiếu này khỏi báo cáo.`)) {
+        return;
+      }
+      try {
+        const data = await actions.approveDocumentCancelRequest(requestId);
+        state.activePurchaseId = purchase.id;
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (actionButton.dataset.purchaseAction === "reject-cancel-request") {
+      const requestId = String(actionButton.dataset.requestId || queries.getPendingDocumentCancelRequest("purchase", purchase.id)?.request_id || "").trim();
+      if (!requestId) {
+        actions.showToast("Không tìm thấy yêu cầu hủy cần từ chối.", true);
+        return;
+      }
+      try {
+        const reason = promptPurchaseCancelReason(purchase, "Từ chối yêu cầu hủy");
+        if (!reason) {
+          return;
+        }
+        const data = await actions.rejectDocumentCancelRequest(requestId, reason);
+        state.activePurchaseId = purchase.id;
         actions.showToast(data.message);
       } catch (error) {
         actions.showToast(error.message, true);

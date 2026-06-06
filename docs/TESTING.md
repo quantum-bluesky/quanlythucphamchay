@@ -206,6 +206,7 @@ Các nhóm kiểm tra chính:
 - `Tạo đơn xuất hàng -> Ghi chú phiếu xuất`: user tạo draft mới, nhập ghi chú ở form, mở `Detail` để xem/sửa lại, và ghi chú phải còn tồn tại trong DB sau khi reload dữ liệu
 - `Tạo nhiều đơn mobile-first`: mỗi khách là một card riêng, `Lưu nháp` giữ lại card thành công để sửa tiếp trên cùng màn, `Chốt đơn hợp lệ` chỉ commit các đơn đủ hàng, đơn lỗi giữ lại để sửa tiếp, và khi lỗi do thiếu hàng phải có CTA sang luồng nhập hàng phù hợp
 - `Thanh toán`: màn `Thanh toán` phải lọc đúng phiếu chưa thanh toán, cho cập nhật `ngày / phương thức / ghi chú`, rồi mở lại được phiếu gốc từ cả tab khách hàng và tab nhà cung cấp
+- `Yêu cầu hủy chứng từ đã khóa`: user thường tạo request có lý do cho đơn `Đã xuất hàng` hoặc phiếu nhập `Đã nhập kho/Đã thanh toán`, manager/Admin duyệt hoặc từ chối, mail notify được xử lý theo cấu hình và báo cáo phải loại trừ tác động của chứng từ đã bị hủy duyệt
 - `Approve request xuất nhanh`: user thường gửi request `pending_approval`, user quản lý duyệt/từ chối, owner có thể xử lý tiếp request đã `approved`, và UI vẫn nhìn thấy trạng thái chung để tránh tạo trùng
 - `Audit log đơn xuất nhanh`: popup `Lịch sử` phải đọc đúng timeline của request và đơn, hiển thị mới nhất trước và không làm chậm list vì chỉ fetch khi user mở popup
 - `Reload số lượng sau đổi trạng thái`: sau `Xuất kho` hoặc `Nhập kho`, các màn `Tồn kho`, `Xuất hàng`, `Nhập hàng` phải nạp lại dữ liệu server mới mà không cần F5
@@ -335,6 +336,12 @@ Case mới cho Phase A:
 - `UT-PROC-08`: extra row cùng sản phẩm với shortage row phải merge vào cùng phiếu batch/NCC đang xử lý, không tạo extra assignment
 - `UT-AUTH-04B`: user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn không có quyền chỉnh tồn trực tiếp
 - `UT-AUTH-15`: user có `inventory_adjust_manage` được chỉnh tồn trực tiếp và tạo `Phiếu DC` nhưng vẫn không vào được route `Master Admin`
+- `UT-CANCEL-01`: duyệt yêu cầu hủy đơn `completed` phải hoàn tồn theo đúng lô, chuyển đơn sang `cancelled` và net báo cáo doanh thu về `0`
+- `UT-CANCEL-02`: duyệt yêu cầu hủy phiếu nhập `received/paid` phải rút lại tồn kho, chuyển phiếu sang `cancelled` và net báo cáo chi nhập về `0`
+- `UT-CANCEL-03`: backend chặn tạo yêu cầu hủy phiếu nhập khi hàng của lô gốc đã bị dùng mất một phần
+- `UT-CANCEL-04`: từ chối yêu cầu hủy không được làm đổi trạng thái chứng từ nguồn
+- `UT-AUTH-12C`: route `cancel-request/approve/reject` phải yêu cầu đúng permission `document_cancel_approve`, cập nhật state chung và trả kết quả mail notification
+- `ACC-CANCEL-01`: mobile UI cho user gửi `Yêu cầu hủy` từ đơn `Đã xuất hàng` và phiếu `Đã nhập kho`, manager duyệt ngay trên detail, rồi state/tồn kho phải phản ánh đúng sau refresh
 - `IT-PROC-03`: batch owner thêm extra product trong planner, thấy badge `Ngoài nhu cầu đơn`, tạo phiếu thành công và review chung với shortage row cùng NCC
 - `IT-PROC-05`: từ `Xử lý nhập thiếu`, chọn lẫn phiếu nhập và phiếu xuất trong khối phiếu liên quan rồi bấm `Gộp đơn` phải bị chặn và giữ nguyên màn planner
 
