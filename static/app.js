@@ -1931,6 +1931,7 @@ function resetQuickSaleDraft() {
     markPaid: false,
     items: [],
     lastResult: null,
+    submitting: false,
   };
 }
 
@@ -1946,6 +1947,7 @@ function resetQuickPurchaseDraft() {
     markPaid: false,
     items: [],
     lastResult: null,
+    submitting: false,
   };
 }
 
@@ -1964,6 +1966,7 @@ function cloneActiveCartIntoQuickSaleDraft() {
     unitPrice: Number(item.unitPrice || item.unit_price || 0),
   })).filter((item) => item.productId > 0 && item.quantity > 0);
   state.quickSaleDraft.lastResult = null;
+  state.quickSaleDraft.submitting = false;
 }
 
 function cloneActivePurchaseIntoQuickPurchaseDraft() {
@@ -1981,6 +1984,7 @@ function cloneActivePurchaseIntoQuickPurchaseDraft() {
     unitCost: Number(item.unitCost || item.unit_cost || 0),
   })).filter((item) => item.productId > 0 && item.quantity > 0);
   state.quickPurchaseDraft.lastResult = null;
+  state.quickPurchaseDraft.submitting = false;
 }
 
 function getCartById(cartId) {
@@ -6811,6 +6815,7 @@ registerSalesControllerEvents({
     getLatestDocumentCancelRequest,
     getPendingDocumentCancelRequest,
     canApproveDocumentCancelRequests,
+    getProductById,
   },
   utils: {
     formatCurrency,

@@ -188,3 +188,4 @@ Lưu ý:
 | 155 | `UT-CANCEL-04` | Kiểm tra từ chối yêu cầu hủy chỉ cập nhật trạng thái request sang `rejected`, còn đơn/phiếu nguồn giữ nguyên trạng thái và tồn kho không đổi. |
 | 156 | `UT-AUTH-12C` | Kiểm tra route `cancel-request/approve/reject` yêu cầu đúng permission `document_cancel_approve`, cập nhật `document_cancel_requests` trong `/api/state`, và vẫn trả về trạng thái mail notification khi mail bị tắt. |
 | 157 | `ACC-CANCEL-01` | Kiểm tra mobile UI cho user gửi `Yêu cầu hủy` với lý do từ order `completed` và purchase `received`, manager thấy badge chờ duyệt, duyệt ngay trong detail, rồi state cuối cùng chuyển cả hai chứng từ sang `cancelled` và tồn kho quay về giá trị mong đợi. |
+| 158 | `ACC-QUICK-06` | Kiểm tra UI `Xử lý nhanh xuất/nhập hàng` sau khi lưu thành công sẽ khóa form, đổi nút lưu thành `Đã tạo phiếu`, giữ CTA `Tiếp tục xuất/nhập nhanh`, và không tạo duplicate chứng từ từ cùng một form đã lưu. |
