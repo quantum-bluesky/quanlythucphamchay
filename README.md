@@ -116,6 +116,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Request `pending_approval` tạo nhầm có thể xóa ngay trên màn `Xuất nhanh`; owner của request hoặc user có `order_batch_manage`/`Master Admin` đều xóa được, không cần thêm status mới
 - Màn `Tạo đơn xuất hàng` có thêm card `Xử lý nhanh`: nhập khách, ngày xuất, các dòng hàng rồi lưu một lần để đi thẳng sang `Chỉ chốt đơn` hoặc `Đã xuất hàng`, có thể tick thêm `Đã thanh toán luôn`
 - Màn `Nhập hàng` có thêm card `Xử lý nhanh`: nhập NCC, ngày nhập, các dòng hàng rồi lưu một lần để đi thẳng sang `Đã đặt hàng` hoặc `Đã nhập hàng`, có thể tick thêm `Đã thanh toán luôn`
+- Sau khi card `Xử lý nhanh` lưu thành công, form được khóa ở trạng thái `Đã tạo phiếu`; muốn ghi lượt mới phải bấm `Tiếp tục xuất nhanh` hoặc `Tiếp tục nhập nhanh` để tránh tạo trùng chứng từ.
 - Phiếu đi qua card `Xử lý nhanh` vẫn giữ nguyên trạng thái cũ của hệ thống, chỉ gắn thêm `created_mode = quick_export/quick_import` để phân biệt nguồn tạo, audit timeline và biến động kho
 - Có popup `Lịch sử` xem nhanh audit timeline cho từng yêu cầu xuất nhanh và từng đơn đã tạo, ưu tiên mobile và chỉ nạp khi user mở detail để không làm nặng list
 - `Lưu nháp` ở màn tạo nhiều đơn chỉ tạo/cập nhật cart `draft` cho từng khách, không giữ hàng và không trừ kho; card lưu thành công vẫn ở lại trên màn để sửa tiếp và lưu lại vào đúng đơn cũ

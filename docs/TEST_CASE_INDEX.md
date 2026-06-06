@@ -194,6 +194,7 @@ Mục tiêu:
 | 155 | `UT-CANCEL-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_cancel_04_reject_document_cancel_request_keeps_original_document_unchanged` |
 | 156 | `UT-AUTH-12C` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_12c_document_cancel_request_flow_requires_permission_and_updates_state` |
 | 157 | `ACC-CANCEL-01` | `tests/integration/document-cancel-approval.spec.js` | `npx playwright test tests/integration/document-cancel-approval.spec.js --grep "ACC-CANCEL-01"` |
+| 158 | `ACC-QUICK-06` | `tests/integration/quick-documents-duplicate.spec.js` | `npx playwright test tests/integration/quick-documents-duplicate.spec.js --grep "ACC-QUICK-06"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

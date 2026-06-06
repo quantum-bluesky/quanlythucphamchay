@@ -205,6 +205,13 @@ export function registerSalesControllerEvents(contract) {
   async function submitQuickSale() {
     syncQuickSaleDraftFromInputs();
     const draft = state.quickSaleDraft || {};
+    if (draft.submitting) {
+      return;
+    }
+    if (draft.lastResult) {
+      actions.showToast("Phiếu xuất nhanh này đã được tạo. Bấm Tiếp tục xuất nhanh để nhập lượt mới.", true);
+      return;
+    }
     if (!String(draft.customerText || "").trim()) {
       actions.showToast("Khách hàng là bắt buộc.", true);
       return;
@@ -223,21 +230,27 @@ export function registerSalesControllerEvents(contract) {
     if (hasZeroPrice && !window.confirm("Có mặt hàng giá bán bằng 0. Vẫn lưu phiếu xuất nhanh?")) {
       return;
     }
-    const data = await actions.createQuickSaleDocument({
-      customer_name: draft.customerText,
-      document_date: draft.documentDate,
-      note: draft.note,
-      items: draft.items.map((item) => ({
-        product_id: item.productId,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-      })),
-      final_status: draft.finalStatus,
-      mark_paid: Boolean(draft.markPaid && draft.finalStatus === "completed"),
-    });
-    state.quickSaleDraft.lastResult = data.quick_summary || null;
+    draft.submitting = true;
     renderers.renderQuickSalePanel();
-    actions.showToast(data.message || "Đã lưu xuất nhanh.");
+    try {
+      const data = await actions.createQuickSaleDocument({
+        customer_name: draft.customerText,
+        document_date: draft.documentDate,
+        note: draft.note,
+        items: draft.items.map((item) => ({
+          product_id: item.productId,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+        })),
+        final_status: draft.finalStatus,
+        mark_paid: Boolean(draft.markPaid && draft.finalStatus === "completed"),
+      });
+      state.quickSaleDraft.lastResult = data.quick_summary || null;
+      actions.showToast(data.message || "Đã lưu xuất nhanh.");
+    } finally {
+      state.quickSaleDraft.submitting = false;
+      renderers.renderQuickSalePanel();
+    }
   }
 
   function findExistingDraftForSameCustomer(sourceCart) {

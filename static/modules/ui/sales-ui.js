@@ -436,6 +436,9 @@ export function createSalesUi(deps) {
     const finalStatus = String(draft.finalStatus || "completed");
     const markPaid = Boolean(draft.markPaid) && finalStatus === "completed";
     const customer = getCustomerByName(String(draft.customerText || "").trim());
+    const isLockedAfterSave = Boolean(draft.lastResult);
+    const isSubmitting = Boolean(draft.submitting);
+    const disableEditAttr = isLockedAfterSave || isSubmitting ? "disabled" : "";
     const totalAmount = items.reduce(
       (sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)),
       0,
@@ -452,37 +455,37 @@ export function createSalesUi(deps) {
       <div class="quick-doc-grid">
         <label>
           <span>Khách hàng</span>
-          <input id="quickSaleCustomerInput" type="text" list="customerOptions" maxlength="80" placeholder="Chọn hoặc nhập khách mới" value="${escapeHtml(String(draft.customerText || ""))}">
+          <input id="quickSaleCustomerInput" type="text" list="customerOptions" maxlength="80" placeholder="Chọn hoặc nhập khách mới" value="${escapeHtml(String(draft.customerText || ""))}" ${disableEditAttr}>
         </label>
         <label>
           <span>Ngày xuất</span>
-          <input id="quickSaleDateInput" type="date" value="${escapeHtml(String(draft.documentDate || ""))}">
+          <input id="quickSaleDateInput" type="date" value="${escapeHtml(String(draft.documentDate || ""))}" ${disableEditAttr}>
         </label>
         <label class="quick-doc-note">
           <span>Ghi chú</span>
-          <input id="quickSaleNoteInput" type="text" maxlength="160" placeholder="Ví dụ: Ghi cuối ngày, khách đã nhận đủ" value="${escapeHtml(String(draft.note || ""))}">
+          <input id="quickSaleNoteInput" type="text" maxlength="160" placeholder="Ví dụ: Ghi cuối ngày, khách đã nhận đủ" value="${escapeHtml(String(draft.note || ""))}" ${disableEditAttr}>
         </label>
       </div>
       <div class="quick-doc-shortcuts">
-        <button type="button" class="ghost-button compact-button" data-quick-sale-action="use-active-cart">Lấy từ đơn đang mở</button>
-        <button type="button" class="ghost-button compact-button" data-quick-sale-action="open-products">Thêm hàng mới</button>
+        <button type="button" class="ghost-button compact-button" data-quick-sale-action="use-active-cart" ${disableEditAttr}>Lấy từ đơn đang mở</button>
+        <button type="button" class="ghost-button compact-button" data-quick-sale-action="open-products" ${disableEditAttr}>Thêm hàng mới</button>
         ${customer?.address ? `<span class="quick-doc-hint">Địa chỉ gợi ý: ${escapeHtml(customer.address)}</span>` : ""}
       </div>
       <div class="quick-doc-line-entry" data-price-warning-group data-price-warning-mode="edit">
         <label>
           <span>Sản phẩm</span>
-          <input id="quickSaleProductInput" type="text" list="productOptions" placeholder="Tìm sản phẩm để thêm nhanh" value="${escapeHtml(String(draft.productText || ""))}">
+          <input id="quickSaleProductInput" type="text" list="productOptions" placeholder="Tìm sản phẩm để thêm nhanh" value="${escapeHtml(String(draft.productText || ""))}" ${disableEditAttr}>
         </label>
         <label>
           <span>SL</span>
-          <input id="quickSaleQuantityInput" type="number" min="0.01" step="0.01" value="${escapeHtml(String(draft.quantity || "1"))}">
+          <input id="quickSaleQuantityInput" type="number" min="0.01" step="0.01" value="${escapeHtml(String(draft.quantity || "1"))}" ${disableEditAttr}>
         </label>
         <label data-price-warning-field="sale">
           <span>Giá bán</span>
-          <input id="quickSaleUnitPriceInput" type="number" min="0" step="1000" value="${escapeHtml(String(draft.unitPrice || ""))}" data-price-warning-input="sale">
+          <input id="quickSaleUnitPriceInput" type="number" min="0" step="1000" value="${escapeHtml(String(draft.unitPrice || ""))}" data-price-warning-input="sale" ${disableEditAttr}>
         </label>
         <div class="quick-doc-line-actions">
-          <button type="button" class="primary-button" data-quick-sale-action="add-item">+ Thêm hàng</button>
+          <button type="button" class="primary-button" data-quick-sale-action="add-item" ${disableEditAttr}>+ Thêm hàng</button>
         </div>
       </div>
       <div class="quick-doc-items">
@@ -499,7 +502,7 @@ export function createSalesUi(deps) {
               </div>
               <div class="quick-doc-item-actions">
                 <strong>${escapeHtml(formatCurrency(quantity * Number(item.unitPrice || 0)))}</strong>
-                <button type="button" class="ghost-button compact-button" data-quick-sale-action="remove-item" data-item-index="${index}">Bỏ</button>
+                <button type="button" class="ghost-button compact-button" data-quick-sale-action="remove-item" data-item-index="${index}" ${disableEditAttr}>Bỏ</button>
               </div>
             </article>
           `;
@@ -507,14 +510,14 @@ export function createSalesUi(deps) {
       </div>
       <div class="quick-doc-footer">
         <div class="quick-doc-statuses">
-          <label class="toggle-inline"><input type="radio" name="quickSaleFinalStatus" value="completed" ${finalStatus === "completed" ? "checked" : ""}> <span>Đã xuất hàng</span></label>
-          <label class="toggle-inline"><input type="radio" name="quickSaleFinalStatus" value="committed" ${finalStatus === "committed" ? "checked" : ""}> <span>Chỉ chốt đơn</span></label>
-          <label class="toggle-inline"><input id="quickSaleMarkPaidInput" type="checkbox" ${markPaid ? "checked" : ""} ${finalStatus !== "completed" ? "disabled" : ""}> <span>Đã thanh toán luôn</span></label>
+          <label class="toggle-inline"><input type="radio" name="quickSaleFinalStatus" value="completed" ${finalStatus === "completed" ? "checked" : ""} ${disableEditAttr}> <span>Đã xuất hàng</span></label>
+          <label class="toggle-inline"><input type="radio" name="quickSaleFinalStatus" value="committed" ${finalStatus === "committed" ? "checked" : ""} ${disableEditAttr}> <span>Chỉ chốt đơn</span></label>
+          <label class="toggle-inline"><input id="quickSaleMarkPaidInput" type="checkbox" ${markPaid ? "checked" : ""} ${finalStatus !== "completed" || isLockedAfterSave || isSubmitting ? "disabled" : ""}> <span>Đã thanh toán luôn</span></label>
         </div>
         <div class="quick-doc-footer-actions">
           <div class="stat-chip"><span>Số dòng</span><strong>${escapeHtml(String(items.length))}</strong></div>
           <div class="stat-chip"><span>Tổng tiền</span><strong>${escapeHtml(formatCurrency(totalAmount))}</strong></div>
-          <button type="button" class="primary-button" data-quick-sale-action="submit">Lưu xuất nhanh</button>
+          <button type="button" class="primary-button" data-quick-sale-action="submit" ${isLockedAfterSave || isSubmitting ? "disabled" : ""}>${isSubmitting ? "Đang lưu..." : isLockedAfterSave ? "Đã tạo phiếu" : "Lưu xuất nhanh"}</button>
         </div>
       </div>
       ${lastResult ? `
