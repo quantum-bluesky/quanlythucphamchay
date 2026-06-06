@@ -269,6 +269,7 @@ let currentAppInfo = {
   name: document.title || "Quản lý thực phẩm chay",
   version: "",
 };
+const appShell = document.querySelector(".app-shell");
 const APP_ROOT_URL = new URL("../", import.meta.url);
 let autoRefreshTimer = null;
 let autoRefreshInFlight = false;
@@ -2530,6 +2531,21 @@ function executeMenuSwitch(menu, { recordHistory = true } = {}) {
       try {
         await refreshReportData();
         renderReports();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    }, 0);
+  }
+  if (menu === "products" || menu === "history") {
+    window.setTimeout(async () => {
+      try {
+        await refreshProductAuxData({ sessionActivity: "passive" });
+        if (menu === "products") {
+          renderProductHistory();
+        }
+        if (menu === "history") {
+          renderDeletedProducts();
+        }
       } catch (error) {
         showToast(error.message, true);
       }
@@ -4842,6 +4858,9 @@ function redirectToLoginScreen({ rememberMenu = true, message = "" } = {}) {
   }
   clearProtectedSessionData();
   latestSyncUpdatedAt = {};
+  if (appShell) {
+    appShell.hidden = true;
+  }
   if (state.activeMenu !== "login") {
     switchMenu("login");
   }
@@ -5019,6 +5038,44 @@ async function refreshReportData({ sessionActivity = "active" } = {}) {
   return state.reports;
 }
 
+async function refreshProductAuxData({ sessionActivity = "active" } = {}) {
+  const shouldLoadDeletedProducts = state.activeMenu === "history";
+  const shouldLoadProductHistory = state.activeMenu === "products";
+  const requests = [];
+
+  if (shouldLoadDeletedProducts) {
+    requests.push(
+      apiRequest("/api/products/deleted", { sessionActivity }).then((payload) => {
+        state.deletedProducts = payload.products || [];
+      })
+    );
+  }
+
+  if (shouldLoadProductHistory) {
+    const historyParams = new URLSearchParams({ limit: "30" });
+    if (state.productHistoryActorFilter.trim()) {
+      historyParams.set("actor", state.productHistoryActorFilter.trim());
+    }
+    if (state.productHistoryStartDate) {
+      historyParams.set("start_date", `${state.productHistoryStartDate}T00:00:00`);
+    }
+    if (state.productHistoryEndDate) {
+      historyParams.set("end_date", `${state.productHistoryEndDate}T23:59:59`);
+    }
+    requests.push(
+      apiRequest(`/api/products/history?${historyParams.toString()}`, { sessionActivity }).then((payload) => {
+        state.productHistory = payload.history || [];
+      })
+    );
+  }
+
+  await Promise.all(requests);
+  return {
+    deletedProducts: state.deletedProducts,
+    productHistory: state.productHistory,
+  };
+}
+
 async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "active" } = {}) {
   isRefreshingState = true;
   try {
@@ -5030,21 +5087,12 @@ async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "ac
       return { login_required: true };
     }
 
-    const historyParams = new URLSearchParams({ limit: "30" });
-    if (state.productHistoryActorFilter.trim()) {
-      historyParams.set("actor", state.productHistoryActorFilter.trim());
-    }
-    if (state.productHistoryStartDate) {
-      historyParams.set("start_date", `${state.productHistoryStartDate}T00:00:00`);
-    }
-    if (state.productHistoryEndDate) {
-      historyParams.set("end_date", `${state.productHistoryEndDate}T23:59:59`);
-    }
-  const [payload, deletedProductsPayload, productHistoryPayload] = await Promise.all([
+    const shouldLoadReports = state.activeMenu === "reports";
+    const shouldLoadProductAuxData = ["products", "history"].includes(state.activeMenu);
+    const [payload] = await Promise.all([
       apiRequest("/api/state?transaction_limit=16", { sessionActivity }),
-      apiRequest("/api/products/deleted", { sessionActivity }),
-      apiRequest(`/api/products/history?${historyParams.toString()}`, { sessionActivity }),
-      refreshReportData({ sessionActivity }),
+      shouldLoadProductAuxData ? refreshProductAuxData({ sessionActivity }) : Promise.resolve(null),
+      shouldLoadReports ? refreshReportData({ sessionActivity }) : Promise.resolve(null),
     ]);
     latestSyncUpdatedAt = payload.updated_at || {};
     updateAppInfo(payload);
@@ -5053,8 +5101,6 @@ async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "ac
     updateProcurementStatus(payload.procurement || {});
     updateRuntimeVersion(payload);
     state.products = payload.products || [];
-    state.deletedProducts = deletedProductsPayload.products || [];
-    state.productHistory = productHistoryPayload.history || [];
     state.summary = payload.summary || null;
     state.transactions = payload.transactions || [];
     state.customers = payload.customers || [];
@@ -5692,6 +5738,9 @@ function renderAdminSection() {
 }
 
 function renderAll() {
+  if (appShell) {
+    appShell.hidden = false;
+  }
   showArchivedCarts.checked = state.showArchivedCarts;
   showCancelledOrders.checked = state.showCancelledOrders || false;
   showPaidOrders.checked = state.showPaidOrders;
@@ -6484,6 +6533,7 @@ registerProductsControllerEvents({
   actions: {
     apiRequest,
     refreshData,
+    refreshProductAuxData,
     switchMenu,
     prefillProduct,
     showToast,
@@ -6493,6 +6543,7 @@ registerProductsControllerEvents({
   renderers: {
     renderProductSections,
     renderProductManageList,
+    renderProductHistory,
   },
   queries: {
     getProductById,
@@ -7304,7 +7355,13 @@ procurementReviewPanel?.addEventListener("input", (event) => {
   syncPriceWarningGroup(warningInput.closest("[data-price-warning-group]"));
 });
 
-window.addEventListener("DOMContentLoaded", async () => {
+let applicationBootPromise = null;
+
+async function bootApplication() {
+  if (applicationBootPromise) {
+    return applicationBootPromise;
+  }
+  applicationBootPromise = (async () => {
   window.__QLTPCHAY_APP_READY = false;
   setupSearchClearButtons();
   setupStickyLayoutMetricsObserver();
@@ -7337,7 +7394,17 @@ window.addEventListener("DOMContentLoaded", async () => {
   } catch (error) {
     showToast(error.message, true);
   }
-});
+  })();
+  return applicationBootPromise;
+}
+
+if (document.readyState === "loading") {
+  window.addEventListener("DOMContentLoaded", () => {
+    void bootApplication();
+  }, { once: true });
+} else {
+  void bootApplication();
+}
 
 procurementStatusPanel?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-procurement-conflict-action]");

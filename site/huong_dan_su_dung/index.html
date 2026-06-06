@@ -185,9 +185,9 @@
 <p>Lưu ý:</p>
 <ul>
 <li>user thường không chỉnh tăng/giảm tồn trực tiếp ở màn này nữa</li>
-<li>chỉ <code>Master Admin</code> mới có chế độ chỉnh tồn trực tiếp và sẽ thấy cảnh báo rõ khi dùng</li>
-<li>khi <code>Master Admin</code> chỉnh tồn trực tiếp, bắt buộc phải nhập lý do để lưu vào lịch sử và audit</li>
-<li>trên mobile/tablet portrait, panel <code>Chỉnh tồn trực tiếp</code> được ưu tiên nằm sát đầu màn hình, tự mở sẵn khi vào màn tồn kho và chừa khoảng cuộn an toàn để không bị thanh nổi che mất field hay button thao tác</li>
+<li>chỉ <code>Master Admin</code> hoặc user có permission <code>inventory_adjust_manage</code> mới có chế độ chỉnh tồn trực tiếp và sẽ thấy cảnh báo rõ khi dùng</li>
+<li>khi dùng chế độ chỉnh tồn trực tiếp, bắt buộc phải nhập lý do để lưu vào lịch sử và audit</li>
+<li>trên mobile/tablet portrait, panel <code>Chỉnh tồn trực tiếp</code> được ưu tiên nằm sát đầu màn hình, tự mở sẵn khi vào màn tồn kho; khi thu gọn không để thừa khoảng trắng và khi mở vẫn chừa khoảng cuộn an toàn để không bị thanh nổi che mất field hay button thao tác</li>
 <li>sort <code>Ưu tiên nhập/xử lý</code> dùng sức bán đã chuẩn hóa theo ngưỡng tồn và mức thiếu hàng, không so sánh thô theo số lượng tuyệt đối giữa các sản phẩm</li>
 <li>sort <code>Hạn còn ít</code> ưu tiên theo HSD thật của từng lô còn hàng; nếu mặt hàng chưa có lô nào có HSD thì app mới fallback về ước tính từ metadata sản phẩm</li>
 <li>nếu máy khác vừa nhập hoặc xuất hàng, trạng thái tồn kho sẽ tự cập nhật lại khi màn hình đang rảnh</li>
@@ -307,7 +307,7 @@
 <li>nếu phần thiếu khi <code>Chốt đơn</code> đã được cover đủ bởi phiếu nhập <code>Đã đặt</code>, app vẫn cho chốt đơn; tới bước <code>Xuất hàng</code> vẫn phải chờ hàng nhập kho thật</li>
 <li>nếu mới chỉ có phiếu <code>Nháp</code> hoặc phiếu nhập mở chưa đủ số lượng cho các mặt hàng đang thiếu, app sẽ báo và chỉ mở lại phiếu đó nếu bạn xác nhận cần chỉnh</li>
 <li>với user thường, sau khi xác nhận app mới chuyển sang <code>Quản lý nhập hàng</code> để tạo hoặc mở phiếu nhập tương ứng</li>
-<li>với <code>Master Admin</code>, hệ thống mới cho phép chọn sang màn tồn kho để chỉnh trực tiếp nếu thực sự cần</li>
+<li>với <code>Master Admin</code> hoặc user có permission <code>inventory_adjust_manage</code>, hệ thống mới cho phép chọn sang màn tồn kho để chỉnh trực tiếp nếu thực sự cần</li>
 <li>nếu đang bật kỳ gom nhập, app sẽ không tạo phiếu nhập tự động theo từng đơn; app chuyển sang màn <code>Xử lý nhập thiếu</code> để người giữ khóa xử lý tập trung</li>
 <li>nếu cần đối chiếu nhanh metadata phiếu xuất hiện hành, bấm <code>Detail</code> trong khối <code>Giỏ hiện hành</code></li>
 </ul>
@@ -684,7 +684,7 @@
 </ul>
 <p>Lưu ý:</p>
 <ul>
-<li><code>Phiếu điều chỉnh tồn</code> nên dùng bởi <code>Master Admin</code> khi cần xử lý chênh lệch gấp</li>
+<li><code>Phiếu điều chỉnh tồn</code> nên dùng bởi <code>Master Admin</code> hoặc user có permission <code>inventory_adjust_manage</code> khi cần xử lý chênh lệch gấp</li>
 <li>Mỗi phiếu đều lưu thành giao dịch kho mới để giữ lịch sử và audit</li>
 <li>Các phiếu tăng/giảm tồn có thể nhập thêm <code>Mã lô</code> và <code>HSD</code>; riêng phiếu trả NCC có thể chỉ rõ <code>Mã lô</code> để trừ đúng lô thay vì FEFO chung</li>
 <li>Các chứng từ cũ vẫn giữ nguyên, không bị sửa đè</li>
@@ -836,6 +836,7 @@
 <li><code>user</code> thường: dùng các màn nghiệp vụ chung</li>
 <li><code>Master Admin</code>: có thêm phần quản trị master data, backup/restore, legacy audit và chỉnh tồn trực tiếp</li>
 <li>user quản lý kinh doanh có thể được cấp riêng quyền <code>procurement_batch_manage</code> để xử lý kỳ gom nhập mà không có quyền chỉnh tồn trực tiếp</li>
+<li>user được cấp <code>inventory_adjust_manage</code> có thể chỉnh tồn trực tiếp và tạo <code>Phiếu DC</code> mà không mở quyền quản trị <code>Master Admin</code></li>
 <li>user quản lý xuất nhanh có thể được cấp quyền <code>order_batch_manage</code> để duyệt/từ chối/xử lý tiếp các yêu cầu xuất nhanh của user thường</li>
 <li>nếu <code>EnableLogin = true</code> trong <code>system_config.json</code>, người dùng phải login thì mới dùng được app</li>
 </ul>

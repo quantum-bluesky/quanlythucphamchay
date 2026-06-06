@@ -15,7 +15,9 @@ DYNAMIC_IMPORT_SPECIFIER_RE = re.compile(
     r'(?P<prefix>\bimport\s*\(\s*)(?P<quote>["\'])(?P<specifier>(?:\./|\.\./|/static/)[^"\']+?\.js)(?P=quote)'
 )
 INDEX_MODULE_SCRIPT_RE = re.compile(
-    r'(?P<prefix><script[^>]*\btype=["\']module["\'][^>]*\bsrc=["\'])(?P<specifier>(?:\./)?static/app\.js|/static/app\.js)(?P<suffix>["\'][^>]*></script>)',
+    r'(?P<prefix><script[^>]*\btype=["\']module["\'][^>]*\bsrc=["\'])'
+    r'(?P<specifier>(?:\./)?static/(?P<relative>[^"\']+?\.js)|/static/(?P<absolute>[^"\']+?\.js))'
+    r'(?P<suffix>["\'][^>]*></script>)',
     re.IGNORECASE,
 )
 
@@ -71,7 +73,10 @@ class JavaScriptAssetVersionManager:
         return INDEX_MODULE_SCRIPT_RE.sub(
             lambda match: (
                 f"{match.group('prefix')}"
-                f"{self._append_version_query(match.group('specifier'), self.build_version_label('app.js'))}"
+                f"{self._append_version_query(
+                    match.group('specifier'),
+                    self.build_version_label(match.group('relative') or match.group('absolute') or 'app.js'),
+                )}"
                 f"{match.group('suffix')}"
             ),
             html_text,
