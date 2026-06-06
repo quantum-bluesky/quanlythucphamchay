@@ -434,7 +434,7 @@ class AuthHttpTests(unittest.TestCase):
         html_status, html_body, html_headers = self._request_text("GET", "/")
         self.assertEqual(html_status, 200)
         self.assertNotIn("<base ", html_body)
-        self.assertIn(f'./static/app.js?v={app_version}.', html_body)
+        self.assertIn(f'./static/bootstrap.js?v={app_version}.', html_body)
         self.assertEqual(html_headers.get("cache-control"), "no-cache, must-revalidate")
 
         js_status, js_body, js_headers = self._request_text("GET", "/static/app.js")
@@ -515,12 +515,12 @@ class AuthHttpTests(unittest.TestCase):
         stripped_proxy_html_status, stripped_proxy_html_body, _ = self._request_text("GET", "/")
         self.assertEqual(stripped_proxy_html_status, 200)
         self.assertNotIn("<base ", stripped_proxy_html_body)
-        self.assertIn("./static/app.js?v=", stripped_proxy_html_body)
+        self.assertIn("./static/bootstrap.js?v=", stripped_proxy_html_body)
 
         html_status, html_body, _ = self._request_text("GET", "/qltp")
         self.assertEqual(html_status, 200)
         self.assertIn('<base href="/qltp/">', html_body)
-        self.assertIn("./static/app.js?v=", html_body)
+        self.assertIn("./static/bootstrap.js?v=", html_body)
 
         js_status, js_body, _ = self._request_text("GET", "/qltp/static/app.js")
         self.assertEqual(js_status, 200)
@@ -1059,6 +1059,102 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(quick_sale_status, 201)
         self.assertEqual(quick_sale_payload["cart"]["paymentStatus"], "paid")
         self.assertEqual(quick_sale_payload["cart"]["createdMode"], "quick_export")
+
+    def test_ut_auth_12c_document_cancel_request_flow_requires_permission_and_updates_state(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [
+                {
+                    "username": "staff",
+                    "password": "staff12345",
+                    "permissions": [],
+                },
+                {
+                    "username": "bizmanager",
+                    "password": "biz12345",
+                    "permissions": ["document_cancel_approve"],
+                },
+            ],
+            "debug": {"sync_state": False},
+            "mail": {"enabled": False},
+        }
+        self._start_server(config)
+
+        product = self.store.create_product(
+            name="Sản phẩm hủy HTTP",
+            category="Đồ chay",
+            unit="gói",
+            price=11000,
+            sale_price=17000,
+            low_stock_threshold=1,
+        )
+        self.store.create_quick_purchase(
+            supplier_name="NCC HTTP",
+            document_date=datetime.now(timezone.utc).astimezone().date().isoformat(),
+            items=[{"product_id": product["id"], "quantity": 4, "unit_cost": 11000}],
+            final_status="received",
+            actor_username="seed",
+        )
+        sale_result = self.store.create_quick_sale(
+            customer_name="Khách HTTP",
+            document_date=datetime.now(timezone.utc).astimezone().date().isoformat(),
+            items=[{"product_id": product["id"], "quantity": 2, "unit_price": 17000}],
+            final_status="completed",
+            actor_username="seed",
+        )
+
+        _, _, staff_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+        )
+        staff_cookie = self._extract_cookie(staff_login_headers)
+        _, _, manager_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "bizmanager", "password": "biz12345"},
+        )
+        manager_cookie = self._extract_cookie(manager_login_headers)
+
+        create_status, create_payload, _ = self._request_json(
+            "POST",
+            f"/api/orders/{sale_result['cart']['id']}/cancel-request",
+            cookie=staff_cookie,
+            payload={"reason": "Nhập nhầm phiếu xuất trên app"},
+        )
+        self.assertEqual(create_status, 201)
+        self.assertEqual(create_payload["request"]["status"], "pending_approval")
+        self.assertFalse(create_payload["mail_notification"]["sent"])
+
+        state_status, state_payload, _ = self._request_json(
+            "GET",
+            "/api/state?transaction_limit=16",
+            cookie=manager_cookie,
+        )
+        self.assertEqual(state_status, 200)
+        self.assertTrue(state_payload["document_cancel_requests"])
+
+        denied_status, denied_payload, _ = self._request_json(
+            "POST",
+            f"/api/document-cancel-requests/{create_payload['request']['request_id']}/approve",
+            cookie=staff_cookie,
+            payload={},
+        )
+        self.assertEqual(denied_status, 401)
+        self.assertIn("không có quyền", denied_payload["error"])
+
+        approve_status, approve_payload, _ = self._request_json(
+            "POST",
+            f"/api/document-cancel-requests/{create_payload['request']['request_id']}/approve",
+            cookie=manager_cookie,
+            payload={},
+        )
+        self.assertEqual(approve_status, 200)
+        self.assertEqual(approve_payload["request"]["status"], "processed")
+        self.assertTrue(any(cart["id"] == sale_result["cart"]["id"] and cart["status"] == "cancelled" for cart in approve_payload["carts"]))
 
     def test_ut_auth_13_pending_bulk_order_request_delete_allows_owner_and_manager_only(self) -> None:
         config = {

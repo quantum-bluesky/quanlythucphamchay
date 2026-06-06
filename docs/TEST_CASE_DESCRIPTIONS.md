@@ -182,3 +182,9 @@ Lưu ý:
 | 149 | `UT-QUICK-05` | Kiểm tra backend chặn thiếu khách/NCC, thiếu mặt hàng, số lượng không hợp lệ và xuất vượt tồn trong các route `Xử lý nhanh`. |
 | 150 | `UT-AUTH-12B` | Kiểm tra API `/api/purchases/quick-create` và `/api/orders/quick-create` yêu cầu đăng nhập, tạo đúng chứng từ `quick_import/quick_export` và trả được history tương ứng ngay sau khi tạo. |
 | 151 | `UT-AUTH-15` | Kiểm tra user có `inventory_adjust_manage` được gọi `POST /api/transactions` và `POST /api/adjustments/inventory` nhưng vẫn bị chặn ở route `Master Admin`. |
+| 152 | `UT-CANCEL-01` | Kiểm tra duyệt yêu cầu hủy đơn `Đã xuất hàng` sẽ hoàn tồn theo đúng lô đã xuất, chuyển đơn sang `cancelled`, reset cờ thanh toán trực tiếp và net doanh thu/giá vốn của đơn về `0` trong báo cáo. |
+| 153 | `UT-CANCEL-02` | Kiểm tra duyệt yêu cầu hủy phiếu nhập `Đã nhập kho/Đã thanh toán` sẽ rút lại đúng lượng tồn từ lô gốc, chuyển phiếu sang `cancelled` và net chi nhập của phiếu về `0` trong báo cáo. |
+| 154 | `UT-CANCEL-03` | Kiểm tra backend chặn tạo yêu cầu hủy phiếu nhập nếu hàng của lô gốc đã bị dùng mất một phần để tránh âm kho hoặc đảo sai giá vốn. |
+| 155 | `UT-CANCEL-04` | Kiểm tra từ chối yêu cầu hủy chỉ cập nhật trạng thái request sang `rejected`, còn đơn/phiếu nguồn giữ nguyên trạng thái và tồn kho không đổi. |
+| 156 | `UT-AUTH-12C` | Kiểm tra route `cancel-request/approve/reject` yêu cầu đúng permission `document_cancel_approve`, cập nhật `document_cancel_requests` trong `/api/state`, và vẫn trả về trạng thái mail notification khi mail bị tắt. |
+| 157 | `ACC-CANCEL-01` | Kiểm tra mobile UI cho user gửi `Yêu cầu hủy` với lý do từ order `completed` và purchase `received`, manager thấy badge chờ duyệt, duyệt ngay trong detail, rồi state cuối cùng chuyển cả hai chứng từ sang `cancelled` và tồn kho quay về giá trị mong đợi. |

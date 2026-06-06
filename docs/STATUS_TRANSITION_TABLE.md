@@ -48,7 +48,8 @@ Mô hình hiện tại của đơn hàng gồm:
 | `committed` | `Xuất hàng` | `completed` | Allowed | đủ tồn vật lý thực tế để xuất | user thường / admin | trừ kho thật theo FEFO, set `completed_at` |
 | `committed` | `Hủy` | `cancelled` | Allowed | đơn chưa xuất thật | user thường / admin | giải phóng reserved logic của đơn |
 | `committed` | quay lại `draft` | `draft` | Blocked | không cho hạ trạng thái | mọi actor | không hợp lệ |
-| `completed` | đổi `status` khác | bất kỳ | Locked | đơn đã xuất thật | mọi actor | nếu sai phải đi bằng chứng từ mới |
+| `completed` | `Yêu cầu hủy` | `cancelled` | Approval flow | bắt buộc có lý do, cần user có quyền `document_cancel_approve` hoặc `Master Admin` duyệt | user thường tạo request, manager/admin duyệt | hoàn tồn theo đúng lô đã xuất, loại doanh thu/giá vốn khỏi báo cáo, ghi receipt `inventory_adjustment` với `source_type = sale_cancellation` |
+| `completed` | đổi `status` khác | bất kỳ | Locked | đơn đã xuất thật | mọi actor | không mở khóa trực tiếp; nếu sai thì đi qua `Yêu cầu hủy` |
 | `cancelled` | mở lại | bất kỳ | Locked | đơn đã hủy | mọi actor | nếu cần làm lại thì tạo đơn mới |
 
 ### 3.2. Chuyển trạng thái thanh toán của đơn hàng
@@ -58,7 +59,7 @@ Mô hình hiện tại của đơn hàng gồm:
 | `draft` | `unpaid` | `paid` | Blocked | chưa xuất hàng | mọi actor | không được thu tiền hoàn tất ở đơn nháp |
 | `committed` | `unpaid` | `paid` | Blocked | mới chốt đơn, chưa xuất thật | mọi actor | không hợp lệ |
 | `completed` | `unpaid` | `paid` | Allowed | đơn đã xuất hàng | user thường / admin | set `paid_at` |
-| `completed` | `paid` | `unpaid` | Locked | đã xác nhận thu tiền | mọi actor | không hạ thanh toán trực tiếp |
+| `completed` | `paid` | `unpaid` | Locked | đã xác nhận thu tiền | mọi actor | không hạ thanh toán trực tiếp; chỉ reset gián tiếp nếu request hủy được duyệt |
 | `cancelled` | bất kỳ | bất kỳ | Locked | đơn đã hủy | mọi actor | không đổi thanh toán trực tiếp |
 
 ### 3.3. Quyền sửa nội dung đơn theo trạng thái
@@ -90,7 +91,9 @@ Mô hình hiện tại của phiếu nhập:
 | `ordered` | `Hủy phiếu` | `cancelled` | Allowed | phiếu chưa nhập kho | user thường / admin, nhưng phải đọc thêm rule batch mode ở mục 5 | release assignment batch nếu có |
 | `ordered` | quay lại `draft` | `draft` | Blocked | không cho hạ trạng thái | mọi actor | không hợp lệ |
 | `received` | `Đã thanh toán` | `paid` | Allowed | phiếu đã nhập kho | user thường / admin, kể cả khi batch mode đang active | set `paid_at` |
-| `received` | đổi `status` khác ngoài `paid` | bất kỳ | Locked | hàng đã vào kho | mọi actor | nếu sai phải dùng chứng từ khác |
+| `received` | `Yêu cầu hủy` | `cancelled` | Approval flow | bắt buộc có lý do, lô gốc chưa bị dùng mất | user thường tạo request, manager/admin duyệt | rút lại đúng lượng đã nhập từ lô gốc, loại chi phí mua khỏi báo cáo, ghi receipt `inventory_adjustment` với `source_type = purchase_cancellation` |
+| `received` | đổi `status` khác ngoài `paid` | bất kỳ | Locked | hàng đã vào kho | mọi actor | không mở khóa trực tiếp; nếu sai thì đi qua `Yêu cầu hủy` |
+| `paid` | `Yêu cầu hủy` | `cancelled` | Approval flow | bắt buộc có lý do, lô gốc chưa bị dùng mất | user thường tạo request, manager/admin duyệt | rút lại tồn, xóa dấu thanh toán, loại chi phí mua khỏi báo cáo |
 | `paid` | đổi `status` khác | bất kỳ | Locked | phiếu đã thanh toán | mọi actor | không sửa ngược trực tiếp |
 | `cancelled` | mở lại | bất kỳ | Locked | phiếu đã hủy | mọi actor | nếu cần nhập lại thì tạo phiếu mới |
 
@@ -140,7 +143,7 @@ Mô hình hiện tại của phiếu nhập:
 
 ## 7. Các Nhánh Không Đi Qua Status Change Trực Tiếp
 
-- sửa sai sau `completed / received / paid`: dùng chứng từ mới
+- sửa sai sau `completed / received / paid`: dùng `Yêu cầu hủy` có phê duyệt hoặc chứng từ mới phù hợp; không sửa ngược trực tiếp
 - đơn đã xuất sai: `phiếu trả hàng khách` hoặc chứng từ phù hợp
 - phiếu nhập đã nhận sai: `phiếu trả NCC` hoặc điều chỉnh phù hợp
 - tài khoản có quyền chỉnh tồn trực tiếp: không phải status transition của đơn/phiếu; đây là workflow đặc biệt riêng

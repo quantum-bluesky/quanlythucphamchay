@@ -122,6 +122,7 @@ Nếu cần can thiệp đặc biệt
 - đơn `draft/committed` cùng khách vẫn có thể đi vào flow `gộp đơn`; hệ thống giữ lại một phiếu đích rồi chuyển các phiếu nguồn sang `cancelled`
 - khi gộp nhiều phiếu xuất cùng khách, phiếu đích sẽ hợp nhất `ghi chú phiếu xuất` theo danh sách duy nhất ngăn bằng ` | `
 - đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; ngoại lệ trước thanh toán là vẫn cho sửa `ghi chú phiếu xuất` và `giảm giá khuyến mại` của toàn đơn
+- nếu đơn đã `completed/paid` bị nhập nhầm, user phải tạo `Yêu cầu hủy` có lý do; quản lý/Admin duyệt xong thì app mới chuyển đơn sang `cancelled`, hoàn lại tồn theo đúng lô đã xuất và loại trừ doanh thu/giá vốn của đơn ra khỏi báo cáo
 
 ### Luồng xử lý nhanh xuất hàng
 
@@ -223,6 +224,7 @@ ordered -> cancelled
 - `Legacy Audit` chỉ auto-fix các mốc thời gian chắc chắn; các thao tác gắn `receipt_code` hoặc `đơn nguồn` luôn cần admin xác nhận thủ công
 - chỉ `received` mới được `paid`
 - `received` chỉ còn cho sửa `ghi chú`, `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
+- nếu phiếu `received/paid` bị nhập nhầm, user phải tạo `Yêu cầu hủy` có lý do; chỉ quản lý/Admin mới được duyệt, và khi duyệt app sẽ rút lại đúng lượng đã nhập từ lô gốc nếu chưa bị dùng mất, đồng thời loại chi phí mua của phiếu ra khỏi báo cáo
 - với user mới, các phiếu `received/paid` còn được gom thêm ở màn `payments` để nhìn nhóm phiếu cần trả tiền riêng
 - từ phiếu `received/paid`, có thể bấm `Nhập lại` để tạo nhanh một phiếu nháp mới cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có để không tạo draft thứ hai
 - khi `Nhập lại`, app chỉ sao chép nội dung đặt hàng; metadata lô như `batchCode`, `expiryDate`, `manufactureDate` phải reset về trống để nhập lại theo lô mới
@@ -339,6 +341,7 @@ ordered -> cancelled
 
 - không sửa ngược chứng từ cũ
 - tạo chứng từ mới để giữ lịch sử
+- hủy sai chứng từ đã khóa cũng đi theo nguyên tắc này: tạo `Yêu cầu hủy`, chờ duyệt, rồi backend sinh chứng từ bù trừ thay vì mở khóa đơn/phiếu cũ
 
 ## 7. Luồng quản lý danh mục
 

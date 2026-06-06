@@ -36,6 +36,21 @@ export function registerSalesControllerEvents(contract) {
     return window.confirm("Xác nhận cập nhật giá bán hiện tại thành giá bán mặc định của mặt hàng?");
   }
 
+  function promptOrderCancelReason(cart, requestLabel = "Yêu cầu hủy") {
+    const reason = window.prompt(
+      `${requestLabel} cho "${getCartDisplayName(cart)}"\n\nNhập rõ lý do nhập/xuất nhầm để quản lý hoặc Admin duyệt:`,
+      ""
+    );
+    if (reason === null) {
+      return null;
+    }
+    const cleanReason = String(reason || "").trim();
+    if (!cleanReason) {
+      throw new Error("Phải nhập lý do hủy.");
+    }
+    return cleanReason;
+  }
+
   function getCreateNewCartTargetName() {
     const lookupName = String(dom.customerLookupInput?.value || "").trim();
     if (lookupName) {
@@ -1202,6 +1217,54 @@ export function registerSalesControllerEvents(contract) {
       }
       return;
     }
+    if (action === "request-cancel") {
+      try {
+        const reason = promptOrderCancelReason(cart);
+        if (!reason) {
+          return;
+        }
+        const data = await actions.requestOrderCancellation(cart.id, reason);
+        actions.showToast(data.notification_warning || data.notification_message || data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (action === "approve-cancel-request") {
+      const requestId = String(button.dataset.requestId || queries.getPendingDocumentCancelRequest("order", cart.id)?.request_id || "").trim();
+      if (!requestId) {
+        actions.showToast("Không tìm thấy yêu cầu hủy cần duyệt.", true);
+        return;
+      }
+      if (!window.confirm(`Duyệt hủy "${getCartDisplayName(cart)}"?\n\nApp sẽ đảo tồn kho và loại trừ doanh thu của chứng từ này.`)) {
+        return;
+      }
+      try {
+        const data = await actions.approveDocumentCancelRequest(requestId);
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (action === "reject-cancel-request") {
+      const requestId = String(button.dataset.requestId || queries.getPendingDocumentCancelRequest("order", cart.id)?.request_id || "").trim();
+      if (!requestId) {
+        actions.showToast("Không tìm thấy yêu cầu hủy cần từ chối.", true);
+        return;
+      }
+      try {
+        const reason = promptOrderCancelReason(cart, "Từ chối yêu cầu hủy");
+        if (!reason) {
+          return;
+        }
+        const data = await actions.rejectDocumentCancelRequest(requestId, reason);
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (action === "paid" || action === "mark-paid") {
       if (!saveCartEditorsBeforeStatusChange(cart.id, dom.cartQueueList)) {
         return;
@@ -1362,6 +1425,55 @@ export function registerSalesControllerEvents(contract) {
         actions.openCustomerReturnDraftFromCart(cart.id);
         renderers.renderCartQueue();
         actions.focusOrderDetailPanel();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (action === "request-cancel") {
+      try {
+        const reason = promptOrderCancelReason(cart);
+        if (!reason) {
+          return;
+        }
+        const data = await actions.requestOrderCancellation(cart.id, reason);
+        state.expandedOrderId = cart.id;
+        actions.showToast(data.notification_warning || data.notification_message || data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (action === "approve-cancel-request") {
+      const requestId = String(button.dataset.requestId || queries.getPendingDocumentCancelRequest("order", cart.id)?.request_id || "").trim();
+      if (!requestId) {
+        actions.showToast("Không tìm thấy yêu cầu hủy cần duyệt.", true);
+        return;
+      }
+      if (!window.confirm(`Duyệt hủy "${getCartDisplayName(cart)}"?\n\nApp sẽ đảo tồn kho và loại trừ doanh thu của chứng từ này.`)) return;
+      try {
+        const data = await actions.approveDocumentCancelRequest(requestId);
+        state.expandedOrderId = cart.id;
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (action === "reject-cancel-request") {
+      const requestId = String(button.dataset.requestId || queries.getPendingDocumentCancelRequest("order", cart.id)?.request_id || "").trim();
+      if (!requestId) {
+        actions.showToast("Không tìm thấy yêu cầu hủy cần từ chối.", true);
+        return;
+      }
+      try {
+        const reason = promptOrderCancelReason(cart, "Từ chối yêu cầu hủy");
+        if (!reason) {
+          return;
+        }
+        const data = await actions.rejectDocumentCancelRequest(requestId, reason);
+        state.expandedOrderId = cart.id;
+        actions.showToast(data.message);
       } catch (error) {
         actions.showToast(error.message, true);
       }

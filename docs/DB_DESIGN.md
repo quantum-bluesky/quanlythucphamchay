@@ -30,6 +30,9 @@ carts
 purchases
   1 --- n purchase_items
 
+document_cancel_requests
+  gói workflow `Yêu cầu hủy` cho order/purchase đã khóa
+
 inventory_receipts
   1 --- n inventory_receipt_items
   gói receipt chuẩn hóa cho:
@@ -195,6 +198,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - `payment_status` vẫn chỉ là cờ đơn giản `unpaid/paid` cho mỗi đơn; phase này chưa tách bảng transaction thanh toán riêng
 - `payment_method`, `payment_note`, `paid_at` lưu metadata thanh toán một lần để màn `payments` và detail đơn hàng dùng chung
 - `created_mode` dùng để phân biệt đơn đi theo flow chuẩn hay được tạo từ card `Xử lý nhanh xuất hàng`; không tạo thêm trạng thái mới
+- nếu đơn `completed/paid` bị nhập nhầm, app không sửa ngược trực tiếp mà tạo `document_cancel_request`; khi request được duyệt, backend sinh receipt bù trừ `inventory_adjustment` với `source_type = sale_cancellation`, chuyển đơn sang `cancelled` và loại trừ doanh thu/giá vốn của đơn khỏi báo cáo
 - khả dụng để `commit` được suy ra từ `tồn hiện tại + số lượng của phiếu nhập ordered - phần đã giữ cho các đơn committed khác`; bước `ship` vẫn chỉ dựa trên tồn vật lý đã nhập kho
 - `status` hiện dùng theo workflow:
   - `draft`: đơn nháp
@@ -267,8 +271,30 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 
 - endpoint history chỉ nạp khi user mở popup `Lịch sử`, nên không làm nặng list đơn hiện tại
 - log phải đủ để truy ra các mốc chính như `tạo request`, `approve`, `reject`, `process`, `đổi trạng thái đơn`, `đổi trạng thái phiếu nhập`, `cập nhật thanh toán`, `sửa địa chỉ giao`, `sửa giảm giá`, `sửa dòng hàng`
+- request hủy chứng từ dùng cùng bảng này với `entity_type = document_cancel_request`, giúp popup `Lịch sử` hiện được đầy đủ các mốc `tạo yêu cầu hủy`, `duyệt`, `từ chối`, `xử lý hủy`
 - với chứng từ tạo bằng card `Xử lý nhanh`, note history phải ghi rõ `Tạo bằng Xử lý nhanh ...` và từng bước tự động như `draft -> committed -> completed` hoặc `draft -> ordered -> received -> paid`
 - `metadata_json` giữ chỗ cho các domain khác tái dùng sau này mà không cần thay schema ngay
+
+### `document_cancel_requests`
+
+- lưu yêu cầu hủy cho chứng từ đã khóa
+- cột chính:
+  - `id`, `request_id`, `request_code`
+  - `document_type`: `order` hoặc `purchase`
+  - `document_id`, `document_code`
+  - `status`: `pending_approval | processed | rejected`
+  - `cancel_reason`
+  - `requested_by`, `approved_by`, `approved_at`
+  - `rejected_by`, `rejected_at`, `reject_reason`
+  - `processed_by`, `processed_at`
+  - `created_at`, `updated_at`
+
+### Vai trò nghiệp vụ bổ sung cho request hủy
+
+- bảng này không mở thêm trạng thái chứng từ mới; nó chỉ giữ workflow approval bên ngoài `carts/purchases`
+- tạo request bắt buộc có lý do và chỉ thành công khi chứng từ nguồn đang ở trạng thái cho phép hủy gián tiếp
+- approval hợp lệ sẽ chạy hủy thật ngay trong backend, không để request `approved` treo riêng
+- route create request có thể gửi mail thông báo phê duyệt, nhưng nếu mail lỗi thì request vẫn phải được lưu để không mất dấu audit
 
 ### `purchases`
 
@@ -277,7 +303,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - `id`, `supplier_id`, `supplier_name`
 - `created_mode`: `normal` hoặc `quick_import`
 - `note`, `source_type`, `source_code`, `source_name`, `status`, `payment_method`, `payment_note`, `discount_amount`
-- `created_at`, `updated_at`, `ordered_at`, `received_at`, `paid_at`
+- `created_at`, `updated_at`, `ordered_at`, `received_at`, `cancelled_at`, `paid_at`
 - `receipt_code`
 
 ### Vai trò nghiệp vụ bổ sung
@@ -287,6 +313,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - `status = paid` vẫn là cờ thanh toán đơn giản ở cấp phiếu; chưa có bảng lịch sử nhiều lần trả tiền
 - `payment_method`, `payment_note`, `paid_at` lưu metadata thanh toán một lần để màn `payments` và detail phiếu nhập dùng chung
 - `created_mode` dùng để phân biệt phiếu đi theo flow chuẩn hay được tạo từ card `Xử lý nhanh nhập hàng`; không tạo thêm trạng thái mới
+- nếu phiếu `received/paid` bị nhập nhầm, app tạo `document_cancel_request`; khi request được duyệt, backend sinh receipt bù trừ `inventory_adjustment` với `source_type = purchase_cancellation`, trừ lại đúng lô gốc nếu còn đủ hàng và loại chi phí mua của phiếu ra khỏi báo cáo
 - `ordered_at` giữ mốc phiếu chuyển sang `ordered` lần đầu để các rule batch mode vẫn nhận diện đúng phiếu đã đặt từ trước, kể cả khi owner/admin sửa phiếu sau đó làm `updated_at` thay đổi
 - với DB cũ chưa có `ordered_at`, migration sẽ ưu tiên backfill từ audit status-change; nếu vẫn không có dấu vết đặt hàng thì chỉ fallback về `created_at` cho các phiếu còn dấu hiệu đã đi vào nhánh `ordered/received/paid`
 - phiếu `draft -> cancelled` chưa từng qua `ordered` không được tự sinh `ordered_at` chỉ vì đang ở trạng thái `cancelled`
@@ -330,10 +357,17 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `supplier_return`
 - cột chính:
   - `receipt_code`
+  - `source_type`, `source_code`
   - `customer_id`, `customer_name`
   - `supplier_id`, `supplier_name`
   - `actor`, `reason`, `note`, `discount_amount`
   - `created_at`
+
+### Vai trò nghiệp vụ bổ sung cho receipt chuẩn hóa
+
+- `inventory_adjustment` được tái dùng cho cả chỉnh tồn trực tiếp lẫn bút toán đảo khi duyệt hủy chứng từ
+- với hủy đơn đã xuất, `source_type = sale_cancellation` và `source_code = order_code`
+- với hủy phiếu nhập đã nhận, `source_type = purchase_cancellation` và `source_code = receipt_code` của phiếu nguồn
 
 ### `inventory_receipt_items`
 
@@ -468,6 +502,8 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - thêm bảng `inventory_batches` và `inventory_batch_allocations`
 - backfill mềm lô từ transaction/receipt cũ khi schema mới được khởi tạo trên DB đang dùng
 - thêm bảng `workflow_locks` và `procurement_assignments` cho Batch procurement mode
+- thêm bảng `document_cancel_requests` cho approval hủy chứng từ đã khóa
+- thêm `cancelled_at` vào `purchases`
 
 ## 13. Ràng buộc nghiệp vụ chính gắn với DB
 

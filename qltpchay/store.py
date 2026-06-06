@@ -31,9 +31,20 @@ PHASE_B_RECEIPT_TYPES = (
     "customer_return",
     "supplier_return",
 )
+DOCUMENT_CANCELLATION_SOURCE_TYPES = (
+    "sale_cancellation",
+    "purchase_cancellation",
+)
 
 
-def detect_report_transaction_kind(receipt_type: str | None, note: str) -> str:
+def detect_report_transaction_kind(
+    receipt_type: str | None,
+    note: str,
+    source_type: str | None = None,
+) -> str:
+    normalized_source_type = str(source_type or "").strip()
+    if normalized_source_type in DOCUMENT_CANCELLATION_SOURCE_TYPES:
+        return normalized_source_type
     normalized_receipt_type = str(receipt_type or "").strip()
     if normalized_receipt_type:
         return normalized_receipt_type
@@ -78,6 +89,15 @@ def infer_document_type_from_code(document_code: str) -> str:
         return "customer_return"
     if clean_code.startswith("TNCC-"):
         return "supplier_return"
+    return ""
+
+
+def infer_cancellation_source_type(document_type: str) -> str:
+    clean_document_type = str(document_type or "").strip()
+    if clean_document_type == "order":
+        return "sale_cancellation"
+    if clean_document_type == "purchase":
+        return "purchase_cancellation"
     return ""
 
 
@@ -248,6 +268,35 @@ class InventoryStore:
                 CREATE INDEX IF NOT EXISTS idx_bulk_order_requests_status_created_at
                 ON bulk_order_requests(status, created_at DESC);
 
+                CREATE TABLE IF NOT EXISTS document_cancel_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    request_id TEXT NOT NULL UNIQUE,
+                    request_code TEXT NOT NULL DEFAULT '',
+                    document_type TEXT NOT NULL DEFAULT '',
+                    document_id TEXT NOT NULL DEFAULT '',
+                    document_code TEXT NOT NULL DEFAULT '',
+                    document_status TEXT NOT NULL DEFAULT '',
+                    requested_by TEXT NOT NULL DEFAULT '',
+                    cancel_reason TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'pending_approval',
+                    approved_by TEXT NOT NULL DEFAULT '',
+                    approved_at TEXT,
+                    rejected_by TEXT NOT NULL DEFAULT '',
+                    rejected_at TEXT,
+                    reject_reason TEXT NOT NULL DEFAULT '',
+                    processed_by TEXT NOT NULL DEFAULT '',
+                    processed_at TEXT,
+                    process_payload TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_document_cancel_requests_status_created_at
+                ON document_cancel_requests(status, created_at DESC);
+
+                CREATE INDEX IF NOT EXISTS idx_document_cancel_requests_document_lookup
+                ON document_cancel_requests(document_type, document_id, created_at DESC);
+
                 CREATE TABLE IF NOT EXISTS customers (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -332,6 +381,7 @@ class InventoryStore:
                     updated_at TEXT NOT NULL,
                     ordered_at TEXT,
                     received_at TEXT,
+                    cancelled_at TEXT,
                     paid_at TEXT,
                     receipt_code TEXT NOT NULL DEFAULT ''
                 );
@@ -566,6 +616,10 @@ class InventoryStore:
             if "created_mode" not in purchase_columns:
                 connection.execute(
                     "ALTER TABLE purchases ADD COLUMN created_mode TEXT NOT NULL DEFAULT 'normal'"
+                )
+            if "cancelled_at" not in purchase_columns:
+                connection.execute(
+                    "ALTER TABLE purchases ADD COLUMN cancelled_at TEXT"
                 )
             purchase_item_columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(purchase_items)").fetchall()
@@ -1218,6 +1272,96 @@ class InventoryStore:
             if remaining_to_consume <= 0:
                 break
         return allocations
+
+    def _restore_inventory_batches_from_allocations(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        allocations: list[dict],
+        transaction_id: int,
+        created_at: str,
+        product_id: int,
+    ) -> None:
+        for allocation in allocations:
+            batch_id = int(allocation.get("batch_id") or 0)
+            quantity = round(float(allocation.get("quantity") or 0), 2)
+            if batch_id <= 0 or quantity <= 0:
+                continue
+            row = connection.execute(
+                """
+                SELECT remaining_quantity
+                FROM inventory_batches
+                WHERE id = ?
+                """,
+                (batch_id,),
+            ).fetchone()
+            if not row:
+                raise ValueError("Không tìm thấy lô gốc để hoàn tồn khi hủy chứng từ.")
+            updated_remaining = round(float(row["remaining_quantity"] or 0) + quantity, 2)
+            connection.execute(
+                """
+                UPDATE inventory_batches
+                SET remaining_quantity = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (updated_remaining, created_at, batch_id),
+            )
+            self._insert_inventory_batch_allocation(
+                connection,
+                batch_id=batch_id,
+                transaction_id=int(transaction_id),
+                product_id=int(product_id),
+                quantity=quantity,
+                direction="in",
+                created_at=created_at,
+            )
+
+    def _consume_inventory_batch_by_id(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        batch_id: int,
+        product_id: int,
+        quantity: float,
+        transaction_id: int,
+        created_at: str,
+    ) -> None:
+        clean_batch_id = int(batch_id or 0)
+        clean_product_id = int(product_id or 0)
+        clean_quantity = round(float(quantity or 0), 2)
+        if clean_batch_id <= 0 or clean_product_id <= 0 or clean_quantity <= 0:
+            raise ValueError("Thiếu thông tin lô để hủy phiếu nhập.")
+        row = connection.execute(
+            """
+            SELECT remaining_quantity
+            FROM inventory_batches
+            WHERE id = ? AND product_id = ?
+            """,
+            (clean_batch_id, clean_product_id),
+        ).fetchone()
+        if not row:
+            raise ValueError("Không tìm thấy lô nhập gốc để hủy phiếu nhập.")
+        remaining_quantity = round(float(row["remaining_quantity"] or 0), 2)
+        if clean_quantity > remaining_quantity:
+            raise ValueError("Lô nhập gốc không còn đủ tồn để hủy phiếu nhập này.")
+        updated_remaining = round(remaining_quantity - clean_quantity, 2)
+        connection.execute(
+            """
+            UPDATE inventory_batches
+            SET remaining_quantity = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (updated_remaining, created_at, clean_batch_id),
+        )
+        self._insert_inventory_batch_allocation(
+            connection,
+            batch_id=clean_batch_id,
+            transaction_id=int(transaction_id),
+            product_id=clean_product_id,
+            quantity=clean_quantity,
+            direction="out",
+            created_at=created_at,
+        )
 
     def _build_batch_map_for_products(
         self,
@@ -1896,7 +2040,7 @@ class InventoryStore:
                 """
                 SELECT id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note,
                        source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
-                       ordered_at, received_at, paid_at, receipt_code
+                       ordered_at, received_at, cancelled_at, paid_at, receipt_code
                 FROM purchases
                 ORDER BY datetime(updated_at) DESC, id
                 """
@@ -1961,6 +2105,7 @@ class InventoryStore:
                     "supplierName": row["supplier_name"] or "",
                     "status": raw_status,
                     "receivedAt": received_at,
+                    "cancelledAt": row["cancelled_at"],
                     "paidAt": paid_at,
                     "receiptCode": receipt_code,
                     "items": purchase_items,
@@ -1993,6 +2138,8 @@ class InventoryStore:
                         "ordered_at": ordered_at,
                         "receivedAt": received_at,
                         "received_at": received_at,
+                        "cancelledAt": row["cancelled_at"],
+                        "cancelled_at": row["cancelled_at"],
                         "paidAt": paid_at,
                         "paid_at": paid_at,
                         "receiptCode": receipt_code,
@@ -2127,9 +2274,9 @@ class InventoryStore:
                     """
                     INSERT INTO purchases(
                         id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note, source_type, source_code, source_name,
-                        status, discount_amount, created_at, updated_at, ordered_at, received_at, paid_at, receipt_code
+                        status, discount_amount, created_at, updated_at, ordered_at, received_at, cancelled_at, paid_at, receipt_code
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         purchase_id,
@@ -2150,6 +2297,7 @@ class InventoryStore:
                         str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
                         str(record.get("orderedAt") or record.get("ordered_at") or ""),
                         record.get("receivedAt") or record.get("received_at"),
+                        record.get("cancelledAt") or record.get("cancelled_at"),
                         record.get("paidAt") or record.get("paid_at"),
                         str(record.get("receiptCode") or record.get("receipt_code") or ""),
                     ),
@@ -2395,6 +2543,7 @@ class InventoryStore:
             "approve-request": "Approve",
             "reject-request": "Reject",
             "process-request": "Xử lý request",
+            "delete-request": "Xóa yêu cầu",
         }.get(str(action or "").strip(), str(action or "").strip() or "Cập nhật")
 
     def _serialize_entity_change_row(self, row: sqlite3.Row) -> dict:
@@ -2464,6 +2613,13 @@ class InventoryStore:
     def get_bulk_order_request_change_history(self, request_id: str, *, limit: int = 40) -> list[dict]:
         return self.get_entity_change_history(
             entity_type="bulk_order_request",
+            entity_id=str(request_id or "").strip(),
+            limit=limit,
+        )
+
+    def get_document_cancel_request_change_history(self, request_id: str, *, limit: int = 40) -> list[dict]:
+        return self.get_entity_change_history(
+            entity_type="document_cancel_request",
             entity_id=str(request_id or "").strip(),
             limit=limit,
         )
@@ -3361,7 +3517,21 @@ class InventoryStore:
         note: str,
         receipt_code: str,
         receipt_type: str,
+        source_code: str = "",
+        source_type: str = "",
     ) -> dict:
+        clean_source_type = str(source_type or "").strip()
+        clean_source_code = str(source_code or "").strip()
+        if clean_source_type == "sale_cancellation" and clean_source_code:
+            return {
+                "document_code": clean_source_code,
+                "document_type": "order",
+            }
+        if clean_source_type == "purchase_cancellation" and clean_source_code:
+            return {
+                "document_code": clean_source_code,
+                "document_type": "purchase",
+            }
         clean_receipt_code = str(receipt_code or "").strip()
         clean_receipt_type = str(receipt_type or "").strip()
         if clean_receipt_code:
@@ -3433,6 +3603,8 @@ class InventoryStore:
                     iri.stock_after,
                     ir.receipt_code,
                     ir.receipt_type,
+                    ir.source_code,
+                    ir.source_type,
                     ir.customer_name AS receipt_customer_name,
                     ir.supplier_name AS receipt_supplier_name,
                     ir.actor AS receipt_actor,
@@ -3484,6 +3656,8 @@ class InventoryStore:
                 note=str(row["note"] or ""),
                 receipt_code=str(row["receipt_code"] or ""),
                 receipt_type=str(row["receipt_type"] or ""),
+                source_code=str(row["source_code"] or ""),
+                source_type=str(row["source_type"] or ""),
             )
             document_code = document_info["document_code"]
             document_type = document_info["document_type"]
@@ -3979,6 +4153,78 @@ class InventoryStore:
             if str(purchase.get("id") or "").strip() == clean_purchase_id:
                 return purchase
         raise ValueError("Không tìm thấy phiếu nhập.")
+
+    @staticmethod
+    def _allocate_discount_amounts(entries: list[tuple[str | int, float]], total_discount: float) -> dict[str | int, float]:
+        clean_entries = [
+            (entry_key, round(max(0.0, float(amount or 0)), 2))
+            for entry_key, amount in entries
+        ]
+        total_gross = round(sum(amount for _, amount in clean_entries), 2)
+        clean_total_discount = round(max(0.0, float(total_discount or 0)), 2)
+        if clean_total_discount <= 0 or total_gross <= 0 or not clean_entries:
+            return {entry_key: 0.0 for entry_key, _ in clean_entries}
+
+        allocations: dict[str | int, float] = {}
+        remaining_discount = clean_total_discount
+        remaining_gross = total_gross
+        for index, (entry_key, gross_amount) in enumerate(clean_entries):
+            if gross_amount <= 0:
+                allocations[entry_key] = 0.0
+                continue
+            is_last = index == len(clean_entries) - 1
+            if is_last or remaining_gross <= gross_amount:
+                allocated = round(max(0.0, remaining_discount), 2)
+            else:
+                allocated = round(clean_total_discount * gross_amount / total_gross, 2)
+                allocated = min(allocated, remaining_discount)
+            allocations[entry_key] = allocated
+            remaining_discount = round(max(0.0, remaining_discount - allocated), 2)
+            remaining_gross = round(max(0.0, remaining_gross - gross_amount), 2)
+        return allocations
+
+    def _load_transaction_batch_allocations(
+        self,
+        connection: sqlite3.Connection,
+        transaction_id: int,
+        *,
+        direction: str = "",
+    ) -> list[dict]:
+        clauses = ["iba.transaction_id = ?"]
+        params: list[object] = [int(transaction_id)]
+        clean_direction = str(direction or "").strip()
+        if clean_direction:
+            clauses.append("iba.direction = ?")
+            params.append(clean_direction)
+        rows = connection.execute(
+            """
+            SELECT
+                iba.batch_id,
+                iba.quantity,
+                iba.direction,
+                b.batch_code,
+                b.expiry_date,
+                b.unit_cost,
+                b.source_receipt_code
+            FROM inventory_batch_allocations iba
+            INNER JOIN inventory_batches b ON b.id = iba.batch_id
+            WHERE {where_clause}
+            ORDER BY iba.id ASC
+            """.format(where_clause=" AND ".join(clauses)),
+            params,
+        ).fetchall()
+        return [
+            {
+                "batch_id": int(row["batch_id"] or 0),
+                "quantity": round(float(row["quantity"] or 0), 2),
+                "direction": str(row["direction"] or "").strip(),
+                "batch_code": str(row["batch_code"] or "").strip(),
+                "expiry_date": str(row["expiry_date"] or "").strip(),
+                "unit_cost": round(float(row["unit_cost"] or 0), 2),
+                "source_receipt_code": str(row["source_receipt_code"] or "").strip(),
+            }
+            for row in rows
+        ]
 
     @staticmethod
     def _format_bulk_quantity(value: float) -> str:
@@ -5041,6 +5287,852 @@ class InventoryStore:
             "request": request_doc,
             "process_result": process_result,
         }
+
+    @staticmethod
+    def _normalize_document_cancel_request_status(status: str | None) -> str:
+        clean_status = str(status or "").strip()
+        if clean_status in {"pending_approval", "processed", "rejected"}:
+            return clean_status
+        return "pending_approval"
+
+    @staticmethod
+    def _load_document_cancel_request_row(
+        connection: sqlite3.Connection,
+        request_id: str,
+    ) -> sqlite3.Row | None:
+        return connection.execute(
+            """
+            SELECT
+                id, request_id, request_code, document_type, document_id, document_code,
+                document_status, requested_by, cancel_reason, status, approved_by,
+                approved_at, rejected_by, rejected_at, reject_reason, processed_by,
+                processed_at, process_payload, created_at, updated_at
+            FROM document_cancel_requests
+            WHERE request_id = ?
+            LIMIT 1
+            """,
+            (str(request_id or "").strip(),),
+        ).fetchone()
+
+    def _serialize_document_cancel_request_row(self, row: sqlite3.Row | None) -> dict | None:
+        if not row:
+            return None
+        try:
+            process_payload = json.loads(row["process_payload"] or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            process_payload = {}
+        return {
+            "request_id": str(row["request_id"] or "").strip(),
+            "request_code": str(row["request_code"] or row["request_id"] or "").strip(),
+            "document_type": str(row["document_type"] or "").strip(),
+            "document_id": str(row["document_id"] or "").strip(),
+            "document_code": str(row["document_code"] or "").strip(),
+            "document_status": str(row["document_status"] or "").strip(),
+            "requested_by": str(row["requested_by"] or "").strip(),
+            "cancel_reason": str(row["cancel_reason"] or "").strip(),
+            "status": self._normalize_document_cancel_request_status(row["status"]),
+            "approved_by": str(row["approved_by"] or "").strip(),
+            "approved_at": str(row["approved_at"] or "").strip(),
+            "rejected_by": str(row["rejected_by"] or "").strip(),
+            "rejected_at": str(row["rejected_at"] or "").strip(),
+            "reject_reason": str(row["reject_reason"] or "").strip(),
+            "processed_by": str(row["processed_by"] or "").strip(),
+            "processed_at": str(row["processed_at"] or "").strip(),
+            "process_payload": process_payload if isinstance(process_payload, dict) else {},
+            "created_at": str(row["created_at"] or "").strip(),
+            "updated_at": str(row["updated_at"] or row["created_at"] or "").strip(),
+        }
+
+    def list_document_cancel_requests(self, *, limit: int = 30) -> list[dict]:
+        try:
+            clean_limit = max(1, min(int(limit), 200))
+        except (TypeError, ValueError):
+            clean_limit = 30
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    id, request_id, request_code, document_type, document_id, document_code,
+                    document_status, requested_by, cancel_reason, status, approved_by,
+                    approved_at, rejected_by, rejected_at, reject_reason, processed_by,
+                    processed_at, process_payload, created_at, updated_at
+                FROM document_cancel_requests
+                ORDER BY created_at DESC, id DESC
+                LIMIT ?
+                """,
+                (clean_limit,),
+            ).fetchall()
+        return [self._serialize_document_cancel_request_row(row) for row in rows]
+
+    def get_document_cancel_request(self, request_id: str) -> dict | None:
+        clean_request_id = str(request_id or "").strip()
+        if not clean_request_id:
+            return None
+        with self._connect() as connection:
+            row = self._load_document_cancel_request_row(connection, clean_request_id)
+        return self._serialize_document_cancel_request_row(row)
+
+    @staticmethod
+    def _build_document_cancel_request_code(now: str, request_id: str) -> str:
+        suffix = hashlib.sha1(f"{now}-{request_id}".encode("utf-8")).hexdigest()[:6]
+        return f"YCH-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{suffix}"
+
+    @staticmethod
+    def _find_pending_document_cancel_request(
+        connection: sqlite3.Connection,
+        *,
+        document_type: str,
+        document_id: str,
+    ) -> sqlite3.Row | None:
+        return connection.execute(
+            """
+            SELECT
+                id, request_id, request_code, document_type, document_id, document_code,
+                document_status, requested_by, cancel_reason, status, approved_by,
+                approved_at, rejected_by, rejected_at, reject_reason, processed_by,
+                processed_at, process_payload, created_at, updated_at
+            FROM document_cancel_requests
+            WHERE document_type = ?
+              AND document_id = ?
+              AND status = 'pending_approval'
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """,
+            (str(document_type or "").strip(), str(document_id or "").strip()),
+        ).fetchone()
+
+    @staticmethod
+    def _count_receipts_for_source(
+        connection: sqlite3.Connection,
+        *,
+        source_code: str,
+        source_type: str = "",
+        receipt_types: tuple[str, ...] | None = None,
+    ) -> int:
+        clauses = ["source_code = ?"]
+        params: list[object] = [str(source_code or "").strip()]
+        clean_source_type = str(source_type or "").strip()
+        if clean_source_type:
+            clauses.append("source_type = ?")
+            params.append(clean_source_type)
+        if receipt_types:
+            placeholders = ",".join("?" for _ in receipt_types)
+            clauses.append(f"receipt_type IN ({placeholders})")
+            params.extend(receipt_types)
+        row = connection.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM inventory_receipts
+            WHERE {where_clause}
+            """.format(where_clause=" AND ".join(clauses)),
+            params,
+        ).fetchone()
+        return int(row["total"] or 0)
+
+    def _validate_order_cancellation_target(
+        self,
+        connection: sqlite3.Connection,
+        cart: dict,
+    ) -> list[dict]:
+        if str(cart.get("status") or "").strip() != "completed":
+            raise ValueError("Chỉ đơn đã xuất hàng mới được gửi yêu cầu hủy.")
+        order_code = str(cart.get("orderCode") or cart.get("order_code") or "").strip()
+        if not order_code:
+            raise ValueError("Đơn đã xuất hàng đang thiếu mã đơn để hủy.")
+        if self._count_receipts_for_source(
+            connection,
+            source_code=order_code,
+            source_type="sale_cancellation",
+            receipt_types=("inventory_adjustment",),
+        ):
+            raise ValueError("Đơn này đã được hủy trước đó.")
+        if self._count_receipts_for_source(
+            connection,
+            source_code=order_code,
+            source_type="order",
+            receipt_types=("customer_return",),
+        ):
+            raise ValueError("Đơn này đã có phiếu trả khách, không thể hủy toàn bộ.")
+        rows = connection.execute(
+            """
+            SELECT id, product_id, quantity, note
+            FROM transactions
+            WHERE transaction_type = 'out'
+              AND note LIKE ?
+            ORDER BY created_at ASC, id ASC
+            """,
+            (f"%{order_code}%",),
+        ).fetchall()
+        if not rows:
+            raise ValueError("Không tìm thấy ledger xuất kho gốc của đơn này để hủy.")
+        return [
+            {
+                "transaction_id": int(row["id"] or 0),
+                "product_id": int(row["product_id"] or 0),
+                "quantity": round(float(row["quantity"] or 0), 2),
+                "note": str(row["note"] or "").strip(),
+            }
+            for row in rows
+        ]
+
+    def _load_purchase_receipt_items_for_cancellation(
+        self,
+        connection: sqlite3.Connection,
+        receipt_code: str,
+    ) -> tuple[sqlite3.Row, list[dict]]:
+        receipt_row = connection.execute(
+            """
+            SELECT id, receipt_code, supplier_name, discount_amount, created_at
+            FROM inventory_receipts
+            WHERE receipt_type = 'purchase' AND receipt_code = ?
+            LIMIT 1
+            """,
+            (str(receipt_code or "").strip(),),
+        ).fetchone()
+        if not receipt_row:
+            raise ValueError("Không tìm thấy phiếu nhập kho gốc để hủy.")
+        item_rows = connection.execute(
+            """
+            SELECT
+                iri.id,
+                iri.product_id,
+                iri.product_name,
+                iri.unit,
+                iri.quantity,
+                iri.unit_amount,
+                iri.line_total,
+                iri.transaction_id,
+                iri.batch_id,
+                iri.batch_code,
+                iri.expiry_date,
+                b.remaining_quantity
+            FROM inventory_receipt_items iri
+            LEFT JOIN inventory_batches b ON b.id = iri.batch_id
+            WHERE iri.receipt_id = ?
+              AND iri.transaction_type = 'in'
+            ORDER BY iri.id ASC
+            """,
+            (int(receipt_row["id"]),),
+        ).fetchall()
+        if not item_rows:
+            raise ValueError("Phiếu nhập gốc đang thiếu dòng ledger để hủy.")
+        entries = [
+            {
+                "receipt_item_id": int(row["id"] or 0),
+                "product_id": int(row["product_id"] or 0),
+                "product_name": str(row["product_name"] or "").strip(),
+                "unit": str(row["unit"] or "").strip(),
+                "quantity": round(float(row["quantity"] or 0), 2),
+                "unit_amount": round(float(row["unit_amount"] or 0), 2),
+                "line_total": round(float(row["line_total"] or 0), 2),
+                "transaction_id": int(row["transaction_id"] or 0),
+                "batch_id": int(row["batch_id"] or 0),
+                "batch_code": str(row["batch_code"] or "").strip(),
+                "expiry_date": str(row["expiry_date"] or "").strip(),
+                "remaining_quantity": round(float(row["remaining_quantity"] or 0), 2),
+            }
+            for row in item_rows
+        ]
+        return receipt_row, entries
+
+    def _validate_purchase_cancellation_target(
+        self,
+        connection: sqlite3.Connection,
+        purchase: dict,
+    ) -> tuple[sqlite3.Row, list[dict]]:
+        if str(purchase.get("status") or "").strip() not in {"received", "paid"}:
+            raise ValueError("Chỉ phiếu đã nhập hàng mới được gửi yêu cầu hủy.")
+        receipt_code = str(purchase.get("receiptCode") or purchase.get("receipt_code") or "").strip()
+        if not receipt_code:
+            raise ValueError("Phiếu nhập đã nhận hàng đang thiếu mã phiếu nhập kho.")
+        if self._count_receipts_for_source(
+            connection,
+            source_code=receipt_code,
+            source_type="purchase_cancellation",
+            receipt_types=("inventory_adjustment",),
+        ):
+            raise ValueError("Phiếu nhập này đã được hủy trước đó.")
+        if self._count_receipts_for_source(
+            connection,
+            source_code=receipt_code,
+            source_type="purchase",
+            receipt_types=("supplier_return",),
+        ):
+            raise ValueError("Phiếu nhập này đã có phiếu trả NCC, không thể hủy toàn bộ.")
+        receipt_row, entries = self._load_purchase_receipt_items_for_cancellation(connection, receipt_code)
+        for entry in entries:
+            if entry["quantity"] > entry["remaining_quantity"]:
+                raise ValueError(
+                    f'Lô "{entry["batch_code"] or entry["product_name"]}" đã bị sử dụng một phần, không thể hủy toàn bộ phiếu nhập.'
+                )
+        return receipt_row, entries
+
+    def create_document_cancel_request(
+        self,
+        *,
+        document_type: str,
+        document_id: str,
+        reason: str,
+        actor: str = "",
+    ) -> dict:
+        clean_document_type = str(document_type or "").strip()
+        clean_document_id = str(document_id or "").strip()
+        clean_reason = str(reason or "").strip()
+        clean_actor = str(actor or "").strip()
+        if clean_document_type not in {"order", "purchase"}:
+            raise ValueError("Loại chứng từ cần hủy không hợp lệ.")
+        if not clean_document_id:
+            raise ValueError("Thiếu mã chứng từ cần hủy.")
+        if not clean_reason:
+            raise ValueError("Phải nhập lý do hủy.")
+
+        now = utc_now_iso()
+        request_id = f"cancel_request_{secrets.token_hex(6)}"
+        request_code = self._build_document_cancel_request_code(now, request_id)
+
+        with self._connect() as connection:
+            pending_row = self._find_pending_document_cancel_request(
+                connection,
+                document_type=clean_document_type,
+                document_id=clean_document_id,
+            )
+            if pending_row:
+                raise ValueError("Chứng từ này đã có yêu cầu hủy đang chờ duyệt.")
+
+            if clean_document_type == "order":
+                document = self._get_cart_document(connection, clean_document_id)
+                self._validate_order_cancellation_target(connection, document)
+                document_code = str(document.get("orderCode") or clean_document_id).strip()
+            else:
+                document = self._get_purchase_document(connection, clean_document_id)
+                self._validate_purchase_cancellation_target(connection, document)
+                document_code = str(document.get("receiptCode") or clean_document_id).strip()
+
+            document_status = str(document.get("status") or "").strip()
+            connection.execute(
+                """
+                INSERT INTO document_cancel_requests(
+                    request_id, request_code, document_type, document_id, document_code,
+                    document_status, requested_by, cancel_reason, status, process_payload,
+                    created_at, updated_at
+                )
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, 'pending_approval', '{}', ?, ?)
+                """,
+                (
+                    request_id,
+                    request_code,
+                    clean_document_type,
+                    clean_document_id,
+                    document_code,
+                    document_status,
+                    clean_actor,
+                    clean_reason,
+                    now,
+                    now,
+                ),
+            )
+            self._record_entity_change(
+                connection,
+                entity_type="document_cancel_request",
+                entity_id=request_id,
+                entity_code=request_code,
+                action="create-request",
+                actor=clean_actor,
+                before_status="",
+                after_status="pending_approval",
+                note=f"Tạo yêu cầu hủy {clean_document_type} {document_code}. Lý do: {clean_reason}",
+                created_at=now,
+                metadata={
+                    "document_type": clean_document_type,
+                    "document_id": clean_document_id,
+                    "document_code": document_code,
+                },
+            )
+            source_entity_type = "cart" if clean_document_type == "order" else "purchase"
+            self._record_entity_change(
+                connection,
+                entity_type=source_entity_type,
+                entity_id=clean_document_id,
+                entity_code=document_code,
+                action="create-request",
+                actor=clean_actor,
+                before_status=document_status,
+                after_status=document_status,
+                note=f"Tạo yêu cầu hủy sau hoàn tất. Lý do: {clean_reason}",
+                created_at=now,
+                metadata={"request_id": request_id, "request_code": request_code},
+            )
+            request_row = self._load_document_cancel_request_row(connection, request_id)
+        return self._serialize_document_cancel_request_row(request_row)
+
+    def _cancel_completed_order_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        cart_id: str,
+        cancel_reason: str,
+        requested_by: str,
+        actor: str,
+        processed_at: str,
+    ) -> dict:
+        previous_cart = self._get_cart_document(connection, cart_id)
+        order_transactions = self._validate_order_cancellation_target(connection, previous_cart)
+        order_code = str(previous_cart.get("orderCode") or cart_id).strip()
+        customer_name = str(previous_cart.get("customerName") or "").strip()
+        discount_amount = round(float(previous_cart.get("discountAmount") or previous_cart.get("discount_amount") or 0), 2)
+        transaction_revenue_allocations = self._allocate_discount_amounts(
+            [
+                (
+                    entry["transaction_id"],
+                    round(
+                        entry["quantity"] * float(extract_price_from_note(entry["note"], "out") or 0),
+                        2,
+                    ),
+                )
+                for entry in order_transactions
+            ],
+            discount_amount,
+        )
+
+        receipt_suffix = hashlib.sha1(f"{order_code}-{processed_at}-{cancel_reason}".encode("utf-8")).hexdigest()[:6]
+        receipt_code = f"DC-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{receipt_suffix}"
+        receipt_id = self._insert_inventory_receipt(
+            connection,
+            receipt_code=receipt_code,
+            receipt_type="inventory_adjustment",
+            customer_name=customer_name,
+            source_type="sale_cancellation",
+            source_code=order_code,
+            actor=actor,
+            reason=cancel_reason,
+            note=f"Hủy đơn đã xuất hàng. Yêu cầu bởi {requested_by or 'nhân viên'}.",
+            created_at=processed_at,
+        )
+
+        transactions: list[dict] = []
+        for entry in order_transactions:
+            product = self._get_product_or_raise(connection, int(entry["product_id"]), allow_deleted=True)
+            quantity = round(float(entry["quantity"] or 0), 2)
+            unit_price = round(float(extract_price_from_note(entry["note"], "out") or product["sale_price"] or 0), 2)
+            unit_cost = round(float(extract_cost_from_note(entry["note"]) or product["price"] or 0), 2)
+            revenue_line_total = round(max(0.0, quantity * unit_price - transaction_revenue_allocations.get(entry["transaction_id"], 0.0)), 2)
+            original_allocations = self._load_transaction_batch_allocations(
+                connection,
+                int(entry["transaction_id"]),
+                direction="out",
+            )
+            transaction_note = (
+                f"Phiếu hủy đơn {receipt_code} | Đơn gốc: {order_code} | Khách: {customer_name} "
+                f"| Giá bán: {unit_price:.2f} | Giá vốn: {unit_cost:.2f} | Lý do: {cancel_reason}"
+            )
+            if requested_by:
+                transaction_note += f" | Yêu cầu bởi: {requested_by}"
+            cursor = connection.execute(
+                """
+                INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                VALUES(?, 'in', ?, ?, ?)
+                """,
+                (int(product["id"]), quantity, transaction_note, processed_at),
+            )
+            self._restore_inventory_batches_from_allocations(
+                connection,
+                allocations=original_allocations,
+                transaction_id=int(cursor.lastrowid),
+                created_at=processed_at,
+                product_id=int(product["id"]),
+            )
+            transaction_note = " | ".join(
+                part
+                for part in (
+                    transaction_note,
+                    self._format_batch_allocations_note(original_allocations, prefix="Hoàn về lô gốc"),
+                )
+                if part
+            )
+            connection.execute(
+                "UPDATE transactions SET note = ? WHERE id = ?",
+                (transaction_note, int(cursor.lastrowid)),
+            )
+            current_stock = round(float(self._get_stock_for_product(connection, int(product["id"]))), 2)
+            self._insert_inventory_receipt_item(
+                connection,
+                receipt_id=receipt_id,
+                product_id=int(product["id"]),
+                product_name=str(product["name"]),
+                unit=str(product["unit"]),
+                transaction_type="in",
+                quantity=quantity,
+                unit_amount=unit_price,
+                line_total=revenue_line_total,
+                stock_after=current_stock,
+                transaction_id=int(cursor.lastrowid),
+            )
+            transactions.append(
+                {
+                    "id": int(cursor.lastrowid),
+                    "product_id": int(product["id"]),
+                    "product_name": str(product["name"]),
+                    "quantity": quantity,
+                    "unit_price": unit_price,
+                    "line_total": revenue_line_total,
+                    "current_stock": current_stock,
+                }
+            )
+
+        connection.execute(
+            """
+            UPDATE carts
+            SET status = 'cancelled',
+                payment_status = 'unpaid',
+                payment_method = '',
+                payment_note = '',
+                updated_at = ?,
+                cancelled_at = ?,
+                paid_at = NULL
+            WHERE id = ?
+            """,
+            (processed_at, processed_at, cart_id),
+        )
+        current_cart = self._get_cart_document(connection, cart_id)
+        self._record_cart_change_history(
+            connection,
+            previous=previous_cart,
+            current=current_cart,
+            actor=actor,
+            created_at=processed_at,
+            note_prefix="Hủy sau phê duyệt",
+        )
+        self._record_audit(
+            connection,
+            entity_type="inventory_adjustment",
+            entity_id=receipt_code,
+            entity_name="Hủy đơn đã xuất",
+            action="create",
+            actor=actor,
+            message=f"Hủy đơn {order_code} | Lý do: {cancel_reason}",
+        )
+        return {
+            "document_type": "order",
+            "document_id": cart_id,
+            "document_code": order_code,
+            "status": "cancelled",
+            "receipt_code": receipt_code,
+            "transactions": transactions,
+        }
+
+    def _cancel_received_purchase_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        purchase_id: str,
+        cancel_reason: str,
+        requested_by: str,
+        actor: str,
+        processed_at: str,
+    ) -> dict:
+        previous_purchase = self._get_purchase_document(connection, purchase_id)
+        receipt_row, receipt_items = self._validate_purchase_cancellation_target(connection, previous_purchase)
+        receipt_code = str(receipt_row["receipt_code"] or purchase_id).strip()
+        supplier_name = str(previous_purchase.get("supplierName") or "").strip()
+        item_discount_allocations = self._allocate_discount_amounts(
+            [
+                (entry["receipt_item_id"], round(float(entry["line_total"] or 0), 2))
+                for entry in receipt_items
+            ],
+            round(float(receipt_row["discount_amount"] or 0), 2),
+        )
+        cancellation_suffix = hashlib.sha1(f"{receipt_code}-{processed_at}-{cancel_reason}".encode("utf-8")).hexdigest()[:6]
+        cancellation_receipt_code = f"DC-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{cancellation_suffix}"
+        cancellation_receipt_id = self._insert_inventory_receipt(
+            connection,
+            receipt_code=cancellation_receipt_code,
+            receipt_type="inventory_adjustment",
+            supplier_name=supplier_name,
+            source_type="purchase_cancellation",
+            source_code=receipt_code,
+            actor=actor,
+            reason=cancel_reason,
+            note=f"Hủy phiếu nhập đã nhận hàng. Yêu cầu bởi {requested_by or 'nhân viên'}.",
+            created_at=processed_at,
+        )
+
+        transactions: list[dict] = []
+        for entry in receipt_items:
+            product = self._get_product_or_raise(connection, int(entry["product_id"]), allow_deleted=True)
+            quantity = round(float(entry["quantity"] or 0), 2)
+            unit_cost = round(float(entry["unit_amount"] or product["price"] or 0), 2)
+            line_total = round(max(0.0, float(entry["line_total"] or 0) - item_discount_allocations.get(entry["receipt_item_id"], 0.0)), 2)
+            transaction_note = (
+                f"Phiếu hủy nhập {cancellation_receipt_code} | Phiếu gốc: {receipt_code} | NCC: {supplier_name} "
+                f"| Giá nhập: {unit_cost:.2f} | Lý do: {cancel_reason}"
+            )
+            if requested_by:
+                transaction_note += f" | Yêu cầu bởi: {requested_by}"
+            cursor = connection.execute(
+                """
+                INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                VALUES(?, 'out', ?, ?, ?)
+                """,
+                (int(product["id"]), quantity, transaction_note, processed_at),
+            )
+            self._consume_inventory_batch_by_id(
+                connection,
+                batch_id=int(entry["batch_id"]),
+                product_id=int(product["id"]),
+                quantity=quantity,
+                transaction_id=int(cursor.lastrowid),
+                created_at=processed_at,
+            )
+            transaction_note = " | ".join(
+                part
+                for part in (
+                    transaction_note,
+                    f'Lô gốc: {entry["batch_code"] or "không rõ"} {quantity:g}',
+                )
+                if part
+            )
+            connection.execute(
+                "UPDATE transactions SET note = ? WHERE id = ?",
+                (transaction_note, int(cursor.lastrowid)),
+            )
+            current_stock = round(float(self._get_stock_for_product(connection, int(product["id"]))), 2)
+            self._insert_inventory_receipt_item(
+                connection,
+                receipt_id=cancellation_receipt_id,
+                product_id=int(product["id"]),
+                product_name=str(product["name"]),
+                unit=str(product["unit"]),
+                transaction_type="out",
+                quantity=quantity,
+                unit_amount=unit_cost,
+                line_total=line_total,
+                stock_after=current_stock,
+                transaction_id=int(cursor.lastrowid),
+                batch_id=int(entry["batch_id"]),
+                batch_code=entry["batch_code"],
+                expiry_date=entry["expiry_date"] or None,
+            )
+            transactions.append(
+                {
+                    "id": int(cursor.lastrowid),
+                    "product_id": int(product["id"]),
+                    "product_name": str(product["name"]),
+                    "quantity": quantity,
+                    "unit_cost": unit_cost,
+                    "line_total": line_total,
+                    "remaining_stock": current_stock,
+                }
+            )
+
+        connection.execute(
+            """
+            UPDATE purchases
+            SET status = 'cancelled',
+                payment_method = '',
+                payment_note = '',
+                updated_at = ?,
+                cancelled_at = ?,
+                paid_at = NULL
+            WHERE id = ?
+            """,
+            (processed_at, processed_at, purchase_id),
+        )
+        current_purchase = self._get_purchase_document(connection, purchase_id)
+        self._record_purchase_change_history(
+            connection,
+            previous=previous_purchase,
+            current=current_purchase,
+            actor=actor,
+            created_at=processed_at,
+            note_prefix="Hủy sau phê duyệt",
+        )
+        self._record_audit(
+            connection,
+            entity_type="inventory_adjustment",
+            entity_id=cancellation_receipt_code,
+            entity_name="Hủy phiếu nhập đã nhận",
+            action="create",
+            actor=actor,
+            message=f"Hủy phiếu nhập {receipt_code} | Lý do: {cancel_reason}",
+        )
+        return {
+            "document_type": "purchase",
+            "document_id": purchase_id,
+            "document_code": receipt_code,
+            "status": "cancelled",
+            "receipt_code": cancellation_receipt_code,
+            "transactions": transactions,
+        }
+
+    def approve_document_cancel_request(self, request_id: str, *, actor: str = "") -> dict:
+        clean_request_id = str(request_id or "").strip()
+        clean_actor = str(actor or "").strip()
+        if not clean_request_id:
+            raise ValueError("Thiếu request_id.")
+        now = utc_now_iso()
+        with self._connect() as connection:
+            row = self._load_document_cancel_request_row(connection, clean_request_id)
+            if not row:
+                raise ValueError("Không tìm thấy yêu cầu hủy.")
+            current_status = self._normalize_document_cancel_request_status(row["status"])
+            if current_status != "pending_approval":
+                raise ValueError("Chỉ yêu cầu đang chờ duyệt mới được approve.")
+
+            document_type = str(row["document_type"] or "").strip()
+            document_id = str(row["document_id"] or "").strip()
+            cancel_reason = str(row["cancel_reason"] or "").strip()
+            if document_type == "order":
+                process_payload = self._cancel_completed_order_in_connection(
+                    connection,
+                    cart_id=document_id,
+                    cancel_reason=cancel_reason,
+                    requested_by=str(row["requested_by"] or "").strip(),
+                    actor=clean_actor,
+                    processed_at=now,
+                )
+                source_entity_type = "cart"
+            elif document_type == "purchase":
+                process_payload = self._cancel_received_purchase_in_connection(
+                    connection,
+                    purchase_id=document_id,
+                    cancel_reason=cancel_reason,
+                    requested_by=str(row["requested_by"] or "").strip(),
+                    actor=clean_actor,
+                    processed_at=now,
+                )
+                source_entity_type = "purchase"
+            else:
+                raise ValueError("Loại chứng từ cần hủy không hợp lệ.")
+
+            connection.execute(
+                """
+                UPDATE document_cancel_requests
+                SET status = 'processed',
+                    approved_by = ?,
+                    approved_at = ?,
+                    processed_by = ?,
+                    processed_at = ?,
+                    process_payload = ?,
+                    updated_at = ?
+                WHERE request_id = ?
+                """,
+                (
+                    clean_actor,
+                    now,
+                    clean_actor,
+                    now,
+                    json.dumps(process_payload, ensure_ascii=False),
+                    now,
+                    clean_request_id,
+                ),
+            )
+            self._record_entity_change(
+                connection,
+                entity_type="document_cancel_request",
+                entity_id=clean_request_id,
+                entity_code=str(row["request_code"] or clean_request_id).strip(),
+                action="approve-request",
+                actor=clean_actor,
+                before_status=current_status,
+                after_status="processed",
+                note="Duyệt và xử lý yêu cầu hủy chứng từ.",
+                created_at=now,
+                metadata={"document_type": document_type, "document_id": document_id},
+            )
+            self._record_entity_change(
+                connection,
+                entity_type="document_cancel_request",
+                entity_id=clean_request_id,
+                entity_code=str(row["request_code"] or clean_request_id).strip(),
+                action="process-request",
+                actor=clean_actor,
+                before_status="pending_approval",
+                after_status="processed",
+                note=f"Đã hủy chứng từ {process_payload.get('document_code') or document_id}.",
+                created_at=now,
+                metadata=process_payload,
+            )
+            self._record_entity_change(
+                connection,
+                entity_type=source_entity_type,
+                entity_id=document_id,
+                entity_code=str(process_payload.get("document_code") or document_id).strip(),
+                action="process-request",
+                actor=clean_actor,
+                before_status=str(row["document_status"] or "").strip(),
+                after_status="cancelled",
+                note=f"Duyệt hủy chứng từ. Lý do: {cancel_reason}",
+                created_at=now,
+                metadata={"request_id": clean_request_id, "request_code": str(row["request_code"] or "").strip()},
+            )
+            updated_row = self._load_document_cancel_request_row(connection, clean_request_id)
+        return {
+            "request": self._serialize_document_cancel_request_row(updated_row),
+            "process_result": process_payload,
+        }
+
+    def reject_document_cancel_request(
+        self,
+        request_id: str,
+        *,
+        actor: str = "",
+        reason: str = "",
+    ) -> dict:
+        clean_request_id = str(request_id or "").strip()
+        clean_actor = str(actor or "").strip()
+        clean_reason = str(reason or "").strip()
+        if not clean_request_id:
+            raise ValueError("Thiếu request_id.")
+        if not clean_reason:
+            raise ValueError("Phải nhập lý do từ chối.")
+        now = utc_now_iso()
+        with self._connect() as connection:
+            row = self._load_document_cancel_request_row(connection, clean_request_id)
+            if not row:
+                raise ValueError("Không tìm thấy yêu cầu hủy.")
+            current_status = self._normalize_document_cancel_request_status(row["status"])
+            if current_status != "pending_approval":
+                raise ValueError("Chỉ yêu cầu đang chờ duyệt mới được reject.")
+            connection.execute(
+                """
+                UPDATE document_cancel_requests
+                SET status = 'rejected',
+                    rejected_by = ?,
+                    rejected_at = ?,
+                    reject_reason = ?,
+                    updated_at = ?
+                WHERE request_id = ?
+                """,
+                (clean_actor, now, clean_reason, now, clean_request_id),
+            )
+            self._record_entity_change(
+                connection,
+                entity_type="document_cancel_request",
+                entity_id=clean_request_id,
+                entity_code=str(row["request_code"] or clean_request_id).strip(),
+                action="reject-request",
+                actor=clean_actor,
+                before_status=current_status,
+                after_status="rejected",
+                note=f"Từ chối yêu cầu hủy chứng từ. Lý do: {clean_reason}",
+                created_at=now,
+            )
+            source_entity_type = "cart" if str(row["document_type"] or "").strip() == "order" else "purchase"
+            self._record_entity_change(
+                connection,
+                entity_type=source_entity_type,
+                entity_id=str(row["document_id"] or "").strip(),
+                entity_code=str(row["document_code"] or row["document_id"] or "").strip(),
+                action="reject-request",
+                actor=clean_actor,
+                before_status=str(row["document_status"] or "").strip(),
+                after_status=str(row["document_status"] or "").strip(),
+                note=f"Từ chối yêu cầu hủy. Lý do: {clean_reason}",
+                created_at=now,
+                metadata={"request_id": clean_request_id, "request_code": str(row["request_code"] or "").strip()},
+            )
+            updated_row = self._load_document_cancel_request_row(connection, clean_request_id)
+        return self._serialize_document_cancel_request_row(updated_row)
 
     def _create_or_merge_bulk_order_draft(
         self,
@@ -6444,9 +7536,9 @@ class InventoryStore:
                 INSERT INTO purchases(
                     id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note,
                     source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
-                    ordered_at, received_at, paid_at, receipt_code
+                    ordered_at, received_at, cancelled_at, paid_at, receipt_code
                 )
-                VALUES(?, ?, ?, 'quick_import', ?, '', '', '', '', '', 'draft', 0, ?, ?, '', NULL, NULL, '')
+                VALUES(?, ?, ?, 'quick_import', ?, '', '', '', '', '', 'draft', 0, ?, ?, '', NULL, NULL, NULL, '')
                 """,
                 (
                     purchase_id,
@@ -8287,7 +9379,8 @@ class InventoryStore:
                 t.quantity,
                 t.note,
                 t.created_at,
-                ir.receipt_type
+                ir.receipt_type,
+                ir.source_type
             FROM transactions t
             LEFT JOIN inventory_receipt_items iri ON iri.transaction_id = t.id
             LEFT JOIN inventory_receipts ir ON ir.id = iri.receipt_id
@@ -8316,7 +9409,7 @@ class InventoryStore:
                 continue
 
             note = row["note"] or ""
-            transaction_kind = detect_report_transaction_kind(row["receipt_type"], note)
+            transaction_kind = detect_report_transaction_kind(row["receipt_type"], note, row["source_type"])
             created_at = str(row["created_at"] or "")
             row_month = created_at[:7]
             quantity = float(row["quantity"] or 0)
@@ -9068,9 +10161,9 @@ class InventoryStore:
                         """
                         INSERT INTO purchases(
                             id, supplier_id, supplier_name, note, source_type, source_code, source_name,
-                            status, discount_amount, created_at, updated_at, received_at, paid_at, receipt_code
+                            status, discount_amount, created_at, updated_at, received_at, cancelled_at, paid_at, receipt_code
                         )
-                        VALUES(?, ?, ?, '', 'procurement_batch', ?, 'Kỳ gom nhập', 'draft', 0, ?, ?, NULL, NULL, '')
+                        VALUES(?, ?, ?, '', 'procurement_batch', ?, 'Kỳ gom nhập', 'draft', 0, ?, ?, NULL, NULL, NULL, '')
                         """,
                         (purchase_id, supplier_id, supplier_display_name, clean_scope_code, now, now),
                     )
@@ -10478,6 +11571,7 @@ class InventoryStore:
                     t.created_at,
                     substr(t.created_at, 1, 7) AS month_key,
                     ir.receipt_type,
+                    ir.source_type,
                     ir.receipt_code,
                     ir.discount_amount AS receipt_discount_amount,
                     iri.unit_amount AS receipt_unit_amount,
@@ -10566,7 +11660,7 @@ class InventoryStore:
         sale_discount_from_notes: dict[str, float] = {}
         for row_index, row in enumerate(rows):
             note = row["note"] or ""
-            transaction_kind = detect_report_transaction_kind(row["receipt_type"], note)
+            transaction_kind = detect_report_transaction_kind(row["receipt_type"], note, row["source_type"])
             quantity = float(row["quantity"])
             receipt_line_total = (
                 float(row["receipt_line_total"])
@@ -10624,6 +11718,10 @@ class InventoryStore:
                 "customer_return_value": 0.0,
                 "supplier_return_quantity": 0.0,
                 "supplier_return_value": 0.0,
+                "sale_cancellation_quantity": 0.0,
+                "sale_cancellation_value": 0.0,
+                "purchase_cancellation_quantity": 0.0,
+                "purchase_cancellation_value": 0.0,
                 "in_value": 0.0,
                 "out_value": 0.0,
                 "net_value": 0.0,
@@ -10642,7 +11740,7 @@ class InventoryStore:
             fallback_price = float(row["price"])
             fallback_sale_price = float(row["sale_price"])
             note = row["note"] or ""
-            transaction_kind = detect_report_transaction_kind(row["receipt_type"], note)
+            transaction_kind = detect_report_transaction_kind(row["receipt_type"], note, row["source_type"])
             receipt_unit_amount = (
                 float(row["receipt_unit_amount"])
                 if row["receipt_unit_amount"] is not None
@@ -10675,6 +11773,10 @@ class InventoryStore:
                 2,
             )
             revenue_amount = round(quantity * sale_unit_price, 2)
+            if transaction_kind == "sale_cancellation" and receipt_line_total is not None:
+                revenue_amount = round(receipt_line_total, 2)
+            if transaction_kind == "purchase_cancellation" and receipt_line_total is not None:
+                purchase_amount = round(receipt_line_total, 2)
             purchase_amount = round(max(0.0, purchase_amount - purchase_discount_allocations.get(row_index, 0.0)), 2)
             revenue_amount = round(max(0.0, revenue_amount - sale_discount_allocations.get(row_index, 0.0)), 2)
             cogs_amount = round(quantity * sale_unit_cost, 2)
@@ -10712,11 +11814,26 @@ class InventoryStore:
                 bucket["customer_return_quantity"] += quantity
                 bucket["customer_return_value"] += customer_return_amount
                 bucket["in_value"] += customer_return_amount
+            elif transaction_kind == "sale_cancellation":
+                bucket["in_quantity"] += quantity
+                bucket["sale_cancellation_quantity"] += quantity
+                bucket["sale_cancellation_value"] += revenue_amount
+                bucket["revenue_value"] -= revenue_amount
+                bucket["cogs_value"] -= cogs_amount
+                bucket["gross_profit_value"] -= gross_profit_amount
+                bucket["in_value"] += revenue_amount
+                bucket["net_value"] -= gross_profit_amount
             elif transaction_kind == "supplier_return":
                 bucket["out_quantity"] += quantity
                 bucket["supplier_return_quantity"] += quantity
                 bucket["supplier_return_value"] += supplier_return_amount
                 bucket["out_value"] += supplier_return_amount
+            elif transaction_kind == "purchase_cancellation":
+                bucket["out_quantity"] += quantity
+                bucket["purchase_cancellation_quantity"] += quantity
+                bucket["purchase_cancellation_value"] += purchase_amount
+                bucket["purchase_value"] -= purchase_amount
+                bucket["out_value"] += purchase_amount
             elif transaction_kind == "inventory_adjustment":
                 if row["transaction_type"] == "in":
                     bucket["in_quantity"] += quantity
@@ -10761,6 +11878,10 @@ class InventoryStore:
                         "customer_return_value": 0.0,
                         "supplier_return_quantity": 0.0,
                         "supplier_return_value": 0.0,
+                        "sale_cancellation_quantity": 0.0,
+                        "sale_cancellation_value": 0.0,
+                        "purchase_cancellation_quantity": 0.0,
+                        "purchase_cancellation_value": 0.0,
                         "in_value": 0.0,
                         "out_value": 0.0,
                         "net_value": 0.0,
@@ -10782,11 +11903,26 @@ class InventoryStore:
                     product_entry["customer_return_quantity"] += quantity
                     product_entry["customer_return_value"] += customer_return_amount
                     product_entry["in_value"] += customer_return_amount
+                elif transaction_kind == "sale_cancellation":
+                    product_entry["in_quantity"] += quantity
+                    product_entry["sale_cancellation_quantity"] += quantity
+                    product_entry["sale_cancellation_value"] += revenue_amount
+                    product_entry["revenue_value"] -= revenue_amount
+                    product_entry["cogs_value"] -= cogs_amount
+                    product_entry["gross_profit_value"] -= gross_profit_amount
+                    product_entry["in_value"] += revenue_amount
+                    product_entry["net_value"] -= gross_profit_amount
                 elif transaction_kind == "supplier_return":
                     product_entry["out_quantity"] += quantity
                     product_entry["supplier_return_quantity"] += quantity
                     product_entry["supplier_return_value"] += supplier_return_amount
                     product_entry["out_value"] += supplier_return_amount
+                elif transaction_kind == "purchase_cancellation":
+                    product_entry["out_quantity"] += quantity
+                    product_entry["purchase_cancellation_quantity"] += quantity
+                    product_entry["purchase_cancellation_value"] += purchase_amount
+                    product_entry["purchase_value"] -= purchase_amount
+                    product_entry["out_value"] += purchase_amount
                 elif transaction_kind == "inventory_adjustment":
                     if row["transaction_type"] == "in":
                         product_entry["in_quantity"] += quantity

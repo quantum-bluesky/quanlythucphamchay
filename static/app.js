@@ -1032,6 +1032,9 @@ function getSalesUi() {
       getPendingCartMergePreview,
       getVisibleOrders,
       getCustomerReturnEditorMarkup: (cart) => buildCustomerReturnEditorMarkup(cart),
+      getLatestDocumentCancelRequest: (documentType, documentId) => getLatestDocumentCancelRequest(documentType, documentId),
+      getPendingDocumentCancelRequest: (documentType, documentId) => getPendingDocumentCancelRequest(documentType, documentId),
+      canApproveDocumentCancelRequests,
       isSearchResultMode,
       paginateItems,
       renderPagination,
@@ -1121,6 +1124,9 @@ function getPurchasesUi() {
       getOpenPurchaseSupplierConflictInsight,
       resolvePurchaseItemExpiryMeta,
       getSupplierReturnEditorMarkup: (purchase) => buildSupplierReturnEditorMarkup(purchase),
+      getLatestDocumentCancelRequest: (documentType, documentId) => getLatestDocumentCancelRequest(documentType, documentId),
+      getPendingDocumentCancelRequest: (documentType, documentId) => getPendingDocumentCancelRequest(documentType, documentId),
+      canApproveDocumentCancelRequests,
       isSearchResultMode,
       paginateItems,
       renderPagination,
@@ -1837,6 +1843,7 @@ function getDeletedSuppliers() {
 function getVisibleOrders() {
   const customerFilterId = String(state.orderFilterCustomerId || "");
   return state.carts.filter((cart) => {
+    if (getPendingDocumentCancelRequest("order", cart.id)) return true;
     if (["draft", "committed"].includes(cart.status)) return true;
     if (cart.paymentStatus === "paid") return state.showPaidOrders;
     if (cart.status === "cancelled") return state.showArchivedCarts && state.showCancelledOrders;
@@ -1852,6 +1859,9 @@ function getVisibleOrders() {
 function getVisiblePurchases() {
   return state.purchases
     .filter((purchase) => {
+      if (getPendingDocumentCancelRequest("purchase", purchase.id)) {
+        return true;
+      }
       if (!state.showCancelledPurchases && purchase.status === "cancelled") {
         return false;
       }
@@ -3068,6 +3078,42 @@ async function updatePurchasePaymentDetails(purchaseId, { paidAt = "", paymentMe
       payment_method: paymentMethod || "",
       payment_note: paymentNote || "",
     }),
+  });
+  await refreshData();
+  return data;
+}
+
+async function requestOrderCancellation(cartId, reason) {
+  const data = await apiRequest(`/api/orders/${encodeURIComponent(cartId)}/cancel-request`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+  await refreshData();
+  return data;
+}
+
+async function requestPurchaseCancellation(purchaseId, reason) {
+  const data = await apiRequest(`/api/purchases/${encodeURIComponent(purchaseId)}/cancel-request`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+  await refreshData();
+  return data;
+}
+
+async function approveDocumentCancelRequest(requestId) {
+  const data = await apiRequest(`/api/document-cancel-requests/${encodeURIComponent(requestId)}/approve`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  await refreshData();
+  return data;
+}
+
+async function rejectDocumentCancelRequest(requestId, reason) {
+  const data = await apiRequest(`/api/document-cancel-requests/${encodeURIComponent(requestId)}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
   });
   await refreshData();
   return data;
@@ -4622,6 +4668,26 @@ function hasAdminPermission(permissionName) {
   return Boolean(state.admin?.isAdmin || permissions.has(cleanPermissionName));
 }
 
+function getDocumentCancelRequestsFor(documentType, documentId) {
+  const cleanDocumentType = String(documentType || "").trim();
+  const cleanDocumentId = String(documentId || "").trim();
+  return (state.documentCancelRequests || [])
+    .filter((entry) => String(entry?.document_type || "").trim() === cleanDocumentType && String(entry?.document_id || "").trim() === cleanDocumentId)
+    .sort((left, right) => String(right?.created_at || "").localeCompare(String(left?.created_at || "")));
+}
+
+function getLatestDocumentCancelRequest(documentType, documentId) {
+  return getDocumentCancelRequestsFor(documentType, documentId)[0] || null;
+}
+
+function getPendingDocumentCancelRequest(documentType, documentId) {
+  return getDocumentCancelRequestsFor(documentType, documentId).find((entry) => String(entry?.status || "").trim() === "pending_approval") || null;
+}
+
+function canApproveDocumentCancelRequests() {
+  return hasAdminPermission("document_cancel_approve");
+}
+
 function canAdjustInventoryDirectly() {
   return hasAdminPermission("inventory_adjust_manage");
 }
@@ -5108,6 +5174,7 @@ async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "ac
     state.carts = payload.carts || [];
     state.purchases = payload.purchases || [];
     state.bulkOrderRequests = payload.bulk_order_requests || payload.bulkOrderRequests || [];
+    state.documentCancelRequests = payload.document_cancel_requests || payload.documentCancelRequests || [];
     syncSalesState();
     if (state.admin?.isAdmin && state.activeMenu === "admin") {
       try {
@@ -6701,6 +6768,9 @@ registerSalesControllerEvents({
     resetCustomerReturnDraft,
     submitCustomerReturnDraft,
     updateCartPaymentDetails,
+    requestOrderCancellation,
+    approveDocumentCancelRequest,
+    rejectDocumentCancelRequest,
     setPaginationPageForItem,
   },
   renderers: {
@@ -6720,6 +6790,9 @@ registerSalesControllerEvents({
     canEditCartDiscount,
     getCartCostWarning,
     getVisibleOrders,
+    getLatestDocumentCancelRequest,
+    getPendingDocumentCancelRequest,
+    canApproveDocumentCancelRequests,
   },
   utils: {
     formatCurrency,
@@ -6900,6 +6973,9 @@ registerPurchasesControllerEvents({
     resetSupplierReturnDraft,
     submitSupplierReturnDraft,
     updatePurchasePaymentDetails,
+    requestPurchaseCancellation,
+    approveDocumentCancelRequest,
+    rejectDocumentCancelRequest,
     createQuickPurchaseDocument,
     resetQuickPurchaseDraft,
     cloneActivePurchaseIntoQuickPurchaseDraft,
@@ -6929,6 +7005,9 @@ registerPurchasesControllerEvents({
     canMarkPurchasePaid,
     isRepairableInvalidPurchase,
     getOpenPurchaseSupplierConflictInsight,
+    getLatestDocumentCancelRequest,
+    getPendingDocumentCancelRequest,
+    canApproveDocumentCancelRequests,
     getSkipNextPurchaseSupplierChangePersist: () => skipNextPurchaseSupplierChangePersist,
     getVisiblePurchases,
   },

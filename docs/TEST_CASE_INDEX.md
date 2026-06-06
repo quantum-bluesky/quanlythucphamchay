@@ -188,6 +188,12 @@ Mục tiêu:
 | 149 | `UT-QUICK-05` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_quick_05_quick_documents_validate_required_party_and_stock` |
 | 150 | `UT-AUTH-12B` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_12b_quick_purchase_and_sale_routes_create_documents_with_history` |
 | 151 | `UT-AUTH-15` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_15_inventory_adjust_permission_user_can_adjust_without_admin_role` |
+| 152 | `UT-CANCEL-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_cancel_01_completed_order_cancellation_request_approval_restores_stock_and_nets_report` |
+| 153 | `UT-CANCEL-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_cancel_02_received_purchase_cancellation_request_approval_reduces_stock_and_nets_report` |
+| 154 | `UT-CANCEL-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_cancel_03_purchase_cancellation_rejects_when_original_stock_was_partially_used` |
+| 155 | `UT-CANCEL-04` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_cancel_04_reject_document_cancel_request_keeps_original_document_unchanged` |
+| 156 | `UT-AUTH-12C` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_12c_document_cancel_request_flow_requires_permission_and_updates_state` |
+| 157 | `ACC-CANCEL-01` | `tests/integration/document-cancel-approval.spec.js` | `npx playwright test tests/integration/document-cancel-approval.spec.js --grep "ACC-CANCEL-01"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 
