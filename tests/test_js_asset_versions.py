@@ -25,6 +25,10 @@ class JavaScriptAssetVersionManagerTests(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.static_root = Path(self.temp_dir.name) / "static"
         self.static_root.mkdir(parents=True, exist_ok=True)
+        (self.static_root / "bootstrap.js").write_text(
+            'import("./app.js");\n',
+            encoding="utf-8",
+        )
         (self.static_root / "app.js").write_text(
             'import { value } from "./modules/value.js";\nconsole.log(value);\n',
             encoding="utf-8",
@@ -82,19 +86,24 @@ class JavaScriptAssetVersionManagerTests(unittest.TestCase):
             app_version=app_version,
         )
 
-        html_text = '<!doctype html><html><body><script type="module" src="./static/app.js"></script></body></html>'
+        html_text = '<!doctype html><html><body><script type="module" src="./static/bootstrap.js"></script></body></html>'
         versioned_html = manager.inject_index_versions(html_text)
-        self.assertIn(f'./static/app.js?v={app_version}.1', versioned_html)
+        self.assertIn(f'./static/bootstrap.js?v={app_version}.1', versioned_html)
 
         app_source = (self.static_root / "app.js").read_text(encoding="utf-8")
         rewritten_source = manager.rewrite_module_imports("app.js", app_source)
         self.assertIn(f'./modules/value.js?v={app_version}.1', rewritten_source)
+
+        bootstrap_source = (self.static_root / "bootstrap.js").read_text(encoding="utf-8")
+        rewritten_bootstrap_source = manager.rewrite_module_imports("bootstrap.js", bootstrap_source)
+        self.assertIn(f'./app.js?v={app_version}.1', rewritten_bootstrap_source)
 
         absolute_import_source = 'import "/static/modules/value.js";\n'
         rewritten_absolute_import = manager.rewrite_module_imports("app.js", absolute_import_source)
         self.assertIn(f'./modules/value.js?v={app_version}.1', rewritten_absolute_import)
 
         manifest = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["files"]["bootstrap.js"]["counter"], 1)
         self.assertEqual(manifest["files"]["app.js"]["counter"], 1)
         self.assertEqual(manifest["files"]["modules/value.js"]["counter"], 1)
 

@@ -81,7 +81,8 @@ export function registerProductsControllerEvents(contract) {
   dom.productHistoryActorInput?.addEventListener("input", async (event) => {
     state.productHistoryActorFilter = event.target.value;
     try {
-      await actions.refreshData();
+      await actions.refreshProductAuxData();
+      renderers.renderProductHistory();
     } catch (error) {
       actions.showToast(error.message, true);
     }
@@ -90,7 +91,8 @@ export function registerProductsControllerEvents(contract) {
   dom.productHistoryStartDateInput?.addEventListener("change", async (event) => {
     state.productHistoryStartDate = event.target.value;
     try {
-      await actions.refreshData();
+      await actions.refreshProductAuxData();
+      renderers.renderProductHistory();
     } catch (error) {
       actions.showToast(error.message, true);
     }
@@ -99,7 +101,8 @@ export function registerProductsControllerEvents(contract) {
   dom.productHistoryEndDateInput?.addEventListener("change", async (event) => {
     state.productHistoryEndDate = event.target.value;
     try {
-      await actions.refreshData();
+      await actions.refreshProductAuxData();
+      renderers.renderProductHistory();
     } catch (error) {
       actions.showToast(error.message, true);
     }
