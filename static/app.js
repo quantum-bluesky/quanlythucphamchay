@@ -209,6 +209,9 @@ import {
   globalBusyOverlay,
   globalBusyCard,
   globalBusyLabel,
+  globalBusyMessage,
+  globalBusyActions,
+  globalBusyRetryButton,
   activeScreenBarTitle,
   appVersionButton,
   appVersionLabel,
@@ -307,6 +310,7 @@ const PROCUREMENT_LOCK_HEARTBEAT_INTERVAL_MS = 60000;
 const LOGIN_GUARD_EVENT_TYPES = ["click", "submit", "change", "input", "keydown", "focusin"];
 const PAGINATION_PAGE_SIZE_OPTIONS = [25, 50, 100];
 const GLOBAL_SAVING_UI_MESSAGE = "Đang lưu thay đổi...";
+const GLOBAL_SAVING_UI_DETAIL = "Vui lòng chờ trạng thái cập nhật xong trước khi thao tác tiếp.";
 const PROCUREMENT_LOCK_ALERT_TARGETS = {
   inventory: '[data-menu-section="inventory"] .inventory-panel',
   "create-order": '[data-menu-section="create-order"] .sales-panel',
@@ -373,13 +377,27 @@ function setBusyPageInert(active) {
   });
 }
 
-function applySavingUiState(message = GLOBAL_SAVING_UI_MESSAGE) {
+function applySavingUiState(message = GLOBAL_SAVING_UI_MESSAGE, detail = GLOBAL_SAVING_UI_DETAIL) {
   const isBusy = savingUiLockCount > 0;
   if (globalBusyLabel) {
     globalBusyLabel.textContent = message || GLOBAL_SAVING_UI_MESSAGE;
   }
+  if (globalBusyMessage) {
+    globalBusyMessage.textContent = detail || GLOBAL_SAVING_UI_DETAIL;
+  }
+  if (globalBusyActions) {
+    globalBusyActions.hidden = true;
+  }
+  if (globalBusyRetryButton) {
+    globalBusyRetryButton.onclick = null;
+  }
   if (globalBusyOverlay) {
     globalBusyOverlay.hidden = !isBusy;
+    if (isBusy) {
+      globalBusyOverlay.dataset.owner = "app";
+    } else if (globalBusyOverlay.dataset.owner === "app") {
+      delete globalBusyOverlay.dataset.owner;
+    }
   }
   document.body.classList.toggle("app-is-busy", isBusy);
   document.body.setAttribute("aria-busy", isBusy ? "true" : "false");

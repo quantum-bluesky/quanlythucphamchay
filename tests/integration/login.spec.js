@@ -121,3 +121,28 @@ test("IT-LOG-02 login form submit does not trigger login guard dialog while busy
   expect(dialogMessages).toEqual([]);
   expectNoRuntimeErrors(runtime);
 });
+
+test("IT-LOG-03 bootstrap retries once when app module import fails during authenticated reload", async ({ page, request }) => {
+  let firstAppModuleRequestFailed = false;
+
+  await page.route(/\/static\/app\.js(?:\?|$)/, async (route) => {
+    if (!firstAppModuleRequestFailed) {
+      firstAppModuleRequestFailed = true;
+      await route.abort("failed");
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "domcontentloaded" });
+
+  await expect(page.locator("#globalBusyOverlay")).toBeVisible();
+  await expect(page.locator("#adminLogoutButton")).toHaveText("Logout", { timeout: 20000 });
+  await expectScreenTitle(page, "Kiểm tra tồn kho");
+  await expect(page.locator("#globalBusyOverlay")).toBeHidden();
+  expect(firstAppModuleRequestFailed).toBeTruthy();
+});
