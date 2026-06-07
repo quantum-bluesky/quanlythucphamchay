@@ -825,7 +825,7 @@ Từ phiên bản này, màn `Master Admin` cũng là nơi login hệ thống:
 
 - `user` thường: dùng các màn nghiệp vụ chung
 - `Master Admin`: có thêm phần quản trị master data, backup/restore, legacy audit và chỉnh tồn trực tiếp
-- ô `Tài khoản` trên màn login chọn sẵn `masteradmin`; nếu cần đăng nhập Biz Manager hoặc user thường thì dùng dropdown `Tài khoản nhanh` rồi nhập mật khẩu
+- dropdown `Tài khoản nhanh` trên màn login hiển thị theo nhóm quyền như `Master Admin`, `Biz Manager`, `User thường`; danh sách này không hiện username, người dùng chỉ cần chọn nhóm quyền rồi nhập mật khẩu
 - user quản lý kinh doanh có thể được cấp riêng quyền `procurement_batch_manage` để xử lý kỳ gom nhập mà không có quyền chỉnh tồn trực tiếp
 - user được cấp `inventory_adjust_manage` có thể chỉnh tồn trực tiếp và tạo `Phiếu DC` mà không mở quyền quản trị `Master Admin`
 - user quản lý xuất nhanh có thể được cấp quyền `order_batch_manage` để duyệt/từ chối/xử lý tiếp các yêu cầu xuất nhanh của user thường
@@ -845,7 +845,7 @@ Màn này có 3 nhóm chức năng:
   - liệt kê các record còn phải admin review thủ công
   - cho gắn lại `receipt_code` hoặc `đơn nguồn` nếu đã đối chiếu chắc chắn
 - trạng thái phiên: nút `Login` / `Logout` nằm ở thanh header nổi; khi đã login sẽ hiện tên user bên cạnh
-- khi đã login, dropdown `Chuyển user...` nằm cạnh `Logout`; chọn tài khoản khác sẽ đăng xuất phiên hiện tại, quay về màn login và bắt buộc nhập lại mật khẩu trước khi đổi quyền
+- khi đã login, dropdown `Chuyển quyền...` nằm cạnh `Logout`; chọn nhóm quyền khác sẽ đăng xuất phiên hiện tại, quay về màn login và bắt buộc nhập lại mật khẩu trước khi đổi quyền
 
 Lưu ý timeout phiên:
 

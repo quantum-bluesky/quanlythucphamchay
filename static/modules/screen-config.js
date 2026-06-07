@@ -358,8 +358,8 @@ export const SCREEN_HELP = {
     overview: "Màn này vừa là nơi login hệ thống, vừa là nơi tài khoản admin quản trị master data, backup/restore và rà soát dữ liệu legacy đang dùng.",
     steps: [
       "Dùng tài khoản user hoặc admin đã cấu hình trong file hệ thống để login. Nếu bật EnableLogin thì phải login mới dùng được app.",
-      "Ô tài khoản mặc định chọn `masteradmin`; có thể dùng dropdown `Tài khoản nhanh` để chọn nhanh Master Admin, Biz Manager hoặc user thường rồi nhập mật khẩu.",
-      "Khi đã login, dropdown `Chuyển user...` cạnh nút Logout cho phép chọn nhanh tài khoản khác; app sẽ đăng xuất phiên hiện tại và bắt buộc nhập lại mật khẩu trước khi chuyển quyền.",
+      "Dropdown `Tài khoản nhanh` hiển thị theo nhóm quyền như Master Admin, Biz Manager hoặc user thường; app không hiện username trong danh sách chọn nhanh.",
+      "Khi đã login, dropdown `Chuyển quyền...` cạnh nút Logout cho phép chọn nhanh nhóm quyền khác; app sẽ đăng xuất phiên hiện tại và bắt buộc nhập lại mật khẩu trước khi chuyển quyền.",
       "Dùng export/import để quản trị dữ liệu master của sản phẩm, khách hàng và nhà cung cấp (hỗ trợ cả JSON và CSV).",
       "User thường chỉ dùng được phần nghiệp vụ chung; riêng `Master Admin` mới thấy module quản trị, còn user có `inventory_adjust_manage` chỉ được mở nhánh chỉnh tồn trực tiếp mà không thấy quyền quản trị.",
       "Session user thường dùng session_timeout_minutes, còn admin dùng admin_session_timeout_minutes trong system_config.json; nếu không có thao tác đủ lâu thì phiên sẽ tự hết hạn và cần login lại.",
