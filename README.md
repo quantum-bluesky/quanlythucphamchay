@@ -423,6 +423,12 @@ python -m unittest discover -s tests
 
 Integration test UI trên fixture DB riêng:
 
+Trên Linux/dev server, activate virtualenv trước để có đúng lệnh `python`:
+
+```bash
+source .venv/bin/activate
+```
+
 ```powershell
 npm install
 npx playwright install chromium

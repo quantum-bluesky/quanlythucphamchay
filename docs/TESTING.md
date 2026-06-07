@@ -94,6 +94,13 @@ npx playwright install chromium
 
 ### Chạy toàn bộ suite
 
+Trên Linux/dev server đã có virtualenv `.venv`, activate trước để `playwright.config.js` tìm được lệnh `python` đúng:
+
+```bash
+source .venv/bin/activate
+npm run test:integration
+```
+
 ```powershell
 npm run test:integration
 ```
