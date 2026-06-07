@@ -119,10 +119,9 @@ function populateQuickLoginAccounts(payload = {}) {
   const selectedUsername = String(adminUsernameInput?.value || "masteradmin").trim() || "masteradmin";
   adminQuickUserSelect.innerHTML = "";
   [...accountMap.values()].forEach((account) => {
-    const suffix = account.role === "admin" ? "Admin" : "User";
     const option = document.createElement("option");
     option.value = account.username;
-    option.textContent = `${account.label} (${account.username || suffix})`;
+    option.textContent = account.label || (account.role === "admin" ? "Master Admin" : "User thường");
     adminQuickUserSelect.append(option);
   });
   adminQuickUserSelect.value = selectedUsername;
