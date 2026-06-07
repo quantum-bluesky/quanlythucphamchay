@@ -158,10 +158,9 @@ export function createReportsAdminUi(deps) {
     const selectedLoginUsername = String(state.admin?.loginUsername || authAccounts[0]?.username || "masteradmin").trim();
     const accountOptions = authAccounts.map((account) => {
       const username = String(account.username || "").trim();
-      const label = String(account.label || username || "User").trim();
+      const label = String(account.label || (account.role === "admin" ? "Master Admin" : "User thường")).trim();
       const role = String(account.role || "").trim();
-      const suffix = role === "admin" ? "Admin" : "User";
-      return `<option value="${escapeHtml(username)}">${escapeHtml(label)} (${escapeHtml(username || suffix)})</option>`;
+      return `<option value="${escapeHtml(username)}">${escapeHtml(label || (role === "admin" ? "Master Admin" : "User thường"))}</option>`;
     }).join("");
     dom.adminLoginPanel.hidden = isAuthenticated;
     dom.adminModulePanel.hidden = !isAdmin;
@@ -173,7 +172,7 @@ export function createReportsAdminUi(deps) {
       dom.adminQuickUserSelect.value = selectedLoginUsername;
     }
     if (dom.adminSwitchUserSelect) {
-      dom.adminSwitchUserSelect.innerHTML = `<option value="">Chuyển user...</option>${accountOptions}`;
+      dom.adminSwitchUserSelect.innerHTML = `<option value="">Chuyển quyền...</option>${accountOptions}`;
       dom.adminSwitchUserSelect.value = "";
       dom.adminSwitchUserSelect.hidden = !isAuthenticated;
     }

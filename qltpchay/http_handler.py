@@ -66,7 +66,13 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 for permission in ((user_config or {}).get("permissions") or [])
                 if str(permission or "").strip()
             }
-            label = "Biz Manager" if username == "bizmanager" or permissions else "User thường"
+            manager_permissions = {
+                "procurement_batch_manage",
+                "order_batch_manage",
+                "inventory_adjust_manage",
+                "document_cancel_approve",
+            }
+            label = "Biz Manager" if username == "bizmanager" or permissions.intersection(manager_permissions) else "User thường"
             add_account(username, role="user", label=label)
         return accounts
 
