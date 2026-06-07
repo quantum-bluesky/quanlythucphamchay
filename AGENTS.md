@@ -127,6 +127,15 @@ Nếu thay workflow UI, menu, selector, sync state hoặc điều hướng, ưu 
 npm run test:integration
 ```
 
+Trên môi trường Linux hiện tại đã có virtualenv `.venv` với `python3-venv`; trước khi chạy full integration suite cần activate:
+
+```bash
+source .venv/bin/activate
+npm run test:integration
+```
+
+Không cần tạo symlink tạm `python -> python3` nếu đã activate `.venv`.
+
 Suite integration dùng `Playwright` và fixture DB tạm, được cấu hình ở:
 
 - `playwright.config.js`

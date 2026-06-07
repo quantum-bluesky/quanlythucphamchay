@@ -374,6 +374,8 @@ Liên kết detail hiện có:
   - rà soát và xử lý dữ liệu legacy đang dùng
 - thành phần chính:
   - login panel
+  - dropdown `Tài khoản nhanh` trong login panel, mặc định chọn username `masteradmin`
+  - header session có tên user, dropdown `Chuyển user...` và nút `Logout`
   - export/import master
   - backup/restore database
   - panel `Legacy Audit` gồm:
@@ -381,6 +383,9 @@ Liên kết detail hiện có:
     - khối `fix an toàn`
     - khối `review thủ công`
     - action gắn `receipt_code`, gắn `đơn nguồn`, mở phiếu, hủy/xóa phiếu lỗi
+- nguyên tắc UI:
+  - chọn account nhanh chỉ điền username, không lưu hoặc tự điền password
+  - khi switch sang tài khoản khác từ header, app phải logout phiên hiện tại và yêu cầu nhập lại password trước khi chuyển quyền
 
 ### `about` - About ứng dụng
 

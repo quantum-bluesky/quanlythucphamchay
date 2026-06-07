@@ -1,17 +1,17 @@
 {
-  "app_version": "3.16.1",
+  "app_version": "3.17.0",
   "files": {
     "app.js": {
-      "counter": 2,
-      "sha256": "259c24af8b7fdea0a2ce794294d16a4c0efd8a244cc73603563df8aeca058e81"
+      "counter": 1,
+      "sha256": "6418f89f8e1343d247bccff008de9e2b38aca6073a1fc9b0151679041380cc00"
     },
     "bootstrap.js": {
-      "counter": 1,
-      "sha256": "6a8c5bef1b69204c49e7f6c5447c84dd6765519767e31d20f942ba835dec1184"
+      "counter": 2,
+      "sha256": "68b2e266da1518c51b6675cd54448c3961aefd2396d49eece24cb18dc6e1f995"
     },
     "modules/app-state.js": {
       "counter": 1,
-      "sha256": "8e9e52e63d1b3f9bf9f9e86a6b660c3c4f0bd22519257bc2901f0684b8906d0b"
+      "sha256": "fd9ab2cb5887b4fe612a83ccae78fbc878d20705ce817e2712eec750ecbdea3e"
     },
     "modules/controllers/bulk-orders-controller.js": {
       "counter": 1,
@@ -43,7 +43,7 @@
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
-      "sha256": "7a10e65376633ecc904fa495c2b06f1b67cc3af293e952402aeda5d84af1165d"
+      "sha256": "3d3fcf3c1510273e69e40cc797e61e2aaad2a0492c7c169344fba192e2bd1dbe"
     },
     "modules/controllers/sales-controller.js": {
       "counter": 1,
@@ -51,7 +51,7 @@
     },
     "modules/dom.js": {
       "counter": 1,
-      "sha256": "05cae27608f9c3c106927777b57c4b0ee4f39cd7190966ea0069b4ff8b92475a"
+      "sha256": "cd736df05e080316ce1c77f20923d8d678b882037fa134430f1154c2fe3d293a"
     },
     "modules/domain-helpers/inventory-domain.js": {
       "counter": 1,
@@ -75,7 +75,7 @@
     },
     "modules/screen-config.js": {
       "counter": 1,
-      "sha256": "1306ac4d6646e181492479c3b5f4431cf385e107ba3cbb36782f2c757f115527"
+      "sha256": "efaca9a795705d5b8b41efc5b16688cdbd5be738960859eb9a57673410eb2ba6"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -110,8 +110,8 @@
       "sha256": "33774628a424ea112555c31baa3f5a8f6e271d2064088377ab123f1ea52cc496"
     },
     "modules/ui/reports-admin-ui.js": {
-      "counter": 1,
-      "sha256": "dfc1e52c3d7a6fb29a3e787d4a4d404131024f07b32efb844f8d64145d9674e3"
+      "counter": 3,
+      "sha256": "bc22206e7de3dae3aac02ac6eff3683f0b9bcc12f41411ab84e01ba04351afdd"
     },
     "modules/ui/sales-ui.js": {
       "counter": 1,

@@ -40,6 +40,20 @@ export function registerReportsAdminControllerEvents(contract) {
     }
   }
 
+  function setLoginUsername(username) {
+    const cleanUsername = String(username || "").trim() || "masteradmin";
+    state.admin = {
+      ...(state.admin || {}),
+      loginUsername: cleanUsername,
+    };
+    if (dom.adminUsernameInput) {
+      dom.adminUsernameInput.value = cleanUsername;
+    }
+    if (dom.adminQuickUserSelect) {
+      dom.adminQuickUserSelect.value = cleanUsername;
+    }
+  }
+
   dom.reportMonthInput.addEventListener("change", async (event) => {
     state.reportFocusMonth = event.target.value || new Date().toISOString().slice(0, 7);
     try {
@@ -112,6 +126,7 @@ export function registerReportsAdminControllerEvents(contract) {
 
   dom.adminLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    setLoginUsername(dom.adminUsernameInput.value.trim());
     try {
       const data = await actions.apiRequest("/api/session/login", {
         method: "POST",
@@ -128,6 +143,32 @@ export function registerReportsAdminControllerEvents(contract) {
       actions.showToast(data.message);
     } catch (error) {
       actions.showToast(error.message, true);
+    }
+  });
+
+  dom.adminQuickUserSelect?.addEventListener("change", (event) => {
+    setLoginUsername(event.target.value);
+    dom.adminPasswordInput?.focus();
+  });
+
+  dom.adminSwitchUserSelect?.addEventListener("change", async (event) => {
+    const username = String(event.target.value || "").trim();
+    if (!username) {
+      return;
+    }
+    setLoginUsername(username);
+    const returnMenu = state.activeMenu && state.activeMenu !== "login" ? state.activeMenu : "inventory";
+    try {
+      await actions.performSessionLogout("Đã đăng xuất. Nhập mật khẩu để chuyển tài khoản.", {
+        returnMenuAfterLogin: returnMenu,
+        targetMenu: "login",
+        nextLoginUsername: username,
+        focusPassword: true,
+      });
+    } catch (error) {
+      actions.showToast(error.message, true);
+    } finally {
+      event.target.value = "";
     }
   });
 

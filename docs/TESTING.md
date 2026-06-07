@@ -94,6 +94,13 @@ npx playwright install chromium
 
 ### Chạy toàn bộ suite
 
+Trên Linux/dev server đã có virtualenv `.venv`, activate trước để `playwright.config.js` tìm được lệnh `python` đúng:
+
+```bash
+source .venv/bin/activate
+npm run test:integration
+```
+
 ```powershell
 npm run test:integration
 ```
@@ -102,6 +109,7 @@ Quy ước mã case integration/acceptance:
 
 - `ACC-*`: acceptance case hoặc regression đang map trực tiếp với checklist bàn giao
 - `IT-*`: integration regression bổ sung ngoài checklist chính
+- Các case login/switch user nằm trong `tests/integration/login.spec.js`; ví dụ `IT-LOG-04` kiểm tra dropdown tài khoản nhanh và rule switch user phải nhập lại mật khẩu.
 
 Tên test Playwright đã được chuẩn hóa với mã ở đầu title để có thể lọc bằng `--grep`/`--grep-invert`.
 

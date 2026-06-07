@@ -5,6 +5,7 @@ const loginSection = document.querySelector('[data-menu-section="login"]');
 const adminLoginForm = document.getElementById("adminLoginForm");
 const adminUsernameInput = document.getElementById("adminUsernameInput");
 const adminPasswordInput = document.getElementById("adminPasswordInput");
+const adminQuickUserSelect = document.getElementById("adminQuickUserSelect");
 const adminSessionUserLabel = document.getElementById("adminSessionUserLabel");
 const adminLogoutButton = document.getElementById("adminLogoutButton");
 const appVersionLabel = document.getElementById("appVersionLabel");
@@ -16,6 +17,12 @@ const BOOTSTRAP_STATUS_DETAIL = "Vui lòng chờ trong giây lát. Ứng dụng 
 
 let toastTimer = null;
 let loginBindingReady = false;
+
+const FALLBACK_AUTH_ACCOUNTS = [
+  { username: "masteradmin", label: "Master Admin", role: "admin" },
+  { username: "bizmanager", label: "Biz Manager", role: "user" },
+  { username: "user", label: "User thường", role: "user" },
+];
 
 function resolveAppUrl(path) {
   const cleanPath = String(path || "").replace(/^\/+/, "");
@@ -94,11 +101,38 @@ function activateLoginScreen() {
   hideBootstrapStatus();
 }
 
+function populateQuickLoginAccounts(payload = {}) {
+  if (!adminQuickUserSelect) {
+    return;
+  }
+  const configuredAccounts = Array.isArray(payload.auth_accounts) ? payload.auth_accounts : [];
+  const accountMap = new Map();
+  [...configuredAccounts, ...FALLBACK_AUTH_ACCOUNTS].forEach((account) => {
+    const username = String(account?.username || "").trim();
+    if (!username || accountMap.has(username)) return;
+    accountMap.set(username, {
+      username,
+      label: String(account?.label || username).trim(),
+      role: String(account?.role || "").trim(),
+    });
+  });
+  const selectedUsername = String(adminUsernameInput?.value || "masteradmin").trim() || "masteradmin";
+  adminQuickUserSelect.innerHTML = "";
+  [...accountMap.values()].forEach((account) => {
+    const suffix = account.role === "admin" ? "Admin" : "User";
+    const option = document.createElement("option");
+    option.value = account.username;
+    option.textContent = `${account.label} (${account.username || suffix})`;
+    adminQuickUserSelect.append(option);
+  });
+  adminQuickUserSelect.value = selectedUsername;
+}
+
 function setLoginSubmitting(isSubmitting) {
   if (!adminLoginForm) {
     return;
   }
-  adminLoginForm.querySelectorAll("input, button").forEach((element) => {
+  adminLoginForm.querySelectorAll("input, select, button").forEach((element) => {
     element.disabled = isSubmitting;
   });
 }
@@ -149,6 +183,13 @@ function bindLoginForm() {
     return;
   }
   loginBindingReady = true;
+  adminQuickUserSelect?.addEventListener("change", () => {
+    const username = String(adminQuickUserSelect.value || "").trim();
+    if (adminUsernameInput && username) {
+      adminUsernameInput.value = username;
+    }
+    adminPasswordInput?.focus();
+  });
   adminLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const username = String(adminUsernameInput?.value || "").trim();
@@ -206,6 +247,7 @@ async function bootBootstrap() {
     }
     clearBootstrapRetryCount();
     activateLoginScreen();
+    populateQuickLoginAccounts(payload);
     bindLoginForm();
     adminUsernameInput?.focus();
   } catch (error) {

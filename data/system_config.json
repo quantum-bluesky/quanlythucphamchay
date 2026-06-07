@@ -1,5 +1,5 @@
 {
-  "version": "3.16.1",
+  "version": "3.17.0",
   "server": {
     "host": "0.0.0.0",
     "port": 4000
@@ -15,12 +15,22 @@
     {
       "username": "user",
       "password": "user12345",
-      "permissions": ["bulk_order_create", "bulk_order_commit"]
+      "permissions": [
+        "bulk_order_create",
+        "bulk_order_commit"
+      ]
     },
     {
       "username": "bizmanager",
       "password": "biz12345",
-      "permissions": ["procurement_batch_manage", "order_batch_manage", "bulk_order_create", "bulk_order_commit", "inventory_adjust_manage", "document_cancel_approve"]
+      "permissions": [
+        "procurement_batch_manage",
+        "order_batch_manage",
+        "bulk_order_create",
+        "bulk_order_commit",
+        "inventory_adjust_manage",
+        "document_cancel_approve"
+      ]
     }
   ],
   "mail": {
@@ -43,7 +53,10 @@
     "batch_lock_timeout_minutes": 180,
     "allow_daily_quick_shortage_flow": true,
     "required_login_for_batch_mode": true,
-    "planner_manager_usernames": ["masteradmin", "bizmanager"]
+    "planner_manager_usernames": [
+      "masteradmin",
+      "bizmanager"
+    ]
   },
   "pagination": {
     "items_per_page": 20,

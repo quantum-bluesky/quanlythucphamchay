@@ -181,7 +181,9 @@ import {
   adminLoginForm,
   adminUsernameInput,
   adminPasswordInput,
+  adminQuickUserSelect,
   adminSessionUserLabel,
+  adminSwitchUserSelect,
   adminLogoutButton,
   adminBackupButton,
   adminRestoreDbFile,
@@ -1240,8 +1242,11 @@ function getReportsAdminUi() {
         adminLoginPanel,
         adminModulePanel,
         adminSessionHeader,
+        adminUsernameInput,
         adminPasswordInput,
+        adminQuickUserSelect,
         adminSessionUserLabel,
+        adminSwitchUserSelect,
         adminLogoutButton,
         adminLegacyAuditRefreshButton,
         adminLegacyApplySafeFixesButton,
@@ -4991,19 +4996,34 @@ function handleBlockedLoginInteraction(event) {
   return true;
 }
 
-async function performSessionLogout(message) {
+async function performSessionLogout(message, options = {}) {
   try {
+    const {
+      returnMenuAfterLogin = "inventory",
+      targetMenu = "login",
+      nextLoginUsername = "",
+      focusPassword = false,
+    } = options || {};
     const data = await apiRequest("/api/session/logout", {
       method: "POST",
       body: JSON.stringify({}),
     });
     updateAdminSessionState(data);
+    if (nextLoginUsername) {
+      state.admin.loginUsername = String(nextLoginUsername || "").trim();
+      if (adminUsernameInput) {
+        adminUsernameInput.value = state.admin.loginUsername;
+      }
+    }
     if (state.admin?.enableLogin) {
       clearProtectedSessionData();
-      state.admin.returnMenuAfterLogin = "inventory";
-      switchMenu("login");
+      state.admin.returnMenuAfterLogin = String(returnMenuAfterLogin || "inventory").trim() || "inventory";
+      switchMenu(targetMenu || "login");
     }
     renderAll();
+    if (focusPassword) {
+      adminPasswordInput?.focus();
+    }
     showToast(message || data.message);
   } catch (error) {
     showToast(error.message, true);
@@ -5025,6 +5045,14 @@ function updateAdminSessionState(payload = {}) {
     permissions: Array.isArray(payload.permissions) ? payload.permissions.map((entry) => String(entry || "").trim()).filter(Boolean) : [],
     isAdmin: Boolean(payload.is_admin ?? payload.isAdmin),
     enableLogin: Boolean(payload.enable_login ?? payload.enableLogin),
+    loginUsername: previous.loginUsername || "masteradmin",
+    authAccounts: Array.isArray(payload.auth_accounts ?? payload.authAccounts)
+      ? (payload.auth_accounts ?? payload.authAccounts).map((entry) => ({
+        username: String(entry?.username || "").trim(),
+        label: String(entry?.label || "").trim(),
+        role: String(entry?.role || "").trim(),
+      })).filter((entry) => entry.username)
+      : previous.authAccounts || [],
     sessionStartedAt,
     timeoutMinutes,
     returnMenuAfterLogin,
@@ -7077,7 +7105,9 @@ registerReportsAdminControllerEvents({
     adminLoginForm,
     adminUsernameInput,
     adminPasswordInput,
+    adminQuickUserSelect,
     adminSessionHeader,
+    adminSwitchUserSelect,
     adminLogoutButton,
     adminModulePanel,
     adminBackupButton,
