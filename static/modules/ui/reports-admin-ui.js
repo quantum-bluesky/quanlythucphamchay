@@ -138,10 +138,44 @@ export function createReportsAdminUi(deps) {
   function renderAdminSection() {
     const isAuthenticated = Boolean(state.admin?.authenticated);
     const isAdmin = Boolean(state.admin?.isAdmin);
+    const configuredAccounts = Array.isArray(state.admin?.authAccounts) ? state.admin.authAccounts : [];
+    const fallbackAccounts = [
+      { username: "masteradmin", label: "Master Admin", role: "admin" },
+      { username: "bizmanager", label: "Biz Manager", role: "user" },
+      { username: "user", label: "User thường", role: "user" },
+    ];
+    const accountMap = new Map();
+    [...configuredAccounts, ...fallbackAccounts].forEach((account) => {
+      const username = String(account.username || "").trim();
+      if (!username || accountMap.has(username)) return;
+      accountMap.set(username, {
+        username,
+        label: String(account.label || username).trim(),
+        role: String(account.role || "").trim(),
+      });
+    });
+    const authAccounts = [...accountMap.values()];
+    const selectedLoginUsername = String(state.admin?.loginUsername || authAccounts[0]?.username || "masteradmin").trim();
+    const accountOptions = authAccounts.map((account) => {
+      const username = String(account.username || "").trim();
+      const label = String(account.label || username || "User").trim();
+      const role = String(account.role || "").trim();
+      const suffix = role === "admin" ? "Admin" : "User";
+      return `<option value="${escapeHtml(username)}">${escapeHtml(label)} (${escapeHtml(username || suffix)})</option>`;
+    }).join("");
     dom.adminLoginPanel.hidden = isAuthenticated;
     dom.adminModulePanel.hidden = !isAdmin;
     if (dom.adminSessionHeader) {
       dom.adminSessionHeader.hidden = !isAuthenticated;
+    }
+    if (dom.adminQuickUserSelect) {
+      dom.adminQuickUserSelect.innerHTML = accountOptions;
+      dom.adminQuickUserSelect.value = selectedLoginUsername;
+    }
+    if (dom.adminSwitchUserSelect) {
+      dom.adminSwitchUserSelect.innerHTML = `<option value="">Chuyển user...</option>${accountOptions}`;
+      dom.adminSwitchUserSelect.value = "";
+      dom.adminSwitchUserSelect.hidden = !isAuthenticated;
     }
     if (dom.adminSessionUserLabel) {
       if (isAuthenticated) {
@@ -156,6 +190,9 @@ export function createReportsAdminUi(deps) {
       dom.adminLogoutButton.textContent = isAuthenticated ? "Logout" : "Login";
     }
     if (!isAuthenticated) {
+      if (dom.adminUsernameInput && !dom.adminUsernameInput.value.trim()) {
+        dom.adminUsernameInput.value = selectedLoginUsername;
+      }
       dom.adminPasswordInput.value = "";
     }
 

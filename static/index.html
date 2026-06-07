@@ -15,6 +15,9 @@
     <div class="screen-header-actions">
       <div id="adminSessionHeader" class="admin-session-header" hidden>
         <span id="adminSessionUserLabel" class="panel-note">Chưa đăng nhập</span>
+        <select id="adminSwitchUserSelect" class="ghost-button compact-button" aria-label="Chuyển tài khoản đăng nhập nhanh">
+          <option value="">Chuyển user...</option>
+        </select>
         <button type="button" id="adminLogoutButton" class="ghost-button compact-button">Login</button>
       </div>
       <button type="button" id="appVersionButton" class="ghost-button compact-button app-version-button" aria-controls="aboutSection">
@@ -37,8 +40,14 @@
       <section id="adminLoginPanel" class="sales-card">
         <form id="adminLoginForm" class="customer-form">
           <label>
+            <span>Tài khoản nhanh</span>
+            <select id="adminQuickUserSelect" class="ghost-button compact-button">
+              <option value="masteradmin">Master Admin</option>
+            </select>
+          </label>
+          <label>
             <span>Tài khoản</span>
-            <input id="adminUsernameInput" type="text" autocomplete="username" required>
+            <input id="adminUsernameInput" type="text" autocomplete="username" value="masteradmin" required>
           </label>
           <label>
             <span>Mật khẩu</span>

@@ -41,6 +41,8 @@ export const state = {
     role: "",
     isAdmin: false,
     enableLogin: false,
+    loginUsername: "masteradmin",
+    authAccounts: [],
     sessionStartedAt: "",
     timeoutMinutes: 360,
     returnMenuAfterLogin: "",

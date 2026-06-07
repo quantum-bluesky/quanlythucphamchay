@@ -107,6 +107,10 @@ select {
   white-space: nowrap;
 }
 
+.admin-session-header select {
+  max-width: 150px;
+}
+
 .screen-header-main {
   min-width: 0;
   display: grid;
@@ -2027,6 +2031,10 @@ button:disabled {
     font-size: 0.74rem;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .admin-session-header select {
+    max-width: 116px;
   }
 
   .app-version-button {

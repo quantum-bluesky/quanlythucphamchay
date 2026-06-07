@@ -146,3 +146,41 @@ test("IT-LOG-03 bootstrap retries once when app module import fails during authe
   await expect(page.locator("#globalBusyOverlay")).toBeHidden();
   expect(firstAppModuleRequestFailed).toBeTruthy();
 });
+
+test("IT-LOG-04 quick account picker and switch user require password before changing permissions", async ({ page }) => {
+  const runtime = attachRuntimeTracking(page);
+
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.locator('[data-menu-section="login"]')).toHaveClass(/is-active/);
+  await expect(page.locator("#adminUsernameInput")).toHaveValue("masteradmin");
+
+  await page.locator("#adminQuickUserSelect").selectOption("bizmanager");
+  await expect(page.locator("#adminUsernameInput")).toHaveValue("bizmanager");
+  await page.locator("#adminPasswordInput").fill("biz12345");
+  await page.locator('#adminLoginForm button[type="submit"]').click();
+  await collectToast(page, runtime, "quick-biz-login");
+
+  await expect(page.locator("#adminLogoutButton")).toHaveText("Logout");
+  await expect(page.locator("#adminSessionUserLabel")).toHaveText("bizmanager");
+  await expect(page.locator("#adminModulePanel")).toBeHidden();
+
+  await page.locator("#adminSwitchUserSelect").selectOption("user");
+  await collectToast(page, runtime, "switch-user-logout");
+
+  await expect(page.locator('[data-menu-section="login"]')).toHaveClass(/is-active/);
+  await expect(page.locator("#adminLogoutButton")).toHaveText("Login");
+  await expect(page.locator("#adminSessionUserLabel")).toBeHidden();
+  await expect(page.locator("#adminUsernameInput")).toHaveValue("user");
+  await expect(page.locator("#adminPasswordInput")).toHaveValue("");
+
+  await page.locator("#adminPasswordInput").fill("user12345");
+  await page.locator('#adminLoginForm button[type="submit"]').click();
+  await collectToast(page, runtime, "switch-user-login");
+
+  await expect(page.locator("#adminLogoutButton")).toHaveText("Logout");
+  await expect(page.locator("#adminSessionUserLabel")).toHaveText("user");
+  await expect(page.locator("#adminModulePanel")).toBeHidden();
+  expectNoRuntimeErrors(runtime);
+});
