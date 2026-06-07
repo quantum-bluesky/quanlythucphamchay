@@ -42,40 +42,6 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
     except (TypeError, ValueError):
         admin_session_timeout_minutes = 30
 
-    def get_auth_account_options() -> list[dict[str, str]]:
-        accounts: list[dict[str, str]] = []
-        seen_usernames: set[str] = set()
-
-        def add_account(username: str, *, role: str, label: str) -> None:
-            clean_username = str(username or "").strip()
-            if not clean_username or clean_username in seen_usernames:
-                return
-            seen_usernames.add(clean_username)
-            accounts.append({"username": clean_username, "role": role, "label": label})
-
-        admin_config = (system_config or {}).get("admin", {})
-        add_account(
-            admin_config.get("username") or "masteradmin",
-            role="admin",
-            label="Master Admin",
-        )
-        for user_config in (system_config or {}).get("users", []) or []:
-            username = str((user_config or {}).get("username") or "").strip()
-            permissions = {
-                str(permission or "").strip()
-                for permission in ((user_config or {}).get("permissions") or [])
-                if str(permission or "").strip()
-            }
-            manager_permissions = {
-                "procurement_batch_manage",
-                "order_batch_manage",
-                "inventory_adjust_manage",
-                "document_cancel_approve",
-            }
-            label = "Biz Manager" if username == "bizmanager" or permissions.intersection(manager_permissions) else "User thường"
-            add_account(username, role="user", label=label)
-        return accounts
-
     class InventoryRequestHandler(BaseHTTPRequestHandler):
         @staticmethod
         def _get_app_info() -> dict:
@@ -514,10 +480,15 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             if route == "/api/session/login":
                 try:
                     payload = self._read_json_body()
-                    session_data = admin_sessions.login(
-                        str(payload.get("username", "")).strip(),
-                        str(payload.get("password", "")).strip(),
-                    )
+                    password = str(payload.get("password", "")).strip()
+                    account_type = str(payload.get("account_type", "") or payload.get("accountType", "")).strip()
+                    if account_type:
+                        session_data = admin_sessions.login_by_account_type(account_type, password)
+                    else:
+                        session_data = admin_sessions.login(
+                            str(payload.get("username", "")).strip(),
+                            password,
+                        )
                     self._send_json(
                         HTTPStatus.OK,
                         {
@@ -2035,7 +2006,6 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 "enable_login": auth_enabled,
                 "session_started_at": str(session.get("started_at") or "") if session else "",
                 "timeout_minutes": admin_session_timeout_minutes if role == "admin" else session_timeout_minutes,
-                "auth_accounts": get_auth_account_options(),
                 "app": self._get_app_info(),
                 "debug": self._get_debug_info(),
                 "pagination": self._get_pagination_info(),

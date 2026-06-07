@@ -152,21 +152,31 @@ test("IT-LOG-04 quick account picker and switch user require password before cha
 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  const publicSessionStatus = await page.evaluate(async () => {
+    const response = await fetch("/api/session/status", { headers: { "X-Session-Activity": "passive" } });
+    return response.json();
+  });
+  expect(publicSessionStatus.auth_accounts).toBeUndefined();
+  expect(publicSessionStatus.authAccounts).toBeUndefined();
 
   await expect(page.locator('[data-menu-section="login"]')).toHaveClass(/is-active/);
-  await expect(page.locator("#adminUsernameInput")).toHaveValue("masteradmin");
+  await expect(page.locator("#adminUsernameInput")).toHaveValue("");
   const quickAccountLabels = await page.locator("#adminQuickUserSelect option").evaluateAll((options) =>
     options.map((option) => option.textContent.trim())
   );
+  const quickAccountValues = await page.locator("#adminQuickUserSelect option").evaluateAll((options) =>
+    options.map((option) => option.getAttribute("value") || "")
+  );
   expect(quickAccountLabels).toContain("Master Admin");
   expect(quickAccountLabels).toContain("Biz Manager");
-  expect(quickAccountLabels).toContain("User thường");
+  expect(quickAccountLabels).toContain("Normal User");
   expect(quickAccountLabels).not.toContain("masteradmin");
   expect(quickAccountLabels).not.toContain("bizmanager");
   expect(quickAccountLabels).not.toContain("user");
+  expect(quickAccountValues).toEqual(["admin", "biz_manager", "normal_user"]);
 
-  await page.locator("#adminQuickUserSelect").selectOption("bizmanager");
-  await expect(page.locator("#adminUsernameInput")).toHaveValue("bizmanager");
+  await page.locator("#adminQuickUserSelect").selectOption("biz_manager");
+  await expect(page.locator("#adminUsernameInput")).toHaveValue("");
   await page.locator("#adminPasswordInput").fill("biz12345");
   await page.locator('#adminLoginForm button[type="submit"]').click();
   await collectToast(page, runtime, "quick-biz-login");
@@ -177,21 +187,26 @@ test("IT-LOG-04 quick account picker and switch user require password before cha
   const switchAccountLabels = await page.locator("#adminSwitchUserSelect option").evaluateAll((options) =>
     options.map((option) => option.textContent.trim())
   );
+  const switchAccountValues = await page.locator("#adminSwitchUserSelect option").evaluateAll((options) =>
+    options.map((option) => option.getAttribute("value") || "")
+  );
   expect(switchAccountLabels).toContain("Chuyển quyền...");
   expect(switchAccountLabels).toContain("Master Admin");
   expect(switchAccountLabels).toContain("Biz Manager");
-  expect(switchAccountLabels).toContain("User thường");
+  expect(switchAccountLabels).toContain("Normal User");
   expect(switchAccountLabels).not.toContain("masteradmin");
   expect(switchAccountLabels).not.toContain("bizmanager");
   expect(switchAccountLabels).not.toContain("user");
+  expect(switchAccountValues).toEqual(["", "admin", "biz_manager", "normal_user"]);
 
-  await page.locator("#adminSwitchUserSelect").selectOption("user");
+  await page.locator("#adminSwitchUserSelect").selectOption("normal_user");
   await collectToast(page, runtime, "switch-user-logout");
 
   await expect(page.locator('[data-menu-section="login"]')).toHaveClass(/is-active/);
   await expect(page.locator("#adminLogoutButton")).toHaveText("Login");
   await expect(page.locator("#adminSessionUserLabel")).toBeHidden();
-  await expect(page.locator("#adminUsernameInput")).toHaveValue("user");
+  await expect(page.locator("#adminUsernameInput")).toHaveValue("");
+  await expect(page.locator("#adminQuickUserSelect")).toHaveValue("normal_user");
   await expect(page.locator("#adminPasswordInput")).toHaveValue("");
 
   await page.locator("#adminPasswordInput").fill("user12345");

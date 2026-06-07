@@ -18,10 +18,10 @@ const BOOTSTRAP_STATUS_DETAIL = "Vui lòng chờ trong giây lát. Ứng dụng 
 let toastTimer = null;
 let loginBindingReady = false;
 
-const FALLBACK_AUTH_ACCOUNTS = [
-  { username: "masteradmin", label: "Master Admin", role: "admin" },
-  { username: "bizmanager", label: "Biz Manager", role: "user" },
-  { username: "user", label: "User thường", role: "user" },
+const QUICK_ACCOUNT_TYPES = [
+  { type: "admin", label: "Master Admin" },
+  { type: "biz_manager", label: "Biz Manager" },
+  { type: "normal_user", label: "Normal User" },
 ];
 
 function resolveAppUrl(path) {
@@ -101,30 +101,19 @@ function activateLoginScreen() {
   hideBootstrapStatus();
 }
 
-function populateQuickLoginAccounts(payload = {}) {
+function populateQuickLoginAccounts() {
   if (!adminQuickUserSelect) {
     return;
   }
-  const configuredAccounts = Array.isArray(payload.auth_accounts) ? payload.auth_accounts : [];
-  const accountMap = new Map();
-  [...configuredAccounts, ...FALLBACK_AUTH_ACCOUNTS].forEach((account) => {
-    const username = String(account?.username || "").trim();
-    if (!username || accountMap.has(username)) return;
-    accountMap.set(username, {
-      username,
-      label: String(account?.label || username).trim(),
-      role: String(account?.role || "").trim(),
-    });
-  });
-  const selectedUsername = String(adminUsernameInput?.value || "masteradmin").trim() || "masteradmin";
+  const selectedType = String(adminQuickUserSelect.value || "admin").trim() || "admin";
   adminQuickUserSelect.innerHTML = "";
-  [...accountMap.values()].forEach((account) => {
+  QUICK_ACCOUNT_TYPES.forEach((account) => {
     const option = document.createElement("option");
-    option.value = account.username;
-    option.textContent = account.label || (account.role === "admin" ? "Master Admin" : "User thường");
+    option.value = account.type;
+    option.textContent = account.label;
     adminQuickUserSelect.append(option);
   });
-  adminQuickUserSelect.value = selectedUsername;
+  adminQuickUserSelect.value = QUICK_ACCOUNT_TYPES.some((account) => account.type === selectedType) ? selectedType : "admin";
 }
 
 function setLoginSubmitting(isSubmitting) {
@@ -183,18 +172,18 @@ function bindLoginForm() {
   }
   loginBindingReady = true;
   adminQuickUserSelect?.addEventListener("change", () => {
-    const username = String(adminQuickUserSelect.value || "").trim();
-    if (adminUsernameInput && username) {
-      adminUsernameInput.value = username;
+    if (adminUsernameInput) {
+      adminUsernameInput.value = "";
     }
     adminPasswordInput?.focus();
   });
   adminLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const username = String(adminUsernameInput?.value || "").trim();
+    const accountType = String(adminQuickUserSelect?.value || "admin").trim() || "admin";
     const password = String(adminPasswordInput?.value || "");
-    if (!username || !password) {
-      showToast("Vui lòng nhập tài khoản và mật khẩu.", true);
+    if (!password) {
+      showToast("Vui lòng nhập mật khẩu.", true);
       return;
     }
     setLoginSubmitting(true);
@@ -202,7 +191,7 @@ function bindLoginForm() {
     try {
       const payload = await requestJson("api/session/login", {
         method: "POST",
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(username ? { username, password } : { account_type: accountType, password }),
       });
       updateVersionLabel(payload);
       clearBootstrapRetryCount();
@@ -246,7 +235,7 @@ async function bootBootstrap() {
     }
     clearBootstrapRetryCount();
     activateLoginScreen();
-    populateQuickLoginAccounts(payload);
+    populateQuickLoginAccounts();
     bindLoginForm();
     adminUsernameInput?.focus();
   } catch (error) {

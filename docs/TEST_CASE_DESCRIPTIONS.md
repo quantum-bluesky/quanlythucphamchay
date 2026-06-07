@@ -44,7 +44,7 @@ Lưu ý:
 | 25 | `ACC-ADM-02` | Kiểm tra cùng luồng Master Admin ở trên vẫn hoạt động đầy đủ và ổn định trong cùng spec admin. |
 | 26 | `ACC-ADM-03` | Kiểm tra chỉnh tồn trực tiếp yêu cầu đăng nhập quyền phù hợp và bắt buộc có lý do điều chỉnh. |
 | 27 | `ACC-LOG-01` | Kiểm tra login user thường, user có `inventory_adjust_manage` và admin cập nhật đúng header `Login/Logout`, ẩn/hiện đúng module quản trị, đồng thời chỉ user có quyền chỉnh tồn hoặc admin mới thấy panel chỉnh tồn trực tiếp / `Phiếu DC`, còn sửa giá vẫn chỉ dành cho admin. |
-| 28 | `IT-LOG-04` | Kiểm tra dropdown `Tài khoản nhanh` và `Chuyển quyền...` hiển thị theo nhóm quyền, không lộ username trong option label; khi chuyển quyền phải logout phiên hiện tại, điền account nội bộ mới nhưng vẫn bắt nhập lại password trước khi đổi quyền. |
+| 28 | `IT-LOG-04` | Kiểm tra dropdown `Tài khoản nhanh` và `Chuyển quyền...` chỉ có 3 type cố định `Master Admin/Biz Manager/Normal User`, không lộ username trong option label/value và không cần API list user; khi chuyển quyền phải logout phiên hiện tại và bắt nhập lại password trước khi đổi quyền. |
 | 28 | `ACC-SYNC-01` | Kiểm tra màn tạo đơn tự refresh tồn kho và giá sau khi có thay đổi từ client khác. |
 | 29 | `ACC-SYNC-02` | Kiểm tra sync state từ chối cập nhật giỏ hàng stale và trả metadata conflict đúng. |
 | 30 | `ACC-SYNC-03` | Kiểm tra sync state từ chối cập nhật phiếu nhập stale và trả metadata conflict đúng. |

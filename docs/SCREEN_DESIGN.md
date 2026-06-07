@@ -374,7 +374,7 @@ Liên kết detail hiện có:
   - rà soát và xử lý dữ liệu legacy đang dùng
 - thành phần chính:
   - login panel
-  - dropdown `Tài khoản nhanh` trong login panel, hiển thị theo nhóm quyền thay vì username
+  - dropdown `Tài khoản nhanh` trong login panel, chỉ gồm 3 type cố định `Master Admin`, `Biz Manager`, `Normal User`
   - header session có tên user, dropdown `Chuyển quyền...` và nút `Logout`
   - export/import master
   - backup/restore database
@@ -384,7 +384,7 @@ Liên kết detail hiện có:
     - khối `review thủ công`
     - action gắn `receipt_code`, gắn `đơn nguồn`, mở phiếu, hủy/xóa phiếu lỗi
 - nguyên tắc UI:
-  - chọn account nhanh chỉ hiển thị nhóm quyền trong dropdown, không lộ username trong option label, không lưu hoặc tự điền password
+  - chọn account nhanh chỉ hiển thị type quyền cố định trong dropdown; không gọi API lấy list user, không lộ username trong option label/value, không lưu hoặc tự điền password
   - khi switch sang nhóm quyền khác từ header, app phải logout phiên hiện tại và yêu cầu nhập lại password trước khi chuyển quyền
 
 ### `about` - About ứng dụng

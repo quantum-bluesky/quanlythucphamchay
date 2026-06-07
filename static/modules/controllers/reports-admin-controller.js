@@ -40,17 +40,17 @@ export function registerReportsAdminControllerEvents(contract) {
     }
   }
 
-  function setLoginUsername(username) {
-    const cleanUsername = String(username || "").trim() || "masteradmin";
+  function setLoginAccountType(accountType) {
+    const cleanAccountType = String(accountType || "").trim() || "admin";
     state.admin = {
       ...(state.admin || {}),
-      loginUsername: cleanUsername,
+      loginAccountType: cleanAccountType,
     };
     if (dom.adminUsernameInput) {
-      dom.adminUsernameInput.value = cleanUsername;
+      dom.adminUsernameInput.value = "";
     }
     if (dom.adminQuickUserSelect) {
-      dom.adminQuickUserSelect.value = cleanUsername;
+      dom.adminQuickUserSelect.value = cleanAccountType;
     }
   }
 
@@ -126,14 +126,15 @@ export function registerReportsAdminControllerEvents(contract) {
 
   dom.adminLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    setLoginUsername(dom.adminUsernameInput.value.trim());
+    const username = String(dom.adminUsernameInput?.value || "").trim();
+    const accountType = String(dom.adminQuickUserSelect?.value || state.admin?.loginAccountType || "admin").trim() || "admin";
+    setLoginAccountType(accountType);
     try {
       const data = await actions.apiRequest("/api/session/login", {
         method: "POST",
-        body: JSON.stringify({
-          username: dom.adminUsernameInput.value.trim(),
-          password: dom.adminPasswordInput.value,
-        }),
+        body: JSON.stringify(username
+          ? { username, password: dom.adminPasswordInput.value }
+          : { account_type: accountType, password: dom.adminPasswordInput.value }),
       });
       actions.updateAdminSessionState(data);
       await actions.refreshData({ sessionAlreadyLoaded: true });
@@ -147,22 +148,22 @@ export function registerReportsAdminControllerEvents(contract) {
   });
 
   dom.adminQuickUserSelect?.addEventListener("change", (event) => {
-    setLoginUsername(event.target.value);
+    setLoginAccountType(event.target.value);
     dom.adminPasswordInput?.focus();
   });
 
   dom.adminSwitchUserSelect?.addEventListener("change", async (event) => {
-    const username = String(event.target.value || "").trim();
-    if (!username) {
+    const accountType = String(event.target.value || "").trim();
+    if (!accountType) {
       return;
     }
-    setLoginUsername(username);
+    setLoginAccountType(accountType);
     const returnMenu = state.activeMenu && state.activeMenu !== "login" ? state.activeMenu : "inventory";
     try {
       await actions.performSessionLogout("Đã đăng xuất. Nhập mật khẩu để chuyển tài khoản.", {
         returnMenuAfterLogin: returnMenu,
         targetMenu: "login",
-        nextLoginUsername: username,
+        nextLoginAccountType: accountType,
         focusPassword: true,
       });
     } catch (error) {

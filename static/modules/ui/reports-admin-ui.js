@@ -138,29 +138,16 @@ export function createReportsAdminUi(deps) {
   function renderAdminSection() {
     const isAuthenticated = Boolean(state.admin?.authenticated);
     const isAdmin = Boolean(state.admin?.isAdmin);
-    const configuredAccounts = Array.isArray(state.admin?.authAccounts) ? state.admin.authAccounts : [];
-    const fallbackAccounts = [
-      { username: "masteradmin", label: "Master Admin", role: "admin" },
-      { username: "bizmanager", label: "Biz Manager", role: "user" },
-      { username: "user", label: "User thường", role: "user" },
+    const accountTypes = [
+      { type: "admin", label: "Master Admin" },
+      { type: "biz_manager", label: "Biz Manager" },
+      { type: "normal_user", label: "Normal User" },
     ];
-    const accountMap = new Map();
-    [...configuredAccounts, ...fallbackAccounts].forEach((account) => {
-      const username = String(account.username || "").trim();
-      if (!username || accountMap.has(username)) return;
-      accountMap.set(username, {
-        username,
-        label: String(account.label || username).trim(),
-        role: String(account.role || "").trim(),
-      });
-    });
-    const authAccounts = [...accountMap.values()];
-    const selectedLoginUsername = String(state.admin?.loginUsername || authAccounts[0]?.username || "masteradmin").trim();
-    const accountOptions = authAccounts.map((account) => {
-      const username = String(account.username || "").trim();
-      const label = String(account.label || (account.role === "admin" ? "Master Admin" : "User thường")).trim();
-      const role = String(account.role || "").trim();
-      return `<option value="${escapeHtml(username)}">${escapeHtml(label || (role === "admin" ? "Master Admin" : "User thường"))}</option>`;
+    const selectedLoginAccountType = String(state.admin?.loginAccountType || accountTypes[0]?.type || "admin").trim();
+    const accountOptions = accountTypes.map((account) => {
+      const type = String(account.type || "").trim();
+      const label = String(account.label || "Normal User").trim();
+      return `<option value="${escapeHtml(type)}">${escapeHtml(label)}</option>`;
     }).join("");
     dom.adminLoginPanel.hidden = isAuthenticated;
     dom.adminModulePanel.hidden = !isAdmin;
@@ -169,7 +156,7 @@ export function createReportsAdminUi(deps) {
     }
     if (dom.adminQuickUserSelect) {
       dom.adminQuickUserSelect.innerHTML = accountOptions;
-      dom.adminQuickUserSelect.value = selectedLoginUsername;
+      dom.adminQuickUserSelect.value = selectedLoginAccountType;
     }
     if (dom.adminSwitchUserSelect) {
       dom.adminSwitchUserSelect.innerHTML = `<option value="">Chuyển quyền...</option>${accountOptions}`;
@@ -189,9 +176,7 @@ export function createReportsAdminUi(deps) {
       dom.adminLogoutButton.textContent = isAuthenticated ? "Logout" : "Login";
     }
     if (!isAuthenticated) {
-      if (dom.adminUsernameInput && !dom.adminUsernameInput.value.trim()) {
-        dom.adminUsernameInput.value = selectedLoginUsername;
-      }
+      if (dom.adminUsernameInput) dom.adminUsernameInput.value = "";
       dom.adminPasswordInput.value = "";
     }
 

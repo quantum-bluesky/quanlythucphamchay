@@ -1,17 +1,17 @@
 {
-  "app_version": "3.17.0",
+  "app_version": "3.17.1",
   "files": {
     "app.js": {
-      "counter": 1,
-      "sha256": "6418f89f8e1343d247bccff008de9e2b38aca6073a1fc9b0151679041380cc00"
+      "counter": 2,
+      "sha256": "de97a3086a285afeef48bc5436828439bd4e31e5f306cd49a3abef39ad22a7e4"
     },
     "bootstrap.js": {
-      "counter": 3,
-      "sha256": "0049dbfc736903f85112ef743d243beddce0b76e21e06bf51428f18e03e8fb35"
+      "counter": 1,
+      "sha256": "d8a09c52cd4b8b979d19015aeede88024ebd9ff44590860ef6d1b6d3bb60048c"
     },
     "modules/app-state.js": {
-      "counter": 1,
-      "sha256": "fd9ab2cb5887b4fe612a83ccae78fbc878d20705ce817e2712eec750ecbdea3e"
+      "counter": 2,
+      "sha256": "6a03716f931d439aa414068ed9a698af5f2f3e5fbd776cd067145b78587b360f"
     },
     "modules/controllers/bulk-orders-controller.js": {
       "counter": 1,
@@ -43,7 +43,7 @@
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
-      "sha256": "3d3fcf3c1510273e69e40cc797e61e2aaad2a0492c7c169344fba192e2bd1dbe"
+      "sha256": "1465e6beb1859304bffbbf752402f4deabebb9b4274272951a0315052a71ff6c"
     },
     "modules/controllers/sales-controller.js": {
       "counter": 1,
@@ -74,8 +74,8 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 2,
-      "sha256": "6b87e489ce363c2215bfb52f7b17c07facdd9c2bb57ed77b93bafd517fc4f4a1"
+      "counter": 1,
+      "sha256": "ef6750bf7923a59d161bed9deca084b8c66da7cb6d539de6b8de53392c488929"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -110,8 +110,8 @@
       "sha256": "33774628a424ea112555c31baa3f5a8f6e271d2064088377ab123f1ea52cc496"
     },
     "modules/ui/reports-admin-ui.js": {
-      "counter": 4,
-      "sha256": "722c66d69a4be39e1bac31877d2497923f81dc3effe0dda8d1408edefe6cdaac"
+      "counter": 1,
+      "sha256": "e2f8b0b297e5c35894e196eeab862094dbdc4b710fb5b97f89f0712c4bc8928e"
     },
     "modules/ui/sales-ui.js": {
       "counter": 1,

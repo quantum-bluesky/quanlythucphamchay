@@ -40,6 +40,13 @@ def build_session_cookie_name_candidates(base_cookie_name: str, host_header: str
 
 
 class SessionManager:
+    MANAGER_PERMISSIONS = {
+        "procurement_batch_manage",
+        "order_batch_manage",
+        "inventory_adjust_manage",
+        "document_cancel_approve",
+    }
+
     def __init__(
         self,
         *,
@@ -122,6 +129,24 @@ class SessionManager:
                 return dict(user)
         return None
 
+    def _find_username_by_account_type(self, account_type: str) -> str:
+        clean_account_type = str(account_type or "").strip().lower().replace("-", "_")
+        if clean_account_type in {"admin", "master_admin"}:
+            return self.admin_username
+        if clean_account_type in {"biz_manager", "manager"}:
+            for user in self._users:
+                permissions = {str(permission or "").strip() for permission in (user.get("permissions") or [])}
+                if user["username"] == "bizmanager" or permissions.intersection(self.MANAGER_PERMISSIONS):
+                    return user["username"]
+            raise ValueError("Chưa cấu hình tài khoản Biz Manager.")
+        if clean_account_type in {"normal_user", "user"}:
+            for user in self._users:
+                permissions = {str(permission or "").strip() for permission in (user.get("permissions") or [])}
+                if user["username"] != "bizmanager" and not permissions.intersection(self.MANAGER_PERMISSIONS):
+                    return user["username"]
+            raise ValueError("Chưa cấu hình tài khoản user thường.")
+        raise ValueError("Loại tài khoản không hợp lệ.")
+
     def login(self, username: str, password: str, *, require_admin: bool = False) -> dict[str, str]:
         user = self._find_user(username)
         if not user or str(user.get("password") or "") != str(password or ""):
@@ -140,6 +165,10 @@ class SessionManager:
             "token": token,
             **session,
         }
+
+    def login_by_account_type(self, account_type: str, password: str) -> dict[str, str]:
+        username = self._find_username_by_account_type(account_type)
+        return self.login(username, password)
 
     def _is_session_expired(self, session: dict) -> bool:
         role = str(session.get("role") or "")

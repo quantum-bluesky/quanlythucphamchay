@@ -825,7 +825,7 @@ Từ phiên bản này, màn `Master Admin` cũng là nơi login hệ thống:
 
 - `user` thường: dùng các màn nghiệp vụ chung
 - `Master Admin`: có thêm phần quản trị master data, backup/restore, legacy audit và chỉnh tồn trực tiếp
-- dropdown `Tài khoản nhanh` trên màn login hiển thị theo nhóm quyền như `Master Admin`, `Biz Manager`, `User thường`; danh sách này không hiện username, người dùng chỉ cần chọn nhóm quyền rồi nhập mật khẩu
+- dropdown `Tài khoản nhanh` trên màn login chỉ hiển thị 3 type cố định `Master Admin`, `Biz Manager`, `Normal User`; app không lấy hoặc hiện danh sách username, người dùng chỉ cần chọn nhóm quyền rồi nhập mật khẩu
 - user quản lý kinh doanh có thể được cấp riêng quyền `procurement_batch_manage` để xử lý kỳ gom nhập mà không có quyền chỉnh tồn trực tiếp
 - user được cấp `inventory_adjust_manage` có thể chỉnh tồn trực tiếp và tạo `Phiếu DC` mà không mở quyền quản trị `Master Admin`
 - user quản lý xuất nhanh có thể được cấp quyền `order_batch_manage` để duyệt/từ chối/xử lý tiếp các yêu cầu xuất nhanh của user thường

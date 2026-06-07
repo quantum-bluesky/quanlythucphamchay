@@ -202,7 +202,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần
 - Có lịch sử quản lý sản phẩm hiển thị rõ field nào đã đổi, người thao tác và vẫn giữ đúng actor khi import master; kèm màn quản lý các đối tượng đã xóa để khôi phục an toàn
 - Có login hệ thống cho `user` thường, Biz Manager và `Master Admin`; có thể bật `EnableLogin` để bắt buộc login mới dùng app
-- Màn login có dropdown `Tài khoản nhanh` hiển thị theo nhóm quyền `Master Admin / Biz Manager / User thường` thay vì lộ username; khi đã login có dropdown `Chuyển quyền...` cạnh `Logout`, chọn nhóm quyền khác sẽ đăng xuất phiên hiện tại và bắt buộc nhập lại mật khẩu
+- Màn login có dropdown `Tài khoản nhanh` chỉ hiển thị 3 type cố định `Master Admin / Biz Manager / Normal User`, không lấy hoặc lộ danh sách username; khi đã login có dropdown `Chuyển quyền...` cạnh `Logout`, chọn nhóm quyền khác sẽ đăng xuất phiên hiện tại và bắt buộc nhập lại mật khẩu
 - Nếu bật login, có thể tách quyền `bulk_order_create` và `bulk_order_commit` để user chỉ được lưu nháp nhiều đơn hoặc được chốt nhiều đơn
 - Permission `order_batch_manage` cho phép user quản lý xem toàn bộ yêu cầu xuất nhanh, duyệt/từ chối, xóa request còn `pending_approval` và xử lý tiếp request đã `approved`
 - Permission `inventory_adjust_manage` cho phép user đã login chỉnh tồn trực tiếp và tạo `Phiếu DC` trên màn `Tồn kho`, nhưng không mở quyền `Master Admin`, backup/restore hay sửa giá nhập

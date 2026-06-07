@@ -5001,7 +5001,7 @@ async function performSessionLogout(message, options = {}) {
     const {
       returnMenuAfterLogin = "inventory",
       targetMenu = "login",
-      nextLoginUsername = "",
+      nextLoginAccountType = "",
       focusPassword = false,
     } = options || {};
     const data = await apiRequest("/api/session/logout", {
@@ -5009,10 +5009,13 @@ async function performSessionLogout(message, options = {}) {
       body: JSON.stringify({}),
     });
     updateAdminSessionState(data);
-    if (nextLoginUsername) {
-      state.admin.loginUsername = String(nextLoginUsername || "").trim();
+    if (nextLoginAccountType) {
+      state.admin.loginAccountType = String(nextLoginAccountType || "").trim() || "admin";
+      if (adminQuickUserSelect) {
+        adminQuickUserSelect.value = state.admin.loginAccountType;
+      }
       if (adminUsernameInput) {
-        adminUsernameInput.value = state.admin.loginUsername;
+        adminUsernameInput.value = "";
       }
     }
     if (state.admin?.enableLogin) {
@@ -5045,14 +5048,7 @@ function updateAdminSessionState(payload = {}) {
     permissions: Array.isArray(payload.permissions) ? payload.permissions.map((entry) => String(entry || "").trim()).filter(Boolean) : [],
     isAdmin: Boolean(payload.is_admin ?? payload.isAdmin),
     enableLogin: Boolean(payload.enable_login ?? payload.enableLogin),
-    loginUsername: previous.loginUsername || "masteradmin",
-    authAccounts: Array.isArray(payload.auth_accounts ?? payload.authAccounts)
-      ? (payload.auth_accounts ?? payload.authAccounts).map((entry) => ({
-        username: String(entry?.username || "").trim(),
-        label: String(entry?.label || "").trim(),
-        role: String(entry?.role || "").trim(),
-      })).filter((entry) => entry.username)
-      : previous.authAccounts || [],
+    loginAccountType: previous.loginAccountType || "admin",
     sessionStartedAt,
     timeoutMinutes,
     returnMenuAfterLogin,

@@ -42,12 +42,14 @@
           <label>
             <span>Tài khoản nhanh</span>
             <select id="adminQuickUserSelect" class="ghost-button compact-button">
-              <option value="masteradmin">Master Admin</option>
+              <option value="admin">Master Admin</option>
+              <option value="biz_manager">Biz Manager</option>
+              <option value="normal_user">Normal User</option>
             </select>
           </label>
           <label>
-            <span>Tài khoản</span>
-            <input id="adminUsernameInput" type="text" autocomplete="username" value="masteradmin" required>
+            <span>Tài khoản thủ công</span>
+            <input id="adminUsernameInput" type="text" autocomplete="username" placeholder="Để trống nếu dùng tài khoản nhanh">
           </label>
           <label>
             <span>Mật khẩu</span>
