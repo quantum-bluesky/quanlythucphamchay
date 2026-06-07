@@ -50,6 +50,7 @@ Mục tiêu:
 | 25 | `ACC-ADM-02` | `tests/integration/admin.spec.js` | `npx playwright test tests/integration/admin.spec.js --grep "ACC-ADM-02"` |
 | 26 | `ACC-ADM-03` | `tests/integration/workflow-phase-a.spec.js` | `npx playwright test tests/integration/workflow-phase-a.spec.js --grep "ACC-ADM-03"` |
 | 27 | `ACC-LOG-01` | `tests/integration/login.spec.js` | `npx playwright test tests/integration/login.spec.js --grep "ACC-LOG-01"` |
+| 28 | `IT-LOG-04` | `tests/integration/login.spec.js` | `npx playwright test tests/integration/login.spec.js --grep "IT-LOG-04"` |
 | 28 | `ACC-SYNC-01` | `tests/integration/cross-client-sync.spec.js` | `npx playwright test tests/integration/cross-client-sync.spec.js --grep "ACC-SYNC-01"` |
 | 29 | `ACC-SYNC-02` | `tests/integration/workflow-phase-c.spec.js` | `npx playwright test tests/integration/workflow-phase-c.spec.js --grep "ACC-SYNC-02"` |
 | 30 | `ACC-SYNC-03` | `tests/integration/workflow-phase-c.spec.js` | `npx playwright test tests/integration/workflow-phase-c.spec.js --grep "ACC-SYNC-03"` |

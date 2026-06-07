@@ -201,7 +201,8 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Danh mục sản phẩm có thêm `hạn dùng` và `thời gian bảo quản` theo số ngày để app làm fallback ước tính khi lô chưa có HSD thật, cũng như tự tính HSD từ `Ngày sản xuất` hoặc `Ngày nhập kho`; nếu lô đã có HSD riêng thì tồn kho ưu tiên dữ liệu lô
 - Hỗ trợ đưa sản phẩm ngừng bán vào danh mục đã xóa khi tồn kho bằng 0, kèm khôi phục lại khi cần
 - Có lịch sử quản lý sản phẩm hiển thị rõ field nào đã đổi, người thao tác và vẫn giữ đúng actor khi import master; kèm màn quản lý các đối tượng đã xóa để khôi phục an toàn
-- Có login hệ thống cho `user` thường và `Master Admin`; có thể bật `EnableLogin` để bắt buộc login mới dùng app
+- Có login hệ thống cho `user` thường, Biz Manager và `Master Admin`; có thể bật `EnableLogin` để bắt buộc login mới dùng app
+- Màn login chọn sẵn username `masteradmin`, có dropdown `Tài khoản nhanh` để chọn Master Admin / Biz Manager / user thường; khi đã login có dropdown `Chuyển user...` cạnh `Logout`, chọn tài khoản khác sẽ đăng xuất phiên hiện tại và bắt buộc nhập lại mật khẩu
 - Nếu bật login, có thể tách quyền `bulk_order_create` và `bulk_order_commit` để user chỉ được lưu nháp nhiều đơn hoặc được chốt nhiều đơn
 - Permission `order_batch_manage` cho phép user quản lý xem toàn bộ yêu cầu xuất nhanh, duyệt/từ chối, xóa request còn `pending_approval` và xử lý tiếp request đã `approved`
 - Permission `inventory_adjust_manage` cho phép user đã login chỉnh tồn trực tiếp và tạo `Phiếu DC` trên màn `Tồn kho`, nhưng không mở quyền `Master Admin`, backup/restore hay sửa giá nhập
@@ -421,6 +422,12 @@ python -m unittest discover -s tests
 ```
 
 Integration test UI trên fixture DB riêng:
+
+Trên Linux/dev server, activate virtualenv trước để có đúng lệnh `python`:
+
+```bash
+source .venv/bin/activate
+```
 
 ```powershell
 npm install
