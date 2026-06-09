@@ -20,6 +20,12 @@ INDEX_MODULE_SCRIPT_RE = re.compile(
     r'(?P<suffix>["\'][^>]*></script>)',
     re.IGNORECASE,
 )
+INDEX_STYLESHEET_RE = re.compile(
+    r'(?P<prefix><link[^>]*\brel=["\']stylesheet["\'][^>]*\bhref=["\'])'
+    r'(?P<specifier>(?:\./)?static/(?P<relative>[^"\']+?\.css)|/static/(?P<absolute>[^"\']+?\.css))'
+    r'(?P<suffix>["\'][^>]*>)',
+    re.IGNORECASE,
+)
 
 
 def hash_line_ending_normalized_bytes(content: bytes) -> str:
@@ -46,7 +52,9 @@ class JavaScriptAssetVersionManager:
         manifest = self._load_manifest()
         dirty = self._reset_for_app_version(manifest)
         current_files: set[str] = set()
-        for asset_path in sorted(self.static_root.rglob("*.js")):
+        for asset_path in sorted(
+            path for path in self.static_root.rglob("*") if path.suffix in {".css", ".js"}
+        ):
             relative_path = asset_path.resolve().relative_to(self.static_root).as_posix()
             current_files.add(relative_path)
             if self._sync_file_record(manifest, relative_path):
@@ -70,7 +78,7 @@ class JavaScriptAssetVersionManager:
         return f"./static/{normalized}?v={self.build_version_label(normalized)}"
 
     def inject_index_versions(self, html_text: str) -> str:
-        return INDEX_MODULE_SCRIPT_RE.sub(
+        versioned_html = INDEX_MODULE_SCRIPT_RE.sub(
             lambda match: (
                 f"{match.group('prefix')}"
                 f"{self._append_version_query(
@@ -81,6 +89,17 @@ class JavaScriptAssetVersionManager:
             ),
             html_text,
             count=1,
+        )
+        return INDEX_STYLESHEET_RE.sub(
+            lambda match: (
+                f"{match.group('prefix')}"
+                f"{self._append_version_query(
+                    match.group('specifier'),
+                    self.build_version_label(match.group('relative') or match.group('absolute') or 'styles.css'),
+                )}"
+                f"{match.group('suffix')}"
+            ),
+            versioned_html,
         )
 
     def rewrite_module_imports(self, relative_path: str, source_text: str) -> str:

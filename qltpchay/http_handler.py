@@ -1,5 +1,7 @@
 import base64
 import csv
+import gzip
+import hashlib
 import html
 import io
 import json
@@ -10,7 +12,7 @@ from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, parse_qsl, urlparse
 
 from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
 from .constants import ADMIN_SESSION_COOKIE, APP_NAME, JS_ASSET_VERSIONS_PATH, STATIC_DIR
@@ -33,6 +35,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
         app_version=app_version,
     )
     js_asset_versions.refresh_all()
+    long_lived_asset_cache = "public, max-age=31536000, immutable"
+    short_lived_asset_cache = "public, max-age=3600"
+    revalidated_cache = "no-cache, must-revalidate"
     try:
         session_timeout_minutes = max(1, int((system_config or {}).get("session_timeout_minutes", 360)))
     except (TypeError, ValueError):
@@ -1753,7 +1758,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
             content_type, _ = mimetypes.guess_type(safe_path.name)
             payload = safe_path.read_bytes()
-            cache_control = "public, max-age=3600"
+            cache_control = short_lived_asset_cache
+            parsed_request_path = urlparse(self.path)
+            has_version_query = any(key == "v" and value for key, value in parse_qsl(parsed_request_path.query))
             if safe_path.suffix == ".html":
                 html_text = payload.decode("utf-8")
                 html_text = self._inject_html_base_href(
@@ -1762,22 +1769,52 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 )
                 payload = js_asset_versions.inject_index_versions(html_text).encode("utf-8")
                 content_type = "text/html; charset=utf-8"
-                cache_control = "no-cache, must-revalidate"
+                cache_control = revalidated_cache
             elif safe_path.suffix == ".js":
                 source_text = payload.decode("utf-8")
                 relative_js_path = safe_path.relative_to(static_root).as_posix()
                 payload = js_asset_versions.rewrite_module_imports(relative_js_path, source_text).encode("utf-8")
                 content_type = "application/javascript; charset=utf-8"
-                cache_control = "no-cache, must-revalidate"
+                cache_control = long_lived_asset_cache if has_version_query else revalidated_cache
+            elif has_version_query:
+                cache_control = long_lived_asset_cache
+            etag = self._build_static_etag(payload)
+            if self.headers.get("If-None-Match") == etag:
+                self.send_response(HTTPStatus.NOT_MODIFIED)
+                self.send_header("ETag", etag)
+                self.send_header("Cache-Control", cache_control)
+                self.end_headers()
+                return
+            response_payload = payload
+            encoding = None
+            if self._accepts_gzip() and self._should_gzip_static_response(safe_path, payload):
+                response_payload = gzip.compress(payload, compresslevel=6)
+                encoding = "gzip"
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", content_type or "application/octet-stream")
             self.send_header("Cache-Control", cache_control)
-            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("ETag", etag)
+            if encoding:
+                self.send_header("Content-Encoding", encoding)
+                self.send_header("Vary", "Accept-Encoding")
+            self.send_header("Content-Length", str(len(response_payload)))
             self.end_headers()
             try:
-                self.wfile.write(payload)
+                self.wfile.write(response_payload)
             except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
                 return
+
+        @staticmethod
+        def _build_static_etag(payload: bytes) -> str:
+            return f'"{hashlib.sha256(payload).hexdigest()}"'
+
+        def _accepts_gzip(self) -> bool:
+            accepted_encodings = str(self.headers.get("Accept-Encoding") or "")
+            return any(part.strip().split(";", 1)[0].lower() == "gzip" for part in accepted_encodings.split(","))
+
+        @staticmethod
+        def _should_gzip_static_response(file_path: Path, payload: bytes) -> bool:
+            return file_path.suffix in {".css", ".html", ".js", ".json", ".svg", ".txt"} and len(payload) >= 1024
 
         @staticmethod
         def _is_login_enabled() -> bool:

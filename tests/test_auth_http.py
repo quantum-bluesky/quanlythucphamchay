@@ -1,5 +1,6 @@
 import gc
 import gc
+import gzip
 import http.client
 import json
 import os
@@ -108,14 +109,18 @@ class AuthHttpTests(unittest.TestCase):
             )
         return cookie_header.split(";", 1)[0]
 
-    def _request_text(self, method: str, path: str):
+    def _request_raw(self, method: str, path: str, *, extra_headers: dict | None = None):
         connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
-        connection.request(method, path)
+        connection.request(method, path, headers=dict(extra_headers or {}))
         response = connection.getresponse()
-        raw_body = response.read().decode("utf-8")
+        raw_body = response.read()
         headers_map = {key.lower(): value for key, value in response.getheaders()}
         connection.close()
         return response.status, raw_body, headers_map
+
+    def _request_text(self, method: str, path: str, *, extra_headers: dict | None = None):
+        status, raw_body, headers_map = self._request_raw(method, path, extra_headers=extra_headers)
+        return status, raw_body.decode("utf-8"), headers_map
 
     @staticmethod
     def _extract_cookie_value(cookie: str) -> str:
@@ -435,16 +440,42 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(html_status, 200)
         self.assertNotIn("<base ", html_body)
         self.assertIn(f'./static/bootstrap.js?v={app_version}.', html_body)
+        self.assertIn(f'./static/styles.css?v={app_version}.', html_body)
         self.assertEqual(html_headers.get("cache-control"), "no-cache, must-revalidate")
+        self.assertIn("etag", html_headers)
 
-        js_status, js_body, js_headers = self._request_text("GET", "/static/app.js")
+        js_status, js_body, js_headers = self._request_text("GET", f"/static/app.js?v={app_version}.1")
         self.assertEqual(js_status, 200)
         self.assertIn(f'?v={app_version}.', js_body)
-        self.assertEqual(js_headers.get("cache-control"), "no-cache, must-revalidate")
+        self.assertEqual(js_headers.get("cache-control"), "public, max-age=31536000, immutable")
+        self.assertIn("etag", js_headers)
+
+        js_revalidate_status, js_revalidate_body, js_revalidate_headers = self._request_raw(
+            "GET",
+            f"/static/app.js?v={app_version}.1",
+            extra_headers={"If-None-Match": js_headers["etag"]},
+        )
+        self.assertEqual(js_revalidate_status, 304)
+        self.assertEqual(js_revalidate_body, b"")
+        self.assertEqual(js_revalidate_headers.get("cache-control"), "public, max-age=31536000, immutable")
+
+        js_gzip_status, js_gzip_body, js_gzip_headers = self._request_raw(
+            "GET",
+            f"/static/app.js?v={app_version}.1",
+            extra_headers={"Accept-Encoding": "gzip"},
+        )
+        self.assertEqual(js_gzip_status, 200)
+        self.assertEqual(js_gzip_headers.get("content-encoding"), "gzip")
+        self.assertIn(f'?v={app_version}.', gzip.decompress(js_gzip_body).decode("utf-8"))
+
+        css_status, _, css_headers = self._request_text("GET", f"/static/styles.css?v={app_version}.1")
+        self.assertEqual(css_status, 200)
+        self.assertEqual(css_headers.get("cache-control"), "public, max-age=31536000, immutable")
 
         manifest = json.loads(self.asset_versions_path.read_text(encoding="utf-8"))
         self.assertEqual(manifest["app_version"], app_version)
         self.assertIn("app.js", manifest["files"])
+        self.assertIn("styles.css", manifest["files"])
 
     def test_ut_auth_07_session_cookie_is_scoped_per_request_port(self) -> None:
         config = {
