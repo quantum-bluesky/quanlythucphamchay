@@ -214,27 +214,31 @@ Hệ thống dùng `version` chính trong:
 data\system_config.json
 ```
 
-và manifest cache-busting cho từng file client JS ở:
+và manifest cache-busting cho từng file client JS/CSS ở:
 
 ```text
 data\js_asset_versions.json
 ```
 
-Khi server chạy, app sẽ quét các file `.js` trong `static\` và tự gắn URL dạng:
+Khi server chạy, app sẽ quét các file `.js` và `.css` trong `static\` và tự gắn URL dạng:
 
 ```text
 ./static/app.js?v=2.8.8.1
+./static/styles.css?v=2.8.8.1
 ./static/modules/controllers/sales-controller.js?v=2.8.8.3
 ```
 
 Quy tắc deploy:
 
-- Nếu không đổi `version` chính, mỗi file `.js` có nội dung thay đổi sẽ tự tăng `N` thêm `1`; sau `N` lần thay đổi nội dung của cùng file trong cùng version chính, URL của file đó sẽ là `version-chính.N`.
+- Nếu không đổi `version` chính, mỗi file `.js` hoặc `.css` có nội dung thay đổi sẽ tự tăng `N` thêm `1`; sau `N` lần thay đổi nội dung của cùng file trong cùng version chính, URL của file đó sẽ là `version-chính.N`.
 - Nếu `git pull` hoặc copy source giữa Windows/Linux chỉ làm đổi line ending `CRLF <-> LF`, manifest không tăng `N`; client sẽ không bị ép tải lại chỉ vì khác môi trường.
-- Nếu đổi `version` chính trong `data\system_config.json`, toàn bộ counter của file `.js` reset về `1`; lần chạy server đầu tiên sau deploy sẽ ghi lại manifest theo version mới.
-- Chỉ file `.js` thật sự đổi nội dung mới tăng counter; file không đổi giữ nguyên counter trong cùng version chính.
+- Nếu đổi `version` chính trong `data\system_config.json`, toàn bộ counter của file `.js`/`.css` reset về `1`; lần chạy server đầu tiên sau deploy sẽ ghi lại manifest theo version mới.
+- Chỉ file `.js`/`.css` thật sự đổi nội dung mới tăng counter; file không đổi giữ nguyên counter trong cùng version chính.
 - Khi deploy code mới, restart server để server đọc lại `system_config.json` và refresh manifest.
-- Sau deploy, người dùng chỉ cần reload trang bình thường; không cần `Ctrl+F5` vì URL `.js` đã đổi theo `?v=...`.
+- Sau deploy, người dùng chỉ cần reload trang bình thường; không cần `Ctrl+F5` vì URL asset đã đổi theo `?v=...`.
+- HTML luôn dùng `Cache-Control: no-cache, must-revalidate` để trình duyệt lấy danh sách URL version mới sau reload.
+- Static asset có `?v=...` dùng `Cache-Control: public, max-age=31536000, immutable`, nên trình duyệt chỉ tải lại khi version query đổi.
+- Server hỗ trợ `gzip` cho text asset như HTML, JS, CSS để giảm dung lượng tải qua mạng chậm.
 
 Ví dụ:
 
@@ -250,7 +254,7 @@ python app.py config
 Get-Content .\data\js_asset_versions.json
 ```
 
-Trong trình duyệt có thể mở Developer Tools, tab Network, reload trang và kiểm tra các request `.js` có query `?v=version-chính.N`.
+Trong trình duyệt có thể mở Developer Tools, tab Network, reload trang và kiểm tra các request `.js`/`.css` có query `?v=version-chính.N`, header `Cache-Control: public, max-age=31536000, immutable`, và `Content-Encoding: gzip` khi browser gửi `Accept-Encoding: gzip`.
 
 ## 8. Cho phép qua Windows Firewall
 
