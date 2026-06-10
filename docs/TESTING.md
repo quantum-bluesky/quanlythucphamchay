@@ -208,7 +208,7 @@ Các nhóm kiểm tra chính:
 
 - `Tồn kho -> Nhập hàng -> Xuất hàng -> Sản phẩm`
 - `Xử lý nhanh nhập/xuất hàng`: hiện tại có unit/API coverage cho các nhánh `ordered/received/paid` của phiếu nhập và `committed/completed/paid` của phiếu xuất, kèm validation thiếu đối tượng, thiếu mặt hàng, số lượng không hợp lệ và chặn xuất vượt tồn
-- `Tồn kho -> Lịch sử biến động sản phẩm`: mở từ shortcut hoặc từ card sản phẩm, mặc định hiện giao dịch theo ngày giảm dần nhưng đổi được sang tăng dần, tính đúng `Tồn đầu kỳ / Tổng nhập / Tổng xuất / Tồn cuối kỳ / Chênh lệch`, và giữ layout card ổn định trên mobile
+- `Tồn kho -> Lịch sử biến động sản phẩm`: mở từ shortcut hoặc từ card sản phẩm, mặc định hiện giao dịch theo ngày giảm dần nhưng đổi được sang tăng dần, có CTA `Phiếu DC` cho tài khoản đủ quyền để mở sẵn phiếu điều chỉnh của sản phẩm đang xem, tính đúng `Tồn đầu kỳ / Tổng nhập / Tổng xuất / Tồn cuối kỳ / Chênh lệch`, và giữ layout card ổn định trên mobile
 - `Tạo đơn xuất hàng`: chốt đơn hoàn chỉnh, cho phép chốt khi phần thiếu đã được phiếu nhập `Đã đặt` cover đủ, còn với thiếu hàng chưa đặt đủ thì user thường có confirm trước khi tạo/cập nhật phiếu nhập và không tạo trùng khi đã có phiếu mở liên quan
 - `Tạo đơn xuất hàng -> Tạo đơn mới`: khi user chủ động tách đơn mới, app phải hỏi confirm nếu đang có dữ liệu/preview cũ, rồi mở một draft trắng riêng mà không reuse draft đang có
 - `Tạo đơn xuất hàng -> Ghi chú phiếu xuất`: user tạo draft mới, nhập ghi chú ở form, mở `Detail` để xem/sửa lại, và ghi chú phải còn tồn tại trong DB sau khi reload dữ liệu

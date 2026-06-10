@@ -177,6 +177,7 @@ Lưu ý:
 | 143 | `IT-MOV-01` | Kiểm tra từ card sản phẩm ở màn `Tồn kho`, nút `Xem lịch sử` mở đúng màn `Lịch sử biến động sản phẩm` và chọn sẵn sản phẩm tương ứng. |
 | 144 | `IT-MOV-02` | Kiểm tra màn `Lịch sử biến động sản phẩm` vẫn giữ layout card gọn, không tràn ngang trên mobile sau khi tải summary và danh sách biến động. |
 | 144A | `IT-MOV-03` | Kiểm tra màn `Lịch sử biến động sản phẩm` mặc định hiển thị giao dịch mới hơn trước theo `Ngày giảm dần` và cho đổi sang `Ngày tăng dần` mà không làm sai list. |
+| 144B | `IT-MOV-04` | Kiểm tra user có quyền điều chỉnh tồn nhìn thấy nút `Phiếu DC` ngay trên màn `Lịch sử biến động sản phẩm`, bấm vào sẽ quay lại màn tồn kho và mở sẵn phiếu điều chỉnh cho đúng sản phẩm đang xem. |
 | 145 | `UT-QUICK-01` | Kiểm tra backend `Xử lý nhanh nhập hàng` khi chọn `Chỉ đặt hàng` sẽ tạo phiếu `ordered`, gắn `created_mode = quick_import` và không cộng tồn kho. |
 | 146 | `UT-QUICK-02` | Kiểm tra backend `Xử lý nhanh nhập hàng` khi chọn `Đã nhập hàng + Đã thanh toán luôn` sẽ tạo phiếu `paid`, cộng tồn, ghi stock movement `IN`, payment record và history có marker `Tạo bằng Xử lý nhanh nhập hàng`. |
 | 147 | `UT-QUICK-03` | Kiểm tra backend `Xử lý nhanh xuất hàng` khi chọn `Chỉ chốt đơn` sẽ tạo phiếu `committed`, gắn `created_mode = quick_export` và không trừ tồn kho. |

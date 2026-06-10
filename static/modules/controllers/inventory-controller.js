@@ -325,6 +325,18 @@ export function registerInventoryControllerEvents(contract) {
     }
   });
 
+  dom.productMovementCreateReceiptButton?.addEventListener("click", () => {
+    if (!requireInventoryAdjustAccess()) return;
+    const productId = Number(state.productMovementHistory?.productId || 0);
+    if (!productId) {
+      actions.showToast("Hãy chọn sản phẩm trước khi tạo phiếu điều chỉnh.", true);
+      return;
+    }
+    actions.openInventoryReceiptDraft(productId);
+    renderers.renderInventoryReceiptSection();
+    actions.focusInventoryReceiptSection();
+  });
+
   dom.productMovementList?.addEventListener("click", async (event) => {
     const linkButton = event.target.closest("[data-transaction-document-code]");
     if (!linkButton) return;

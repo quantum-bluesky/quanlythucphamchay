@@ -569,6 +569,9 @@ export function createInventoryUi(deps) {
     if (dom.productMovementKeywordInput) {
       dom.productMovementKeywordInput.value = state.productMovementHistory.keyword || "";
     }
+    if (dom.productMovementCreateReceiptButton) {
+      dom.productMovementCreateReceiptButton.hidden = true;
+    }
 
     if (!dom.productMovementSummaryCards || !dom.productMovementStatus || !dom.productMovementMeta || !dom.productMovementList) {
       return;
@@ -583,6 +586,7 @@ export function createInventoryUi(deps) {
     const movementSortLabel = sortOrder === "asc" ? "Ngày tăng dần" : "Ngày giảm dần";
     const rawMovements = Array.isArray(data?.movements) ? data.movements : [];
     const movements = sortOrder === "asc" ? rawMovements : [...rawMovements].reverse();
+    const canCreateAdjustmentReceipt = Boolean(canAdjustInventoryDirectly() && movementState.productId && product);
 
     if (movementState.loading) {
       dom.productMovementMeta.textContent = "Đang nạp lịch sử biến động...";
@@ -622,6 +626,10 @@ export function createInventoryUi(deps) {
       metaParts.push("Tóm tắt đang tính theo bộ lọc hiện tại.");
     }
     dom.productMovementMeta.textContent = metaParts.join(" • ");
+    if (dom.productMovementCreateReceiptButton) {
+      dom.productMovementCreateReceiptButton.hidden = !canCreateAdjustmentReceipt;
+      dom.productMovementCreateReceiptButton.textContent = "Phiếu DC";
+    }
 
     const differenceValue = Number(summary?.difference || 0);
     const differenceLabel = summary?.difference === null || summary?.difference === undefined

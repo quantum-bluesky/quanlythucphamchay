@@ -2,6 +2,7 @@ const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
   autoLoginAdminRequest,
+  autoLoginProcurementManager,
   autoLoginUser,
   expectNoRuntimeErrors,
   expectScreenTitle,
@@ -165,6 +166,36 @@ test("IT-MOV-03 product movement screen defaults to descending and supports asce
   await expect(page.locator("#productMovementMeta")).toContainText("Ngày tăng dần");
   await expect(movementItems.first()).toContainText("Nhập kho");
   await expect(movementItems.first()).toContainText("+12");
+
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-MOV-04 product movement screen opens inventory adjustment receipt for the selected product", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const { productName } = await seedProductMovementFixture(request);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await autoLoginProcurementManager(page, request);
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
+  await switchMenu(page, "inventory");
+  await page.locator("#inventoryHistoryShortcutButton").click();
+  await expectScreenTitle(page, "Lịch sử biến động sản phẩm");
+
+  await page.locator("#productMovementProductInput").fill(productName);
+  await page.locator("#productMovementForm").getByRole("button", { name: "Xem lịch sử" }).click();
+
+  const receiptButton = page.locator("#productMovementCreateReceiptButton");
+  await expect(page.locator("#productMovementSummaryCards .summary-card")).toHaveCount(6);
+  await expect(page.locator("#productMovementList .product-movement-item")).toHaveCount(2);
+  await expect(receiptButton).toBeVisible();
+  await receiptButton.click();
+
+  await expectScreenTitle(page, "Kiểm tra tồn kho");
+  await expect(page.locator("#inventoryReceiptWrap")).toBeVisible();
+  await expect(page.locator("#inventoryReceiptProductInput")).toHaveValue(productName);
 
   expectNoRuntimeErrors(runtime);
 });

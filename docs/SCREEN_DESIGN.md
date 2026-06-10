@@ -76,6 +76,7 @@ Liên kết detail hiện có:
   - mở nhanh lại đơn hoặc phiếu liên quan khi phát hiện lệch tồn
 - thành phần chính:
   - form lọc gọn theo `Sản phẩm`, `Từ ngày`, `Đến ngày`, `Loại biến động`, `Sắp xếp`, `Từ khóa`
+  - CTA `Phiếu DC` ở header, chỉ hiện khi tài khoản có quyền điều chỉnh tồn và đã chọn đúng sản phẩm
   - summary card theo `Tồn đầu kỳ`, `Tổng nhập`, `Tổng xuất`, `Tồn cuối kỳ`, `Tồn hệ thống`, `Chênh lệch`
   - khối trạng thái `OK/Cảnh báo`
   - list card chi tiết từng biến động
@@ -86,6 +87,7 @@ Liên kết detail hiện có:
   - danh sách mặc định hiện giao dịch mới hơn trước theo `Ngày giảm dần`, nhưng phải có option đổi sang `Ngày tăng dần`
   - `Tồn sau giao dịch` vẫn bám chuỗi tính toán ổn định theo `ngày -> created_at -> id` để user rà từng bước khi cần
   - chuỗi tính running balance nội bộ vẫn đi theo `ngày -> created_at -> id` để `Tồn sau giao dịch` ổn định dù list đang hiển thị tăng dần hay giảm dần
+  - CTA `Phiếu DC` không sửa lịch sử cũ; nó chỉ mở flow tạo chứng từ điều chỉnh tồn mới với sản phẩm đã chọn sẵn
   - mỗi dòng phải có tối thiểu `Ngày`, `Loại`, `Số lượng +/-`, `Tồn sau giao dịch`, `Mã phiếu/link`, `Khách/NCC`, `Ghi chú`, `Người xử lý`, `Tạo lúc/Cập nhật`
   - màn chỉ đọc dữ liệu; không cho sửa hoặc xóa trực tiếp từ đây
 

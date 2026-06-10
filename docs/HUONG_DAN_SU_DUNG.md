@@ -104,6 +104,7 @@ Thực hiện:
 7. Dùng `Tồn sau giao dịch` trên từng dòng để dò lại từng bước; khi cần xem từ cũ tới mới thì đổi `Sắp xếp` sang `Ngày tăng dần`
 8. Nếu màn báo `OK - Tồn tính toán khớp với hệ thống.` thì số tính toán đang khớp với tồn hiện tại
 9. Nếu màn báo `Cảnh báo - Tồn tính toán không khớp với tồn hiện tại trên hệ thống...` thì cần mở lại các phiếu liên quan để kiểm tra
+10. Nếu tài khoản có quyền điều chỉnh tồn, có thể bấm `Phiếu DC` ngay trên đầu màn để mở sẵn phiếu điều chỉnh cho đúng sản phẩm đang xem
 
 Lưu ý:
 
@@ -651,11 +652,12 @@ Lưu ý:
 
 1. Vào `Kiểm tra nhập xuất hàng tồn`
 2. Nếu cần điều chỉnh từ đúng một mặt hàng đang thấy trên card, bấm `Phiếu DC`
-3. Hoặc mở khối `Phiếu điều chỉnh tồn` và gõ tên sản phẩm bằng tay
-4. Nhập số lượng tăng/giảm bằng số dương hoặc âm
-5. Nhập `Lý do điều chỉnh`
-6. Bấm `Thêm dòng`
-7. Kiểm tra lại danh sách rồi bấm `Tạo phiếu điều chỉnh`
+3. Nếu đang điều tra ở màn `Lịch sử biến động sản phẩm`, có thể bấm `Phiếu DC` ngay đầu màn để quay lại tồn kho và mở sẵn phiếu cho đúng sản phẩm đó
+4. Hoặc mở khối `Phiếu điều chỉnh tồn` và gõ tên sản phẩm bằng tay
+5. Nhập số lượng tăng/giảm bằng số dương hoặc âm
+6. Nhập `Lý do điều chỉnh`
+7. Bấm `Thêm dòng`
+8. Kiểm tra lại danh sách rồi bấm `Tạo phiếu điều chỉnh`
 
 #### Phiếu trả hàng khách
 

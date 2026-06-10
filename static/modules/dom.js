@@ -18,6 +18,7 @@ export const productMovementSummaryCards = document.getElementById("productMovem
 export const productMovementStatus = document.getElementById("productMovementStatus");
 export const productMovementMeta = document.getElementById("productMovementMeta");
 export const productMovementList = document.getElementById("productMovementList");
+export const productMovementCreateReceiptButton = document.getElementById("productMovementCreateReceiptButton");
 export const inventoryReceiptSection = document.getElementById("inventoryReceiptSection");
 export const inventoryReceiptWrap = document.getElementById("inventoryReceiptWrap");
 export const inventoryReceiptToggleButton = document.getElementById("inventoryReceiptToggleButton");
