@@ -180,6 +180,7 @@ export const state = {
     fromDate: "",
     toDate: new Date().toISOString().slice(0, 10),
     movementType: "all",
+    sortOrder: "desc",
     keyword: "",
     loading: false,
     error: "",

@@ -12,6 +12,7 @@ import {
   productMovementFromDateInput,
   productMovementToDateInput,
   productMovementTypeSelect,
+  productMovementSortSelect,
   productMovementKeywordInput,
   productMovementResetButton,
   productMovementSummaryCards,
@@ -1341,6 +1342,7 @@ async function submitProductMovementFilters() {
   historyState.fromDate = String(productMovementFromDateInput?.value || "").trim();
   historyState.toDate = String(productMovementToDateInput?.value || "").trim();
   historyState.movementType = String(productMovementTypeSelect?.value || "all").trim() || "all";
+  historyState.sortOrder = String(productMovementSortSelect?.value || "desc").trim() || "desc";
   historyState.keyword = String(productMovementKeywordInput?.value || "").trim();
   await refreshProductMovementHistory();
 }
@@ -1349,6 +1351,7 @@ async function resetProductMovementFilters() {
   state.productMovementHistory.fromDate = "";
   state.productMovementHistory.toDate = new Date().toISOString().slice(0, 10);
   state.productMovementHistory.movementType = "all";
+  state.productMovementHistory.sortOrder = "desc";
   state.productMovementHistory.keyword = "";
   await refreshProductMovementHistory();
 }
@@ -6688,6 +6691,7 @@ registerInventoryControllerEvents({
     productMovementFromDateInput,
     productMovementToDateInput,
     productMovementTypeSelect,
+    productMovementSortSelect,
     productMovementKeywordInput,
     productMovementResetButton,
     productMovementList,

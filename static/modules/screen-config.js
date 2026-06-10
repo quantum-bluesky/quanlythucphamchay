@@ -40,11 +40,11 @@ export const SCREEN_HELP = {
     steps: [
       "Chọn đúng sản phẩm cần kiểm tra. Nếu đi từ màn `Tồn kho` bằng nút `Xem lịch sử` thì app sẽ chọn sẵn sản phẩm đó.",
       "Nhập `Từ ngày` nếu cần rà theo kỳ. Nếu để trống `Đến ngày`, app mặc định lấy hôm nay.",
-      "Có thể lọc thêm theo `Tất cả / Nhập / Xuất` và nhập `Từ khóa` như mã đơn, mã phiếu, khách hàng, nhà cung cấp hoặc ghi chú.",
+      "Có thể lọc thêm theo `Tất cả / Nhập / Xuất`, đổi `Sắp xếp` giữa `Ngày giảm dần / Ngày tăng dần`, và nhập `Từ khóa` như mã đơn, mã phiếu, khách hàng, nhà cung cấp hoặc ghi chú.",
       "Phần summary luôn hiện `Tồn đầu kỳ`, `Tổng nhập`, `Tổng xuất`, `Tồn cuối kỳ`, `Tồn hệ thống` và `Chênh lệch` để so nhanh.",
       "Nếu `Đến ngày` là hôm nay, app sẽ báo `OK` hoặc `Cảnh báo` theo chênh lệch giữa tồn tính toán và tồn hiện tại.",
       "Nếu đang xem tới một ngày quá khứ, app chỉ hiện tồn cuối kỳ tính toán và không so sánh với tồn hiện tại trên hệ thống.",
-      "Danh sách chi tiết được sort tăng dần theo ngày phát sinh, rồi theo thời gian tạo và id để `Tồn sau giao dịch` ổn định khi rà từng bước.",
+      "Danh sách chi tiết mặc định hiện giao dịch mới hơn trước theo `Ngày giảm dần`; nếu cần rà từng bước từ đầu kỳ, đổi sang `Ngày tăng dần`. `Tồn sau giao dịch` vẫn lấy từ chuỗi tính toán ổn định theo ngày phát sinh, thời gian tạo và id.",
       "Với các dòng có mã đơn hoặc mã phiếu như `DH/PN/DC/THK/TNCC`, bấm trực tiếp vào mã để mở đúng chứng từ liên quan.",
       "Màn này chỉ đọc dữ liệu, không cho sửa hoặc xóa trực tiếp giao dịch cũ.",
       DESKTOP_MENU_HINT,

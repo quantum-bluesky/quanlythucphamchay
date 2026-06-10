@@ -182,6 +182,7 @@ Mục tiêu:
 | 142 | `UT-AUTH-14` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_14_product_movements_route_returns_selected_product_history` |
 | 143 | `IT-MOV-01` | `tests/integration/product-movements.spec.js` | `npx playwright test tests/integration/product-movements.spec.js --grep "IT-MOV-01"` |
 | 144 | `IT-MOV-02` | `tests/integration/product-movements.spec.js` | `npx playwright test tests/integration/product-movements.spec.js --grep "IT-MOV-02"` |
+| 144A | `IT-MOV-03` | `tests/integration/product-movements.spec.js` | `npx playwright test tests/integration/product-movements.spec.js --grep "IT-MOV-03"` |
 | 145 | `UT-QUICK-01` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_quick_01_create_quick_purchase_ordered_does_not_increase_stock` |
 | 146 | `UT-QUICK-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_quick_02_create_quick_purchase_paid_records_stock_and_history` |
 | 147 | `UT-QUICK-03` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_quick_03_create_quick_sale_committed_does_not_decrease_stock` |

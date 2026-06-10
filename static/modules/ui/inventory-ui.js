@@ -563,6 +563,9 @@ export function createInventoryUi(deps) {
     if (dom.productMovementTypeSelect) {
       dom.productMovementTypeSelect.value = state.productMovementHistory.movementType || "all";
     }
+    if (dom.productMovementSortSelect) {
+      dom.productMovementSortSelect.value = state.productMovementHistory.sortOrder || "desc";
+    }
     if (dom.productMovementKeywordInput) {
       dom.productMovementKeywordInput.value = state.productMovementHistory.keyword || "";
     }
@@ -576,7 +579,10 @@ export function createInventoryUi(deps) {
     const product = data?.product || null;
     const period = data?.period || null;
     const summary = data?.summary || null;
-    const movements = Array.isArray(data?.movements) ? data.movements : [];
+    const sortOrder = movementState.sortOrder === "asc" ? "asc" : "desc";
+    const movementSortLabel = sortOrder === "asc" ? "Ngày tăng dần" : "Ngày giảm dần";
+    const rawMovements = Array.isArray(data?.movements) ? data.movements : [];
+    const movements = sortOrder === "asc" ? rawMovements : [...rawMovements].reverse();
 
     if (movementState.loading) {
       dom.productMovementMeta.textContent = "Đang nạp lịch sử biến động...";
@@ -610,6 +616,7 @@ export function createInventoryUi(deps) {
       product.name,
       period?.from_date ? `Từ ${formatDate(period.from_date)}` : "Từ đầu dữ liệu",
       `đến ${formatDate(period?.to_date || "")}`,
+      movementSortLabel,
     ];
     if (period?.summary_uses_filtered_movements) {
       metaParts.push("Tóm tắt đang tính theo bộ lọc hiện tại.");

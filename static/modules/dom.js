@@ -11,6 +11,7 @@ export const productMovementProductInput = document.getElementById("productMovem
 export const productMovementFromDateInput = document.getElementById("productMovementFromDateInput");
 export const productMovementToDateInput = document.getElementById("productMovementToDateInput");
 export const productMovementTypeSelect = document.getElementById("productMovementTypeSelect");
+export const productMovementSortSelect = document.getElementById("productMovementSortSelect");
 export const productMovementKeywordInput = document.getElementById("productMovementKeywordInput");
 export const productMovementResetButton = document.getElementById("productMovementResetButton");
 export const productMovementSummaryCards = document.getElementById("productMovementSummaryCards");

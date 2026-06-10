@@ -134,3 +134,37 @@ test("IT-MOV-02 product movement screen stays readable on mobile", async ({ page
 
   expectNoRuntimeErrors(runtime);
 });
+
+test("IT-MOV-03 product movement screen defaults to descending and supports ascending sort", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  const { productName } = await seedProductMovementFixture(request);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
+  await switchMenu(page, "inventory");
+  await page.locator("#inventoryHistoryShortcutButton").click();
+  await expectScreenTitle(page, "Lịch sử biến động sản phẩm");
+
+  await page.locator("#productMovementProductInput").fill(productName);
+  await page.locator("#productMovementForm").getByRole("button", { name: "Xem lịch sử" }).click();
+
+  const movementItems = page.locator("#productMovementList .product-movement-item");
+  await expect(page.locator("#productMovementSortSelect")).toHaveValue("desc");
+  await expect(page.locator("#productMovementMeta")).toContainText("Ngày giảm dần");
+  await expect(movementItems).toHaveCount(2);
+  await expect(movementItems.first()).toContainText("Xuất kho");
+  await expect(movementItems.first()).toContainText("-3");
+
+  await page.locator("#productMovementSortSelect").selectOption("asc");
+  await page.locator("#productMovementForm").getByRole("button", { name: "Xem lịch sử" }).click();
+
+  await expect(page.locator("#productMovementMeta")).toContainText("Ngày tăng dần");
+  await expect(movementItems.first()).toContainText("Nhập kho");
+  await expect(movementItems.first()).toContainText("+12");
+
+  expectNoRuntimeErrors(runtime);
+});

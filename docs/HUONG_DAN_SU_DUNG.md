@@ -64,7 +64,7 @@ Thực hiện:
    - bấm `Nhập` để sang phiếu nhập chờ hoặc tạo phiếu nhập mới
 6. Nếu cần điều tra lệch tồn của một mặt hàng, bấm `Lịch sử biến động` ở đầu màn để mở màn tra cứu riêng
 7. Nếu đang đứng trên đúng card sản phẩm nghi ngờ lệch tồn, bấm `Detail` rồi chọn `Xem lịch sử`; app sẽ mở màn mới và chọn sẵn sản phẩm đó
-8. Ở màn `Lịch sử biến động sản phẩm`, chọn thêm `Từ ngày / Đến ngày / Loại biến động / Từ khóa` nếu cần để đối chiếu theo đúng khoảng thời gian
+8. Ở màn `Lịch sử biến động sản phẩm`, chọn thêm `Từ ngày / Đến ngày / Loại biến động / Sắp xếp / Từ khóa` nếu cần để đối chiếu theo đúng khoảng thời gian
 9. Kiểm tra phần summary gồm `Tồn đầu kỳ`, `Tổng nhập`, `Tổng xuất`, `Tồn cuối kỳ`, `Tồn hệ thống` và `Chênh lệch`
 10. Với các dòng có mã `DH/PN/DC/THK/TNCC`, bấm trực tiếp vào mã để mở đúng đơn hoặc phiếu liên quan
 
@@ -91,18 +91,19 @@ Thực hiện:
 
 1. Chọn đúng sản phẩm cần kiểm tra
 2. Nhập `Từ ngày` nếu muốn rà theo kỳ; `Đến ngày` để trống thì app tự lấy hôm nay
-3. Chọn `Tất cả / Nhập / Xuất` nếu cần tách riêng một chiều biến động
-4. Có thể nhập thêm từ khóa như mã đơn, mã phiếu, khách hàng, nhà cung cấp hoặc ghi chú
-5. Xem phần summary:
+3. Chọn `Tất cả / Nhập / Xuất` nếu cần tách riêng một chiều biến động, và đổi `Sắp xếp` sang `Ngày tăng dần` nếu muốn rà từ đầu kỳ
+4. Nếu không đổi gì thêm, app mặc định hiện giao dịch mới hơn trước theo `Ngày giảm dần`
+5. Có thể nhập thêm từ khóa như mã đơn, mã phiếu, khách hàng, nhà cung cấp hoặc ghi chú
+6. Xem phần summary:
    - `Tồn đầu kỳ`
    - `Tổng nhập`
    - `Tổng xuất`
    - `Tồn cuối kỳ`
    - `Tồn hệ thống`
    - `Chênh lệch`
-6. Xem danh sách chi tiết theo thứ tự ngày tăng dần; mỗi dòng có `Tồn sau giao dịch` để dò lại từng bước
-7. Nếu màn báo `OK - Tồn tính toán khớp với hệ thống.` thì số tính toán đang khớp với tồn hiện tại
-8. Nếu màn báo `Cảnh báo - Tồn tính toán không khớp với tồn hiện tại trên hệ thống...` thì cần mở lại các phiếu liên quan để kiểm tra
+7. Dùng `Tồn sau giao dịch` trên từng dòng để dò lại từng bước; khi cần xem từ cũ tới mới thì đổi `Sắp xếp` sang `Ngày tăng dần`
+8. Nếu màn báo `OK - Tồn tính toán khớp với hệ thống.` thì số tính toán đang khớp với tồn hiện tại
+9. Nếu màn báo `Cảnh báo - Tồn tính toán không khớp với tồn hiện tại trên hệ thống...` thì cần mở lại các phiếu liên quan để kiểm tra
 
 Lưu ý:
 
