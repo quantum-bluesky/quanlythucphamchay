@@ -1189,7 +1189,11 @@ export function createPurchasesDomainHelpers(deps) {
     assertCanMutatePurchaseStructure();
     const product = getProductById(productId);
     if (!product) throw new Error("Không tìm thấy sản phẩm.");
+    const allowActiveOrderedPurchase = options.allowActiveOrderedPurchase !== false;
     const activeEditableOrderedPurchase = (() => {
+      if (!allowActiveOrderedPurchase) {
+        return null;
+      }
       const activePurchase = getActivePurchase();
       if (!activePurchase || String(activePurchase.status || "").trim() !== "ordered") {
         return null;
@@ -1265,6 +1269,7 @@ export function createPurchasesDomainHelpers(deps) {
       Math.max(1, product.low_stock_threshold || 1),
       product.price || 0,
       {
+        allowActiveOrderedPurchase: false,
         preferredSupplierName: "",
         preferBlankWhenActiveHasSupplier: true,
       }
@@ -1275,7 +1280,7 @@ export function createPurchasesDomainHelpers(deps) {
     state.pagination.purchaseOrders = 1;
     switchMenu("purchases");
     focusPurchasePanel();
-    showToast("Đã tạo phiếu nhập nháp mới cho mặt hàng này.");
+    showToast("Đã mở phiếu nhập nháp để thêm mặt hàng này.");
   }
 
   return {

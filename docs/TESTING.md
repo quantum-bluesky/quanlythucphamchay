@@ -380,6 +380,10 @@ Case regression feedback UI:
 
 - `IT-UI-01`: toast/thông báo lỗi không phải confirm phải luôn nằm trên `loading overlay`, không bị lớp chờ lưu che mất
 
+Case regression shortcut tồn kho:
+
+- `IT-INV-02`: từ màn `Tồn kho`, bấm `Nhập` khi đang có phiếu nhập `Đã đặt` mở sẵn vẫn phải mở/tạo phiếu nháp phù hợp, không chèn mặt hàng vào phiếu `ordered` đang active
+
 Case mới cho Issue 70:
 
 - `UT-INVSORT-01`: product metadata hạn dùng/bảo quản và metric ưu tiên tồn kho được chuẩn hóa đúng, không tính nhầm trả NCC hoặc điều chỉnh tồn vào demand

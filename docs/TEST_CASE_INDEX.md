@@ -199,6 +199,7 @@ Mục tiêu:
 | 157 | `ACC-CANCEL-01` | `tests/integration/document-cancel-approval.spec.js` | `npx playwright test tests/integration/document-cancel-approval.spec.js --grep "ACC-CANCEL-01"` |
 | 158 | `ACC-QUICK-06` | `tests/integration/quick-documents-duplicate.spec.js` | `npx playwright test tests/integration/quick-documents-duplicate.spec.js --grep "ACC-QUICK-06"` |
 | 159 | `IT-UI-01` | `tests/integration/ui-feedback-layering.spec.js` | `npx playwright test tests/integration/ui-feedback-layering.spec.js --grep "IT-UI-01"` |
+| 160 | `IT-INV-02` | `tests/integration/inventory-purchase-shortcut.spec.js` | `npx playwright test tests/integration/inventory-purchase-shortcut.spec.js --grep "IT-INV-02"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 
