@@ -1945,7 +1945,7 @@ button:disabled {
   color: white;
   background: rgba(23, 59, 41, 0.94);
   box-shadow: var(--shadow);
-  z-index: 90;
+  z-index: 220;
 }
 
 .toast.error {

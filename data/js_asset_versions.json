@@ -1,8 +1,8 @@
 {
-  "app_version": "3.17.4",
+  "app_version": "3.17.5",
   "files": {
     "app.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "9639bba11cc73c234dd831cfe4916c1f3fd7b1f535c4a0a3df63da9507107de7"
     },
     "bootstrap.js": {
@@ -123,7 +123,7 @@
     },
     "styles.css": {
       "counter": 1,
-      "sha256": "bfc87e08abbc05022c663d2afe8d8c13355df3d5fbc301af3c52aab345be8f32"
+      "sha256": "f15378c154f1b385604b6f7715fdbc68c03ea342c6f7b7c5e4eaa66c94cc68cb"
     }
   }
 }
