@@ -194,3 +194,5 @@ Lưu ý:
 | 158 | `ACC-QUICK-06` | Kiểm tra UI `Xử lý nhanh xuất/nhập hàng` sau khi lưu thành công sẽ khóa form, đổi nút lưu thành `Đã tạo phiếu`, giữ CTA `Tiếp tục xuất/nhập nhanh`, và không tạo duplicate chứng từ từ cùng một form đã lưu. |
 | 159 | `IT-UI-01` | Kiểm tra toast/thông báo lỗi không phải confirm vẫn nổi trên `loading overlay`, không bị lớp chờ lưu che mất khi app đang bận. |
 | 160 | `IT-INV-02` | Kiểm tra shortcut `Tồn kho -> Nhập` khi đang mở sẵn một phiếu `Đã đặt` vẫn phải mở/tạo phiếu nháp phù hợp, không được chèn thêm mặt hàng vào phiếu `ordered` đang active. |
+| 161 | `UT-SYNC-02B` | Kiểm tra backend bỏ qua kiểm tra xung đột đồng thời sửa đổi dữ liệu (Multiuser Sync Conflict) nếu tùy chọn cấu hình `EnableMultiuserConflictCheck` bị tắt. |
+

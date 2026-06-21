@@ -869,6 +869,11 @@ Lưu ý cấu hình phân trang trong `system_config.json`:
 - trên `PC/Tablet`, thanh phân trang có combobox `25/50/100` để đổi nhanh số mục hiển thị trên mỗi trang
 - mobile không hiện combobox này, vẫn giữ phân trang gọn theo màn hình nhỏ
 
+Lưu ý cấu hình kiểm tra xung đột đồng thời trong `system_config.json`:
+
+- `EnableMultiuserConflictCheck`: nhận giá trị `true` hoặc `false` (mặc định là `true` để tương thích ngược).
+- Khi đặt `false`, backend sẽ bỏ qua cơ chế kiểm tra `expected_updated_at` khi lưu/sync trạng thái, giúp loại bỏ các lỗi sync conflict gây phiền hà trong trường hợp ứng dụng chỉ chạy đơn người dùng.
+
 ### Khi nào dùng export / import master
 
 - chuyển danh mục sang máy khác

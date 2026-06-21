@@ -116,6 +116,7 @@ def run_server(system_config: dict, host: str | None = None, port: int | None = 
     resolved_host = host or str(system_config["server"]["host"])
     resolved_port = int(port or system_config["server"]["port"])
     store = InventoryStore(DB_PATH)
+    store.enable_multiuser_conflict_check = bool(system_config.get("EnableMultiuserConflictCheck", True))
     admin_sessions = AdminSessionManager(
         str(system_config["admin"]["username"]),
         str(system_config["admin"]["password"]),

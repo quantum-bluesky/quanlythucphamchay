@@ -200,6 +200,7 @@ Mục tiêu:
 | 158 | `ACC-QUICK-06` | `tests/integration/quick-documents-duplicate.spec.js` | `npx playwright test tests/integration/quick-documents-duplicate.spec.js --grep "ACC-QUICK-06"` |
 | 159 | `IT-UI-01` | `tests/integration/ui-feedback-layering.spec.js` | `npx playwright test tests/integration/ui-feedback-layering.spec.js --grep "IT-UI-01"` |
 | 160 | `IT-INV-02` | `tests/integration/inventory-purchase-shortcut.spec.js` | `npx playwright test tests/integration/inventory-purchase-shortcut.spec.js --grep "IT-INV-02"` |
+| 161 | `UT-SYNC-02B` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_02b_save_sync_state_ignores_conflict_if_disabled` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

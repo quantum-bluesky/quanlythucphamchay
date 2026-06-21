@@ -517,7 +517,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - đơn `completed` chưa thanh toán vẫn được sửa `discount_amount`; sau khi `payment_status = paid` thì khóa hẳn
 - phiếu nhập `received` chưa thanh toán vẫn được sửa `discount_amount` và metadata HSD/NSX của từng dòng; sau khi `status = paid` thì khóa hẳn
 - nếu dòng nhập không có HSD trực tiếp thì backend có thể resolve `expiry_date` tự động từ `received_at + storage_life_days`; nếu user chọn mode `manufacture` thì resolve từ `manufacture_date + storage_life_days`
-- `app_state.updated_at` được dùng để chặn ghi đè stale save
+- `app_state.updated_at` được dùng để chặn ghi đè stale save (chỉ áp dụng khi tùy chọn cấu hình `EnableMultiuserConflictCheck` được bật)
 - sort ưu tiên tồn kho dùng metric suy diễn từ ledger bán hàng thật, không persist score vào DB
 - sort hạn còn lại ưu tiên theo HSD thật sớm nhất trong các lô còn hàng; chỉ khi chưa có HSD lô mới fallback về metadata sản phẩm và lần nhập gần nhất
 - Batch procurement mode được suy ra từ `workflow_locks.lock_key = procurement_batch` còn hiệu lực

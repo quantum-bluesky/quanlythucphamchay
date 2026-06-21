@@ -22,6 +22,8 @@ from .store import BulkOrderRequestDuplicateError, ProcurementBatchStartConflict
 
 
 def create_handler(store, admin_sessions, system_config: dict | None = None):
+    enable_conflict = bool((system_config or {}).get("EnableMultiuserConflictCheck", True))
+    store.enable_multiuser_conflict_check = enable_conflict
     debug_config = (system_config or {}).get("debug", {})
     pagination_config = (system_config or {}).get("pagination", {})
     procurement_config = (system_config or {}).get("procurement", {})
