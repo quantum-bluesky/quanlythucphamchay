@@ -392,6 +392,10 @@ Case mới cho Issue 70:
 - `IT-INV-SORT-02`: dropdown sort vẫn nằm trong pagination desktop cùng page-size picker
 - `IT-PROD-LIFE-01`: màn `Sản phẩm` lưu được metadata hạn dùng/bảo quản bằng inline edit và render lại đúng nhãn
 
+Case mới cho Issue 153 (Tách cấu hình check multiuser conflict):
+
+- `UT-SYNC-02B`: bỏ qua kiểm tra xung đột đồng thời khi `EnableMultiuserConflictCheck` cấu hình tắt (`False`)
+
 ## Lưu ý
 
 - App runtime thật vẫn chỉ cần `Python stdlib + SQLite`

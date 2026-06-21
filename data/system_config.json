@@ -1,10 +1,11 @@
 {
-  "version": "3.17.6",
+  "version": "3.18.0",
   "server": {
     "host": "0.0.0.0",
     "port": 4000
   },
   "EnableLogin": true,
+  "EnableMultiuserConflictCheck": false,
   "session_timeout_minutes": 360,
   "admin_session_timeout_minutes": 30,
   "admin": {

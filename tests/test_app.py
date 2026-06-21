@@ -1816,6 +1816,21 @@ class InventoryStoreTests(unittest.TestCase):
                 }
             )
 
+    def test_ut_sync_02b_save_sync_state_ignores_conflict_if_disabled(self) -> None:
+        self.store.enable_multiuser_conflict_check = False
+        self.store.save_sync_state({"carts": [{"id": "cart-a", "status": "draft", "items": []}]})
+
+        # Sẽ không ném lỗi SyncConflictError mà ghi đè thành công
+        self.store.save_sync_state(
+            {
+                "carts": [{"id": "cart-b", "status": "draft", "items": []}],
+                "expected_updated_at": {"carts": "stale-version"},
+            }
+        )
+        state = self.store.get_sync_state()
+        self.assertEqual(len(state["carts"]), 1)
+        self.assertEqual(state["carts"][0]["id"], "cart-b")
+
     def test_ut_sync_03_discount_updates_are_allowed_before_paid_and_locked_after_paid(self) -> None:
         product = self.store.create_product(
             name="Phiếu có giảm giá",

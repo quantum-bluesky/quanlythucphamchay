@@ -129,6 +129,7 @@ class InventoryStore:
     def __init__(self, db_path: Path):
         requested_path = Path(db_path)
         self.db_path = requested_path
+        self.enable_multiuser_conflict_check = True
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         try:
@@ -7762,8 +7763,9 @@ class InventoryStore:
                 raise ValueError("Không tìm thấy phiếu nhập cần cập nhật HSD.")
 
             actual_updated_at = str(target_purchase.get("updatedAt") or target_purchase.get("updated_at") or "")
-            if clean_expected_updated_at and actual_updated_at and clean_expected_updated_at != actual_updated_at:
-                raise SyncConflictError("purchases", clean_expected_updated_at, actual_updated_at)
+            if self.enable_multiuser_conflict_check:
+                if clean_expected_updated_at and actual_updated_at and clean_expected_updated_at != actual_updated_at:
+                    raise SyncConflictError("purchases", clean_expected_updated_at, actual_updated_at)
 
             current_status = str(target_purchase.get("status") or "draft")
             if current_status != "received":
@@ -10442,13 +10444,14 @@ class InventoryStore:
                 ).fetchone()
                 current_updated_at[key] = str((row["updated_at"] if row else "") or "")
 
-            for key in to_update:
-                if key not in expected_updated_at:
-                    continue
-                expected_value = str(expected_updated_at.get(key) or "")
-                actual_value = current_updated_at.get(key, "")
-                if expected_value != actual_value:
-                    raise SyncConflictError(key, expected_value, actual_value)
+            if self.enable_multiuser_conflict_check:
+                for key in to_update:
+                    if key not in expected_updated_at:
+                        continue
+                    expected_value = str(expected_updated_at.get(key) or "")
+                    actual_value = current_updated_at.get(key, "")
+                    if expected_value != actual_value:
+                        raise SyncConflictError(key, expected_value, actual_value)
 
             if "carts" in to_update:
                 self._audit_cart_changes(

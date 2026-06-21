@@ -167,6 +167,7 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
             "port": DEFAULT_PORT,
         },
         "EnableLogin": False,
+        "EnableMultiuserConflictCheck": True,
         "session_timeout_minutes": DEFAULT_SYSTEM_SESSION_TIMEOUT_MINUTES,
         "admin_session_timeout_minutes": DEFAULT_ADMIN_SESSION_TIMEOUT_MINUTES,
         "admin": {
@@ -232,6 +233,9 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
             "port": defaults["server"]["port"],
         },
         "EnableLogin": bool(raw_config.get("EnableLogin", defaults["EnableLogin"])),
+        "EnableMultiuserConflictCheck": bool(
+            raw_config.get("EnableMultiuserConflictCheck", defaults["EnableMultiuserConflictCheck"])
+        ),
         "session_timeout_minutes": _normalize_timeout_minutes(
             raw_config.get("session_timeout_minutes", defaults["session_timeout_minutes"]),
             defaults["session_timeout_minutes"],
