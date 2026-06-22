@@ -2319,6 +2319,116 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(persisted_purchase["paymentMethod"], "cash")
         self.assertEqual(persisted_purchase["paymentNote"], "Đã trả tiền mặt cho NCC")
 
+    def test_ut_sync_07_overwrite_locked_entities_bypasses_mismatch(self) -> None:
+        # Create a product for items
+        product = self.store.create_product(
+            name="Sản phẩm sync test",
+            category="Đông lạnh",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+            low_stock_threshold=1,
+        )
+        
+        # 1. Create a purchase that will be cancelled
+        initial_state = self.store.get_sync_state()
+        self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-to-cancel",
+                        "supplierName": "NCC Cancel",
+                        "status": "cancelled",
+                        "discountAmount": 0,
+                        "createdAt": "2026-05-06T09:20:00+07:00",
+                        "updatedAt": "2026-05-06T09:20:00+07:00",
+                        "items": [
+                            {
+                                "id": "item-cancel-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 10,
+                                "unitCost": 10000,
+                                "sourceKind": "shortage",
+                                "expiryInputMode": "direct",
+                            }
+                        ],
+                    },
+                    {
+                        "id": "purchase-draft-to-ordered",
+                        "supplierName": "NCC Draft",
+                        "status": "draft",
+                        "discountAmount": 0,
+                        "createdAt": "2026-05-06T09:20:00+07:00",
+                        "updatedAt": "2026-05-06T09:20:00+07:00",
+                        "items": [
+                            {
+                                "id": "item-draft-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 5,
+                                "unitCost": 10000,
+                            }
+                        ],
+                    }
+                ],
+                "expected_updated_at": {
+                    "purchases": initial_state["updated_at"]["purchases"],
+                },
+            }
+        )
+        
+        # Verify both purchases exist and statuses are correct
+        state1 = self.store.get_sync_state()
+        p_cancel = next(p for p in state1["purchases"] if p["id"] == "purchase-to-cancel")
+        self.assertEqual(p_cancel["status"], "cancelled")
+        p_draft = next(p for p in state1["purchases"] if p["id"] == "purchase-draft-to-ordered")
+        self.assertEqual(p_draft["status"], "draft")
+        
+        # 2. Modify the draft purchase (set status to ordered)
+        # And simulate representation mismatch on the cancelled purchase (e.g. drop sourceKind, expiryInputMode, or batchCode)
+        payload_purchases = copy.deepcopy(state1["purchases"])
+        
+        # Find the draft purchase in payload and transition it
+        p_draft_payload = next(p for p in payload_purchases if p["id"] == "purchase-draft-to-ordered")
+        p_draft_payload["status"] = "ordered"
+        
+        # Find the cancelled purchase in payload and introduce representation mismatches
+        p_cancel_payload = next(p for p in payload_purchases if p["id"] == "purchase-to-cancel")
+        # In actual JS clients, fields like sourceKind might be missing/undefined or camelCase vs snake_case mismatches
+        # Let's remove sourceKind and expiryInputMode entirely to simulate this mismatch
+        if "items" in p_cancel_payload:
+            for item in p_cancel_payload["items"]:
+                if "sourceKind" in item:
+                    del item["sourceKind"]
+                if "expiryInputMode" in item:
+                    del item["expiryInputMode"]
+                # Add an extra client-side field
+                item["clientOnlyField"] = True
+        
+        # Save sync state
+        self.store.save_sync_state(
+            {
+                "purchases": payload_purchases,
+                "expected_updated_at": {
+                    "purchases": state1["updated_at"]["purchases"],
+                },
+            }
+        )
+        
+        # Verify the sync state was saved successfully and transition occurred
+        state2 = self.store.get_sync_state()
+        p_draft_final = next(p for p in state2["purchases"] if p["id"] == "purchase-draft-to-ordered")
+        self.assertEqual(p_draft_final["status"], "ordered")
+        
+        # Verify the cancelled purchase database representation is still canonical and preserved
+        p_cancel_final = next(p for p in state2["purchases"] if p["id"] == "purchase-to-cancel")
+        self.assertEqual(p_cancel_final["status"], "cancelled")
+        # Checking that backend-restored fields (e.g. sourceKind) are still correctly populated in canonical DB load
+        item_cancel = p_cancel_final["items"][0]
+        # In DB, these fields are stored. Since they were overwritten with existing DB records, they must match original DB values
+        self.assertEqual(item_cancel.get("sourceKind") or item_cancel.get("source_kind"), "shortage")
+
     def test_ut_ord_15_commit_and_ship_cart_order_follow_new_workflow(self) -> None:
         product = self.store.create_product(
             name="Đơn commit rồi ship",

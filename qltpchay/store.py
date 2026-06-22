@@ -10454,6 +10454,10 @@ class InventoryStore:
                         raise SyncConflictError(key, expected_value, actual_value)
 
             if "carts" in to_update:
+                to_update["carts"] = self._overwrite_locked_carts_with_existing(
+                    existing_collections.get("carts", []),
+                    to_update["carts"],
+                )
                 self._audit_cart_changes(
                     connection,
                     existing_collections.get("carts", []),
@@ -10466,6 +10470,16 @@ class InventoryStore:
                 )
 
             if "purchases" in to_update:
+                is_structure_locked = self._is_procurement_batch_structure_locked_for_actor(
+                    connection,
+                    actor_username=actor_username,
+                    actor_role=actor_role,
+                )
+                to_update["purchases"] = self._overwrite_locked_purchases_with_existing(
+                    existing_collections.get("purchases", []),
+                    to_update["purchases"],
+                    is_structure_locked=is_structure_locked,
+                )
                 to_update["purchases"] = self._preserve_purchase_ordered_timestamps(
                     existing_collections.get("purchases", []),
                     to_update["purchases"],
@@ -10913,6 +10927,51 @@ class InventoryStore:
             next_purchase["ordered_at"] = resolved_ordered_at
             prepared.append(next_purchase)
         return prepared
+
+    def _overwrite_locked_purchases_with_existing(
+        self,
+        existing_purchases: list[dict],
+        incoming_purchases: list[dict],
+        is_structure_locked: bool = False,
+    ) -> list[dict]:
+        existing_by_id = {
+            str(p.get("id") or ""): p
+            for p in existing_purchases
+            if p.get("id")
+        }
+        target_statuses = {"received", "paid", "cancelled"}
+        if is_structure_locked:
+            target_statuses.update({"draft", "ordered"})
+
+        for p in incoming_purchases:
+            p_id = str(p.get("id") or "").strip()
+            prev = existing_by_id.get(p_id)
+            if prev:
+                prev_status = str(prev.get("status") or "draft").strip()
+                if prev_status in target_statuses:
+                    prev_items = prev.get("items") or []
+                    incoming_items = p.get("items") or []
+                    if len(prev_items) == len(incoming_items):
+                        prev_map = {
+                            (str(item.get("id") or "").strip(), int(item.get("productId") or item.get("product_id") or 0)): item
+                            for item in prev_items
+                        }
+                        for item in incoming_items:
+                            item_id = str(item.get("id") or "").strip()
+                            prod_id = int(item.get("productId") or item.get("product_id") or 0)
+                            prev_item = prev_map.get((item_id, prod_id))
+                            if prev_item:
+                                for key in ["sourceKind", "source_kind", "sourceNote", "source_note", "batchCode", "batch_code", "expiryInputMode", "expiry_input_mode", "manufactureDate", "manufacture_date", "expiryDate", "expiry_date"]:
+                                    if key in prev_item:
+                                        item[key] = prev_item[key]
+        return incoming_purchases
+
+    def _overwrite_locked_carts_with_existing(
+        self,
+        existing_carts: list[dict],
+        incoming_carts: list[dict],
+    ) -> list[dict]:
+        return incoming_carts
 
     def _audit_purchase_changes(
         self,
