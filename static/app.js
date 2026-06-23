@@ -3837,63 +3837,62 @@ function renderProcurementReviewPanel() {
     return;
   }
   procurementReviewPanel.hidden = false;
-  state.procurementPlanner.reviewIndex = Math.min(
-    Math.max(0, Number(state.procurementPlanner.reviewIndex || 0)),
-    reviewIds.length - 1
-  );
-  const purchaseId = reviewIds[state.procurementPlanner.reviewIndex];
-  const purchase = state.purchases.find((entry) => entry.id === purchaseId);
-  if (!purchase) {
-    procurementReviewPanel.innerHTML = '<div class="empty-state">Không tìm thấy phiếu nhập cần review.</div>';
-    return;
-  }
-  const purchaseTotal = (purchase.items || []).reduce(
-    (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitCost || item.unit_cost || 0),
-    0
-  );
+  
   procurementReviewPanel.innerHTML = `
     <div class="subheading">
       <div>
         <p class="panel-kicker">Review phiếu nhập batch</p>
-        <h3>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</h3>
-        <p class="panel-note">Phiếu ${escapeHtml(String(state.procurementPlanner.reviewIndex + 1))}/${escapeHtml(String(reviewIds.length))} · Tạm tính ${escapeHtml(formatCurrency(purchaseTotal))}</p>
+        <h3>Đã tạo ${escapeHtml(String(reviewIds.length))} phiếu nhập</h3>
+        <p class="panel-note">Hệ thống đã tự động gom nhóm theo NCC. Dưới đây là các phiếu vừa tạo.</p>
       </div>
       <div class="inline-menu-actions">
-        <button type="button" class="ghost-button compact-button" data-procurement-review-action="prev" ${state.procurementPlanner.reviewIndex <= 0 ? "disabled" : ""}>Trước</button>
-        <button type="button" class="ghost-button compact-button" data-procurement-review-action="next" ${state.procurementPlanner.reviewIndex >= reviewIds.length - 1 ? "disabled" : ""}>Sau</button>
-        <button type="button" class="primary-button compact-button" data-procurement-review-action="save">Lưu chi tiết</button>
-        <button type="button" class="ghost-button compact-button" data-procurement-review-action="back">Quay lại batch</button>
+        <button type="button" class="ghost-button compact-button" data-procurement-review-action="back">Đóng Review</button>
       </div>
     </div>
-    <div class="procurement-review-grid">
-      <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(purchase.supplierName || "")}" data-procurement-review-field="supplier"></label>
-      <label><span>Giảm KM phiếu</span><input type="number" min="0" step="1000" value="${escapeHtml(purchase.discountAmount || 0)}" data-procurement-review-field="discount"></label>
-      <label class="wide-field"><span>Ghi chú</span><input type="text" value="${escapeHtml(purchase.note || "")}" data-procurement-review-field="note"></label>
-    </div>
-    <div class="cart-items-list">
-      ${(purchase.items || []).map((item) => {
-        const linePriceAlerts = getPriceWarningAlerts({ purchasePrice: item.unitCost || item.unit_cost || 0 });
-        return `
-        <article class="cart-item">
-          <div class="cart-item-main">
-            <strong>${escapeHtml(item.productName)}</strong>
-            <span>${escapeHtml(item.unit || "")} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</span>
-          </div>
-          <div data-price-warning-group data-price-warning-mode="edit">
-            <div class="procurement-review-grid">
-              <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(item.quantity)}" data-procurement-item-field="quantity" data-item-id="${escapeHtml(item.id)}"></label>
-              <label data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(item.unitCost || item.unit_cost || 0)}" data-procurement-item-field="unitCost" data-item-id="${escapeHtml(item.id)}" data-price-warning-input="purchase"></label>
+    <div class="procurement-review-list stack-block">
+      ${reviewIds.map((purchaseId, index) => {
+        const purchase = state.purchases.find((entry) => entry.id === purchaseId);
+        if (!purchase) return "";
+        const purchaseTotal = (purchase.items || []).reduce(
+          (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitCost || item.unit_cost || 0),
+          0
+        );
+        return \`
+          <article class="report-card procurement-review-card" data-purchase-id="\${escapeHtml(purchaseId)}">
+            <div class="report-card-head">
+              <strong>\${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
+              <span class="status-pill draft">Tạm tính \${escapeHtml(formatCurrency(purchaseTotal))}</span>
             </div>
-            <div data-price-warning-host>${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>
-          </div>
-        </article>
-      `;
-      }).join("")}
-    </div>
-    <div class="cart-queue-list">
-      ${reviewIds.map((id, index) => {
-        const entry = state.purchases.find((purchaseEntry) => purchaseEntry.id === id);
-        return `<button type="button" class="ghost-button compact-button ${index === state.procurementPlanner.reviewIndex ? "is-active" : ""}" data-procurement-review-action="open" data-purchase-id="${escapeHtml(id)}">${escapeHtml(entry?.supplierName || id)}</button>`;
+            <div class="procurement-review-grid">
+              <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="\${escapeHtml(purchase.supplierName || "")}" data-procurement-review-field="supplier" data-purchase-id="\${escapeHtml(purchaseId)}"></label>
+              <label><span>Giảm KM phiếu</span><input type="number" min="0" step="1000" value="\${escapeHtml(purchase.discountAmount || 0)}" data-procurement-review-field="discount" data-purchase-id="\${escapeHtml(purchaseId)}"></label>
+              <label class="wide-field"><span>Ghi chú</span><input type="text" value="\${escapeHtml(purchase.note || "")}" data-procurement-review-field="note" data-purchase-id="\${escapeHtml(purchaseId)}"></label>
+            </div>
+            <div class="cart-items-list">
+              \${(purchase.items || []).map((item) => {
+                const linePriceAlerts = getPriceWarningAlerts({ purchasePrice: item.unitCost || item.unit_cost || 0 });
+                return \`
+                <article class="cart-item">
+                  <div class="cart-item-main">
+                    <strong>\${escapeHtml(item.productName)}</strong>
+                    <span>\${escapeHtml(item.unit || "")} \${renderPriceWarningMarkup(linePriceAlerts, "view")}</span>
+                  </div>
+                  <div data-price-warning-group data-price-warning-mode="edit">
+                    <div class="procurement-review-grid">
+                      <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="\${escapeHtml(item.quantity)}" data-procurement-item-field="quantity" data-purchase-id="\${escapeHtml(purchaseId)}" data-item-id="\${escapeHtml(item.id)}"></label>
+                      <label data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="\${escapeHtml(item.unitCost || item.unit_cost || 0)}" data-procurement-item-field="unitCost" data-purchase-id="\${escapeHtml(purchaseId)}" data-item-id="\${escapeHtml(item.id)}" data-price-warning-input="purchase"></label>
+                    </div>
+                    <div data-price-warning-host>\${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>
+                  </div>
+                </article>
+              \`;
+              }).join("")}
+            </div>
+            <div class="line-actions" style="margin-top: 12px;">
+              <button type="button" class="primary-button compact-button" data-procurement-review-action="save" data-purchase-id="\${escapeHtml(purchaseId)}">Lưu chi tiết phiếu này</button>
+            </div>
+          </article>
+        \`;
       }).join("")}
     </div>
   `;
@@ -7222,7 +7221,7 @@ procurementReviewButton?.addEventListener("click", () => {
   state.procurementPlanner.reviewIndex = 0;
   renderProcurementPlanner();
   procurementReviewPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
-  showToast("Đã chuyển sang màn detail phiếu nhập batch. Dùng Trước/Sau để duyệt các phiếu.");
+  showToast("Đã chuyển sang màn xem trước các phiếu nhập batch vừa tạo.");
 });
 
 procurementStartBatchButton?.addEventListener("click", async () => {
@@ -7398,24 +7397,6 @@ procurementReviewPanel?.addEventListener("click", async (event) => {
   if (!button) return;
   const action = button.dataset.procurementReviewAction;
   const reviewIds = getProcurementReviewPurchaseIds();
-  if (action === "prev") {
-    state.procurementPlanner.reviewIndex = Math.max(0, state.procurementPlanner.reviewIndex - 1);
-    renderProcurementPlanner();
-    return;
-  }
-  if (action === "next") {
-    state.procurementPlanner.reviewIndex = Math.min(reviewIds.length - 1, state.procurementPlanner.reviewIndex + 1);
-    renderProcurementPlanner();
-    return;
-  }
-  if (action === "open") {
-    const index = reviewIds.indexOf(button.dataset.purchaseId);
-    if (index >= 0) {
-      state.procurementPlanner.reviewIndex = index;
-      renderProcurementPlanner();
-    }
-    return;
-  }
   if (action === "back") {
     state.procurementPlanner.reviewOpen = false;
     try {
@@ -7427,20 +7408,22 @@ procurementReviewPanel?.addEventListener("click", async (event) => {
     return;
   }
   if (action === "save") {
-    const purchaseId = reviewIds[state.procurementPlanner.reviewIndex];
+    const purchaseId = button.dataset.purchaseId;
     const purchase = state.purchases.find((entry) => entry.id === purchaseId);
     if (!purchase) {
       showToast("Không tìm thấy phiếu nhập cần lưu.", true);
       return;
     }
-    const supplierName = procurementReviewPanel.querySelector('[data-procurement-review-field="supplier"]')?.value?.trim() || "";
+    const card = button.closest('.procurement-review-card');
+    if (!card) return;
+    const supplierName = card.querySelector('[data-procurement-review-field="supplier"]')?.value?.trim() || "";
     const supplier = findActiveSupplierByName(supplierName);
     if (!supplier) {
       showToast("Nhà cung cấp của phiếu review chưa có trong danh bạ.", true);
       return;
     }
-    const discountAmount = Number(procurementReviewPanel.querySelector('[data-procurement-review-field="discount"]')?.value || 0);
-    const note = procurementReviewPanel.querySelector('[data-procurement-review-field="note"]')?.value || "";
+    const discountAmount = Number(card.querySelector('[data-procurement-review-field="discount"]')?.value || 0);
+    const note = card.querySelector('[data-procurement-review-field="note"]')?.value || "";
     if (!Number.isFinite(discountAmount) || discountAmount < 0) {
       showToast("Giảm giá khuyến mại không hợp lệ.", true);
       return;
@@ -7448,8 +7431,8 @@ procurementReviewPanel?.addEventListener("click", async (event) => {
     try {
       updatePurchase(purchase.id, (currentPurchase) => {
         const nextItems = (currentPurchase.items || []).map((item) => {
-          const quantityInput = procurementReviewPanel.querySelector(`[data-procurement-item-field="quantity"][data-item-id="${CSS.escape(item.id)}"]`);
-          const unitCostInput = procurementReviewPanel.querySelector(`[data-procurement-item-field="unitCost"][data-item-id="${CSS.escape(item.id)}"]`);
+          const quantityInput = card.querySelector(`[data-procurement-item-field="quantity"][data-item-id="${CSS.escape(item.id)}"]`);
+          const unitCostInput = card.querySelector(`[data-procurement-item-field="unitCost"][data-item-id="${CSS.escape(item.id)}"]`);
           const quantity = Number(quantityInput?.value || 0);
           const unitCost = Number(unitCostInput?.value || 0);
           if (!Number.isFinite(quantity) || quantity <= 0) {

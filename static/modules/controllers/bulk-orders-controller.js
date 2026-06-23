@@ -364,6 +364,24 @@ export function registerBulkOrdersControllerEvents(contract) {
       actions.showToast("Tài khoản này không có quyền chốt nhiều đơn.", true);
       return;
     }
+
+    if (!allowDuplicates) {
+      const isDraft = mode === "draft";
+      const requiresApproval = getRequiresBulkOrderApproval();
+      let confirmMsg = "";
+      if (requiresApproval) {
+        confirmMsg = isDraft 
+          ? "Các đơn xuất này sẽ được gửi duyệt với trạng thái Lưu nháp.\n\nBạn có chắc chắn muốn tiếp tục?"
+          : "Các đơn xuất này sẽ được gửi duyệt với yêu cầu Chốt đơn.\n\nBạn có chắc chắn muốn tiếp tục?";
+      } else {
+        confirmMsg = isDraft
+          ? "Các đơn xuất này sẽ được lưu ngay trên hệ thống với trạng thái Nháp (chưa xuất kho).\n\nBạn có chắc chắn muốn tiếp tục?"
+          : "Các đơn xuất này sẽ được chốt ngay trên hệ thống (và ghi nhận xuất kho đối với đơn đủ hàng).\n\nBạn có chắc chắn muốn tiếp tục?";
+      }
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+    }
     state.bulkOrderDraft.submitting = true;
     renderers.renderBulkOrdersScreen();
     try {
