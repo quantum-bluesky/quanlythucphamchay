@@ -4943,6 +4943,9 @@ function setLoginReturnMenu(menu) {
 }
 
 function isLoginScreenTarget(target) {
+  if (!target || target === document || target === window || target === document.documentElement || target === document.body) {
+    return true;
+  }
   return Boolean(
     globalBusyOverlay?.contains(target) ||
     globalBusyCard?.contains(target) ||

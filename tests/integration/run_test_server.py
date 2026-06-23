@@ -268,6 +268,7 @@ def main() -> int:
     build_fixture(store)
 
     system_config = load_system_config()
+    system_config["EnableMultiuserConflictCheck"] = True
     admin_sessions = AdminSessionManager(
         str(system_config["admin"]["username"]),
         str(system_config["admin"]["password"]),

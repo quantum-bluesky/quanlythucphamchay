@@ -95,8 +95,10 @@ test("IT-LOG-02 login form submit does not trigger login guard dialog while busy
     await dialog.dismiss();
   });
 
+  await page.context().clearCookies();
   await page.goto("/");
-  await page.waitForLoadState("networkidle");
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "networkidle" });
 
   let loginCandidate = null;
   for (const candidate of candidates) {

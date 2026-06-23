@@ -78,6 +78,33 @@ async function cleanupProcurementBatchTestPurchases(request, cookie) {
   }
 }
 
+async function restoreStateAfterTest(request, cookie, restoredState) {
+  const finalStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: cookie } });
+  expect(finalStateResponse.ok()).toBeTruthy();
+  const finalState = await finalStateResponse.json();
+  const cleanPurchases = (finalState.purchases || []).filter((purchase) => {
+    const id = String(purchase?.id || "");
+    const sourceType = String(purchase?.sourceType || purchase?.source_type || "").trim();
+    const status = String(purchase?.status || "").trim();
+    const isTemporary = id.startsWith("purchase_conflict_batch_")
+      || id.startsWith("purchase_batch_lock_")
+      || id.startsWith("purchase_proc_merge_")
+      || sourceType === "procurement_batch";
+    return !(isTemporary && ["draft", "ordered"].includes(status));
+  });
+
+  const response = await request.put("/api/state", {
+    headers: { Cookie: cookie },
+    data: {
+      customers: restoredState.customers,
+      suppliers: restoredState.suppliers,
+      carts: restoredState.carts,
+      purchases: cleanPurchases,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+}
+
 async function setFloatingSearch(page, term) {
   const toggle = page.locator("#floatingSearchToggle");
   const input = page.locator("#floatingSearchInput");
@@ -325,8 +352,8 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     const ownerUpdatedPayload = await ownerUpdatedResponse.json();
     expect(ownerUpdatedResponse.ok(), JSON.stringify(ownerUpdatedPayload)).toBeTruthy();
 
+    await page.context().clearCookies();
     await gotoWithRetry(page, "/");
-    await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
     await switchMenu(page, "purchases");
