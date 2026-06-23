@@ -292,7 +292,12 @@ export function createSyncRuntimeHelpers(deps) {
           try { await refreshData(); } catch {}
           return;
         }
-        showToast(`Lưu đồng bộ thất bại: ${error.message}`, true);
+        const isDesync = error?.message && error.message.includes("purchase_already_received_desync:");
+        if (isDesync) {
+          showToast("Phiếu nhập này đã được xử lý. Dữ liệu vừa tự tải lại. Vui lòng kiểm tra lại.", true);
+        } else {
+          showToast(`Lưu đồng bộ thất bại: ${error?.message || "Lỗi không xác định"}`, true);
+        }
         try { await refreshData(); } catch {}
       } finally {
         releaseQueuedPersistBusyLock();
