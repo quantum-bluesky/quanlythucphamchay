@@ -11232,9 +11232,9 @@ class InventoryStore:
 
             if previous_status == "received":
                 if next_status not in {"received", "paid"}:
-                    raise ValueError("Phiếu nhập đã nhập kho không thể hạ trạng thái hoặc mở lại nháp.")
+                    raise ValueError("purchase_already_received_desync: Phiếu nhập đã nhập kho không thể hạ trạng thái hoặc mở lại nháp.")
                 if self._snapshot_purchase_for_receive_lock(previous) != self._snapshot_purchase_for_receive_lock(purchase):
-                    raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
+                    raise ValueError("purchase_already_received_desync: Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
                 if next_status == "received":
                     continue
 
