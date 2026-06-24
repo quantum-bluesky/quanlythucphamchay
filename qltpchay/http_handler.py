@@ -502,7 +502,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "message": "Đã đăng nhập hệ thống.",
                             **self._get_session_status_payload(session_token=session_data["token"]),
                         },
-                        extra_headers=self._build_session_cookie_headers(session_data["token"]),
+                        extra_headers=self._build_session_cookie_headers(session_data["token"], session_data.get("role")),
                     )
                 except ValueError as exc:
                     self._send_json(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
@@ -534,7 +534,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "message": "Đã đăng nhập Master Admin.",
                             **self._get_session_status_payload(session_token=session_data["token"]),
                         },
-                        extra_headers=self._build_session_cookie_headers(session_data["token"]),
+                        extra_headers=self._build_session_cookie_headers(session_data["token"], session_data.get("role")),
                     )
                 except ValueError as exc:
                     self._send_json(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
@@ -2119,9 +2119,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 header += f"; Max-Age={max_age}"
             return header
 
-        def _build_session_cookie_headers(self, token: str) -> list[tuple[str, str]]:
+        def _build_session_cookie_headers(self, token: str, role: str | None = None) -> list[tuple[str, str]]:
             cookie_name = self._get_session_cookie_name()
-            headers = [("Set-Cookie", self._build_cookie_header(cookie_name, token))]
+            max_age = None
+            if role is not None:
+                # Đảm bảo Max-Age được set cho cookie dựa trên timeout config để tránh việc 
+                # trình duyệt (đặc biệt trên mobile) xóa cookie ngay khi đóng tab (Session Cookie)
+                max_age = (admin_session_timeout_minutes if role == "admin" else session_timeout_minutes) * 60
+            headers = [("Set-Cookie", self._build_cookie_header(cookie_name, token, max_age=max_age))]
             if cookie_name != ADMIN_SESSION_COOKIE:
                 headers.append(("Set-Cookie", self._build_cookie_header(ADMIN_SESSION_COOKIE, "", max_age=0)))
             return headers

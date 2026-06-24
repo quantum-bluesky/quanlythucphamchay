@@ -1,8 +1,8 @@
 {
-  "app_version": "3.19.0",
+  "app_version": "3.19.1",
   "files": {
     "app.js": {
-      "counter": 4,
+      "counter": 1,
       "sha256": "cf5f89bb4d99ea99d2cfaeb269c33dede171c2f5c390a53af1758f8bb7eeacea"
     },
     "bootstrap.js": {
@@ -14,7 +14,7 @@
       "sha256": "0ff8f11b251997e3ffd247d00557634b600d065a98d991f4914310c793c27dd9"
     },
     "modules/controllers/bulk-orders-controller.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "5927b3487cf05d2eb335e16061ec980f911cba798f286333d04cf8fd2970d0b1"
     },
     "modules/controllers/core-controller.js": {
@@ -78,7 +78,7 @@
       "sha256": "95aa7520c863f1a80f5886fbc68d31867a1de3a2c122a8376ffa71bafe70cad3"
     },
     "modules/sync-runtime.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "0239f7593720a10a90d60e743610fde8caddeb9f7ee3264ba1bc955286a62931"
     },
     "modules/ui/bulk-orders-ui.js": {
