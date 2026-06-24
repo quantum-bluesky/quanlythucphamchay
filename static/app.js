@@ -3857,42 +3857,43 @@ function renderProcurementReviewPanel() {
           (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitCost || item.unit_cost || 0),
           0
         );
-        return \`
-          <article class="report-card procurement-review-card" data-purchase-id="\${escapeHtml(purchaseId)}">
+        return `
+          <article class="report-card procurement-review-card" data-purchase-id="${escapeHtml(purchaseId)}">
             <div class="report-card-head">
-              <strong>\${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
-              <span class="status-pill draft">Tạm tính \${escapeHtml(formatCurrency(purchaseTotal))}</span>
+              <strong>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
+              <span class="status-pill draft">Tạm tính ${escapeHtml(formatCurrency(purchaseTotal))}</span>
             </div>
             <div class="procurement-review-grid">
-              <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="\${escapeHtml(purchase.supplierName || "")}" data-procurement-review-field="supplier" data-purchase-id="\${escapeHtml(purchaseId)}"></label>
-              <label><span>Giảm KM phiếu</span><input type="number" min="0" step="1000" value="\${escapeHtml(purchase.discountAmount || 0)}" data-procurement-review-field="discount" data-purchase-id="\${escapeHtml(purchaseId)}"></label>
-              <label class="wide-field"><span>Ghi chú</span><input type="text" value="\${escapeHtml(purchase.note || "")}" data-procurement-review-field="note" data-purchase-id="\${escapeHtml(purchaseId)}"></label>
+              <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(purchase.supplierName || "")}" data-procurement-review-field="supplier" data-purchase-id="${escapeHtml(purchaseId)}"></label>
+              <label><span>Giảm KM phiếu</span><input type="number" min="0" step="1000" value="${escapeHtml(purchase.discountAmount || 0)}" data-procurement-review-field="discount" data-purchase-id="${escapeHtml(purchaseId)}"></label>
+              <label class="wide-field"><span>Ghi chú</span><input type="text" value="${escapeHtml(purchase.note || "")}" data-procurement-review-field="note" data-purchase-id="${escapeHtml(purchaseId)}"></label>
             </div>
             <div class="cart-items-list">
-              \${(purchase.items || []).map((item) => {
+              ${(purchase.items || []).map((item) => {
                 const linePriceAlerts = getPriceWarningAlerts({ purchasePrice: item.unitCost || item.unit_cost || 0 });
-                return \`
+                return `
                 <article class="cart-item">
                   <div class="cart-item-main">
-                    <strong>\${escapeHtml(item.productName)}</strong>
-                    <span>\${escapeHtml(item.unit || "")} \${renderPriceWarningMarkup(linePriceAlerts, "view")}</span>
+                    <strong>${escapeHtml(item.productName)}</strong>
+                    <span>${escapeHtml(item.unit || "")} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</span>
                   </div>
                   <div data-price-warning-group data-price-warning-mode="edit">
                     <div class="procurement-review-grid">
-                      <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="\${escapeHtml(item.quantity)}" data-procurement-item-field="quantity" data-purchase-id="\${escapeHtml(purchaseId)}" data-item-id="\${escapeHtml(item.id)}"></label>
-                      <label data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="\${escapeHtml(item.unitCost || item.unit_cost || 0)}" data-procurement-item-field="unitCost" data-purchase-id="\${escapeHtml(purchaseId)}" data-item-id="\${escapeHtml(item.id)}" data-price-warning-input="purchase"></label>
+                      <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(item.quantity)}" data-procurement-item-field="quantity" data-purchase-id="${escapeHtml(purchaseId)}" data-item-id="${escapeHtml(item.id)}"></label>
+                      <label data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(item.unitCost || item.unit_cost || 0)}" data-procurement-item-field="unitCost" data-purchase-id="${escapeHtml(purchaseId)}" data-item-id="${escapeHtml(item.id)}" data-price-warning-input="purchase"></label>
                     </div>
-                    <div data-price-warning-host>\${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>
+                    <div data-price-warning-host>${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>
                   </div>
                 </article>
-              \`;
+              `;
               }).join("")}
             </div>
-            <div class="line-actions" style="margin-top: 12px;">
-              <button type="button" class="primary-button compact-button" data-procurement-review-action="save" data-purchase-id="\${escapeHtml(purchaseId)}">Lưu chi tiết phiếu này</button>
+            <div class="line-actions" style="margin-top: 12px; display: flex; gap: 8px;">
+              <button type="button" class="ghost-button compact-button" data-procurement-review-action="open" data-purchase-id="${escapeHtml(purchaseId)}">Mở phiếu</button>
+              <button type="button" class="primary-button compact-button" data-procurement-review-action="save" data-purchase-id="${escapeHtml(purchaseId)}">Lưu chi tiết phiếu này</button>
             </div>
           </article>
-        \`;
+        `;
       }).join("")}
     </div>
   `;
