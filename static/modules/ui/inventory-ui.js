@@ -325,7 +325,7 @@ export function createInventoryUi(deps) {
         ? `
           <div class="inventory-product-compact">
             <div class="inventory-product-left">
-              <div class="product-row-name">${escapeHtml(product.name)}</div>
+              <div class="product-row-name"><span class="product-name-link" data-product-detail-trigger="${product.id}">${escapeHtml(product.name)}</span></div>
               <div class="product-row-meta">
                 <span>${escapeHtml(product.category)}</span>
               </div>
@@ -354,7 +354,7 @@ export function createInventoryUi(deps) {
           ${compact ? compactLayout : `
               <div class="product-row-head">
                 <div>
-                  <div class="product-row-name">${escapeHtml(product.name)}</div>
+                  <div class="product-row-name"><span class="product-name-link" data-product-detail-trigger="${product.id}">${escapeHtml(product.name)}</span></div>
                   <div class="product-row-meta">
                     <span>${escapeHtml(product.category)}</span>
                     <span>${escapeHtml(product.unit)}</span>

@@ -824,6 +824,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
                         shelf_life_days=payload.get("shelf_life_days"),
                         storage_life_days=payload.get("storage_life_days"),
+                        images=payload.get("images"),
+                        details=payload.get("details"),
                         actor=self._get_current_actor_name(),
                     )
                     self._send_json(
@@ -1493,6 +1495,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
                         shelf_life_days=payload.get("shelf_life_days"),
                         storage_life_days=payload.get("storage_life_days"),
+                        images=payload.get("images"),
+                        details=payload.get("details"),
                         actor=payload.get("actor") or self._get_current_actor_name(),
                     )
                     self._send_json(

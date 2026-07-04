@@ -17,6 +17,8 @@ export function registerProductsControllerEvents(contract) {
     dom.productForm.low_stock_threshold.value = "5";
     if (dom.productForm.shelf_life_days) dom.productForm.shelf_life_days.value = "";
     if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = "";
+    if (dom.productForm.images) dom.productForm.images.value = "";
+    if (dom.productForm.details) dom.productForm.details.value = "";
     utils.syncPriceWarningGroups(dom.productForm);
   };
 
@@ -26,7 +28,13 @@ export function registerProductsControllerEvents(contract) {
     event.preventDefault();
     const formData = new FormData(dom.productForm);
     const payload = Object.fromEntries(formData.entries());
-
+    
+    if (payload.images) {
+      payload.images = payload.images.split("\n").map(s => s.trim()).filter(Boolean);
+    } else {
+      payload.images = [];
+    }
+    
     try {
       const data = state.editingProductId
         ? await actions.apiRequest(`/api/products/${state.editingProductId}`, {
@@ -130,6 +138,24 @@ export function registerProductsControllerEvents(contract) {
       state.editingProductId = null;
       renderers.renderProductManageList();
       utils.syncPriceWarningGroups(dom.productManageList);
+      return;
+    }
+
+    if (button.dataset.productManageAction === "edit-full") {
+      state.editingProductId = productId;
+      dom.productForm.name.value = product.name;
+      dom.productForm.category.value = product.category;
+      dom.productForm.unit.value = product.unit;
+      dom.productForm.price.value = product.price;
+      dom.productForm.sale_price.value = product.sale_price ?? 0;
+      dom.productForm.low_stock_threshold.value = product.low_stock_threshold;
+      if (dom.productForm.shelf_life_days) dom.productForm.shelf_life_days.value = product.shelf_life_days ?? "";
+      if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = product.storage_life_days ?? "";
+      if (dom.productForm.images) dom.productForm.images.value = product.images ? product.images.join("\\n") : "";
+      if (dom.productForm.details) dom.productForm.details.value = product.details || "";
+      
+      actions.openProductFormSection();
+      utils.syncPriceWarningGroups(dom.productForm);
       return;
     }
 

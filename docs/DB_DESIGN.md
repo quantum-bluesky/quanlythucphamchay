@@ -68,6 +68,8 @@ Nguồn: `CREATE TABLE IF NOT EXISTS products` trong `qltpchay/store.py`.
 - `low_stock_threshold`: REAL, ngưỡng cảnh báo sắp hết
 - `shelf_life_days`: REAL nullable, hạn dùng chuẩn theo số ngày
 - `storage_life_days`: REAL nullable, thời gian bảo quản ước tính theo số ngày
+- `images`: TEXT nullable, JSON array các URL ảnh sản phẩm
+- `details`: TEXT nullable, chuỗi HTML hướng dẫn/thông tin chi tiết sản phẩm
 - `is_deleted`: INTEGER, soft delete flag
 - `deleted_at`: TEXT, thời điểm xóa mềm
 - `created_at`: TEXT, timestamp ISO
@@ -489,6 +491,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - thêm `is_deleted`
 - thêm `deleted_at`
 - thêm `shelf_life_days` và `storage_life_days` vào `products`
+- thêm `images` và `details` vào `products`
 - thêm `actor` vào `audit_logs`
 - thêm bảng quan hệ cho `customers/suppliers/carts/purchases`
 - thêm `discount_amount` vào `carts`, `purchases`, `inventory_receipts`

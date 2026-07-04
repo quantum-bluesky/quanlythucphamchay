@@ -170,6 +170,8 @@ class InventoryStore:
                     low_stock_threshold REAL NOT NULL DEFAULT 5,
                     shelf_life_days REAL,
                     storage_life_days REAL,
+                    images TEXT NOT NULL DEFAULT '[]',
+                    details TEXT NOT NULL DEFAULT '',
                     is_deleted INTEGER NOT NULL DEFAULT 0,
                     deleted_at TEXT,
                     created_at TEXT NOT NULL,
@@ -556,6 +558,14 @@ class InventoryStore:
             if "storage_life_days" not in columns:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN storage_life_days REAL"
+                )
+            if "images" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN images TEXT NOT NULL DEFAULT '[]'"
+                )
+            if "details" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN details TEXT NOT NULL DEFAULT ''"
                 )
             now = utc_now_iso()
             audit_columns = {
@@ -2825,6 +2835,8 @@ class InventoryStore:
         sale_price: str | int | float | None = None,
         shelf_life_days: str | int | float | None = None,
         storage_life_days: str | int | float | None = None,
+        images: list[str] | None = None,
+        details: str = "",
         actor: str = "",
     ) -> dict:
         (
@@ -2847,34 +2859,32 @@ class InventoryStore:
             storage_life_days,
         )
         now = utc_now_iso()
+        clean_images = json.dumps([str(img).strip() for img in (images or []) if str(img).strip()], ensure_ascii=False)
+        clean_details = str(details or "").strip()
 
         with self._connect() as connection:
             try:
                 cursor = connection.execute(
                     """
-                    INSERT INTO products(
-                        name,
-                        category,
-                        unit,
-                        price,
-                        sale_price,
-                        low_stock_threshold,
-                        shelf_life_days,
-                        storage_life_days,
-                        created_at,
-                        updated_at
+                    INSERT INTO products (
+                        name, category, unit, low_stock_threshold,
+                        price, sale_price, shelf_life_days, storage_life_days,
+                        images, details,
+                        created_at, updated_at
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         clean_name,
                         clean_category,
                         clean_unit,
+                        threshold,
                         parsed_price,
                         parsed_sale_price,
-                        float(threshold),
                         parsed_shelf_life_days,
                         parsed_storage_life_days,
+                        clean_images,
+                        clean_details,
                         now,
                         now,
                     ),
@@ -3028,6 +3038,8 @@ class InventoryStore:
         sale_price: str | int | float | None = None,
         shelf_life_days: str | int | float | None = None,
         storage_life_days: str | int | float | None = None,
+        images: list[str] | None = None,
+        details: str | None = None,
         actor: str = "",
     ) -> dict:
         (
@@ -3050,22 +3062,39 @@ class InventoryStore:
             storage_life_days,
         )
         now = utc_now_iso()
+        
+        next_values = {
+            "name": clean_name,
+            "category": clean_category,
+            "unit": clean_unit,
+            "low_stock_threshold": threshold,
+            "price": parsed_price,
+            "sale_price": parsed_sale_price,
+            "shelf_life_days": parsed_shelf_life_days,
+            "storage_life_days": parsed_storage_life_days,
+        }
+        if images is not None:
+            next_values["images"] = json.dumps([str(img).strip() for img in images if str(img).strip()], ensure_ascii=False)
+        if details is not None:
+            next_values["details"] = str(details).strip()
 
         with self._connect() as connection:
             current_product = self._get_product_or_raise(connection, int(product_id))
             try:
+                updates = []
+                values = []
+                for k, v in next_values.items():
+                    updates.append(f"{k} = ?")
+                    values.append(v)
+                
+                updates.append("updated_at = ?")
+                values.append(now)
+                values.append(int(product_id))
+
                 connection.execute(
-                    """
+                    f"""
                     UPDATE products
-                    SET name = ?,
-                        category = ?,
-                        unit = ?,
-                        price = ?,
-                        sale_price = ?,
-                        low_stock_threshold = ?,
-                        shelf_life_days = ?,
-                        storage_life_days = ?,
-                        updated_at = ?
+                    SET {", ".join(updates)}
                     WHERE id = ?
                     """,
                     (
@@ -9497,6 +9526,12 @@ class InventoryStore:
         expiry_basis = "unknown"
         next_expiry_date = ""
         known_expiry_lots = [lot for lot in lots if lot.get("expiry_date")]
+        
+        try:
+            images = json.loads(row["images"]) if "images" in row.keys() else []
+        except (json.JSONDecodeError, KeyError):
+            images = []
+            
         if known_expiry_lots:
             earliest_lot = known_expiry_lots[0]
             estimated_remaining_days = earliest_lot.get("days_to_expiry")
@@ -9547,6 +9582,8 @@ class InventoryStore:
             "lots": lots,
             "has_unknown_expiry_lots": any(not lot.get("expiry_date") for lot in lots),
             "is_low_stock": current_stock <= threshold,
+            "images": images,
+            "details": row["details"] if "details" in row.keys() else "",
             "is_deleted": bool(row["is_deleted"]),
             "deleted_at": row["deleted_at"],
             "created_at": row["created_at"],

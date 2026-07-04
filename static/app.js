@@ -5821,7 +5821,7 @@ function renderDeletedProducts() {
         <article class="product-row low-stock">
           <div class="product-row-head">
             <div>
-              <div class="product-row-name">${escapeHtml(product.name)}</div>
+              <div class="product-row-name"><span class="product-name-link" data-product-detail-trigger="${product.id}">${escapeHtml(product.name)}</span></div>
               <div class="product-row-meta">
                 <span>${escapeHtml(product.category)}</span>
                 <span>${escapeHtml(product.unit)}</span>
@@ -7545,5 +7545,69 @@ procurementStatusPanel?.addEventListener("click", (event) => {
     } catch (error) {
       showToast(error.message, true);
     }
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const trigger = event.target.closest("[data-product-detail-trigger]");
+  if (trigger) {
+    const productId = Number(trigger.dataset.productDetailTrigger);
+    showProductDetailModal(productId);
+  }
+  
+  if (event.target.matches("#productDetailModalCloseButton") || event.target.matches("#productDetailModal")) {
+    document.getElementById("productDetailModal").classList.add("hidden");
+  }
+});
+
+function showProductDetailModal(productId) {
+  const product = state.products.find(p => p.id === productId) || state.deletedProducts.find(p => p.id === productId);
+  if (!product) return;
+  
+  const modal = document.getElementById("productDetailModal");
+  if (!modal) return;
+  
+  const title = document.getElementById("productDetailModalTitle");
+  const imgContainer = document.getElementById("productDetailImagesContainer");
+  const content = document.getElementById("productDetailContent");
+  
+  if (title) title.textContent = product.name;
+  
+  if (imgContainer) {
+    imgContainer.innerHTML = "";
+    if (product.images && product.images.length > 0) {
+      product.images.forEach(url => {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = product.name;
+        imgContainer.appendChild(img);
+      });
+      imgContainer.hidden = false;
+    } else {
+      imgContainer.hidden = true;
+    }
+  }
+  
+  if (content) {
+    content.innerHTML = product.details || "<i>Chưa có thông tin chi tiết.</i>";
+  }
+  
+  modal.hidden = false;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("productDetailModal");
+  if (!modal) return;
+  const closeBtn = document.getElementById("closeProductDetailButton");
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      modal.hidden = true;
+    });
+  }
+  const backdrop = modal.querySelector(".help-backdrop");
+  if (backdrop) {
+    backdrop.addEventListener("click", () => {
+      modal.hidden = true;
+    });
   }
 });
