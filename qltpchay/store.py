@@ -3097,18 +3097,7 @@ class InventoryStore:
                     SET {", ".join(updates)}
                     WHERE id = ?
                     """,
-                    (
-                        clean_name,
-                        clean_category,
-                        clean_unit,
-                        parsed_price,
-                        parsed_sale_price,
-                        threshold,
-                        parsed_shelf_life_days,
-                        parsed_storage_life_days,
-                        now,
-                        int(product_id),
-                    ),
+                    values,
                 )
             except sqlite3.IntegrityError as exc:
                 deleted_match = connection.execute(

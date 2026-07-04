@@ -38,6 +38,8 @@ import {
   productOptions,
   quickTransactionForm,
   productForm,
+  productImageUpload,
+  uploadProductImageButton,
   toast,
   searchInput,
   quantityInput,
@@ -6642,6 +6644,8 @@ registerProductsControllerEvents({
   state,
   dom: {
     productForm,
+    productImageUpload: document.getElementById("productImageUpload"),
+    uploadProductImageButton: document.getElementById("uploadProductImageButton"),
     productFormCancelButton,
     productManageSearchInput,
     productHistoryActorInput,

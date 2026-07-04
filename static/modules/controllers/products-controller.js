@@ -24,6 +24,52 @@ export function registerProductsControllerEvents(contract) {
 
   utils.syncPriceWarningGroups(dom.productForm);
 
+  if (dom.uploadProductImageButton && dom.productImageUpload) {
+    dom.uploadProductImageButton.addEventListener("click", () => {
+      dom.productImageUpload.click();
+    });
+
+    dom.productImageUpload.addEventListener("change", async (event) => {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      
+      const originalText = dom.uploadProductImageButton.textContent;
+      dom.uploadProductImageButton.textContent = "Đang tải...";
+      dom.uploadProductImageButton.disabled = true;
+
+      try {
+        const urls = [];
+        for (const file of files) {
+          const response = await fetch(`/api/products/images/upload?filename=${encodeURIComponent(file.name)}`, {
+            method: "POST",
+            body: file,
+            headers: {
+              "Content-Type": "application/octet-stream"
+            }
+          });
+          if (!response.ok) {
+            const errBody = await response.json().catch(() => ({}));
+            throw new Error(errBody.error || await response.text() || "Lỗi không xác định");
+          }
+          const data = await response.json();
+          if (data.url) urls.push(data.url);
+        }
+        
+        if (urls.length > 0) {
+          const existing = dom.productForm.images.value.trim();
+          dom.productForm.images.value = existing ? existing + "\n" + urls.join("\n") : urls.join("\n");
+          actions.showToast("Tải ảnh thành công");
+        }
+      } catch (e) {
+        actions.showToast("Lỗi tải ảnh: " + e.message, true);
+      } finally {
+        dom.uploadProductImageButton.textContent = originalText;
+        dom.uploadProductImageButton.disabled = false;
+        dom.productImageUpload.value = "";
+      }
+    });
+  }
+
   dom.productForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(dom.productForm);

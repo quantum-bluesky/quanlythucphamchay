@@ -227,3 +227,9 @@ export const salesSearchToolbar = salesSearchInput?.closest(".sticky-toolbar") |
 export const bulkOrdersSection = document.querySelector('[data-menu-section="bulk-orders"]');
 export const bulkOrdersPanel = bulkOrdersSection?.querySelector(".bulk-orders-panel") || null;
 export const searchClearRefreshers = [];
+
+export const productDetailModal = document.getElementById('productDetailModal');
+export const productDetailImagesContainer = document.getElementById('productDetailImagesContainer');
+export const productImageUpload = document.getElementById('productImageUpload');
+export const uploadProductImageButton = document.getElementById('uploadProductImageButton');
+
