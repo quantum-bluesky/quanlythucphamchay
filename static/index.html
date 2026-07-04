@@ -546,25 +546,7 @@
               </label>
               <div class="rich-text-label" style="display: flex; flex-direction: column; gap: 4px;">
                 <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted);">Thông tin chi tiết (Hỗ trợ copy/paste HTML)</span>
-                <div class="wysiwyg-toolbar" style="display: flex; gap: 4px; flex-wrap: wrap; background: var(--background); padding: 6px; border: 1px solid var(--line); border-bottom: none; border-radius: var(--radius-md) var(--radius-md) 0 0;">
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('formatBlock', false, 'H3')" title="Tiêu đề 3" style="font-weight:bold;">H3</button>
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('formatBlock', false, 'H4')" title="Tiêu đề 4" style="font-weight:bold;">H4</button>
-                  <span style="border-right: 1px solid var(--line); margin: 0 4px;"></span>
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('bold', false, null)" title="In đậm"><b>B</b></button>
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('italic', false, null)" title="In nghiêng"><i>I</i></button>
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('underline', false, null)" title="Gạch chân"><u>U</u></button>
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('strikeThrough', false, null)" title="Gạch ngang"><s>S</s></button>
-                  <span style="border-right: 1px solid var(--line); margin: 0 4px;"></span>
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('justifyLeft', false, null)" title="Căn trái">≡ L</button>
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('justifyCenter', false, null)" title="Căn giữa">≡ C</button>
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('justifyRight', false, null)" title="Căn phải">≡ R</button>
-                  <span style="border-right: 1px solid var(--line); margin: 0 4px;"></span>
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('insertUnorderedList', false, null)" title="Danh sách chấm">&bull; Danh sách</button>
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('insertOrderedList', false, null)" title="Danh sách số">1. Danh sách</button>
-                  <span style="border-right: 1px solid var(--line); margin: 0 4px;"></span>
-                  <button type="button" class="ghost-button compact-button" onmousedown="event.preventDefault(); document.execCommand('removeFormat', false, null)" title="Xóa định dạng">Tx</button>
-                </div>
-                <div id="productDetailEditor" contenteditable="true" class="wysiwyg-editor" style="min-height: 120px; max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: 0 0 var(--radius-md) var(--radius-md); padding: 12px; background: var(--surface); outline: none; line-height: 1.5;"></div>
+                <div id="productDetailEditor" contenteditable="true" style="min-height: 120px; max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-md); padding: 12px; background: var(--surface); outline: none; line-height: 1.5;"></div>
                 <textarea name="details" style="display:none;"></textarea>
               </div>
               <div class="product-form-actions">

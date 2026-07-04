@@ -239,7 +239,8 @@ export function registerProductsControllerEvents(contract) {
         }
         // Add a small delay to ensure DOM is ready for pasting if just uncollapsed
         window.setTimeout(() => {
-          quillEditor.clipboard.dangerouslyPasteHTML(detailsHtml);
+          const delta = quillEditor.clipboard.convert({ html: detailsHtml });
+          quillEditor.setContents(delta, 'silent');
         }, 10);
       } else if (dom.productDetailEditor) {
         let detailsHtml = product.details || "";
