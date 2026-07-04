@@ -279,7 +279,6 @@ export function registerProductsControllerEvents(contract) {
             dom.productDetailEditor.innerHTML = detailsHtml;
           }
         }, 50);
-      }
       
       actions.openProductFormSection();
       utils.syncPriceWarningGroups(dom.productForm);
