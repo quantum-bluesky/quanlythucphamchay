@@ -15,7 +15,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, parse_qsl, urlparse
 
 from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
-from .constants import ADMIN_SESSION_COOKIE, APP_NAME, JS_ASSET_VERSIONS_PATH, STATIC_DIR
+from . import constants as constants
+from .constants import ADMIN_SESSION_COOKIE, APP_NAME, DATA_DIR, JS_ASSET_VERSIONS_PATH, STATIC_DIR
 from .js_asset_versions import JavaScriptAssetVersionManager
 from .mailer import send_mail_notification
 from .store import BulkOrderRequestDuplicateError, ProcurementBatchStartConflictError, SyncConflictError
@@ -813,7 +814,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
             if route == "/api/products/images/upload":
                 try:
-                    filename = parse_qs(parsed.query).get("filename", ["image.jpg"])[0]
+                    # Issue: 'parsed' chỉ có trong do_GET, phải parse URL riêng ở đây
+                    from urllib.parse import urlparse, parse_qs as _parse_qs
+                    _parsed = urlparse(self.path)
+                    filename = _parse_qs(_parsed.query).get("filename", ["image.jpg"])[0]
                     payload = self._read_binary_body()
                     ext = Path(filename).suffix
                     if ext.lower() not in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]:

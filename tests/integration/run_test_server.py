@@ -256,6 +256,8 @@ def main() -> int:
 
     temp_root = Path(tempfile.mkdtemp(prefix="qltpchay-int-"))
     db_path = temp_root / "inventory-test.db"
+    # Issue: redirect DATA_DIR về temp để upload ảnh test không vào data/ thật
+    constants.DATA_DIR = temp_root
     constants.BACKUP_DIR = temp_root / "backups"
     store_module.BACKUP_DIR = constants.BACKUP_DIR
 

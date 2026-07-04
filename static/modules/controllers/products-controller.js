@@ -41,18 +41,16 @@ export function registerProductsControllerEvents(contract) {
       try {
         const urls = [];
         for (const file of files) {
-          const response = await fetch(`/api/products/images/upload?filename=${encodeURIComponent(file.name)}`, {
+          // Issue: đọc thành ArrayBuffer để browser tự gắn Content-Length đúng,
+          // tránh chunked transfer encoding mà Python BaseHTTPServer không xử lý được
+          const buffer = await file.arrayBuffer();
+          const data = await actions.apiRequest(`/api/products/images/upload?filename=${encodeURIComponent(file.name)}`, {
             method: "POST",
-            body: file,
+            body: buffer,
             headers: {
-              "Content-Type": "application/octet-stream"
+              "Content-Type": "application/octet-stream",
             }
           });
-          if (!response.ok) {
-            const errBody = await response.json().catch(() => ({}));
-            throw new Error(errBody.error || await response.text() || "Lỗi không xác định");
-          }
-          const data = await response.json();
           if (data.url) urls.push(data.url);
         }
         
