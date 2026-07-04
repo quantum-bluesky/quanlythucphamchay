@@ -33,10 +33,7 @@
       "counter": 1,
       "sha256": "0e9833d9b69417e66abeb4571aeaeed17a9b4b95ebdfe6adee0ae0c8517a8464"
     },
-    "modules/controllers/products-controller.js": {
-      "counter": 1,
-      "sha256": "10bb4367067857557c006fd6f0ce722d21bd6fb7d8e5c03b47ac1969eb63636d"
-    },
+    "modules/controllers/products-controller.js": null,
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
       "sha256": "5b53805380c3b05e43b44cd09caf9da49a79a148827952ef313952bfcd3275b3"
@@ -133,5 +130,6 @@
       "counter": 1,
       "sha256": "6005ac521f488a6adec4f1ac36e8ee8bd4985aa9ebd14ad7084270f1b64282d7"
     }
-  }
+  },
+  "main_version": "3.20.10"
 }

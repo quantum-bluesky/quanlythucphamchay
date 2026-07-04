@@ -29,41 +29,59 @@ export function registerProductsControllerEvents(contract) {
     utils.syncPriceWarningGroups(dom.productForm);
   };
 
-  if (dom.productDetailEditor && !quillEditor) {
+  const enableFallbackEditor = () => {
+    if (!dom.productDetailEditor) return;
+    dom.productDetailEditor.contentEditable = "true";
+    dom.productDetailEditor.style.padding = "12px";
+    dom.productDetailEditor.addEventListener('input', () => {
+      if (dom.productForm.details) dom.productForm.details.value = dom.productDetailEditor.innerHTML;
+    });
+  };
+
+  const ensureQuillInitialized = () => {
+    if (!dom.productDetailEditor || quillEditor) return;
     if (!window.Quill) {
       console.error("[Quill] window.Quill is not defined. Script might not be loaded.");
-      utils.showToast("Lỗi: Không tìm thấy thư viện Quill.js. Vui lòng thử tải lại trang (Ctrl+F5).", true);
-      // Fallback to plain input
-      dom.productDetailEditor.addEventListener('input', () => {
-        if (dom.productForm.details) dom.productForm.details.value = dom.productDetailEditor.innerHTML;
+      utils.showToast("Lỗi: Không tìm thấy thư viện Quill.js. Vui lòng tải lại trang.", true);
+      enableFallbackEditor();
+      return;
+    }
+    try {
+      quillEditor = new window.Quill(dom.productDetailEditor, {
+        theme: 'snow',
+        placeholder: 'Nhập thông tin chi tiết sản phẩm...',
+        modules: {
+          toolbar: [
+            [{ 'header': [3, 4, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'align': [] }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['clean']
+          ]
+        }
       });
+      quillEditor.on('text-change', () => {
+        if (dom.productForm.details) dom.productForm.details.value = quillEditor.root.innerHTML;
+      });
+      console.log("[Quill] Initialized successfully");
+    } catch (err) {
+      console.error("[Quill] Init failed:", err);
+      utils.showToast("Lỗi khởi tạo bộ soạn thảo: " + err.message, true);
+      enableFallbackEditor();
+    }
+  };
+
+  if (dom.productDetailEditor && !quillEditor) {
+    if (dom.productDetailEditor.offsetParent !== null) {
+      ensureQuillInitialized();
     } else {
-      try {
-        quillEditor = new Quill(dom.productDetailEditor, {
-          theme: 'snow',
-          placeholder: 'Nhập thông tin chi tiết sản phẩm...',
-          modules: {
-            toolbar: [
-              [{ 'header': [3, 4, false] }],
-              ['bold', 'italic', 'underline', 'strike'],
-              [{ 'align': [] }],
-              [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-              ['clean']
-            ]
-          }
-        });
-        quillEditor.on('text-change', () => {
-          if (dom.productForm.details) dom.productForm.details.value = quillEditor.root.innerHTML;
-        });
-        console.log("[Quill] Initialized successfully");
-      } catch (err) {
-        console.error("[Quill] Init failed:", err);
-        utils.showToast("Lỗi khởi tạo bộ soạn thảo: " + err.message, true);
-        // Fallback
-        dom.productDetailEditor.addEventListener('input', () => {
-          if (dom.productForm.details) dom.productForm.details.value = dom.productDetailEditor.innerHTML;
-        });
-      }
+      const initObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && !quillEditor) {
+          ensureQuillInitialized();
+          initObserver.disconnect();
+        }
+      });
+      initObserver.observe(dom.productDetailEditor);
     }
   }
 
@@ -247,22 +265,20 @@ export function registerProductsControllerEvents(contract) {
       if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = product.storage_life_days ?? "";
       if (dom.productForm.images) dom.productForm.images.value = product.images ? product.images.join("\n") : "";
       if (dom.productForm.details) dom.productForm.details.value = product.details || "";
-      if (quillEditor) {
         let detailsHtml = product.details || "";
         if (detailsHtml && !detailsHtml.includes("<") && detailsHtml.includes("\n")) {
           detailsHtml = detailsHtml.replace(/\n/g, "<br>");
         }
-        // Add a small delay to ensure DOM is ready for pasting if just uncollapsed
+        
+        // Wait briefly so if the intersection observer just fired, quillEditor is assigned
         window.setTimeout(() => {
-          const delta = quillEditor.clipboard.convert({ html: detailsHtml });
-          quillEditor.setContents(delta, 'silent');
-        }, 10);
-      } else if (dom.productDetailEditor) {
-        let detailsHtml = product.details || "";
-        if (detailsHtml && !detailsHtml.includes("<") && detailsHtml.includes("\n")) {
-          detailsHtml = detailsHtml.replace(/\n/g, "<br>");
-        }
-        dom.productDetailEditor.innerHTML = detailsHtml;
+          if (quillEditor) {
+            const delta = quillEditor.clipboard.convert({ html: detailsHtml });
+            quillEditor.setContents(delta, 'silent');
+          } else if (dom.productDetailEditor) {
+            dom.productDetailEditor.innerHTML = detailsHtml;
+          }
+        }, 50);
       }
       
       actions.openProductFormSection();
@@ -343,6 +359,7 @@ export function registerProductsControllerEvents(contract) {
     if (!shortcutButton) return;
 
     if (shortcutButton.dataset.productShortcut === "form") {
+      resetProductForm();
       actions.openProductFormSection({ focus: true });
       return;
     }
