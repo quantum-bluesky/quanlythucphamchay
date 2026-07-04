@@ -3701,3 +3701,17 @@ button:disabled {
 .rich-text-label textarea {
   font-family: monospace;
 }
+
+
+/* Fix Quill Editor Buttons on Mobile */
+.ql-toolbar button {
+  min-height: unset !important;
+  border-radius: 0 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.ql-toolbar button:hover,
+.ql-toolbar button:active {
+  transform: none !important;
+  box-shadow: none !important;
+}

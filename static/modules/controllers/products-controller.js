@@ -53,8 +53,8 @@ export function registerProductsControllerEvents(contract) {
         modules: {
           toolbar: [
             [{ 'header': [3, 4, false] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ 'align': [] }],
+            ['bold', 'italic', 'underline'],
+            ['link', 'blockquote', 'code-block', 'image'],
             [{ 'list': 'ordered'}, { 'list': 'bullet' }],
             ['clean']
           ]
