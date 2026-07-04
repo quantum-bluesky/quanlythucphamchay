@@ -19,6 +19,7 @@ export function registerProductsControllerEvents(contract) {
     if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = "";
     if (dom.productForm.images) dom.productForm.images.value = "";
     if (dom.productForm.details) dom.productForm.details.value = "";
+    if (dom.productDetailEditor) dom.productDetailEditor.innerHTML = "";
     utils.syncPriceWarningGroups(dom.productForm);
   };
 
@@ -72,6 +73,9 @@ export function registerProductsControllerEvents(contract) {
 
   dom.productForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (dom.productDetailEditor) {
+      dom.productForm.details.value = dom.productDetailEditor.innerHTML;
+    }
     const formData = new FormData(dom.productForm);
     const payload = Object.fromEntries(formData.entries());
     
@@ -197,8 +201,9 @@ export function registerProductsControllerEvents(contract) {
       dom.productForm.low_stock_threshold.value = product.low_stock_threshold;
       if (dom.productForm.shelf_life_days) dom.productForm.shelf_life_days.value = product.shelf_life_days ?? "";
       if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = product.storage_life_days ?? "";
-      if (dom.productForm.images) dom.productForm.images.value = product.images ? product.images.join("\\n") : "";
+      if (dom.productForm.images) dom.productForm.images.value = product.images ? product.images.join("\n") : "";
       if (dom.productForm.details) dom.productForm.details.value = product.details || "";
+      if (dom.productDetailEditor) dom.productDetailEditor.innerHTML = product.details || "";
       
       actions.openProductFormSection();
       utils.syncPriceWarningGroups(dom.productForm);

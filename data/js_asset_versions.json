@@ -1,9 +1,9 @@
 {
-  "app_version": "3.20.1",
+  "app_version": "3.20.2",
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "b3663f9cfd762e223845baea6bdd988fcfed55f9b98459c6d580a608bc1e1d55"
+      "sha256": "ac85ed9bf00755ee3990a91e8f87610cfab9e33bebb44b2360a0606f4319428e"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -35,7 +35,7 @@
     },
     "modules/controllers/products-controller.js": {
       "counter": 1,
-      "sha256": "d01c98637ed55f8a85c138fdd9bda39043f42329bb76248b4a020b3ceac66039"
+      "sha256": "a7c7ffd9c738637f2ec1f951f78dedaf600226a3a4cadefb96f68836a12f6b99"
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
@@ -51,7 +51,7 @@
     },
     "modules/dom.js": {
       "counter": 1,
-      "sha256": "d236b7e7f15df9fb921b13032ee2af1df2d22117947e7db574a3b86ca3a2b717"
+      "sha256": "23e5322f09b073c188ca9c9b352e875e472b7645d49d7205a940b4b5cd78a0f3"
     },
     "modules/domain-helpers/inventory-domain.js": {
       "counter": 1,

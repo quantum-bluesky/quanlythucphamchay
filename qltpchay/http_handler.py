@@ -811,6 +811,23 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 
+            if route == "/api/products/images/upload":
+                try:
+                    filename = parse_qs(parsed.query).get("filename", ["image.jpg"])[0]
+                    payload = self._read_binary_body()
+                    ext = Path(filename).suffix
+                    if ext.lower() not in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]:
+                        ext = ".jpg"
+                    import uuid
+                    unique_name = f"{uuid.uuid4().hex}{ext}"
+                    image_dir = constants.DATA_DIR / "images" / "products"
+                    image_dir.mkdir(parents=True, exist_ok=True)
+                    (image_dir / unique_name).write_bytes(payload)
+                    self._send_json(HTTPStatus.OK, {"url": f"/images/products/{unique_name}"})
+                except Exception as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
             try:
                 payload = self._read_json_body()
             except ValueError as exc:
@@ -818,22 +835,6 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return
 
             try:
-                if route == "/api/products/images/upload":
-                    try:
-                        filename = parse_qs(parsed.query).get("filename", ["image.jpg"])[0]
-                        payload = self._read_binary_body()
-                        ext = Path(filename).suffix
-                        if ext.lower() not in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]:
-                            ext = ".jpg"
-                        import uuid
-                        unique_name = f"{uuid.uuid4().hex}{ext}"
-                        image_dir = constants.DATA_DIR / "images" / "products"
-                        image_dir.mkdir(parents=True, exist_ok=True)
-                        (image_dir / unique_name).write_bytes(payload)
-                        self._send_json(HTTPStatus.OK, {"url": f"/images/products/{unique_name}"})
-                    except Exception as exc:
-                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
-                    return
 
                 if route == "/api/products":
                     product = store.create_product(

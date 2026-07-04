@@ -7595,7 +7595,7 @@ function showProductDetailModal(productId) {
   modal.hidden = false;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+const initProductDetailModal = () => {
   const modal = document.getElementById("productDetailModal");
   if (!modal) return;
   const closeBtn = document.getElementById("closeProductDetailButton");
@@ -7610,4 +7610,5 @@ document.addEventListener("DOMContentLoaded", () => {
       modal.hidden = true;
     });
   }
-});
+};
+initProductDetailModal();
