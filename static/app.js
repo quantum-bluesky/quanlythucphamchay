@@ -7558,10 +7558,6 @@ document.addEventListener("click", (event) => {
     const productId = Number(trigger.dataset.productDetailTrigger);
     showProductDetailModal(productId);
   }
-  
-  if (event.target.matches("#productDetailModalCloseButton") || event.target.matches("#productDetailModal")) {
-    document.getElementById("productDetailModal").classList.add("hidden");
-  }
 });
 
 function showProductDetailModal(productId) {

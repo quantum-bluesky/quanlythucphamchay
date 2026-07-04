@@ -1,9 +1,9 @@
 {
-  "app_version": "3.20.0",
+  "app_version": "3.20.1",
   "files": {
     "app.js": {
-      "counter": 4,
-      "sha256": "71a9f7038e8cba9571425e2dd8e85ee7a8194b79cbb65105b61a9e670396d438"
+      "counter": 1,
+      "sha256": "b3663f9cfd762e223845baea6bdd988fcfed55f9b98459c6d580a608bc1e1d55"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -34,7 +34,7 @@
       "sha256": "0e9833d9b69417e66abeb4571aeaeed17a9b4b95ebdfe6adee0ae0c8517a8464"
     },
     "modules/controllers/products-controller.js": {
-      "counter": 4,
+      "counter": 1,
       "sha256": "d01c98637ed55f8a85c138fdd9bda39043f42329bb76248b4a020b3ceac66039"
     },
     "modules/controllers/purchases-controller.js": {
@@ -50,8 +50,8 @@
       "sha256": "7089f4609ecaece93fe8b852396afb6fbdecbbf4ead2bccf88dde1767372080f"
     },
     "modules/dom.js": {
-      "counter": 2,
-      "sha256": "c0f499448713b9a993d6629aacc563f60608dd7a3ff88ad0b74a49f10795a0ed"
+      "counter": 1,
+      "sha256": "d236b7e7f15df9fb921b13032ee2af1df2d22117947e7db574a3b86ca3a2b717"
     },
     "modules/domain-helpers/inventory-domain.js": {
       "counter": 1,
@@ -94,7 +94,7 @@
       "sha256": "33fb462097eb7cf3e81bf20a7d75308d8f8cca9c53801724f7b00ed826c07c49"
     },
     "modules/ui/inventory-ui.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "fda9671b25ddb2f69e3c6801ceac3c012de68973e48612e21d999ca20dee814e"
     },
     "modules/ui/payments-ui.js": {
@@ -102,7 +102,7 @@
       "sha256": "d5ea0ca190ba1bb0a2e48d627c8986bff9ac29b3f6019b4c3a204d054e95a060"
     },
     "modules/ui/products-ui.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "8de4065ef42c33d12f8161587842357ae9d1c5cb7592662ef4fbfd9b093942a9"
     },
     "modules/ui/purchases-ui.js": {
@@ -110,7 +110,7 @@
       "sha256": "33774628a424ea112555c31baa3f5a8f6e271d2064088377ab123f1ea52cc496"
     },
     "modules/ui/reports-admin-ui.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "0f1f47b88d2f7421d5ce29bc0d5a684358ff8c6d42453765cf1ebea00c18947d"
     },
     "modules/ui/sales-ui.js": {
@@ -122,7 +122,7 @@
       "sha256": "bec578f8a31c679baa30d07ed240cae078daaeddfeff83ef25e0abff09d985fa"
     },
     "styles.css": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "0621d33c0c7a409eb48864c20a78f871af70460670b47960c1280ddef1fb4f13"
     }
   }

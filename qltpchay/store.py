@@ -2708,6 +2708,8 @@ class InventoryStore:
                     p.deleted_at,
                     p.created_at,
                     p.updated_at,
+                    p.images,
+                    p.details,
                     COALESCE(
                         SUM(
                             CASE
@@ -3404,6 +3406,8 @@ class InventoryStore:
                     p.deleted_at,
                     p.created_at,
                     p.updated_at,
+                    p.images,
+                    p.details,
                     COALESCE(
                         SUM(
                             CASE
