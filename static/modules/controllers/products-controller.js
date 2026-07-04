@@ -23,6 +23,12 @@ export function registerProductsControllerEvents(contract) {
     utils.syncPriceWarningGroups(dom.productForm);
   };
 
+  if (dom.productDetailEditor) {
+    dom.productDetailEditor.addEventListener('input', () => {
+      if (dom.productForm.details) dom.productForm.details.value = dom.productDetailEditor.innerHTML;
+    });
+  }
+
   utils.syncPriceWarningGroups(dom.productForm);
 
   if (dom.uploadProductImageButton && dom.productImageUpload) {
@@ -201,7 +207,14 @@ export function registerProductsControllerEvents(contract) {
       if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = product.storage_life_days ?? "";
       if (dom.productForm.images) dom.productForm.images.value = product.images ? product.images.join("\n") : "";
       if (dom.productForm.details) dom.productForm.details.value = product.details || "";
-      if (dom.productDetailEditor) dom.productDetailEditor.innerHTML = product.details || "";
+      if (dom.productDetailEditor) {
+        let detailsHtml = product.details || "";
+        // If it's old plain text with newlines but no HTML tags, convert \n to <br>
+        if (detailsHtml && !detailsHtml.includes("<") && detailsHtml.includes("\n")) {
+          detailsHtml = detailsHtml.replace(/\n/g, "<br>");
+        }
+        dom.productDetailEditor.innerHTML = detailsHtml;
+      }
       
       actions.openProductFormSection();
       utils.syncPriceWarningGroups(dom.productForm);
