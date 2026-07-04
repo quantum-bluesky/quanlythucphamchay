@@ -319,6 +319,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
           {
             ...seededPrebatchManualPurchase,
             status: "ordered",
+            orderedAt: prebatchOrderedAt,
             updatedAt: prebatchOrderedAt,
           },
         ],

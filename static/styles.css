@@ -3646,3 +3646,72 @@ button:disabled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* --- Product Detail Modal --- */
+
+.product-detail-modal {
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-detail-images {
+  display: flex;
+  overflow-x: auto;
+  gap: 12px;
+  padding: 8px 0 16px 0;
+  scroll-snap-type: x mandatory;
+}
+
+.product-detail-images img {
+  height: 200px;
+  width: auto;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  background: var(--shade);
+  scroll-snap-align: center;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+}
+
+.product-detail-content {
+  margin-top: 16px;
+  line-height: 1.6;
+}
+
+.product-detail-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.product-name-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.2s;
+}
+
+.product-name-link:hover, .product-name-link:focus-visible {
+  text-decoration-color: var(--accent);
+}
+
+.rich-text-label textarea {
+  font-family: monospace;
+}
+
+
+/* Fix Quill Editor Buttons on Mobile */
+.ql-toolbar button {
+  min-height: unset !important;
+  border-radius: 0 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.ql-toolbar button:hover,
+.ql-toolbar button:active {
+  transform: none !important;
+  box-shadow: none !important;
+}

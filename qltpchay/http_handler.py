@@ -15,7 +15,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, parse_qsl, urlparse
 
 from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
-from .constants import ADMIN_SESSION_COOKIE, APP_NAME, JS_ASSET_VERSIONS_PATH, STATIC_DIR
+from . import constants as constants
+from .constants import ADMIN_SESSION_COOKIE, APP_NAME, DATA_DIR, JS_ASSET_VERSIONS_PATH, STATIC_DIR
 from .js_asset_versions import JavaScriptAssetVersionManager
 from .mailer import send_mail_notification
 from .store import BulkOrderRequestDuplicateError, ProcurementBatchStartConflictError, SyncConflictError
@@ -172,6 +173,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
             if route.startswith("/static/"):
                 self._serve_static_file(route.removeprefix("/static/"))
+                return
+
+            if route.startswith("/images/"):
+                self._serve_static_file(route.removeprefix("/images/"), base_dir=constants.DATA_DIR / "images")
                 return
 
             if route == "/api/session/status":
@@ -807,6 +812,26 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 
+            if route == "/api/products/images/upload":
+                try:
+                    # Issue: 'parsed' chỉ có trong do_GET, phải parse URL riêng ở đây
+                    from urllib.parse import urlparse, parse_qs as _parse_qs
+                    _parsed = urlparse(self.path)
+                    filename = _parse_qs(_parsed.query).get("filename", ["image.jpg"])[0]
+                    payload = self._read_binary_body()
+                    ext = Path(filename).suffix
+                    if ext.lower() not in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]:
+                        ext = ".jpg"
+                    import uuid
+                    unique_name = f"{uuid.uuid4().hex}{ext}"
+                    image_dir = constants.DATA_DIR / "images" / "products"
+                    image_dir.mkdir(parents=True, exist_ok=True)
+                    (image_dir / unique_name).write_bytes(payload)
+                    self._send_json(HTTPStatus.OK, {"url": f"/images/products/{unique_name}"})
+                except Exception as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
             try:
                 payload = self._read_json_body()
             except ValueError as exc:
@@ -814,6 +839,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return
 
             try:
+
                 if route == "/api/products":
                     product = store.create_product(
                         name=payload.get("name"),
@@ -824,6 +850,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
                         shelf_life_days=payload.get("shelf_life_days"),
                         storage_life_days=payload.get("storage_life_days"),
+                        images=payload.get("images"),
+                        details=payload.get("details"),
                         actor=self._get_current_actor_name(),
                     )
                     self._send_json(
@@ -1493,6 +1521,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
                         shelf_life_days=payload.get("shelf_life_days"),
                         storage_life_days=payload.get("storage_life_days"),
+                        images=payload.get("images"),
+                        details=payload.get("details"),
                         actor=payload.get("actor") or self._get_current_actor_name(),
                     )
                     self._send_json(
@@ -1578,6 +1608,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
         def log_message(self, format_string: str, *args) -> None:
             return
+
+        def _read_binary_body(self) -> bytes:
+            content_length = int(self.headers.get("Content-Length", "0"))
+            if content_length <= 0:
+                raise ValueError("Thiếu dữ liệu gửi lên.")
+            return self.rfile.read(content_length)
 
         def _read_json_body(self) -> dict:
             content_length = int(self.headers.get("Content-Length", "0"))
@@ -1751,9 +1787,11 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return re.sub(r"<base\b[^>]*>", base_tag, html_text, count=1, flags=re.IGNORECASE)
             return re.sub(r"(<head[^>]*>)", rf"\1\n  {base_tag}", html_text, count=1, flags=re.IGNORECASE)
 
-        def _serve_static_file(self, relative_path: str, request_path: str | None = None) -> None:
-            safe_path = (STATIC_DIR / relative_path).resolve()
-            static_root = STATIC_DIR.resolve()
+        def _serve_static_file(self, relative_path: str, request_path: str | None = None, base_dir: Path | None = None) -> None:
+            if base_dir is None:
+                base_dir = STATIC_DIR
+            safe_path = (base_dir / relative_path).resolve()
+            static_root = base_dir.resolve()
             if not safe_path.is_file() or (static_root not in safe_path.parents and safe_path != static_root):
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy file."})
                 return

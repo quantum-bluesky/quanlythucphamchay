@@ -66,12 +66,13 @@ export function createProductsUi(deps) {
           ? `
             <div class="product-manage-compact">
               <div class="product-manage-left">
-                <div class="product-row-name">${escapeHtml(product.name)}</div>
+                <div class="product-row-name"><span class="product-name-link" data-product-detail-trigger="${product.id}">${escapeHtml(product.name)}</span></div>
                 <div class="product-row-meta">
                   <span>${escapeHtml(product.category)}</span>
                 </div>
                 <div class="row-actions product-manage-actions">
-                  <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy sửa" : "Sửa"}</button>
+                  <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy" : "Sửa nhanh"}</button>
+                  <button type="button" class="primary-button compact-button" data-product-manage-action="edit-full" data-product-id="${product.id}">Sửa chi tiết</button>
                   <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>Xóa</button>
                 </div>
               </div>
@@ -97,7 +98,7 @@ export function createProductsUi(deps) {
               : `
                 <div class="product-row-head">
                   <div>
-                    <div class="product-row-name">${escapeHtml(product.name)}</div>
+                    <div class="product-row-name"><span class="product-name-link" data-product-detail-trigger="${product.id}">${escapeHtml(product.name)}</span></div>
                     <div class="product-row-meta">
                       <span>${escapeHtml(product.category)}</span>
                     </div>
@@ -114,7 +115,8 @@ export function createProductsUi(deps) {
                 </div>
                 <div class="cart-line-note">${product.current_stock > 0 ? `Còn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}.` : "Có thể ngừng bán."}</div>
                 <div class="row-actions">
-                  <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy sửa" : "Sửa"}</button>
+                  <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy" : "Sửa nhanh"}</button>
+                  <button type="button" class="primary-button compact-button" data-product-manage-action="edit-full" data-product-id="${product.id}">Sửa chi tiết</button>
                   <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>Ngừng bán / Xóa</button>
                 </div>
               `}

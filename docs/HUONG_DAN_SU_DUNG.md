@@ -370,6 +370,7 @@ Màn này dùng để:
 
 - thêm mặt hàng mới
 - sửa tên / loại / đơn vị / giá nhập / giá bán mặc định / ngưỡng cảnh báo / hạn dùng / thời gian bảo quản
+- thêm nhiều ảnh sản phẩm và nhập thông tin chi tiết, hướng dẫn sử dụng, bảo quản, cách chế biến dưới dạng HTML
 - xóa mặt hàng chưa có giao dịch
 - xem lịch sử thay đổi giá/trạng thái liên quan và lọc theo người thao tác, khoảng ngày
 
@@ -390,6 +391,8 @@ Lưu ý:
 
 - khi sửa giá nhập hoặc giá bán mặc định, app sẽ hiện cảnh báo ngay nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng
 - ở danh sách chỉ xem, các mặt hàng có giá đáng chú ý sẽ được gắn nhãn cảnh báo ngắn để rà nhanh
+- nếu muốn nhập nhiều ảnh và thông tin chi tiết (hướng dẫn sử dụng, chế biến...), chọn `Sửa chi tiết` thay vì `Sửa nhanh`. Form chi tiết sẽ được mở ra để bạn nhập nhiều link ảnh và soạn thảo HTML.
+- ở các màn hình khác (Đơn hàng, Nhập hàng, Tồn kho...), có thể click trực tiếp vào tên sản phẩm (được gạch dưới) để mở popup hiển thị toàn bộ ảnh, thông tin chi tiết, và hướng dẫn sử dụng của sản phẩm đó.
 
 ## 8. Luồng nhập hàng
 
