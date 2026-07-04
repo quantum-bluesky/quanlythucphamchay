@@ -29,27 +29,42 @@ export function registerProductsControllerEvents(contract) {
     utils.syncPriceWarningGroups(dom.productForm);
   };
 
-  if (dom.productDetailEditor && window.Quill && !quillEditor) {
-    quillEditor = new Quill(dom.productDetailEditor, {
-      theme: 'snow',
-      placeholder: 'Nhập thông tin chi tiết sản phẩm...',
-      modules: {
-        toolbar: [
-          [{ 'header': [3, 4, false] }],
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ 'align': [] }],
-          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-          ['clean']
-        ]
+  if (dom.productDetailEditor && !quillEditor) {
+    if (!window.Quill) {
+      console.error("[Quill] window.Quill is not defined. Script might not be loaded.");
+      utils.showToast("Lỗi: Không tìm thấy thư viện Quill.js. Vui lòng thử tải lại trang (Ctrl+F5).", true);
+      // Fallback to plain input
+      dom.productDetailEditor.addEventListener('input', () => {
+        if (dom.productForm.details) dom.productForm.details.value = dom.productDetailEditor.innerHTML;
+      });
+    } else {
+      try {
+        quillEditor = new Quill(dom.productDetailEditor, {
+          theme: 'snow',
+          placeholder: 'Nhập thông tin chi tiết sản phẩm...',
+          modules: {
+            toolbar: [
+              [{ 'header': [3, 4, false] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ 'align': [] }],
+              [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+              ['clean']
+            ]
+          }
+        });
+        quillEditor.on('text-change', () => {
+          if (dom.productForm.details) dom.productForm.details.value = quillEditor.root.innerHTML;
+        });
+        console.log("[Quill] Initialized successfully");
+      } catch (err) {
+        console.error("[Quill] Init failed:", err);
+        utils.showToast("Lỗi khởi tạo bộ soạn thảo: " + err.message, true);
+        // Fallback
+        dom.productDetailEditor.addEventListener('input', () => {
+          if (dom.productForm.details) dom.productForm.details.value = dom.productDetailEditor.innerHTML;
+        });
       }
-    });
-    quillEditor.on('text-change', () => {
-      if (dom.productForm.details) dom.productForm.details.value = quillEditor.root.innerHTML;
-    });
-  } else if (dom.productDetailEditor && !quillEditor) {
-    dom.productDetailEditor.addEventListener('input', () => {
-      if (dom.productForm.details) dom.productForm.details.value = dom.productDetailEditor.innerHTML;
-    });
+    }
   }
 
   utils.syncPriceWarningGroups(dom.productForm);
