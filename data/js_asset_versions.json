@@ -1,9 +1,9 @@
 {
-  "app_version": "3.20.11",
+  "app_version": "3.20.12",
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "ac85ed9bf00755ee3990a91e8f87610cfab9e33bebb44b2360a0606f4319428e"
+      "sha256": "cdc5cd33833063207a7b4c546a3eea35155ddfe5f7940017a4024fa6ee78ca8e"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -35,7 +35,7 @@
     },
     "modules/controllers/products-controller.js": {
       "counter": 1,
-      "sha256": "e0e388fe9f9597d81c336d8f2ce39334008916964f6c759e9a7211ef2781a87b"
+      "sha256": "4c7676807195f065f524b3f7ddbc7f5f6537614d43f954535e4273738647f9df"
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,

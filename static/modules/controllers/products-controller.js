@@ -71,6 +71,17 @@ export function registerProductsControllerEvents(contract) {
     }
   };
 
+  // Issue: observer theo viewport có thể bỏ sót lúc form mở bằng render động,
+  // nên theo dõi wrapper hidden để khởi tạo toolbar Quill chắc chắn hơn.
+  const scheduleQuillInitialization = () => {
+    if (!dom.productDetailEditor || quillEditor) return;
+    window.setTimeout(() => {
+      if (!dom.productFormWrap?.hidden) {
+        ensureQuillInitialized();
+      }
+    }, 0);
+  };
+
   if (dom.productDetailEditor && !quillEditor) {
     if (dom.productDetailEditor.offsetParent !== null) {
       ensureQuillInitialized();
@@ -84,6 +95,24 @@ export function registerProductsControllerEvents(contract) {
       initObserver.observe(dom.productDetailEditor);
     }
   }
+
+  if (dom.productFormWrap && !quillEditor) {
+    const wrapObserver = new MutationObserver(() => {
+      if (!dom.productFormWrap?.hidden) {
+        scheduleQuillInitialization();
+      }
+    });
+    wrapObserver.observe(dom.productFormWrap, {
+      attributes: true,
+      attributeFilter: ["hidden"],
+    });
+    if (!dom.productFormWrap.hidden) {
+      scheduleQuillInitialization();
+    }
+  }
+
+  // Issue: Quill vẫn render đúng ngay cả khi form đang ẩn, nên khởi tạo sớm để toolbar luôn có sẵn.
+  ensureQuillInitialized();
 
   utils.syncPriceWarningGroups(dom.productForm);
 
@@ -281,6 +310,7 @@ export function registerProductsControllerEvents(contract) {
         }, 50);
       
       actions.openProductFormSection();
+      scheduleQuillInitialization();
       utils.syncPriceWarningGroups(dom.productForm);
       return;
     }
@@ -346,6 +376,9 @@ export function registerProductsControllerEvents(contract) {
   dom.productFormToggleButton.addEventListener("click", () => {
     state.productFormCollapsed = !state.productFormCollapsed;
     renderers.renderProductSections();
+    if (!state.productFormCollapsed) {
+      scheduleQuillInitialization();
+    }
   });
 
   dom.productHistoryToggleButton.addEventListener("click", () => {
@@ -360,6 +393,7 @@ export function registerProductsControllerEvents(contract) {
     if (shortcutButton.dataset.productShortcut === "form") {
       resetProductForm();
       actions.openProductFormSection({ focus: true });
+      scheduleQuillInitialization();
       return;
     }
 

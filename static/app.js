@@ -6644,6 +6644,7 @@ registerProductsControllerEvents({
   state,
   dom: {
     productForm,
+    productDetailEditor,
     productImageUpload: document.getElementById("productImageUpload"),
     uploadProductImageButton: document.getElementById("uploadProductImageButton"),
     productFormCancelButton,
