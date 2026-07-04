@@ -1,3 +1,5 @@
+let quillEditor = null;
+
 export function registerProductsControllerEvents(contract) {
   const {
     state,
@@ -19,11 +21,32 @@ export function registerProductsControllerEvents(contract) {
     if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = "";
     if (dom.productForm.images) dom.productForm.images.value = "";
     if (dom.productForm.details) dom.productForm.details.value = "";
-    if (dom.productDetailEditor) dom.productDetailEditor.innerHTML = "";
+    if (quillEditor) {
+      quillEditor.setContents([]);
+    } else if (dom.productDetailEditor) {
+      dom.productDetailEditor.innerHTML = "";
+    }
     utils.syncPriceWarningGroups(dom.productForm);
   };
 
-  if (dom.productDetailEditor) {
+  if (dom.productDetailEditor && window.Quill && !quillEditor) {
+    quillEditor = new Quill(dom.productDetailEditor, {
+      theme: 'snow',
+      placeholder: 'Nhập thông tin chi tiết sản phẩm...',
+      modules: {
+        toolbar: [
+          [{ 'header': [3, 4, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ 'align': [] }],
+          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+          ['clean']
+        ]
+      }
+    });
+    quillEditor.on('text-change', () => {
+      if (dom.productForm.details) dom.productForm.details.value = quillEditor.root.innerHTML;
+    });
+  } else if (dom.productDetailEditor && !quillEditor) {
     dom.productDetailEditor.addEventListener('input', () => {
       if (dom.productForm.details) dom.productForm.details.value = dom.productDetailEditor.innerHTML;
     });
@@ -77,7 +100,9 @@ export function registerProductsControllerEvents(contract) {
 
   dom.productForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (dom.productDetailEditor) {
+    if (quillEditor) {
+      dom.productForm.details.value = quillEditor.root.innerHTML;
+    } else if (dom.productDetailEditor) {
       dom.productForm.details.value = dom.productDetailEditor.innerHTML;
     }
     const formData = new FormData(dom.productForm);
@@ -207,9 +232,17 @@ export function registerProductsControllerEvents(contract) {
       if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = product.storage_life_days ?? "";
       if (dom.productForm.images) dom.productForm.images.value = product.images ? product.images.join("\n") : "";
       if (dom.productForm.details) dom.productForm.details.value = product.details || "";
-      if (dom.productDetailEditor) {
+      if (quillEditor) {
         let detailsHtml = product.details || "";
-        // If it's old plain text with newlines but no HTML tags, convert \n to <br>
+        if (detailsHtml && !detailsHtml.includes("<") && detailsHtml.includes("\n")) {
+          detailsHtml = detailsHtml.replace(/\n/g, "<br>");
+        }
+        // Add a small delay to ensure DOM is ready for pasting if just uncollapsed
+        window.setTimeout(() => {
+          quillEditor.clipboard.dangerouslyPasteHTML(detailsHtml);
+        }, 10);
+      } else if (dom.productDetailEditor) {
+        let detailsHtml = product.details || "";
         if (detailsHtml && !detailsHtml.includes("<") && detailsHtml.includes("\n")) {
           detailsHtml = detailsHtml.replace(/\n/g, "<br>");
         }

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Quản lý thực phẩm chay</title>
+  <link rel="stylesheet" href="./static/vendor/quill/quill.snow.css">
   <link rel="stylesheet" href="./static/styles.css">
 </head>
 <body>
@@ -1273,11 +1274,207 @@
         }
         show("Không tải được ứng dụng", detail, {
           retryable: true,
+            <h2>Thông tin ứng dụng và phiên bản hiện tại</h2>
+          </div>
+          <button type="button" class="ghost-button compact-button" data-go-menu="inventory">Về tồn kho</button>
+        </div>
+        <div id="aboutContent" class="report-list about-grid"></div>
+      </section>
+    </section>
+
+    <datalist id="productOptions"></datalist>
+    <datalist id="customerOptions"></datalist>
+    <datalist id="supplierOptions"></datalist>
+
+    <div id="productDetailModal" class="help-modal" hidden>
+      <div class="help-backdrop"></div>
+      <section class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="productDetailModalTitle">
+        <div class="help-dialog-head">
+          <div>
+            <p class="panel-kicker">Chi tiết sản phẩm</p>
+            <h2 id="productDetailModalTitle">Tên sản phẩm</h2>
+          </div>
+          <button type="button" id="closeProductDetailButton" class="ghost-button compact-button" aria-label="Đóng chi tiết">Đóng</button>
+        </div>
+        <div class="help-dialog-body">
+          <div id="productDetailImagesContainer" class="product-detail-images" hidden></div>
+          <div id="productDetailContent" class="product-detail-content"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="screen-toolbox" aria-label="Công cụ điều hướng nhanh">
+    <button type="button" id="scrollTopButton" class="toolbox-button" title="Lên đầu trang" aria-label="Lên đầu trang">↑</button>
+    <button type="button" id="navBackButton" class="toolbox-button" title="Quay lại màn trước" aria-label="Quay lại màn trước">←</button>
+    <button type="button" id="openHelpButton" class="toolbox-button toolbox-button-help" title="Xem hướng dẫn màn hình hiện tại" aria-label="Xem hướng dẫn màn hình hiện tại">?</button>
+    <button type="button" id="navForwardButton" class="toolbox-button" title="Tiến tới màn kế tiếp trong lịch sử" aria-label="Tiến tới màn kế tiếp trong lịch sử">→</button>
+    <button type="button" id="scrollBottomButton" class="toolbox-button" title="Xuống cuối trang" aria-label="Xuống cuối trang">↓</button>
+  </div>
+
+  <div id="floatingSearchDock" class="floating-search-dock" hidden>
+    <button type="button" id="floatingSearchToggle" class="floating-search-toggle" aria-label="Mở tìm kiếm nhanh">
+      <span class="search-glyph" aria-hidden="true"></span>
+    </button>
+    <input id="floatingSearchInput" class="floating-search-input" type="search" placeholder="Tìm kiếm nhanh">
+  </div>
+
+  <div id="helpModal" class="help-modal" hidden>
+    <div class="help-backdrop" data-help-close="backdrop"></div>
+    <section class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <div class="help-dialog-head">
+        <div>
+          <p class="panel-kicker">Hướng dẫn nhanh</p>
+          <h2 id="helpModalTitle">Trợ giúp màn hình</h2>
+        </div>
+        <button type="button" id="closeHelpButton" class="ghost-button compact-button" aria-label="Đóng hướng dẫn">Đóng</button>
+      </div>
+      <div id="helpModalBody" class="help-dialog-body"></div>
+    </section>
+  </div>
+
+  <div id="auditHistoryModal" class="help-modal" hidden>
+    <div class="help-backdrop" data-audit-history-close="backdrop"></div>
+    <section class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="auditHistoryModalTitle">
+      <div class="help-dialog-head">
+        <div>
+          <p class="panel-kicker">Audit log</p>
+          <h2 id="auditHistoryModalTitle">Lịch sử thay đổi</h2>
+        </div>
+        <button type="button" id="closeAuditHistoryButton" class="ghost-button compact-button">Đóng</button>
+      </div>
+      <div id="auditHistoryModalBody" class="help-dialog-body"></div>
+    </section>
+  </div>
+
+  <div id="bulkItemPickerModal" class="help-modal" hidden>
+    <div class="help-backdrop" data-bulk-picker-close="backdrop"></div>
+    <section class="help-dialog bulk-item-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="bulkItemPickerTitle">
+      <div class="help-dialog-head">
+        <div>
+          <p class="panel-kicker">Thêm hàng</p>
+          <h2 id="bulkItemPickerTitle">Chọn mặt hàng cho khách</h2>
+        </div>
+        <button type="button" id="bulkItemPickerCloseButton" class="ghost-button compact-button" aria-label="Đóng thêm hàng">Đóng</button>
+      </div>
+      <div class="help-dialog-body">
+        <label class="search-box">
+          <span class="sr-only">Tìm mặt hàng để thêm vào đơn</span>
+          <input id="bulkItemPickerSearchInput" type="search" placeholder="Gõ tên sản phẩm...">
+        </label>
+        <div id="bulkItemPickerList" class="sales-product-list"></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="globalBusyOverlay" class="global-busy-overlay" hidden aria-live="assertive" aria-atomic="true">
+    <section id="globalBusyCard" class="global-busy-card" role="status" tabindex="-1">
+      <div class="global-busy-spinner" aria-hidden="true"></div>
+      <strong id="globalBusyLabel">Đang lưu thay đổi...</strong>
+      <p id="globalBusyMessage">Vui lòng chờ trạng thái cập nhật xong trước khi thao tác tiếp.</p>
+      <div id="globalBusyActions" class="global-busy-actions" hidden>
+        <button type="button" id="globalBusyRetryButton" class="primary-button compact-button">Tải lại ứng dụng</button>
+      </div>
+    </section>
+  </div>
+
+  
+  <script>
+    (() => {
+      const RETRY_KEY = "qltpchay_bootstrap_retry_count";
+      const MAX_RETRIES = 1;
+
+      function getElements() {
+        return {
+          overlay: document.getElementById("globalBusyOverlay"),
+          label: document.getElementById("globalBusyLabel"),
+          message: document.getElementById("globalBusyMessage"),
+          actions: document.getElementById("globalBusyActions"),
+          retryButton: document.getElementById("globalBusyRetryButton"),
+        };
+      }
+
+      function show(title, detail, { retryable = false, onRetry = null } = {}) {
+        const { overlay, label, message, actions, retryButton } = getElements();
+        if (!overlay) {
+          return;
+        }
+        overlay.hidden = false;
+        overlay.dataset.owner = "bootstrap";
+        document.body.classList.add("app-is-busy");
+        document.body.setAttribute("aria-busy", "true");
+        if (label) {
+          label.textContent = title || "Đang tải ứng dụng...";
+        }
+        if (message) {
+          message.textContent = detail || "Vui lòng chờ trong giây lát.";
+        }
+        if (actions) {
+          actions.hidden = !retryable;
+        }
+        if (retryButton) {
+          retryButton.onclick = retryable && typeof onRetry === "function" ? onRetry : null;
+        }
+      }
+
+      function hide() {
+        const { overlay, actions, retryButton } = getElements();
+        if (!overlay || overlay.dataset.owner !== "bootstrap") {
+          return;
+        }
+        overlay.hidden = true;
+        delete overlay.dataset.owner;
+        document.body.classList.remove("app-is-busy");
+        document.body.setAttribute("aria-busy", "false");
+        if (actions) {
+          actions.hidden = true;
+        }
+        if (retryButton) {
+          retryButton.onclick = null;
+        }
+      }
+
+      function clearRetryCount() {
+        try {
+          sessionStorage.removeItem(RETRY_KEY);
+        } catch {}
+      }
+
+      function scheduleReload(detail) {
+        try {
+          const attemptCount = Number(sessionStorage.getItem(RETRY_KEY) || "0");
+          if (attemptCount < MAX_RETRIES) {
+            sessionStorage.setItem(RETRY_KEY, String(attemptCount + 1));
+            show("Đang tải lại ứng dụng...", detail, { retryable: false });
+            window.setTimeout(() => {
+              window.location.reload();
+            }, 250);
+            return true;
+          }
+        } catch {}
+        return false;
+      }
+
+      window.__qltpchayBootstrapUi = {
+        show,
+        hide,
+        clearRetryCount,
+        scheduleReload,
+      };
+
+      window.__qltpchayHandleBootstrapScriptError = () => {
+        const detail = "Không tải được mã khởi động của ứng dụng. Hãy kiểm tra kết nối rồi thử tải lại.";
+        if (scheduleReload(detail)) {
+          return;
+        }
+        show("Không tải được ứng dụng", detail, {
+          retryable: true,
           onRetry: () => window.location.reload(),
         });
       };
     })();
   </script>
+  <script src="./static/vendor/quill/quill.min.js"></script>
   <script type="module" src="./static/bootstrap.js" onerror="window.__qltpchayHandleBootstrapScriptError && window.__qltpchayHandleBootstrapScriptError()"></script>
 </body>
 </html>

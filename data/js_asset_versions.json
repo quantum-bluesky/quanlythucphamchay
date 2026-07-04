@@ -1,5 +1,5 @@
 {
-  "app_version": "3.20.4",
+  "app_version": "3.20.3",
   "files": {
     "app.js": {
       "counter": 1,
@@ -35,7 +35,7 @@
     },
     "modules/controllers/products-controller.js": {
       "counter": 1,
-      "sha256": "5925087703266c4dba97154db61348320e7a1747cd880f9bdcf6118a136ddfbb"
+      "sha256": "4169ef0446078d8c5bef4cfb3aae800999a7acd79f16f9a2cff0a0694efe8737"
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
@@ -124,6 +124,14 @@
     "styles.css": {
       "counter": 1,
       "sha256": "0621d33c0c7a409eb48864c20a78f871af70460670b47960c1280ddef1fb4f13"
+    },
+    "vendor/quill/quill.min.js": {
+      "counter": 1,
+      "sha256": "1fb8d294efbc3f0d12520097fd034bdda616a624756470e44cf353e210d1f6e8"
+    },
+    "vendor/quill/quill.snow.css": {
+      "counter": 1,
+      "sha256": "6005ac521f488a6adec4f1ac36e8ee8bd4985aa9ebd14ad7084270f1b64282d7"
     }
   }
 }
