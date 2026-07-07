@@ -1,5 +1,5 @@
 {
-  "app_version": "3.20.14",
+  "app_version": "3.20.15",
   "files": {
     "app.js": {
       "counter": 2,
@@ -38,8 +38,8 @@
       "sha256": "ebba77d67e5938a8555d1360618d5489e2e67bd677235fb95d74a1a7628f46b5"
     },
     "modules/controllers/purchases-controller.js": {
-      "counter": 2,
-      "sha256": "0540692727b1e40bc111ada92f32088f5408e6d55963d7ea7b49412763139680"
+      "counter": 3,
+      "sha256": "e73ba7eb0036f07c3058de2f08c9df3bf05ff3863108eca2a85d016414b7004c"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 2,

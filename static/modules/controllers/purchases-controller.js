@@ -674,15 +674,30 @@ export function registerPurchasesControllerEvents(contract) {
   });
 
   dom.purchasePanel.addEventListener("change", (event) => {
-    const modeInput = event.target.closest("[data-purchase-expiry-mode-input]");
+    const target = event.target;
+    const itemId = target.dataset.purchaseQtyInput || target.dataset.purchaseCostInput || target.dataset.purchaseBatchInput || target.dataset.purchaseExpiryModeInput || target.dataset.purchaseExpiryInput || target.dataset.purchaseManufactureInput;
+    if (itemId) {
+      const purchase = queries.getActivePurchase();
+      const item = purchase?.items.find((i) => i.id === itemId);
+      if (item) {
+        if (target.dataset.purchaseQtyInput) item.quantity = target.value;
+        if (target.dataset.purchaseCostInput) item.unitCost = target.value;
+        if (target.dataset.purchaseBatchInput) item.batchCode = target.value;
+        if (target.dataset.purchaseExpiryModeInput) item.expiryInputMode = target.value;
+        if (target.dataset.purchaseExpiryInput) item.expiryDate = target.value;
+        if (target.dataset.purchaseManufactureInput) item.manufactureDate = target.value;
+      }
+    }
+
+    const modeInput = target.closest("[data-purchase-expiry-mode-input]");
     if (modeInput) {
       updatePurchaseExpiryEditorState(modeInput.dataset.purchaseExpiryModeInput);
       return;
     }
-    const dateInput = event.target.closest("[data-purchase-expiry-input], [data-purchase-manufacture-input]");
+    const dateInput = target.closest("[data-purchase-expiry-input], [data-purchase-manufacture-input]");
     if (dateInput) {
-      const itemId = dateInput.dataset.purchaseExpiryInput || dateInput.dataset.purchaseManufactureInput;
-      updatePurchaseExpiryEditorState(itemId);
+      const dateItemId = dateInput.dataset.purchaseExpiryInput || dateInput.dataset.purchaseManufactureInput;
+      updatePurchaseExpiryEditorState(dateItemId);
     }
   });
 
