@@ -131,8 +131,8 @@ export function createProductsUi(deps) {
                   <div data-price-warning-host>${renderPriceWarningMarkup(priceAlerts, "edit")}</div>
                 </div>
                 <label class="inline-labeled-field"><span>Ngưỡng</span><input type="number" min="0.01" step="0.01" value="${product.low_stock_threshold}" data-manage-input="low_stock_threshold" data-product-id="${product.id}" placeholder="Ngưỡng"></label>
-                <label class="inline-labeled-field"><span>Hạn dùng</span><input type="number" min="0.01" step="1" value="${product.shelf_life_days ?? ""}" data-manage-input="shelf_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>
-                <label class="inline-labeled-field"><span>Bảo quản</span><input type="number" min="0.01" step="1" value="${product.storage_life_days ?? ""}" data-manage-input="storage_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>
+                <label class="inline-labeled-field"><span>Hạn dùng</span><input type="number" min="0" step="any" value="${product.shelf_life_days ?? ""}" data-manage-input="shelf_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>
+                <label class="inline-labeled-field"><span>Bảo quản</span><input type="number" min="0" step="any" value="${product.storage_life_days ?? ""}" data-manage-input="storage_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>
                 <div class="row-actions">
                   <button type="button" class="primary-button compact-button" data-product-manage-action="save-inline" data-product-id="${product.id}">Lưu nhanh</button>
                 </div>
