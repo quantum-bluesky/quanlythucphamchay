@@ -2207,6 +2207,15 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
+            
+            if self._is_login_enabled() and status not in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                session = self._get_current_session(touch=False)
+                if session:
+                    token = self._get_session_token()
+                    if token:
+                        for key, value in self._build_session_cookie_headers(token, session.get("role")):
+                            self.send_header(key, value)
+                            
             for key, value in extra_headers or []:
                 self.send_header(key, value)
             self.end_headers()
