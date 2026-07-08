@@ -346,6 +346,32 @@ export function registerPurchasesControllerEvents(contract) {
     return true;
   }
 
+  function savePurchaseNote(purchaseId, inputSelectorRoot, options = {}) {
+    const { silent = false, persist = true } = options;
+    const purchase = queries.getActivePurchase()?.id === purchaseId
+      ? queries.getActivePurchase()
+      : state.purchases.find((entry) => entry.id === purchaseId) || null;
+    if (!purchase) {
+      actions.showToast("Không tìm thấy phiếu nhập.", true);
+      return false;
+    }
+    if (!queries.canEditPurchaseNote(purchase)) {
+      actions.showToast("Không thể sửa ghi chú.", true);
+      return false;
+    }
+    const noteInput = inputSelectorRoot.querySelector(`[data-purchase-note-input="${purchase.id}"]`);
+    const note = String(noteInput?.value || "").trim();
+    actions.updatePurchase(purchase.id, () => ({
+      note: note,
+      updatedAt: utils.nowIso(),
+    }));
+    actions.saveAndRenderAll(persist ? ["purchases"] : []);
+    if (!silent) {
+      actions.showToast("Đã lưu ghi chú.");
+    }
+    return true;
+  }
+
   async function refreshAfterPurchaseStatusError(error) {
     actions.showToast(`Không cập nhật được trạng thái phiếu nhập: ${error.message}`, true);
     try {
@@ -1094,6 +1120,10 @@ export function registerPurchasesControllerEvents(contract) {
       savePurchaseDiscount(actionButton.dataset.purchaseId || purchase.id, dom.purchasePanel);
       return;
     }
+    if (actionButton.dataset.purchaseAction === "save-note") {
+      savePurchaseNote(actionButton.dataset.purchaseId || purchase.id, dom.purchasePanel);
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "supplier-return") {
       try {
         state.purchaseDetailExpanded = true;
@@ -1160,11 +1190,18 @@ export function registerPurchasesControllerEvents(contract) {
     const expiryInput = event.target.closest("[data-purchase-expiry-input]");
     const manufactureInput = event.target.closest("[data-purchase-manufacture-input]");
     const discountInput = event.target.closest("[data-purchase-discount-input]");
-    if (!qtyInput && !costInput && !expiryInput && !manufactureInput && !discountInput) return;
+    const noteInput = event.target.closest("[data-purchase-note-input]");
+    if (!qtyInput && !costInput && !expiryInput && !manufactureInput && !discountInput && !noteInput) return;
     event.preventDefault();
     if (discountInput) {
       const purchaseId = discountInput.dataset.purchaseDiscountInput || "";
       const saveButton = dom.purchasePanel.querySelector(`[data-purchase-action="save-discount"][data-purchase-id="${purchaseId}"]`);
+      saveButton?.click();
+      return;
+    }
+    if (noteInput) {
+      const purchaseId = noteInput.dataset.purchaseNoteInput || "";
+      const saveButton = dom.purchasePanel.querySelector(`[data-purchase-action="save-note"][data-purchase-id="${purchaseId}"]`);
       saveButton?.click();
       return;
     }

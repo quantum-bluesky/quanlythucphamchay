@@ -11166,8 +11166,6 @@ class InventoryStore:
                     raise ValueError("Đơn hàng đã thanh toán không thể sửa ngược trạng thái.")
                 if previous_payment_status == "paid" and self._get_cart_discount_amount(previous) != self._get_cart_discount_amount(cart):
                     raise ValueError("Đơn hàng đã thanh toán không thể sửa giảm giá khuyến mại.")
-                if previous_payment_status == "paid" and self._get_cart_note(previous) != self._get_cart_note(cart):
-                    raise ValueError("Đơn hàng đã thanh toán không thể sửa ghi chú.")
             elif previous_status == "cancelled":
                 if next_status != "cancelled":
                     raise ValueError("Giỏ hàng đã hủy không thể mở lại hoặc sửa trực tiếp.")
@@ -11175,8 +11173,6 @@ class InventoryStore:
                     raise ValueError("Giỏ hàng đã hủy không thể sửa trực tiếp.")
                 if self._get_cart_discount_amount(previous) != self._get_cart_discount_amount(cart):
                     raise ValueError("Giỏ hàng đã hủy không thể sửa giảm giá khuyến mại.")
-                if self._get_cart_note(previous) != self._get_cart_note(cart):
-                    raise ValueError("Giỏ hàng đã hủy không thể sửa ghi chú.")
                 if next_payment_status != previous_payment_status:
                     raise ValueError("Giỏ hàng đã hủy không thể đổi trạng thái thanh toán.")
 
@@ -11394,7 +11390,6 @@ class InventoryStore:
         return {
             "supplierId": str(purchase.get("supplierId") or ""),
             "supplierName": str(purchase.get("supplierName") or ""),
-            "note": str(purchase.get("note") or ""),
             "sourceType": str(purchase.get("sourceType") or purchase.get("source_type") or ""),
             "sourceCode": str(purchase.get("sourceCode") or purchase.get("source_code") or ""),
             "sourceName": str(purchase.get("sourceName") or purchase.get("source_name") or ""),

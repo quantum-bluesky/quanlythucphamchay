@@ -1946,17 +1946,6 @@ class InventoryStoreTests(unittest.TestCase):
                 }
             )
 
-        final_note_carts = copy.deepcopy(locked_state["carts"])
-        final_note_carts[0]["note"] = "Khong duoc sua sau thanh toan"
-
-        with self.assertRaisesRegex(ValueError, "không thể sửa ghi chú"):
-            self.store.save_sync_state(
-                {
-                    "carts": final_note_carts,
-                    "expected_updated_at": {"carts": locked_state["updated_at"]["carts"]},
-                }
-            )
-
         with self.assertRaisesRegex(ValueError, "không thể sửa giảm giá khuyến mại"):
             self.store.save_sync_state(
                 {
@@ -1965,16 +1954,6 @@ class InventoryStoreTests(unittest.TestCase):
                 }
             )
 
-        final_note_purchases = copy.deepcopy(locked_state["purchases"])
-        final_note_purchases[0]["note"] = "Khong duoc sua sau thanh toan"
-
-        with self.assertRaisesRegex(ValueError, "Phiếu nhập đã thanh toán không thể sửa trực tiếp"):
-            self.store.save_sync_state(
-                {
-                    "purchases": final_note_purchases,
-                    "expected_updated_at": {"purchases": locked_state["updated_at"]["purchases"]},
-                }
-            )
 
     def test_ut_sync_04_cart_workflow_supports_draft_cancel_and_completed_paid_locks(self) -> None:
         product = self.store.create_product(

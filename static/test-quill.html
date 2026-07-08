@@ -1,0 +1,20 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<link href="./vendor/quill/quill.snow.css" rel="stylesheet">
+</head>
+<body>
+<div id="editor"></div>
+<script src="./vendor/quill/quill.min.js"></script>
+<script>
+  try {
+    const quill = new Quill('#editor', { theme: 'snow' });
+    console.log("Quill initialized!", !!quill);
+    document.body.innerHTML += "<p id='success'>Quill initialized successfully!</p>";
+  } catch (e) {
+    console.error("Quill failed:", e);
+    document.body.innerHTML += "<p id='error'>Error: " + e.message + "</p>";
+  }
+</script>
+</body>
+</html>
