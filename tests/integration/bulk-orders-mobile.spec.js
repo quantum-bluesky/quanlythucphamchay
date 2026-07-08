@@ -235,6 +235,7 @@ test("ACC-ORD-18 bulk order approval requests stay visible across users and owne
   await expect(approvedRequestCard).toContainText("Đã duyệt");
   await expect(approvedRequestCard.locator('[data-bulk-order-action="process-request"]')).toBeVisible();
   await approvedRequestCard.locator('[data-bulk-order-action="process-request"]').click();
+  await page.locator('[data-bulk-order-action="toggle-show-processed"]').check();
   await expect(page.locator("#bulkOrderRequestsPanel")).toContainText("Đã xử lý");
 
   await switchMenu(page, "orders");

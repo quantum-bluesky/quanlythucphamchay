@@ -153,7 +153,10 @@ export function createBulkOrdersUi(deps) {
 
   function renderBulkOrderRequestsPanel() {
     const requests = Array.isArray(state.bulkOrderRequests) ? state.bulkOrderRequests : [];
-    dom.bulkOrderRequestsPanel.hidden = requests.length === 0;
+    const showProcessed = Boolean(state.showProcessedBulkOrderRequests);
+    const displayRequests = showProcessed ? requests : requests.filter(r => String(r.status || "").trim() !== "processed");
+
+    dom.bulkOrderRequestsPanel.hidden = displayRequests.length === 0 && requests.length === 0;
     if (!requests.length) {
       dom.bulkOrderRequestsPanel.innerHTML = "";
       return;
@@ -167,13 +170,17 @@ export function createBulkOrdersUi(deps) {
           <p class="panel-kicker">Yêu cầu xuất nhanh</p>
           <h3>${canManageRequests && pendingCount > 0 ? `Có ${pendingCount} yêu cầu chờ duyệt` : "Danh sách yêu cầu gần đây"}</h3>
           <p class="panel-note">Tất cả user đều thấy trạng thái request để tránh tạo trùng đơn xuất nhanh.</p>
+          <label class="toggle-inline" style="margin-top: 8px;">
+            <input type="checkbox" data-bulk-order-action="toggle-show-processed" ${showProcessed ? "checked" : ""}>
+            <span>Hiện yêu cầu đã xử lý</span>
+          </label>
         </div>
         <div class="cart-item-actions">
           ${pendingCount ? `<span class="status-pill warning">${escapeHtml(String(pendingCount))} chờ duyệt</span>` : '<span class="status-pill draft">Không có request chờ duyệt</span>'}
         </div>
       </div>
       <div class="report-list">
-        ${requests.map((request) => {
+        ${displayRequests.map((request) => {
           const statusMeta = getRequestStatusMeta(request);
           const isExpanded = state.bulkOrderDraft.expandedRequestId === request.request_id;
           const duplicates = Array.isArray(request.duplicates) ? request.duplicates : [];
@@ -442,11 +449,11 @@ export function createBulkOrdersUi(deps) {
   function renderBulkOrdersScreen() {
     renderSummaryBar();
     renderPermissionNotice();
-    renderBulkOrderRequestsPanel();
     renderResultSummary();
     renderEntryList();
     renderActionButtons();
     renderItemPicker();
+    renderBulkOrderRequestsPanel();
     if (dom.bulkCustomerLookupInput) {
       dom.bulkCustomerLookupInput.value = state.bulkOrderDraft.customerText || "";
     }
