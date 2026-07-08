@@ -1,5 +1,5 @@
 {
-  "app_version": "3.20.20",
+  "app_version": "3.20.21",
   "files": {
     "app.js": {
       "counter": 2,
@@ -38,8 +38,8 @@
       "sha256": "d02a300bcc4699ceb4e85488427037adb9b0522d69db72f67f0b8752144729de"
     },
     "modules/controllers/purchases-controller.js": {
-      "counter": 1,
-      "sha256": "18528771da53c306d88cac697c0f1e0eeed1f2e481ccab569d32daf8dfd043a9"
+      "counter": 3,
+      "sha256": "ad98cee3fe69db422606959ef6ffca565aa28f7f3842308ba95f00dcc394566b"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
@@ -114,8 +114,8 @@
       "sha256": "0f1f47b88d2f7421d5ce29bc0d5a684358ff8c6d42453765cf1ebea00c18947d"
     },
     "modules/ui/sales-ui.js": {
-      "counter": 1,
-      "sha256": "63675bad9a541ee2d3cefcca12da2159f93bbfc94e8011b6f96c48a05f541185"
+      "counter": 3,
+      "sha256": "50d60bf52c0d90a578c1f319401c4d04858a4b6b8268d3288900275e17d9d342"
     },
     "modules/utils.js": {
       "counter": 1,

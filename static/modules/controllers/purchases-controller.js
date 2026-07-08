@@ -8,7 +8,7 @@ export function registerPurchasesControllerEvents(contract) {
     utils,
   } = contract;
 
-  function selectPurchaseDocument(purchaseId, { focus = true, expandDetail = !dom.mobileQuery.matches } = {}) {
+  function selectPurchaseDocument(purchaseId, { focus = true, expandDetail = false } = {}) {
     const visiblePurchases = queries.getVisiblePurchases();
     const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
     if (!purchase) {
@@ -435,7 +435,7 @@ export function registerPurchasesControllerEvents(contract) {
         }
         state.activePurchaseId = documentId;
         state.purchasePanelCollapsed = false;
-        state.purchaseDetailExpanded = true;
+        state.purchaseDetailExpanded = false;
         actions.saveAndRenderAll();
         actions.focusPurchasePanel();
         return;
