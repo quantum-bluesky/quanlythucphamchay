@@ -1,5 +1,5 @@
 {
-  "app_version": "3.20.22",
+  "app_version": "3.20.23",
   "files": {
     "app.js": {
       "counter": 2,
@@ -106,8 +106,8 @@
       "sha256": "6350353686223537351636689d7ff0fa983af546b09e2b39330aac1956d55f94"
     },
     "modules/ui/purchases-ui.js": {
-      "counter": 2,
-      "sha256": "3e9327c6c2bfa4f97283dfed877931931e59c5bcb162f7597057e268f7d93c4d"
+      "counter": 3,
+      "sha256": "240b3d2cf044e29765b73563bd60b5cb90c3b7669d279c0b5c19e69ad8c794f5"
     },
     "modules/ui/reports-admin-ui.js": {
       "counter": 1,

@@ -13,6 +13,7 @@ export function createPurchasesUi(deps) {
     getProductById,
     getSupplierByName,
     canEditPurchase,
+    canEditPurchaseNote,
     canEditPurchaseExpiryMetadata,
     canEditPurchaseDiscount,
     canEditPurchaseSupplier,
