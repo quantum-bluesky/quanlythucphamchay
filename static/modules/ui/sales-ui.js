@@ -297,7 +297,7 @@ export function createSalesUi(deps) {
                 <strong>Detail phiếu xuất</strong>
                 <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}</span>
               </div>
-              ${detailToggleActionAttribute ? `<button type="button" class="ghost-button compact-button" ${detailToggleActionAttribute}>${detailCollapsed ? "Mở" : "Thu gọn"}</button>` : ""}
+              ${detailToggleActionAttribute ? `<button type="button" class="secondary-button compact-button" ${detailToggleActionAttribute}>${detailCollapsed ? "Mở detail" : "Thu gọn detail"}</button>` : ""}
             </div>
             ${detailCollapsed ? "" : detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
           </article>
@@ -593,7 +593,6 @@ export function createSalesUi(deps) {
       return;
     }
 
-    const detailButtonLabel = state.activeCartDetailExpanded ? (compact ? "Ẩn detail" : "Thu gọn detail") : "Detail";
     const shipAddressMarkup = renderCartShipAddressEditor(cart, 'data-cart-action="save-ship-address"');
     const noteMarkup = renderCartNoteEditor(cart, 'data-cart-action="save-note"');
     const discountMarkup = renderCartDiscountEditor(cart, 'data-cart-action="save-discount"');
@@ -618,14 +617,15 @@ export function createSalesUi(deps) {
         </div>
         ${renderCartMergePreview(cart)}
         ${renderCartCostWarning(cart)}
-        ${state.activeCartDetailExpanded ? renderCartDocumentDetail(cart, {
+        ${renderCartDocumentDetail(cart, {
           shipAddressActionAttribute: 'data-cart-action="save-ship-address"',
           noteActionAttribute: 'data-cart-action="save-note"',
           discountActionAttribute: 'data-cart-action="save-discount"',
-        }) : `${shipAddressMarkup}${noteMarkup}${discountMarkup}`}
+          detailCollapsed: !state.activeCartDetailExpanded,
+          detailToggleActionAttribute: 'data-cart-action="toggle-detail"',
+        })}
         <div class="cart-toolbar">
           <button type="button" class="ghost-button" data-cart-action="create-new">Tạo đơn mới</button>
-          <button type="button" class="ghost-button" data-cart-action="toggle-detail">${detailButtonLabel}</button>
           ${canPrint ? `<button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In phiếu"}</button>` : ""}
           ${cart.status === "draft"
             ? `<button type="button" class="primary-button" data-cart-action="commit" ${cart.itemCount ? "" : "disabled"}>${compact ? "Chốt" : "Chốt đơn"}</button>`
