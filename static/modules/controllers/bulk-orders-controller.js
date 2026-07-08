@@ -622,6 +622,13 @@ export function registerBulkOrdersControllerEvents(contract) {
     }
   });
 
+  dom.bulkOrderRequestsPanel?.addEventListener("change", (event) => {
+    if (event.target.dataset.bulkOrderAction === "toggle-show-processed") {
+      state.showProcessedBulkOrderRequests = event.target.checked;
+      renderers.renderBulkOrdersScreen();
+    }
+  });
+
   dom.bulkOrderSaveDraftButton?.addEventListener("click", async () => {
     await submitBulkOrders("draft");
   });

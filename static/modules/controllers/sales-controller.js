@@ -643,7 +643,8 @@ export function registerSalesControllerEvents(contract) {
     const cart = visibleOrders.find((entry) => entry.id === cartId) || null;
     state.expandedOrderId = cart ? cartId : null;
     if (resetItems) {
-      state.orderDetailItemsCollapsed = true;
+      state.orderDetailItemsCollapsed = false;
+      state.orderDetailMetaCollapsed = true;
     }
     if (cart) {
       actions.setPaginationPageForItem("orders", visibleOrders, cartId);
@@ -1343,6 +1344,14 @@ export function registerSalesControllerEvents(contract) {
     }
     if (action === "toggle-items") {
       state.orderDetailItemsCollapsed = !state.orderDetailItemsCollapsed;
+      renderers.renderCartQueue();
+      actions.focusOrderDetailPanel();
+      return;
+    }
+    if (action === "toggle-detail-meta") {
+      // Default to true if undefined, so flipping it makes it false (visible)
+      const current = state.orderDetailMetaCollapsed ?? true;
+      state.orderDetailMetaCollapsed = !current;
       renderers.renderCartQueue();
       actions.focusOrderDetailPanel();
       return;
