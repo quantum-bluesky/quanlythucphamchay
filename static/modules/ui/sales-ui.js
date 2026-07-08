@@ -49,13 +49,7 @@ export function createSalesUi(deps) {
   }
 
   function canEditCartNote(cart) {
-    return Boolean(
-      cart && (
-        cart.status === "draft"
-        || cart.status === "committed"
-        || (cart.status === "completed" && cart.paymentStatus !== "paid")
-      )
-    );
+    return Boolean(cart);
   }
 
   function canPrintCartDocument(cart) {

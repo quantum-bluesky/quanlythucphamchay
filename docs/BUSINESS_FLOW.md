@@ -122,7 +122,7 @@ Nếu cần can thiệp đặc biệt
 - đơn `committed` vẫn cho sửa dòng hàng, địa chỉ giao, ghi chú và giảm giá; không đổi được khách, không được xóa
 - đơn `draft/committed` cùng khách vẫn có thể đi vào flow `gộp đơn`; hệ thống giữ lại một phiếu đích rồi chuyển các phiếu nguồn sang `cancelled`
 - khi gộp nhiều phiếu xuất cùng khách, phiếu đích sẽ hợp nhất `ghi chú phiếu xuất` theo danh sách duy nhất ngăn bằng ` | `
-- đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; ngoại lệ trước thanh toán là vẫn cho sửa `ghi chú phiếu xuất` và `giảm giá khuyến mại` của toàn đơn
+- đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; trước thanh toán vẫn cho sửa `giảm giá khuyến mại`; riêng `ghi chú phiếu xuất` có thể sửa ở mọi trạng thái
 - nếu đơn đã `completed/paid` bị nhập nhầm, user phải tạo `Yêu cầu hủy` có lý do; quản lý/Admin duyệt xong thì app mới chuyển đơn sang `cancelled`, hoàn lại tồn theo đúng lô đã xuất và loại trừ doanh thu/giá vốn của đơn ra khỏi báo cáo
 
 ### Luồng xử lý nhanh xuất hàng
@@ -224,7 +224,7 @@ ordered -> cancelled
 - các metadata legacy khác như thiếu `paid_at`, thiếu `received_at` raw DB, hoặc thiếu `source_code` của phiếu nhập sinh ra từ đơn thiếu hàng phải đi qua khối `Legacy Audit` ở `Master Admin`
 - `Legacy Audit` chỉ auto-fix các mốc thời gian chắc chắn; các thao tác gắn `receipt_code` hoặc `đơn nguồn` luôn cần admin xác nhận thủ công
 - chỉ `received` mới được `paid`
-- `received` chỉ còn cho sửa `ghi chú`, `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
+- `received` chỉ còn cho sửa `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; riêng `ghi chú` có thể sửa ở mọi trạng thái; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem đối với các field còn lại
 - nếu phiếu `received/paid` bị nhập nhầm, user phải tạo `Yêu cầu hủy` có lý do; chỉ quản lý/Admin mới được duyệt, và khi duyệt app sẽ rút lại đúng lượng đã nhập từ lô gốc nếu chưa bị dùng mất, đồng thời loại chi phí mua của phiếu ra khỏi báo cáo
 - với user mới, các phiếu `received/paid` còn được gom thêm ở màn `payments` để nhìn nhóm phiếu cần trả tiền riêng
 - từ phiếu `received/paid`, có thể bấm `Nhập lại` để tạo nhanh một phiếu nháp mới cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có để không tạo draft thứ hai

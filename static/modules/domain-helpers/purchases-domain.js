@@ -277,15 +277,7 @@ export function createPurchasesDomainHelpers(deps) {
   }
 
   function canEditPurchaseNote(purchase) {
-    return Boolean(
-      purchase && (
-        (
-          ["draft", "ordered"].includes(purchase.status)
-          && !isPurchaseStructureLockedByProcurementBatch(purchase)
-        ) ||
-        purchase.status === "received"
-      )
-    );
+    return Boolean(purchase);
   }
 
   function canEditPurchaseExpiryMetadata(purchase) {

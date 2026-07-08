@@ -189,7 +189,7 @@ Nếu đủ hàng:
 - hệ thống giữ hàng logic cho đơn này nhưng chưa trừ kho thật
 - đơn chuyển sang trạng thái `Chốt đơn`
 - khóa khách hàng của đơn, không cho xóa phiếu
-- vẫn cho sửa dòng hàng, địa chỉ giao, `Ghi chú phiếu xuất` và `Giảm giá khuyến mại` cho tới trước khi xuất hàng
+- vẫn cho sửa dòng hàng, địa chỉ giao và `Giảm giá khuyến mại` cho tới trước khi xuất hàng; riêng `Ghi chú phiếu xuất` có thể sửa ở mọi trạng thái
 - vẫn có thể in / gửi phiếu cho khách; app cũng cho in từ lúc đơn còn `Nháp`
 - nếu đã nhập `Giảm giá khuyến mại`, số `Cần thanh toán` trên phiếu và bản in sẽ là số đã trừ khuyến mại
 - nếu `Cần thanh toán` đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app sẽ hiện thêm cảnh báo xác nhận trước khi chốt để bạn rà lại giá bán
@@ -305,7 +305,7 @@ Dùng màn này để:
 - `Hủy`: dùng khi khách không lấy nữa
 - `Yêu cầu hủy`: dùng khi đơn đã `Đã xuất hàng` nhưng phát hiện nhập nhầm; bắt buộc nhập lý do để gửi quản lý/Admin duyệt
 - `Xóa`: chỉ áp dụng cho giỏ nháp tạo nhầm; đơn đã chốt phải giữ lại lịch sử
-- `Lưu ghi chú`: cập nhật ghi chú riêng của phiếu xuất khi đơn chưa thanh toán
+- `Lưu ghi chú`: cập nhật ghi chú riêng của phiếu xuất
 - `Lưu giảm giá`: chỉnh lại tổng khuyến mại của cả đơn khi đơn chưa thanh toán
 - `Lưu địa chỉ giao`: cập nhật địa chỉ giao riêng của đơn cho tới trước khi đã xuất hàng
 
@@ -317,7 +317,7 @@ Lưu ý:
 - nếu đang mở đơn ở màn `Tạo đơn xuất hàng` mà muốn tách hẳn ra một đơn khác, bấm `Tạo đơn mới`; app sẽ hỏi trước khi reset form hiện tại nhưng vẫn giữ nguyên đơn cũ trong danh sách để mở lại sau
 - đơn đã `Chốt đơn` không đổi được khách hàng và không được xóa, nhưng vẫn hủy được nếu khách không lấy nữa
 - đơn đã `Đã xuất hàng` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao
-- trước khi `Đã thanh toán`, vẫn được sửa riêng `Ghi chú phiếu xuất` của cả đơn
+- riêng `Ghi chú phiếu xuất` của cả đơn có thể sửa trực tiếp ở mọi trạng thái
 - nếu khách cần mua lại gần giống một đơn cũ, bấm `Xuất lại`; app sẽ tạo một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng của phiếu đã chọn. Nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
 - trước khi `Đã thanh toán`, vẫn được sửa riêng `Giảm giá khuyến mại` của cả đơn; riêng địa chỉ giao chỉ được sửa tới trước `Đã xuất hàng`
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
@@ -438,7 +438,7 @@ Màn này có 2 phần:
 26. Nếu chưa có `Nhà cung cấp`, app cũng sẽ chặn luôn bước `Nhập kho`
 27. Nếu bỏ trống `Mã lô`, app sẽ tự sinh mã lô lúc nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang giá trị tự tính `ngày nhập kho + thời gian bảo quản`
 28. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
-29. Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Ghi chú`, `Giảm giá khuyến mại` và cập nhật lại `Hạn dùng` hoặc `Ngày sản xuất`; app không mở khóa lại số lượng, giá, mã lô hay NCC
+29. Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Giảm giá khuyến mại` và cập nhật lại `Hạn dùng` hoặc `Ngày sản xuất`; riêng `Ghi chú` có thể sửa ở mọi trạng thái; app không mở khóa lại số lượng, giá, mã lô hay NCC
 30. Nếu cần nhập lại gần giống một phiếu cũ đã `Đã nhập kho` hoặc `Đã thanh toán`, bấm `Nhập lại`; app sẽ tạo nhanh một phiếu nháp mới với cùng NCC, ghi chú, giảm giá và các dòng hàng. Nếu NCC đó đang có phiếu nháp sẵn thì app sẽ dồn thêm vào phiếu nháp hiện có để giữ đúng rule mỗi NCC tối đa một phiếu nháp
 31. Có thể bấm `In` để in phiếu gửi NCC từ lúc phiếu còn `Nháp` cho tới `Đã thanh toán`; ở list phiếu, nút `In` không hiện khi phiếu đã thanh toán nên nếu cần in lại thì mở detail của phiếu
 32. Khi `Nhập lại`, app chỉ sao chép các dòng hàng và thông tin mức phiếu; `Mã lô`, `HSD` và `Ngày sản xuất` sẽ để trống để bạn nhập lại theo lô hàng mới
@@ -491,7 +491,7 @@ Lưu ý:
 - chỉ `Nháp` mới được đổi nhà cung cấp; từ `Đã đặt` trở đi ô NCC và nút `NCC` sẽ bị khóa
 - ngoại lệ: nếu app nhận diện một phiếu `Đã đặt` trên DB cũ đang bị lỗi dữ liệu, ví dụ thiếu NCC hoặc marker trạng thái lệch, app sẽ mở lại thao tác sửa NCC hoặc xóa/hủy để cứu phiếu đó
 - khi xuất kho hoặc trả NCC, app sẽ tự trừ theo FEFO từ lô có HSD sớm nhất; nếu lô chưa có HSD thì hệ thống để sau các lô có HSD
-- phiếu đã `Đã nhập kho` vẫn cho cập nhật lại `Ghi chú`, `Hạn dùng` hoặc `Ngày sản xuất` của từng dòng và sửa `Giảm giá khuyến mại`; từ `Đã thanh toán` hoặc `Đã hủy` trở đi mới chuyển sang chế độ chỉ xem hoàn toàn
+- phiếu đã `Đã nhập kho` vẫn cho cập nhật lại `Hạn dùng` hoặc `Ngày sản xuất` của từng dòng và sửa `Giảm giá khuyến mại`; riêng `Ghi chú` có thể sửa ở mọi trạng thái; từ `Đã thanh toán` hoặc `Đã hủy` trở đi mới chuyển sang chế độ chỉ xem đối với các mục còn lại
 - phiếu đã `Đã nhập kho` hoặc `Đã thanh toán` không cho hủy trực tiếp; nếu nhập nhầm phải mở `Detail`, bấm `Yêu cầu hủy`, nhập lý do và chờ quản lý/Admin duyệt
 - khi yêu cầu hủy phiếu nhập được duyệt, app sẽ chuyển phiếu sang `Đã hủy`, rút lại đúng số hàng đã nhập từ các lô gốc nếu lô đó chưa bị dùng mất, đồng thời loại trừ chi phí mua của phiếu ra khỏi báo cáo
 - các nút đổi trạng thái và xóa phiếu đều có thêm bước confirm trước khi app ghi nhận thay đổi

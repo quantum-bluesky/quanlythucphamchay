@@ -59,7 +59,7 @@ export function createSalesDomainHelpers(deps) {
   }
 
   function canEditCartNote(cart) {
-    return canEditCartDiscount(cart);
+    return Boolean(cart);
   }
 
   function getCartCostWarning(cart) {

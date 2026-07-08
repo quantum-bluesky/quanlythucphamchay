@@ -371,6 +371,23 @@ export function createPurchasesUi(deps) {
     `;
   }
 
+  function renderPurchaseNoteEditor(purchase) {
+    if (!canEditPurchaseNote(purchase)) {
+      return "";
+    }
+    return `
+      <div class="document-discount-editor">
+        <label class="price-field">
+          <span>Ghi chú phiếu nhập</span>
+          <input type="text" maxlength="160" value="${escapeHtml(String(purchase.note || ""))}" data-purchase-note-input="${purchase.id}">
+        </label>
+        <div class="line-actions">
+          <button type="button" class="ghost-button compact-button" data-purchase-action="save-note" data-purchase-id="${purchase.id}">Lưu ghi chú</button>
+        </div>
+      </div>
+    `;
+  }
+
   function renderPurchaseMergePreview(purchase) {
     const preview = getPendingPurchaseMergePreview();
     if (!preview || String(preview.targetId) !== String(purchase?.id || "")) {
@@ -550,6 +567,7 @@ export function createPurchasesUi(deps) {
         </div>
         ${renderPurchaseMergePreview(purchase)}
         ${renderPurchaseDiscountEditor(purchase)}
+        ${renderPurchaseNoteEditor(purchase)}
         <div class="document-detail-toggle-row">
           <button type="button" class="ghost-button compact-button" data-purchase-action="toggle-detail">${state.purchaseDetailExpanded ? "Ẩn detail" : "Detail"}</button>
         </div>
