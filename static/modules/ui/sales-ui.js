@@ -252,6 +252,8 @@ export function createSalesUi(deps) {
       noteActionAttribute = "",
       itemsCollapsed = false,
       itemToggleActionAttribute = "",
+      detailCollapsed = false,
+      detailToggleActionAttribute = "",
     } = options;
     const statusMeta = getCartStatusMeta(cart);
     const detailRows = getCartDetailRows(cart);
@@ -287,21 +289,28 @@ export function createSalesUi(deps) {
     const shipAddressMarkup = shipAddressActionAttribute ? renderCartShipAddressEditor(cart, shipAddressActionAttribute) : "";
     const noteMarkup = noteActionAttribute ? renderCartNoteEditor(cart, noteActionAttribute) : "";
     const discountEditorMarkup = discountActionAttribute ? renderCartDiscountEditor(cart, discountActionAttribute) : "";
-    return `
-      <div class="document-detail-block">
-        <div class="report-list document-detail-list">
+    const detailMarkup = `
+        <div class="report-list document-detail-list ${detailCollapsed ? "is-collapsed" : ""}">
           <article class="report-card">
             <div class="report-card-head">
-              <strong>Detail phiếu xuất</strong>
-              <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}</span>
+              <div>
+                <strong>Detail phiếu xuất</strong>
+                <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}</span>
+              </div>
+              ${detailToggleActionAttribute ? `<button type="button" class="ghost-button compact-button" ${detailToggleActionAttribute}>${detailCollapsed ? "Mở" : "Thu gọn"}</button>` : ""}
             </div>
-            ${detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
+            ${detailCollapsed ? "" : detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
           </article>
         </div>
+    `;
+
+    return `
+      <div class="document-detail-block">
+        ${itemsMarkup}
+        ${detailMarkup}
         ${shipAddressMarkup}
         ${noteMarkup}
         ${discountEditorMarkup}
-        ${itemsMarkup}
       </div>
     `;
   }
@@ -345,6 +354,8 @@ export function createSalesUi(deps) {
         includeItems: true,
         itemsCollapsed: state.orderDetailItemsCollapsed,
         itemToggleActionAttribute: 'data-order-detail-action="toggle-items"',
+        detailCollapsed: state.orderDetailMetaCollapsed ?? true,
+        detailToggleActionAttribute: 'data-order-detail-action="toggle-detail-meta"',
         shipAddressActionAttribute: 'data-order-detail-action="save-ship-address"',
         noteActionAttribute: 'data-order-detail-action="save-note"',
         discountActionAttribute: 'data-order-detail-action="save-discount"',
