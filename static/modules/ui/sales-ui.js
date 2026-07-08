@@ -455,14 +455,19 @@ export function createSalesUi(deps) {
       0,
     );
     const lastResult = draft.lastResult || null;
+    const isCollapsed = Boolean(draft.panelCollapsed);
     dom.quickSalePanel.innerHTML = `
-      <div class="subheading">
+      <div class="subheading" style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div>
           <p class="panel-kicker">Xử lý nhanh</p>
           <h3>Xuất hàng 1 lần lưu</h3>
           <p class="panel-note">Dùng cho ca đã xuất xong rồi mới ghi vào app cuối ngày. Không thay flow chuẩn hiện tại.</p>
         </div>
+        <button type="button" class="ghost-button compact-button" data-quick-sale-action="toggle-panel" style="margin-top: 1rem;">
+          ${isCollapsed ? "Mở rộng" : "Thu gọn"}
+        </button>
       </div>
+      ${isCollapsed ? "" : `
       <div class="quick-doc-grid">
         <label>
           <span>Khách hàng</span>
@@ -548,6 +553,7 @@ export function createSalesUi(deps) {
           </div>
         </article>
       ` : ""}
+      `}
     `;
   }
 

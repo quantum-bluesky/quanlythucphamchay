@@ -315,6 +315,11 @@ export function registerSalesControllerEvents(contract) {
     }
     const action = actionButton.dataset.quickSaleAction;
     try {
+      if (action === "toggle-panel") {
+        state.quickSaleDraft.panelCollapsed = !state.quickSaleDraft.panelCollapsed;
+        renderers.renderQuickSalePanel();
+        return;
+      }
       if (action === "add-item") {
         addQuickSaleItem();
         return;

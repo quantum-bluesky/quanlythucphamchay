@@ -400,6 +400,11 @@ export function registerPurchasesControllerEvents(contract) {
     }
     const action = actionButton.dataset.quickPurchaseAction;
     try {
+      if (action === "toggle-panel") {
+        state.quickPurchaseDraft.panelCollapsed = !state.quickPurchaseDraft.panelCollapsed;
+        renderers.renderQuickPurchasePanel();
+        return;
+      }
       if (action === "add-item") {
         addQuickPurchaseItem();
         return;

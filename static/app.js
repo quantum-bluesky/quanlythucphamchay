@@ -1943,8 +1943,8 @@ function resetQuickSaleDraft() {
     finalStatus: "completed",
     markPaid: false,
     items: [],
-    lastResult: null,
     submitting: false,
+    panelCollapsed: state.quickSaleDraft?.panelCollapsed ?? true,
   };
 }
 
@@ -1959,8 +1959,8 @@ function resetQuickPurchaseDraft() {
     finalStatus: "received",
     markPaid: false,
     items: [],
-    lastResult: null,
     submitting: false,
+    panelCollapsed: state.quickPurchaseDraft?.panelCollapsed ?? true,
   };
 }
 

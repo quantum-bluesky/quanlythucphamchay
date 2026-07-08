@@ -255,14 +255,19 @@ export function createPurchasesUi(deps) {
       0,
     );
     const lastResult = draft.lastResult || null;
+    const isCollapsed = Boolean(draft.panelCollapsed);
     dom.quickPurchasePanel.innerHTML = `
-      <div class="subheading">
+      <div class="subheading" style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div>
           <p class="panel-kicker">Xử lý nhanh</p>
           <h3>Nhập hàng 1 lần lưu</h3>
           <p class="panel-note">Dùng cho trường hợp hàng đã nhận xong trong ngày, chỉ cần ghi lại nhanh và vẫn giữ đủ lịch sử nhập kho.</p>
         </div>
+        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="toggle-panel" style="margin-top: 1rem;">
+          ${isCollapsed ? "Mở rộng" : "Thu gọn"}
+        </button>
       </div>
+      ${isCollapsed ? "" : `
       <div class="quick-doc-grid">
         <label>
           <span>Nhà cung cấp</span>
@@ -345,6 +350,7 @@ export function createPurchasesUi(deps) {
           </div>
         </article>
       ` : ""}
+      `}
     `;
   }
 
