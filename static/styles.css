@@ -593,6 +593,38 @@ h3 {
   justify-items: start;
 }
 
+.quick-panel.is-direct-adjust-mode .quick-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-panel.is-direct-adjust-mode .quick-panel-body {
+  max-height: 480px;
+  opacity: 1;
+  transition: max-height 180ms ease, opacity 160ms ease, padding-bottom 180ms ease;
+}
+
+.quick-panel.is-direct-adjust-mode.is-collapsed {
+  padding-bottom: 12px;
+}
+
+.quick-panel.is-direct-adjust-mode.is-collapsed .panel-heading {
+  margin-bottom: 0;
+  align-items: center;
+}
+
+.quick-panel.is-direct-adjust-mode.is-collapsed .panel-note {
+  display: none;
+}
+
+.quick-panel.is-direct-adjust-mode.is-collapsed .quick-panel-body {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  padding-bottom: 0;
+}
+
 .panel-heading,
 .subheading {
   display: flex;

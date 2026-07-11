@@ -19,7 +19,7 @@ export function createReportsAdminUi(deps) {
     if (!dom.reportFiltersSection || !dom.reportFiltersWrap || !dom.reportFiltersToggleButton) {
       return;
     }
-    const collapsed = compact && state.reportFiltersCollapsed;
+    const collapsed = state.reportFiltersCollapsed;
     dom.reportFiltersSection.classList.toggle("is-collapsed", collapsed);
     dom.reportFiltersWrap.hidden = collapsed;
     dom.reportFiltersToggleButton.textContent = collapsed ? "Mở bộ lọc" : "Thu gọn";
