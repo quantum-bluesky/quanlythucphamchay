@@ -160,6 +160,7 @@ export const state = {
   expandedSalesProductId: null,
   visibleSelectedSalesProductId: null,
   expandedSelectedCartItemId: null,
+  expandedSelectedPurchaseItemId: null,
   expandedOrderId: null,
   orderDetailItemsCollapsed: true,
   selectedOrderMergeIds: [],

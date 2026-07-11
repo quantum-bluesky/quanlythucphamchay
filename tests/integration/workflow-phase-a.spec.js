@@ -58,6 +58,11 @@ async function ensureSelectedPurchaseItemsExpanded(page, itemId) {
   if (await sectionToggleButton.isVisible().catch(() => false)) {
     await sectionToggleButton.click();
   }
+  const itemToggleButton = page.locator(`[data-purchase-item-action="toggle-detail"][data-purchase-item-id="${itemId}"]`);
+  if (await itemToggleButton.isVisible().catch(() => false)) {
+    await itemToggleButton.click();
+    await page.waitForTimeout(300);
+  }
   await expect(costInput).toBeVisible();
 }
 
@@ -346,6 +351,8 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
 
     await page.locator('[data-purchase-selected-action="toggle"]').click();
     await page.waitForTimeout(300);
+    await page.locator('[data-purchase-item-action="toggle-detail"]').first().click();
+    await page.waitForTimeout(300);
     const qtyInput = page.locator('[data-purchase-qty-input]').first();
     await expect(qtyInput).toBeEnabled();
     await qtyInput.fill("2");
@@ -527,6 +534,8 @@ test("IT-PUR-01 purchase suggestions allow overriding quantity before adding to 
 
   const purchaseItemCard = page.locator(".cart-item").filter({ hasText: productName }).first();
   await expect(purchaseItemCard).toBeVisible();
+  await purchaseItemCard.locator('[data-purchase-item-action="toggle-detail"]').click();
+  await page.waitForTimeout(300);
   await expect(purchaseItemCard.locator("[data-purchase-qty-input]").first()).toHaveValue(overriddenQuantity);
 
   runtime.errors = runtime.errors.filter((entry) => !entry.includes("Failed to load resource: net::ERR_CONNECTION_RESET"));

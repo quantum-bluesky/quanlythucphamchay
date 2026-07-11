@@ -920,6 +920,10 @@ export function registerSalesControllerEvents(contract) {
       actions.printCart(button.dataset.cartId);
       return;
     }
+    if (button.dataset.cartAction === "merge-copy-text-existing") {
+      actions.copyCartText(button.dataset.cartId);
+      return;
+    }
     if (button.dataset.cartAction === "merge-create-new") {
       try {
         actions.createNewDraftForPendingMergeCustomer();
@@ -1000,6 +1004,10 @@ export function registerSalesControllerEvents(contract) {
     if (!cart) return;
     if (button.dataset.cartAction === "print") {
       actions.printCart(cart.id);
+      return;
+    }
+    if (button.dataset.cartAction === "copy-text") {
+      actions.copyCartText(cart.id);
       return;
     }
     if (button.dataset.cartAction === "save-discount") {
@@ -1144,6 +1152,10 @@ export function registerSalesControllerEvents(contract) {
     }
     if (action === "print") {
       actions.printCart(cart.id);
+      return;
+    }
+    if (action === "copy-text") {
+      actions.copyCartText(cart.id);
       return;
     }
     if (action === "history") {
@@ -1377,6 +1389,10 @@ export function registerSalesControllerEvents(contract) {
     }
     if (action === "print") {
       actions.printCart(cart.id);
+      return;
+    }
+    if (action === "copy-text") {
+      actions.copyCartText(cart.id);
       return;
     }
     if (action === "history") {

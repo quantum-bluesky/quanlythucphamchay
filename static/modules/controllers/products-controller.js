@@ -177,6 +177,8 @@ export function registerProductsControllerEvents(contract) {
     }
     
     try {
+      const isEditing = !!state.editingProductId;
+      
       const data = state.editingProductId
         ? await actions.apiRequest(`/api/products/${state.editingProductId}`, {
             method: "PUT",
@@ -192,8 +194,14 @@ export function registerProductsControllerEvents(contract) {
         state.productFormCollapsed = true;
       }
       await actions.refreshData();
-      actions.switchMenu("inventory");
-      actions.prefillProduct(data.product.id);
+      
+      if (isEditing) {
+        renderers.renderProductSections();
+      } else {
+        actions.switchMenu("inventory");
+        actions.prefillProduct(data.product.id);
+      }
+      
       actions.showToast(data.message);
     } catch (error) {
       actions.showToast(error.message, true);

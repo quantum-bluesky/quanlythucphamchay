@@ -6202,6 +6202,87 @@ function printPurchase(purchaseId) {
   openPrintPopup(buildPurchasePrintMarkup(purchase), "Trình duyệt đang chặn cửa sổ in phiếu nhập.");
 }
 
+function formatTextNumber(val) {
+  return new Intl.NumberFormat("vi-VN").format(Number(val || 0));
+}
+
+function copyCartText(cartId) {
+  const cart = getCartById(cartId);
+  if (!cart) {
+    showToast("Không tìm thấy giỏ hàng để copy.", true);
+    return;
+  }
+  const lines = [];
+  cart.items.forEach((item, index) => {
+    const qtyStr = formatQuantity(item.quantity);
+    const unitPriceStr = formatTextNumber(item.unitPrice);
+    const totalStr = formatTextNumber(item.lineTotal);
+    lines.push(`${index + 1}. ${item.productName} ${qtyStr} ${item.unit} : ${qtyStr}x${unitPriceStr} = ${totalStr}`);
+  });
+  if (cart.discountAmount) {
+    lines.push(`Khuyến mại: ${formatTextNumber(cart.discountAmount)}`);
+  }
+  if (cart.items.length > 0) {
+    let totalsExpr = cart.items.map(item => formatTextNumber(item.lineTotal)).join('+');
+    if (cart.discountAmount) {
+      totalsExpr += ` - ${formatTextNumber(cart.discountAmount)}`;
+    }
+    lines.push(`Tổng cộng: ${totalsExpr} = ${formatTextNumber(cart.totalAmount)}`);
+  } else {
+    lines.push(`Tổng cộng: ${formatTextNumber(cart.totalAmount)}`);
+  }
+  const text = lines.join("\n");
+  copyTextToClipboard(text, "Đã copy nội dung phiếu xuất dạng text.");
+}
+
+function copyPurchaseText(purchaseId) {
+  const purchase = state.purchases.find((entry) => String(entry.id) === String(purchaseId));
+  if (!purchase) {
+    showToast("Không tìm thấy phiếu nhập để copy.", true);
+    return;
+  }
+  const lines = [];
+  purchase.items.forEach((item, index) => {
+    lines.push(`${index + 1}. ${item.productName} ${formatQuantity(item.quantity)} ${item.unit}`);
+  });
+  const text = lines.join("\n");
+  copyTextToClipboard(text, "Đã copy nội dung phiếu nhập dạng text.");
+}
+
+function copyTextToClipboard(text, successMessage) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(successMessage);
+    }).catch(err => {
+      fallbackCopyTextToClipboard(text, successMessage);
+    });
+  } else {
+    fallbackCopyTextToClipboard(text, successMessage);
+  }
+}
+
+function fallbackCopyTextToClipboard(text, successMessage) {
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.top = "0";
+  textArea.style.left = "0";
+  textArea.style.position = "fixed";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      showToast(successMessage);
+    } else {
+      showToast("Không thể copy, trình duyệt từ chối.", true);
+    }
+  } catch (err) {
+    showToast("Lỗi copy text.", true);
+  }
+  document.body.removeChild(textArea);
+}
+
 function prefillProduct(productId) {
   const product = getProductById(productId);
   if (!product) {
@@ -6817,6 +6898,7 @@ registerSalesControllerEvents({
     checkoutCart,
     checkoutActiveCart,
     printCart,
+    copyCartText,
     openCartAuditHistory,
     updateProductSalePrice,
     createQuickSaleDocument,
@@ -7028,6 +7110,7 @@ registerPurchasesControllerEvents({
     clearPurchaseMergePreview,
     applyPendingPurchaseMerge,
     printPurchase,
+    copyPurchaseText,
     openPurchaseConflictReview,
     clearPurchaseConflictReview,
     openPurchaseDocumentById,

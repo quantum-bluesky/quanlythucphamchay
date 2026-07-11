@@ -773,8 +773,14 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
         return;
       }
-      if (itemAction !== "save" && !canEditStructure) {
+      if (itemAction !== "save" && itemAction !== "toggle-detail" && !canEditStructure) {
         actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
+        return;
+      }
+      if (itemAction === "toggle-detail") {
+        const itemId = itemButton.dataset.purchaseItemId;
+        state.expandedSelectedPurchaseItemId = state.expandedSelectedPurchaseItemId === itemId ? null : itemId;
+        renderers.renderPurchasePanel();
         return;
       }
       if (itemAction === "save") {
@@ -961,6 +967,10 @@ export function registerPurchasesControllerEvents(contract) {
     }
     if (actionButton.dataset.purchaseAction === "print") {
       actions.printPurchase(purchase.id);
+      return;
+    }
+    if (actionButton.dataset.purchaseAction === "copy-text") {
+      actions.copyPurchaseText(purchase.id);
       return;
     }
     if (actionButton.dataset.purchaseAction === "collapse") {
@@ -1319,6 +1329,10 @@ export function registerPurchasesControllerEvents(contract) {
     }
     if (button.dataset.purchaseListAction === "print") {
       actions.printPurchase(button.dataset.purchaseId);
+      return;
+    }
+    if (button.dataset.purchaseListAction === "copy-text") {
+      actions.copyPurchaseText(button.dataset.purchaseId);
       return;
     }
     if (button.dataset.purchaseListAction === "repeat") {
