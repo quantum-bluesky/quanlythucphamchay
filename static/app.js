@@ -4675,12 +4675,6 @@ function setQuickPanelCollapsed(collapsed) {
   if (quickPanel.hidden) {
     return;
   }
-  if (!mobileQuery.matches) {
-    quickPanel.classList.remove("is-collapsed");
-    quickPanelToggle.setAttribute("aria-expanded", "true");
-    quickPanelToggle.textContent = "Thu gọn";
-    return;
-  }
 
   quickPanel.classList.toggle("is-collapsed", collapsed);
   quickPanelToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
