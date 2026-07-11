@@ -606,7 +606,7 @@ export function createPurchasesUi(deps) {
           <div class="cart-items-list selected-items-body" ${state.selectedPurchaseItemsCollapsed ? "hidden" : ""}>${selectedItemsMarkup}</div>
         </section>
         <div class="cart-toolbar">
-          ${canPrintPurchase ? `<button type="button" class="ghost-button" data-purchase-action="print">In phiếu</button>` : ""}
+          ${canPrintPurchase ? `<button type="button" class="ghost-button" data-purchase-action="print">In phiếu</button><button type="button" class="ghost-button" data-purchase-action="copy-text">Copy text</button>` : ""}
           ${purchase.status === "draft" ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Đã đặt hàng</button>` : ""}
           ${canReceivePurchase(purchase) ? `<button type="button" class="primary-button" data-purchase-action="receive" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Nhập kho</button>` : ""}
           ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
@@ -717,7 +717,7 @@ export function createPurchasesUi(deps) {
         <div class="queue-actions">
           ${canMergePurchase(purchase) ? `<label class="toggle-inline" data-purchase-list-action="toggle-merge-select" data-purchase-id="${purchase.id}"><input type="checkbox" data-purchase-list-action="toggle-merge-select" data-purchase-id="${purchase.id}" ${selectedMergeIds.some((purchaseId) => String(purchaseId) === String(purchase.id)) ? "checked" : ""}><span>Chọn</span></label>` : ""}
           <button type="button" class="ghost-button compact-button" data-purchase-list-action="open" data-purchase-id="${purchase.id}">Mở</button>
-          ${canShowPurchaseListPrintAction(purchase) ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="print" data-purchase-id="${purchase.id}">In</button>` : ""}
+          ${canShowPurchaseListPrintAction(purchase) ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="print" data-purchase-id="${purchase.id}">In</button><button type="button" class="ghost-button compact-button" data-purchase-list-action="copy-text" data-purchase-id="${purchase.id}">Copy</button>` : ""}
           ${["received", "paid"].includes(String(purchase.status || "").trim()) ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="repeat" data-purchase-id="${purchase.id}" ${repeatPurchaseDisabled ? "disabled" : ""} title="${repeatPurchaseDisabled ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo lại phiếu nhập." : ""}">Nhập lại</button>` : ""}
         </div>
       </article>

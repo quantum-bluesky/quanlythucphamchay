@@ -969,6 +969,10 @@ export function registerPurchasesControllerEvents(contract) {
       actions.printPurchase(purchase.id);
       return;
     }
+    if (actionButton.dataset.purchaseAction === "copy-text") {
+      actions.copyPurchaseText(purchase.id);
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "collapse") {
       state.purchasePanelCollapsed = true;
       renderers.renderPurchasePanel();
@@ -1325,6 +1329,10 @@ export function registerPurchasesControllerEvents(contract) {
     }
     if (button.dataset.purchaseListAction === "print") {
       actions.printPurchase(button.dataset.purchaseId);
+      return;
+    }
+    if (button.dataset.purchaseListAction === "copy-text") {
+      actions.copyPurchaseText(button.dataset.purchaseId);
       return;
     }
     if (button.dataset.purchaseListAction === "repeat") {
