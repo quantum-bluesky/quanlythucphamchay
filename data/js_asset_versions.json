@@ -1,5 +1,5 @@
 {
-  "app_version": "3.20.24",
+  "app_version": "3.20.27",
   "files": {
     "app.js": {
       "counter": 2,
@@ -122,7 +122,7 @@
       "sha256": "bec578f8a31c679baa30d07ed240cae078daaeddfeff83ef25e0abff09d985fa"
     },
     "styles.css": {
-      "counter": 1,
+      "counter": 2,
       "sha256": "f1300edde670df6ddc6754367eaf4b865116a83fe86bc77f4b2d64d3b62f84f8"
     },
     "vendor/quill/quill.min.js": {
