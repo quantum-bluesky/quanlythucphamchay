@@ -606,6 +606,7 @@ export function createPurchasesDomainHelpers(deps) {
     state.purchasePanelCollapsed = false;
     state.purchaseDetailExpanded = false;
     state.selectedPurchaseItemsCollapsed = false;
+    state.expandedSelectedPurchaseItemId = null;
     purchaseSupplierInput.value = purchase.supplierName || "";
     purchaseNoteInput.value = purchase.note || "";
     movePurchaseToFront(purchase.id);

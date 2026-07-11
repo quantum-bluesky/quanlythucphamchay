@@ -773,8 +773,14 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
         return;
       }
-      if (itemAction !== "save" && !canEditStructure) {
+      if (itemAction !== "save" && itemAction !== "toggle-detail" && !canEditStructure) {
         actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
+        return;
+      }
+      if (itemAction === "toggle-detail") {
+        const itemId = itemButton.dataset.purchaseItemId;
+        state.expandedSelectedPurchaseItemId = state.expandedSelectedPurchaseItemId === itemId ? null : itemId;
+        renderers.renderPurchasePanel();
         return;
       }
       if (itemAction === "save") {

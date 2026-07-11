@@ -484,6 +484,8 @@ test("IT-PURSUP-08 purchases can repeat a received purchase into a new draft wit
     await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierName);
     await expect(page.locator("#purchaseNoteInput")).toHaveValue(receivedPurchase.note);
     await expect(page.locator('[data-purchase-discount-input]')).toHaveValue(String(discountAmount));
+    await page.locator('[data-purchase-item-action="toggle-detail"]').first().click();
+    await page.waitForTimeout(300);
     await expect(page.locator('[data-purchase-qty-input]').first()).toHaveValue("3");
     await expect(page.locator('[data-purchase-cost-input]').first()).toHaveValue(String(Number(receivedPurchase.items[0].unitCost)));
     await expect(page.locator('[data-purchase-batch-input]').first()).toHaveValue("");
