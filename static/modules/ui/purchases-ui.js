@@ -254,7 +254,7 @@ export function createPurchasesUi(deps) {
     const totalAmount = items.reduce(
       (sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitCost || 0)),
       0,
-    );
+    ) - Number(draft.discountAmount || 0);
     const lastResult = draft.lastResult || null;
     const isCollapsed = Boolean(draft.panelCollapsed);
     dom.quickPurchasePanel.innerHTML = `
@@ -277,6 +277,10 @@ export function createPurchasesUi(deps) {
         <label>
           <span>Ngày nhập</span>
           <input id="quickPurchaseDateInput" type="date" value="${escapeHtml(String(draft.documentDate || ""))}" ${disableEditAttr}>
+        </label>
+        <label>
+          <span>Giảm KM</span>
+          <input id="quickPurchaseDiscountInput" type="number" min="0" step="1000" placeholder="Số tiền giảm" value="${escapeHtml(String(draft.discountAmount || ""))}" ${disableEditAttr}>
         </label>
         <label class="quick-doc-note">
           <span>Ghi chú</span>

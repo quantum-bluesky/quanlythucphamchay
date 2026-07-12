@@ -1937,6 +1937,7 @@ function resetQuickSaleDraft() {
     customerText: "",
     documentDate: getTodayDateInputValue(),
     note: "",
+    discountAmount: "",
     productText: "",
     quantity: "1",
     unitPrice: "",
@@ -1953,6 +1954,7 @@ function resetQuickPurchaseDraft() {
     supplierText: "",
     documentDate: getTodayDateInputValue(),
     note: "",
+    discountAmount: "",
     productText: "",
     quantity: "1",
     unitCost: "",
@@ -1971,6 +1973,7 @@ function cloneActiveCartIntoQuickSaleDraft() {
   }
   state.quickSaleDraft.customerText = String(cart.customerName || "").trim();
   state.quickSaleDraft.note = String(cart.note || "").trim();
+  state.quickSaleDraft.discountAmount = String(cart.discountAmount || "");
   state.quickSaleDraft.documentDate = getTodayDateInputValue();
   state.quickSaleDraft.items = (Array.isArray(cart.items) ? cart.items : []).map((item) => ({
     productId: Number(item.productId || item.product_id || 0),
@@ -1989,6 +1992,7 @@ function cloneActivePurchaseIntoQuickPurchaseDraft() {
   }
   state.quickPurchaseDraft.supplierText = String(purchase.supplierName || "").trim();
   state.quickPurchaseDraft.note = String(purchase.note || "").trim();
+  state.quickPurchaseDraft.discountAmount = String(purchase.discountAmount || "");
   state.quickPurchaseDraft.documentDate = getTodayDateInputValue();
   state.quickPurchaseDraft.items = (Array.isArray(purchase.items) ? purchase.items : []).map((item) => ({
     productId: Number(item.productId || item.product_id || 0),

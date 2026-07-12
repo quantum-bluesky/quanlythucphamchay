@@ -7423,6 +7423,7 @@ class InventoryStore:
         document_date: str = "",
         note: str = "",
         items: list[dict] | None = None,
+        discount_amount: float = 0,
         final_status: str = "completed",
         mark_paid: bool = False,
         payment_method: str = "",
@@ -7454,13 +7455,14 @@ class InventoryStore:
                     note, discount_amount, ship_address, created_at, updated_at,
                     committed_at, completed_at, cancelled_at, paid_at, order_code
                 )
-                VALUES(?, ?, ?, 'quick_export', 'draft', 'unpaid', '', '', ?, 0, ?, ?, ?, NULL, NULL, NULL, NULL, '')
+                VALUES(?, ?, ?, 'quick_export', 'draft', 'unpaid', '', '', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, '')
                 """,
                 (
                     cart_id,
                     str(resolved_customer.get("id") or "").strip(),
                     str(resolved_customer.get("name") or "").strip(),
                     clean_note,
+                    float(discount_amount or 0),
                     str(resolved_customer.get("address") or "").strip(),
                     effective_at,
                     effective_at,
@@ -7540,6 +7542,7 @@ class InventoryStore:
         document_date: str = "",
         note: str = "",
         items: list[dict] | None = None,
+        discount_amount: float = 0,
         final_status: str = "received",
         mark_paid: bool = False,
         payment_method: str = "",
@@ -7571,13 +7574,14 @@ class InventoryStore:
                     source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
                     ordered_at, received_at, cancelled_at, paid_at, receipt_code
                 )
-                VALUES(?, ?, ?, 'quick_import', ?, '', '', '', '', '', 'draft', 0, ?, ?, '', NULL, NULL, NULL, '')
+                VALUES(?, ?, ?, 'quick_import', ?, '', '', '', '', '', 'draft', ?, ?, ?, '', NULL, NULL, NULL, '')
                 """,
                 (
                     purchase_id,
                     str(resolved_supplier.get("id") or "").strip(),
                     str(resolved_supplier.get("name") or "").strip(),
                     clean_note,
+                    float(discount_amount or 0),
                     effective_at,
                     effective_at,
                 ),

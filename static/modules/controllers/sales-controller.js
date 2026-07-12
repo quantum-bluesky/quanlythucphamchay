@@ -140,6 +140,7 @@ export function registerSalesControllerEvents(contract) {
     state.quickSaleDraft.customerText = String(dom.quickSalePanel.querySelector("#quickSaleCustomerInput")?.value || "").trim();
     state.quickSaleDraft.documentDate = String(dom.quickSalePanel.querySelector("#quickSaleDateInput")?.value || "").trim();
     state.quickSaleDraft.note = String(dom.quickSalePanel.querySelector("#quickSaleNoteInput")?.value || "").trim();
+    state.quickSaleDraft.discountAmount = String(dom.quickSalePanel.querySelector("#quickSaleDiscountInput")?.value || "").trim();
     state.quickSaleDraft.productText = String(dom.quickSalePanel.querySelector("#quickSaleProductInput")?.value || "").trim();
     state.quickSaleDraft.quantity = String(dom.quickSalePanel.querySelector("#quickSaleQuantityInput")?.value || "").trim() || "1";
     state.quickSaleDraft.unitPrice = String(dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput")?.value || "").trim();
@@ -237,6 +238,7 @@ export function registerSalesControllerEvents(contract) {
         customer_name: draft.customerText,
         document_date: draft.documentDate,
         note: draft.note,
+        discount_amount: Number(draft.discountAmount || 0),
         items: draft.items.map((item) => ({
           product_id: item.productId,
           quantity: item.quantity,
