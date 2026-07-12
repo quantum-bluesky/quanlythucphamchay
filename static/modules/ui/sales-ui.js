@@ -448,7 +448,7 @@ export function createSalesUi(deps) {
     const totalAmount = items.reduce(
       (sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)),
       0,
-    );
+    ) - Number(draft.discountAmount || 0);
     const lastResult = draft.lastResult || null;
     const isCollapsed = Boolean(draft.panelCollapsed);
     dom.quickSalePanel.innerHTML = `
@@ -471,6 +471,10 @@ export function createSalesUi(deps) {
         <label>
           <span>Ngày xuất</span>
           <input id="quickSaleDateInput" type="date" value="${escapeHtml(String(draft.documentDate || ""))}" ${disableEditAttr}>
+        </label>
+        <label>
+          <span>Giảm KM</span>
+          <input id="quickSaleDiscountInput" type="number" min="0" step="1000" placeholder="Số tiền giảm" value="${escapeHtml(String(draft.discountAmount || ""))}" ${disableEditAttr}>
         </label>
         <label class="quick-doc-note">
           <span>Ghi chú</span>

@@ -104,6 +104,7 @@ export function registerPurchasesControllerEvents(contract) {
     state.quickPurchaseDraft.supplierText = String(dom.quickPurchasePanel.querySelector("#quickPurchaseSupplierInput")?.value || "").trim();
     state.quickPurchaseDraft.documentDate = String(dom.quickPurchasePanel.querySelector("#quickPurchaseDateInput")?.value || "").trim();
     state.quickPurchaseDraft.note = String(dom.quickPurchasePanel.querySelector("#quickPurchaseNoteInput")?.value || "").trim();
+    state.quickPurchaseDraft.discountAmount = String(dom.quickPurchasePanel.querySelector("#quickPurchaseDiscountInput")?.value || "").trim();
     state.quickPurchaseDraft.productText = String(dom.quickPurchasePanel.querySelector("#quickPurchaseProductInput")?.value || "").trim();
     state.quickPurchaseDraft.quantity = String(dom.quickPurchasePanel.querySelector("#quickPurchaseQuantityInput")?.value || "").trim() || "1";
     state.quickPurchaseDraft.unitCost = String(dom.quickPurchasePanel.querySelector("#quickPurchaseUnitCostInput")?.value || "").trim();
@@ -195,6 +196,7 @@ export function registerPurchasesControllerEvents(contract) {
         supplier_name: draft.supplierText,
         document_date: draft.documentDate,
         note: draft.note,
+        discount_amount: Number(draft.discountAmount || 0),
         items: draft.items.map((item) => ({
           product_id: item.productId,
           quantity: item.quantity,
