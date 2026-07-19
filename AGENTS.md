@@ -184,6 +184,7 @@ Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối
 - mỗi Issue phải có branch riêng
 - mỗi Issue phải có commit riêng
 - không gộp 2 Issue vào cùng 1 branch hoặc cùng 1 commit
+- các Issue `xxx.y` thì đưa gom lại vào cùng 1 Issue `xxx` (vd: Issue 155.1, 155.2, 155.3, 155.4 thì gom lại thành 1 Issue 155)
 - sau khi xong từng Issue, phải báo rõ:
   - branch đã tạo
   - commit hash
