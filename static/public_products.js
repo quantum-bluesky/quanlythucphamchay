@@ -108,11 +108,30 @@ function setupModal() {
     const pid = modal.dataset.productId;
     url.searchParams.set("id", pid);
     
-    navigator.clipboard.writeText(url.toString()).then(() => {
-      showToast("Đã copy link chia sẻ sản phẩm!");
-    }).catch(() => {
-      showToast("Không thể copy link.");
-    });
+    const textToCopy = url.toString();
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        showToast("Đã copy link chia sẻ sản phẩm!");
+      }).catch(() => {
+        showToast("Không thể copy link.");
+      });
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = textToCopy;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        showToast("Đã copy link chia sẻ sản phẩm!");
+      } catch (err) {
+        showToast("Không thể copy link.");
+      }
+      textArea.remove();
+    }
   });
 }
 
