@@ -178,6 +178,12 @@ export const deletedCustomerList = document.getElementById("deletedCustomerList"
 export const deletedSupplierList = document.getElementById("deletedSupplierList");
 export const adminLoginPanel = document.getElementById("adminLoginPanel");
 export const adminModulePanel = document.getElementById("adminModulePanel");
+
+// Public Web
+export const publicWebConfigSection = document.getElementById("publicWebConfigSection");
+export const publicWebConfigForm = document.getElementById("publicWebConfigForm");
+export const publicWebThumbMobile = document.getElementById("publicWebThumbMobile");
+export const publicWebThumbPc = document.getElementById("publicWebThumbPc");
 export const adminSessionHeader = document.getElementById("adminSessionHeader");
 export const adminLoginForm = document.getElementById("adminLoginForm");
 export const adminUsernameInput = document.getElementById("adminUsernameInput");

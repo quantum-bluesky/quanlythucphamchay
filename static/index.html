@@ -86,6 +86,7 @@
         <button type="button" class="menu-button" data-menu="reports">11. Báo cáo</button>
         <button type="button" class="menu-button" data-menu="history">12. Khôi phục</button>
         <button type="button" class="menu-button" data-menu="admin">13. Admin</button>
+        <button type="button" class="menu-button" data-menu="public-web-config">14. Cấu hình Web</button>
       </div>
     </nav>
 
@@ -549,6 +550,10 @@
                 <div id="productDetailEditor" class="wysiwyg-editor" style="min-height: 120px; max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); outline: none; line-height: 1.5;"></div>
                 <textarea name="details" style="display:none;"></textarea>
               </div>
+              <label class="toggle-inline" style="margin-top: 8px;">
+                <input name="is_public" type="checkbox" checked>
+                <span style="font-weight: 500;">Hiển thị trên Web (Public)</span>
+              </label>
               <div class="product-form-actions">
                 <button type="submit" class="primary-button wide-button">Lưu sản phẩm</button>
                 <button type="button" id="productFormCancelButton" class="ghost-button wide-button">Hủy sửa</button>
@@ -1053,6 +1058,32 @@
             </div>
           </section>
         </section>
+      </section>
+    </section>
+
+    <section class="view-section" data-menu-section="public-web-config" id="publicWebConfigSection">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Cấu hình Web</p>
+            <h2>Cấu hình hiển thị trang Web Public</h2>
+          </div>
+          <p class="panel-note">Cấu hình các thông số hiển thị dành cho trang sản phẩm khách xem.</p>
+        </div>
+
+        <form id="publicWebConfigForm" class="edit-form-grid compact-form">
+          <div class="form-group full-width">
+            <label for="publicWebThumbMobile">Kích thước Thumbnail trên Mobile/Tablet (px)</label>
+            <input type="number" id="publicWebThumbMobile" name="thumbnail_size_mobile" min="50" max="500" placeholder="VD: 120" required>
+          </div>
+          <div class="form-group full-width">
+            <label for="publicWebThumbPc">Kích thước Thumbnail trên PC (px)</label>
+            <input type="number" id="publicWebThumbPc" name="thumbnail_size_pc" min="100" max="800" placeholder="VD: 240" required>
+          </div>
+          <div class="form-group full-width" style="margin-top: 1rem;">
+            <button type="submit" class="primary-button compact-button">Lưu cấu hình</button>
+          </div>
+        </form>
       </section>
     </section>
 

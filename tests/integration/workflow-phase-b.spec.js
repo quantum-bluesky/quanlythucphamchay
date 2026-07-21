@@ -30,6 +30,9 @@ async function restoreBackupSnapshot(request, snapshot) {
       content_base64: snapshot.toString("base64"),
     },
   });
+  if (!response.ok()) {
+    console.log("RESTORE ERROR:", await response.text());
+  }
   expect(response.ok()).toBeTruthy();
 }
 

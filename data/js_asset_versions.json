@@ -1,9 +1,9 @@
 {
-  "app_version": "3.20.31",
+  "app_version": "3.21.1",
   "files": {
     "app.js": {
-      "counter": 1,
-      "sha256": "6c96d4243799e7cdb6a04afc0964e6e4f4632836d35effa26eba22adaf6cc4a6"
+      "counter": 2,
+      "sha256": "4a931b7464dbd8d233a412e896bf2829363343804d6c0d373ff973a784bf6bb9"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -35,7 +35,7 @@
     },
     "modules/controllers/products-controller.js": {
       "counter": 1,
-      "sha256": "70fd732570e697a63a8e142a24f3dcfefac2ac7f3990be11a35062ed726d2167"
+      "sha256": "b8beb041d96f4fc11e8d22f792f719c3c73c9a03d290951ee1597acef5692ef1"
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
@@ -51,7 +51,7 @@
     },
     "modules/dom.js": {
       "counter": 1,
-      "sha256": "23e5322f09b073c188ca9c9b352e875e472b7645d49d7205a940b4b5cd78a0f3"
+      "sha256": "28e5c99d271f7855ec2cfb2f004f7a7f75e2a97672260b04df96ecec9d99e5f7"
     },
     "modules/domain-helpers/inventory-domain.js": {
       "counter": 1,
@@ -120,6 +120,14 @@
     "modules/utils.js": {
       "counter": 1,
       "sha256": "bec578f8a31c679baa30d07ed240cae078daaeddfeff83ef25e0abff09d985fa"
+    },
+    "public_products.css": {
+      "counter": 1,
+      "sha256": "6b542b811e81d4bfd56a607dc58c94704d0794f4aa935216cd8b5f83089f2090"
+    },
+    "public_products.js": {
+      "counter": 1,
+      "sha256": "7dd9c1d1f998ca016887410a3d72175ffb3d1e0828b7d0f57251e77aab0e8d8d"
     },
     "styles.css": {
       "counter": 1,
