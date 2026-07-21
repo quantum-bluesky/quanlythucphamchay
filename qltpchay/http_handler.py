@@ -1834,24 +1834,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     f"Bạn đang import '{source_entity_type}' vào '{import_entity_type}'."
                 )
 
-        @staticmethod
-        def _build_request_base_href(request_path: str | None) -> str | None:
-            parsed_path = urlparse(request_path or "/").path or "/"
-            if parsed_path == "/":
-                return None
-            if parsed_path.endswith("/"):
-                return parsed_path
-            return f"{parsed_path}/"
 
-        @staticmethod
-        def _inject_html_base_href(html_text: str, base_href: str | None) -> str:
-            if not base_href:
-                return re.sub(r"\s*<base\b[^>]*>", "", html_text, count=1, flags=re.IGNORECASE)
-            escaped_base_href = html.escape(base_href, quote=True)
-            base_tag = f'<base href="{escaped_base_href}">'
-            if re.search(r"<base\b", html_text, flags=re.IGNORECASE):
-                return re.sub(r"<base\b[^>]*>", base_tag, html_text, count=1, flags=re.IGNORECASE)
-            return re.sub(r"(<head[^>]*>)", rf"\1\n  {base_tag}", html_text, count=1, flags=re.IGNORECASE)
 
         def _serve_static_file(self, relative_path: str, request_path: str | None = None, base_dir: Path | None = None) -> None:
             if base_dir is None:
@@ -1869,10 +1852,6 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             has_version_query = any(key == "v" and value for key, value in parse_qsl(parsed_request_path.query))
             if safe_path.suffix == ".html":
                 html_text = payload.decode("utf-8")
-                html_text = self._inject_html_base_href(
-                    html_text,
-                    self._build_request_base_href(request_path),
-                )
                 payload = js_asset_versions.inject_index_versions(html_text).encode("utf-8")
                 content_type = "text/html; charset=utf-8"
                 cache_control = revalidated_cache
