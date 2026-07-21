@@ -166,6 +166,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 self._serve_static_file("index.html", request_path=parsed.path)
                 return
 
+            if route.lower() == "/productlist":
+                self._serve_static_file("public_products.html", request_path=parsed.path)
+                return
+
             if route == "/favicon.ico":
                 self.send_response(HTTPStatus.NO_CONTENT)
                 self.end_headers()
@@ -185,6 +189,24 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
             if route == "/api/admin/status":
                 self._send_json(HTTPStatus.OK, self._get_session_status_payload())
+                return
+
+            if route == "/api/public/products":
+                all_products = store.get_products()
+                public_products = [
+                    {
+                        "id": p["id"],
+                        "name": p["name"],
+                        "category": p["category"],
+                        "unit": p["unit"],
+                        "sale_price": p["sale_price"],
+                        "images": p["images"],
+                        "details": p["details"],
+                    }
+                    for p in all_products
+                    if p.get("is_public", 1) and not p.get("is_deleted", 0)
+                ]
+                self._send_json(HTTPStatus.OK, {"products": public_products})
                 return
 
             if route.startswith("/api/") and self._is_login_enabled():

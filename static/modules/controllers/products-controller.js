@@ -21,6 +21,7 @@ export function registerProductsControllerEvents(contract) {
     if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = "";
     if (dom.productForm.images) dom.productForm.images.value = "";
     if (dom.productForm.details) dom.productForm.details.value = "";
+    if (dom.productForm.is_public) dom.productForm.is_public.checked = true;
     if (quillEditor) {
       quillEditor.setContents([]);
     } else if (dom.productDetailEditor) {
@@ -175,6 +176,7 @@ export function registerProductsControllerEvents(contract) {
     } else {
       payload.images = [];
     }
+    payload.is_public = payload.is_public === "on";
     
     try {
       const isEditing = !!state.editingProductId;
@@ -302,6 +304,7 @@ export function registerProductsControllerEvents(contract) {
       if (dom.productForm.storage_life_days) dom.productForm.storage_life_days.value = product.storage_life_days ?? "";
       if (dom.productForm.images) dom.productForm.images.value = product.images ? product.images.join("\n") : "";
       if (dom.productForm.details) dom.productForm.details.value = product.details || "";
+      if (dom.productForm.is_public) dom.productForm.is_public.checked = product.is_public !== 0 && product.is_public !== false;
         let detailsHtml = product.details || "";
         if (detailsHtml && !detailsHtml.includes("<") && detailsHtml.includes("\n")) {
           detailsHtml = detailsHtml.replace(/\n/g, "<br>");

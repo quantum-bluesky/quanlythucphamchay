@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Danh sách Sản phẩm</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/public_products.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="public-container">
+    <header class="public-header">
+      <h1>Sản phẩm của chúng tôi</h1>
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Tìm kiếm sản phẩm..." autocomplete="off">
+      </div>
+    </header>
+    
+    <main class="public-main">
+      <div id="productGrid" class="product-grid">
+        <!-- Products will be rendered here -->
+      </div>
+      <div id="loading" class="loading-spinner">Đang tải...</div>
+    </main>
+  </div>
+
+  <!-- Product Modal -->
+  <div id="productModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <button id="closeModal" class="modal-close">&times;</button>
+      <div class="modal-body">
+        <div id="modalImages" class="modal-images"></div>
+        <div class="modal-info">
+          <h2 id="modalName"></h2>
+          <p id="modalCategory" class="text-muted"></p>
+          <div class="modal-actions">
+             <button id="copyLinkBtn" class="primary-button wide-button">Chia sẻ Link</button>
+          </div>
+          <div id="modalDetails" class="modal-details rich-text"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="/static/public_products.js"></script>
+</body>
+</html>

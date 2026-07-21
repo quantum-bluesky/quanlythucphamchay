@@ -173,6 +173,7 @@ class InventoryStore:
                     images TEXT NOT NULL DEFAULT '[]',
                     details TEXT NOT NULL DEFAULT '',
                     is_deleted INTEGER NOT NULL DEFAULT 0,
+                    is_public INTEGER NOT NULL DEFAULT 1,
                     deleted_at TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
@@ -566,6 +567,10 @@ class InventoryStore:
             if "details" not in columns:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN details TEXT NOT NULL DEFAULT ''"
+                )
+            if "is_public" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1"
                 )
             now = utc_now_iso()
             audit_columns = {
@@ -2705,6 +2710,7 @@ class InventoryStore:
                     p.shelf_life_days,
                     p.storage_life_days,
                     p.is_deleted,
+                    p.is_public,
                     p.deleted_at,
                     p.created_at,
                     p.updated_at,
@@ -2839,6 +2845,7 @@ class InventoryStore:
         storage_life_days: str | int | float | None = None,
         images: list[str] | None = None,
         details: str = "",
+        is_public: bool = True,
         actor: str = "",
     ) -> dict:
         (
@@ -2871,10 +2878,10 @@ class InventoryStore:
                     INSERT INTO products (
                         name, category, unit, low_stock_threshold,
                         price, sale_price, shelf_life_days, storage_life_days,
-                        images, details,
+                        images, details, is_public,
                         created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         clean_name,
@@ -2887,6 +2894,7 @@ class InventoryStore:
                         parsed_storage_life_days,
                         clean_images,
                         clean_details,
+                        1 if is_public else 0,
                         now,
                         now,
                     ),
@@ -3042,6 +3050,7 @@ class InventoryStore:
         storage_life_days: str | int | float | None = None,
         images: list[str] | None = None,
         details: str | None = None,
+        is_public: bool | None = None,
         actor: str = "",
     ) -> dict:
         (
@@ -3079,6 +3088,8 @@ class InventoryStore:
             next_values["images"] = json.dumps([str(img).strip() for img in images if str(img).strip()], ensure_ascii=False)
         if details is not None:
             next_values["details"] = str(details).strip()
+        if is_public is not None:
+            next_values["is_public"] = 1 if is_public else 0
 
         with self._connect() as connection:
             current_product = self._get_product_or_raise(connection, int(product_id))

@@ -1,5 +1,5 @@
 {
-  "app_version": "3.20.31",
+  "app_version": "3.21.0",
   "files": {
     "app.js": {
       "counter": 1,
@@ -132,6 +132,14 @@
     "vendor/quill/quill.snow.css": {
       "counter": 1,
       "sha256": "6005ac521f488a6adec4f1ac36e8ee8bd4985aa9ebd14ad7084270f1b64282d7"
+    },
+    "public_products.css": {
+      "counter": 1,
+      "sha256": ""
+    },
+    "public_products.js": {
+      "counter": 1,
+      "sha256": ""
     }
   }
 }
