@@ -1851,7 +1851,7 @@ function getActiveCustomers() {
 function getVisibleCustomers() {
   const keyword = normalizeText(state.customerSearchTerm);
   return getActiveCustomers().filter((customer) => (
-    `${customer.name} ${customer.phone} ${customer.address} ${customer.zaloUrl}`.toLowerCase().includes(keyword)
+    normalizeText(`${customer.name} ${customer.phone} ${customer.address} ${customer.zaloUrl}`).includes(keyword)
   ));
 }
 
@@ -1866,7 +1866,7 @@ function getActiveSuppliers() {
 function getVisibleSuppliers() {
   const keyword = normalizeText(state.supplierSearchTerm);
   return getActiveSuppliers().filter((supplier) => (
-    `${supplier.name} ${supplier.phone} ${supplier.address} ${supplier.note}`.toLowerCase().includes(keyword)
+    normalizeText(`${supplier.name} ${supplier.phone} ${supplier.address} ${supplier.note}`).includes(keyword)
   ));
 }
 
@@ -1885,8 +1885,8 @@ function getVisibleOrders() {
   }).filter((cart) => {
     if (customerFilterId && String(cart.customerId || "") !== customerFilterId) return false;
     if (!state.orderSearchTerm) return true;
-    const haystack = `${cart.customerName} ${cart.orderCode} ${cart.items.map((item) => item.productName).join(" ")}`.toLowerCase();
-    return haystack.includes(state.orderSearchTerm.toLowerCase());
+    const haystack = normalizeText(`${cart.customerName} ${cart.orderCode} ${cart.items.map((item) => item.productName).join(" ")}`);
+    return haystack.includes(normalizeText(state.orderSearchTerm));
   });
 }
 
@@ -1905,8 +1905,8 @@ function getVisiblePurchases() {
       if (!state.purchaseSearchTerm) {
         return true;
       }
-      const haystack = `${purchase.supplierName} ${purchase.receiptCode} ${purchase.note || ""} ${purchase.sourceName || purchase.source_name || ""} ${purchase.sourceCode || purchase.source_code || ""} ${purchase.items.map((item) => item.productName).join(" ")}`.toLowerCase();
-      return haystack.includes(state.purchaseSearchTerm.toLowerCase());
+      const haystack = normalizeText(`${purchase.supplierName} ${purchase.receiptCode} ${purchase.note || ""} ${purchase.sourceName || purchase.source_name || ""} ${purchase.sourceCode || purchase.source_code || ""} ${purchase.items.map((item) => item.productName).join(" ")}`);
+      return haystack.includes(normalizeText(state.purchaseSearchTerm));
     });
 }
 

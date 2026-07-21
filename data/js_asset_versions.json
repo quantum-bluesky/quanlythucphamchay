@@ -3,7 +3,7 @@
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "0cd791143df5dfcfc9a1ea303ba161b36c7f6f10b809254b0ac70f602d3f5ce7"
+      "sha256": "a995c9fda8bcafdec92dd974baf13730d7ebb7699b030ee9940504837bb073dc"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -119,7 +119,7 @@
     },
     "modules/utils.js": {
       "counter": 1,
-      "sha256": "bec578f8a31c679baa30d07ed240cae078daaeddfeff83ef25e0abff09d985fa"
+      "sha256": "5d7d70a99338a593dd2ba9b778146dbbef8e8959f2c7eae39812d4397caabab2"
     },
     "public_products.css": {
       "counter": 1,
