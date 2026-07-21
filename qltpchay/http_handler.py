@@ -212,7 +212,11 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     for p in all_products
                     if p.get("is_public", 1) and not p.get("is_deleted", 0)
                 ]
-                self._send_json(HTTPStatus.OK, {"products": public_products})
+                public_web_config = (system_config or {}).get("public_web", {})
+                self._send_json(HTTPStatus.OK, {
+                    "products": public_products,
+                    "settings": public_web_config
+                })
                 return
 
             if route.startswith("/api/") and self._is_login_enabled():
@@ -471,6 +475,13 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 if not self._require_admin():
                     return
 
+                if route == "/api/admin/public-web-config":
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {"public_web": (system_config or {}).get("public_web", {})},
+                    )
+                    return
+
                 if route == "/api/admin/legacy-audit":
                     self._send_json(
                         HTTPStatus.OK,
@@ -590,6 +601,31 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
             if route.startswith("/api/admin/"):
                 if not self._require_admin():
+                    return
+
+                if route == "/api/admin/public-web-config":
+                    try:
+                        payload = self._read_json_body()
+                        from qltpchay.config import _normalize_public_web_config, save_system_config
+                        
+                        if system_config is not None:
+                            current_public_web = system_config.get("public_web", {})
+                            updated_public_web = {
+                                **current_public_web,
+                                **payload
+                            }
+                            normalized = _normalize_public_web_config(updated_public_web)
+                            system_config["public_web"] = normalized
+                            save_system_config(system_config)
+                            
+                            self._send_json(HTTPStatus.OK, {
+                                "message": "Đã lưu cấu hình Public Web.",
+                                "public_web": normalized
+                            })
+                        else:
+                            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Hệ thống chưa tải cấu hình."})
+                    except Exception as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                     return
 
                 if route == "/api/admin/legacy-audit/apply-safe-fixes":
@@ -1900,7 +1936,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             )
 
         def _get_session_token(self) -> str | None:
-            cookies = parse_cookie_header(self.headers.get("Cookie"))
+            raw_cookie = self.headers.get("Cookie")
+            cookies = parse_cookie_header(raw_cookie)
             for cookie_name in build_session_cookie_name_candidates(
                 ADMIN_SESSION_COOKIE,
                 self.headers.get("Host"),
@@ -1911,8 +1948,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             return None
 
         def _resolve_current_session(self, *, touch: bool | None = None) -> tuple[dict | None, bool]:
+            token = self._get_session_token()
             return admin_sessions.resolve_session(
-                self._get_session_token(),
+                token,
                 touch=self._should_touch_session() if touch is None else touch,
             )
 
@@ -2238,7 +2276,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             
-            if self._is_login_enabled() and status not in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+            has_set_cookie = any(key.lower() == "set-cookie" for key, _ in extra_headers) if extra_headers else False
+            
+            if self._is_login_enabled() and status not in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN) and not has_set_cookie:
                 session = self._get_current_session(touch=False)
                 if session:
                     token = self._get_session_token()

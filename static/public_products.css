@@ -29,13 +29,13 @@ body {
 
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--thumb-size-mobile, 180px), 1fr));
   gap: 16px;
 }
 
 @media (min-width: 600px) {
   .product-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(var(--thumb-size-pc, 240px), 1fr));
   }
 }
 

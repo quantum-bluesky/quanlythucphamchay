@@ -17,6 +17,8 @@ DEFAULT_ADMIN_SESSION_TIMEOUT_MINUTES = 30
 DEFAULT_ITEMS_PER_PAGE = 10
 DEFAULT_DOCUMENTS_PER_PAGE = 10
 DEFAULT_PROCUREMENT_BATCH_LOCK_TIMEOUT_MINUTES = 180
+DEFAULT_PUBLIC_WEB_THUMBNAIL_SIZE_MOBILE_PX = 120
+DEFAULT_PUBLIC_WEB_THUMBNAIL_SIZE_PC_PX = 240
 DEFAULT_NORMAL_USERS = [
     {
         "username": "staff",
@@ -131,6 +133,24 @@ def _normalize_procurement_config(raw_procurement, defaults: dict | None = None)
     }
 
 
+def _normalize_public_web_config(raw_public_web, defaults: dict | None = None) -> dict:
+    defaults = defaults or {
+        "thumbnail_size_mobile": DEFAULT_PUBLIC_WEB_THUMBNAIL_SIZE_MOBILE_PX,
+        "thumbnail_size_pc": DEFAULT_PUBLIC_WEB_THUMBNAIL_SIZE_PC_PX,
+    }
+    raw_public_web = raw_public_web if isinstance(raw_public_web, dict) else {}
+    return {
+        "thumbnail_size_mobile": _normalize_timeout_minutes(
+            raw_public_web.get("thumbnail_size_mobile", defaults["thumbnail_size_mobile"]),
+            defaults["thumbnail_size_mobile"]
+        ),
+        "thumbnail_size_pc": _normalize_timeout_minutes(
+            raw_public_web.get("thumbnail_size_pc", defaults["thumbnail_size_pc"]),
+            defaults["thumbnail_size_pc"]
+        ),
+    }
+
+
 def _normalize_mail_config(raw_mail, defaults: dict | None = None) -> dict:
     defaults = defaults or DEFAULT_MAIL_CONFIG
     raw_mail = raw_mail if isinstance(raw_mail, dict) else {}
@@ -184,6 +204,7 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
         },
         "procurement": _normalize_procurement_config({}),
         "mail": _normalize_mail_config({}),
+        "public_web": _normalize_public_web_config({}),
     }
     if use_env_seed:
         config["server"]["host"] = os.environ.get("APP_HOST", DEFAULT_HOST)
@@ -269,6 +290,10 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         "mail": _normalize_mail_config(
             raw_config.get("mail", {}),
             defaults["mail"],
+        ),
+        "public_web": _normalize_public_web_config(
+            raw_config.get("public_web", {}),
+            defaults["public_web"],
         ),
     }
 

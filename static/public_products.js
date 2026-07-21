@@ -11,6 +11,16 @@ async function fetchProducts() {
     const res = await fetch("./api/public/products");
     const data = await res.json();
     allProducts = data.products || [];
+    
+    const settings = data.settings || {};
+    const root = document.documentElement;
+    if (settings.thumbnail_size_mobile) {
+      root.style.setProperty('--thumb-size-mobile', settings.thumbnail_size_mobile + 'px');
+    }
+    if (settings.thumbnail_size_pc) {
+      root.style.setProperty('--thumb-size-pc', settings.thumbnail_size_pc + 'px');
+    }
+    
     renderProducts(allProducts);
     
     // Check if URL has a product ID to open modal

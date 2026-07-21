@@ -181,6 +181,9 @@ import {
   deletedSupplierList,
   adminLoginPanel,
   adminModulePanel,
+  publicWebConfigForm,
+  publicWebThumbMobile,
+  publicWebThumbPc,
   adminSessionHeader,
   adminLoginForm,
   adminUsernameInput,
@@ -7633,6 +7636,42 @@ procurementStatusPanel?.addEventListener("click", (event) => {
     }
   }
 });
+
+document.addEventListener("click", async (event) => {
+  const menuBtn = event.target.closest('[data-menu="public-web-config"]');
+  if (menuBtn) {
+    try {
+      const payload = await apiRequest("/api/admin/public-web-config");
+      const config = payload.public_web || {};
+      if (publicWebThumbMobile) publicWebThumbMobile.value = config.thumbnail_size_mobile || 120;
+      if (publicWebThumbPc) publicWebThumbPc.value = config.thumbnail_size_pc || 240;
+    } catch (err) {
+      // Ignored if not admin or not loaded yet
+      if (err.message && !err.message.includes("Unauthorized")) {
+        showToast("Không tải được cấu hình: " + err.message, true);
+      }
+    }
+  }
+});
+
+if (publicWebConfigForm) {
+  publicWebConfigForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = {
+      thumbnail_size_mobile: parseInt(publicWebThumbMobile.value || "120", 10),
+      thumbnail_size_pc: parseInt(publicWebThumbPc.value || "240", 10),
+    };
+    try {
+      await apiRequest("/api/admin/public-web-config", {
+        method: "POST",
+        body: data
+      });
+      showToast("Đã lưu cấu hình Public Web.");
+    } catch (err) {
+      showToast("Lỗi lưu cấu hình: " + err.message, true);
+    }
+  });
+}
 
 document.addEventListener("click", (event) => {
   const trigger = event.target.closest("[data-product-detail-trigger]");
