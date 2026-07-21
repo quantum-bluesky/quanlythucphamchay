@@ -7664,7 +7664,7 @@ if (publicWebConfigForm) {
     try {
       await apiRequest("/api/admin/public-web-config", {
         method: "POST",
-        body: data
+        body: JSON.stringify(data)
       });
       showToast("Đã lưu cấu hình Public Web.");
     } catch (err) {

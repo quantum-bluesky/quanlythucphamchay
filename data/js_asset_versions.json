@@ -2,8 +2,8 @@
   "app_version": "3.21.1",
   "files": {
     "app.js": {
-      "counter": 2,
-      "sha256": "4a931b7464dbd8d233a412e896bf2829363343804d6c0d373ff973a784bf6bb9"
+      "counter": 3,
+      "sha256": "55bac6a14a7f57c6f7b2eebc8b2162ca5f0fed6ad4315b648e9b82703eaffddd"
     },
     "bootstrap.js": {
       "counter": 1,
