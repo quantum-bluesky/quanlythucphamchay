@@ -263,8 +263,8 @@ export function createInventoryUi(deps) {
     const incomingMap = getIncomingPurchaseByProductId();
     const incomingCountMap = getOpenPurchaseCountByProductId();
     const filtered = state.products.filter((product) => {
-      const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
-      return text.includes(state.searchTerm.toLowerCase());
+      const text = utils.normalizeText(`${product.name} ${product.category} ${product.unit}`);
+      return text.includes(utils.normalizeText(state.searchTerm));
     }).sort(compareInventoryProducts);
     dom.productGrid.classList.toggle("is-compact-search", isSearchResultMode("inventory"));
 

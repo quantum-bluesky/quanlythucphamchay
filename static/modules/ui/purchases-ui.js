@@ -627,8 +627,8 @@ export function createPurchasesUi(deps) {
     const activePurchase = getActivePurchase();
     const selectedProductIds = new Set((activePurchase?.items || []).map((item) => Number(item.productId)));
     const filtered = getPurchaseSuggestions().filter((entry) => {
-      const text = `${entry.product.name} ${entry.product.category}`.toLowerCase();
-      return text.includes(state.purchaseSearchTerm.toLowerCase()) && !selectedProductIds.has(Number(entry.product.id));
+      const text = utils.normalizeText(`${entry.product.name} ${entry.product.category}`);
+      return text.includes(utils.normalizeText(state.purchaseSearchTerm)) && !selectedProductIds.has(Number(entry.product.id));
     });
     dom.purchaseSuggestionList.classList.toggle("is-compact-search", isSearchResultMode("purchaseSuggestions"));
     if (!filtered.length) {

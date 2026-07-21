@@ -100,13 +100,13 @@ export function createReportsAdminUi(deps) {
         .map((code) => `<option value="${escapeHtml(code)}"></option>`)
         .join("");
     }
-    const receiptSearchTerm = String(state.reportReceiptSearchTerm || "").trim().toLowerCase();
+    const receiptSearchTerm = utils.normalizeText(String(state.reportReceiptSearchTerm || ""));
     const visibleReceiptHistory = receiptHistory.filter((entry) => {
       if (!receiptSearchTerm) {
         return true;
       }
       const counterpart = entry.customer_name || entry.supplier_name || entry.actor || "";
-      const haystack = [
+      const haystack = utils.normalizeText([
         entry.receipt_code,
         entry.source_code,
         entry.note,
@@ -115,8 +115,7 @@ export function createReportsAdminUi(deps) {
         counterpart,
       ]
         .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+        .join(" "));
       return haystack.includes(receiptSearchTerm);
     });
     if (!visibleReceiptHistory.length) {
