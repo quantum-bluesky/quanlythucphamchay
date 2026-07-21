@@ -149,10 +149,16 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return "/"
             if parsed_path.endswith("/favicon.ico"):
                 return "/favicon.ico"
-            for marker in ("/static/", "/api/"):
-                marker_index = parsed_path.find(marker)
+                
+            lower_path = parsed_path.lower()
+            for marker in ("/static/", "/api/", "/images/"):
+                marker_index = lower_path.find(marker)
                 if marker_index >= 0:
                     return parsed_path[marker_index:]
+                    
+            if "/productlist" in lower_path:
+                return "/ProductList"
+                
             last_segment = parsed_path.rsplit("/", 1)[-1]
             if not last_segment or "." not in last_segment:
                 return "/"

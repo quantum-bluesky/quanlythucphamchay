@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function fetchProducts() {
   try {
-    const res = await fetch("/api/public/products");
+    const res = await fetch("./api/public/products");
     const data = await res.json();
     allProducts = data.products || [];
     renderProducts(allProducts);
@@ -49,8 +49,8 @@ function renderProducts(products) {
     let imageHtml = `<div class="product-image-placeholder">Không có ảnh</div>`;
     if (p.images && p.images.length > 0) {
       let firstImage = p.images[0];
-      if (!firstImage.startsWith("http") && !firstImage.startsWith("/")) {
-        firstImage = "/images/" + firstImage;
+      if (!firstImage.startsWith("http") && !firstImage.startsWith("./images/") && !firstImage.startsWith("/images/")) {
+        firstImage = "./images/" + firstImage;
       }
       imageHtml = `<img src="${firstImage}" class="product-image" alt="${p.name}" loading="lazy">`;
     }
@@ -124,8 +124,8 @@ function openModal(product) {
   
   if (product.images && product.images.length > 0) {
     let firstImage = product.images[0];
-    if (!firstImage.startsWith("http") && !firstImage.startsWith("/")) {
-      firstImage = "/images/" + firstImage;
+    if (!firstImage.startsWith("http") && !firstImage.startsWith("./images/") && !firstImage.startsWith("/images/")) {
+      firstImage = "./images/" + firstImage;
     }
     imagesContainer.innerHTML = `<img src="${firstImage}" alt="${product.name}">`;
   } else {

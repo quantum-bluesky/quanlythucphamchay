@@ -34,8 +34,8 @@
       "sha256": "0e9833d9b69417e66abeb4571aeaeed17a9b4b95ebdfe6adee0ae0c8517a8464"
     },
     "modules/controllers/products-controller.js": {
-      "counter": 1,
-      "sha256": "70fd732570e697a63a8e142a24f3dcfefac2ac7f3990be11a35062ed726d2167"
+      "counter": 2,
+      "sha256": "b8beb041d96f4fc11e8d22f792f719c3c73c9a03d290951ee1597acef5692ef1"
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
@@ -121,6 +121,14 @@
       "counter": 1,
       "sha256": "bec578f8a31c679baa30d07ed240cae078daaeddfeff83ef25e0abff09d985fa"
     },
+    "public_products.css": {
+      "counter": 2,
+      "sha256": "e39872ee4043cc82fa721b8605bc188f7b679f8bdb4c8348fc95f23516788c62"
+    },
+    "public_products.js": {
+      "counter": 3,
+      "sha256": "39cad1178acd5a131002281281ee8adf5299dd3af6f3eaefe919cdba1d7142e3"
+    },
     "styles.css": {
       "counter": 1,
       "sha256": "79a75ef7cc5a252c5723fc55e6dd346c45dddd16f27dfec3a964d6703b03fc0d"
@@ -132,14 +140,6 @@
     "vendor/quill/quill.snow.css": {
       "counter": 1,
       "sha256": "6005ac521f488a6adec4f1ac36e8ee8bd4985aa9ebd14ad7084270f1b64282d7"
-    },
-    "public_products.css": {
-      "counter": 1,
-      "sha256": ""
-    },
-    "public_products.js": {
-      "counter": 1,
-      "sha256": ""
     }
   }
 }
