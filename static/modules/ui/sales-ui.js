@@ -1,3 +1,4 @@
+import * as utils from "../utils.js";
 export function createSalesUi(deps) {
   const {
     state,
@@ -640,11 +641,11 @@ export function createSalesUi(deps) {
     const activeCart = getActiveCart();
     const selectedProductIds = new Set((activeCart?.items || []).map((item) => Number(item.productId)));
     const filtered = state.products.filter((product) => {
-      const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
+      const text = utils.normalizeText(`${product.name} ${product.category} ${product.unit}`);
       const isSelected = selectedProductIds.has(Number(product.id));
       const isExpandedSelected = isSelected && state.expandedSalesProductId === Number(product.id);
       const keepVisibleSelected = isSelected && state.visibleSelectedSalesProductId === Number(product.id);
-      return text.includes(state.salesSearchTerm.toLowerCase()) && (!isSelected || isExpandedSelected || keepVisibleSelected);
+      return text.includes(utils.normalizeText(state.salesSearchTerm)) && (!isSelected || isExpandedSelected || keepVisibleSelected);
     });
     dom.salesProductList.classList.toggle("is-compact-search", isSearchResultMode("salesProducts"));
 

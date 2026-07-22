@@ -1,3 +1,4 @@
+import * as utils from "../utils.js";
 export function createProductsUi(deps) {
   const {
     state,
@@ -33,8 +34,8 @@ export function createProductsUi(deps) {
   function renderProductManageList() {
     const compact = dom.mobileQuery.matches;
     const filtered = state.products.filter((product) => {
-      const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
-      return text.includes(state.productManageSearchTerm.toLowerCase());
+      const text = utils.normalizeText(`${product.name} ${product.category} ${product.unit}`);
+      return text.includes(utils.normalizeText(state.productManageSearchTerm));
     });
     dom.productManageList.classList.toggle("is-compact-search", isSearchResultMode("productManage"));
 
