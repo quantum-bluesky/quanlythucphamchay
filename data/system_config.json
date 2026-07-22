@@ -62,6 +62,5 @@
   "pagination": {
     "items_per_page": 20,
     "documents_per_page": 20
-  },
-  "system_version": "3.21.4"
+  }
 }
