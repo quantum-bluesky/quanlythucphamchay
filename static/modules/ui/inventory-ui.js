@@ -1,3 +1,4 @@
+import * as utils from "../utils.js";
 export function createInventoryUi(deps) {
   const {
     state,
