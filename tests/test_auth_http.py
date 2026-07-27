@@ -550,7 +550,7 @@ class AuthHttpTests(unittest.TestCase):
 
         html_status, html_body, _ = self._request_text("GET", "/qltp")
         self.assertEqual(html_status, 200)
-        self.assertIn('<base href="/qltp/">', html_body)
+        self.assertNotIn("<base ", html_body)
         self.assertIn("./static/bootstrap.js?v=", html_body)
 
         js_status, js_body, _ = self._request_text("GET", "/qltp/static/app.js")

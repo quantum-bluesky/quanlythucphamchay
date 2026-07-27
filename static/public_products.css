@@ -27,6 +27,18 @@ body {
   outline: none;
 }
 
+.filter-bar {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.filter-bar .toggle-inline {
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+}
+
 .product-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--thumb-size-mobile, 180px), 1fr));
