@@ -207,6 +207,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "unit": p["unit"],
                         "sale_price": p["sale_price"],
                         "current_stock": p.get("current_stock", 0),
+                        "incoming_open_purchases": p.get("incoming_open_purchases", 0),
                         "images": p["images"],
                         "details": p["details"],
                     }
