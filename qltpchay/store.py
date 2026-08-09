@@ -2717,6 +2717,14 @@ class InventoryStore:
                     p.images,
                     p.details,
                     COALESCE(
+                        (SELECT SUM(pi.quantity)
+                         FROM purchase_items pi
+                         JOIN purchases pur ON pi.purchase_id = pur.id
+                         WHERE pi.product_id = p.id AND pur.status = 'ordered'
+                        ),
+                        0
+                    ) AS incoming_open_purchases,
+                    COALESCE(
                         SUM(
                             CASE
                                 WHEN t.transaction_type = 'in' THEN t.quantity
@@ -3419,6 +3427,14 @@ class InventoryStore:
                     p.updated_at,
                     p.images,
                     p.details,
+                    COALESCE(
+                        (SELECT SUM(pi.quantity)
+                         FROM purchase_items pi
+                         JOIN purchases pur ON pi.purchase_id = pur.id
+                         WHERE pi.product_id = p.id AND pur.status = 'ordered'
+                        ),
+                        0
+                    ) AS incoming_open_purchases,
                     COALESCE(
                         SUM(
                             CASE
@@ -9572,6 +9588,7 @@ class InventoryStore:
             "shelf_life_days": shelf_life_days,
             "storage_life_days": storage_life_days,
             "current_stock": current_stock,
+            "incoming_open_purchases": float(row["incoming_open_purchases"]) if "incoming_open_purchases" in row.keys() else 0.0,
             "inventory_value": round(current_stock * price, 2),
             "sales_6m_total": sales_6m_total,
             "sales_6m_avg": sales_6m_avg,
@@ -9854,6 +9871,7 @@ class InventoryStore:
                 p.id, p.name, p.category, p.unit, p.price, p.sale_price,
                 p.low_stock_threshold, p.shelf_life_days, p.storage_life_days,
                 p.is_deleted, p.deleted_at, p.created_at, p.updated_at,
+                COALESCE((SELECT SUM(pi.quantity) FROM purchase_items pi JOIN purchases pur ON pi.purchase_id = pur.id WHERE pi.product_id = p.id AND pur.status = 'ordered'), 0) AS incoming_open_purchases,
                 COALESCE(SUM(CASE WHEN t.transaction_type = 'in' THEN t.quantity ELSE -t.quantity END), 0) AS current_stock
             FROM products p
             LEFT JOIN transactions t ON t.product_id = p.id
