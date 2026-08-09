@@ -86,17 +86,27 @@ function setupSearch() {
   if (inStockCheckbox) {
     inStockCheckbox.addEventListener("change", () => filterAndRenderProducts());
   }
+  const incomingCheckbox = document.getElementById("incomingCheckbox");
+  if (incomingCheckbox) {
+    incomingCheckbox.addEventListener("change", () => filterAndRenderProducts());
+  }
 }
 
 function filterAndRenderProducts() {
   const input = document.getElementById("searchInput");
   const inStockCheckbox = document.getElementById("inStockCheckbox");
+  const incomingCheckbox = document.getElementById("incomingCheckbox");
   const keyword = input ? removeDiacritics(input.value.trim().toLowerCase()) : "";
   const inStockOnly = inStockCheckbox ? inStockCheckbox.checked : true;
+  const includeIncoming = incomingCheckbox ? incomingCheckbox.checked : false;
   
   const filtered = allProducts.filter(p => {
-    if (inStockOnly && (p.current_stock === undefined || p.current_stock <= 0)) {
-      return false;
+    if (inStockOnly) {
+      const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+      const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
+      if (!hasStock && !(includeIncoming && hasIncoming)) {
+        return false;
+      }
     }
     if (keyword) {
       const matchName = removeDiacritics((p.name || "").toLowerCase()).includes(keyword);
