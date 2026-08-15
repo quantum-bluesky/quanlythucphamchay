@@ -6558,17 +6558,8 @@ async function saveAdminBypassCart() {
   const data = await apiRequest("/api/admin/orders/edit-locked", {
     method: "POST",
     body: JSON.stringify({
-      cart_id: cart.id,
-      reason: cart._adminEditReason,
-      items: cart.items.map((item) => ({
-        product_id: item.productId,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-        note: item.note,
-      })),
-      discount_amount: cart.discountAmount,
-      note: cart.note,
-      ship_address: cart.shipAddress,
+      cart: cart,
+      adminEditReason: cart._adminEditReason,
     }),
   });
   delete cart._adminEditMode;
@@ -6584,17 +6575,8 @@ async function saveAdminBypassPurchase() {
   const data = await apiRequest("/api/admin/purchases/edit-locked", {
     method: "POST",
     body: JSON.stringify({
-      purchase_id: purchase.id,
-      reason: purchase._adminEditReason,
-      items: purchase.items.map((item) => ({
-        product_id: item.productId,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-        note: item.note,
-      })),
-      discount_amount: purchase.discountAmount,
-      note: purchase.note,
-      supplier_name: purchase.supplierName,
+      purchase: purchase,
+      adminEditReason: purchase._adminEditReason,
     }),
   });
   delete purchase._adminEditMode;
