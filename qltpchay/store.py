@@ -7622,13 +7622,14 @@ class InventoryStore:
             current_cart = created_cart
             order_payload = None
             if clean_final_status in {"committed", "completed"}:
-                current_cart = self._commit_cart_order_in_connection(
-                    connection,
-                    cart_id,
-                    actor=clean_actor,
-                    committed_at=effective_at,
-                    history_note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
-                )
+                if not (clean_target_cart_id and existing_status == "committed"):
+                    current_cart = self._commit_cart_order_in_connection(
+                        connection,
+                        cart_id,
+                        actor=clean_actor,
+                        committed_at=effective_at,
+                        history_note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
+                    )
             if clean_final_status == "completed":
                 ship_result = self._ship_cart_order_in_connection(
                     connection,
@@ -7639,6 +7640,15 @@ class InventoryStore:
                 )
                 current_cart = ship_result["cart"]
                 order_payload = ship_result["order"]
+            elif clean_target_cart_id and existing_status == "committed":
+                grouped_items = self._group_sale_items(cart_items)
+                shortages = self._collect_committed_availability_shortages(
+                    connection,
+                    grouped_items,
+                    exclude_cart_id=clean_target_cart_id,
+                )
+                if shortages:
+                    raise ValueError(shortages[0]["message"])
             if mark_paid:
                 current_cart = self._apply_cart_payment_in_connection(
                     connection,

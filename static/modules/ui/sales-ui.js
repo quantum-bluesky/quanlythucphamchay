@@ -484,8 +484,8 @@ export function createSalesUi(deps) {
         </label>
       </div>
       <div class="quick-doc-shortcuts">
-        <button type="button" class="ghost-button compact-button" data-quick-sale-action="use-active-cart" ${disableEditAttr}>Lấy từ đơn đang mở</button>
-        <button type="button" class="ghost-button compact-button" data-quick-sale-action="open-products" ${disableEditAttr}>Thêm hàng mới</button>
+        <button type="button" class="ghost-button compact-button" data-quick-sale-action="use-active-cart">Lấy từ đơn đang mở</button>
+        <button type="button" class="ghost-button compact-button" data-quick-sale-action="open-products">Thêm hàng mới</button>
         ${customer?.address ? `<span class="quick-doc-hint">Địa chỉ gợi ý: ${escapeHtml(customer.address)}</span>` : ""}
       </div>
       <div class="quick-doc-line-entry" data-price-warning-group data-price-warning-mode="edit">
