@@ -9242,6 +9242,20 @@ class InventoryStore:
         if not items:
             raise ValueError("Phiếu trả hàng khách đang trống.")
 
+        if clean_source_type and clean_source_code:
+            with self._connect() as connection:
+                existing = connection.execute(
+                    """
+                    SELECT receipt_code FROM inventory_receipts
+                    WHERE source_type = ? AND source_code = ? AND receipt_type = 'customer_return'
+                    """,
+                    (clean_source_type, clean_source_code),
+                ).fetchone()
+                if existing:
+                    raise ValueError(
+                        f"Chứng từ {clean_source_code} đã có phiếu trả hàng ({existing['receipt_code']}). Không thể trả hàng nhiều lần."
+                    )
+
         grouped_items: dict[tuple[int, str, str], dict] = {}
         for raw_item in items:
             product_id = int(raw_item.get("product_id", 0))
@@ -9410,6 +9424,20 @@ class InventoryStore:
             raise ValueError("Nhà cung cấp là bắt buộc.")
         if not items:
             raise ValueError("Phiếu trả NCC đang trống.")
+
+        if clean_source_type and clean_source_code:
+            with self._connect() as connection:
+                existing = connection.execute(
+                    """
+                    SELECT receipt_code FROM inventory_receipts
+                    WHERE source_type = ? AND source_code = ? AND receipt_type = 'supplier_return'
+                    """,
+                    (clean_source_type, clean_source_code),
+                ).fetchone()
+                if existing:
+                    raise ValueError(
+                        f"Chứng từ {clean_source_code} đã có phiếu trả NCC ({existing['receipt_code']}). Không thể trả hàng nhiều lần."
+                    )
 
         grouped_items: dict[tuple[int, str], dict] = {}
         for raw_item in items:
