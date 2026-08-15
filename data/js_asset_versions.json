@@ -3,7 +3,7 @@
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "a83f157425cbd004edb3e46a351518a5e90422f754625fdf361332142e3addd5"
+      "sha256": "9d2eff46773fb69b671d2944e74b145974229b90d970873c0ec3a0e79c138982"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -39,7 +39,7 @@
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
-      "sha256": "bb30d0a1cca08f714885ee478859c930224b862b6abe6b998269c3136c346123"
+      "sha256": "fd5d5a0d7f97dc45d49e39de8f30a4d8166c4e7362f7712aa10391c6879fc8eb"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
@@ -47,7 +47,7 @@
     },
     "modules/controllers/sales-controller.js": {
       "counter": 1,
-      "sha256": "061099772241bd9b4faef2765a438821ca59afec8266705e02584eff09e23ea2"
+      "sha256": "5dbe0bf3379e2f97b7196c8dd2a14139287002c2db4c36f5385fa842e848b43e"
     },
     "modules/dom.js": {
       "counter": 1,
@@ -59,11 +59,11 @@
     },
     "modules/domain-helpers/purchases-domain.js": {
       "counter": 1,
-      "sha256": "32c7c3f93ab978e405a8501a175ec390feaa430d5145a622ea3eea6a45164d16"
+      "sha256": "ccbb7b72e0b6448e2710115ee855a2d0e346a2fe220e05f399500d2c7c79e6d8"
     },
     "modules/domain-helpers/sales-domain.js": {
       "counter": 1,
-      "sha256": "6eea9afd79944274b899b2c1da68e3001aa0362ffbe318b77bd7f7b95b592e00"
+      "sha256": "ed661fd24951723d0c5b98ba3e7ae81dde4ac27f7d57547fedde9e23d5f45a6a"
     },
     "modules/entity-product-mutations.js": {
       "counter": 1,
@@ -107,7 +107,7 @@
     },
     "modules/ui/purchases-ui.js": {
       "counter": 1,
-      "sha256": "40478ccc3726719a13d85c5aaa79df70466c8ebb31e44ffe48686f5eed0b2dd0"
+      "sha256": "757050741c24761225e9f1d9516d9adfc10408ec2abf9a8589cf5dfe393458ed"
     },
     "modules/ui/reports-admin-ui.js": {
       "counter": 1,
@@ -115,7 +115,7 @@
     },
     "modules/ui/sales-ui.js": {
       "counter": 1,
-      "sha256": "05c7ddff6f359d9468d2284849c0adb11fba000d8d92a2db39abcaef52e22ba9"
+      "sha256": "08a52a10b82c29f068ee77fcbfb9e1d786bab3bb881cb44774475e39fa017bb2"
     },
     "modules/utils.js": {
       "counter": 1,

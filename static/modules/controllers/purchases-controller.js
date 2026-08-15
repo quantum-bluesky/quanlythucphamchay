@@ -981,9 +981,10 @@ export function registerPurchasesControllerEvents(contract) {
       return;
     }
     if (actionButton.dataset.purchaseAction === "delete") {
-      if (purchase._adminEditingPurchaseId) {
-        state.purchases = state.purchases.filter(p => p.id !== purchase.id);
-        state.activePurchaseId = purchase._adminEditingPurchaseId;
+      if (purchase._adminEditMode) {
+        delete purchase._adminEditMode;
+        delete purchase._adminEditReason;
+        await actions.refreshData();
         actions.saveAndRenderAll();
         return;
       }
@@ -1036,10 +1037,20 @@ export function registerPurchasesControllerEvents(contract) {
       await persistPurchaseStatusChange("Đã cập nhật trạng thái đặt hàng.");
       return;
     }
+    if (actionButton.dataset.purchaseAction === "admin-bypass-save") {
+      try {
+        await actions.flushPendingPersistCollections();
+        await actions.saveAdminBypassPurchase();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "cancel") {
-      if (purchase._adminEditingPurchaseId) {
-        state.purchases = state.purchases.filter(p => p.id !== purchase.id);
-        state.activePurchaseId = purchase._adminEditingPurchaseId;
+      if (purchase._adminEditMode) {
+        delete purchase._adminEditMode;
+        delete purchase._adminEditReason;
+        await actions.refreshData(); // discard local modifications
         actions.saveAndRenderAll();
         return;
       }

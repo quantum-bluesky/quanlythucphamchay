@@ -271,7 +271,7 @@ export function createPurchasesDomainHelpers(deps) {
   function canEditPurchase(purchase) {
     return Boolean(
       purchase
-      && ["draft", "ordered"].includes(purchase.status)
+      && (["draft", "ordered"].includes(purchase.status) || purchase._adminEditMode || purchase._adminEditingPurchaseId)
       && !isPurchaseStructureLockedByProcurementBatch(purchase)
     );
   }
