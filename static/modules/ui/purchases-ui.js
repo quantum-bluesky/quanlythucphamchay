@@ -289,8 +289,8 @@ export function createPurchasesUi(deps) {
         </label>
       </div>
       <div class="quick-doc-shortcuts">
-        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="use-active-purchase" ${disableEditAttr}>Lấy từ phiếu đang mở</button>
-        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="open-products" ${disableEditAttr}>Thêm hàng mới</button>
+        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="use-active-purchase">Lấy từ phiếu đang mở</button>
+        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="open-products">Thêm hàng mới</button>
         ${supplier?.note ? `<span class="quick-doc-hint">Gợi ý: ${escapeHtml(supplier.note)}</span>` : ""}
       </div>
       <div class="quick-doc-line-entry" data-price-warning-group data-price-warning-mode="edit">

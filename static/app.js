@@ -1955,6 +1955,7 @@ function resetQuickSaleDraft() {
 
 function resetQuickPurchaseDraft() {
   state.quickPurchaseDraft = {
+    targetPurchaseId: null,
     supplierText: "",
     documentDate: getTodayDateInputValue(),
     note: "",
@@ -1990,11 +1991,12 @@ function cloneActiveCartIntoQuickSaleDraft(options = {}) {
   state.quickSaleDraft.submitting = false;
 }
 
-function cloneActivePurchaseIntoQuickPurchaseDraft() {
+function cloneActivePurchaseIntoQuickPurchaseDraft(options = {}) {
   const purchase = getActivePurchase();
   if (!purchase) {
     throw new Error("Chưa có phiếu nhập đang mở để lấy nhanh.");
   }
+  state.quickPurchaseDraft.targetPurchaseId = options.editTarget ? String(purchase.id || "") : null;
   state.quickPurchaseDraft.supplierText = String(purchase.supplierName || "").trim();
   state.quickPurchaseDraft.note = String(purchase.note || "").trim();
   state.quickPurchaseDraft.discountAmount = String(purchase.discountAmount || "");

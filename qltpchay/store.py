@@ -7689,6 +7689,7 @@ class InventoryStore:
         payment_note: str = "",
         actor_username: str = "",
         actor_role: str = "",
+        target_purchase_id: str = "",
     ) -> dict:
         clean_final_status = self._normalize_quick_purchase_final_status(final_status)
         if mark_paid and clean_final_status != "received":
@@ -7696,6 +7697,7 @@ class InventoryStore:
         effective_at = self._normalize_document_event_at(document_date, "Ngày nhập") or utc_now_iso()
         clean_note = str(note or "").strip()
         clean_actor = str(actor_username or "").strip()
+        clean_target_purchase_id = str(target_purchase_id or "").strip()
         with self._connect() as connection:
             resolved_supplier = self._ensure_supplier_for_quick_purchase(
                 connection,
@@ -7706,26 +7708,57 @@ class InventoryStore:
             raw_items = items or []
             if not raw_items:
                 raise ValueError("Phiếu nhập phải có ít nhất một mặt hàng.")
-            purchase_id = f"purchase_{secrets.token_urlsafe(8)}"
-            connection.execute(
-                """
-                INSERT INTO purchases(
-                    id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note,
-                    source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
-                    ordered_at, received_at, cancelled_at, paid_at, receipt_code
+            
+            if clean_target_purchase_id:
+                try:
+                    existing_purchase = self._get_purchase_document(connection, clean_target_purchase_id)
+                    existing_status = str(existing_purchase.get("status") or "").strip()
+                    if existing_status in {"received", "cancelled"}:
+                        raise ValueError("Không thể ghi đè lên phiếu đã nhập kho hoặc đã hủy.")
+                    purchase_id = clean_target_purchase_id
+                    connection.execute(
+                        """
+                        UPDATE purchases
+                        SET supplier_id = ?, supplier_name = ?, note = ?, discount_amount = ?, updated_at = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            str(resolved_supplier.get("id") or "").strip(),
+                            str(resolved_supplier.get("name") or "").strip(),
+                            clean_note,
+                            float(discount_amount or 0),
+                            effective_at,
+                            purchase_id,
+                        )
+                    )
+                    connection.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
+                except Exception as ex:
+                    if isinstance(ex, ValueError):
+                        raise
+                    raise ValueError("Không tìm thấy phiếu nhập đang mở hoặc có lỗi truy xuất.")
+            else:
+                purchase_id = f"purchase_{secrets.token_urlsafe(8)}"
+                existing_purchase = None
+                existing_status = ""
+                connection.execute(
+                    """
+                    INSERT INTO purchases(
+                        id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note,
+                        source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
+                        ordered_at, received_at, cancelled_at, paid_at, receipt_code
+                    )
+                    VALUES(?, ?, ?, 'quick_import', ?, '', '', '', '', '', 'draft', ?, ?, ?, '', NULL, NULL, NULL, '')
+                    """,
+                    (
+                        purchase_id,
+                        str(resolved_supplier.get("id") or "").strip(),
+                        str(resolved_supplier.get("name") or "").strip(),
+                        clean_note,
+                        float(discount_amount or 0),
+                        effective_at,
+                        effective_at,
+                    ),
                 )
-                VALUES(?, ?, ?, 'quick_import', ?, '', '', '', '', '', 'draft', ?, ?, ?, '', NULL, NULL, NULL, '')
-                """,
-                (
-                    purchase_id,
-                    str(resolved_supplier.get("id") or "").strip(),
-                    str(resolved_supplier.get("name") or "").strip(),
-                    clean_note,
-                    float(discount_amount or 0),
-                    effective_at,
-                    effective_at,
-                ),
-            )
             normalized_items: list[dict] = []
             for index, raw_item in enumerate(raw_items):
                 product_id = int(raw_item.get("productId") or raw_item.get("product_id") or 0)
@@ -7782,70 +7815,71 @@ class InventoryStore:
                 entity_type="purchase",
                 entity_id=purchase_id,
                 entity_name=purchase_id,
-                action="create",
+                action="update" if clean_target_purchase_id else "create",
                 actor=clean_actor,
-                message="Tạo phiếu bằng Xử lý nhanh nhập hàng.",
+                message="Sửa phiếu bằng Xử lý nhanh nhập hàng." if clean_target_purchase_id else "Tạo phiếu bằng Xử lý nhanh nhập hàng.",
             )
             self._record_purchase_change_history(
                 connection,
-                previous=None,
+                previous=existing_purchase if clean_target_purchase_id else None,
                 current=created_purchase,
                 actor=clean_actor,
                 created_at=effective_at,
-                note_prefix="Tạo bằng Xử lý nhanh nhập hàng",
+                note_prefix="Sửa bằng Xử lý nhanh nhập hàng" if clean_target_purchase_id else "Tạo bằng Xử lý nhanh nhập hàng",
             )
 
             current_purchase = created_purchase
             receipt_payload = None
             if clean_final_status in {"ordered", "received"}:
-                ordered_preview = {
-                    **created_purchase,
-                    "status": "ordered",
-                    "orderedAt": effective_at,
-                    "ordered_at": effective_at,
-                    "updatedAt": effective_at,
-                    "updated_at": effective_at,
-                }
-                self._validate_purchase_workflow_locks(
-                    connection,
-                    [],
-                    [ordered_preview],
-                    actor_username=actor_username,
-                    actor_role=actor_role,
-                )
-                connection.execute(
-                    """
-                    UPDATE purchases
-                    SET status = 'ordered',
-                        updated_at = ?,
-                        ordered_at = ?
-                    WHERE id = ?
-                    """,
-                    (effective_at, effective_at, purchase_id),
-                )
-                ordered_purchase = self._get_purchase_document(connection, purchase_id)
-                self._record_audit(
-                    connection,
-                    entity_type="purchase",
-                    entity_id=purchase_id,
-                    entity_name=purchase_id,
-                    action="status-change",
-                    actor=clean_actor,
-                    message="Trạng thái phiếu nhập đổi từ draft sang ordered.",
-                )
-                self._record_entity_change(
-                    connection,
-                    entity_type="purchase",
-                    entity_id=purchase_id,
-                    entity_code=purchase_id,
-                    action="status-change",
-                    actor=clean_actor,
-                    before_status="draft",
-                    after_status="ordered",
-                    note="Tạo bằng Xử lý nhanh nhập hàng. Đặt hàng.",
-                    created_at=effective_at,
-                )
-                current_purchase = ordered_purchase
+                if not (clean_target_purchase_id and existing_status == "ordered"):
+                    ordered_preview = {
+                        **created_purchase,
+                        "status": "ordered",
+                        "orderedAt": effective_at,
+                        "ordered_at": effective_at,
+                        "updatedAt": effective_at,
+                        "updated_at": effective_at,
+                    }
+                    self._validate_purchase_workflow_locks(
+                        connection,
+                        [],
+                        [ordered_preview],
+                        actor_username=actor_username,
+                        actor_role=actor_role,
+                    )
+                    connection.execute(
+                        """
+                        UPDATE purchases
+                        SET status = 'ordered',
+                            updated_at = ?,
+                            ordered_at = ?
+                        WHERE id = ?
+                        """,
+                        (effective_at, effective_at, purchase_id),
+                    )
+                    ordered_purchase = self._get_purchase_document(connection, purchase_id)
+                    self._record_audit(
+                        connection,
+                        entity_type="purchase",
+                        entity_id=purchase_id,
+                        entity_name=purchase_id,
+                        action="status-change",
+                        actor=clean_actor,
+                        message="Trạng thái phiếu nhập đổi từ draft sang ordered.",
+                    )
+                    self._record_entity_change(
+                        connection,
+                        entity_type="purchase",
+                        entity_id=purchase_id,
+                        entity_code=purchase_id,
+                        action="status-change",
+                        actor=clean_actor,
+                        before_status="draft",
+                        after_status="ordered",
+                        note=("Sửa bằng Xử lý nhanh nhập hàng. Đặt hàng." if clean_target_purchase_id else "Tạo bằng Xử lý nhanh nhập hàng. Đặt hàng."),
+                        created_at=effective_at,
+                    )
+                    current_purchase = ordered_purchase
             if clean_final_status == "received":
                 receive_result = self._receive_purchase_in_connection(
                     connection,

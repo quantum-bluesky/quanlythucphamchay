@@ -204,6 +204,7 @@ export function registerPurchasesControllerEvents(contract) {
         })),
         final_status: draft.finalStatus,
         mark_paid: Boolean(draft.markPaid && draft.finalStatus === "received"),
+        target_purchase_id: draft.targetPurchaseId || "",
       });
       state.quickPurchaseDraft.lastResult = data.quick_summary || null;
       actions.showToast(data.message || "Đã lưu nhập nhanh.");
@@ -473,7 +474,15 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       if (action === "use-active-purchase") {
-        actions.cloneActivePurchaseIntoQuickPurchaseDraft();
+        const purchase = queries.getActivePurchase();
+        let editTarget = false;
+        if (purchase && purchase.status !== "received" && purchase.status !== "cancelled") {
+          const shouldEdit = window.confirm("Phiếu đang mở vẫn chưa nhập hàng xong.\n\nChọn OK nếu bạn muốn dùng màn hình này để chỉnh sửa và LƯU ĐÈ lên phiếu đang mở.\nChọn Cancel để TẠO MỚI bản sao độc lập (không sửa phiếu đang mở).");
+          if (shouldEdit) {
+            editTarget = true;
+          }
+        }
+        actions.cloneActivePurchaseIntoQuickPurchaseDraft({ editTarget });
         renderers.renderQuickPurchasePanel();
         return;
       }

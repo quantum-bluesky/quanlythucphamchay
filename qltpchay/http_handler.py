@@ -1385,6 +1385,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         payment_note=payload.get("payment_note", ""),
                         actor_username=self._get_current_username() or "",
                         actor_role=self._get_current_role(),
+                        target_purchase_id=payload.get("target_purchase_id", ""),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
