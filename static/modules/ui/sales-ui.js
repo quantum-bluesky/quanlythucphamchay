@@ -367,6 +367,7 @@ export function createSalesUi(deps) {
         ${allowMarkPaid ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="mark-paid" data-cart-id="${selectedCart.id}">Đã thanh toán</button>` : ""}
         ${allowReturn ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="customer-return" data-cart-id="${selectedCart.id}">Trả hàng</button>` : ""}
         ${["draft", "committed"].includes(selectedCart.status) ? `<button type="button" class="secondary-button compact-button" data-order-detail-action="cancel" data-cart-id="${selectedCart.id}">Hủy</button>` : ""}
+        ${state.admin?.isAdmin && selectedCart.status === "completed" && selectedCart.paymentStatus !== "paid" ? `<button type="button" class="danger-button compact-button" data-order-detail-action="admin-edit" data-cart-id="${selectedCart.id}" title="Master Admin sửa đơn bypass">Sửa Admin</button>` : ""}
         ${canDeleteCart(selectedCart) ? `<button type="button" class="danger-button compact-button" data-order-detail-action="delete" data-cart-id="${selectedCart.id}">Xóa</button>` : ""}
       </div>
       ${getCustomerReturnEditorMarkup(selectedCart)}
@@ -628,7 +629,7 @@ export function createSalesUi(deps) {
           <button type="button" class="ghost-button" data-cart-action="create-new">Tạo đơn mới</button>
           ${canPrint ? `<button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In phiếu"}</button><button type="button" class="ghost-button" data-cart-action="copy-text">${compact ? "Copy" : "Copy text"}</button>` : ""}
           ${cart.status === "draft"
-            ? `<button type="button" class="primary-button" data-cart-action="commit" ${cart.itemCount ? "" : "disabled"}>${compact ? "Chốt" : "Chốt đơn"}</button>`
+            ? `<button type="button" class="primary-button" data-cart-action="commit" ${cart.itemCount ? "" : "disabled"}>${cart._adminEditingOrderId ? "Lưu (Admin Bypass)" : (compact ? "Chốt" : "Chốt đơn")}</button>`
             : `<button type="button" class="primary-button" data-cart-action="ship" ${cart.itemCount ? "" : "disabled"}>${compact ? "Xuất" : "Xuất hàng"}</button>`}
           <button type="button" class="secondary-button" data-cart-action="cancel">${compact ? "Hủy" : "Hủy đơn"}</button>
           ${canDeleteCart(cart) ? `<button type="button" class="danger-button" data-cart-action="delete">${compact ? "Xóa" : "Xóa giỏ"}</button>` : ""}

@@ -28,12 +28,14 @@ export function createSalesDomainHelpers(deps) {
     return state.carts.find((cart) => cart.id === cartId) || null;
   }
 
-  function isEditableCartStatus(status) {
-    return ["draft", "committed"].includes(String(status || "").trim());
+  function isEditableCartStatus(cartOrStatus) {
+    const status = typeof cartOrStatus === "object" ? cartOrStatus?.status : cartOrStatus;
+    const isEditMode = typeof cartOrStatus === "object" ? cartOrStatus?._adminEditMode : false;
+    return ["draft", "committed"].includes(String(status || "").trim()) || Boolean(isEditMode);
   }
 
   function getActiveCart() {
-    return state.carts.find((cart) => cart.id === state.activeCartId && isEditableCartStatus(cart.status)) || null;
+    return state.carts.find((cart) => cart.id === state.activeCartId && isEditableCartStatus(cart)) || null;
   }
 
   function getDraftCarts() {
@@ -168,7 +170,7 @@ export function createSalesDomainHelpers(deps) {
 
   function setActiveCart(cartId) {
     const cart = getCartById(cartId);
-    if (!cart || !isEditableCartStatus(cart.status)) return;
+    if (!cart || !isEditableCartStatus(cart)) return;
     state.activeCartId = cart.id;
     state.activeCartPanelCollapsed = mobileQuery.matches;
     state.activeCartDetailExpanded = false;

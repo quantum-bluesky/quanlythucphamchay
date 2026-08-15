@@ -605,6 +605,37 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 if not self._require_admin():
                     return
 
+                if route == "/api/admin/orders/edit-locked":
+                    try:
+                        payload = self._read_json_body()
+                        result = store.admin_edit_locked_order(
+                            cart_id=str(payload.get("cart", {}).get("id") or ""),
+                            cart_payload=payload.get("cart") or {},
+                            admin_edit_reason=str(payload.get("adminEditReason") or ""),
+                            actor_username=self._get_current_actor_name(),
+                            actor_role=self._get_current_actor_role(),
+                        )
+                        self._send_json(HTTPStatus.OK, result)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+                if route == "/api/admin/purchases/edit-locked":
+                    try:
+                        payload = self._read_json_body()
+                        result = store.admin_edit_locked_purchase(
+                            purchase_id=str(payload.get("purchase", {}).get("id") or ""),
+                            purchase_payload=payload.get("purchase") or {},
+                            admin_edit_reason=str(payload.get("adminEditReason") or ""),
+                            actor_username=self._get_current_actor_name(),
+                            actor_role=self._get_current_actor_role(),
+                        )
+                        self._send_json(HTTPStatus.OK, result)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+
                 if route == "/api/admin/public-web-config":
                     try:
                         payload = self._read_json_body()

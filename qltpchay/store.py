@@ -12258,3 +12258,461 @@ class InventoryStore:
                 "end_date": parsed_end.isoformat() if parsed_end else "",
             },
         }
+    def _admin_edit_locked_order_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        cart: dict,
+        admin_edit_reason: str,
+        actor: str,
+        processed_at: str,
+    ) -> dict:
+        cart_id = str(cart.get("id") or "").strip()
+        previous_cart = self._get_cart_document(connection, cart_id)
+        if str(previous_cart.get("status") or "") != "completed":
+            raise ValueError("Chỉ đơn hàng đã xuất kho mới được sửa qua chế độ Admin Edit.")
+        if str(previous_cart.get("paymentStatus") or "") == "paid":
+            raise ValueError("Đơn hàng đã thanh toán không thể sửa.")
+        
+        order_transactions = self._validate_order_cancellation_target(connection, previous_cart)
+        order_code = str(previous_cart.get("orderCode") or cart_id).strip()
+        customer_name = str(previous_cart.get("customerName") or "").strip()
+        discount_amount = round(float(previous_cart.get("discountAmount") or previous_cart.get("discount_amount") or 0), 2)
+        transaction_revenue_allocations = self._allocate_discount_amounts(
+            [
+                (
+                    entry["transaction_id"],
+                    round(
+                        entry["quantity"] * float(extract_price_from_note(entry["note"], "out") or 0),
+                        2,
+                    ),
+                )
+                for entry in order_transactions
+            ],
+            discount_amount,
+        )
+
+        receipt_suffix = hashlib.sha1(f"{order_code}-{processed_at}-{admin_edit_reason}".encode("utf-8")).hexdigest()[:6]
+        receipt_code = f"AD-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{receipt_suffix}"
+        receipt_id = self._insert_inventory_receipt(
+            connection,
+            receipt_code=receipt_code,
+            receipt_type="inventory_adjustment",
+            customer_name=customer_name,
+            source_type="admin_edit_reversal",
+            source_code=order_code,
+            actor=actor,
+            reason=admin_edit_reason,
+            note=f"Hoàn trả tồn kho cũ do Admin sửa đơn xuất.",
+            created_at=processed_at,
+        )
+
+        for entry in order_transactions:
+            product = self._get_product_or_raise(connection, int(entry["product_id"]), allow_deleted=True)
+            quantity = round(float(entry["quantity"] or 0), 2)
+            unit_price = round(float(extract_price_from_note(entry["note"], "out") or product["sale_price"] or 0), 2)
+            revenue_line_total = round(max(0.0, quantity * unit_price - transaction_revenue_allocations.get(entry["transaction_id"], 0.0)), 2)
+            original_allocations = self._load_transaction_batch_allocations(
+                connection,
+                int(entry["transaction_id"]),
+                direction="out",
+            )
+            transaction_note = (
+                f"Phiếu điều chỉnh {receipt_code} | Hủy lô gốc đơn: {order_code} | Khách: {customer_name} "
+                f"| Lý do sửa: {admin_edit_reason} | Yêu cầu bởi Master Admin"
+            )
+            cursor = connection.execute(
+                """
+                INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                VALUES(?, 'in', ?, ?, ?)
+                """,
+                (int(product["id"]), quantity, transaction_note, processed_at),
+            )
+            self._restore_inventory_batches_from_allocations(
+                connection,
+                allocations=original_allocations,
+                transaction_id=int(cursor.lastrowid),
+                created_at=processed_at,
+                product_id=int(product["id"]),
+            )
+            transaction_note = " | ".join(
+                part
+                for part in (
+                    transaction_note,
+                    self._format_batch_allocations_note(original_allocations, prefix="Hoàn về lô gốc"),
+                )
+                if part
+            )
+            connection.execute(
+                "UPDATE transactions SET note = ? WHERE id = ?",
+                (transaction_note, int(cursor.lastrowid)),
+            )
+            current_stock = round(float(self._get_stock_for_product(connection, int(product["id"]))), 2)
+            self._insert_inventory_receipt_item(
+                connection,
+                receipt_id=receipt_id,
+                product_id=int(product["id"]),
+                product_name=str(product["name"]),
+                unit=str(product["unit"]),
+                transaction_type="in",
+                quantity=quantity,
+                unit_amount=unit_price,
+                line_total=revenue_line_total,
+                stock_after=current_stock,
+                transaction_id=int(cursor.lastrowid),
+            )
+
+        # Cập nhật carts và cart_items
+        new_discount_amount = self._get_cart_discount_amount(cart)
+        new_items = cart.get("items") or []
+        connection.execute(
+            """
+            UPDATE carts
+            SET customer_id = ?,
+                customer_name = ?,
+                note = ?,
+                discount_amount = ?,
+                ship_address = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                str(cart.get("customerId") or "").strip(),
+                str(cart.get("customerName") or "").strip(),
+                str(cart.get("note") or "").strip(),
+                new_discount_amount,
+                str(cart.get("shipAddress") or cart.get("ship_address") or "").strip(),
+                processed_at,
+                cart_id,
+            ),
+        )
+        connection.execute("DELETE FROM cart_items WHERE cart_id = ?", (cart_id,))
+        for index, item in enumerate(new_items):
+            connection.execute(
+                """
+                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
+                    cart_id,
+                    int(item.get("productId") or item.get("product_id") or 0),
+                    str(item.get("productName") or item.get("product_name") or "").strip(),
+                    float(item.get("quantity") or 0),
+                    float(item.get("unitPrice") or item.get("unit_price") or 0),
+                    str(item.get("note") or "").strip(),
+                    index,
+                ),
+            )
+
+        grouped_items = self._group_sale_items(new_items)
+        products_by_id, current_stock_by_id = self._validate_sale_items_against_physical_stock(
+            connection,
+            grouped_items,
+        )
+        sale_result = self._create_sale_transactions_for_order(
+            connection,
+            order_code=order_code,
+            customer_name=str(cart.get("customerName") or "").strip(),
+            grouped_items=grouped_items,
+            products_by_id=products_by_id,
+            current_stock_by_id=current_stock_by_id,
+            created_at=processed_at,
+            note=str(cart.get("note") or "").strip(),
+            discount_amount=new_discount_amount,
+            created_mode=previous_cart.get("createdMode") or "normal",
+        )
+
+        current_cart = self._get_cart_document(connection, cart_id)
+        self._record_cart_change_history(
+            connection,
+            previous=previous_cart,
+            current=current_cart,
+            actor=actor,
+            created_at=processed_at,
+            note_prefix=f"Admin sửa đơn xuất đã hoàn thành (Lý do: {admin_edit_reason})",
+        )
+        self._record_audit(
+            connection,
+            entity_type="cart",
+            entity_id=cart_id,
+            entity_name=order_code,
+            action="admin_edit",
+            actor=actor,
+            message=f"Admin sửa đơn đã khóa. Lý do: {admin_edit_reason}",
+        )
+        return {
+            "document_type": "order",
+            "document_id": cart_id,
+            "document_code": order_code,
+            "status": "completed",
+            "receipt_code": receipt_code,
+            "cart": current_cart,
+        }
+
+    def _admin_edit_locked_purchase_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        purchase: dict,
+        admin_edit_reason: str,
+        actor: str,
+        processed_at: str,
+    ) -> dict:
+        purchase_id = str(purchase.get("id") or "").strip()
+        previous_purchase = self._get_purchase_document(connection, purchase_id)
+        if str(previous_purchase.get("status") or "") != "received":
+            raise ValueError("Chỉ phiếu nhập đã nhận hàng mới được sửa qua chế độ Admin Edit.")
+        if str(previous_purchase.get("paidAt") or previous_purchase.get("paid_at") or ""):
+            raise ValueError("Phiếu nhập đã thanh toán không thể sửa.")
+        
+        receipt_code = str(previous_purchase.get("receiptCode") or previous_purchase.get("receipt_code") or purchase_id).strip()
+        
+        # We need the original receipt row
+        receipt_row = connection.execute(
+            """
+            SELECT id
+            FROM inventory_receipts
+            WHERE receipt_type = 'purchase' AND receipt_code = ?
+            LIMIT 1
+            """,
+            (receipt_code,),
+        ).fetchone()
+        if not receipt_row:
+            raise ValueError("Không tìm thấy phiếu nhập kho gốc.")
+        receipt_id = int(receipt_row["id"])
+
+        old_items_rows = connection.execute(
+            """
+            SELECT product_id, quantity, unit_price, transaction_id, batch_id
+            FROM inventory_receipt_items
+            WHERE receipt_id = ?
+            """,
+            (receipt_id,),
+        ).fetchall()
+        
+        old_item_map = {}
+        for row in old_items_rows:
+            old_item_map[int(row["product_id"])] = {
+                "quantity": float(row["quantity"] or 0),
+                "unit_price": float(row["unit_price"] or 0),
+                "transaction_id": int(row["transaction_id"]),
+                "batch_id": int(row["batch_id"]),
+            }
+
+        new_items = purchase.get("items") or []
+        # Update purchases table
+        new_discount_amount = self._get_purchase_discount_amount(purchase)
+        supplier_id = str(purchase.get("supplierId") or "").strip()
+        supplier_name = str(purchase.get("supplierName") or "").strip()
+        note = str(purchase.get("note") or "").strip()
+
+        connection.execute(
+            """
+            UPDATE purchases
+            SET supplier_id = ?,
+                supplier_name = ?,
+                note = ?,
+                discount_amount = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (supplier_id, supplier_name, note, new_discount_amount, processed_at, purchase_id),
+        )
+        # Re-insert purchase_items
+        connection.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
+        for index, item in enumerate(new_items):
+            connection.execute(
+                """
+                INSERT INTO purchase_items(id, purchase_id, product_id, product_name, quantity, unit_price, note, sort_order)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),
+                    purchase_id,
+                    int(item.get("productId") or item.get("product_id") or 0),
+                    str(item.get("productName") or item.get("product_name") or "").strip(),
+                    float(item.get("quantity") or 0),
+                    float(item.get("unitPrice") or item.get("unit_price") or 0),
+                    str(item.get("note") or "").strip(),
+                    index,
+                ),
+            )
+
+        # Process deltas for stock & batches
+        for item in new_items:
+            product_id = int(item.get("productId") or item.get("product_id") or 0)
+            product = self._get_product_or_raise(connection, product_id, allow_deleted=True)
+            new_qty = float(item.get("quantity") or 0)
+            new_price = float(item.get("unitPrice") or item.get("unit_price") or 0)
+            
+            old = old_item_map.get(product_id)
+            if not old:
+                raise ValueError(f"Sản phẩm {product.get('name')} là mặt hàng mới thêm vào đơn đã khóa. Vui lòng tạo phiếu nhập mới thay vì sửa.")
+            
+            old_qty = old["quantity"]
+            batch_id = old["batch_id"]
+            
+            if new_qty < old_qty:
+                # Decreasing stock -> Out transaction, reduce batch
+                delta_qty = old_qty - new_qty
+                
+                # Check batch remaining
+                batch = connection.execute("SELECT id, remaining_quantity FROM inventory_batches WHERE id = ?", (batch_id,)).fetchone()
+                if not batch:
+                    raise ValueError(f"Không tìm thấy lô hàng gốc của {product.get('name')}.")
+                remaining = float(batch["remaining_quantity"] or 0)
+                if remaining < delta_qty:
+                    raise ValueError(f"Mặt hàng {product.get('name')} đã được xuất một phần ({old_qty - remaining:g} đã xuất). Không thể giảm xuống {new_qty:g}.")
+                
+                # Reduce batch
+                connection.execute(
+                    "UPDATE inventory_batches SET initial_quantity = initial_quantity - ?, remaining_quantity = remaining_quantity - ?, unit_cost = ? WHERE id = ?",
+                    (delta_qty, delta_qty, new_price, batch_id)
+                )
+                
+                # Out transaction
+                note_str = f"Phiếu điều chỉnh | Admin sửa giảm phiếu nhập {receipt_code} | Khách/NCC: {supplier_name} | Lý do: {admin_edit_reason}"
+                cursor = connection.execute(
+                    """
+                    INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                    VALUES(?, 'out', ?, ?, ?)
+                    """,
+                    (product_id, delta_qty, note_str, processed_at)
+                )
+                
+            elif new_qty > old_qty:
+                # Increasing stock -> In transaction, increase batch
+                delta_qty = new_qty - old_qty
+                connection.execute(
+                    "UPDATE inventory_batches SET initial_quantity = initial_quantity + ?, remaining_quantity = remaining_quantity + ?, unit_cost = ? WHERE id = ?",
+                    (delta_qty, delta_qty, new_price, batch_id)
+                )
+                # In transaction
+                note_str = f"Phiếu điều chỉnh | Admin sửa tăng phiếu nhập {receipt_code} | Khách/NCC: {supplier_name} | Lý do: {admin_edit_reason}"
+                cursor = connection.execute(
+                    """
+                    INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                    VALUES(?, 'in', ?, ?, ?)
+                    """,
+                    (product_id, delta_qty, note_str, processed_at)
+                )
+            else:
+                # Only price changed
+                connection.execute(
+                    "UPDATE inventory_batches SET unit_cost = ? WHERE id = ?",
+                    (new_price, batch_id)
+                )
+                
+            # Update receipt item
+            connection.execute(
+                "UPDATE inventory_receipt_items SET quantity = ?, unit_price = ?, line_total = ? WHERE receipt_id = ? AND product_id = ?",
+                (new_qty, new_price, new_qty * new_price, receipt_id, product_id)
+            )
+
+        current_purchase = self._get_purchase_document(connection, purchase_id)
+        self._record_purchase_change_history(
+            connection,
+            previous=previous_purchase,
+            current=current_purchase,
+            actor=actor,
+            created_at=processed_at,
+            note_prefix=f"Admin sửa phiếu nhập đã nhận (Lý do: {admin_edit_reason})",
+        )
+        self._record_audit(
+            connection,
+            entity_type="purchase",
+            entity_id=purchase_id,
+            entity_name=receipt_code,
+            action="admin_edit",
+            actor=actor,
+            message=f"Admin sửa phiếu nhập đã khóa. Lý do: {admin_edit_reason}",
+        )
+        return {
+            "document_type": "purchase",
+            "document_id": purchase_id,
+            "document_code": receipt_code,
+            "status": "received",
+            "purchase": current_purchase,
+        }
+    def admin_edit_locked_order(
+        self,
+        cart_id: str,
+        cart_payload: dict,
+        *,
+        admin_edit_reason: str,
+        actor_username: str = "",
+        actor_role: str = "",
+    ) -> dict:
+        clean_cart_id = str(cart_id or "").strip()
+        if not clean_cart_id:
+            raise ValueError("Thiếu cart_id.")
+        clean_reason = str(admin_edit_reason or "").strip()
+        if not clean_reason:
+            raise ValueError("Bắt buộc phải nhập lý do khi sửa đơn hàng đã khóa.")
+        if str(actor_role or "") != "admin":
+            raise ValueError("Chỉ Master Admin mới có quyền thực hiện thao tác này.")
+            
+        actor = str(actor_username or "").strip()
+        now = utc_now_iso()
+        
+        with self._connect() as connection:
+            result = self._admin_edit_locked_order_in_connection(
+                connection,
+                cart=cart_payload,
+                admin_edit_reason=clean_reason,
+                actor=actor,
+                processed_at=now,
+            )
+            canonical = self._refresh_sync_collection_cache(
+                connection,
+                "carts",
+                updated_at=now,
+            )
+        
+        return {
+            "message": "Sửa đơn hàng đã xuất kho thành công.",
+            "cart": result["cart"],
+            "carts": canonical,
+        }
+
+    def admin_edit_locked_purchase(
+        self,
+        purchase_id: str,
+        purchase_payload: dict,
+        *,
+        admin_edit_reason: str,
+        actor_username: str = "",
+        actor_role: str = "",
+    ) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        if not clean_purchase_id:
+            raise ValueError("Thiếu purchase_id.")
+        clean_reason = str(admin_edit_reason or "").strip()
+        if not clean_reason:
+            raise ValueError("Bắt buộc phải nhập lý do khi sửa phiếu nhập đã khóa.")
+        if str(actor_role or "") != "admin":
+            raise ValueError("Chỉ Master Admin mới có quyền thực hiện thao tác này.")
+            
+        actor = str(actor_username or "").strip()
+        now = utc_now_iso()
+        
+        with self._connect() as connection:
+            result = self._admin_edit_locked_purchase_in_connection(
+                connection,
+                purchase=purchase_payload,
+                admin_edit_reason=clean_reason,
+                actor=actor,
+                processed_at=now,
+            )
+            canonical = self._refresh_sync_collection_cache(
+                connection,
+                "purchases",
+                updated_at=now,
+            )
+        
+        return {
+            "message": "Sửa phiếu nhập kho thành công.",
+            "purchase": result["purchase"],
+            "purchases": canonical,
+        }
