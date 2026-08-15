@@ -475,13 +475,25 @@ export function registerPurchasesControllerEvents(contract) {
       }
       if (action === "use-active-purchase") {
         const purchase = queries.getActivePurchase();
-        let editTarget = false;
-        if (purchase && purchase.status !== "received" && purchase.status !== "cancelled") {
-          const shouldEdit = window.confirm("Phiếu đang mở vẫn chưa nhập hàng xong.\n\nChọn OK nếu bạn muốn dùng màn hình này để chỉnh sửa và LƯU ĐÈ lên phiếu đang mở.\nChọn Cancel để TẠO MỚI bản sao độc lập (không sửa phiếu đang mở).");
-          if (shouldEdit) {
-            editTarget = true;
-          }
+        if (!purchase) return;
+
+        if (purchase.status === "paid") {
+          actions.showToast("Phiếu đã thanh toán không thể chọn để xử lý nhập nhanh.", true);
+          return;
         }
+        if (purchase.status === "cancelled") {
+          actions.showToast("Phiếu đã hủy không thể chọn để xử lý nhập nhanh.", true);
+          return;
+        }
+
+        let editTarget = false;
+        if (purchase.status === "received") {
+          editTarget = false;
+          actions.showToast("Đang TẠO MỚI một phiếu nhập dựa trên phiếu đang mở.");
+        } else {
+          editTarget = true;
+        }
+
         actions.cloneActivePurchaseIntoQuickPurchaseDraft({ editTarget });
         renderers.renderQuickPurchasePanel();
         return;

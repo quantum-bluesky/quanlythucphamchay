@@ -364,13 +364,21 @@ export function registerSalesControllerEvents(contract) {
       }
       if (action === "use-active-cart") {
         const cart = queries.getActiveCart();
-        let editTarget = false;
-        if (cart && cart.status !== "completed" && cart.status !== "cancelled") {
-          const shouldEdit = window.confirm("Đơn đang mở vẫn chưa xuất hàng.\n\nChọn OK nếu bạn muốn dùng màn hình này để chỉnh sửa và LƯU ĐÈ lên đơn đang mở.\nChọn Cancel để TẠO MỚI bản sao độc lập (không sửa đơn đang mở).");
-          if (shouldEdit) {
-            editTarget = true;
-          }
+        if (!cart) return;
+
+        if (cart.status === "cancelled") {
+          actions.showToast("Đơn đã hủy không thể chọn để xử lý xuất nhanh.", true);
+          return;
         }
+
+        let editTarget = false;
+        if (cart.status === "completed") {
+          editTarget = false;
+          actions.showToast("Đơn đã xuất kho không thể sửa trực tiếp. Đang TẠO MỚI một đơn xuất dựa trên đơn đang mở.");
+        } else {
+          editTarget = true;
+        }
+
         actions.cloneActiveCartIntoQuickSaleDraft({ editTarget });
         renderers.renderQuickSalePanel();
         return;
