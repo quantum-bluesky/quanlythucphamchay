@@ -1937,6 +1937,7 @@ function getTodayDateInputValue() {
 
 function resetQuickSaleDraft() {
   state.quickSaleDraft = {
+    targetCartId: null,
     customerText: "",
     documentDate: getTodayDateInputValue(),
     note: "",
@@ -1969,11 +1970,12 @@ function resetQuickPurchaseDraft() {
   };
 }
 
-function cloneActiveCartIntoQuickSaleDraft() {
+function cloneActiveCartIntoQuickSaleDraft(options = {}) {
   const cart = getActiveCart();
   if (!cart) {
     throw new Error("Chưa có đơn hàng đang mở để lấy nhanh.");
   }
+  state.quickSaleDraft.targetCartId = options.editTarget ? String(cart.id || "") : null;
   state.quickSaleDraft.customerText = String(cart.customerName || "").trim();
   state.quickSaleDraft.note = String(cart.note || "").trim();
   state.quickSaleDraft.discountAmount = String(cart.discountAmount || "");
@@ -5838,6 +5840,11 @@ function renderDeletedProducts() {
           </div>
           <div class="cart-line-note">Khi khôi phục, sản phẩm sẽ quay lại tồn kho, tạo đơn, nhập hàng và danh mục đang dùng.</div>
           <div class="row-actions">
+            ${
+              state.admin?.username === "masteradmin"
+                ? `<button type="button" class="btn btn-outline compact-button" style="color: var(--danger);" data-deleted-product-action="hard-delete" data-product-id="${product.id}">Xóa hẳn</button>`
+                : ""
+            }
             <button type="button" class="ghost-button compact-button" data-deleted-product-action="restore" data-product-id="${product.id}">Khôi phục</button>
           </div>
         </article>

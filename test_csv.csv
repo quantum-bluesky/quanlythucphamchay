@@ -1,0 +1,3 @@
+id,global_id,name,category,unit,price,sale_price,low_stock_threshold,shelf_life_days,storage_life_days,images,details,is_public,is_deleted,deleted_at,created_at,updated_at
+117,prd_78f2e687ae074564a3d4a18796790169,Bánh bao chay (nhân ruốc nấm),Đồ chay đông lạnh,chiếc,6000.0,8000.0,5.0,,10.0,[],,,False,,2026-03-30T04:34:20+00:00,2026-08-15T09:49:07+00:00
+24,prd_b3851f3b7e5b46309252c72551446ba2,Bò kho,Đồ chay,gói,50000.0,50000.0,5.0,,,[],,,True,2026-03-30T04:05:57+00:00,2026-03-22T15:12:56+00:00,2026-08-15T09:49:08+00:00

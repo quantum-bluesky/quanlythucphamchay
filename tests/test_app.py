@@ -1744,7 +1744,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(by_code[adjustment["receipt_code"]]["reason"], "Kiểm kho")
         self.assertIn("Tạo phiếu điều chỉnh tồn", by_code[adjustment["receipt_code"]]["audit_message"])
 
-    def test_ut_aud_04_product_master_import_logs_actor_for_restore_and_update(self) -> None:
+    def test_ut_aud_04_product_master_import_logs_actor_for_update_deleted(self) -> None:
         product = self.store.create_product(
             name="Chả cốm chay",
             category="Đông lạnh",
@@ -1771,7 +1771,7 @@ class InventoryStoreTests(unittest.TestCase):
             actor="admin-csv",
         )
 
-        self.assertEqual(result["restored"], 1)
+        self.assertEqual(result["restored"], 0)
         self.assertEqual(result["updated"], 1)
 
         with self.store._connect() as connection:
@@ -1781,14 +1781,13 @@ class InventoryStoreTests(unittest.TestCase):
                 FROM audit_logs
                 WHERE entity_type = 'product'
                   AND entity_id = ?
-                  AND action IN ('restore', 'update')
+                  AND action IN ('update')
                 ORDER BY id DESC
                 """,
                 (str(product["id"]),),
             ).fetchall()
 
         logs = {row["action"]: row for row in rows}
-        self.assertEqual(logs["restore"]["actor"], "admin-csv")
         self.assertEqual(logs["update"]["actor"], "admin-csv")
         self.assertIn("Loại thực phẩm", logs["update"]["message"])
         self.assertIn("Giá nhập", logs["update"]["message"])

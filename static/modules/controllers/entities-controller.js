@@ -457,55 +457,98 @@ export function registerEntitiesControllerEvents(contract) {
 
   dom.deletedProductList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-deleted-product-action]");
-    if (!button || button.dataset.deletedProductAction !== "restore") return;
+    if (!button) return;
+    const action = button.dataset.deletedProductAction;
+    if (action !== "restore" && action !== "hard-delete") return;
     const productId = Number(button.dataset.productId);
     const product = state.deletedProducts.find((entry) => Number(entry.id) === productId);
     if (!product) {
       actions.showToast("Không tìm thấy sản phẩm đã xóa.", true);
       return;
     }
-    const warning = [`Khôi phục sản phẩm ${product.name}?`, "Sản phẩm sẽ xuất hiện lại ở tồn kho, tạo đơn, nhập hàng và quản lý sản phẩm.", `Tồn hiện tại sau khi khôi phục: ${utils.formatQuantity(product.current_stock)} ${product.unit}`].join("\n");
-    if (!window.confirm(warning)) return;
-    try {
-      const data = await actions.apiRequest(`/api/products/${productId}/restore`, { method: "POST", body: JSON.stringify({}) });
-      await actions.refreshData();
-      actions.showToast(data.message);
-    } catch (error) {
-      actions.showToast(error.message, true);
+    
+    if (action === "restore") {
+      const warning = [`Khôi phục sản phẩm ${product.name}?`, "Sản phẩm sẽ xuất hiện lại ở tồn kho, tạo đơn, nhập hàng và quản lý sản phẩm.", `Tồn hiện tại sau khi khôi phục: ${utils.formatQuantity(product.current_stock)} ${product.unit}`].join("\n");
+      if (!window.confirm(warning)) return;
+      try {
+        const data = await actions.apiRequest(`/api/products/${productId}/restore`, { method: "POST", body: JSON.stringify({}) });
+        await actions.refreshData();
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+    } else if (action === "hard-delete") {
+      const warning = [`CẢNH BÁO: Bạn có chắc chắn muốn xóa hẳn sản phẩm ${product.name}?`, "Hành động này KHÔNG THỂ KHÔI PHỤC và sẽ xóa vĩnh viễn dữ liệu khỏi hệ thống."].join("\n");
+      if (!window.confirm(warning)) return;
+      try {
+        const data = await actions.apiRequest(`/api/admin/products/${productId}/hard`, { method: "DELETE" });
+        await actions.refreshData();
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
     }
   });
 
-  dom.deletedCustomerList.addEventListener("click", (event) => {
+  dom.deletedCustomerList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-deleted-customer-action]");
     if (!button) return;
+    const action = button.dataset.deletedCustomerAction;
+    if (action !== "restore" && action !== "hard-delete") return;
     const customer = state.customers.find((entry) => entry.id === button.dataset.customerId);
     if (!customer) {
       actions.showToast("Không tìm thấy khách hàng đã xóa.", true);
       return;
     }
-    if (!window.confirm([`Khôi phục khách hàng ${customer.name}?`, "Khách hàng sẽ xuất hiện lại trong danh bạ đang dùng."].join("\n"))) return;
-    try {
-      actions.restoreCustomer(button.dataset.customerId);
-      actions.showToast("Đã khôi phục khách hàng.");
-    } catch (error) {
-      actions.showToast(error.message, true);
+    
+    if (action === "restore") {
+      if (!window.confirm([`Khôi phục khách hàng ${customer.name}?`, "Khách hàng sẽ xuất hiện lại trong danh bạ đang dùng."].join("\n"))) return;
+      try {
+        actions.restoreCustomer(button.dataset.customerId);
+        actions.showToast("Đã khôi phục khách hàng.");
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+    } else if (action === "hard-delete") {
+      if (!window.confirm([`CẢNH BÁO: Bạn có chắc chắn muốn xóa hẳn khách hàng ${customer.name}?`, "Hành động này KHÔNG THỂ KHÔI PHỤC và sẽ xóa vĩnh viễn dữ liệu khỏi hệ thống."].join("\n"))) return;
+      try {
+        const data = await actions.apiRequest(`/api/admin/customers/${customer.id}/hard`, { method: "DELETE" });
+        await actions.refreshData();
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
     }
   });
 
-  dom.deletedSupplierList.addEventListener("click", (event) => {
+  dom.deletedSupplierList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-deleted-supplier-action]");
     if (!button) return;
+    const action = button.dataset.deletedSupplierAction;
+    if (action !== "restore" && action !== "hard-delete") return;
     const supplier = state.suppliers.find((entry) => entry.id === button.dataset.supplierId);
     if (!supplier) {
       actions.showToast("Không tìm thấy nhà cung cấp đã xóa.", true);
       return;
     }
-    if (!window.confirm([`Khôi phục nhà cung cấp ${supplier.name}?`, "Nhà cung cấp sẽ xuất hiện lại trong danh bạ đang dùng."].join("\n"))) return;
-    try {
-      actions.restoreSupplier(button.dataset.supplierId);
-      actions.showToast("Đã khôi phục nhà cung cấp.");
-    } catch (error) {
-      actions.showToast(error.message, true);
+
+    if (action === "restore") {
+      if (!window.confirm([`Khôi phục nhà cung cấp ${supplier.name}?`, "Nhà cung cấp sẽ xuất hiện lại trong danh bạ hoạt động."].join("\n"))) return;
+      try {
+        actions.restoreSupplier(button.dataset.supplierId);
+        actions.showToast("Đã khôi phục nhà cung cấp.");
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+    } else if (action === "hard-delete") {
+      if (!window.confirm([`CẢNH BÁO: Bạn có chắc chắn muốn xóa hẳn nhà cung cấp ${supplier.name}?`, "Hành động này KHÔNG THỂ KHÔI PHỤC và sẽ xóa vĩnh viễn dữ liệu khỏi hệ thống."].join("\n"))) return;
+      try {
+        const data = await actions.apiRequest(`/api/admin/suppliers/${supplier.id}/hard`, { method: "DELETE" });
+        await actions.refreshData();
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
     }
   });
 }

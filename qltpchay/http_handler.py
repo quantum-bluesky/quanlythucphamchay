@@ -30,7 +30,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
     procurement_config = (system_config or {}).get("procurement", {})
     mail_config = (system_config or {}).get("mail", {})
     auth_enabled = bool((system_config or {}).get("EnableLogin"))
-    app_version = str((system_config or {}).get("version") or "").strip() or "2.3.1"
+    app_version = str((system_config or {}).get("version") or "").strip() or "3.24.0"
     asset_versions_path = Path((system_config or {}).get("asset_versions_path") or JS_ASSET_VERSIONS_PATH)
     js_asset_versions = JavaScriptAssetVersionManager(
         static_root=STATIC_DIR,
@@ -1003,6 +1003,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
                 if route == "/api/orders/quick-create":
                     result = store.create_quick_sale(
+                        target_cart_id=payload.get("target_cart_id", ""),
                         customer_id=payload.get("customer_id", ""),
                         customer_name=payload.get("customer_name", ""),
                         document_date=payload.get("document_date", ""),
@@ -1684,26 +1685,60 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             route = self._normalize_route_path(self.path)
             if self._is_login_enabled() and not self._require_authenticated_session():
                 return
-            match = re.fullmatch(r"/api/products/(\d+)$", route)
-            if not match:
-                self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
+            if route.startswith("/api/admin/"):
+                if not self._require_admin():
+                    return
+                
+                match = re.fullmatch(r"/api/admin/products/(\d+)/hard", route)
+                if match:
+                    try:
+                        deleted = store.hard_delete_product(match.group(1), actor=self._get_current_actor_name())
+                        self._send_json(HTTPStatus.OK, deleted)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+                match = re.fullmatch(r"/api/admin/customers/([^/]+)/hard", route)
+                if match:
+                    try:
+                        deleted = store.hard_delete_customer(match.group(1), actor=self._get_current_actor_name())
+                        self._send_json(HTTPStatus.OK, deleted)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+                match = re.fullmatch(r"/api/admin/suppliers/([^/]+)/hard", route)
+                if match:
+                    try:
+                        deleted = store.hard_delete_supplier(match.group(1), actor=self._get_current_actor_name())
+                        self._send_json(HTTPStatus.OK, deleted)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+                
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API admin."})
                 return
 
-            try:
-                deleted = store.delete_product(
-                    match.group(1),
-                    actor=self._get_current_actor_name(),
-                )
-                self._send_json(
-                    HTTPStatus.OK,
-                    {
-                        "message": "Đã chuyển sản phẩm sang danh mục đã xóa.",
-                        "deleted": deleted,
-                        "summary": store.get_summary(),
-                    },
-                )
-            except ValueError as exc:
-                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            match = re.fullmatch(r"/api/products/(\d+)$", route)
+            if match:
+                try:
+                    deleted = store.delete_product(
+                        match.group(1),
+                        actor=self._get_current_actor_name(),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã chuyển sản phẩm sang danh mục đã xóa.",
+                            "deleted": deleted,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
 
         def log_message(self, format_string: str, *args) -> None:
             return
@@ -1729,6 +1764,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
         def _master_csv_columns(entity_type: str) -> list[str]:
             if entity_type == "products":
                 return [
+                    "id",
+                    "global_id",
                     "name",
                     "category",
                     "unit",
@@ -1737,6 +1774,13 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     "low_stock_threshold",
                     "shelf_life_days",
                     "storage_life_days",
+                    "images",
+                    "details",
+                    "is_public",
+                    "is_deleted",
+                    "deleted_at",
+                    "created_at",
+                    "updated_at",
                 ]
             if entity_type == "customers":
                 return [
@@ -1769,10 +1813,15 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             writer = csv.DictWriter(output, fieldnames=columns, extrasaction="ignore")
             writer.writeheader()
             for record in records:
-                row = {
-                    key: "" if record.get(key) is None else str(record.get(key))
-                    for key in columns
-                }
+                row = {}
+                for key in columns:
+                    val = record.get(key)
+                    if val is None:
+                        row[key] = ""
+                    elif key == "images" and isinstance(val, list):
+                        row[key] = json.dumps(val, ensure_ascii=False)
+                    else:
+                        row[key] = str(val)
                 writer.writerow(row)
             return output.getvalue().encode("utf-8-sig")
 
@@ -1810,6 +1859,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     "sale_price",
                     "low_stock_threshold",
                 }
+            elif entity_type == "customers":
+                required_headers = {"name", "phone"}
+            elif entity_type == "suppliers":
+                required_headers = {"name", "phone"}
             missing_headers = sorted(required_headers - normalized_headers)
             if missing_headers:
                 raise ValueError(
@@ -1829,6 +1882,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     storage_life_days = cls._parse_csv_float(data.get("storage_life_days", ""), "storage_life_days", None)
                     records.append(
                         {
+                            "id": data.get("id", ""),
+                            "global_id": data.get("global_id", ""),
                             "name": data.get("name", ""),
                             "category": data.get("category", ""),
                             "unit": data.get("unit", ""),
@@ -1837,6 +1892,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "low_stock_threshold": 5 if threshold is None else threshold,
                             "shelf_life_days": shelf_life_days,
                             "storage_life_days": storage_life_days,
+                            "images": data.get("images", ""),
+                            "details": data.get("details", ""),
+                            "is_deleted": data.get("is_deleted", ""),
+                            "deleted_at": data.get("deleted_at", ""),
+                            "created_at": data.get("created_at", ""),
+                            "updated_at": data.get("updated_at", ""),
                         }
                     )
                     continue

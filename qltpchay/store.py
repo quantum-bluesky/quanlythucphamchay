@@ -4,6 +4,7 @@ import re
 import secrets
 import shutil
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -162,6 +163,7 @@ class InventoryStore:
                 """
                 CREATE TABLE IF NOT EXISTS products (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    global_id TEXT UNIQUE,
                     name TEXT NOT NULL COLLATE NOCASE UNIQUE,
                     category TEXT NOT NULL,
                     unit TEXT NOT NULL,
@@ -533,6 +535,22 @@ class InventoryStore:
             columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(products)").fetchall()
             }
+            if "global_id" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN global_id TEXT"
+                )
+                products_without_global_id = connection.execute(
+                    "SELECT id FROM products WHERE global_id IS NULL OR global_id = ''"
+                ).fetchall()
+                for row in products_without_global_id:
+                    gid = f"prd_{uuid.uuid4().hex}"
+                    connection.execute(
+                        "UPDATE products SET global_id = ? WHERE id = ?",
+                        (gid, row["id"])
+                    )
+                connection.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_products_global_id ON products(global_id)"
+                )
             if "price" not in columns:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN price REAL NOT NULL DEFAULT 0"
@@ -2701,6 +2719,7 @@ class InventoryStore:
             sql = """
                 SELECT
                     p.id,
+                    p.global_id,
                     p.name,
                     p.category,
                     p.unit,
@@ -2855,6 +2874,7 @@ class InventoryStore:
         details: str = "",
         is_public: bool = True,
         actor: str = "",
+        global_id: str | None = None,
     ) -> dict:
         (
             clean_name,
@@ -2878,20 +2898,22 @@ class InventoryStore:
         now = utc_now_iso()
         clean_images = json.dumps([str(img).strip() for img in (images or []) if str(img).strip()], ensure_ascii=False)
         clean_details = str(details or "").strip()
+        gid = str(global_id).strip() if global_id and str(global_id).strip() else f"prd_{uuid.uuid4().hex}"
 
         with self._connect() as connection:
             try:
                 cursor = connection.execute(
                     """
                     INSERT INTO products (
-                        name, category, unit, low_stock_threshold,
+                        global_id, name, category, unit, low_stock_threshold,
                         price, sale_price, shelf_life_days, storage_life_days,
                         images, details, is_public,
                         created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
+                        gid,
                         clean_name,
                         clean_category,
                         clean_unit,
@@ -3060,6 +3082,8 @@ class InventoryStore:
         details: str | None = None,
         is_public: bool | None = None,
         actor: str = "",
+        allow_deleted: bool = False,
+        global_id: str | None = None,
     ) -> dict:
         (
             clean_name,
@@ -3098,9 +3122,11 @@ class InventoryStore:
             next_values["details"] = str(details).strip()
         if is_public is not None:
             next_values["is_public"] = 1 if is_public else 0
+        if global_id is not None:
+            next_values["global_id"] = str(global_id).strip()
 
         with self._connect() as connection:
-            current_product = self._get_product_or_raise(connection, int(product_id))
+            current_product = self._get_product_or_raise(connection, int(product_id), allow_deleted=allow_deleted)
             try:
                 updates = []
                 values = []
@@ -3151,7 +3177,7 @@ class InventoryStore:
                 message=audit_message,
             )
 
-        return self.get_product_by_id(int(product_id))
+        return self.get_product_by_id(int(product_id), allow_deleted=allow_deleted)
 
     def delete_product(self, product_id: int, actor: str = "") -> dict:
         with self._connect() as connection:
@@ -3225,6 +3251,52 @@ class InventoryStore:
                 message="Khôi phục sản phẩm về danh mục đang dùng.",
             )
         return self.get_product_by_id(int(product_id))
+
+    def hard_delete_product(self, product_id: int, actor: str = "") -> dict:
+        with self._connect() as connection:
+            product = self._get_product_or_raise(connection, int(product_id), allow_deleted=True)
+            try:
+                connection.execute("DELETE FROM products WHERE id = ?", (int(product_id),))
+                connection.execute("DELETE FROM audit_logs WHERE entity_type = 'product' AND entity_id = ?", (str(product_id),))
+            except sqlite3.IntegrityError:
+                raise ValueError("Không thể xóa hẳn vì sản phẩm đã phát sinh giao dịch/chứng từ.")
+            return {
+                "product_id": int(product_id),
+                "product_name": product["name"],
+                "message": "Đã xóa hẳn sản phẩm khỏi hệ thống."
+            }
+
+    def hard_delete_customer(self, customer_id: str, actor: str = "") -> dict:
+        clean_id = str(customer_id).strip()
+        with self._connect() as connection:
+            customer = connection.execute("SELECT id, name FROM customers WHERE id = ?", (clean_id,)).fetchone()
+            if not customer:
+                raise ValueError("Khách hàng không tồn tại.")
+            if connection.execute("SELECT 1 FROM carts WHERE customer_id = ? LIMIT 1", (clean_id,)).fetchone():
+                raise ValueError("Không thể xóa hẳn vì khách hàng đã phát sinh đơn hàng.")
+            connection.execute("DELETE FROM customers WHERE id = ?", (clean_id,))
+            connection.execute("DELETE FROM audit_logs WHERE entity_type = 'customer' AND entity_id = ?", (clean_id,))
+            return {
+                "customer_id": clean_id,
+                "customer_name": customer["name"],
+                "message": "Đã xóa hẳn khách hàng khỏi hệ thống."
+            }
+
+    def hard_delete_supplier(self, supplier_id: str, actor: str = "") -> dict:
+        clean_id = str(supplier_id).strip()
+        with self._connect() as connection:
+            supplier = connection.execute("SELECT id, name FROM suppliers WHERE id = ?", (clean_id,)).fetchone()
+            if not supplier:
+                raise ValueError("Nhà cung cấp không tồn tại.")
+            if connection.execute("SELECT 1 FROM purchases WHERE supplier_id = ? LIMIT 1", (clean_id,)).fetchone():
+                raise ValueError("Không thể xóa hẳn vì nhà cung cấp đã phát sinh phiếu nhập.")
+            connection.execute("DELETE FROM suppliers WHERE id = ?", (clean_id,))
+            connection.execute("DELETE FROM audit_logs WHERE entity_type = 'supplier' AND entity_id = ?", (clean_id,))
+            return {
+                "supplier_id": clean_id,
+                "supplier_name": supplier["name"],
+                "message": "Đã xóa hẳn nhà cung cấp khỏi hệ thống."
+            }
 
     def get_deleted_products(self) -> list[dict]:
         return [product for product in self.get_products(include_deleted=True) if product["is_deleted"]]
@@ -3407,12 +3479,12 @@ class InventoryStore:
                     (key, now_str),
                 )
 
-    def get_product_by_id(self, product_id: int) -> dict:
+    def get_product_by_id(self, product_id: int, *, allow_deleted: bool = False) -> dict:
         with self._connect() as connection:
-            row = connection.execute(
-                """
+            query = """
                 SELECT
                     p.id,
+                    p.global_id,
                     p.name,
                     p.category,
                     p.unit,
@@ -3446,11 +3518,13 @@ class InventoryStore:
                     ) AS current_stock
                 FROM products p
                 LEFT JOIN transactions t ON t.product_id = p.id
-                WHERE p.id = ? AND p.is_deleted = 0
-                GROUP BY p.id
-                """,
-                (product_id,),
-            ).fetchone()
+                WHERE p.id = ?
+            """
+            if not allow_deleted:
+                query += " AND p.is_deleted = 0"
+            query += " GROUP BY p.id"
+            
+            row = connection.execute(query, (product_id,)).fetchone()
             if not row:
                 raise ValueError("Sản phẩm không tồn tại.")
             return self._serialize_product_rows(connection, [row])[0]
@@ -7456,6 +7530,7 @@ class InventoryStore:
         payment_method: str = "",
         payment_note: str = "",
         actor_username: str = "",
+        target_cart_id: str = "",
     ) -> dict:
         clean_final_status = self._normalize_quick_sale_final_status(final_status)
         if mark_paid and clean_final_status != "completed":
@@ -7463,6 +7538,7 @@ class InventoryStore:
         effective_at = self._normalize_document_event_at(document_date, "Ngày xuất") or utc_now_iso()
         clean_note = str(note or "").strip()
         clean_actor = str(actor_username or "").strip()
+        clean_target_cart_id = str(target_cart_id or "").strip()
         with self._connect() as connection:
             resolved_customer = self._ensure_customer_for_bulk_order(
                 connection,
@@ -7474,27 +7550,54 @@ class InventoryStore:
             if not grouped_items:
                 raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
             cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
-            cart_id = f"cart_{secrets.token_hex(6)}"
-            connection.execute(
-                """
-                INSERT INTO carts(
-                    id, customer_id, customer_name, created_mode, status, payment_status, payment_method, payment_note,
-                    note, discount_amount, ship_address, created_at, updated_at,
-                    committed_at, completed_at, cancelled_at, paid_at, order_code
+            
+            if clean_target_cart_id:
+                try:
+                    existing_cart = self._get_cart_document(connection, clean_target_cart_id)
+                    existing_status = str(existing_cart.get("status") or "").strip()
+                    if existing_status in {"completed", "cancelled"}:
+                        raise ValueError("Không thể ghi đè lên đơn đã xuất hàng hoặc đã hủy.")
+                    cart_id = clean_target_cart_id
+                    connection.execute(
+                        """
+                        UPDATE carts
+                        SET customer_id = ?, customer_name = ?, note = ?, discount_amount = ?, ship_address = ?, updated_at = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            str(resolved_customer.get("id") or "").strip(),
+                            str(resolved_customer.get("name") or "").strip(),
+                            clean_note,
+                            float(discount_amount or 0),
+                            str(resolved_customer.get("address") or "").strip(),
+                            effective_at,
+                            cart_id,
+                        ),
+                    )
+                except ValueError as e:
+                    raise ValueError(str(e))
+            else:
+                cart_id = f"cart_{secrets.token_hex(6)}"
+                connection.execute(
+                    """
+                    INSERT INTO carts(
+                        id, customer_id, customer_name, created_mode, status, payment_status, payment_method, payment_note,
+                        note, discount_amount, ship_address, created_at, updated_at,
+                        committed_at, completed_at, cancelled_at, paid_at, order_code
+                    )
+                    VALUES(?, ?, ?, 'quick_export', 'draft', 'unpaid', '', '', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, '')
+                    """,
+                    (
+                        cart_id,
+                        str(resolved_customer.get("id") or "").strip(),
+                        str(resolved_customer.get("name") or "").strip(),
+                        clean_note,
+                        float(discount_amount or 0),
+                        str(resolved_customer.get("address") or "").strip(),
+                        effective_at,
+                        effective_at,
+                    ),
                 )
-                VALUES(?, ?, ?, 'quick_export', 'draft', 'unpaid', '', '', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, '')
-                """,
-                (
-                    cart_id,
-                    str(resolved_customer.get("id") or "").strip(),
-                    str(resolved_customer.get("name") or "").strip(),
-                    clean_note,
-                    float(discount_amount or 0),
-                    str(resolved_customer.get("address") or "").strip(),
-                    effective_at,
-                    effective_at,
-                ),
-            )
             self._replace_cart_items(connection, cart_id=cart_id, items=cart_items)
             created_cart = self._get_cart_document(connection, cart_id)
             self._validate_cart_workflow_locks([], [created_cart])
@@ -7503,17 +7606,17 @@ class InventoryStore:
                 entity_type="cart",
                 entity_id=cart_id,
                 entity_name=str(created_cart.get("orderCode") or cart_id).strip(),
-                action="create",
+                action="update" if clean_target_cart_id else "create",
                 actor=clean_actor,
-                message="Tạo đơn bằng Xử lý nhanh xuất hàng.",
+                message="Sửa đơn bằng Xử lý nhanh xuất hàng." if clean_target_cart_id else "Tạo đơn bằng Xử lý nhanh xuất hàng.",
             )
             self._record_cart_change_history(
                 connection,
-                previous=None,
+                previous=existing_cart if clean_target_cart_id else None,
                 current=created_cart,
                 actor=clean_actor,
                 created_at=effective_at,
-                note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
             )
 
             current_cart = created_cart
@@ -7524,7 +7627,7 @@ class InventoryStore:
                     cart_id,
                     actor=clean_actor,
                     committed_at=effective_at,
-                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                    history_note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
                 )
             if clean_final_status == "completed":
                 ship_result = self._ship_cart_order_in_connection(
@@ -7532,7 +7635,7 @@ class InventoryStore:
                     cart_id,
                     actor=clean_actor,
                     shipped_at=effective_at,
-                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                    history_note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
                 )
                 current_cart = ship_result["cart"]
                 order_payload = ship_result["order"]
@@ -7546,7 +7649,7 @@ class InventoryStore:
                     payment_note=payment_note,
                     actor=clean_actor,
                     updated_at=effective_at,
-                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                    history_note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
                 )
 
             customers = self._refresh_sync_collection_cache(connection, "customers", updated_at=effective_at)
@@ -9579,6 +9682,7 @@ class InventoryStore:
                 expiry_basis = "storage_life"
         return {
             "id": row["id"],
+            "global_id": row["global_id"] if "global_id" in row.keys() else None,
             "name": row["name"],
             "category": row["category"],
             "unit": row["unit"],
@@ -11505,8 +11609,9 @@ class InventoryStore:
         raise ValueError("Loại dữ liệu master không hợp lệ.")
 
     def _import_products_master(self, records: list[dict], *, actor: str = "") -> dict:
-        summary = {"created": 0, "updated": 0, "restored": 0, "skipped": 0}
+        summary = {"created": 0, "updated": 0, "restored": 0, "deleted": 0, "skipped": 0}
         products = self.get_products(include_deleted=True)
+        by_global_id = {product["global_id"]: product for product in products if product.get("global_id")}
         by_name = {normalize_key(product["name"]): product for product in products}
 
         for record in records:
@@ -11517,15 +11622,35 @@ class InventoryStore:
             threshold = record.get("low_stock_threshold", 5)
             shelf_life_days = record.get("shelf_life_days")
             storage_life_days = record.get("storage_life_days")
+
+            raw_images = str(record.get("images") or "").strip()
+            if raw_images:
+                try:
+                    images = json.loads(raw_images)
+                    if not isinstance(images, list):
+                        images = [raw_images]
+                except json.JSONDecodeError:
+                    images = [raw_images]
+            else:
+                images = []
+
+            details = str(record.get("details") or "").strip()
+            is_deleted_str = str(record.get("is_deleted") or "").strip().lower()
+            wants_deleted = is_deleted_str in ("1", "true", "yes")
+
+            global_id = str(record.get("global_id") or "").strip()
+
             if not name:
                 summary["skipped"] += 1
                 continue
 
-            existing = by_name.get(normalize_key(name))
+            existing = None
+            if global_id and global_id in by_global_id:
+                existing = by_global_id[global_id]
+            elif normalize_key(name) in by_name:
+                existing = by_name[normalize_key(name)]
+
             if existing:
-                if existing.get("is_deleted"):
-                    self.restore_product(existing["id"], actor=actor)
-                    summary["restored"] += 1
                 self.update_product(
                     existing["id"],
                     name=name,
@@ -11536,10 +11661,18 @@ class InventoryStore:
                     low_stock_threshold=threshold,
                     shelf_life_days=shelf_life_days,
                     storage_life_days=storage_life_days,
+                    images=images,
+                    details=details,
+                    is_public=bool(record.get("is_public", 1)),
                     actor=actor,
+                    allow_deleted=True,
+                    global_id=global_id if global_id else None,
                 )
                 summary["updated"] += 1
-                by_name[normalize_key(name)] = self.get_product_by_id(existing["id"])
+                updated_prod = self.get_product_by_id(existing["id"], allow_deleted=True)
+                by_name[normalize_key(name)] = updated_prod
+                if updated_prod.get("global_id"):
+                    by_global_id[updated_prod["global_id"]] = updated_prod
             else:
                 created = self.create_product(
                     name=name,
@@ -11550,32 +11683,60 @@ class InventoryStore:
                     low_stock_threshold=threshold,
                     shelf_life_days=shelf_life_days,
                     storage_life_days=storage_life_days,
+                    images=images,
+                    details=details,
+                    is_public=bool(record.get("is_public", 1)),
                     actor=actor,
+                    global_id=global_id,
                 )
+                if wants_deleted:
+                    self.delete_product(created["id"], actor=actor)
+                    summary["deleted"] += 1
                 summary["created"] += 1
                 by_name[normalize_key(name)] = created
+                if created.get("global_id"):
+                    by_global_id[created["global_id"]] = created
 
         return summary
 
     def _import_sync_master(self, state_key: str, records: list[dict], *, actor: str = "") -> dict:
         existing = self._get_sync_collection(state_key)
-        active_items = {normalize_key(item.get("name")): item for item in existing if item.get("name")}
+        final_items_by_id = {}
+        final_items_by_name = {}
+        for item in existing:
+            if item.get("id"):
+                final_items_by_id[item["id"]] = item
+            elif item.get("name"):
+                final_items_by_name[normalize_key(item["name"])] = item
+
         summary = {"created": 0, "updated": 0, "restored": 0, "skipped": 0}
 
         for record in records:
             name = str(record.get("name") or "").strip()
+            record_id = str(record.get("id") or "").strip()
+            
             if not name:
                 summary["skipped"] += 1
                 continue
-            normalized = normalize_key(name)
-            previous = active_items.get(normalized)
+                
+            previous = None
+            if record_id and record_id in final_items_by_id:
+                previous = final_items_by_id[record_id]
+            elif normalize_key(name) in final_items_by_name:
+                previous = final_items_by_name[normalize_key(name)]
+            elif not record_id:
+                for item in final_items_by_id.values():
+                    if normalize_key(item.get("name")) == normalize_key(name):
+                        previous = item
+                        break
+
             payload = {
                 **(previous or {}),
                 **record,
-                "id": (previous or {}).get("id") or record.get("id") or f"{state_key}_{secrets.token_hex(6)}",
+                "id": (previous or {}).get("id") or record_id or f"{state_key}_{secrets.token_hex(6)}",
                 "name": name,
-                "deletedAt": None,
-                "deleted_at": None,
+                "deletedAt": record.get("deletedAt") or record.get("deleted_at") or None,
+                "deleted_at": record.get("deletedAt") or record.get("deleted_at") or None,
                 "updatedAt": utc_now_iso(),
             }
             if not previous:
@@ -11585,9 +11746,12 @@ class InventoryStore:
                 if previous.get("deletedAt") or previous.get("deleted_at"):
                     summary["restored"] += 1
                 summary["updated"] += 1
-            active_items[normalized] = payload
+                
+            final_items_by_id[payload["id"]] = payload
+            if previous and not previous.get("id") and previous.get("name") and normalize_key(previous["name"]) in final_items_by_name:
+                del final_items_by_name[normalize_key(previous["name"])]
 
-        merged = list(active_items.values())
+        merged = list(final_items_by_id.values()) + list(final_items_by_name.values())
         payload = {state_key: merged}
         if actor:
             payload["actor"] = actor
