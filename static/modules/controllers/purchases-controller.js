@@ -488,6 +488,8 @@ export function registerPurchasesControllerEvents(contract) {
 
         let editTarget = false;
         if (purchase.status === "received") {
+          const shouldClone = window.confirm("Phiếu đã nhập kho không thể sửa trực tiếp. Bạn có muốn TẠO MỚI một bản sao để tiếp tục nhập nhanh không?");
+          if (!shouldClone) return;
           editTarget = false;
           actions.showToast("Đang TẠO MỚI một phiếu nhập dựa trên phiếu đang mở.");
         } else {

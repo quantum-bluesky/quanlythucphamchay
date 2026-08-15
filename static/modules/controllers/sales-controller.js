@@ -373,8 +373,10 @@ export function registerSalesControllerEvents(contract) {
 
         let editTarget = false;
         if (cart.status === "completed") {
+          const shouldClone = window.confirm("Đơn đã xuất kho không thể sửa trực tiếp. Bạn có muốn TẠO MỚI một bản sao để tiếp tục xuất nhanh không?");
+          if (!shouldClone) return;
           editTarget = false;
-          actions.showToast("Đơn đã xuất kho không thể sửa trực tiếp. Đang TẠO MỚI một đơn xuất dựa trên đơn đang mở.");
+          actions.showToast("Đang TẠO MỚI một đơn xuất dựa trên đơn đang mở.");
         } else {
           editTarget = true;
         }
