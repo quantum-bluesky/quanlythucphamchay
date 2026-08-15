@@ -1777,10 +1777,15 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             writer = csv.DictWriter(output, fieldnames=columns, extrasaction="ignore")
             writer.writeheader()
             for record in records:
-                row = {
-                    key: "" if record.get(key) is None else str(record.get(key))
-                    for key in columns
-                }
+                row = {}
+                for key in columns:
+                    val = record.get(key)
+                    if val is None:
+                        row[key] = ""
+                    elif key == "images" and isinstance(val, list):
+                        row[key] = json.dumps(val, ensure_ascii=False)
+                    else:
+                        row[key] = str(val)
                 writer.writerow(row)
             return output.getvalue().encode("utf-8-sig")
 
