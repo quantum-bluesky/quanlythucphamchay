@@ -11537,10 +11537,8 @@ class InventoryStore:
         summary = {"created": 0, "updated": 0, "restored": 0, "deleted": 0, "skipped": 0}
         products = self.get_products(include_deleted=True)
         by_name = {normalize_key(product["name"]): product for product in products}
-        by_id = {str(product["id"]): product for product in products}
 
         for record in records:
-            product_id = str(record.get("id") or "").strip()
             name = str(record.get("name") or "").strip()
             category = str(record.get("category") or "Đồ chay").strip()
             unit = str(record.get("unit") or "gói").strip()
@@ -11568,11 +11566,7 @@ class InventoryStore:
                 summary["skipped"] += 1
                 continue
 
-            existing = None
-            if product_id:
-                existing = by_id.get(product_id)
-            if not existing:
-                existing = by_name.get(normalize_key(name))
+            existing = by_name.get(normalize_key(name))
 
             if existing:
                 is_currently_deleted = existing.get("is_deleted")
@@ -11583,24 +11577,24 @@ class InventoryStore:
                     self.delete_product(existing["id"], actor=actor)
                     summary["deleted"] += 1
 
-                self.update_product(
-                    existing["id"],
-                    name=name,
-                    category=category,
-                    unit=unit,
-                    price=price,
-                    sale_price=record.get("sale_price"),
-                    low_stock_threshold=threshold,
-                    shelf_life_days=shelf_life_days,
-                    storage_life_days=storage_life_days,
-                    images=images,
-                    details=details,
-                    actor=actor,
-                )
-                summary["updated"] += 1
-                updated_prod = self.get_product_by_id(existing["id"])
-                by_name[normalize_key(name)] = updated_prod
-                by_id[str(existing["id"])] = updated_prod
+                if not wants_deleted:
+                    self.update_product(
+                        existing["id"],
+                        name=name,
+                        category=category,
+                        unit=unit,
+                        price=price,
+                        sale_price=record.get("sale_price"),
+                        low_stock_threshold=threshold,
+                        shelf_life_days=shelf_life_days,
+                        storage_life_days=storage_life_days,
+                        images=images,
+                        details=details,
+                        actor=actor,
+                    )
+                    summary["updated"] += 1
+                    updated_prod = self.get_product_by_id(existing["id"])
+                    by_name[normalize_key(name)] = updated_prod
             else:
                 created = self.create_product(
                     name=name,
@@ -11620,7 +11614,6 @@ class InventoryStore:
                     summary["deleted"] += 1
                 summary["created"] += 1
                 by_name[normalize_key(name)] = created
-                by_id[str(created["id"])] = created
 
         return summary
 

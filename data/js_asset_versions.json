@@ -1,5 +1,5 @@
 {
-  "app_version": "3.23.1",
+  "app_version": "3.23.2",
   "files": {
     "app.js": {
       "counter": 2,
