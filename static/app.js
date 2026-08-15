@@ -1937,6 +1937,7 @@ function getTodayDateInputValue() {
 
 function resetQuickSaleDraft() {
   state.quickSaleDraft = {
+    targetCartId: null,
     customerText: "",
     documentDate: getTodayDateInputValue(),
     note: "",
@@ -1969,11 +1970,12 @@ function resetQuickPurchaseDraft() {
   };
 }
 
-function cloneActiveCartIntoQuickSaleDraft() {
+function cloneActiveCartIntoQuickSaleDraft(options = {}) {
   const cart = getActiveCart();
   if (!cart) {
     throw new Error("Chưa có đơn hàng đang mở để lấy nhanh.");
   }
+  state.quickSaleDraft.targetCartId = options.editTarget ? String(cart.id || "") : null;
   state.quickSaleDraft.customerText = String(cart.customerName || "").trim();
   state.quickSaleDraft.note = String(cart.note || "").trim();
   state.quickSaleDraft.discountAmount = String(cart.discountAmount || "");

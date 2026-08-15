@@ -7456,6 +7456,7 @@ class InventoryStore:
         payment_method: str = "",
         payment_note: str = "",
         actor_username: str = "",
+        target_cart_id: str = "",
     ) -> dict:
         clean_final_status = self._normalize_quick_sale_final_status(final_status)
         if mark_paid and clean_final_status != "completed":
@@ -7463,6 +7464,7 @@ class InventoryStore:
         effective_at = self._normalize_document_event_at(document_date, "Ngày xuất") or utc_now_iso()
         clean_note = str(note or "").strip()
         clean_actor = str(actor_username or "").strip()
+        clean_target_cart_id = str(target_cart_id or "").strip()
         with self._connect() as connection:
             resolved_customer = self._ensure_customer_for_bulk_order(
                 connection,
@@ -7474,27 +7476,54 @@ class InventoryStore:
             if not grouped_items:
                 raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
             cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
-            cart_id = f"cart_{secrets.token_hex(6)}"
-            connection.execute(
-                """
-                INSERT INTO carts(
-                    id, customer_id, customer_name, created_mode, status, payment_status, payment_method, payment_note,
-                    note, discount_amount, ship_address, created_at, updated_at,
-                    committed_at, completed_at, cancelled_at, paid_at, order_code
+            
+            if clean_target_cart_id:
+                try:
+                    existing_cart = self._get_cart_document(connection, clean_target_cart_id)
+                    existing_status = str(existing_cart.get("status") or "").strip()
+                    if existing_status in {"completed", "cancelled"}:
+                        raise ValueError("Không thể ghi đè lên đơn đã xuất hàng hoặc đã hủy.")
+                    cart_id = clean_target_cart_id
+                    connection.execute(
+                        """
+                        UPDATE carts
+                        SET customer_id = ?, customer_name = ?, note = ?, discount_amount = ?, ship_address = ?, updated_at = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            str(resolved_customer.get("id") or "").strip(),
+                            str(resolved_customer.get("name") or "").strip(),
+                            clean_note,
+                            float(discount_amount or 0),
+                            str(resolved_customer.get("address") or "").strip(),
+                            effective_at,
+                            cart_id,
+                        ),
+                    )
+                except ValueError as e:
+                    raise ValueError(str(e))
+            else:
+                cart_id = f"cart_{secrets.token_hex(6)}"
+                connection.execute(
+                    """
+                    INSERT INTO carts(
+                        id, customer_id, customer_name, created_mode, status, payment_status, payment_method, payment_note,
+                        note, discount_amount, ship_address, created_at, updated_at,
+                        committed_at, completed_at, cancelled_at, paid_at, order_code
+                    )
+                    VALUES(?, ?, ?, 'quick_export', 'draft', 'unpaid', '', '', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, '')
+                    """,
+                    (
+                        cart_id,
+                        str(resolved_customer.get("id") or "").strip(),
+                        str(resolved_customer.get("name") or "").strip(),
+                        clean_note,
+                        float(discount_amount or 0),
+                        str(resolved_customer.get("address") or "").strip(),
+                        effective_at,
+                        effective_at,
+                    ),
                 )
-                VALUES(?, ?, ?, 'quick_export', 'draft', 'unpaid', '', '', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, '')
-                """,
-                (
-                    cart_id,
-                    str(resolved_customer.get("id") or "").strip(),
-                    str(resolved_customer.get("name") or "").strip(),
-                    clean_note,
-                    float(discount_amount or 0),
-                    str(resolved_customer.get("address") or "").strip(),
-                    effective_at,
-                    effective_at,
-                ),
-            )
             self._replace_cart_items(connection, cart_id=cart_id, items=cart_items)
             created_cart = self._get_cart_document(connection, cart_id)
             self._validate_cart_workflow_locks([], [created_cart])
@@ -7503,17 +7532,17 @@ class InventoryStore:
                 entity_type="cart",
                 entity_id=cart_id,
                 entity_name=str(created_cart.get("orderCode") or cart_id).strip(),
-                action="create",
+                action="update" if clean_target_cart_id else "create",
                 actor=clean_actor,
-                message="Tạo đơn bằng Xử lý nhanh xuất hàng.",
+                message="Sửa đơn bằng Xử lý nhanh xuất hàng." if clean_target_cart_id else "Tạo đơn bằng Xử lý nhanh xuất hàng.",
             )
             self._record_cart_change_history(
                 connection,
-                previous=None,
+                previous=existing_cart if clean_target_cart_id else None,
                 current=created_cart,
                 actor=clean_actor,
                 created_at=effective_at,
-                note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
             )
 
             current_cart = created_cart
@@ -7524,7 +7553,7 @@ class InventoryStore:
                     cart_id,
                     actor=clean_actor,
                     committed_at=effective_at,
-                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                    history_note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
                 )
             if clean_final_status == "completed":
                 ship_result = self._ship_cart_order_in_connection(
@@ -7532,7 +7561,7 @@ class InventoryStore:
                     cart_id,
                     actor=clean_actor,
                     shipped_at=effective_at,
-                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                    history_note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
                 )
                 current_cart = ship_result["cart"]
                 order_payload = ship_result["order"]
@@ -7546,7 +7575,7 @@ class InventoryStore:
                     payment_note=payment_note,
                     actor=clean_actor,
                     updated_at=effective_at,
-                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                    history_note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
                 )
 
             customers = self._refresh_sync_collection_cache(connection, "customers", updated_at=effective_at)

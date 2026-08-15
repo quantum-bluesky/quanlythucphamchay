@@ -1003,6 +1003,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
                 if route == "/api/orders/quick-create":
                     result = store.create_quick_sale(
+                        target_cart_id=payload.get("target_cart_id", ""),
                         customer_id=payload.get("customer_id", ""),
                         customer_name=payload.get("customer_name", ""),
                         document_date=payload.get("document_date", ""),
