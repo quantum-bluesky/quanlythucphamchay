@@ -3083,6 +3083,7 @@ class InventoryStore:
         is_public: bool | None = None,
         actor: str = "",
         allow_deleted: bool = False,
+        global_id: str | None = None,
     ) -> dict:
         (
             clean_name,
@@ -3121,6 +3122,8 @@ class InventoryStore:
             next_values["details"] = str(details).strip()
         if is_public is not None:
             next_values["is_public"] = 1 if is_public else 0
+        if global_id is not None:
+            next_values["global_id"] = str(global_id).strip()
 
         with self._connect() as connection:
             current_product = self._get_product_or_raise(connection, int(product_id), allow_deleted=allow_deleted)
@@ -11602,14 +11605,6 @@ class InventoryStore:
                 existing = by_name[normalize_key(name)]
 
             if existing:
-                is_currently_deleted = existing.get("is_deleted")
-                if is_currently_deleted and not wants_deleted:
-                    self.restore_product(existing["id"], actor=actor)
-                    summary["restored"] += 1
-                elif not is_currently_deleted and wants_deleted:
-                    self.delete_product(existing["id"], actor=actor)
-                    summary["deleted"] += 1
-
                 self.update_product(
                     existing["id"],
                     name=name,
@@ -11625,6 +11620,7 @@ class InventoryStore:
                     is_public=bool(record.get("is_public", 1)),
                     actor=actor,
                     allow_deleted=True,
+                    global_id=global_id if global_id else None,
                 )
                 summary["updated"] += 1
                 updated_prod = self.get_product_by_id(existing["id"], allow_deleted=True)
