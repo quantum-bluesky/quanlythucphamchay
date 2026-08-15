@@ -4,6 +4,7 @@ import re
 import secrets
 import shutil
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -162,6 +163,7 @@ class InventoryStore:
                 """
                 CREATE TABLE IF NOT EXISTS products (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    global_id TEXT UNIQUE,
                     name TEXT NOT NULL COLLATE NOCASE UNIQUE,
                     category TEXT NOT NULL,
                     unit TEXT NOT NULL,
@@ -533,6 +535,22 @@ class InventoryStore:
             columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(products)").fetchall()
             }
+            if "global_id" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN global_id TEXT"
+                )
+                products_without_global_id = connection.execute(
+                    "SELECT id FROM products WHERE global_id IS NULL OR global_id = ''"
+                ).fetchall()
+                for row in products_without_global_id:
+                    gid = f"prd_{uuid.uuid4().hex}"
+                    connection.execute(
+                        "UPDATE products SET global_id = ? WHERE id = ?",
+                        (gid, row["id"])
+                    )
+                connection.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_products_global_id ON products(global_id)"
+                )
             if "price" not in columns:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN price REAL NOT NULL DEFAULT 0"
@@ -2701,6 +2719,7 @@ class InventoryStore:
             sql = """
                 SELECT
                     p.id,
+                    p.global_id,
                     p.name,
                     p.category,
                     p.unit,
@@ -2855,6 +2874,7 @@ class InventoryStore:
         details: str = "",
         is_public: bool = True,
         actor: str = "",
+        global_id: str | None = None,
     ) -> dict:
         (
             clean_name,
@@ -2878,20 +2898,22 @@ class InventoryStore:
         now = utc_now_iso()
         clean_images = json.dumps([str(img).strip() for img in (images or []) if str(img).strip()], ensure_ascii=False)
         clean_details = str(details or "").strip()
+        gid = str(global_id).strip() if global_id and str(global_id).strip() else f"prd_{uuid.uuid4().hex}"
 
         with self._connect() as connection:
             try:
                 cursor = connection.execute(
                     """
                     INSERT INTO products (
-                        name, category, unit, low_stock_threshold,
+                        global_id, name, category, unit, low_stock_threshold,
                         price, sale_price, shelf_life_days, storage_life_days,
                         images, details, is_public,
                         created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
+                        gid,
                         clean_name,
                         clean_category,
                         clean_unit,
@@ -3060,6 +3082,7 @@ class InventoryStore:
         details: str | None = None,
         is_public: bool | None = None,
         actor: str = "",
+        allow_deleted: bool = False,
     ) -> dict:
         (
             clean_name,
@@ -3100,7 +3123,7 @@ class InventoryStore:
             next_values["is_public"] = 1 if is_public else 0
 
         with self._connect() as connection:
-            current_product = self._get_product_or_raise(connection, int(product_id))
+            current_product = self._get_product_or_raise(connection, int(product_id), allow_deleted=allow_deleted)
             try:
                 updates = []
                 values = []
@@ -3151,7 +3174,7 @@ class InventoryStore:
                 message=audit_message,
             )
 
-        return self.get_product_by_id(int(product_id))
+        return self.get_product_by_id(int(product_id), allow_deleted=allow_deleted)
 
     def delete_product(self, product_id: int, actor: str = "") -> dict:
         with self._connect() as connection:
@@ -3407,12 +3430,12 @@ class InventoryStore:
                     (key, now_str),
                 )
 
-    def get_product_by_id(self, product_id: int) -> dict:
+    def get_product_by_id(self, product_id: int, *, allow_deleted: bool = False) -> dict:
         with self._connect() as connection:
-            row = connection.execute(
-                """
+            query = """
                 SELECT
                     p.id,
+                    p.global_id,
                     p.name,
                     p.category,
                     p.unit,
@@ -3446,11 +3469,13 @@ class InventoryStore:
                     ) AS current_stock
                 FROM products p
                 LEFT JOIN transactions t ON t.product_id = p.id
-                WHERE p.id = ? AND p.is_deleted = 0
-                GROUP BY p.id
-                """,
-                (product_id,),
-            ).fetchone()
+                WHERE p.id = ?
+            """
+            if not allow_deleted:
+                query += " AND p.is_deleted = 0"
+            query += " GROUP BY p.id"
+            
+            row = connection.execute(query, (product_id,)).fetchone()
             if not row:
                 raise ValueError("Sản phẩm không tồn tại.")
             return self._serialize_product_rows(connection, [row])[0]
@@ -9608,6 +9633,7 @@ class InventoryStore:
                 expiry_basis = "storage_life"
         return {
             "id": row["id"],
+            "global_id": row["global_id"] if "global_id" in row.keys() else None,
             "name": row["name"],
             "category": row["category"],
             "unit": row["unit"],
@@ -11536,6 +11562,7 @@ class InventoryStore:
     def _import_products_master(self, records: list[dict], *, actor: str = "") -> dict:
         summary = {"created": 0, "updated": 0, "restored": 0, "deleted": 0, "skipped": 0}
         products = self.get_products(include_deleted=True)
+        by_global_id = {product["global_id"]: product for product in products if product.get("global_id")}
         by_name = {normalize_key(product["name"]): product for product in products}
 
         for record in records:
@@ -11562,11 +11589,17 @@ class InventoryStore:
             is_deleted_str = str(record.get("is_deleted") or "").strip().lower()
             wants_deleted = is_deleted_str in ("1", "true", "yes")
 
+            global_id = str(record.get("global_id") or "").strip()
+
             if not name:
                 summary["skipped"] += 1
                 continue
 
-            existing = by_name.get(normalize_key(name))
+            existing = None
+            if global_id and global_id in by_global_id:
+                existing = by_global_id[global_id]
+            elif normalize_key(name) in by_name:
+                existing = by_name[normalize_key(name)]
 
             if existing:
                 is_currently_deleted = existing.get("is_deleted")
@@ -11577,24 +11610,27 @@ class InventoryStore:
                     self.delete_product(existing["id"], actor=actor)
                     summary["deleted"] += 1
 
-                if not wants_deleted:
-                    self.update_product(
-                        existing["id"],
-                        name=name,
-                        category=category,
-                        unit=unit,
-                        price=price,
-                        sale_price=record.get("sale_price"),
-                        low_stock_threshold=threshold,
-                        shelf_life_days=shelf_life_days,
-                        storage_life_days=storage_life_days,
-                        images=images,
-                        details=details,
-                        actor=actor,
-                    )
-                    summary["updated"] += 1
-                    updated_prod = self.get_product_by_id(existing["id"])
-                    by_name[normalize_key(name)] = updated_prod
+                self.update_product(
+                    existing["id"],
+                    name=name,
+                    category=category,
+                    unit=unit,
+                    price=price,
+                    sale_price=record.get("sale_price"),
+                    low_stock_threshold=threshold,
+                    shelf_life_days=shelf_life_days,
+                    storage_life_days=storage_life_days,
+                    images=images,
+                    details=details,
+                    is_public=bool(record.get("is_public", 1)),
+                    actor=actor,
+                    allow_deleted=True,
+                )
+                summary["updated"] += 1
+                updated_prod = self.get_product_by_id(existing["id"], allow_deleted=True)
+                by_name[normalize_key(name)] = updated_prod
+                if updated_prod.get("global_id"):
+                    by_global_id[updated_prod["global_id"]] = updated_prod
             else:
                 created = self.create_product(
                     name=name,
@@ -11607,35 +11643,58 @@ class InventoryStore:
                     storage_life_days=storage_life_days,
                     images=images,
                     details=details,
+                    is_public=bool(record.get("is_public", 1)),
                     actor=actor,
+                    global_id=global_id,
                 )
                 if wants_deleted:
                     self.delete_product(created["id"], actor=actor)
                     summary["deleted"] += 1
                 summary["created"] += 1
                 by_name[normalize_key(name)] = created
+                if created.get("global_id"):
+                    by_global_id[created["global_id"]] = created
 
         return summary
 
     def _import_sync_master(self, state_key: str, records: list[dict], *, actor: str = "") -> dict:
         existing = self._get_sync_collection(state_key)
-        active_items = {normalize_key(item.get("name")): item for item in existing if item.get("name")}
+        final_items_by_id = {}
+        final_items_by_name = {}
+        for item in existing:
+            if item.get("id"):
+                final_items_by_id[item["id"]] = item
+            elif item.get("name"):
+                final_items_by_name[normalize_key(item["name"])] = item
+
         summary = {"created": 0, "updated": 0, "restored": 0, "skipped": 0}
 
         for record in records:
             name = str(record.get("name") or "").strip()
+            record_id = str(record.get("id") or "").strip()
+            
             if not name:
                 summary["skipped"] += 1
                 continue
-            normalized = normalize_key(name)
-            previous = active_items.get(normalized)
+                
+            previous = None
+            if record_id and record_id in final_items_by_id:
+                previous = final_items_by_id[record_id]
+            elif normalize_key(name) in final_items_by_name:
+                previous = final_items_by_name[normalize_key(name)]
+            elif not record_id:
+                for item in final_items_by_id.values():
+                    if normalize_key(item.get("name")) == normalize_key(name):
+                        previous = item
+                        break
+
             payload = {
                 **(previous or {}),
                 **record,
-                "id": (previous or {}).get("id") or record.get("id") or f"{state_key}_{secrets.token_hex(6)}",
+                "id": (previous or {}).get("id") or record_id or f"{state_key}_{secrets.token_hex(6)}",
                 "name": name,
-                "deletedAt": None,
-                "deleted_at": None,
+                "deletedAt": record.get("deletedAt") or record.get("deleted_at") or None,
+                "deleted_at": record.get("deletedAt") or record.get("deleted_at") or None,
                 "updatedAt": utc_now_iso(),
             }
             if not previous:
@@ -11645,9 +11704,12 @@ class InventoryStore:
                 if previous.get("deletedAt") or previous.get("deleted_at"):
                     summary["restored"] += 1
                 summary["updated"] += 1
-            active_items[normalized] = payload
+                
+            final_items_by_id[payload["id"]] = payload
+            if previous and not previous.get("id") and previous.get("name") and normalize_key(previous["name"]) in final_items_by_name:
+                del final_items_by_name[normalize_key(previous["name"])]
 
-        merged = list(active_items.values())
+        merged = list(final_items_by_id.values()) + list(final_items_by_name.values())
         payload = {state_key: merged}
         if actor:
             payload["actor"] = actor

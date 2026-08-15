@@ -30,7 +30,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
     procurement_config = (system_config or {}).get("procurement", {})
     mail_config = (system_config or {}).get("mail", {})
     auth_enabled = bool((system_config or {}).get("EnableLogin"))
-    app_version = str((system_config or {}).get("version") or "").strip() or "2.3.1"
+    app_version = str((system_config or {}).get("version") or "").strip() or "3.24.0"
     asset_versions_path = Path((system_config or {}).get("asset_versions_path") or JS_ASSET_VERSIONS_PATH)
     js_asset_versions = JavaScriptAssetVersionManager(
         static_root=STATIC_DIR,
@@ -1731,6 +1731,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             if entity_type == "products":
                 return [
                     "id",
+                    "global_id",
                     "name",
                     "category",
                     "unit",
@@ -1741,6 +1742,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     "storage_life_days",
                     "images",
                     "details",
+                    "is_public",
                     "is_deleted",
                     "deleted_at",
                     "created_at",
@@ -1823,6 +1825,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     "sale_price",
                     "low_stock_threshold",
                 }
+            elif entity_type == "customers":
+                required_headers = {"name", "phone"}
+            elif entity_type == "suppliers":
+                required_headers = {"name", "phone"}
             missing_headers = sorted(required_headers - normalized_headers)
             if missing_headers:
                 raise ValueError(
@@ -1843,6 +1849,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     records.append(
                         {
                             "id": data.get("id", ""),
+                            "global_id": data.get("global_id", ""),
                             "name": data.get("name", ""),
                             "category": data.get("category", ""),
                             "unit": data.get("unit", ""),
