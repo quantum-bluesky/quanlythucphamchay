@@ -3252,6 +3252,52 @@ class InventoryStore:
             )
         return self.get_product_by_id(int(product_id))
 
+    def hard_delete_product(self, product_id: int, actor: str = "") -> dict:
+        with self._connect() as connection:
+            product = self._get_product_or_raise(connection, int(product_id), allow_deleted=True)
+            try:
+                connection.execute("DELETE FROM products WHERE id = ?", (int(product_id),))
+                connection.execute("DELETE FROM audit_logs WHERE entity_type = 'product' AND entity_id = ?", (str(product_id),))
+            except sqlite3.IntegrityError:
+                raise ValueError("Không thể xóa hẳn vì sản phẩm đã phát sinh giao dịch/chứng từ.")
+            return {
+                "product_id": int(product_id),
+                "product_name": product["name"],
+                "message": "Đã xóa hẳn sản phẩm khỏi hệ thống."
+            }
+
+    def hard_delete_customer(self, customer_id: str, actor: str = "") -> dict:
+        clean_id = str(customer_id).strip()
+        with self._connect() as connection:
+            customer = connection.execute("SELECT id, name FROM customers WHERE id = ?", (clean_id,)).fetchone()
+            if not customer:
+                raise ValueError("Khách hàng không tồn tại.")
+            if connection.execute("SELECT 1 FROM carts WHERE customer_id = ? LIMIT 1", (clean_id,)).fetchone():
+                raise ValueError("Không thể xóa hẳn vì khách hàng đã phát sinh đơn hàng.")
+            connection.execute("DELETE FROM customers WHERE id = ?", (clean_id,))
+            connection.execute("DELETE FROM audit_logs WHERE entity_type = 'customer' AND entity_id = ?", (clean_id,))
+            return {
+                "customer_id": clean_id,
+                "customer_name": customer["name"],
+                "message": "Đã xóa hẳn khách hàng khỏi hệ thống."
+            }
+
+    def hard_delete_supplier(self, supplier_id: str, actor: str = "") -> dict:
+        clean_id = str(supplier_id).strip()
+        with self._connect() as connection:
+            supplier = connection.execute("SELECT id, name FROM suppliers WHERE id = ?", (clean_id,)).fetchone()
+            if not supplier:
+                raise ValueError("Nhà cung cấp không tồn tại.")
+            if connection.execute("SELECT 1 FROM purchases WHERE supplier_id = ? LIMIT 1", (clean_id,)).fetchone():
+                raise ValueError("Không thể xóa hẳn vì nhà cung cấp đã phát sinh phiếu nhập.")
+            connection.execute("DELETE FROM suppliers WHERE id = ?", (clean_id,))
+            connection.execute("DELETE FROM audit_logs WHERE entity_type = 'supplier' AND entity_id = ?", (clean_id,))
+            return {
+                "supplier_id": clean_id,
+                "supplier_name": supplier["name"],
+                "message": "Đã xóa hẳn nhà cung cấp khỏi hệ thống."
+            }
+
     def get_deleted_products(self) -> list[dict]:
         return [product for product in self.get_products(include_deleted=True) if product["is_deleted"]]
 

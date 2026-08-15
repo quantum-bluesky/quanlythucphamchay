@@ -248,7 +248,10 @@ export function createEntitiesUi(deps) {
     const pageData = paginateItems(deletedCustomers, "deletedCustomers");
     dom.deletedCustomerList.innerHTML = pageData.items.map((customer) => {
       const impact = getCustomerDeleteImpact(customer.id);
-      return `<article class="customer-item"><div class="customer-header"><strong>${escapeHtml(customer.name)}</strong><span class="status-pill cancelled">Đã xóa</span></div><div class="customer-meta"><span>${escapeHtml(customer.phone || "Chưa có số liên lạc")}</span><span>${escapeHtml(formatDate(customer.deletedAt))}</span></div><div class="cart-line-note">Lịch sử đơn đã giữ nguyên. Khôi phục sẽ đưa khách hàng quay lại danh bạ đang dùng.</div><div class="cart-line-note">Đơn lịch sử liên quan: ${escapeHtml(String(impact.historyCount))}</div><div class="row-actions"><button type="button" class="ghost-button compact-button" data-deleted-customer-action="restore" data-customer-id="${customer.id}">Khôi phục</button></div></article>`;
+      const hardDeleteBtn = state.admin?.username === "masteradmin"
+        ? `<button type="button" class="btn btn-outline compact-button" style="color: var(--danger);" data-deleted-customer-action="hard-delete" data-customer-id="${customer.id}">Xóa hẳn</button>`
+        : "";
+      return `<article class="customer-item"><div class="customer-header"><strong>${escapeHtml(customer.name)}</strong><span class="status-pill cancelled">Đã xóa</span></div><div class="customer-meta"><span>${escapeHtml(customer.phone || "Chưa có số liên lạc")}</span><span>${escapeHtml(formatDate(customer.deletedAt))}</span></div><div class="cart-line-note">Lịch sử đơn đã giữ nguyên. Khôi phục sẽ đưa khách hàng quay lại danh bạ đang dùng.</div><div class="cart-line-note">Đơn lịch sử liên quan: ${escapeHtml(String(impact.historyCount))}</div><div class="row-actions">${hardDeleteBtn}<button type="button" class="ghost-button compact-button" data-deleted-customer-action="restore" data-customer-id="${customer.id}">Khôi phục</button></div></article>`;
     }).join("") + renderPagination("deletedCustomers", pageData);
   }
 
@@ -261,7 +264,10 @@ export function createEntitiesUi(deps) {
     const pageData = paginateItems(deletedSuppliers, "deletedSuppliers");
     dom.deletedSupplierList.innerHTML = pageData.items.map((supplier) => {
       const impact = getSupplierDeleteImpact(supplier.name);
-      return `<article class="customer-item"><div class="customer-header"><strong>${escapeHtml(supplier.name)}</strong><span class="status-pill cancelled">Đã xóa</span></div><div class="customer-meta"><span>${escapeHtml(supplier.phone || "Chưa có số liên lạc")}</span><span>${escapeHtml(formatDate(supplier.deletedAt))}</span></div><div class="cart-line-note">Phiếu nhập lịch sử vẫn giữ nguyên. Khôi phục sẽ đưa nhà cung cấp quay lại danh bạ hoạt động.</div><div class="cart-line-note">Phiếu nhập lịch sử liên quan: ${escapeHtml(String(impact.historyCount))}</div><div class="row-actions"><button type="button" class="ghost-button compact-button" data-deleted-supplier-action="restore" data-supplier-id="${supplier.id}">Khôi phục</button></div></article>`;
+      const hardDeleteBtn = state.admin?.username === "masteradmin"
+        ? `<button type="button" class="btn btn-outline compact-button" style="color: var(--danger);" data-deleted-supplier-action="hard-delete" data-supplier-id="${supplier.id}">Xóa hẳn</button>`
+        : "";
+      return `<article class="customer-item"><div class="customer-header"><strong>${escapeHtml(supplier.name)}</strong><span class="status-pill cancelled">Đã xóa</span></div><div class="customer-meta"><span>${escapeHtml(supplier.phone || "Chưa có số liên lạc")}</span><span>${escapeHtml(formatDate(supplier.deletedAt))}</span></div><div class="cart-line-note">Phiếu nhập lịch sử vẫn giữ nguyên. Khôi phục sẽ đưa nhà cung cấp quay lại danh bạ hoạt động.</div><div class="cart-line-note">Phiếu nhập lịch sử liên quan: ${escapeHtml(String(impact.historyCount))}</div><div class="row-actions">${hardDeleteBtn}<button type="button" class="ghost-button compact-button" data-deleted-supplier-action="restore" data-supplier-id="${supplier.id}">Khôi phục</button></div></article>`;
     }).join("") + renderPagination("deletedSuppliers", pageData);
   }
 

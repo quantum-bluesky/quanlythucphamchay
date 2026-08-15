@@ -1685,26 +1685,60 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             route = self._normalize_route_path(self.path)
             if self._is_login_enabled() and not self._require_authenticated_session():
                 return
-            match = re.fullmatch(r"/api/products/(\d+)$", route)
-            if not match:
-                self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
+            if route.startswith("/api/admin/"):
+                if not self._require_admin():
+                    return
+                
+                match = re.fullmatch(r"/api/admin/products/(\d+)/hard", route)
+                if match:
+                    try:
+                        deleted = store.hard_delete_product(match.group(1), actor=self._get_current_actor_name())
+                        self._send_json(HTTPStatus.OK, deleted)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+                match = re.fullmatch(r"/api/admin/customers/([^/]+)/hard", route)
+                if match:
+                    try:
+                        deleted = store.hard_delete_customer(match.group(1), actor=self._get_current_actor_name())
+                        self._send_json(HTTPStatus.OK, deleted)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+                match = re.fullmatch(r"/api/admin/suppliers/([^/]+)/hard", route)
+                if match:
+                    try:
+                        deleted = store.hard_delete_supplier(match.group(1), actor=self._get_current_actor_name())
+                        self._send_json(HTTPStatus.OK, deleted)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+                
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API admin."})
                 return
 
-            try:
-                deleted = store.delete_product(
-                    match.group(1),
-                    actor=self._get_current_actor_name(),
-                )
-                self._send_json(
-                    HTTPStatus.OK,
-                    {
-                        "message": "Đã chuyển sản phẩm sang danh mục đã xóa.",
-                        "deleted": deleted,
-                        "summary": store.get_summary(),
-                    },
-                )
-            except ValueError as exc:
-                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            match = re.fullmatch(r"/api/products/(\d+)$", route)
+            if match:
+                try:
+                    deleted = store.delete_product(
+                        match.group(1),
+                        actor=self._get_current_actor_name(),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã chuyển sản phẩm sang danh mục đã xóa.",
+                            "deleted": deleted,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
 
         def log_message(self, format_string: str, *args) -> None:
             return
