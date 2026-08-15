@@ -1729,6 +1729,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
         def _master_csv_columns(entity_type: str) -> list[str]:
             if entity_type == "products":
                 return [
+                    "id",
                     "name",
                     "category",
                     "unit",
@@ -1737,6 +1738,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     "low_stock_threshold",
                     "shelf_life_days",
                     "storage_life_days",
+                    "images",
+                    "details",
+                    "is_deleted",
+                    "deleted_at",
+                    "created_at",
+                    "updated_at",
                 ]
             if entity_type == "customers":
                 return [
@@ -1829,6 +1836,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     storage_life_days = cls._parse_csv_float(data.get("storage_life_days", ""), "storage_life_days", None)
                     records.append(
                         {
+                            "id": data.get("id", ""),
                             "name": data.get("name", ""),
                             "category": data.get("category", ""),
                             "unit": data.get("unit", ""),
@@ -1837,6 +1845,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "low_stock_threshold": 5 if threshold is None else threshold,
                             "shelf_life_days": shelf_life_days,
                             "storage_life_days": storage_life_days,
+                            "images": data.get("images", ""),
+                            "details": data.get("details", ""),
+                            "is_deleted": data.get("is_deleted", ""),
+                            "deleted_at": data.get("deleted_at", ""),
+                            "created_at": data.get("created_at", ""),
+                            "updated_at": data.get("updated_at", ""),
                         }
                     )
                     continue
