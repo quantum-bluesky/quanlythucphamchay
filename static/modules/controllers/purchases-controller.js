@@ -981,6 +981,12 @@ export function registerPurchasesControllerEvents(contract) {
       return;
     }
     if (actionButton.dataset.purchaseAction === "delete") {
+      if (purchase._adminEditingPurchaseId) {
+        state.purchases = state.purchases.filter(p => p.id !== purchase.id);
+        state.activePurchaseId = purchase._adminEditingPurchaseId;
+        actions.saveAndRenderAll();
+        return;
+      }
       if (!queries.canDeletePurchase(purchase)) {
         actions.showToast("Chỉ được xóa hẳn phiếu nhập nháp hoặc phiếu lỗi chưa nhập kho.", true);
         return;
@@ -1031,6 +1037,12 @@ export function registerPurchasesControllerEvents(contract) {
       return;
     }
     if (actionButton.dataset.purchaseAction === "cancel") {
+      if (purchase._adminEditingPurchaseId) {
+        state.purchases = state.purchases.filter(p => p.id !== purchase.id);
+        state.activePurchaseId = purchase._adminEditingPurchaseId;
+        actions.saveAndRenderAll();
+        return;
+      }
       if (!queries.canCancelPurchase(purchase)) {
         actions.showToast("Phiếu nhập đã khóa, không thể hủy trực tiếp.", true);
         return;
@@ -1147,6 +1159,15 @@ export function registerPurchasesControllerEvents(contract) {
       }
       return;
     }
+    if (actionButton.dataset.purchaseAction === "admin-edit") {
+      const reason = window.prompt("Lý do sửa phiếu (bắt buộc):");
+      if (!reason || !reason.trim()) {
+        actions.showToast("Cần nhập lý do sửa phiếu.", true);
+        return;
+      }
+      actions.beginAdminEditPurchase(purchase.id, reason.trim());
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "repeat") {
       try {
         await actions.flushPendingPersistCollections();
@@ -1179,13 +1200,40 @@ export function registerPurchasesControllerEvents(contract) {
       }
       try {
         await actions.flushPendingPersistCollections();
-        const data = await actions.apiRequest("/api/purchases/receive", {
-          method: "POST",
-          body: JSON.stringify({
-            purchase_id: latestPurchase.id,
-            discount_amount: latestPurchase.discountAmount || 0,
-          }),
-        });
+        let data;
+        if (latestPurchase._adminEditingPurchaseId) {
+          data = await actions.apiRequest("/api/admin/purchases/edit-locked", {
+            method: "POST",
+            body: JSON.stringify({
+              purchase_id: latestPurchase._adminEditingPurchaseId,
+              reason: latestPurchase._adminEditReason,
+              items: latestPurchase.items.map((item) => ({
+                product_id: item.productId,
+                quantity: item.quantity,
+                unit_cost: item.unitCost,
+                batch_code: item.batchCode,
+                manufacture_date: item.manufactureDate,
+                expiry_date: item.expiryDate,
+              })),
+              discount_amount: latestPurchase.discountAmount || 0,
+              note: latestPurchase.note,
+            }),
+          });
+          state.purchases = state.purchases.filter(p => p.id !== latestPurchase.id);
+          await actions.persistCollections(["purchases"]);
+          await actions.refreshData();
+          state.activePurchaseId = latestPurchase._adminEditingPurchaseId;
+          actions.showToast(data.message || "Đã lưu thay đổi Admin.");
+          return;
+        } else {
+          data = await actions.apiRequest("/api/purchases/receive", {
+            method: "POST",
+            body: JSON.stringify({
+              purchase_id: latestPurchase.id,
+              discount_amount: latestPurchase.discountAmount || 0,
+            }),
+          });
+        }
         await actions.refreshData();
         state.activePurchaseId = latestPurchase.id;
         actions.showToast(data.message);
@@ -1335,6 +1383,15 @@ export function registerPurchasesControllerEvents(contract) {
     }
     if (button.dataset.purchaseListAction === "copy-text") {
       actions.copyPurchaseText(button.dataset.purchaseId);
+      return;
+    }
+    if (button.dataset.purchaseListAction === "admin-edit") {
+      const reason = window.prompt("Lý do sửa phiếu (bắt buộc):");
+      if (!reason || !reason.trim()) {
+        actions.showToast("Cần nhập lý do sửa phiếu.", true);
+        return;
+      }
+      actions.beginAdminEditPurchase(button.dataset.purchaseId, reason.trim());
       return;
     }
     if (button.dataset.purchaseListAction === "repeat") {

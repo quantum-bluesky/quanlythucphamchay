@@ -6520,6 +6520,40 @@ async function checkoutActiveCart() {
   showToast(data.message);
 }
 
+function beginAdminEditCart(originalCartId, reason) {
+  const originalCart = getCartById(originalCartId);
+  if (!originalCart) return;
+  const clonedCart = {
+    ...originalCart,
+    id: createId("cart"),
+    status: "draft",
+    _adminEditingOrderId: originalCartId,
+    _adminEditReason: reason
+  };
+  state.carts.push(clonedCart);
+  setActiveCart(clonedCart.id);
+  state.activeCartDetailExpanded = false;
+  switchMenu("create-order");
+  saveAndRenderAll();
+}
+
+function beginAdminEditPurchase(originalPurchaseId, reason) {
+  const originalPurchase = getPurchaseById(originalPurchaseId);
+  if (!originalPurchase) return;
+  const clonedPurchase = {
+    ...originalPurchase,
+    id: createId("purchase"),
+    status: "ordered",
+    _adminEditingPurchaseId: originalPurchaseId,
+    _adminEditReason: reason
+  };
+  state.purchases.push(clonedPurchase);
+  setActivePurchase(clonedPurchase.id);
+  state.purchaseDetailExpanded = false;
+  switchMenu("manage-purchases");
+  saveAndRenderAll();
+}
+
 async function commitActiveCart() {
   const cart = getActiveCart();
   if (!cart) {
@@ -6585,12 +6619,41 @@ async function commitActiveCart() {
     throw new Error("Đã tạo hoặc cập nhật phiếu nhập dự kiến để bù thiếu cho đơn này.");
   }
 
-  const data = await apiRequest("/api/orders/commit", {
-    method: "POST",
-    body: JSON.stringify({
-      cart_id: cart.id,
-    }),
-  });
+  let data;
+  if (cart._adminEditingOrderId) {
+    data = await apiRequest("/api/admin/orders/edit-locked", {
+      method: "POST",
+      body: JSON.stringify({
+        cart_id: cart._adminEditingOrderId,
+        reason: cart._adminEditReason,
+        items: cart.items.map((item) => ({
+          product_id: item.productId,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          note: item.note,
+        })),
+        discount_amount: cart.discountAmount,
+        note: cart.note,
+        ship_address: cart.shipAddress,
+      }),
+    });
+    // Remove the temporary draft cart
+    state.carts = state.carts.filter(c => c.id !== cart.id);
+    await persistCollectionsWithoutConflictCheck(["carts"]);
+    await refreshData();
+    state.activeCartId = cart._adminEditingOrderId;
+    state.activeCartPanelCollapsed = mobileQuery.matches;
+    state.activeCartDetailExpanded = false;
+    showToast(data.message || "Đã lưu thay đổi Admin.");
+    return;
+  } else {
+    data = await apiRequest("/api/orders/commit", {
+      method: "POST",
+      body: JSON.stringify({
+        cart_id: cart.id,
+      }),
+    });
+  }
 
   await refreshData();
   state.activeCartId = cart.id;
@@ -6917,6 +6980,7 @@ registerSalesControllerEvents({
     approveDocumentCancelRequest,
     rejectDocumentCancelRequest,
     setPaginationPageForItem,
+    beginAdminEditCart,
   },
   renderers: {
     renderQuickSalePanel,
@@ -7127,6 +7191,7 @@ registerPurchasesControllerEvents({
     resetQuickPurchaseDraft,
     cloneActivePurchaseIntoQuickPurchaseDraft,
     setPaginationPageForItem,
+    beginAdminEditPurchase,
   },
   renderers: {
     renderQuickPurchasePanel,
