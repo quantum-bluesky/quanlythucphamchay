@@ -628,9 +628,11 @@ export function createSalesUi(deps) {
         <div class="cart-toolbar">
           <button type="button" class="ghost-button" data-cart-action="create-new">Tạo đơn mới</button>
           ${canPrint ? `<button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In phiếu"}</button><button type="button" class="ghost-button" data-cart-action="copy-text">${compact ? "Copy" : "Copy text"}</button>` : ""}
-          ${cart.status === "draft"
-            ? `<button type="button" class="primary-button" data-cart-action="commit" ${cart.itemCount ? "" : "disabled"}>${cart._adminEditingOrderId ? "Lưu (Admin Bypass)" : (compact ? "Chốt" : "Chốt đơn")}</button>`
-            : `<button type="button" class="primary-button" data-cart-action="ship" ${cart.itemCount ? "" : "disabled"}>${compact ? "Xuất" : "Xuất hàng"}</button>`}
+          ${cart._adminEditMode
+            ? `<button type="button" class="primary-button" data-cart-action="admin-bypass-save" ${cart.itemCount ? "" : "disabled"}>Lưu (Admin Bypass)</button>`
+            : cart.status === "draft"
+              ? `<button type="button" class="primary-button" data-cart-action="commit" ${cart.itemCount ? "" : "disabled"}>${compact ? "Chốt" : "Chốt đơn"}</button>`
+              : `<button type="button" class="primary-button" data-cart-action="ship" ${cart.itemCount ? "" : "disabled"}>${compact ? "Xuất" : "Xuất hàng"}</button>`}
           <button type="button" class="secondary-button" data-cart-action="cancel">${compact ? "Hủy" : "Hủy đơn"}</button>
           ${canDeleteCart(cart) ? `<button type="button" class="danger-button" data-cart-action="delete">${compact ? "Xóa" : "Xóa giỏ"}</button>` : ""}
         </div>

@@ -1071,7 +1071,23 @@ export function registerSalesControllerEvents(contract) {
       }
       return;
     }
+    if (button.dataset.cartAction === "admin-bypass-save") {
+      try {
+        await actions.flushPendingPersistCollections();
+        await actions.saveAdminBypassCart();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (button.dataset.cartAction === "cancel") {
+      if (cart._adminEditMode) {
+        delete cart._adminEditMode;
+        delete cart._adminEditReason;
+        await actions.refreshData(); // discard local modifications
+        actions.saveAndRenderAll();
+        return;
+      }
       if (!confirmCartStatusAction(cart, "cancel")) {
         return;
       }

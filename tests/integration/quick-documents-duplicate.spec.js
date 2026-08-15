@@ -100,6 +100,14 @@ test("ACC-QUICK-06 quick import and export lock the saved form to prevent duplic
 
   await switchMenu(page, "create-order");
   await expectScreenTitle(page, "Tạo đơn xuất hàng");
+  const quickSaleTab = page.locator('[data-sales-tab="quick"]');
+  if (await quickSaleTab.isVisible()) {
+    await quickSaleTab.click();
+  }
+  const quickSaleToggle = page.locator('[data-quick-sale-action="toggle-panel"]');
+  if (await quickSaleToggle.isVisible() && (await quickSaleToggle.textContent()).trim() === "Mở rộng") {
+    await quickSaleToggle.click();
+  }
   await waitForProductOption(page, product.name);
   await page.locator("#quickSaleCustomerInput").fill(saleCustomerName);
   await addQuickSaleLine(page, product.name, 2, unitPrice);
@@ -118,6 +126,14 @@ test("ACC-QUICK-06 quick import and export lock the saved form to prevent duplic
 
   await switchMenu(page, "purchases");
   await expectScreenTitle(page, "Nhập hàng");
+  const quickPurchaseTab = page.locator('[data-purchase-tab="quick"]');
+  if (await quickPurchaseTab.isVisible()) {
+    await quickPurchaseTab.click();
+  }
+  const quickPurchaseToggle = page.locator('[data-quick-purchase-action="toggle-panel"]');
+  if (await quickPurchaseToggle.isVisible() && (await quickPurchaseToggle.textContent()).trim() === "Mở rộng") {
+    await quickPurchaseToggle.click();
+  }
   await waitForProductOption(page, product.name);
   await page.locator("#quickPurchaseSupplierInput").fill(purchaseSupplierName);
   await addQuickPurchaseLine(page, product.name, 3, unitCost);

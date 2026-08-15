@@ -314,6 +314,7 @@ test("IT-ORD-09 sales order note can be created from form and edited from order 
     await orderCard.locator('[data-queue-action="toggle-detail"]').click();
 
     const detailPanel = page.locator("#orderDetailPanel");
+    await detailPanel.locator('[data-order-detail-action="toggle-detail-meta"]').click();
     await expect(detailPanel).toContainText(initialNote);
     const detailNoteInput = detailPanel.locator(`[data-cart-note-input="${createdDraft.id}"]`);
     await expect(detailNoteInput).toHaveValue(initialNote);

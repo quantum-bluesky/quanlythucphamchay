@@ -5840,6 +5840,11 @@ function renderDeletedProducts() {
           </div>
           <div class="cart-line-note">Khi khôi phục, sản phẩm sẽ quay lại tồn kho, tạo đơn, nhập hàng và danh mục đang dùng.</div>
           <div class="row-actions">
+            ${
+              state.admin?.username === "masteradmin"
+                ? `<button type="button" class="btn btn-outline compact-button" style="color: var(--danger);" data-deleted-product-action="hard-delete" data-product-id="${product.id}">Xóa hẳn</button>`
+                : ""
+            }
             <button type="button" class="ghost-button compact-button" data-deleted-product-action="restore" data-product-id="${product.id}">Khôi phục</button>
           </div>
         </article>
@@ -6523,37 +6528,78 @@ async function checkoutActiveCart() {
 }
 
 function beginAdminEditCart(originalCartId, reason) {
-  const originalCart = getCartById(originalCartId);
-  if (!originalCart) return;
-  const clonedCart = {
-    ...originalCart,
-    id: createId("cart"),
-    status: "draft",
-    _adminEditingOrderId: originalCartId,
-    _adminEditReason: reason
-  };
-  state.carts.push(clonedCart);
-  setActiveCart(clonedCart.id);
+  const cart = getCartById(originalCartId);
+  if (!cart) return;
+  cart._adminEditMode = true;
+  cart._adminEditReason = reason;
+  setActiveCart(cart.id);
   state.activeCartDetailExpanded = false;
   switchMenu("create-order");
   saveAndRenderAll();
 }
 
 function beginAdminEditPurchase(originalPurchaseId, reason) {
-  const originalPurchase = getPurchaseById(originalPurchaseId);
-  if (!originalPurchase) return;
-  const clonedPurchase = {
-    ...originalPurchase,
-    id: createId("purchase"),
-    status: "ordered",
-    _adminEditingPurchaseId: originalPurchaseId,
-    _adminEditReason: reason
-  };
-  state.purchases.push(clonedPurchase);
-  setActivePurchase(clonedPurchase.id);
+  const purchase = getPurchaseById(originalPurchaseId);
+  if (!purchase) return;
+  purchase._adminEditMode = true;
+  purchase._adminEditReason = reason;
+  setActivePurchase(purchase.id);
   state.purchaseDetailExpanded = false;
-  switchMenu("manage-purchases");
+  switchMenu("purchases");
   saveAndRenderAll();
+}
+
+
+async function saveAdminBypassCart() {
+  const cart = getActiveCart();
+  if (!cart || !cart._adminEditMode) return;
+  const data = await apiRequest("/api/admin/orders/edit-locked", {
+    method: "POST",
+    body: JSON.stringify({
+      cart_id: cart.id,
+      reason: cart._adminEditReason,
+      items: cart.items.map((item) => ({
+        product_id: item.productId,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        note: item.note,
+      })),
+      discount_amount: cart.discountAmount,
+      note: cart.note,
+      ship_address: cart.shipAddress,
+    }),
+  });
+  delete cart._adminEditMode;
+  delete cart._adminEditReason;
+  await persistCollectionsWithoutConflictCheck(["carts"]);
+  await refreshData();
+  showToast(data.message || "Đã lưu thay đổi Admin.");
+}
+
+async function saveAdminBypassPurchase() {
+  const purchase = getActivePurchase();
+  if (!purchase || !purchase._adminEditMode) return;
+  const data = await apiRequest("/api/admin/purchases/edit-locked", {
+    method: "POST",
+    body: JSON.stringify({
+      purchase_id: purchase.id,
+      reason: purchase._adminEditReason,
+      items: purchase.items.map((item) => ({
+        product_id: item.productId,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        note: item.note,
+      })),
+      discount_amount: purchase.discountAmount,
+      note: purchase.note,
+      supplier_name: purchase.supplierName,
+    }),
+  });
+  delete purchase._adminEditMode;
+  delete purchase._adminEditReason;
+  await persistCollectionsWithoutConflictCheck(["purchases"]);
+  await refreshData();
+  showToast(data.message || "Đã lưu thay đổi Admin.");
 }
 
 async function commitActiveCart() {
@@ -6621,41 +6667,12 @@ async function commitActiveCart() {
     throw new Error("Đã tạo hoặc cập nhật phiếu nhập dự kiến để bù thiếu cho đơn này.");
   }
 
-  let data;
-  if (cart._adminEditingOrderId) {
-    data = await apiRequest("/api/admin/orders/edit-locked", {
-      method: "POST",
-      body: JSON.stringify({
-        cart_id: cart._adminEditingOrderId,
-        reason: cart._adminEditReason,
-        items: cart.items.map((item) => ({
-          product_id: item.productId,
-          quantity: item.quantity,
-          unit_price: item.unitPrice,
-          note: item.note,
-        })),
-        discount_amount: cart.discountAmount,
-        note: cart.note,
-        ship_address: cart.shipAddress,
-      }),
-    });
-    // Remove the temporary draft cart
-    state.carts = state.carts.filter(c => c.id !== cart.id);
-    await persistCollectionsWithoutConflictCheck(["carts"]);
-    await refreshData();
-    state.activeCartId = cart._adminEditingOrderId;
-    state.activeCartPanelCollapsed = mobileQuery.matches;
-    state.activeCartDetailExpanded = false;
-    showToast(data.message || "Đã lưu thay đổi Admin.");
-    return;
-  } else {
-    data = await apiRequest("/api/orders/commit", {
-      method: "POST",
-      body: JSON.stringify({
-        cart_id: cart.id,
-      }),
-    });
-  }
+  const data = await apiRequest("/api/orders/commit", {
+    method: "POST",
+    body: JSON.stringify({
+      cart_id: cart.id,
+    }),
+  });
 
   await refreshData();
   state.activeCartId = cart.id;
@@ -6968,6 +6985,7 @@ registerSalesControllerEvents({
     openCartAuditHistory,
     updateProductSalePrice,
     createQuickSaleDocument,
+    saveAdminBypassCart,
     resetQuickSaleDraft,
     cloneActiveCartIntoQuickSaleDraft,
     focusActiveCartPanel,
@@ -6983,6 +7001,7 @@ registerSalesControllerEvents({
     rejectDocumentCancelRequest,
     setPaginationPageForItem,
     beginAdminEditCart,
+    saveAdminBypassCart,
   },
   renderers: {
     renderQuickSalePanel,
@@ -7194,6 +7213,7 @@ registerPurchasesControllerEvents({
     cloneActivePurchaseIntoQuickPurchaseDraft,
     setPaginationPageForItem,
     beginAdminEditPurchase,
+    saveAdminBypassPurchase,
   },
   renderers: {
     renderQuickPurchasePanel,

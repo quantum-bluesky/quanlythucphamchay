@@ -30,7 +30,7 @@ export function createSalesDomainHelpers(deps) {
 
   function isEditableCartStatus(cartOrStatus) {
     const status = typeof cartOrStatus === "object" ? cartOrStatus?.status : cartOrStatus;
-    const isEditMode = typeof cartOrStatus === "object" ? cartOrStatus?._adminEditMode : false;
+    const isEditMode = typeof cartOrStatus === "object" ? (cartOrStatus?._adminEditMode || cartOrStatus?._adminEditingOrderId) : false;
     return ["draft", "committed"].includes(String(status || "").trim()) || Boolean(isEditMode);
   }
 
@@ -55,7 +55,9 @@ export function createSalesDomainHelpers(deps) {
       cart && (
         cart.status === "draft" ||
         cart.status === "committed" ||
-        (cart.status === "completed" && cart.paymentStatus !== "paid")
+        (cart.status === "completed" && cart.paymentStatus !== "paid") ||
+        cart._adminEditMode ||
+        cart._adminEditingOrderId
       )
     );
   }
