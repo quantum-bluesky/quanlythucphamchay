@@ -12720,7 +12720,7 @@ class InventoryStore:
 
         old_items_rows = connection.execute(
             """
-            SELECT product_id, quantity, unit_price, transaction_id, batch_id
+            SELECT product_id, quantity, unit_amount, transaction_id, batch_id
             FROM inventory_receipt_items
             WHERE receipt_id = ?
             """,
@@ -12731,9 +12731,9 @@ class InventoryStore:
         for row in old_items_rows:
             old_item_map[int(row["product_id"])] = {
                 "quantity": float(row["quantity"] or 0),
-                "unit_price": float(row["unit_price"] or 0),
-                "transaction_id": int(row["transaction_id"]),
-                "batch_id": int(row["batch_id"]),
+                "unit_amount": float(row["unit_amount"] or 0),
+                "transaction_id": int(row["transaction_id"]) if row["transaction_id"] is not None else None,
+                "batch_id": int(row["batch_id"]) if row["batch_id"] is not None else None,
             }
 
         new_items = purchase.get("items") or []
@@ -12758,19 +12758,35 @@ class InventoryStore:
         # Re-insert purchase_items
         connection.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
         for index, item in enumerate(new_items):
+            product_id = int(item.get("productId") or item.get("product_id") or 0)
+            product = self._get_product_or_raise(connection, product_id, allow_deleted=True)
+            expiry_metadata = self._resolve_purchase_item_expiry_metadata(
+                raw_item=item,
+                product=product,
+                received_at=previous_purchase.get("receivedAt") or previous_purchase.get("received_at") or processed_at,
+            )
+            unit_cost = float(item.get("unitCost") or item.get("unit_cost") or item.get("unitPrice") or item.get("unit_price") or 0)
             connection.execute(
                 """
-                INSERT INTO purchase_items(id, purchase_id, product_id, product_name, quantity, unit_price, note, sort_order)
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO purchase_items(
+                    id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
+                    expiry_input_mode, manufacture_date, expiry_date, sort_order
+                )
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),
                     purchase_id,
-                    int(item.get("productId") or item.get("product_id") or 0),
-                    str(item.get("productName") or item.get("product_name") or "").strip(),
+                    product_id,
+                    str(item.get("productName") or item.get("product_name") or product.get("name") or "").strip(),
+                    str(item.get("sourceKind") or item.get("source_kind") or "shortage").strip() or "shortage",
+                    str(item.get("sourceNote") or item.get("source_note") or "").strip(),
                     float(item.get("quantity") or 0),
-                    float(item.get("unitPrice") or item.get("unit_price") or 0),
-                    str(item.get("note") or "").strip(),
+                    unit_cost,
+                    str(item.get("batchCode") or item.get("batch_code") or "").strip(),
+                    expiry_metadata["expiry_input_mode"],
+                    expiry_metadata["manufacture_date"],
+                    expiry_metadata["expiry_date"],
                     index,
                 ),
             )
@@ -12780,18 +12796,33 @@ class InventoryStore:
             product_id = int(item.get("productId") or item.get("product_id") or 0)
             product = self._get_product_or_raise(connection, product_id, allow_deleted=True)
             new_qty = float(item.get("quantity") or 0)
-            new_price = float(item.get("unitPrice") or item.get("unit_price") or 0)
+            new_price = float(item.get("unitCost") or item.get("unit_cost") or item.get("unitPrice") or item.get("unit_price") or 0)
             
             old = old_item_map.get(product_id)
             if not old:
                 raise ValueError(f"Sản phẩm {product.get('name')} là mặt hàng mới thêm vào đơn đã khóa. Vui lòng tạo phiếu nhập mới thay vì sửa.")
             
             old_qty = old["quantity"]
-            batch_id = old["batch_id"]
+            batch_id = old.get("batch_id")
+            if not batch_id:
+                batch_row = connection.execute(
+                    """
+                    SELECT id, remaining_quantity, initial_quantity, unit_cost
+                    FROM inventory_batches
+                    WHERE source_receipt_code = ? AND product_id = ?
+                    LIMIT 1
+                    """,
+                    (receipt_code, product_id),
+                ).fetchone()
+                if batch_row:
+                    batch_id = int(batch_row["id"])
+            
+            if not batch_id:
+                raise ValueError(f"Không tìm thấy lô hàng gốc của {product.get('name')}.")
             
             if new_qty < old_qty:
                 # Decreasing stock -> Out transaction, reduce batch
-                delta_qty = old_qty - new_qty
+                delta_qty = round(old_qty - new_qty, 2)
                 
                 # Check batch remaining
                 batch = connection.execute("SELECT id, remaining_quantity FROM inventory_batches WHERE id = ?", (batch_id,)).fetchone()
@@ -12819,7 +12850,7 @@ class InventoryStore:
                 
             elif new_qty > old_qty:
                 # Increasing stock -> In transaction, increase batch
-                delta_qty = new_qty - old_qty
+                delta_qty = round(new_qty - old_qty, 2)
                 connection.execute(
                     "UPDATE inventory_batches SET initial_quantity = initial_quantity + ?, remaining_quantity = remaining_quantity + ?, unit_cost = ? WHERE id = ?",
                     (delta_qty, delta_qty, new_price, batch_id)
@@ -12842,8 +12873,8 @@ class InventoryStore:
                 
             # Update receipt item
             connection.execute(
-                "UPDATE inventory_receipt_items SET quantity = ?, unit_price = ?, line_total = ? WHERE receipt_id = ? AND product_id = ?",
-                (new_qty, new_price, new_qty * new_price, receipt_id, product_id)
+                "UPDATE inventory_receipt_items SET quantity = ?, unit_amount = ?, line_total = ? WHERE receipt_id = ? AND product_id = ?",
+                (new_qty, new_price, round(new_qty * new_price, 2), receipt_id, product_id)
             )
 
         current_purchase = self._get_purchase_document(connection, purchase_id)

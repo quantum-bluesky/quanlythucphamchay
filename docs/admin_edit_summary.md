@@ -110,12 +110,17 @@ Qua việc rà soát toàn diện chu trình xử lý dữ liệu từ Client (F
 
 ### 3.3. Backend Server & Configuration
 
-#### A. `qltpchay/http_handler.py`
+#### A. `qltpchay/store.py`
+- Sửa lỗi truy vấn bảng `inventory_receipt_items`: đổi `unit_price` thành `unit_amount` ở cả lệnh `SELECT` và `UPDATE`.
+- Sửa lỗi ghi bảng `purchase_items`: sử dụng `unit_cost` thay cho `unit_price`, bổ sung xử lý metadata ngày hết hạn (`expiry_input_mode`, `manufacture_date`, `expiry_date`) và `source_kind`/`source_note`.
+- Bổ sung fallback tìm `batch_id` qua `source_receipt_code` khi dòng `inventory_receipt_items` không gắn trực tiếp `batch_id`.
+
+#### B. `qltpchay/http_handler.py`
 - Thay thế các lời gọi lỗi `self._get_current_actor_role()` thành `self._get_current_role()` tại các endpoint xử lý Admin Bypass.
 - Sử dụng `DEFAULT_APP_VERSION` từ module `config` thay cho chuỗi hardcode cũ.
 
-#### B. `qltpchay/config.py` & `data/js_asset_versions.json`
-- Cập nhật `DEFAULT_APP_VERSION = "3.27.3"`.
+#### C. `qltpchay/config.py` & `data/js_asset_versions.json`
+- Cập nhật `DEFAULT_APP_VERSION = "3.27.5"`.
 - Cập nhật manifest asset versioning để khớp hoàn toàn với `system_config.json`.
 
 ---

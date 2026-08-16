@@ -4803,5 +4803,161 @@ class InventoryStoreTests(unittest.TestCase):
 
 
 
+    def test_ut_admin_edit_01_locked_purchase_success_and_ledger_adjustment(self) -> None:
+        product = self.store.create_product(
+            name="Sườn non chay",
+            category="Đồ khô",
+            unit="gói",
+            low_stock_threshold=2,
+            sale_price=50000,
+        )
+        now = "2026-08-16T09:00:00+07:00"
+        receipt = self._create_purchase_receipt_at(
+            supplier_name="NCC Test",
+            items=[{"product_id": product["id"], "quantity": 10, "unit_cost": 30000}],
+            created_at=now,
+            note="Phiếu nhập ban đầu",
+        )
+        purchase_id = "purchase_test_admin_01"
+        self.store.save_sync_state({
+            "purchases": [{
+                "id": purchase_id,
+                "supplierName": "NCC Test",
+                "status": "received",
+                "orderedAt": now,
+                "receivedAt": now,
+                "receiptCode": receipt["receipt_code"],
+                "items": [{
+                    "productId": product["id"],
+                    "productName": product["name"],
+                    "quantity": 10,
+                    "unitCost": 30000,
+                }],
+            }]
+        })
+        
+        # Verify stock is 10
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 10.0)
+
+        # Admin edits locked purchase: reduce quantity to 8 and update cost to 32000
+        edit_payload = {
+            "id": purchase_id,
+            "supplierName": "NCC Test Đã Sửa",
+            "items": [{
+                "productId": product["id"],
+                "productName": product["name"],
+                "quantity": 8,
+                "unitCost": 32000,
+            }],
+            "discountAmount": 5000,
+            "note": "Ghi chú admin edit",
+        }
+        result = self.store.admin_edit_locked_purchase(
+            purchase_id=purchase_id,
+            purchase_payload=edit_payload,
+            admin_edit_reason="NCC giao thiếu 2 gói",
+            actor_username="admin",
+            actor_role="admin",
+        )
+        self.assertIn("thành công", result["message"])
+
+        # Verify stock updated to 8
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 8.0)
+
+        # Verify purchase document updated
+        updated_purchases = self.store.get_sync_state()["purchases"]
+        updated_p = next(p for p in updated_purchases if p["id"] == purchase_id)
+        self.assertEqual(updated_p["supplierName"], "NCC Test Đã Sửa")
+        self.assertEqual(updated_p["items"][0]["quantity"], 8.0)
+        self.assertEqual(updated_p["items"][0]["unitCost"], 32000.0)
+        self.assertEqual(updated_p["discountAmount"], 5000.0)
+
+    def test_ut_admin_edit_02_locked_order_success_and_ledger_adjustment(self) -> None:
+        product = self.store.create_product(
+            name="Chả lụa chay đặc biệt",
+            category="Đồ chay đông lạnh",
+            unit="đòn",
+            low_stock_threshold=2,
+            sale_price=60000,
+        )
+        self.store.create_transaction(product["id"], "in", 20, "Nhập kho ban đầu")
+        cart_id = "cart_test_admin_01"
+
+        # Create cart as draft
+        self.store.save_sync_state({
+            "carts": [{
+                "id": cart_id,
+                "customerName": "Khách Test",
+                "status": "draft",
+                "items": [{
+                    "productId": product["id"],
+                    "productName": product["name"],
+                    "quantity": 5,
+                    "unitPrice": 60000,
+                }],
+            }]
+        })
+        # Commit and ship
+        self.store.commit_cart_order(cart_id, actor="tester")
+        self.store.ship_cart_order(cart_id, actor="tester")
+
+        # Stock after sale = 15
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 15.0)
+
+        # Admin edits locked order: change quantity to 3 and price to 55000
+        edit_payload = {
+            "id": cart_id,
+            "customerName": "Khách Test VIP",
+            "items": [{
+                "productId": product["id"],
+                "productName": product["name"],
+                "quantity": 3,
+                "unitPrice": 55000,
+            }],
+            "discountAmount": 10000,
+            "note": "Giảm giá khách quen",
+        }
+        result = self.store.admin_edit_locked_order(
+            cart_id=cart_id,
+            cart_payload=edit_payload,
+            admin_edit_reason="Khách đổi lấy 3 đòn thay vì 5",
+            actor_username="admin",
+            actor_role="admin",
+        )
+        self.assertIn("thành công", result["message"])
+
+        # Stock after edit = 20 - 3 = 17
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 17.0)
+
+        # Verify cart document updated
+        updated_carts = self.store.get_sync_state()["carts"]
+        updated_c = next(c for c in updated_carts if c["id"] == cart_id)
+        self.assertEqual(updated_c["customerName"], "Khách Test VIP")
+        self.assertEqual(updated_c["items"][0]["quantity"], 3.0)
+        self.assertEqual(updated_c["items"][0]["unitPrice"], 55000.0)
+
+    def test_ut_admin_edit_03_role_and_reason_validation(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            self.store.admin_edit_locked_purchase(
+                purchase_id="dummy",
+                purchase_payload={},
+                admin_edit_reason="Lý do",
+                actor_username="staff",
+                actor_role="staff",
+            )
+        self.assertIn("Master Admin", str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            self.store.admin_edit_locked_purchase(
+                purchase_id="dummy",
+                purchase_payload={},
+                admin_edit_reason="",
+                actor_username="admin",
+                actor_role="admin",
+            )
+        self.assertIn("lý do", str(ctx.exception))
+
+
 if __name__ == "__main__":
     unittest.main()
+
