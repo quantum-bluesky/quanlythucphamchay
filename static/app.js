@@ -6560,16 +6560,34 @@ function beginAdminEditPurchase(originalPurchaseId, reason) {
 async function saveAdminBypassCart() {
   const cart = getActiveCart();
   if (!cart || !cart._adminEditMode) return;
+  const payload = {
+    cart: {
+      id: cart.id,
+      customerId: cart.customerId,
+      customerName: cart.customerName,
+      items: (cart.items || []).map(item => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        note: item.note || "",
+      })),
+      discountAmount: cart.discountAmount || 0,
+      note: cart.note || "",
+      shipAddress: cart.shipAddress || "",
+    },
+    adminEditReason: cart._adminEditReason,
+  };
   const data = await apiRequest("/api/admin/orders/edit-locked", {
     method: "POST",
-    body: JSON.stringify({
-      cart: cart,
-      adminEditReason: cart._adminEditReason,
-    }),
+    body: JSON.stringify(payload),
   });
   delete cart._adminEditMode;
   delete cart._adminEditReason;
-  await persistCollectionsWithoutConflictCheck(["carts"]);
+  if (data.carts) {
+    state.carts = data.carts;
+    syncSalesState();
+  }
   await refreshData();
   showToast(data.message || "Đã lưu thay đổi Admin.");
 }
@@ -6577,16 +6595,33 @@ async function saveAdminBypassCart() {
 async function saveAdminBypassPurchase() {
   const purchase = getActivePurchase();
   if (!purchase || !purchase._adminEditMode) return;
+  const payload = {
+    purchase: {
+      id: purchase.id,
+      supplierId: purchase.supplierId,
+      supplierName: purchase.supplierName,
+      items: (purchase.items || []).map(item => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        expiryDate: item.expiryDate || "",
+        note: item.note || "",
+      })),
+      discountAmount: purchase.discountAmount || 0,
+      note: purchase.note || "",
+    },
+    adminEditReason: purchase._adminEditReason,
+  };
   const data = await apiRequest("/api/admin/purchases/edit-locked", {
     method: "POST",
-    body: JSON.stringify({
-      purchase: purchase,
-      adminEditReason: purchase._adminEditReason,
-    }),
+    body: JSON.stringify(payload),
   });
   delete purchase._adminEditMode;
   delete purchase._adminEditReason;
-  await persistCollectionsWithoutConflictCheck(["purchases"]);
+  if (data.purchases) {
+    state.purchases = data.purchases;
+  }
   await refreshData();
   showToast(data.message || "Đã lưu thay đổi Admin.");
 }

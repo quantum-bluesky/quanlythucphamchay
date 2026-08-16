@@ -81,6 +81,9 @@ Qua việc rà soát toàn diện chu trình xử lý dữ liệu từ Client (F
   - Gán cờ `_adminEditMode = true` và `_adminEditReason = reason`.
   - Ép `state.activeCartPanelCollapsed = false` và `state.purchasePanelCollapsed = false`.
   - Chuyển màn hình tương ứng (`"create-order"` hoặc `"purchases"`) và gọi `saveAndRenderAll()`.
+- **`saveAdminBypassCart()` & `saveAdminBypassPurchase()`**:
+  - Chuẩn hóa payload sạch (loại bỏ các computed/in-memory properties không cần thiết) trước khi gửi `POST`.
+  - Cập nhật state trực tiếp từ danh sách `carts`/`purchases` do Backend trả về, loại bỏ việc gọi `persistCollectionsWithoutConflictCheck` (tránh ghi đè dữ liệu cũ lên server), sau đó gọi `refreshData()`.
 
 ---
 
