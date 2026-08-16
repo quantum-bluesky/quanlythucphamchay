@@ -59,7 +59,9 @@ function renderProducts(products) {
     let imageHtml = `<div class="product-image-placeholder">Không có ảnh</div>`;
     if (p.images && p.images.length > 0) {
       let firstImage = p.images[0];
-      if (!firstImage.startsWith("http") && !firstImage.startsWith("./images/") && !firstImage.startsWith("/images/")) {
+      if (firstImage.startsWith("/images/")) {
+        firstImage = "." + firstImage;
+      } else if (!firstImage.startsWith("http") && !firstImage.startsWith("./images/")) {
         firstImage = "./images/" + firstImage;
       }
       imageHtml = `<img src="${firstImage}" class="product-image" alt="${p.name}" loading="lazy">`;
@@ -178,7 +180,9 @@ function openModal(product) {
   
   if (product.images && product.images.length > 0) {
     let firstImage = product.images[0];
-    if (!firstImage.startsWith("http") && !firstImage.startsWith("./images/") && !firstImage.startsWith("/images/")) {
+    if (firstImage.startsWith("/images/")) {
+      firstImage = "." + firstImage;
+    } else if (!firstImage.startsWith("http") && !firstImage.startsWith("./images/")) {
       firstImage = "./images/" + firstImage;
     }
     imagesContainer.innerHTML = `<img src="${firstImage}" alt="${product.name}">`;
