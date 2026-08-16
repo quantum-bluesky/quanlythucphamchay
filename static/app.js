@@ -2015,6 +2015,10 @@ function getCartById(cartId) {
   return getSalesDomainHelpers().getCartById(cartId);
 }
 
+function getPurchaseById(purchaseId) {
+  return getPurchasesDomainHelpers().getPurchaseById(purchaseId);
+}
+
 function getActiveCart() {
   return getSalesDomainHelpers().getActiveCart();
 }
