@@ -63,7 +63,14 @@ export function createSalesDomainHelpers(deps) {
   }
 
   function canEditCartNote(cart) {
-    return Boolean(cart);
+    return Boolean(
+      cart && (
+        cart.status === "draft" ||
+        cart.status === "committed" ||
+        (cart.status === "completed" && cart.paymentStatus !== "paid") ||
+        cart._adminEditMode
+      )
+    );
   }
 
   function getCartCostWarning(cart) {
@@ -121,6 +128,7 @@ export function createSalesDomainHelpers(deps) {
     const totalAmount = Math.max(0, subtotalAmount - discountAmount);
 
     return {
+      ...cart,
       id: cart.id || createId("cart"),
       customerId: cart.customerId || "",
       customerName: cart.customerName || "Khách lẻ",
@@ -174,7 +182,7 @@ export function createSalesDomainHelpers(deps) {
     const cart = getCartById(cartId);
     if (!cart || (!isEditableCartStatus(cart) && !cart._adminEditMode)) return;
     state.activeCartId = cart.id;
-    state.activeCartPanelCollapsed = mobileQuery.matches;
+    state.activeCartPanelCollapsed = false;
     state.activeCartDetailExpanded = false;
     state.pendingCartMergeCustomerId = "";
     state.pendingCartMergeCustomerName = "";

@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, parse_qsl, urlparse
 from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
 from . import constants as constants
 from .constants import ADMIN_SESSION_COOKIE, APP_NAME, DATA_DIR, JS_ASSET_VERSIONS_PATH, STATIC_DIR
+from .config import DEFAULT_APP_VERSION
 from .js_asset_versions import JavaScriptAssetVersionManager
 from .mailer import send_mail_notification
 from .store import BulkOrderRequestDuplicateError, ProcurementBatchStartConflictError, SyncConflictError
@@ -30,7 +31,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
     procurement_config = (system_config or {}).get("procurement", {})
     mail_config = (system_config or {}).get("mail", {})
     auth_enabled = bool((system_config or {}).get("EnableLogin"))
-    app_version = str((system_config or {}).get("version") or "").strip() or "3.24.0"
+    app_version = str((system_config or {}).get("version") or "").strip() or DEFAULT_APP_VERSION
     asset_versions_path = Path((system_config or {}).get("asset_versions_path") or JS_ASSET_VERSIONS_PATH)
     js_asset_versions = JavaScriptAssetVersionManager(
         static_root=STATIC_DIR,
@@ -613,7 +614,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             cart_payload=payload.get("cart") or {},
                             admin_edit_reason=str(payload.get("adminEditReason") or ""),
                             actor_username=self._get_current_actor_name(),
-                            actor_role=self._get_current_actor_role(),
+                            actor_role=self._get_current_role(),
                         )
                         self._send_json(HTTPStatus.OK, result)
                     except ValueError as exc:
@@ -628,7 +629,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             purchase_payload=payload.get("purchase") or {},
                             admin_edit_reason=str(payload.get("adminEditReason") or ""),
                             actor_username=self._get_current_actor_name(),
-                            actor_role=self._get_current_actor_role(),
+                            actor_role=self._get_current_role(),
                         )
                         self._send_json(HTTPStatus.OK, result)
                     except ValueError as exc:

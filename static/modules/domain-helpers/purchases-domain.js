@@ -271,13 +271,22 @@ export function createPurchasesDomainHelpers(deps) {
   function canEditPurchase(purchase) {
     return Boolean(
       purchase
-      && (["draft", "ordered"].includes(purchase.status) || purchase._adminEditMode || purchase._adminEditingPurchaseId)
+      && (["draft", "ordered"].includes(purchase.status) || purchase._adminEditMode)
       && !isPurchaseStructureLockedByProcurementBatch(purchase)
     );
   }
 
   function canEditPurchaseNote(purchase) {
-    return Boolean(purchase);
+    return Boolean(
+      purchase && (
+        purchase._adminEditMode ||
+        (
+          ["draft", "ordered"].includes(purchase.status)
+          && !isPurchaseStructureLockedByProcurementBatch(purchase)
+        ) ||
+        (purchase.status === "received" && purchase.paymentStatus !== "paid")
+      )
+    );
   }
 
   function canEditPurchaseExpiryMetadata(purchase) {
@@ -296,11 +305,12 @@ export function createPurchasesDomainHelpers(deps) {
   function canEditPurchaseDiscount(purchase) {
     return Boolean(
       purchase && (
+        purchase._adminEditMode ||
         (
           ["draft", "ordered"].includes(purchase.status)
           && !isPurchaseStructureLockedByProcurementBatch(purchase)
         ) ||
-        purchase.status === "received"
+        (purchase.status === "received" && purchase.paymentStatus !== "paid")
       )
     );
   }
@@ -308,10 +318,11 @@ export function createPurchasesDomainHelpers(deps) {
   function canEditPurchaseSupplier(purchase) {
     return Boolean(
       purchase && (
-        !isPurchaseStructureLockedByProcurementBatch(purchase) && (
+        purchase._adminEditMode ||
+        (!isPurchaseStructureLockedByProcurementBatch(purchase) && (
           purchase.status === "draft" ||
           (purchase.status === "ordered" && isRepairableInvalidPurchase(purchase))
-        )
+        ))
       )
     );
   }

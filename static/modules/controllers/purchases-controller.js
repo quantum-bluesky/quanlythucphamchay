@@ -1234,40 +1234,13 @@ export function registerPurchasesControllerEvents(contract) {
       }
       try {
         await actions.flushPendingPersistCollections();
-        let data;
-        if (latestPurchase._adminEditingPurchaseId) {
-          data = await actions.apiRequest("/api/admin/purchases/edit-locked", {
-            method: "POST",
-            body: JSON.stringify({
-              purchase_id: latestPurchase._adminEditingPurchaseId,
-              reason: latestPurchase._adminEditReason,
-              items: latestPurchase.items.map((item) => ({
-                product_id: item.productId,
-                quantity: item.quantity,
-                unit_cost: item.unitCost,
-                batch_code: item.batchCode,
-                manufacture_date: item.manufactureDate,
-                expiry_date: item.expiryDate,
-              })),
-              discount_amount: latestPurchase.discountAmount || 0,
-              note: latestPurchase.note,
-            }),
-          });
-          state.purchases = state.purchases.filter(p => p.id !== latestPurchase.id);
-          await actions.persistCollections(["purchases"]);
-          await actions.refreshData();
-          state.activePurchaseId = latestPurchase._adminEditingPurchaseId;
-          actions.showToast(data.message || "Đã lưu thay đổi Admin.");
-          return;
-        } else {
-          data = await actions.apiRequest("/api/purchases/receive", {
-            method: "POST",
-            body: JSON.stringify({
-              purchase_id: latestPurchase.id,
-              discount_amount: latestPurchase.discountAmount || 0,
-            }),
-          });
-        }
+        const data = await actions.apiRequest("/api/purchases/receive", {
+          method: "POST",
+          body: JSON.stringify({
+            purchase_id: latestPurchase.id,
+            discount_amount: latestPurchase.discountAmount || 0,
+          }),
+        });
         await actions.refreshData();
         state.activePurchaseId = latestPurchase.id;
         actions.showToast(data.message);

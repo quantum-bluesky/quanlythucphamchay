@@ -2219,7 +2219,7 @@ function syncSalesState() {
     .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
 
   const activeEditableCartExists = state.carts.some(
-    (cart) => cart.id === state.activeCartId && ["draft", "committed"].includes(cart.status)
+    (cart) => cart.id === state.activeCartId && (["draft", "committed"].includes(cart.status) || cart._adminEditMode)
   );
   if (state.activeCartId && !activeEditableCartExists) {
     state.activeCartId = null;
@@ -6534,8 +6534,10 @@ function beginAdminEditCart(originalCartId, reason) {
   if (!cart) return;
   cart._adminEditMode = true;
   cart._adminEditReason = reason;
-  setActiveCart(cart.id);
+  state.activeCartId = cart.id;
+  state.activeCartPanelCollapsed = false;
   state.activeCartDetailExpanded = false;
+  customerLookupInput.value = cart.customerName;
   switchMenu("create-order");
   saveAndRenderAll();
 }
@@ -6545,8 +6547,11 @@ function beginAdminEditPurchase(originalPurchaseId, reason) {
   if (!purchase) return;
   purchase._adminEditMode = true;
   purchase._adminEditReason = reason;
-  setActivePurchase(purchase.id);
+  state.activePurchaseId = purchase.id;
+  state.purchasePanelCollapsed = false;
   state.purchaseDetailExpanded = false;
+  purchaseSupplierInput.value = purchase.supplierName || "";
+  purchaseNoteInput.value = purchase.note || "";
   switchMenu("purchases");
   saveAndRenderAll();
 }

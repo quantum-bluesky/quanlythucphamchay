@@ -1195,6 +1195,17 @@ export function registerSalesControllerEvents(contract) {
       actions.copyCartText(cart.id);
       return;
     }
+    if (action === "admin-edit") {
+      const reason = window.prompt("Lý do Master Admin sửa đơn đã khóa (bắt buộc):");
+      if (!reason || !reason.trim()) return;
+      try {
+        await actions.flushPendingPersistCollections();
+        actions.beginAdminEditCart(cart.id, reason.trim());
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (action === "history") {
       try {
         await actions.openCartAuditHistory(cart.id);
