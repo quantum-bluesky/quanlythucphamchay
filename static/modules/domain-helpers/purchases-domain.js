@@ -1173,7 +1173,7 @@ export function createPurchasesDomainHelpers(deps) {
 
   function setActivePurchase(purchaseId) {
     const purchase = state.purchases.find((entry) => entry.id === purchaseId);
-    if (!purchase || !["draft", "ordered"].includes(purchase.status)) return;
+    if (!purchase || (!["draft", "ordered"].includes(purchase.status) && !purchase._adminEditMode)) return;
     activatePurchaseState(purchase.id);
     saveAndRenderAll();
   }

@@ -35,7 +35,7 @@ export function createSalesDomainHelpers(deps) {
   }
 
   function getActiveCart() {
-    return state.carts.find((cart) => cart.id === state.activeCartId && isEditableCartStatus(cart)) || null;
+    return state.carts.find((cart) => cart.id === state.activeCartId && (isEditableCartStatus(cart) || cart._adminEditMode)) || null;
   }
 
   function getDraftCarts() {
@@ -172,7 +172,7 @@ export function createSalesDomainHelpers(deps) {
 
   function setActiveCart(cartId) {
     const cart = getCartById(cartId);
-    if (!cart || !isEditableCartStatus(cart)) return;
+    if (!cart || (!isEditableCartStatus(cart) && !cart._adminEditMode)) return;
     state.activeCartId = cart.id;
     state.activeCartPanelCollapsed = mobileQuery.matches;
     state.activeCartDetailExpanded = false;

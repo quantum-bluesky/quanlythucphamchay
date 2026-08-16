@@ -59,11 +59,11 @@
     },
     "modules/domain-helpers/purchases-domain.js": {
       "counter": 1,
-      "sha256": "ccbb7b72e0b6448e2710115ee855a2d0e346a2fe220e05f399500d2c7c79e6d8"
+      "sha256": "8735a28526987fd14f0fee91da364778fd2265f19c655ef9470ed8cb5b2bacf1"
     },
     "modules/domain-helpers/sales-domain.js": {
       "counter": 1,
-      "sha256": "ed661fd24951723d0c5b98ba3e7ae81dde4ac27f7d57547fedde9e23d5f45a6a"
+      "sha256": "f409fa5fe11d03f1a96d1cbca1485c94bab4fa425c616a3649cdaa757b69aa9b"
     },
     "modules/entity-product-mutations.js": {
       "counter": 1,
