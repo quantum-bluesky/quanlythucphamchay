@@ -62,6 +62,18 @@ Khi cần hiểu logic hiện tại, đọc theo thứ tự:
 
 Không giả định từ trí nhớ cũ nếu code hiện tại nói khác.
 
+## Quy ước kiểm tra Database thực tế trước khi viết/sửa code
+
+Trước khi bắt tay vào viết mới hoặc chỉnh sửa bất kỳ câu lệnh SQL, hàm thao tác database, migration, model, hay API payload liên quan trong một project bất kỳ:
+
+1. **Bắt buộc đọc tài liệu DB & kiểm tra Schema DB thực tế**:
+   - Không được tự ý phỏng đoán tên cột hoặc cấu trúc bảng (ví dụ: `unit_price` vs `unit_amount` vs `unit_cost`).
+   - Phải kiểm tra cấu trúc bảng thực tế bằng `PRAGMA table_info(table_name)` trên file database thật hoặc kiểm tra hàm `_initialize_schema()` trong `qltpchay/store.py` / `docs/DB_DESIGN.md`.
+2. **Đối chiếu & Xác nhận khi có sai lệch**:
+   - Nếu phát hiện tài liệu thiết kế (`docs/DB_DESIGN.md`) và database thực tế có sự khác biệt về tên cột, kiểu dữ liệu hoặc quan hệ bảng, phải confirm rõ ràng và thống nhất để chỉnh sửa trước khi bắt tay vào code.
+3. **Mục đích**:
+   - Tránh triệt để việc viết nhầm các thông số/tên cột của DB (để lấy đúng và đủ các field,...), ngăn ngừa các lỗi runtime `sqlite3.OperationalError: no such column` hoặc làm lệch/mất dữ liệu khi ghi vào DB.
+
 ## Quy ước nghiệp vụ hiện tại
 
 - `products.price` là `giá nhập mặc định`
