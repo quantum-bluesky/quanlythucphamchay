@@ -2015,10 +2015,6 @@ function getCartById(cartId) {
   return getSalesDomainHelpers().getCartById(cartId);
 }
 
-function getPurchaseById(purchaseId) {
-  return getPurchasesDomainHelpers().getPurchaseById(purchaseId);
-}
-
 function getActiveCart() {
   return getSalesDomainHelpers().getActiveCart();
 }
@@ -6545,7 +6541,7 @@ function beginAdminEditCart(originalCartId, reason) {
 }
 
 function beginAdminEditPurchase(originalPurchaseId, reason) {
-  const purchase = getPurchaseById(originalPurchaseId);
+  const purchase = state.purchases.find(p => String(p.id) === String(originalPurchaseId));
   if (!purchase) return;
   purchase._adminEditMode = true;
   purchase._adminEditReason = reason;
