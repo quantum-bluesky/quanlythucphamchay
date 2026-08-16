@@ -367,7 +367,7 @@ export function createSalesUi(deps) {
         ${allowMarkPaid ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="mark-paid" data-cart-id="${selectedCart.id}">Đã thanh toán</button>` : ""}
         ${allowReturn ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="customer-return" data-cart-id="${selectedCart.id}">Trả hàng</button>` : ""}
         ${["draft", "committed"].includes(selectedCart.status) ? `<button type="button" class="secondary-button compact-button" data-order-detail-action="cancel" data-cart-id="${selectedCart.id}">Hủy</button>` : ""}
-        ${state.admin?.isAdmin && selectedCart.status === "completed" && selectedCart.paymentStatus !== "paid" ? `<button type="button" class="danger-button compact-button" data-order-detail-action="admin-edit" data-cart-id="${selectedCart.id}" title="Master Admin sửa đơn bypass">Sửa Admin</button>` : ""}
+        ${state.admin?.isAdmin && state.admin?.enableAdminLockedEdit && selectedCart.status === "completed" && selectedCart.paymentStatus !== "paid" ? `<button type="button" class="danger-button compact-button" data-order-detail-action="admin-edit" data-cart-id="${selectedCart.id}" title="Master Admin sửa đơn bypass">Sửa Admin</button>` : ""}
         ${canDeleteCart(selectedCart) ? `<button type="button" class="danger-button compact-button" data-order-detail-action="delete" data-cart-id="${selectedCart.id}">Xóa</button>` : ""}
       </div>
       ${getCustomerReturnEditorMarkup(selectedCart)}
@@ -571,9 +571,11 @@ export function createSalesUi(deps) {
     }
     const statusMeta = getCartStatusMeta(cart);
     const canPrint = canPrintCartDocument(cart);
-    const noteText = cart.status === "committed"
-      ? "Đơn đã chốt: khóa khách hàng, vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới khi xuất. Nếu cần làm đơn khác riêng hẳn, bấm `Tạo đơn mới`."
-      : "Đơn nháp: có thể chọn khách, sửa dòng hàng, địa chỉ giao và giảm giá trước khi chốt. Nếu không muốn dùng lại đơn cũ, bấm `Tạo đơn mới`.";
+    const noteText = cart._adminEditMode
+      ? "Chế độ Master Admin sửa đơn đã xuất: Chỉ được phép sửa số lượng và giá của các mặt hàng hiện có. Không được thêm/xóa sản phẩm hoặc đổi khách hàng."
+      : cart.status === "committed"
+        ? "Đơn đã chốt: khóa khách hàng, vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới khi xuất. Nếu cần làm đơn khác riêng hẳn, bấm `Tạo đơn mới`."
+        : "Đơn nháp: có thể chọn khách, sửa dòng hàng, địa chỉ giao và giảm giá trước khi chốt. Nếu không muốn dùng lại đơn cũ, bấm `Tạo đơn mới`.";
     if (state.activeCartPanelCollapsed) {
       dom.activeCartPanel.innerHTML = `
         <article class="active-cart-card is-collapsed">
@@ -654,9 +656,11 @@ export function createSalesUi(deps) {
 
     const notice = !activeCart
       ? '<article class="inline-alert warning">Chưa mở đơn hàng. Hãy chọn khách và bấm "Mở giỏ hàng" trước khi chọn sản phẩm.</article>'
-      : activeCart.status === "committed"
-        ? '<article class="inline-alert warning">Đơn đã chốt: không đổi được khách hàng, nhưng vẫn có thể điều chỉnh dòng hàng cho tới khi xuất.</article>'
-        : "";
+      : activeCart._adminEditMode
+        ? '<article class="inline-alert warning">Chế độ Master Admin sửa đơn đã xuất: Chỉ được phép sửa số lượng và giá của các mặt hàng hiện có trong đơn. Không được thêm sản phẩm mới.</article>'
+        : activeCart.status === "committed"
+          ? '<article class="inline-alert warning">Đơn đã chốt: không đổi được khách hàng, nhưng vẫn có thể điều chỉnh dòng hàng cho tới khi xuất.</article>'
+          : "";
     if (!filtered.length) {
       dom.salesProductList.innerHTML = `${notice}<div class="empty-state">${activeCart?.items?.length ? "Các mặt hàng đang khớp đã được chuyển lên phần giỏ hiện hành phía trên; chỉ dòng đang thao tác bằng nút ... mới được giữ lại ở danh sách dưới." : "Không có mặt hàng phù hợp."}</div>`;
       return;
@@ -681,7 +685,7 @@ export function createSalesUi(deps) {
           <article class="sales-product-row ${inCart ? "is-selected" : ""} ${isOutOfStock ? "is-empty-stock" : ""}">
             <div class="sales-product-head">
               <label class="picker-toggle">
-                <input type="checkbox" data-pick-product="${product.id}" ${inCart ? "checked" : ""} ${activeCart ? "" : "disabled"}>
+                <input type="checkbox" data-pick-product="${product.id}" ${inCart ? "checked" : ""} ${activeCart && !activeCart._adminEditMode ? "" : "disabled"}>
                 <span>${escapeHtml(product.name)}</span>
               </label>
               <span class="status-pill ${(isOutOfStock || product.is_low_stock) ? "cancelled" : "draft"}">${availabilityLabel}</span>
@@ -747,7 +751,7 @@ export function createSalesUi(deps) {
                 <div class="line-actions">
                   <button type="button" class="ghost-button compact-button" data-cart-item-action="save" data-item-id="${item.id}">Lưu dòng</button>
                   <button type="button" class="ghost-button compact-button" data-cart-item-action="update-default-price" data-product-id="${item.productId}" data-item-id="${item.id}">Giá chung</button>
-                  <button type="button" class="danger-button compact-button" data-cart-item-action="remove" data-item-id="${item.id}">Bỏ khỏi đơn</button>
+                  ${cart._adminEditMode ? "" : `<button type="button" class="danger-button compact-button" data-cart-item-action="remove" data-item-id="${item.id}">Bỏ khỏi đơn</button>`}
                 </div>
               </div>
             </div>` : ""}
@@ -835,7 +839,7 @@ export function createSalesUi(deps) {
             ${showExpandedCardActions && allowRepeat ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="repeat" data-queue-action="repeat" data-cart-id="${cart.id}">Xuất lại</button>` : ""}
             ${showExpandedCardActions && cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
             ${showExpandedCardActions && allowReturn ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="customer-return" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
-            ${showExpandedCardActions && state.admin?.isAdmin && cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="danger-button compact-button" data-cart-list-action="admin-edit" data-queue-action="admin-edit" data-cart-id="${cart.id}" title="Master Admin sửa đơn bypass">Sửa Admin</button>` : ""}
+            ${showExpandedCardActions && state.admin?.isAdmin && state.admin?.enableAdminLockedEdit && cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="danger-button compact-button" data-cart-list-action="admin-edit" data-queue-action="admin-edit" data-cart-id="${cart.id}" title="Master Admin sửa đơn bypass">Sửa Admin</button>` : ""}
             ${showExpandedCardActions && cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="commit" data-queue-action="commit" data-cart-id="${cart.id}">Chốt đơn</button>` : ""}
             ${showExpandedCardActions && cart.status === "committed" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="ship" data-queue-action="ship" data-cart-id="${cart.id}">Xuất hàng</button>` : ""}
             ${showExpandedCardActions && ["draft", "committed"].includes(cart.status) ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}

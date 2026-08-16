@@ -607,6 +607,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     return
 
                 if route == "/api/admin/orders/edit-locked":
+                    if not (system_config or {}).get("EnableAdminLockedEdit", False):
+                        self._send_json(
+                            HTTPStatus.BAD_REQUEST,
+                            {"error": "Tính năng Master Admin sửa chứng từ đã khóa đang bị tắt trong cấu hình hệ thống."}
+                        )
+                        return
                     try:
                         payload = self._read_json_body()
                         result = store.admin_edit_locked_order(
@@ -622,6 +628,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     return
 
                 if route == "/api/admin/purchases/edit-locked":
+                    if not (system_config or {}).get("EnableAdminLockedEdit", False):
+                        self._send_json(
+                            HTTPStatus.BAD_REQUEST,
+                            {"error": "Tính năng Master Admin sửa chứng từ đã khóa đang bị tắt trong cấu hình hệ thống."}
+                        )
+                        return
                     try:
                         payload = self._read_json_body()
                         result = store.admin_edit_locked_purchase(
@@ -2224,6 +2236,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 ],
                 "is_admin": role == "admin",
                 "enable_login": auth_enabled,
+                "enable_admin_locked_edit": bool((system_config or {}).get("EnableAdminLockedEdit", False)),
                 "session_started_at": str(session.get("started_at") or "") if session else "",
                 "timeout_minutes": admin_session_timeout_minutes if role == "admin" else session_timeout_minutes,
                 "app": self._get_app_info(),

@@ -5064,6 +5064,7 @@ function updateAdminSessionState(payload = {}) {
     permissions: Array.isArray(payload.permissions) ? payload.permissions.map((entry) => String(entry || "").trim()).filter(Boolean) : [],
     isAdmin: Boolean(payload.is_admin ?? payload.isAdmin),
     enableLogin: Boolean(payload.enable_login ?? payload.enableLogin),
+    enableAdminLockedEdit: Boolean(payload.enable_admin_locked_edit ?? payload.enableAdminLockedEdit),
     loginAccountType: previous.loginAccountType || "admin",
     sessionStartedAt,
     timeoutMinutes,

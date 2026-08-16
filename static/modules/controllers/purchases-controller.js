@@ -830,7 +830,7 @@ export function registerPurchasesControllerEvents(contract) {
             return;
           }
         }
-        if (purchase.status === "received") {
+        if (purchase.status === "received" && !purchase._adminEditMode) {
           try {
             const data = await actions.apiRequest("/api/purchases/received-item-expiry", {
               method: "POST",

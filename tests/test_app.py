@@ -4842,7 +4842,7 @@ class InventoryStoreTests(unittest.TestCase):
         # Admin edits locked purchase: reduce quantity to 8 and update cost to 32000
         edit_payload = {
             "id": purchase_id,
-            "supplierName": "NCC Test Đã Sửa",
+            "supplierName": "NCC Test",
             "items": [{
                 "productId": product["id"],
                 "productName": product["name"],
@@ -4867,7 +4867,7 @@ class InventoryStoreTests(unittest.TestCase):
         # Verify purchase document updated
         updated_purchases = self.store.get_sync_state()["purchases"]
         updated_p = next(p for p in updated_purchases if p["id"] == purchase_id)
-        self.assertEqual(updated_p["supplierName"], "NCC Test Đã Sửa")
+        self.assertEqual(updated_p["supplierName"], "NCC Test")
         self.assertEqual(updated_p["items"][0]["quantity"], 8.0)
         self.assertEqual(updated_p["items"][0]["unitCost"], 32000.0)
         self.assertEqual(updated_p["discountAmount"], 5000.0)
@@ -4907,7 +4907,7 @@ class InventoryStoreTests(unittest.TestCase):
         # Admin edits locked order: change quantity to 3 and price to 55000
         edit_payload = {
             "id": cart_id,
-            "customerName": "Khách Test VIP",
+            "customerName": "Khách Test",
             "items": [{
                 "productId": product["id"],
                 "productName": product["name"],
@@ -4932,7 +4932,7 @@ class InventoryStoreTests(unittest.TestCase):
         # Verify cart document updated
         updated_carts = self.store.get_sync_state()["carts"]
         updated_c = next(c for c in updated_carts if c["id"] == cart_id)
-        self.assertEqual(updated_c["customerName"], "Khách Test VIP")
+        self.assertEqual(updated_c["customerName"], "Khách Test")
         self.assertEqual(updated_c["items"][0]["quantity"], 3.0)
         self.assertEqual(updated_c["items"][0]["unitPrice"], 55000.0)
 
@@ -4956,6 +4956,151 @@ class InventoryStoreTests(unittest.TestCase):
                 actor_role="admin",
             )
         self.assertIn("lý do", str(ctx.exception))
+
+    def test_ut_admin_edit_04_item_boundary_and_customer_immutability(self) -> None:
+        p1 = self.store.create_product(
+            name="Sườn non 1", category="Đồ khô", unit="gói", low_stock_threshold=2, price=30000, sale_price=45000,
+        )
+        p2 = self.store.create_product(
+            name="Sườn non 2", category="Đồ khô", unit="gói", low_stock_threshold=2, price=35000, sale_price=50000,
+        )
+
+        # Create and receive purchase with p1
+        purchase_id = "test_pur_bound"
+        purchase_doc = {
+            "id": purchase_id,
+            "supplierId": "sup_1",
+            "supplierName": "NCC Gốc",
+            "status": "received",
+            "items": [
+                {
+                    "id": "it_1",
+                    "productId": p1["id"],
+                    "productName": p1["name"],
+                    "unit": p1["unit"],
+                    "quantity": 5.0,
+                    "unitCost": 30000.0,
+                    "lineTotal": 150000.0,
+                }
+            ],
+            "totalAmount": 150000.0,
+            "receivedAt": "2026-08-16T08:00:00.000Z",
+            "receiptCode": "NH-20260816-BOUND",
+        }
+        self.store.save_sync_state(
+            {
+                "purchases": [purchase_doc],
+                "suppliers": [{"id": "sup_1", "name": "NCC Gốc"}],
+            }
+        )
+
+        # 1. Try changing supplier
+        with self.assertRaises(ValueError) as ctx:
+            self.store.admin_edit_locked_purchase(
+                purchase_id=purchase_id,
+                purchase_payload={
+                    **purchase_doc,
+                    "supplierName": "NCC Khác",
+                },
+                admin_edit_reason="Đổi NCC",
+                actor_username="admin",
+                actor_role="admin",
+            )
+        self.assertIn("không được phép thay đổi nhà cung cấp", str(ctx.exception))
+
+        # 2. Try adding new product p2 to purchase
+        with self.assertRaises(ValueError) as ctx:
+            self.store.admin_edit_locked_purchase(
+                purchase_id=purchase_id,
+                purchase_payload={
+                    **purchase_doc,
+                    "items": [
+                        *purchase_doc["items"],
+                        {
+                            "id": "it_2",
+                            "productId": p2["id"],
+                            "productName": p2["name"],
+                            "unit": p2["unit"],
+                            "quantity": 2.0,
+                            "unitCost": 35000.0,
+                            "lineTotal": 70000.0,
+                        },
+                    ],
+                },
+                admin_edit_reason="Thêm SP",
+                actor_username="admin",
+                actor_role="admin",
+            )
+        self.assertIn("không được thêm hoặc xóa sản phẩm", str(ctx.exception))
+
+        # 3. Create and ship order with p1
+        cart_id = "test_cart_bound"
+        cart_doc = {
+            "id": cart_id,
+            "customerId": "cust_1",
+            "customerName": "Khách Gốc",
+            "status": "completed",
+            "items": [
+                {
+                    "id": "cit_1",
+                    "productId": p1["id"],
+                    "productName": p1["name"],
+                    "unit": p1["unit"],
+                    "quantity": 2.0,
+                    "unitPrice": 45000.0,
+                    "lineTotal": 90000.0,
+                }
+            ],
+            "totalAmount": 90000.0,
+            "orderCode": "DH-BOUND-01",
+            "committedAt": "2026-08-16T08:00:00.000Z",
+            "completedAt": "2026-08-16T08:05:00.000Z",
+        }
+        self.store.save_sync_state(
+            {
+                "carts": [cart_doc],
+                "customers": [{"id": "cust_1", "name": "Khách Gốc"}],
+            }
+        )
+
+        # 4. Try changing customer
+        with self.assertRaises(ValueError) as ctx:
+            self.store.admin_edit_locked_order(
+                cart_id=cart_id,
+                cart_payload={
+                    **cart_doc,
+                    "customerName": "Khách Khác",
+                },
+                admin_edit_reason="Đổi khách",
+                actor_username="admin",
+                actor_role="admin",
+            )
+        self.assertIn("không được phép thay đổi khách hàng", str(ctx.exception))
+
+        # 5. Try adding new product p2 to cart
+        with self.assertRaises(ValueError) as ctx:
+            self.store.admin_edit_locked_order(
+                cart_id=cart_id,
+                cart_payload={
+                    **cart_doc,
+                    "items": [
+                        *cart_doc["items"],
+                        {
+                            "id": "cit_2",
+                            "productId": p2["id"],
+                            "productName": p2["name"],
+                            "unit": p2["unit"],
+                            "quantity": 1.0,
+                            "unitPrice": 50000.0,
+                            "lineTotal": 50000.0,
+                        },
+                    ],
+                },
+                admin_edit_reason="Thêm SP",
+                actor_username="admin",
+                actor_role="admin",
+            )
+        self.assertIn("không được thêm hoặc xóa sản phẩm", str(ctx.exception))
 
 
 if __name__ == "__main__":

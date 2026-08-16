@@ -12510,6 +12510,23 @@ class InventoryStore:
         if str(previous_cart.get("paymentStatus") or "") == "paid":
             raise ValueError("Đơn hàng đã thanh toán không thể sửa.")
         
+        # Admin Edit restrictions: customer cannot change, products cannot be added/removed
+        if str(cart.get("customerId") or "").strip() != str(previous_cart.get("customerId") or "").strip() or \
+           str(cart.get("customerName") or "").strip() != str(previous_cart.get("customerName") or "").strip():
+            raise ValueError("Chế độ Admin Edit không được phép thay đổi khách hàng của đơn đã xuất.")
+
+        new_items = cart.get("items") or []
+        old_items = previous_cart.get("items") or []
+        old_product_ids = {int(it.get("productId") or it.get("product_id") or 0) for it in old_items if int(it.get("productId") or it.get("product_id") or 0)}
+        new_product_ids = {int(it.get("productId") or it.get("product_id") or 0) for it in new_items if int(it.get("productId") or it.get("product_id") or 0)}
+        if old_product_ids != new_product_ids:
+            raise ValueError("Chế độ Admin Edit chỉ cho phép sửa số lượng và giá của các mặt hàng đã có, không được thêm hoặc xóa sản phẩm.")
+
+        for item in new_items:
+            qty = float(item.get("quantity") or 0)
+            if qty <= 0:
+                raise ValueError("Số lượng mặt hàng phải lớn hơn 0.")
+
         order_transactions = self._validate_order_cancellation_target(connection, previous_cart)
         order_code = str(previous_cart.get("orderCode") or cart_id).strip()
         customer_name = str(previous_cart.get("customerName") or "").strip()
@@ -12701,6 +12718,23 @@ class InventoryStore:
             raise ValueError("Chỉ phiếu nhập đã nhận hàng mới được sửa qua chế độ Admin Edit.")
         if str(previous_purchase.get("paidAt") or previous_purchase.get("paid_at") or ""):
             raise ValueError("Phiếu nhập đã thanh toán không thể sửa.")
+        
+        # Admin Edit restrictions: supplier cannot change, products cannot be added/removed
+        if str(purchase.get("supplierId") or "").strip() != str(previous_purchase.get("supplierId") or "").strip() or \
+           str(purchase.get("supplierName") or "").strip() != str(previous_purchase.get("supplierName") or "").strip():
+            raise ValueError("Chế độ Admin Edit không được phép thay đổi nhà cung cấp của phiếu đã nhận.")
+
+        new_items = purchase.get("items") or []
+        old_items = previous_purchase.get("items") or []
+        old_product_ids = {int(it.get("productId") or it.get("product_id") or 0) for it in old_items if int(it.get("productId") or it.get("product_id") or 0)}
+        new_product_ids = {int(it.get("productId") or it.get("product_id") or 0) for it in new_items if int(it.get("productId") or it.get("product_id") or 0)}
+        if old_product_ids != new_product_ids:
+            raise ValueError("Chế độ Admin Edit chỉ cho phép sửa số lượng và giá của các mặt hàng đã có, không được thêm hoặc xóa sản phẩm.")
+
+        for item in new_items:
+            qty = float(item.get("quantity") or 0)
+            if qty <= 0:
+                raise ValueError("Số lượng mặt hàng phải lớn hơn 0.")
         
         receipt_code = str(previous_purchase.get("receiptCode") or previous_purchase.get("receipt_code") or purchase_id).strip()
         

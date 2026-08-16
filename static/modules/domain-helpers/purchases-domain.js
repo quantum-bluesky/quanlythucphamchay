@@ -317,12 +317,11 @@ export function createPurchasesDomainHelpers(deps) {
 
   function canEditPurchaseSupplier(purchase) {
     return Boolean(
-      purchase && (
-        purchase._adminEditMode ||
-        (!isPurchaseStructureLockedByProcurementBatch(purchase) && (
-          purchase.status === "draft" ||
-          (purchase.status === "ordered" && isRepairableInvalidPurchase(purchase))
-        ))
+      purchase &&
+      !purchase._adminEditMode &&
+      !isPurchaseStructureLockedByProcurementBatch(purchase) && (
+        purchase.status === "draft" ||
+        (purchase.status === "ordered" && isRepairableInvalidPurchase(purchase))
       )
     );
   }

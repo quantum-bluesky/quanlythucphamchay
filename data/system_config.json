@@ -6,6 +6,7 @@
   },
   "EnableLogin": true,
   "EnableMultiuserConflictCheck": false,
+  "EnableAdminLockedEdit": false,
   "session_timeout_minutes": 360,
   "admin_session_timeout_minutes": 30,
   "admin": {

@@ -41,6 +41,7 @@ export const state = {
     role: "",
     isAdmin: false,
     enableLogin: false,
+    enableAdminLockedEdit: false,
     loginAccountType: "admin",
     sessionStartedAt: "",
     timeoutMinutes: 360,

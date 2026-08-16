@@ -188,6 +188,7 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
         },
         "EnableLogin": False,
         "EnableMultiuserConflictCheck": True,
+        "EnableAdminLockedEdit": False,
         "session_timeout_minutes": DEFAULT_SYSTEM_SESSION_TIMEOUT_MINUTES,
         "admin_session_timeout_minutes": DEFAULT_ADMIN_SESSION_TIMEOUT_MINUTES,
         "admin": {
@@ -215,6 +216,7 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
         config["admin"]["username"] = os.environ.get("MASTER_ADMIN_USERNAME", DEFAULT_ADMIN_USERNAME)
         config["admin"]["password"] = os.environ.get("MASTER_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
         config["EnableLogin"] = _parse_env_flag("APP_ENABLE_LOGIN", False)
+        config["EnableAdminLockedEdit"] = _parse_env_flag("APP_ENABLE_ADMIN_LOCKED_EDIT", False)
         config["session_timeout_minutes"] = _normalize_timeout_minutes(
             os.environ.get("APP_SESSION_TIMEOUT_MINUTES", DEFAULT_SYSTEM_SESSION_TIMEOUT_MINUTES),
             DEFAULT_SYSTEM_SESSION_TIMEOUT_MINUTES,
@@ -256,6 +258,9 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         "EnableLogin": bool(raw_config.get("EnableLogin", defaults["EnableLogin"])),
         "EnableMultiuserConflictCheck": bool(
             raw_config.get("EnableMultiuserConflictCheck", defaults["EnableMultiuserConflictCheck"])
+        ),
+        "EnableAdminLockedEdit": bool(
+            raw_config.get("EnableAdminLockedEdit", defaults["EnableAdminLockedEdit"])
         ),
         "session_timeout_minutes": _normalize_timeout_minutes(
             raw_config.get("session_timeout_minutes", defaults["session_timeout_minutes"]),
