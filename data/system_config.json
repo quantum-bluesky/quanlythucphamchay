@@ -1,5 +1,5 @@
 {
-  "version": "3.27.6",
+  "version": "3.27.15",
   "server": {
     "host": "0.0.0.0",
     "port": 4000
@@ -46,6 +46,15 @@
     "use_tls": true,
     "use_ssl": false,
     "subject_prefix": "[QuanLyThucPhamChay]"
+  },
+  "public_web": {
+    "banner_url": "",
+    "theme_color": "#4caf50"
+  },
+  "zalo_login": {
+    "app_id": "123",
+    "secret_key": "123",
+    "mock_test_mode": true
   },
   "debug": {
     "sync_state": true

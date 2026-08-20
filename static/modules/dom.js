@@ -96,6 +96,8 @@ export const customerList = document.getElementById("customerList");
 export const productManageSearchInput = document.getElementById("productManageSearchInput");
 export const productManageList = document.getElementById("productManageList");
 export const productHistoryList = document.getElementById("productHistoryList");
+export const productDetailEditor = document.getElementById("productDetailEditor");
+export const productRecipeEditor = document.getElementById("productRecipeEditor");
 export const productFormCancelButton = document.getElementById("productFormCancelButton");
 export const productsSection = document.querySelector('[data-menu-section="products"]');
 export const productFormSection = document.getElementById("productFormSection");
@@ -184,6 +186,8 @@ export const publicWebConfigSection = document.getElementById("publicWebConfigSe
 export const publicWebConfigForm = document.getElementById("publicWebConfigForm");
 export const publicWebThumbMobile = document.getElementById("publicWebThumbMobile");
 export const publicWebThumbPc = document.getElementById("publicWebThumbPc");
+export const publicWebBannerUrl = document.getElementById("publicWebBannerUrl");
+export const publicWebThemeColor = document.getElementById("publicWebThemeColor");
 export const adminSessionHeader = document.getElementById("adminSessionHeader");
 export const adminLoginForm = document.getElementById("adminLoginForm");
 export const adminUsernameInput = document.getElementById("adminUsernameInput");
@@ -238,5 +242,3 @@ export const productDetailModal = document.getElementById('productDetailModal');
 export const productDetailImagesContainer = document.getElementById('productDetailImagesContainer');
 export const productImageUpload = document.getElementById('productImageUpload');
 export const uploadProductImageButton = document.getElementById('uploadProductImageButton');
-export const productDetailEditor = document.getElementById('productDetailEditor');
-

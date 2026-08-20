@@ -10,8 +10,20 @@
 </head>
 <body>
   <div class="public-container">
+    <div id="publicWebBanner" style="display: none; width: 100%; text-align: center; overflow: hidden; background: #f0f0f0;">
+      <img id="publicWebBannerImg" src="" alt="Banner" style="max-width: 100%; height: auto; display: block; margin: 0 auto; max-height: 300px; object-fit: cover;">
+    </div>
     <header class="public-header">
-      <h1>Danh sách các thực phẩm chay</h1>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 16px;">
+        <h1 style="margin: 0; font-size: 1.25rem;">Danh sách các thực phẩm chay</h1>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <a href="/api/public/zalo-login" id="zaloLoginBtn" class="primary-button compact-button" style="background: #0068FF; color: white; text-decoration: none; border-color: #0068FF; font-weight: 600; padding: 4px 12px; display: flex; align-items: center; gap: 4px; font-size: 0.9em; border-radius: 6px;">
+            <svg width="18" height="18" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg" style="fill: white;"><path d="M460 230C460 102.975 357.025 0 230 0C102.975 0 0 102.975 0 230C0 357.025 102.975 460 230 460C357.025 460 460 357.025 460 230ZM329.833 154.516C329.833 162.721 323.011 169.544 314.806 169.544H209.734L337.892 284.156C341.258 287.165 342.348 291.956 340.672 296.386C338.995 300.817 334.821 303.743 330.138 303.743H159.208C150.932 303.743 144.223 297.034 144.223 288.758C144.223 280.482 150.932 273.774 159.208 273.774H264.492L136.333 159.162C132.967 156.152 131.877 151.362 133.553 146.931C135.23 142.5 139.404 139.574 144.088 139.574H314.806C323.082 139.574 329.833 146.31 329.833 154.516Z"/></svg>
+            Zalo
+          </a>
+          <button id="myOrdersBtn" class="secondary-button compact-button">Đơn của tôi</button>
+        </div>
+      </div>
       <div class="search-bar">
         <input type="text" id="searchInput" placeholder="Tìm kiếm sản phẩm..." autocomplete="off">
       </div>
@@ -25,14 +37,36 @@
           <span>Bao gồm cả hàng đã đặt, sắp về</span>
         </label>
       </div>
+      <div class="view-mode-bar" style="display: flex; gap: 1rem; margin-top: 12px; padding: 0 1rem;">
+        <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted);">Giao diện:</span>
+        <label class="toggle-inline" style="cursor: pointer; user-select: none;">
+          <input type="radio" name="viewMode" value="thumbnail" checked>
+          <span>Ảnh (Thumbnail)</span>
+        </label>
+        <label class="toggle-inline" style="cursor: pointer; user-select: none;">
+          <input type="radio" name="viewMode" value="list">
+          <span>Danh sách rút gọn</span>
+        </label>
+      </div>
     </header>
     
-    <main class="public-main">
+    <main class="public-main" style="padding-bottom: 80px;">
       <div id="productGrid" class="product-grid">
         <!-- Products will be rendered here -->
       </div>
       <div id="loading" class="loading-spinner">Đang tải...</div>
     </main>
+    
+    <div id="cartBar" class="public-cart-bar hidden">
+      <div class="cart-bar-info">
+        <span id="cartCountBadge" class="cart-badge">0</span>
+        <span class="cart-label">sản phẩm đã chọn</span>
+      </div>
+      <div class="cart-bar-actions">
+        <button id="copySelectedBtn" class="secondary-button compact-button" style="margin-right: 8px;">Copy danh sách</button>
+        <button id="checkoutBtn" class="primary-button compact-button">Chốt đơn</button>
+      </div>
+    </div>
   </div>
 
   <!-- Product Modal -->
@@ -40,20 +74,76 @@
     <div class="modal-content">
       <button id="closeModal" class="modal-close">&times;</button>
       <div class="modal-body">
-        <div id="modalImages" class="modal-images"></div>
+        <div class="modal-images-container" style="position: relative;">
+          <div id="modalImages" class="modal-images"></div>
+          <button id="modalPrevImg" class="carousel-nav prev-img" aria-label="Ảnh trước">&lt;</button>
+          <button id="modalNextImg" class="carousel-nav next-img" aria-label="Ảnh sau">&gt;</button>
+          <div id="modalImgDots" class="carousel-dots"></div>
+        </div>
         <div class="modal-info">
           <h2 id="modalName"></h2>
           <p id="modalCategory" class="text-muted"></p>
-          <div class="modal-actions">
-             <button id="copyLinkBtn" class="primary-button wide-button">Chia sẻ Link</button>
+          <div class="modal-price-row">
+            <span id="modalSalePrice" class="price"></span>
+            <span id="modalPrice" class="price-strike"></span>
           </div>
-          <div id="modalDetails" class="modal-details rich-text"></div>
+          <p id="modalUnit" class="text-muted"></p>
+          <div id="modalDetails" class="modal-details"></div>
+          
+          <div id="modalRecipeContainer" class="modal-recipe-container hidden" style="margin-top: 20px; padding: 16px; background: #fff8e1; border-radius: 8px; border: 1px solid #ffecb3; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <h3 style="margin-top: 0; color: #f57f17; display: flex; align-items: center; gap: 8px; font-size: 1.1em;">
+              <span>👨‍🍳</span> Gợi ý chế biến
+            </h3>
+            <div id="modalRecipe" class="modal-recipe" style="line-height: 1.6; color: #424242;"></div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="toastContainer" class="toast-container"></div>
+  <!-- Checkout Modal -->
+  <div id="checkoutModal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 500px;">
+      <button id="closeCheckoutModal" class="modal-close">&times;</button>
+      <div class="modal-body" style="display: block; padding: 24px;">
+        <h2 style="margin-top: 0; margin-bottom: 20px;">Thông tin giao hàng</h2>
+        <form id="checkoutForm">
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Tên của bạn *</label>
+            <input type="text" id="checkoutName" required class="form-input" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
+          </div>
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Số điện thoại *</label>
+            <input type="tel" id="checkoutPhone" required class="form-input" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
+          </div>
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Địa chỉ giao hàng</label>
+            <input type="text" id="checkoutAddress" class="form-input" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
+          </div>
+          <div class="form-group" style="margin-bottom: 24px;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Ghi chú thêm</label>
+            <textarea id="checkoutNote" class="form-input" rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;"></textarea>
+          </div>
+          <button type="submit" id="submitCheckoutBtn" class="primary-button" style="width: 100%; padding: 12px; font-size: 16px;">Gửi đơn hàng</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- My Orders Modal -->
+  <div id="myOrdersModal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+      <button id="closeMyOrdersModal" class="modal-close">&times;</button>
+      <div class="modal-body" style="display: block; padding: 24px; overflow-y: auto;">
+        <h2 style="margin-top: 0; margin-bottom: 20px;">Đơn hàng của tôi</h2>
+        <div id="myOrdersList" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Các đơn hàng sẽ hiển thị ở đây -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden">Đã copy link!</div>
 
   <script src="./static/public_products.js"></script>
 </body>

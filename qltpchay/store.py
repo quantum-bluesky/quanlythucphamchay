@@ -174,6 +174,7 @@ class InventoryStore:
                     storage_life_days REAL,
                     images TEXT NOT NULL DEFAULT '[]',
                     details TEXT NOT NULL DEFAULT '',
+                    recipe TEXT NOT NULL DEFAULT '',
                     is_deleted INTEGER NOT NULL DEFAULT 0,
                     is_public INTEGER NOT NULL DEFAULT 1,
                     deleted_at TEXT,
@@ -590,6 +591,10 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1"
                 )
+            if "recipe" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN recipe TEXT NOT NULL DEFAULT ''"
+                )
             now = utc_now_iso()
             audit_columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(audit_logs)").fetchall()
@@ -766,6 +771,14 @@ class InventoryStore:
             if batch_columns and "source_transaction_id" not in batch_columns:
                 connection.execute(
                     "ALTER TABLE inventory_batches ADD COLUMN source_transaction_id INTEGER"
+                )
+            
+            customer_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(customers)").fetchall()
+            }
+            if customer_columns and "zalo_id" not in customer_columns:
+                connection.execute(
+                    "ALTER TABLE customers ADD COLUMN zalo_id TEXT NOT NULL DEFAULT ''"
                 )
             for key in self.SYNC_COLLECTION_KEYS:
                 connection.execute(
@@ -2872,6 +2885,7 @@ class InventoryStore:
         storage_life_days: str | int | float | None = None,
         images: list[str] | None = None,
         details: str = "",
+        recipe: str = "",
         is_public: bool = True,
         actor: str = "",
         global_id: str | None = None,
@@ -2898,6 +2912,7 @@ class InventoryStore:
         now = utc_now_iso()
         clean_images = json.dumps([str(img).strip() for img in (images or []) if str(img).strip()], ensure_ascii=False)
         clean_details = str(details or "").strip()
+        clean_recipe = str(recipe or "").strip()
         gid = str(global_id).strip() if global_id and str(global_id).strip() else f"prd_{uuid.uuid4().hex}"
 
         with self._connect() as connection:
@@ -2907,10 +2922,10 @@ class InventoryStore:
                     INSERT INTO products (
                         global_id, name, category, unit, low_stock_threshold,
                         price, sale_price, shelf_life_days, storage_life_days,
-                        images, details, is_public,
+                        images, details, recipe, is_public,
                         created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         gid,
@@ -2924,6 +2939,7 @@ class InventoryStore:
                         parsed_storage_life_days,
                         clean_images,
                         clean_details,
+                        clean_recipe,
                         1 if is_public else 0,
                         now,
                         now,
@@ -3080,6 +3096,7 @@ class InventoryStore:
         storage_life_days: str | int | float | None = None,
         images: list[str] | None = None,
         details: str | None = None,
+        recipe: str | None = None,
         is_public: bool | None = None,
         actor: str = "",
         allow_deleted: bool = False,
@@ -3120,6 +3137,8 @@ class InventoryStore:
             next_values["images"] = json.dumps([str(img).strip() for img in images if str(img).strip()], ensure_ascii=False)
         if details is not None:
             next_values["details"] = str(details).strip()
+        if recipe is not None:
+            next_values["recipe"] = str(recipe).strip()
         if is_public is not None:
             next_values["is_public"] = 1 if is_public else 0
         if global_id is not None:
@@ -6451,6 +6470,133 @@ class InventoryStore:
             "discount_amount": sale_result["discount_amount"],
             "total_amount": sale_result["total_amount"],
         }
+
+    def create_online_order(
+        self,
+        *,
+        customer_name: str,
+        customer_phone: str = "",
+        customer_address: str = "",
+        zalo_id: str = "",
+        note: str = "",
+        items: list[dict],
+    ) -> dict:
+        clean_name = str(customer_name or "").strip()
+        clean_phone = str(customer_phone or "").strip()
+        clean_address = str(customer_address or "").strip()
+        clean_zalo_id = str(zalo_id or "").strip()
+        clean_note = str(note or "").strip()
+        if not clean_name and not clean_phone and not clean_zalo_id:
+            raise ValueError("Cần ít nhất Tên hoặc Số điện thoại để chốt đơn.")
+        if not clean_name:
+            clean_name = f"Khách vãng lai ({clean_phone or clean_zalo_id})"
+        if not items:
+            raise ValueError("Giỏ hàng đang trống.")
+
+        grouped_items = self._group_sale_items(items)
+        now = utc_now_iso()
+
+        with self._connect() as connection:
+            existing_customer = None
+            if clean_zalo_id:
+                row = connection.execute(
+                    "SELECT * FROM customers WHERE zalo_id = ? AND deleted_at IS NULL LIMIT 1", 
+                    (clean_zalo_id,)
+                ).fetchone()
+                if row:
+                    existing_customer = self._serialize_customer_row(row)
+            
+            if not existing_customer and clean_phone:
+                row = connection.execute(
+                    "SELECT * FROM customers WHERE phone = ? AND deleted_at IS NULL LIMIT 1", 
+                    (clean_phone,)
+                ).fetchone()
+                if row:
+                    existing_customer = self._serialize_customer_row(row)
+                    
+            if not existing_customer:
+                existing_customer = self._find_active_customer_by_name(connection, clean_name)
+            
+            if not existing_customer:
+                customer_id = f"customer_{secrets.token_hex(6)}"
+                connection.execute(
+                    """
+                    INSERT INTO customers(id, name, phone, address, zalo_url, zalo_id, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, ?, '', ?, ?, ?, NULL)
+                    """,
+                    (customer_id, clean_name, clean_phone, clean_address, clean_zalo_id, now, now)
+                )
+            else:
+                customer_id = existing_customer["id"]
+                # Cập nhật sđt/địa chỉ/zalo_id nếu khách chưa có
+                if clean_phone and not existing_customer.get("phone"):
+                    connection.execute("UPDATE customers SET phone = ? WHERE id = ?", (clean_phone, customer_id))
+                if clean_address and not existing_customer.get("address"):
+                    connection.execute("UPDATE customers SET address = ? WHERE id = ?", (clean_address, customer_id))
+                if clean_zalo_id and not existing_customer.get("zalo_id"):
+                    connection.execute("UPDATE customers SET zalo_id = ? WHERE id = ?", (clean_zalo_id, customer_id))
+                clean_name = existing_customer["name"]
+
+            cart_id = f"cart_{secrets.token_hex(6)}"
+            cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
+            
+            # Tính discount
+            discount_amount = 0
+            
+            connection.execute(
+                """
+                INSERT INTO carts(
+                    id, customer_id, customer_name, created_mode, status, payment_status, note, discount_amount, ship_address,
+                    created_at, updated_at, payment_method, payment_note, order_code
+                )
+                VALUES(?, ?, ?, 'online', 'draft', 'unpaid', ?, ?, ?, ?, ?, '', '', '')
+                """,
+                (
+                    cart_id, customer_id, clean_name, clean_note, discount_amount, clean_address, now, now
+                ),
+            )
+            self._replace_cart_items(connection, cart_id=cart_id, items=cart_items)
+            created_cart = self._get_cart_document(connection, cart_id)
+            self._record_cart_change_history(
+                connection,
+                previous=None,
+                current=created_cart,
+                actor="Public Customer",
+                created_at=now,
+                note_prefix="Tạo đơn hàng online",
+            )
+            return {
+                "message": "Đã tạo đơn hàng thành công, chúng tôi sẽ liên hệ sớm nhất.",
+                "cart": created_cart,
+            }
+
+    def get_public_orders(self, *, phone: str) -> list[dict]:
+        clean_phone = str(phone or "").strip()
+        if not clean_phone:
+            return []
+            
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT c.* 
+                FROM carts c
+                JOIN customers cust ON c.customer_id = cust.id
+                WHERE cust.phone = ? AND c.created_mode = 'online'
+                ORDER BY c.created_at DESC
+                """,
+                (clean_phone,)
+            ).fetchall()
+            
+            result = []
+            for row in rows:
+                cart = dict(row)
+                items_rows = connection.execute(
+                    "SELECT * FROM cart_items WHERE cart_id = ?",
+                    (cart["id"],)
+                ).fetchall()
+                cart["items"] = [self._serialize_cart_item_row(r) for r in items_rows]
+                result.append(cart)
+            return result
 
     def bulk_create_orders(
         self,
@@ -9785,6 +9931,7 @@ class InventoryStore:
             "is_low_stock": current_stock <= threshold,
             "images": images,
             "details": row["details"] if "details" in row.keys() else "",
+            "recipe": row["recipe"] if "recipe" in row.keys() else "",
             "is_deleted": bool(row["is_deleted"]),
             "deleted_at": row["deleted_at"],
             "created_at": row["created_at"],
@@ -13017,3 +13164,44 @@ class InventoryStore:
             "purchase": result["purchase"],
             "purchases": canonical,
         }
+
+    def upsert_zalo_customer(self, zalo_id: str, name: str, phone: str = "", avatar_url: str = "") -> dict:
+        if not zalo_id:
+            raise ValueError("zalo_id is required")
+        clean_name = str(name or "").strip() or "Khách Zalo"
+        clean_phone = str(phone or "").strip()
+        now = utc_now_iso()
+
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM customers WHERE zalo_id = ? AND deleted_at IS NULL",
+                (zalo_id,)
+            ).fetchone()
+            
+            if row:
+                # Update existing
+                connection.execute(
+                    """
+                    UPDATE customers 
+                    SET name = ?, phone = ?, zalo_url = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (clean_name, clean_phone or row["phone"], avatar_url, now, row["id"])
+                )
+                customer_id = row["id"]
+            else:
+                # Insert new
+                import secrets
+                customer_id = f"customer_{secrets.token_hex(6)}"
+                connection.execute(
+                    """
+                    INSERT INTO customers(id, name, phone, address, zalo_url, zalo_id, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, '', ?, ?, ?, ?, NULL)
+                    """,
+                    (customer_id, clean_name, clean_phone, avatar_url, zalo_id, now, now)
+                )
+            
+            canonical = self._refresh_sync_collection_cache(connection, "customers", updated_at=now)
+            
+            row = connection.execute("SELECT * FROM customers WHERE id = ?", (customer_id,)).fetchone()
+            return self._serialize_customer_row(row)
