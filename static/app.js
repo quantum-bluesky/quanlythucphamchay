@@ -184,6 +184,8 @@ import {
   publicWebConfigForm,
   publicWebThumbMobile,
   publicWebThumbPc,
+  publicWebBannerUrl,
+  publicWebThemeColor,
   adminSessionHeader,
   adminLoginForm,
   adminUsernameInput,
@@ -7757,6 +7759,8 @@ document.addEventListener("click", async (event) => {
       const config = payload.public_web || {};
       if (publicWebThumbMobile) publicWebThumbMobile.value = config.thumbnail_size_mobile || 120;
       if (publicWebThumbPc) publicWebThumbPc.value = config.thumbnail_size_pc || 240;
+      if (publicWebBannerUrl) publicWebBannerUrl.value = config.banner_url || "";
+      if (publicWebThemeColor) publicWebThemeColor.value = config.theme_color || "";
     } catch (err) {
       // Ignored if not admin or not loaded yet
       if (err.message && !err.message.includes("Unauthorized")) {
@@ -7772,6 +7776,8 @@ if (publicWebConfigForm) {
     const data = {
       thumbnail_size_mobile: parseInt(publicWebThumbMobile.value || "120", 10),
       thumbnail_size_pc: parseInt(publicWebThumbPc.value || "240", 10),
+      banner_url: publicWebBannerUrl.value.trim(),
+      theme_color: publicWebThemeColor.value.trim(),
     };
     try {
       await apiRequest("/api/admin/public-web-config", {

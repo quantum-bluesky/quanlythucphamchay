@@ -161,6 +161,18 @@ async function fetchProducts() {
     if (settings.thumbnail_size_pc) {
       root.style.setProperty('--thumb-size-pc', settings.thumbnail_size_pc + 'px');
     }
+    if (settings.theme_color) {
+      root.style.setProperty('--primary', settings.theme_color);
+      root.style.setProperty('--primary-light', settings.theme_color + '1a'); // add some transparency
+    }
+    if (settings.banner_url) {
+      const banner = document.getElementById("publicWebBanner");
+      const img = document.getElementById("publicWebBannerImg");
+      if (banner && img) {
+        banner.style.display = "block";
+        img.src = settings.banner_url;
+      }
+    }
     
     filterAndRenderProducts();
     
