@@ -52,31 +52,112 @@ function renderProducts(products) {
     return;
   }
   
+  const viewMode = document.querySelector('input[name="viewMode"]:checked')?.value || 'thumbnail';
+  
+  if (viewMode === 'list') {
+    grid.classList.add('list-mode');
+    grid.classList.remove('thumbnail-mode');
+  } else {
+    grid.classList.add('thumbnail-mode');
+    grid.classList.remove('list-mode');
+  }
+  
   products.forEach(p => {
     const card = document.createElement("div");
-    card.className = "product-card";
     
-    let imageHtml = `<div class="product-image-placeholder">Không có ảnh</div>`;
-    if (p.images && p.images.length > 0) {
-      let firstImage = p.images[0];
-      if (firstImage.startsWith("/images/")) {
-        firstImage = "." + firstImage;
-      } else if (!firstImage.startsWith("http") && !firstImage.startsWith("./images/")) {
-        firstImage = "./images/" + firstImage;
-      }
-      imageHtml = `<img src="${firstImage}" class="product-image" alt="${p.name}" loading="lazy">`;
-    }
-    
-    card.innerHTML = `
-      ${imageHtml}
-      <div class="product-info">
-        <h3 class="product-title">${p.name}</h3>
+    const actionsHtml = `
+      <div class="product-card-actions">
+        <button type="button" class="ghost-button compact-button btn-view-detail" data-id="${p.id}">Xem</button>
+        <button type="button" class="ghost-button compact-button btn-copy-link" data-id="${p.id}">Copy link</button>
       </div>
     `;
+
+    if (viewMode === 'list') {
+      card.className = "product-list-item";
+      card.innerHTML = `
+        <div class="product-info-compact">
+          <h3 class="product-title" style="margin: 0; font-size: 1rem;">${p.name}</h3>
+        </div>
+        ${actionsHtml}
+      `;
+    } else {
+      card.className = "product-card";
+      let imageHtml = `<div class="product-image-placeholder">Không có ảnh</div>`;
+      if (p.images && p.images.length > 0) {
+        let firstImage = p.images[0];
+        if (firstImage.startsWith("/images/")) {
+          firstImage = "." + firstImage;
+        } else if (!firstImage.startsWith("http") && !firstImage.startsWith("./images/")) {
+          firstImage = "./images/" + firstImage;
+        }
+        imageHtml = `<img src="${firstImage}" class="product-image" alt="${p.name}" loading="lazy">`;
+      }
+      
+      card.innerHTML = `
+        ${imageHtml}
+        <div class="product-info">
+          <h3 class="product-title">${p.name}</h3>
+          ${actionsHtml}
+        </div>
+      `;
+    }
     
-    card.addEventListener("click", () => openModal(p));
+    // Thêm event listener thay vì dùng onclick toàn thẻ để tránh bấm nút bị đè event
+    card.addEventListener("click", (e) => {
+      // Nếu không bấm vào nút thì mở detail
+      if (!e.target.closest('button')) {
+        openModal(p);
+      }
+    });
+
+    const btnView = card.querySelector('.btn-view-detail');
+    if (btnView) {
+      btnView.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openModal(p);
+      });
+    }
+
+    const btnCopy = card.querySelector('.btn-copy-link');
+    if (btnCopy) {
+      btnCopy.addEventListener('click', (e) => {
+        e.stopPropagation();
+        copyProductLink(p.id);
+      });
+    }
+
     grid.appendChild(card);
   });
+}
+
+function copyProductLink(productId) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("id", productId);
+  
+  const textToCopy = url.toString();
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      showToast("Đã copy link chia sẻ sản phẩm!");
+    }).catch(() => {
+      showToast("Không thể copy link.");
+    });
+  } else {
+    const textArea = document.createElement("textarea");
+    textArea.value = textToCopy;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-999999px";
+    textArea.style.top = "-999999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      showToast("Đã copy link chia sẻ sản phẩm!");
+    } catch (err) {
+      showToast("Không thể copy link.");
+    }
+    textArea.remove();
+  }
 }
 
 function setupSearch() {
@@ -92,6 +173,10 @@ function setupSearch() {
   if (incomingCheckbox) {
     incomingCheckbox.addEventListener("change", () => filterAndRenderProducts());
   }
+  const viewModeRadios = document.querySelectorAll('input[name="viewMode"]');
+  viewModeRadios.forEach(radio => {
+    radio.addEventListener("change", () => renderProducts(allProducts));
+  });
 }
 
 function filterAndRenderProducts() {
