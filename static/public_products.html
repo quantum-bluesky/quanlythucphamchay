@@ -50,7 +50,10 @@
         <span id="cartCountBadge" class="cart-badge">0</span>
         <span class="cart-label">sản phẩm đã chọn</span>
       </div>
-      <button id="copySelectedBtn" class="secondary-button compact-button">Copy danh sách</button>
+      <div class="cart-bar-actions">
+        <button id="copySelectedBtn" class="secondary-button compact-button" style="margin-right: 8px;">Copy danh sách</button>
+        <button id="checkoutBtn" class="primary-button compact-button">Chốt đơn</button>
+      </div>
     </div>
   </div>
 
@@ -68,16 +71,47 @@
         <div class="modal-info">
           <h2 id="modalName"></h2>
           <p id="modalCategory" class="text-muted"></p>
-          <div class="modal-actions">
-             <button id="copyLinkBtn" class="primary-button wide-button">Chia sẻ Link</button>
+          <div class="modal-price-row">
+            <span id="modalSalePrice" class="price"></span>
+            <span id="modalPrice" class="price-strike"></span>
           </div>
-          <div id="modalDetails" class="modal-details rich-text"></div>
+          <p id="modalUnit" class="text-muted"></p>
+          <div id="modalDetails" class="modal-details"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="toastContainer" class="toast-container"></div>
+  <!-- Checkout Modal -->
+  <div id="checkoutModal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 500px;">
+      <button id="closeCheckoutModal" class="modal-close">&times;</button>
+      <div class="modal-body" style="display: block; padding: 24px;">
+        <h2 style="margin-top: 0; margin-bottom: 20px;">Thông tin giao hàng</h2>
+        <form id="checkoutForm">
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Tên của bạn *</label>
+            <input type="text" id="checkoutName" required class="form-input" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
+          </div>
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Số điện thoại *</label>
+            <input type="tel" id="checkoutPhone" required class="form-input" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
+          </div>
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Địa chỉ giao hàng</label>
+            <input type="text" id="checkoutAddress" class="form-input" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
+          </div>
+          <div class="form-group" style="margin-bottom: 24px;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Ghi chú thêm</label>
+            <textarea id="checkoutNote" class="form-input" rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;"></textarea>
+          </div>
+          <button type="submit" id="submitCheckoutBtn" class="primary-button" style="width: 100%; padding: 12px; font-size: 16px;">Gửi đơn hàng</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden">Đã copy link!</div>
 
   <script src="./static/public_products.js"></script>
 </body>

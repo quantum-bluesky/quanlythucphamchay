@@ -599,6 +599,23 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 )
                 return
 
+            if route == "/api/public/orders":
+                try:
+                    payload = self._read_json_body()
+                    result = store.create_online_order(
+                        customer_name=payload.get("customer_name") or "",
+                        customer_phone=payload.get("customer_phone") or "",
+                        customer_address=payload.get("customer_address") or "",
+                        note=payload.get("note") or "",
+                        items=payload.get("items") or [],
+                    )
+                    self._send_json(HTTPStatus.CREATED, result)
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                except Exception as exc:
+                    self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"Lỗi hệ thống: {exc}"})
+                return
+
             if route.startswith("/api/") and self._is_login_enabled() and not self._require_authenticated_session():
                 return
 

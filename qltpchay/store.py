@@ -6452,6 +6452,92 @@ class InventoryStore:
             "total_amount": sale_result["total_amount"],
         }
 
+    def create_online_order(
+        self,
+        *,
+        customer_name: str,
+        customer_phone: str = "",
+        customer_address: str = "",
+        note: str = "",
+        items: list[dict],
+    ) -> dict:
+        clean_name = str(customer_name or "").strip()
+        clean_phone = str(customer_phone or "").strip()
+        clean_address = str(customer_address or "").strip()
+        clean_note = str(note or "").strip()
+        if not clean_name and not clean_phone:
+            raise ValueError("Cần ít nhất Tên hoặc Số điện thoại để chốt đơn.")
+        if not clean_name:
+            clean_name = f"Khách vãng lai ({clean_phone})"
+        if not items:
+            raise ValueError("Giỏ hàng đang trống.")
+
+        grouped_items = self._group_sale_items(items)
+        now = utc_now_iso()
+
+        with self._connect() as connection:
+            existing_customer = None
+            if clean_phone:
+                row = connection.execute(
+                    "SELECT id, name, phone, address, zalo_url, created_at, updated_at, deleted_at FROM customers WHERE phone = ? AND deleted_at IS NULL LIMIT 1", 
+                    (clean_phone,)
+                ).fetchone()
+                if row:
+                    existing_customer = self._serialize_customer_row(row)
+            if not existing_customer:
+                existing_customer = self._find_active_customer_by_name(connection, clean_name)
+            
+            if not existing_customer:
+                customer_id = f"customer_{secrets.token_hex(6)}"
+                connection.execute(
+                    """
+                    INSERT INTO customers(id, name, phone, address, zalo_url, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, ?, '', ?, ?, NULL)
+                    """,
+                    (customer_id, clean_name, clean_phone, clean_address, now, now)
+                )
+            else:
+                customer_id = existing_customer["id"]
+                # Cập nhật sđt/địa chỉ nếu khách chưa có
+                if clean_phone and not existing_customer.get("phone"):
+                    connection.execute("UPDATE customers SET phone = ? WHERE id = ?", (clean_phone, customer_id))
+                if clean_address and not existing_customer.get("address"):
+                    connection.execute("UPDATE customers SET address = ? WHERE id = ?", (clean_address, customer_id))
+                clean_name = existing_customer["name"]
+
+            cart_id = f"cart_{secrets.token_hex(6)}"
+            cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
+            
+            # Tính discount
+            discount_amount = 0
+            
+            connection.execute(
+                """
+                INSERT INTO carts(
+                    id, customer_id, customer_name, created_mode, status, payment_status, note, discount_amount, ship_address,
+                    created_at, updated_at, payment_method, payment_note, order_code
+                )
+                VALUES(?, ?, ?, 'online', 'draft', 'unpaid', ?, ?, ?, ?, ?, '', '', '')
+                """,
+                (
+                    cart_id, customer_id, clean_name, clean_note, discount_amount, clean_address, now, now
+                ),
+            )
+            self._replace_cart_items(connection, cart_id=cart_id, items=cart_items)
+            created_cart = self._get_cart_document(connection, cart_id)
+            self._record_cart_change_history(
+                connection,
+                previous=None,
+                current=created_cart,
+                actor="Public Customer",
+                created_at=now,
+                note_prefix="Tạo đơn hàng online",
+            )
+            return {
+                "message": "Đã tạo đơn hàng thành công, chúng tôi sẽ liên hệ sớm nhất.",
+                "cart": created_cart,
+            }
+
     def bulk_create_orders(
         self,
         *,

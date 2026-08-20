@@ -8,9 +8,14 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function setupCart() {
-  const btn = document.getElementById("copySelectedBtn");
-  if (btn) {
-    btn.addEventListener("click", () => {
+  const copyBtn = document.getElementById("copySelectedBtn");
+  const checkoutBtn = document.getElementById("checkoutBtn");
+  const checkoutModal = document.getElementById("checkoutModal");
+  const closeCheckoutBtn = document.getElementById("closeCheckoutModal");
+  const checkoutForm = document.getElementById("checkoutForm");
+  
+  if (copyBtn) {
+    copyBtn.addEventListener("click", () => {
       const keys = Object.keys(window.selectedProducts);
       if (keys.length === 0) return;
       
@@ -24,17 +29,13 @@ function setupCart() {
       });
       
       if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(text).then(() => {
-          showToast("Đã copy danh sách sản phẩm!");
-        }).catch(() => {
-          showToast("Không thể copy.");
-        });
+        navigator.clipboard.writeText(text).then(() => showToast("Đã copy danh sách sản phẩm!"))
+          .catch(() => showToast("Không thể copy."));
       } else {
         const textArea = document.createElement("textarea");
         textArea.value = text;
         textArea.style.position = "fixed";
         textArea.style.left = "-999999px";
-        textArea.style.top = "-999999px";
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
@@ -45,6 +46,101 @@ function setupCart() {
           showToast("Không thể copy.");
         }
         textArea.remove();
+      }
+    });
+  }
+
+  if (checkoutBtn) {
+    checkoutBtn.addEventListener("click", () => {
+      // Prefill từ localStorage
+      const savedInfo = JSON.parse(localStorage.getItem('public_customer_info') || '{}');
+      if (savedInfo.name) document.getElementById('checkoutName').value = savedInfo.name;
+      if (savedInfo.phone) document.getElementById('checkoutPhone').value = savedInfo.phone;
+      if (savedInfo.address) document.getElementById('checkoutAddress').value = savedInfo.address;
+      
+      checkoutModal.classList.remove("hidden");
+      document.body.style.overflow = "hidden";
+    });
+  }
+  
+  if (closeCheckoutBtn) {
+    closeCheckoutBtn.addEventListener("click", () => {
+      checkoutModal.classList.add("hidden");
+      document.body.style.overflow = "";
+    });
+  }
+
+  if (checkoutForm) {
+    checkoutForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const submitBtn = document.getElementById('submitCheckoutBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Đang gửi...';
+
+      const customer_name = document.getElementById('checkoutName').value.trim();
+      const customer_phone = document.getElementById('checkoutPhone').value.trim();
+      const customer_address = document.getElementById('checkoutAddress').value.trim();
+      const note = document.getElementById('checkoutNote').value.trim();
+
+      const items = [];
+      Object.keys(window.selectedProducts).forEach(id => {
+        const p = allProducts.find(x => String(x.id) === id);
+        if (p) {
+          items.push({
+            product_id: p.id,
+            product_name: p.name,
+            quantity: window.selectedProducts[id],
+            price: p.sale_price || p.price || 0,
+            unit: p.unit
+          });
+        }
+      });
+
+      if (items.length === 0) {
+        showToast("Giỏ hàng đang trống!");
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Gửi đơn hàng';
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/public/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customer_name,
+            customer_phone,
+            customer_address,
+            note,
+            items
+          })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          // Lưu info vào localStorage
+          localStorage.setItem('public_customer_info', JSON.stringify({
+            name: customer_name,
+            phone: customer_phone,
+            address: customer_address
+          }));
+          
+          showToast(data.message || "Đã chốt đơn thành công!");
+          window.selectedProducts = {};
+          updateCartUI();
+          renderProducts(allProducts); // reset checked state
+          checkoutModal.classList.add("hidden");
+          document.body.style.overflow = "";
+        } else {
+          showToast(data.error || "Lỗi khi gửi đơn hàng.");
+        }
+      } catch (err) {
+        showToast("Không thể kết nối đến máy chủ.");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Gửi đơn hàng';
       }
     });
   }
