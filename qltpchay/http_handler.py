@@ -231,6 +231,137 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 self._send_json(HTTPStatus.OK, {"orders": orders})
                 return
 
+            if route == "/api/public/zalo-login":
+                zalo_config = (system_config or {}).get("zalo_login", {})
+                app_id = zalo_config.get("app_id")
+                mock_mode = zalo_config.get("mock_test_mode")
+                if mock_mode:
+                    mock_url = f"/api/public/zalo-callback?code=MOCK_CODE"
+                    self.send_response(HTTPStatus.FOUND)
+                    self.send_header("Location", mock_url)
+                    self.end_headers()
+                    return
+                
+                if not app_id:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Chưa cấu hình Zalo App ID."})
+                    return
+                
+                host = self.headers.get("Host") or "localhost"
+                protocol = "https" if "localhost" not in host and "127.0.0.1" not in host else "http"
+                redirect_uri = f"{protocol}://{host}/api/public/zalo-callback"
+                import urllib.parse
+                auth_url = f"https://oauth.zaloapp.com/v4/permission?app_id={app_id}&redirect_uri={urllib.parse.quote(redirect_uri)}&state=zalo_login"
+                self.send_response(HTTPStatus.FOUND)
+                self.send_header("Location", auth_url)
+                self.end_headers()
+                return
+
+            if route == "/api/public/zalo-callback":
+                code = str(self._get_query_param("code") or "").strip()
+                if not code:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Missing code"})
+                    return
+                
+                zalo_config = (system_config or {}).get("zalo_login", {})
+                mock_mode = zalo_config.get("mock_test_mode")
+                
+                zalo_id = ""
+                name = ""
+                avatar = ""
+                phone = ""
+                
+                if mock_mode and code == "MOCK_CODE":
+                    zalo_id = "mock_zalo_123456"
+                    name = "Khách Zalo Test"
+                    phone = "0999999999"
+                else:
+                    import urllib.request
+                    import json
+                    import urllib.parse
+                    
+                    app_id = zalo_config.get("app_id")
+                    secret_key = zalo_config.get("secret_key")
+                    if not app_id or not secret_key:
+                        self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Zalo config missing"})
+                        return
+                    
+                    try:
+                        # 1. Exchange code for access_token
+                        data = urllib.parse.urlencode({
+                            "app_id": app_id,
+                            "grant_type": "authorization_code",
+                            "code": code
+                        }).encode("utf-8")
+                        req = urllib.request.Request(
+                            "https://oauth.zaloapp.com/v4/access_token",
+                            data=data,
+                            headers={"secret_key": secret_key, "Content-Type": "application/x-www-form-urlencoded"}
+                        )
+                        with urllib.request.urlopen(req) as response:
+                            token_data = json.loads(response.read())
+                        access_token = token_data.get("access_token")
+                        if not access_token:
+                            self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Could not get access token"})
+                            return
+                        
+                        # 2. Get user info
+                        req = urllib.request.Request(
+                            "https://graph.zalo.me/v2.0/me?fields=id,name,picture",
+                            headers={"access_token": access_token}
+                        )
+                        with urllib.request.urlopen(req) as response:
+                            user_data = json.loads(response.read())
+                        
+                        if "error" in user_data:
+                            self._send_json(HTTPStatus.BAD_REQUEST, {"error": user_data})
+                            return
+                            
+                        zalo_id = str(user_data.get("id", ""))
+                        name = user_data.get("name", "")
+                        avatar_dict = user_data.get("picture", {})
+                        if isinstance(avatar_dict, dict) and "data" in avatar_dict:
+                            avatar = avatar_dict["data"].get("url", "")
+                            
+                        # Note: to get phone we need to decrypt token_data or call endpoint. Let's fallback to dummy phone
+                        # Real app might need 'phone' permission to fetch phone from Zalo Graph.
+                        # Since phone is required by schema, we fallback to a pseudo phone if not available.
+                        phone = f"Zalo:{zalo_id}"
+                        
+                    except Exception as e:
+                        self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
+                        return
+
+                if not zalo_id:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Could not get Zalo ID"})
+                    return
+                
+                customer = store.upsert_zalo_customer(zalo_id=zalo_id, name=name, phone=phone, avatar_url=avatar)
+                
+                import json
+                # Send HTML that saves to localStorage and redirects
+                html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+    <script>
+        const user = {{
+            name: {json.dumps(customer['name'])},
+            phone: {json.dumps(customer['phone'])},
+            address: {json.dumps(customer['address'])},
+            zalo_id: {json.dumps(customer.get('zalo_id', ''))}
+        }};
+        localStorage.setItem("public_customer_info", JSON.stringify(user));
+        window.location.href = "/ProductList";
+    </script>
+</body>
+</html>"""
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(html.encode("utf-8"))))
+                self.end_headers()
+                self.wfile.write(html.encode("utf-8"))
+                return
+
             if route.startswith("/api/") and self._is_login_enabled():
                 session, expired = self._resolve_current_session()
                 if not session:
@@ -615,6 +746,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         customer_name=payload.get("customer_name") or "",
                         customer_phone=payload.get("customer_phone") or "",
                         customer_address=payload.get("customer_address") or "",
+                        zalo_id=payload.get("zalo_id") or "",
                         note=payload.get("note") or "",
                         items=payload.get("items") or [],
                     )

@@ -6,7 +6,26 @@ document.addEventListener("DOMContentLoaded", () => {
   setupModal();
   setupCart();
   setupMyOrders();
+  setupZaloButton();
 });
+
+function setupZaloButton() {
+  const zaloBtn = document.getElementById("zaloLoginBtn");
+  if (!zaloBtn) return;
+  const savedInfo = JSON.parse(localStorage.getItem('public_customer_info') || '{}');
+  if (savedInfo.name) {
+    zaloBtn.innerHTML = `<span>👋 Chào, ${savedInfo.name.split(' ').pop()}</span>`;
+    zaloBtn.style.background = "#e8f5e9";
+    zaloBtn.style.color = "#2e7d32";
+    zaloBtn.style.borderColor = "#c8e6c9";
+    zaloBtn.href = "#"; // Prevent login again if already has info
+    zaloBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      // Click again could mean profile edit or logout, for now just show a toast
+      showToast("Bạn đã đăng nhập.");
+    });
+  }
+}
 
 function setupCart() {
   const copyBtn = document.getElementById("copySelectedBtn");
@@ -105,6 +124,9 @@ function setupCart() {
         return;
       }
 
+      const savedInfo = JSON.parse(localStorage.getItem('public_customer_info') || '{}');
+      const zalo_id = savedInfo.zalo_id || '';
+
       try {
         const res = await fetch("/api/public/orders", {
           method: "POST",
@@ -113,6 +135,7 @@ function setupCart() {
             customer_name,
             customer_phone,
             customer_address,
+            zalo_id,
             note,
             items
           })
@@ -125,7 +148,8 @@ function setupCart() {
           localStorage.setItem('public_customer_info', JSON.stringify({
             name: customer_name,
             phone: customer_phone,
-            address: customer_address
+            address: customer_address,
+            zalo_id: zalo_id
           }));
           
           showToast(data.message || "Đã chốt đơn thành công!");

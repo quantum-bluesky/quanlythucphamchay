@@ -242,5 +242,3 @@ export const productDetailModal = document.getElementById('productDetailModal');
 export const productDetailImagesContainer = document.getElementById('productDetailImagesContainer');
 export const productImageUpload = document.getElementById('productImageUpload');
 export const uploadProductImageButton = document.getElementById('uploadProductImageButton');
-export const productDetailEditor = document.getElementById('productDetailEditor');
-
