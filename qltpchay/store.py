@@ -174,6 +174,7 @@ class InventoryStore:
                     storage_life_days REAL,
                     images TEXT NOT NULL DEFAULT '[]',
                     details TEXT NOT NULL DEFAULT '',
+                    recipe TEXT NOT NULL DEFAULT '',
                     is_deleted INTEGER NOT NULL DEFAULT 0,
                     is_public INTEGER NOT NULL DEFAULT 1,
                     deleted_at TEXT,
@@ -589,6 +590,10 @@ class InventoryStore:
             if "is_public" not in columns:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1"
+                )
+            if "recipe" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN recipe TEXT NOT NULL DEFAULT ''"
                 )
             now = utc_now_iso()
             audit_columns = {
@@ -2872,6 +2877,7 @@ class InventoryStore:
         storage_life_days: str | int | float | None = None,
         images: list[str] | None = None,
         details: str = "",
+        recipe: str = "",
         is_public: bool = True,
         actor: str = "",
         global_id: str | None = None,
@@ -2898,6 +2904,7 @@ class InventoryStore:
         now = utc_now_iso()
         clean_images = json.dumps([str(img).strip() for img in (images or []) if str(img).strip()], ensure_ascii=False)
         clean_details = str(details or "").strip()
+        clean_recipe = str(recipe or "").strip()
         gid = str(global_id).strip() if global_id and str(global_id).strip() else f"prd_{uuid.uuid4().hex}"
 
         with self._connect() as connection:
@@ -2907,10 +2914,10 @@ class InventoryStore:
                     INSERT INTO products (
                         global_id, name, category, unit, low_stock_threshold,
                         price, sale_price, shelf_life_days, storage_life_days,
-                        images, details, is_public,
+                        images, details, recipe, is_public,
                         created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         gid,
@@ -2924,6 +2931,7 @@ class InventoryStore:
                         parsed_storage_life_days,
                         clean_images,
                         clean_details,
+                        clean_recipe,
                         1 if is_public else 0,
                         now,
                         now,
@@ -3080,6 +3088,7 @@ class InventoryStore:
         storage_life_days: str | int | float | None = None,
         images: list[str] | None = None,
         details: str | None = None,
+        recipe: str | None = None,
         is_public: bool | None = None,
         actor: str = "",
         allow_deleted: bool = False,
@@ -3120,6 +3129,8 @@ class InventoryStore:
             next_values["images"] = json.dumps([str(img).strip() for img in images if str(img).strip()], ensure_ascii=False)
         if details is not None:
             next_values["details"] = str(details).strip()
+        if recipe is not None:
+            next_values["recipe"] = str(recipe).strip()
         if is_public is not None:
             next_values["is_public"] = 1 if is_public else 0
         if global_id is not None:
@@ -9899,6 +9910,7 @@ class InventoryStore:
             "is_low_stock": current_stock <= threshold,
             "images": images,
             "details": row["details"] if "details" in row.keys() else "",
+            "recipe": row["recipe"] if "recipe" in row.keys() else "",
             "is_deleted": bool(row["is_deleted"]),
             "deleted_at": row["deleted_at"],
             "created_at": row["created_at"],

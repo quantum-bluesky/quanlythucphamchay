@@ -555,6 +555,20 @@ function openModal(product) {
     detailsHtml = detailsHtml.replace(/\n/g, "<br>");
   }
   document.getElementById("modalDetails").innerHTML = detailsHtml;
+
+  const recipeContainer = document.getElementById("modalRecipeContainer");
+  const recipeEl = document.getElementById("modalRecipe");
+  if (product.recipe && product.recipe.trim() !== "") {
+    let recipeHtml = product.recipe;
+    if (!recipeHtml.includes("<") && recipeHtml.includes("\n")) {
+      recipeHtml = recipeHtml.replace(/\n/g, "<br>");
+    }
+    recipeEl.innerHTML = recipeHtml;
+    recipeContainer.classList.remove("hidden");
+  } else {
+    recipeEl.innerHTML = "";
+    recipeContainer.classList.add("hidden");
+  }
   
   const imagesContainer = document.getElementById("modalImages");
   const dotsContainer = document.getElementById("modalImgDots");

@@ -99,6 +99,8 @@ import {
   productManageSearchInput,
   productManageList,
   productHistoryList,
+  productDetailEditor,
+  productRecipeEditor,
   productFormCancelButton,
   productsSection,
   productFormSection,

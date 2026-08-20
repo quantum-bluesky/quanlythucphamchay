@@ -988,6 +988,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         storage_life_days=payload.get("storage_life_days"),
                         images=payload.get("images"),
                         details=payload.get("details"),
+                        recipe=payload.get("recipe"),
                         actor=self._get_current_actor_name(),
                     )
                     self._send_json(
@@ -1663,6 +1664,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         storage_life_days=payload.get("storage_life_days"),
                         images=payload.get("images"),
                         details=payload.get("details"),
+                        recipe=payload.get("recipe"),
                         actor=payload.get("actor") or self._get_current_actor_name(),
                     )
                     self._send_json(

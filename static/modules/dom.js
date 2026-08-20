@@ -96,6 +96,8 @@ export const customerList = document.getElementById("customerList");
 export const productManageSearchInput = document.getElementById("productManageSearchInput");
 export const productManageList = document.getElementById("productManageList");
 export const productHistoryList = document.getElementById("productHistoryList");
+export const productDetailEditor = document.getElementById("productDetailEditor");
+export const productRecipeEditor = document.getElementById("productRecipeEditor");
 export const productFormCancelButton = document.getElementById("productFormCancelButton");
 export const productsSection = document.querySelector('[data-menu-section="products"]');
 export const productFormSection = document.getElementById("productFormSection");
