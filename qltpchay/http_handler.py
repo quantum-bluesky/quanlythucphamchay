@@ -211,6 +211,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "incoming_open_purchases": p.get("incoming_open_purchases", 0),
                         "images": p["images"],
                         "details": p["details"],
+                        "recipe": p.get("recipe", ""),
                     }
                     for p in all_products
                     if p.get("is_public", 1) and not p.get("is_deleted", 0)
@@ -232,7 +233,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return
 
             if route == "/api/public/zalo-login":
-                zalo_config = (system_config or {}).get("zalo_login", {})
+                from qltpchay.config import load_system_config
+                current_sys_config = load_system_config()
+                zalo_config = current_sys_config.get("zalo_login", {})
                 app_id = zalo_config.get("app_id")
                 mock_mode = zalo_config.get("mock_test_mode")
                 if mock_mode:
@@ -262,7 +265,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Missing code"})
                     return
                 
-                zalo_config = (system_config or {}).get("zalo_login", {})
+                from qltpchay.config import load_system_config
+                current_sys_config = load_system_config()
+                zalo_config = current_sys_config.get("zalo_login", {})
                 mock_mode = zalo_config.get("mock_test_mode")
                 
                 zalo_id = ""
