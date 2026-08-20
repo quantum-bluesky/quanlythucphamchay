@@ -214,6 +214,55 @@ function setupModal() {
   modal.addEventListener("click", (e) => {
     if (e.target === modal) closeModal();
   });
+
+  const prevBtn = document.getElementById("modalPrevImg");
+  const nextBtn = document.getElementById("modalNextImg");
+  const dotsContainer = document.getElementById("modalImgDots");
+
+  function showGalleryImage(index) {
+    if (window.galleryImageCount <= 1) return;
+    if (index < 0) index = window.galleryImageCount - 1;
+    if (index >= window.galleryImageCount) index = 0;
+    
+    window.currentGalleryIndex = index;
+    
+    document.querySelectorAll('#modalImages img').forEach(img => {
+      img.classList.remove('active');
+      if (parseInt(img.dataset.index) === index) {
+        img.classList.add('active');
+      }
+    });
+    
+    document.querySelectorAll('#modalImgDots .carousel-dot').forEach(dot => {
+      dot.classList.remove('active');
+      if (parseInt(dot.dataset.index) === index) {
+        dot.classList.add('active');
+      }
+    });
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showGalleryImage(window.currentGalleryIndex - 1);
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showGalleryImage(window.currentGalleryIndex + 1);
+    });
+  }
+
+  if (dotsContainer) {
+    dotsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('carousel-dot')) {
+        e.stopPropagation();
+        showGalleryImage(parseInt(e.target.dataset.index));
+      }
+    });
+  }
   
   document.getElementById("copyLinkBtn").addEventListener("click", () => {
     const url = new URL(window.location.href);
@@ -261,19 +310,49 @@ function openModal(product) {
   document.getElementById("modalDetails").innerHTML = detailsHtml;
   
   const imagesContainer = document.getElementById("modalImages");
+  const dotsContainer = document.getElementById("modalImgDots");
+  const prevBtn = document.getElementById("modalPrevImg");
+  const nextBtn = document.getElementById("modalNextImg");
+  
   imagesContainer.innerHTML = "";
+  dotsContainer.innerHTML = "";
   
   if (product.images && product.images.length > 0) {
-    let firstImage = product.images[0];
-    if (firstImage.startsWith("/images/")) {
-      firstImage = "." + firstImage;
-    } else if (!firstImage.startsWith("http") && !firstImage.startsWith("./images/")) {
-      firstImage = "./images/" + firstImage;
+    let imagesHtml = '';
+    let dotsHtml = '';
+    product.images.forEach((img, index) => {
+      let src = img;
+      if (src.startsWith("/images/")) {
+        src = "." + src;
+      } else if (!src.startsWith("http") && !src.startsWith("./images/")) {
+        src = "./images/" + src;
+      }
+      imagesHtml += `<img src="${src}" alt="${product.name}" class="${index === 0 ? 'active' : ''}" data-index="${index}">`;
+      dotsHtml += `<div class="carousel-dot ${index === 0 ? 'active' : ''}" data-index="${index}"></div>`;
+    });
+    
+    imagesContainer.innerHTML = imagesHtml;
+    dotsContainer.innerHTML = dotsHtml;
+    
+    if (product.images.length > 1) {
+      prevBtn.style.display = "flex";
+      nextBtn.style.display = "flex";
+      dotsContainer.style.display = "flex";
+    } else {
+      prevBtn.style.display = "none";
+      nextBtn.style.display = "none";
+      dotsContainer.style.display = "none";
     }
-    imagesContainer.innerHTML = `<img src="${firstImage}" alt="${product.name}">`;
   } else {
     imagesContainer.innerHTML = `<div class="product-image-placeholder">Không có ảnh</div>`;
+    prevBtn.style.display = "none";
+    nextBtn.style.display = "none";
+    dotsContainer.style.display = "none";
   }
+  
+  // Set up gallery navigation state
+  window.currentGalleryIndex = 0;
+  window.galleryImageCount = product.images ? product.images.length : 0;
   
   modal.classList.remove("hidden");
   document.body.style.overflow = "hidden";

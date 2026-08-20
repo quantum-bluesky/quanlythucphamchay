@@ -51,7 +51,12 @@
     <div class="modal-content">
       <button id="closeModal" class="modal-close">&times;</button>
       <div class="modal-body">
-        <div id="modalImages" class="modal-images"></div>
+        <div class="modal-images-container" style="position: relative;">
+          <div id="modalImages" class="modal-images"></div>
+          <button id="modalPrevImg" class="carousel-nav prev-img" aria-label="Ảnh trước">&lt;</button>
+          <button id="modalNextImg" class="carousel-nav next-img" aria-label="Ảnh sau">&gt;</button>
+          <div id="modalImgDots" class="carousel-dots"></div>
+        </div>
         <div class="modal-info">
           <h2 id="modalName"></h2>
           <p id="modalCategory" class="text-muted"></p>
