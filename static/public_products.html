@@ -38,12 +38,20 @@
       </div>
     </header>
     
-    <main class="public-main">
+    <main class="public-main" style="padding-bottom: 80px;">
       <div id="productGrid" class="product-grid">
         <!-- Products will be rendered here -->
       </div>
       <div id="loading" class="loading-spinner">Đang tải...</div>
     </main>
+    
+    <div id="cartBar" class="public-cart-bar hidden">
+      <div class="cart-bar-info">
+        <span id="cartCountBadge" class="cart-badge">0</span>
+        <span class="cart-label">sản phẩm đã chọn</span>
+      </div>
+      <button id="copySelectedBtn" class="secondary-button compact-button">Copy danh sách</button>
+    </div>
   </div>
 
   <!-- Product Modal -->

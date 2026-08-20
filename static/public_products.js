@@ -4,7 +4,51 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchProducts();
   setupSearch();
   setupModal();
+  setupCart();
 });
+
+function setupCart() {
+  const btn = document.getElementById("copySelectedBtn");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      const keys = Object.keys(window.selectedProducts);
+      if (keys.length === 0) return;
+      
+      let text = "Danh sách sản phẩm đã chọn:\n";
+      keys.forEach(id => {
+        const p = allProducts.find(x => String(x.id) === id);
+        if (p) {
+          const qty = window.selectedProducts[id];
+          text += `- ${p.name} x ${qty}\n`;
+        }
+      });
+      
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast("Đã copy danh sách sản phẩm!");
+        }).catch(() => {
+          showToast("Không thể copy.");
+        });
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          showToast("Đã copy danh sách sản phẩm!");
+        } catch (err) {
+          showToast("Không thể copy.");
+        }
+        textArea.remove();
+      }
+    });
+  }
+}
 
 async function fetchProducts() {
   try {
@@ -40,6 +84,8 @@ function removeDiacritics(str) {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
 }
 
+window.selectedProducts = {};
+
 function renderProducts(products) {
   const grid = document.getElementById("productGrid");
   const loading = document.getElementById("loading");
@@ -65,20 +111,39 @@ function renderProducts(products) {
   products.forEach(p => {
     const card = document.createElement("div");
     
+    const qty = window.selectedProducts[p.id] || 0;
+    
+    const selectHtml = `
+      <div class="product-select-row" onclick="event.stopPropagation()">
+        <label class="toggle-inline" style="cursor: pointer; user-select: none;">
+          <input type="checkbox" class="item-checkbox" data-id="${p.id}" ${qty > 0 ? 'checked' : ''}>
+          <span>Chọn</span>
+        </label>
+        <div class="qty-control" style="${qty > 0 ? '' : 'display: none;'}">
+          <button type="button" class="btn-qty-minus" data-id="${p.id}">-</button>
+          <input type="number" class="input-qty" data-id="${p.id}" value="${qty > 0 ? qty : 1}" min="1" step="1">
+          <button type="button" class="btn-qty-plus" data-id="${p.id}">+</button>
+        </div>
+      </div>
+    `;
+
     const actionsHtml = `
       <div class="product-card-actions">
         <button type="button" class="ghost-button compact-button btn-view-detail" data-id="${p.id}">Xem</button>
         <button type="button" class="ghost-button compact-button btn-copy-link" data-id="${p.id}">Copy link</button>
       </div>
+      ${selectHtml}
     `;
 
     if (viewMode === 'list') {
       card.className = "product-list-item";
       card.innerHTML = `
-        <div class="product-info-compact">
+        <div class="product-info-compact" style="flex: 1;">
           <h3 class="product-title" style="margin: 0; font-size: 1rem;">${p.name}</h3>
         </div>
-        ${actionsHtml}
+        <div style="display: flex; flex-direction: column; min-width: 200px;">
+          ${actionsHtml}
+        </div>
       `;
     } else {
       card.className = "product-card";
@@ -105,7 +170,7 @@ function renderProducts(products) {
     // Thêm event listener thay vì dùng onclick toàn thẻ để tránh bấm nút bị đè event
     card.addEventListener("click", (e) => {
       // Nếu không bấm vào nút thì mở detail
-      if (!e.target.closest('button')) {
+      if (!e.target.closest('button') && !e.target.closest('input') && !e.target.closest('label')) {
         openModal(p);
       }
     });
@@ -126,8 +191,81 @@ function renderProducts(products) {
       });
     }
 
+    const checkbox = card.querySelector('.item-checkbox');
+    const inputQty = card.querySelector('.input-qty');
+    const qtyControl = card.querySelector('.qty-control');
+    const btnMinus = card.querySelector('.btn-qty-minus');
+    const btnPlus = card.querySelector('.btn-qty-plus');
+
+    if (checkbox) {
+      checkbox.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          window.selectedProducts[p.id] = parseInt(inputQty.value) || 1;
+          qtyControl.style.display = 'flex';
+        } else {
+          delete window.selectedProducts[p.id];
+          qtyControl.style.display = 'none';
+        }
+        updateCartUI();
+      });
+    }
+
+    if (inputQty) {
+      inputQty.addEventListener('change', (e) => {
+        let val = parseInt(e.target.value);
+        if (isNaN(val) || val < 1) val = 1;
+        e.target.value = val;
+        if (checkbox.checked) {
+          window.selectedProducts[p.id] = val;
+          updateCartUI();
+        }
+      });
+    }
+
+    if (btnMinus) {
+      btnMinus.addEventListener('click', (e) => {
+        e.stopPropagation();
+        let val = parseInt(inputQty.value);
+        if (val > 1) {
+          val--;
+          inputQty.value = val;
+          if (checkbox.checked) {
+            window.selectedProducts[p.id] = val;
+            updateCartUI();
+          }
+        }
+      });
+    }
+
+    if (btnPlus) {
+      btnPlus.addEventListener('click', (e) => {
+        e.stopPropagation();
+        let val = parseInt(inputQty.value);
+        val++;
+        inputQty.value = val;
+        if (checkbox.checked) {
+          window.selectedProducts[p.id] = val;
+          updateCartUI();
+        }
+      });
+    }
+
     grid.appendChild(card);
   });
+}
+
+function updateCartUI() {
+  const cartBar = document.getElementById('cartBar');
+  const countBadge = document.getElementById('cartCountBadge');
+  
+  const count = Object.keys(window.selectedProducts).length;
+  countBadge.textContent = count;
+  
+  if (count > 0) {
+    cartBar.classList.remove('hidden');
+  } else {
+    cartBar.classList.add('hidden');
+  }
 }
 
 function copyProductLink(productId) {
