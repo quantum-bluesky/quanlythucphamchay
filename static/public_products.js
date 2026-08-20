@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupSearch();
   setupModal();
   setupCart();
+  setupMyOrders();
 });
 
 function setupCart() {
@@ -617,4 +618,84 @@ function showToast(message) {
     toast.classList.add("toast-hiding");
     setTimeout(() => toast.remove(), 300);
   }, 3000);
+}
+
+function setupMyOrders() {
+  const btn = document.getElementById("myOrdersBtn");
+  const modal = document.getElementById("myOrdersModal");
+  const closeBtn = document.getElementById("closeMyOrdersModal");
+  const listContainer = document.getElementById("myOrdersList");
+
+  if (!btn || !modal) return;
+
+  btn.addEventListener("click", async () => {
+    const savedInfo = JSON.parse(localStorage.getItem('public_customer_info') || '{}');
+    if (!savedInfo.phone) {
+      alert("Vui lòng đặt ít nhất 1 đơn hàng để hệ thống ghi nhớ số điện thoại của bạn, hoặc liên hệ trực tiếp.");
+      return;
+    }
+
+    modal.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    listContainer.innerHTML = '<div class="loading-spinner">Đang tải đơn hàng...</div>';
+
+    try {
+      const res = await fetch(`/api/public/orders?phone=${encodeURIComponent(savedInfo.phone)}`);
+      if (!res.ok) throw new Error("Lỗi tải đơn hàng");
+      
+      const data = await res.json();
+      const orders = data.orders || [];
+      
+      if (orders.length === 0) {
+        listContainer.innerHTML = '<p class="text-muted" style="text-align: center;">Không có đơn hàng nào.</p>';
+        return;
+      }
+      
+      let html = '';
+      orders.forEach(order => {
+        let statusText = "Mới đặt";
+        let statusColor = "var(--primary)";
+        if (order.status === "completed") {
+          statusText = "Đã giao";
+          statusColor = "var(--success)";
+        } else if (order.status === "cancelled") {
+          statusText = "Đã hủy";
+          statusColor = "var(--danger)";
+        }
+
+        let itemsHtml = '<ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em;">';
+        if (order.items) {
+          order.items.forEach(item => {
+            itemsHtml += `<li>${item.product_name} x ${item.quantity} ${item.unit}</li>`;
+          });
+        }
+        itemsHtml += '</ul>';
+
+        const dateStr = new Date(order.created_at).toLocaleString('vi-VN');
+
+        html += `
+          <div style="border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--background);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted);">${dateStr}</span>
+              <span style="color: ${statusColor}; font-weight: bold; font-size: 0.9em;">${statusText}</span>
+            </div>
+            ${itemsHtml}
+            <div style="font-size: 0.9em; color: var(--text-muted);">Ghi chú: ${order.note || 'Không có'}</div>
+            <div style="font-size: 0.9em; color: var(--text-muted);">Địa chỉ: ${order.ship_address || 'Không có'}</div>
+          </div>
+        `;
+      });
+      listContainer.innerHTML = html;
+      
+    } catch (err) {
+      listContainer.innerHTML = '<p class="text-muted" style="text-align: center; color: var(--danger);">Không thể tải danh sách đơn hàng.</p>';
+    }
+  });
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      modal.classList.add("hidden");
+      document.body.style.overflow = "";
+    });
+  }
 }

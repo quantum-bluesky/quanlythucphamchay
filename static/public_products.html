@@ -11,7 +11,10 @@
 <body>
   <div class="public-container">
     <header class="public-header">
-      <h1>Danh sách các thực phẩm chay</h1>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 16px;">
+        <h1 style="margin: 0; font-size: 1.25rem;">Danh sách các thực phẩm chay</h1>
+        <button id="myOrdersBtn" class="secondary-button compact-button">Đơn của tôi</button>
+      </div>
       <div class="search-bar">
         <input type="text" id="searchInput" placeholder="Tìm kiếm sản phẩm..." autocomplete="off">
       </div>
@@ -107,6 +110,19 @@
           </div>
           <button type="submit" id="submitCheckoutBtn" class="primary-button" style="width: 100%; padding: 12px; font-size: 16px;">Gửi đơn hàng</button>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- My Orders Modal -->
+  <div id="myOrdersModal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+      <button id="closeMyOrdersModal" class="modal-close">&times;</button>
+      <div class="modal-body" style="display: block; padding: 24px; overflow-y: auto;">
+        <h2 style="margin-top: 0; margin-bottom: 20px;">Đơn hàng của tôi</h2>
+        <div id="myOrdersList" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Các đơn hàng sẽ hiển thị ở đây -->
+        </div>
       </div>
     </div>
   </div>

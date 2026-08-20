@@ -222,6 +222,15 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 })
                 return
 
+            if route == "/api/public/orders":
+                phone = str(self._get_query_param("phone") or "").strip()
+                if not phone:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Cần số điện thoại để tra cứu."})
+                    return
+                orders = store.get_public_orders(phone=phone)
+                self._send_json(HTTPStatus.OK, {"orders": orders})
+                return
+
             if route.startswith("/api/") and self._is_login_enabled():
                 session, expired = self._resolve_current_session()
                 if not session:

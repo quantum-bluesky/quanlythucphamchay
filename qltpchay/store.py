@@ -6538,6 +6538,34 @@ class InventoryStore:
                 "cart": created_cart,
             }
 
+    def get_public_orders(self, *, phone: str) -> list[dict]:
+        clean_phone = str(phone or "").strip()
+        if not clean_phone:
+            return []
+            
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT c.* 
+                FROM carts c
+                JOIN customers cust ON c.customer_id = cust.id
+                WHERE cust.phone = ? AND c.created_mode = 'online'
+                ORDER BY c.created_at DESC
+                """,
+                (clean_phone,)
+            ).fetchall()
+            
+            result = []
+            for row in rows:
+                cart = dict(row)
+                items_rows = connection.execute(
+                    "SELECT * FROM cart_items WHERE cart_id = ?",
+                    (cart["id"],)
+                ).fetchall()
+                cart["items"] = [self._serialize_cart_item_row(r) for r in items_rows]
+                result.append(cart)
+            return result
+
     def bulk_create_orders(
         self,
         *,
