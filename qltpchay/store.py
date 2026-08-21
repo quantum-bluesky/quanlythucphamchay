@@ -340,6 +340,8 @@ class InventoryStore:
                     phone TEXT NOT NULL DEFAULT '',
                     address TEXT NOT NULL DEFAULT '',
                     zalo_url TEXT NOT NULL DEFAULT '',
+                    zalo_id TEXT,
+                    zalo_group_id TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     deleted_at TEXT
@@ -635,6 +637,10 @@ class InventoryStore:
             if "zalo_id" not in customer_columns:
                 connection.execute(
                     "ALTER TABLE customers ADD COLUMN zalo_id TEXT NOT NULL DEFAULT ''"
+                )
+            if "zalo_group_id" not in customer_columns:
+                connection.execute(
+                    "ALTER TABLE customers ADD COLUMN zalo_group_id TEXT"
                 )
             
             if "actor" not in audit_columns:

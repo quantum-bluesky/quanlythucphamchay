@@ -281,9 +281,17 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     callback_path = raw_path.replace("/zalo-login", "/zalo-callback")
                     redirect_uri = f"{protocol}://{host}{callback_path}"
                 import urllib.parse
-                auth_url = f"https://oauth.zaloapp.com/v4/permission?app_id={app_id}&redirect_uri={urllib.parse.quote(redirect_uri)}&state=zalo_login"
+                import os
+                import base64
+                import hashlib
+                code_verifier = base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
+                sha256_digest = hashlib.sha256(code_verifier.encode('utf-8')).digest()
+                code_challenge = base64.urlsafe_b64encode(sha256_digest).decode('utf-8').rstrip('=')
+                
+                auth_url = f"https://oauth.zaloapp.com/v4/permission?app_id={app_id}&redirect_uri={urllib.parse.quote(redirect_uri, safe='')}&code_challenge={code_challenge}&state=zalo_login"
                 self.send_response(HTTPStatus.FOUND)
                 self.send_header("Location", auth_url)
+                self.send_header("Set-Cookie", f"zalo_code_verifier={code_verifier}; Path=/; HttpOnly; SameSite=Lax; Max-Age=300")
                 self.end_headers()
                 return
 
@@ -313,6 +321,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     import urllib.error
                     import json
                     import urllib.parse
+                    from http.cookies import SimpleCookie
+                    
+                    cookie_header = self.headers.get("Cookie") or ""
+                    cookies = SimpleCookie(cookie_header)
+                    code_verifier_cookie = cookies.get("zalo_code_verifier")
+                    code_verifier = code_verifier_cookie.value if code_verifier_cookie else ""
                     
                     app_id = zalo_config.get("app_id")
                     secret_key = zalo_config.get("secret_key")
@@ -325,7 +339,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         data = urllib.parse.urlencode({
                             "app_id": app_id,
                             "grant_type": "authorization_code",
-                            "code": code
+                            "code": code,
+                            "code_verifier": code_verifier
                         }).encode("utf-8")
                         req = urllib.request.Request(
                             "https://oauth.zaloapp.com/v4/access_token",
