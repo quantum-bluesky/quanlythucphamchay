@@ -82,6 +82,38 @@ class InventoryStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lớn hơn tồn kho"):
             self.store.create_transaction(product["id"], "out", 3)
 
+    def test_ut_online_01_uses_server_sale_price_when_public_order_omits_unit_price(self) -> None:
+        product = self.store.create_product(
+            name="Chả lụa online",
+            category="Đồ chay đông lạnh",
+            unit="gói",
+            price=25000,
+            sale_price=39000,
+            low_stock_threshold=2,
+        )
+        price_only_product = self.store.create_product(
+            name="Tàu hũ online",
+            category="Đồ chay đông lạnh",
+            unit="gói",
+            price=18000,
+            sale_price=0,
+            low_stock_threshold=2,
+        )
+
+        result = self.store.create_online_order(
+            customer_name="Khách đặt web",
+            items=[
+                {"product_id": product["id"], "quantity": 2},
+                {"product_id": price_only_product["id"], "quantity": 1},
+            ],
+        )
+
+        items_by_id = {item["productId"]: item for item in result["cart"]["items"]}
+        self.assertEqual(items_by_id[product["id"]]["unitPrice"], 39000.0)
+        self.assertEqual(items_by_id[product["id"]]["unit_price"], 39000.0)
+        self.assertEqual(items_by_id[product["id"]]["quantity"] * items_by_id[product["id"]]["unitPrice"], 78000.0)
+        self.assertEqual(items_by_id[price_only_product["id"]]["unitPrice"], 18000.0)
+
     def test_ut_invsort_01_product_life_fields_and_priority_metrics_are_normalized(self) -> None:
         product = self.store.create_product(
             name="Bò kho ưu tiên",
