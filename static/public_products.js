@@ -136,6 +136,45 @@ function setupCart() {
         };
       }
       
+      // Render order review
+      const reviewContainer = document.getElementById('checkoutReviewItems');
+      const reviewTotal = document.getElementById('checkoutReviewTotal');
+      reviewContainer.innerHTML = '';
+      let totalAmount = 0;
+      
+      Object.keys(window.selectedProducts).forEach(id => {
+        const qty = window.selectedProducts[id];
+        if (qty > 0) {
+          const p = allProducts.find(x => String(x.id) === id);
+          if (p) {
+            const price = p.sale_price || p.price || 0;
+            const lineTotal = price * qty;
+            totalAmount += lineTotal;
+            
+            const itemDiv = document.createElement('div');
+            itemDiv.style.display = 'flex';
+            itemDiv.style.justifyContent = 'space-between';
+            itemDiv.style.marginBottom = '8px';
+            itemDiv.style.paddingBottom = '8px';
+            itemDiv.style.borderBottom = '1px dashed #eee';
+            
+            itemDiv.innerHTML = `
+              <div style="flex: 1; padding-right: 8px;">
+                <div style="font-weight: 500;">${p.name}</div>
+                <div style="color: #757575; font-size: 0.9em;">${qty} ${p.unit} x ${formatVND(price)}</div>
+              </div>
+              <div style="font-weight: 500;">${formatVND(lineTotal)}</div>
+            `;
+            reviewContainer.appendChild(itemDiv);
+          }
+        }
+      });
+      
+      if (totalAmount === 0) {
+        reviewContainer.innerHTML = '<div style="color: #757575; font-style: italic;">Giỏ hàng trống</div>';
+      }
+      reviewTotal.textContent = `Tổng cộng: ${formatVND(totalAmount)}`;
+
       checkoutModal.classList.remove("hidden");
       document.body.style.overflow = "hidden";
     });

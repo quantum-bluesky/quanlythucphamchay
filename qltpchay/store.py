@@ -6545,36 +6545,82 @@ class InventoryStore:
                     connection.execute("UPDATE customers SET zalo_id = ? WHERE id = ?", (clean_zalo_id, customer_id))
                 clean_name = existing_customer["name"]
 
-            cart_id = f"cart_{secrets.token_hex(6)}"
-            cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
-            
-            # Tính discount
-            discount_amount = 0
-            
-            connection.execute(
-                """
-                INSERT INTO carts(
-                    id, customer_id, customer_name, created_mode, status, payment_status, note, discount_amount, ship_address,
-                    created_at, updated_at, payment_method, payment_note, order_code
+            # Kiểm tra xem khách đã có đơn online nào đang pending (draft) chưa
+            existing_cart_row = connection.execute(
+                "SELECT id, discount_amount, note, ship_address FROM carts WHERE customer_id = ? AND created_mode = 'online' AND status = 'draft' ORDER BY created_at DESC LIMIT 1",
+                (customer_id,)
+            ).fetchone()
+
+            if existing_cart_row:
+                cart_id = existing_cart_row["id"]
+                # Lấy items cũ
+                existing_items_rows = connection.execute(
+                    "SELECT product_id, quantity FROM cart_items WHERE cart_id = ?",
+                    (cart_id,)
+                ).fetchall()
+                
+                # Gom items cũ và mới
+                combined_items = list(items)
+                for item_row in existing_items_rows:
+                    combined_items.append({
+                        "product_id": item_row["product_id"],
+                        "quantity": float(item_row["quantity"] or 0)
+                    })
+                
+                grouped_items = self._group_sale_items(combined_items)
+                cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
+                
+                # Nối ghi chú
+                new_note = existing_cart_row["note"] or ""
+                if clean_note and clean_note not in new_note:
+                    new_note = (new_note + f"\n{clean_note}").strip()
+                
+                # Cập nhật thông tin giỏ hàng
+                connection.execute(
+                    "UPDATE carts SET updated_at = ?, note = ?, ship_address = ? WHERE id = ?",
+                    (now, new_note, clean_address or existing_cart_row["ship_address"], cart_id)
                 )
-                VALUES(?, ?, ?, 'online', 'draft', 'unpaid', ?, ?, ?, ?, ?, '', '', '')
-                """,
-                (
-                    cart_id, customer_id, clean_name, clean_note, discount_amount, clean_address, now, now
-                ),
-            )
-            self._replace_cart_items(connection, cart_id=cart_id, items=cart_items)
-            created_cart = self._get_cart_document(connection, cart_id)
-            self._record_cart_change_history(
-                connection,
-                previous=None,
-                current=created_cart,
-                actor="Public Customer",
-                created_at=now,
-                note_prefix="Tạo đơn hàng online",
-            )
+                self._replace_cart_items(connection, cart_id=cart_id, items=cart_items)
+                
+                created_cart = self._get_cart_document(connection, cart_id)
+                self._record_cart_change_history(
+                    connection,
+                    previous=None, # Giữ đơn giản
+                    current=created_cart,
+                    actor="Public Customer",
+                    created_at=now,
+                    note_prefix="Gộp thêm sản phẩm vào đơn hàng online",
+                )
+            else:
+                cart_id = f"cart_{secrets.token_hex(6)}"
+                cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
+                
+                discount_amount = 0
+                connection.execute(
+                    """
+                    INSERT INTO carts(
+                        id, customer_id, customer_name, created_mode, status, payment_status, note, discount_amount, ship_address,
+                        created_at, updated_at, payment_method, payment_note, order_code
+                    )
+                    VALUES(?, ?, ?, 'online', 'draft', 'unpaid', ?, ?, ?, ?, ?, '', '', '')
+                    """,
+                    (
+                        cart_id, customer_id, clean_name, clean_note, discount_amount, clean_address, now, now
+                    ),
+                )
+                self._replace_cart_items(connection, cart_id=cart_id, items=cart_items)
+                created_cart = self._get_cart_document(connection, cart_id)
+                self._record_cart_change_history(
+                    connection,
+                    previous=None,
+                    current=created_cart,
+                    actor="Public Customer",
+                    created_at=now,
+                    note_prefix="Tạo đơn hàng online",
+                )
+            
             return {
-                "message": "Đã tạo đơn hàng thành công, chúng tôi sẽ liên hệ sớm nhất.",
+                "message": "Đã ghi nhận đơn hàng.",
                 "cart": created_cart,
             }
 
