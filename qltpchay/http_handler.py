@@ -216,10 +216,20 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     for p in all_products
                     if p.get("is_public", 1) and not p.get("is_deleted", 0)
                 ]
-                public_web_config = (system_config or {}).get("public_web", {})
+                from qltpchay.config import load_system_config
+                current_sys_config = load_system_config()
+                public_web_config = current_sys_config.get("public_web", {})
+                zalo_config = current_sys_config.get("zalo_login", {})
+
                 self._send_json(HTTPStatus.OK, {
                     "products": public_products,
-                    "settings": public_web_config
+                    "settings": {
+                        **public_web_config,
+                        "require_zalo_login": bool(zalo_config.get("require_zalo_login", True)),
+                        "seller_zalo_url": str(zalo_config.get("seller_zalo_url", "")).strip(),
+                        "order_note_shipping": str(zalo_config.get("order_note_shipping", "Chưa bao gồm chi phí vận chuyển")).strip(),
+                        "zalo_confirm_template": str(zalo_config.get("zalo_confirm_template", "")).strip(),
+                    }
                 })
                 return
 
@@ -768,6 +778,16 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             if route == "/api/public/orders":
                 try:
                     payload = self._read_json_body()
+                    from qltpchay.config import load_system_config
+                    current_sys_config = load_system_config()
+                    zalo_config = current_sys_config.get("zalo_login", {})
+                    if zalo_config.get("require_zalo_login", True) and not payload.get("zalo_id"):
+                        self._send_json(
+                            HTTPStatus.BAD_REQUEST,
+                            {"error": "Hệ thống yêu cầu đăng nhập bằng Zalo để xác thực đặt hàng."}
+                        )
+                        return
+
                     result = store.create_online_order(
                         customer_name=payload.get("customer_name") or "",
                         customer_phone=payload.get("customer_phone") or "",

@@ -1,6 +1,7 @@
 let allProducts = [];
 let searchTimer = null;
 let currentCategory = "";
+let globalSettings = {};
 
 function formatVND(amount) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -13,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupCart();
   setupMyOrders();
   setupZaloButton();
+  setupOrderSuccessModal();
 });
 
 function setupZaloButton() {
@@ -100,18 +102,27 @@ function setupCart() {
   if (checkoutBtn) {
     checkoutBtn.addEventListener("click", () => {
       const savedInfo = JSON.parse(localStorage.getItem('public_customer_info') || '{}');
+      const requireZalo = globalSettings.require_zalo_login !== false;
       
       const authOptions = document.getElementById('checkoutAuthOptions');
       const manualForm = document.getElementById('checkoutForm');
       const userInfo = document.getElementById('checkoutUserInfo');
       const modalTitle = document.getElementById('checkoutModalTitle');
       const cancelBtn = document.getElementById('cancelManualFormBtn');
+      const manualDivider = document.getElementById('checkoutManualDivider');
+      const showManualBtn = document.getElementById('showManualFormBtn');
 
       // Khởi tạo lại trạng thái form mỗi lần mở
       document.getElementById('checkoutNameGroup').style.display = "block";
       document.getElementById('checkoutPhoneGroup').style.display = "block";
       document.getElementById('checkoutName').required = true;
       document.getElementById('checkoutPhone').required = true;
+
+      // Cập nhật nhãn ghi chú phí vận chuyển từ config nếu có
+      const shippingLabel = document.getElementById('shippingNoteLabel');
+      if (shippingLabel && globalSettings.order_note_shipping) {
+        shippingLabel.textContent = `*${globalSettings.order_note_shipping}*`;
+      }
 
       if (savedInfo.zalo_id) {
         // Đã đăng nhập bằng Zalo
@@ -142,12 +153,12 @@ function setupCart() {
         document.getElementById('checkoutName').required = false;
         document.getElementById('checkoutPhone').required = false;
 
-      } else if (savedInfo.name && savedInfo.phone) {
-        // Đã nhập thủ công trước đó
+      } else if (!requireZalo && savedInfo.name && savedInfo.phone) {
+        // Đã nhập thủ công trước đó (chỉ khi không bắt buộc Zalo)
         authOptions.style.display = "none";
         manualForm.style.display = "block";
         if (cancelBtn) cancelBtn.style.display = "block";
-        userInfo.style.display = "flex"; // Hiển thị userInfo cho user manual luôn!
+        userInfo.style.display = "flex";
         
         userInfo.innerHTML = `
           <div style="width: 40px; height: 40px; background: #FF9800; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;">
@@ -169,15 +180,22 @@ function setupCart() {
         document.getElementById('checkoutName').required = false;
         document.getElementById('checkoutPhone').required = false;
       } else {
-        // Chưa có thông tin gì, ưu tiên hiện Zalo
+        // Chưa đăng nhập Zalo
         authOptions.style.display = "flex";
         manualForm.style.display = "none";
         if (cancelBtn) cancelBtn.style.display = "block";
         userInfo.style.display = "none";
+        
+        if (requireZalo) {
+          if (manualDivider) manualDivider.style.display = "none";
+          if (showManualBtn) showManualBtn.style.display = "none";
+        } else {
+          if (manualDivider) manualDivider.style.display = "block";
+          if (showManualBtn) showManualBtn.style.display = "flex";
+        }
       }
 
       // Luôn gán lại sự kiện cho các nút để đảm bảo an toàn
-      const showManualBtn = document.getElementById('showManualFormBtn');
       if (showManualBtn) {
         showManualBtn.onclick = () => {
           authOptions.style.display = "none";
@@ -264,15 +282,32 @@ function setupCart() {
       const note = document.getElementById('checkoutNote').value.trim();
 
       const items = [];
+      const itemsSummary = [];
+      let totalAmount = 0;
+
       Object.keys(window.selectedProducts).forEach(id => {
         const p = allProducts.find(x => String(x.id) === id);
         if (p) {
+          const qty = window.selectedProducts[id];
+          const price = p.sale_price || p.price || 0;
+          const lineTotal = price * qty;
+          totalAmount += lineTotal;
+          
           items.push({
             product_id: p.id,
             product_name: p.name,
-            quantity: window.selectedProducts[id],
-            price: p.sale_price || p.price || 0,
+            quantity: qty,
+            unit_price: price,
+            price: price,
             unit: p.unit
+          });
+
+          itemsSummary.push({
+            name: p.name,
+            quantity: qty,
+            unit: p.unit,
+            price: price,
+            total: lineTotal
           });
         }
       });
@@ -318,6 +353,16 @@ function setupCart() {
           renderProducts(allProducts); // reset checked state
           checkoutModal.classList.add("hidden");
           document.body.style.overflow = "";
+
+          // Hiển thị modal thông báo thành công và liên hệ Zalo
+          const cart = data.cart || {};
+          showOrderSuccessPopup(
+            cart,
+            itemsSummary,
+            totalAmount,
+            { name: customer_name, phone: customer_phone, address: customer_address },
+            note
+          );
         } else {
           showToast(data.error || "Lỗi khi gửi đơn hàng.");
         }
@@ -331,13 +376,107 @@ function setupCart() {
   }
 }
 
+function setupOrderSuccessModal() {
+  const modal = document.getElementById("orderSuccessModal");
+  const closeBtn = document.getElementById("closeOrderSuccessModal");
+  if (closeBtn && modal) {
+    closeBtn.addEventListener("click", () => {
+      modal.classList.add("hidden");
+      document.body.style.overflow = "";
+    });
+  }
+}
+
+function showOrderSuccessPopup(cart, itemsSummary, totalAmount, customerInfo, note) {
+  const modal = document.getElementById("orderSuccessModal");
+  if (!modal) return;
+  
+  const orderCode = cart.order_code || cart.id || "N/A";
+  document.getElementById("orderSuccessCode").textContent = `Mã đơn: ${orderCode}`;
+  
+  let summaryHtml = `
+    <div style="font-weight: 600; margin-bottom: 6px; color: #333;">Chi tiết đơn hàng:</div>
+    <ul style="margin: 0 0 8px 0; padding-left: 18px;">
+  `;
+  itemsSummary.forEach(item => {
+    summaryHtml += `<li>${item.name} x ${item.quantity} ${item.unit} (${formatVND(item.total)})</li>`;
+  });
+  summaryHtml += `
+    </ul>
+    <div style="font-weight: bold; color: #d32f2f; border-top: 1px dashed #ddd; padding-top: 4px;">
+      Tổng tiền: ${formatVND(totalAmount)}
+    </div>
+    <div style="margin-top: 6px; font-size: 0.9em; color: #666;">
+      Người nhận: <strong>${customerInfo.name}</strong> - ${customerInfo.phone}<br>
+      Địa chỉ: ${customerInfo.address || 'Không có'}
+    </div>
+  `;
+  document.getElementById("orderSuccessSummary").innerHTML = summaryHtml;
+  
+  // Link Zalo người bán
+  const sellerZaloUrl = globalSettings.seller_zalo_url || "https://zalo.me/";
+  const sellerZaloBtn = document.getElementById("sellerZaloLinkBtn");
+  if (sellerZaloBtn) {
+    sellerZaloBtn.href = sellerZaloUrl;
+  }
+  
+  // Nội dung sao chép gửi Zalo
+  let copyMessage = `[XÁC NHẬN ĐƠN HÀNG]\n`;
+  copyMessage += `Mã đơn: ${orderCode}\n`;
+  copyMessage += `Khách hàng: ${customerInfo.name} - ${customerInfo.phone}\n`;
+  if (customerInfo.address) copyMessage += `Địa chỉ: ${customerInfo.address}\n`;
+  if (note) copyMessage += `Ghi chú: ${note}\n`;
+  copyMessage += `\nDanh sách món:\n`;
+  itemsSummary.forEach(item => {
+    copyMessage += `- ${item.name} x ${item.quantity} ${item.unit}: ${formatVND(item.total)}\n`;
+  });
+  copyMessage += `\nTổng cộng: ${formatVND(totalAmount)} (*Chưa bao gồm phí vận chuyển*)\n`;
+  copyMessage += `Nhờ shop kiểm tra và xác nhận đơn giúp mình nhé!`;
+
+  const copyBtn = document.getElementById("copyOrderToZaloBtn");
+  if (copyBtn) {
+    copyBtn.onclick = () => {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(copyMessage).then(() => {
+          showToast("Đã sao chép nội dung gửi Zalo!");
+        }).catch(() => {
+          fallbackCopyText(copyMessage);
+        });
+      } else {
+        fallbackCopyText(copyMessage);
+      }
+    };
+  }
+
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+}
+
+function fallbackCopyText(text) {
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.position = "fixed";
+  textArea.style.left = "-999999px";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  try {
+    document.execCommand('copy');
+    showToast("Đã sao chép nội dung gửi Zalo!");
+  } catch (err) {
+    showToast("Không thể sao chép tự động.");
+  }
+  document.body.removeChild(textArea);
+}
+
 async function fetchProducts() {
   try {
     const res = await fetch("./api/public/products");
     const data = await res.json();
     allProducts = data.products || [];
     
-    const settings = data.settings || {};
+    globalSettings = data.settings || {};
+    const settings = globalSettings;
     const root = document.documentElement;
     if (settings.thumbnail_size_mobile) {
       root.style.setProperty('--thumb-size-mobile', settings.thumbnail_size_mobile + 'px');

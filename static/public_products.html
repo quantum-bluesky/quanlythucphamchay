@@ -115,6 +115,7 @@
           <h3 style="margin-top: 0; font-size: 14px; color: #424242; margin-bottom: 12px;">Sản phẩm đã chọn:</h3>
           <div id="checkoutReviewItems" style="max-height: 150px; overflow-y: auto; font-size: 14px;"></div>
           <div style="margin-top: 12px; border-top: 1px solid #ddd; padding-top: 8px; font-weight: bold; text-align: right; color: #d32f2f;" id="checkoutReviewTotal">Tổng: 0đ</div>
+          <div style="margin-top: 4px; font-size: 0.85em; color: #e65100; font-style: italic; text-align: right;" id="shippingNoteLabel">*Chưa bao gồm chi phí vận chuyển*</div>
         </div>
         
         <div id="checkoutAuthOptions" style="display: none; flex-direction: column; gap: 16px; margin-bottom: 24px;">
@@ -123,7 +124,7 @@
             Đăng nhập nhanh bằng Zalo
           </a>
           
-          <div style="text-align: center; color: #757575; font-size: 0.9em; position: relative;">
+          <div id="checkoutManualDivider" style="text-align: center; color: #757575; font-size: 0.9em; position: relative;">
             <hr style="border: 0; border-top: 1px solid #e0e0e0; position: absolute; top: 50%; left: 0; right: 0; z-index: 1;">
             <span style="background: white; padding: 0 10px; position: relative; z-index: 2;">Hoặc</span>
           </div>
@@ -160,6 +161,38 @@
             <button type="submit" id="submitCheckoutBtn" class="primary-button" style="flex: 1; padding: 12px; font-size: 16px;">Gửi đơn hàng</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order Success Modal -->
+  <div id="orderSuccessModal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 480px; text-align: center;">
+      <button id="closeOrderSuccessModal" class="modal-close">&times;</button>
+      <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+        <div style="width: 60px; height: 60px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; font-size: 32px;">
+          ✓
+        </div>
+        <h2 style="margin: 0; color: #2e7d32; font-size: 1.3em;">Đặt hàng thành công!</h2>
+        <div id="orderSuccessCode" style="font-weight: 600; color: #1976d2; font-size: 1.05em;">Mã đơn: ...</div>
+        <div id="orderSuccessSummary" style="font-size: 0.95em; color: #555; line-height: 1.5; background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 12px; width: 100%; text-align: left; max-height: 160px; overflow-y: auto;">
+          <!-- Chi tiết đơn hàng tóm tắt -->
+        </div>
+        <div style="color: #e65100; font-size: 0.9em; font-style: italic; background: #fff3e0; padding: 8px 12px; border-radius: 6px; width: 100%; border: 1px solid #ffe0b2;">
+          *Lưu ý: Đơn hàng chưa bao gồm chi phí vận chuyển.
+        </div>
+        <p style="margin: 0; font-size: 0.95em; color: #333; line-height: 1.4;">
+          Quý khách vui lòng liên hệ với người bán qua <strong>Zalo</strong> để xác nhận và hoàn tất đơn hàng:
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+          <a id="sellerZaloLinkBtn" href="#" target="_blank" class="primary-button" style="background: #0068FF; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg" style="fill: white;"><path d="M460 230C460 102.975 357.025 0 230 0C102.975 0 0 102.975 0 230C0 357.025 102.975 460 230 460C357.025 460 460 357.025 460 230ZM329.833 154.516C329.833 162.721 323.011 169.544 314.806 169.544H209.734L337.892 284.156C341.258 287.165 342.348 291.956 340.672 296.386C338.995 300.817 334.821 303.743 330.138 303.743H159.208C150.932 303.743 144.223 297.034 144.223 288.758C144.223 280.482 150.932 273.774 159.208 273.774H264.492L136.333 159.162C132.967 156.152 131.877 151.362 133.553 146.931C135.23 142.5 139.404 139.574 144.088 139.574H314.806C323.082 139.574 329.833 146.31 329.833 154.516Z"/></svg>
+            Mở Zalo xác nhận đơn hàng
+          </a>
+          <button type="button" id="copyOrderToZaloBtn" class="secondary-button" style="padding: 10px; font-weight: 500; display: flex; justify-content: center; align-items: center; gap: 6px;">
+            📋 Sao chép thông tin gửi Zalo
+          </button>
+        </div>
       </div>
     </div>
   </div>

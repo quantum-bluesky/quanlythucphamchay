@@ -1,5 +1,5 @@
 {
-  "version": "3.27.25",
+  "version": "3.27.26",
   "server": {
     "host": "0.0.0.0",
     "port": 4000
@@ -54,7 +54,11 @@
   "zalo_login": {
     "app_id": "123",
     "secret_key": "123",
-    "mock_test_mode": true
+    "mock_test_mode": true,
+    "require_zalo_login": true,
+    "seller_zalo_url": "https://zalo.me/",
+    "order_note_shipping": "Chưa bao gồm chi phí vận chuyển",
+    "zalo_confirm_template": "Chào shop, mình vừa đặt đơn hàng trên web. Mã đơn: {order_id}. Nhờ shop kiểm tra và xác nhận đơn giúp mình nhé!"
   },
   "debug": {
     "sync_state": true

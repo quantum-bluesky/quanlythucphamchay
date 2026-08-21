@@ -179,6 +179,31 @@ def _normalize_mail_config(raw_mail, defaults: dict | None = None) -> dict:
     }
 
 
+DEFAULT_ZALO_LOGIN_CONFIG = {
+    "app_id": "",
+    "secret_key": "",
+    "mock_test_mode": False,
+    "require_zalo_login": True,
+    "seller_zalo_url": "",
+    "order_note_shipping": "Chưa bao gồm chi phí vận chuyển",
+    "zalo_confirm_template": "Chào shop, mình vừa đặt đơn hàng trên web. Mã đơn: {order_id}. Nhờ shop kiểm tra và xác nhận đơn giúp mình nhé!",
+}
+
+
+def _normalize_zalo_login_config(raw_zalo, defaults: dict | None = None) -> dict:
+    defaults = defaults or DEFAULT_ZALO_LOGIN_CONFIG
+    raw_zalo = raw_zalo if isinstance(raw_zalo, dict) else {}
+    return {
+        "app_id": str(raw_zalo.get("app_id") or defaults.get("app_id", "")).strip(),
+        "secret_key": str(raw_zalo.get("secret_key") or defaults.get("secret_key", "")).strip(),
+        "mock_test_mode": bool(raw_zalo.get("mock_test_mode", defaults.get("mock_test_mode", False))),
+        "require_zalo_login": bool(raw_zalo.get("require_zalo_login", defaults.get("require_zalo_login", True))),
+        "seller_zalo_url": str(raw_zalo.get("seller_zalo_url") or defaults.get("seller_zalo_url", "")).strip(),
+        "order_note_shipping": str(raw_zalo.get("order_note_shipping") or defaults.get("order_note_shipping", "Chưa bao gồm chi phí vận chuyển")).strip(),
+        "zalo_confirm_template": str(raw_zalo.get("zalo_confirm_template") or defaults.get("zalo_confirm_template", "")).strip(),
+    }
+
+
 def build_default_system_config(*, use_env_seed: bool) -> dict:
     config = {
         "version": DEFAULT_APP_VERSION,
@@ -206,6 +231,7 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
         "procurement": _normalize_procurement_config({}),
         "mail": _normalize_mail_config({}),
         "public_web": _normalize_public_web_config({}),
+        "zalo_login": _normalize_zalo_login_config({}),
     }
     if use_env_seed:
         config["server"]["host"] = os.environ.get("APP_HOST", DEFAULT_HOST)
@@ -278,8 +304,6 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         "debug": {
             "sync_state": bool(raw_config.get("debug", {}).get("sync_state", defaults["debug"]["sync_state"])),
         },
-        "public_web": _normalize_public_web_config(raw_config.get("public_web", defaults.get("public_web", {}))),
-        "zalo_login": raw_config.get("zalo_login", {}),
         "pagination": {
             "items_per_page": _normalize_page_size(
                 raw_config.get("pagination", {}).get("items_per_page", defaults["pagination"]["items_per_page"]),
@@ -301,6 +325,10 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         "public_web": _normalize_public_web_config(
             raw_config.get("public_web", {}),
             defaults["public_web"],
+        ),
+        "zalo_login": _normalize_zalo_login_config(
+            raw_config.get("zalo_login", {}),
+            defaults["zalo_login"],
         ),
     }
 
