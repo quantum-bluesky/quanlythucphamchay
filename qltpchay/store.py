@@ -1539,6 +1539,7 @@ class InventoryStore:
             "phone": row["phone"],
             "address": row["address"],
             "zaloUrl": row["zalo_url"],
+            "zalo_id": row.get("zalo_id"),
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
             "deletedAt": deleted_at,

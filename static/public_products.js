@@ -95,6 +95,12 @@ function setupCart() {
       const modalTitle = document.getElementById('checkoutModalTitle');
       const cancelBtn = document.getElementById('cancelManualFormBtn');
 
+      // Khởi tạo lại trạng thái form mỗi lần mở
+      document.getElementById('checkoutNameGroup').style.display = "block";
+      document.getElementById('checkoutPhoneGroup').style.display = "block";
+      document.getElementById('checkoutName').required = true;
+      document.getElementById('checkoutPhone').required = true;
+
       if (savedInfo.zalo_id) {
         // Đã đăng nhập bằng Zalo
         authOptions.style.display = "none";
@@ -112,22 +118,46 @@ function setupCart() {
             </div>
             <div style="font-size: 0.9em; color: #424242;">${savedInfo.name || ''} - ${savedInfo.phone || ''}</div>
           </div>
-          <button type="button" class="ghost-button compact-button" style="padding: 4px 8px; font-size: 0.85em;" onclick="localStorage.removeItem('public_customer_info'); window.location.reload();">Thoát</button>
+          <button type="button" class="ghost-button compact-button" style="padding: 4px 8px; font-size: 0.85em;" onclick="localStorage.removeItem('public_customer_info'); window.location.reload();">Đăng xuất</button>
         `;
         
         document.getElementById('checkoutName').value = savedInfo.name || '';
         document.getElementById('checkoutPhone').value = savedInfo.phone || '';
         document.getElementById('checkoutAddress').value = savedInfo.address || '';
+        
+        // Ẩn đi các trường Name/Phone vì đã có ở phần userInfo
+        document.getElementById('checkoutNameGroup').style.display = "none";
+        document.getElementById('checkoutPhoneGroup').style.display = "none";
+        document.getElementById('checkoutName').required = false;
+        document.getElementById('checkoutPhone').required = false;
+
       } else if (savedInfo.name && savedInfo.phone) {
         // Đã nhập thủ công trước đó
         authOptions.style.display = "none";
         manualForm.style.display = "block";
-        if (cancelBtn) cancelBtn.style.display = "block"; // Vẫn có thể lùi lại để chọn Zalo nếu muốn
-        userInfo.style.display = "none";
+        if (cancelBtn) cancelBtn.style.display = "block";
+        userInfo.style.display = "flex"; // Hiển thị userInfo cho user manual luôn!
+        
+        userInfo.innerHTML = `
+          <div style="width: 40px; height: 40px; background: #FF9800; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;">
+            ${savedInfo.name ? savedInfo.name.charAt(0).toUpperCase() : 'U'}
+          </div>
+          <div style="flex: 1;">
+            <div style="font-weight: 600; color: #F57C00;">Khách hàng</div>
+            <div style="font-size: 0.9em; color: #424242;">${savedInfo.name || ''} - ${savedInfo.phone || ''}</div>
+          </div>
+          <button type="button" class="ghost-button compact-button" style="padding: 4px 8px; font-size: 0.85em;" onclick="localStorage.removeItem('public_customer_info'); window.location.reload();">Đăng xuất</button>
+        `;
         
         document.getElementById('checkoutName').value = savedInfo.name || '';
         document.getElementById('checkoutPhone').value = savedInfo.phone || '';
         document.getElementById('checkoutAddress').value = savedInfo.address || '';
+        
+        // Ẩn Name/Phone đi cho gọn
+        document.getElementById('checkoutNameGroup').style.display = "none";
+        document.getElementById('checkoutPhoneGroup').style.display = "none";
+        document.getElementById('checkoutName').required = false;
+        document.getElementById('checkoutPhone').required = false;
       } else {
         // Chưa có thông tin gì, ưu tiên hiện Zalo
         authOptions.style.display = "flex";
@@ -142,6 +172,10 @@ function setupCart() {
         showManualBtn.onclick = () => {
           authOptions.style.display = "none";
           manualForm.style.display = "block";
+          document.getElementById('checkoutNameGroup').style.display = "block";
+          document.getElementById('checkoutPhoneGroup').style.display = "block";
+          document.getElementById('checkoutName').required = true;
+          document.getElementById('checkoutPhone').required = true;
           if (savedInfo.name) document.getElementById('checkoutName').value = savedInfo.name;
           if (savedInfo.phone) document.getElementById('checkoutPhone').value = savedInfo.phone;
           if (savedInfo.address) document.getElementById('checkoutAddress').value = savedInfo.address;
