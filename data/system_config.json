@@ -55,7 +55,8 @@
     ],
     "debug": {
         "sync_state": true,
-        "file_logging": true
+        "file_logging": true,
+        "log_level": "DEBUG"
     },
     "pagination": {
         "items_per_page": 20,
