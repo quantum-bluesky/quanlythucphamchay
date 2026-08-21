@@ -1755,6 +1755,11 @@ class InventoryStore:
         cart_items: list[dict] = []
         for product_id, grouped_item in grouped_items.items():
             product = self._get_product_or_raise(connection, product_id)
+            # Issue online order pricing: public clients only submit product and quantity.
+            # Use the server-side default sale price when no positive line price is supplied.
+            unit_price = float(grouped_item.get("unit_price") or 0)
+            if unit_price <= 0:
+                unit_price = float(product["sale_price"] or product["price"] or 0)
             cart_items.append(
                 {
                     "id": f"cart_item_{secrets.token_hex(6)}",
@@ -1763,8 +1768,8 @@ class InventoryStore:
                     "productName": str(product["name"] or "").strip(),
                     "product_name": str(product["name"] or "").strip(),
                     "quantity": round(float(grouped_item["quantity"]), 2),
-                    "unitPrice": round(float(grouped_item["unit_price"]), 2),
-                    "unit_price": round(float(grouped_item["unit_price"]), 2),
+                    "unitPrice": round(unit_price, 2),
+                    "unit_price": round(unit_price, 2),
                     "note": str(grouped_item.get("note") or "").strip(),
                 }
             )
