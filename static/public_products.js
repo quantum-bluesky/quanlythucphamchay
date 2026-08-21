@@ -414,7 +414,13 @@ function showOrderSuccessPopup(cart, itemsSummary, totalAmount, customerInfo, no
   document.getElementById("orderSuccessSummary").innerHTML = summaryHtml;
   
   // Link Zalo người bán
-  const sellerZaloUrl = (currentUser && currentUser.group_zalo_url) || globalSettings.seller_zalo_url || "https://zalo.me/";
+  let currentUserObj = null;
+  try {
+    const stored = localStorage.getItem("public_customer_info");
+    if (stored) currentUserObj = JSON.parse(stored);
+  } catch(e) {}
+  
+  const sellerZaloUrl = (currentUserObj && currentUserObj.group_zalo_url) || globalSettings.seller_zalo_url || "https://zalo.me/";
   const sellerZaloBtn = document.getElementById("sellerZaloLinkBtn");
   if (sellerZaloBtn) {
     sellerZaloBtn.href = sellerZaloUrl;

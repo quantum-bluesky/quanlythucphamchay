@@ -128,17 +128,20 @@ def run_server(system_config: dict, host: str | None = None, port: int | None = 
         (resolved_host, resolved_port),
         modular_create_handler(store, admin_sessions, system_config=system_config),
     )
-    print(f"Inventory app running at http://{resolved_host}:{resolved_port}")
-    print(f"System config file: {CONFIG_PATH}")
-    print(f"Master Admin username: {system_config['admin']['username']}")
+    from qltpchay.logger import log_info
+    log_info(f"Inventory app running at http://{resolved_host}:{resolved_port}")
+    log_info(f"System config file: {CONFIG_PATH}")
+    log_info(f"Master Admin username: {system_config['admin']['username']}")
     if system_config.get("EnableLogin"):
-        print("Login mode: enabled")
+        log_info("Login mode: enabled")
     if system_config.get("debug", {}).get("sync_state"):
-        print("Sync debug logging: enabled")
+        log_info("Sync debug logging: enabled")
+    if system_config.get("debug", {}).get("file_logging"):
+        log_info("File logging: enabled")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nShutting down server...")
+        log_info("Shutting down server...")
     finally:
         server.server_close()
 

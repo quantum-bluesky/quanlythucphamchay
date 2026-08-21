@@ -61,6 +61,12 @@ Khi cần hiểu logic hiện tại, đọc theo thứ tự:
 9. `static/app.js`
 
 Không giả định từ trí nhớ cũ nếu code hiện tại nói khác.
+## Quy ước Logging (Ghi log)
+
+- Luôn log các action nghiệp vụ quan trọng và các exception, lỗi của Web App trong backend bằng module `qltpchay.logger`.
+- Khi gọi `log_error` cho các lỗi hệ thống, cần truyền `exc_info=True`.
+- Log sẽ luôn hiển thị ở Server Console.
+- Nếu `debug.file_logging` được bật trong config, log sẽ được lưu vào file trong thư mục `logs/` theo format ngày (ví dụ `logs/app.log.YYYY-MM-DD`).
 
 ## Quy ước kiểm tra Database thực tế trước khi viết/sửa code
 
