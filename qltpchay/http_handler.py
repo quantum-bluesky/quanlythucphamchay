@@ -249,11 +249,22 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Chưa cấu hình Zalo App ID."})
                     return
                 
-                host = self.headers.get("Host") or "localhost"
-                protocol = "https" if "localhost" not in host and "127.0.0.1" not in host else "http"
-                raw_path = urlparse(self.path).path
-                callback_path = raw_path.replace("/zalo-login", "/zalo-callback")
-                redirect_uri = f"{protocol}://{host}{callback_path}"
+                # Allow manual override via config
+                redirect_uri = zalo_config.get("callback_url")
+                if not redirect_uri:
+                    # Try to reconstruct from headers (supporting reverse proxies)
+                    fwd_proto = self.headers.get("X-Forwarded-Proto")
+                    fwd_host = self.headers.get("X-Forwarded-Host")
+                    
+                    host = fwd_host or self.headers.get("Host") or "localhost"
+                    if fwd_proto:
+                        protocol = fwd_proto
+                    else:
+                        protocol = "https" if "localhost" not in host and "127.0.0.1" not in host else "http"
+                        
+                    raw_path = urlparse(self.path).path
+                    callback_path = raw_path.replace("/zalo-login", "/zalo-callback")
+                    redirect_uri = f"{protocol}://{host}{callback_path}"
                 import urllib.parse
                 auth_url = f"https://oauth.zaloapp.com/v4/permission?app_id={app_id}&redirect_uri={urllib.parse.quote(redirect_uri)}&state=zalo_login"
                 self.send_response(HTTPStatus.FOUND)
