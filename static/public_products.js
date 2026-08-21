@@ -884,7 +884,10 @@ function setupMyOrders() {
         let itemsHtml = '<ul style="margin: 8px 0; padding-left: 20px; font-size: 0.9em;">';
         if (order.items) {
           order.items.forEach(item => {
-            itemsHtml += `<li>${item.product_name} x ${item.quantity} ${item.unit}</li>`;
+            const p = allProducts.find(x => String(x.id) === String(item.product_id || item.productId)) || {};
+            const pName = item.productName || item.product_name || p.name || "Sản phẩm";
+            const pUnit = p.unit || "";
+            itemsHtml += `<li>${pName} x ${item.quantity} ${pUnit}</li>`;
           });
         }
         itemsHtml += '</ul>';
