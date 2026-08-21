@@ -333,7 +333,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         with urllib.request.urlopen(req) as response:
                             user_data = json.loads(response.read())
                         
-                        if "error" in user_data:
+                        if user_data.get("error", 0) != 0:
                             self._send_json(HTTPStatus.BAD_REQUEST, {"error": user_data})
                             return
                             
