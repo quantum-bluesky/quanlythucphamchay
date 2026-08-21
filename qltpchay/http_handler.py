@@ -377,7 +377,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             zalo_id: {json.dumps(customer.get('zalo_id', ''))}
         }};
         localStorage.setItem("public_customer_info", JSON.stringify(user));
-        window.location.href = {json.dumps(urlparse(self.path).path.replace("/api/public/zalo-callback", "/ProductList"))};
+        window.location.href = "../../ProductList";
     </script>
 </body>
 </html>"""
