@@ -1,4 +1,10 @@
 let allProducts = [];
+let searchTimer = null;
+let currentCategory = "";
+
+function formatVND(amount) {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   fetchProducts();
