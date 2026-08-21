@@ -62,9 +62,9 @@
         <span id="cartCountBadge" class="cart-badge">0</span>
         <span class="cart-label">sản phẩm đã chọn</span>
       </div>
-      <div class="cart-bar-actions">
-        <button id="copySelectedBtn" class="secondary-button compact-button" style="margin-right: 8px;">Copy danh sách</button>
-        <button id="checkoutBtn" class="primary-button compact-button">Chốt đơn</button>
+      <div class="cart-bar-actions" style="display: flex; flex-direction: column; gap: 8px; min-width: 140px;">
+        <button id="checkoutBtn" class="primary-button compact-button" style="width: 100%; padding: 8px;">Chốt đơn</button>
+        <button id="copySelectedBtn" class="secondary-button compact-button" style="width: 100%;">Copy danh sách</button>
       </div>
     </div>
   </div>
@@ -109,8 +109,29 @@
     <div class="modal-content" style="max-width: 500px;">
       <button id="closeCheckoutModal" class="modal-close">&times;</button>
       <div class="modal-body" style="display: block; padding: 24px;">
-        <h2 style="margin-top: 0; margin-bottom: 20px;">Thông tin giao hàng</h2>
-        <form id="checkoutForm">
+        <h2 style="margin-top: 0; margin-bottom: 20px;" id="checkoutModalTitle">Xác nhận đơn hàng</h2>
+        
+        <div id="checkoutAuthOptions" style="display: none; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+          <a href="./api/public/zalo-login" class="primary-button" style="background: #0068FF; color: white; text-align: center; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;">
+            <svg width="24" height="24" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg" style="fill: white;"><path d="M460 230C460 102.975 357.025 0 230 0C102.975 0 0 102.975 0 230C0 357.025 102.975 460 230 460C357.025 460 460 357.025 460 230ZM329.833 154.516C329.833 162.721 323.011 169.544 314.806 169.544H209.734L337.892 284.156C341.258 287.165 342.348 291.956 340.672 296.386C338.995 300.817 334.821 303.743 330.138 303.743H159.208C150.932 303.743 144.223 297.034 144.223 288.758C144.223 280.482 150.932 273.774 159.208 273.774H264.492L136.333 159.162C132.967 156.152 131.877 151.362 133.553 146.931C135.23 142.5 139.404 139.574 144.088 139.574H314.806C323.082 139.574 329.833 146.31 329.833 154.516Z"/></svg>
+            Đăng nhập nhanh bằng Zalo
+          </a>
+          
+          <div style="text-align: center; color: #757575; font-size: 0.9em; position: relative;">
+            <hr style="border: 0; border-top: 1px solid #e0e0e0; position: absolute; top: 50%; left: 0; right: 0; z-index: 1;">
+            <span style="background: white; padding: 0 10px; position: relative; z-index: 2;">Hoặc</span>
+          </div>
+          
+          <button type="button" id="showManualFormBtn" class="secondary-button" style="width: 100%; padding: 12px; justify-content: center;">
+            Nhập thông tin thủ công
+          </button>
+        </div>
+        
+        <div id="checkoutUserInfo" style="display: none; margin-bottom: 24px; padding: 12px; background: #e3f2fd; border-radius: 8px; align-items: center; gap: 12px;">
+          <!-- user info injected here -->
+        </div>
+
+        <form id="checkoutForm" style="display: none;">
           <div class="form-group" style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 4px; font-weight: 500;">Tên của bạn *</label>
             <input type="text" id="checkoutName" required class="form-input" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
@@ -127,7 +148,11 @@
             <label style="display: block; margin-bottom: 4px; font-weight: 500;">Ghi chú thêm</label>
             <textarea id="checkoutNote" class="form-input" rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;"></textarea>
           </div>
-          <button type="submit" id="submitCheckoutBtn" class="primary-button" style="width: 100%; padding: 12px; font-size: 16px;">Gửi đơn hàng</button>
+          
+          <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between;">
+            <button type="button" id="cancelManualFormBtn" class="secondary-button" style="display: none;">Quay lại</button>
+            <button type="submit" id="submitCheckoutBtn" class="primary-button" style="flex: 1; padding: 12px; font-size: 16px;">Gửi đơn hàng</button>
+          </div>
         </form>
       </div>
     </div>

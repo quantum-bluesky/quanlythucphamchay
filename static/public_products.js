@@ -81,11 +81,60 @@ function setupCart() {
 
   if (checkoutBtn) {
     checkoutBtn.addEventListener("click", () => {
-      // Prefill từ localStorage
       const savedInfo = JSON.parse(localStorage.getItem('public_customer_info') || '{}');
-      if (savedInfo.name) document.getElementById('checkoutName').value = savedInfo.name;
-      if (savedInfo.phone) document.getElementById('checkoutPhone').value = savedInfo.phone;
-      if (savedInfo.address) document.getElementById('checkoutAddress').value = savedInfo.address;
+      
+      const authOptions = document.getElementById('checkoutAuthOptions');
+      const manualForm = document.getElementById('checkoutForm');
+      const userInfo = document.getElementById('checkoutUserInfo');
+      const modalTitle = document.getElementById('checkoutModalTitle');
+      const cancelBtn = document.getElementById('cancelManualFormBtn');
+
+      if (savedInfo.zalo_id) {
+        // Đã đăng nhập bằng Zalo
+        authOptions.style.display = "none";
+        manualForm.style.display = "block";
+        cancelBtn.style.display = "none";
+        userInfo.style.display = "flex";
+        
+        userInfo.innerHTML = `
+          <div style="width: 40px; height: 40px; background: #2196F3; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;">
+            ${savedInfo.name ? savedInfo.name.charAt(0).toUpperCase() : 'Z'}
+          </div>
+          <div style="flex: 1;">
+            <div style="font-weight: 600; color: #1976D2; display: flex; align-items: center; gap: 4px;">
+              Đã liên kết Zalo <svg width="14" height="14" viewBox="0 0 24 24" fill="#4CAF50"><path d="M12 2C6.5 2 2 6.5 2 12S6.5 22 12 22 22 17.5 22 12 17.5 2 12 2M10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z"/></svg>
+            </div>
+            <div style="font-size: 0.9em; color: #424242;">${savedInfo.name || ''} - ${savedInfo.phone || ''}</div>
+          </div>
+          <button type="button" class="ghost-button compact-button" style="padding: 4px 8px; font-size: 0.85em;" onclick="localStorage.removeItem('public_customer_info'); window.location.reload();">Thoát</button>
+        `;
+        
+        document.getElementById('checkoutName').value = savedInfo.name || '';
+        document.getElementById('checkoutPhone').value = savedInfo.phone || '';
+        document.getElementById('checkoutAddress').value = savedInfo.address || '';
+      } else {
+        // Chưa đăng nhập, hiện lựa chọn Zalo hoặc thủ công
+        authOptions.style.display = "flex";
+        manualForm.style.display = "none";
+        cancelBtn.style.display = "block";
+        userInfo.style.display = "none";
+        
+        // Nút hiện form thủ công
+        document.getElementById('showManualFormBtn').onclick = () => {
+          authOptions.style.display = "none";
+          manualForm.style.display = "block";
+          
+          if (savedInfo.name) document.getElementById('checkoutName').value = savedInfo.name;
+          if (savedInfo.phone) document.getElementById('checkoutPhone').value = savedInfo.phone;
+          if (savedInfo.address) document.getElementById('checkoutAddress').value = savedInfo.address;
+        };
+        
+        // Nút quay lại từ form thủ công
+        cancelBtn.onclick = () => {
+          manualForm.style.display = "none";
+          authOptions.style.display = "flex";
+        };
+      }
       
       checkoutModal.classList.remove("hidden");
       document.body.style.overflow = "hidden";
