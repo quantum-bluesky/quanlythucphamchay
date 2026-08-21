@@ -61,6 +61,13 @@ Khi cần hiểu logic hiện tại, đọc theo thứ tự:
 9. `static/app.js`
 
 Không giả định từ trí nhớ cũ nếu code hiện tại nói khác.
+## Quy ước Logging (Ghi log)
+
+- Luôn log các action nghiệp vụ quan trọng và các exception, lỗi của Web App trong backend bằng module `qltpchay.logger`.
+- Khi gọi `log_error` cho các lỗi hệ thống, cần truyền `exc_info=True`.
+- Log sẽ luôn hiển thị ở Server Console.
+- Nếu `debug.file_logging` được bật trong config, log sẽ được lưu vào file trong thư mục `logs/` với định dạng tên file chứa ngày hiện tại (ví dụ `logs/app.2023-10-27.log`). Qua ngày mới file sẽ tự động đổi tên sang ngày mới. Hệ thống sẽ tự động xóa các file log cũ hơn 1 năm (365 ngày).
+- Thiết lập mức độ ghi log thông qua tham số `debug.log_level` trong file config (có thể đặt là "INFO", "DEBUG", "WARNING", "ERROR").
 
 ## Quy ước kiểm tra Database thực tế trước khi viết/sửa code
 
@@ -93,10 +100,19 @@ Trước khi bắt tay vào viết mới hoặc chỉnh sửa bất kỳ câu l�
 
 ## Cách chạy
 
-Chạy app:
+Chạy app (môi trường test, mặc định dùng `data/system_config.json`):
 
 ```powershell
 python app.py
+```
+
+Chạy app trên môi trường production (dùng `data/system_config.production.json`):
+
+```powershell
+# Windows PowerShell
+$env:APP_ENV="production"; python app.py
+# Linux/bash
+APP_ENV=production python app.py
 ```
 
 Chạy với host/port cụ thể:

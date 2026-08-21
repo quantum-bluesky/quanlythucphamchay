@@ -1,5 +1,6 @@
 import hashlib
 import json
+from qltpchay.logger import log_info, log_error
 import re
 import secrets
 import shutil
@@ -6680,6 +6681,7 @@ class InventoryStore:
                     note_prefix="Tạo đơn hàng online",
                 )
             
+            log_info(f"Nghiệp vụ: Khách hàng {clean_name} ({clean_phone}/{clean_zalo_id}) đặt hàng online thành công (ID: {cart_id})")
             return {
                 "message": "Đã ghi nhận đơn hàng.",
                 "cart": created_cart,

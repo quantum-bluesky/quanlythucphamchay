@@ -225,6 +225,8 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
         "users": [dict(user) for user in DEFAULT_NORMAL_USERS],
         "debug": {
             "sync_state": False,
+            "file_logging": False,
+            "log_level": "INFO",
         },
         "pagination": {
             "items_per_page": DEFAULT_ITEMS_PER_PAGE,
@@ -305,6 +307,8 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         "users": _normalize_users(raw_config.get("users", defaults["users"])),
         "debug": {
             "sync_state": bool(raw_config.get("debug", {}).get("sync_state", defaults["debug"]["sync_state"])),
+            "file_logging": bool(raw_config.get("debug", {}).get("file_logging", defaults["debug"].get("file_logging", False))),
+            "log_level": str(raw_config.get("debug", {}).get("log_level", defaults["debug"].get("log_level", "INFO"))).upper(),
         },
         "pagination": {
             "items_per_page": _normalize_page_size(

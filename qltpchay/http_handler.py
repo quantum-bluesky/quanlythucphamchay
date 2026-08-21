@@ -13,6 +13,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, parse_qsl, urlparse
+from qltpchay.logger import log_error, log_info
 
 from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
 from . import constants as constants
@@ -166,6 +167,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             return parsed_path
 
         def do_GET(self) -> None:
+            log_info(f"GET {self.path}")
+            try:
+                self._do_GET_internal()
+            except Exception as e:
+                log_error(f"Error in do_GET for {self.path}: {e}", exc_info=True)
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Lỗi hệ thống nội bộ."})
+
+        def _do_GET_internal(self) -> None:
             parsed = urlparse(self.path)
             route = self._normalize_route_path(parsed.path)
 
@@ -744,6 +753,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy tài nguyên."})
 
         def do_POST(self) -> None:
+            log_info(f"POST {self.path}")
+            try:
+                self._do_POST_internal()
+            except Exception as e:
+                log_error(f"Error in do_POST for {self.path}: {e}", exc_info=True)
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Lỗi hệ thống nội bộ."})
+
+        def _do_POST_internal(self) -> None:
             route = self._normalize_route_path(self.path)
             
             if route == "/api/admin/zalo-groups":
@@ -1839,6 +1856,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
 
         def do_PUT(self) -> None:
+            log_info(f"PUT {self.path}")
+            try:
+                self._do_PUT_internal()
+            except Exception as e:
+                log_error(f"Error in do_PUT for {self.path}: {e}", exc_info=True)
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Lỗi hệ thống nội bộ."})
+
+        def _do_PUT_internal(self) -> None:
             route = self._normalize_route_path(self.path)
             if self._is_login_enabled() and not self._require_authenticated_session():
                 return
@@ -1958,6 +1983,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
 
         def do_DELETE(self) -> None:
+            log_info(f"DELETE {self.path}")
+            try:
+                self._do_DELETE_internal()
+            except Exception as e:
+                log_error(f"Error in do_DELETE for {self.path}: {e}", exc_info=True)
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Lỗi hệ thống nội bộ."})
+
+        def _do_DELETE_internal(self) -> None:
             route = self._normalize_route_path(self.path)
 
             match_zg = re.fullmatch(r"/api/admin/zalo-groups/([^/]+)", route)
@@ -2632,7 +2665,13 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             )
 
         def _send_json(self, status: HTTPStatus, payload: dict, extra_headers: list[tuple[str, str]] | None = None) -> None:
-            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            try:
+                data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            except Exception as json_exc:
+                log_error(f"JSON serialization error: {json_exc}. Payload: {payload}", exc_info=True)
+                data = json.dumps({"error": "Internal server error during JSON serialization."}).encode("utf-8")
+                status = HTTPStatus.INTERNAL_SERVER_ERROR
+            
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
