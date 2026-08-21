@@ -1,9 +1,9 @@
 {
-  "app_version": "3.28.0",
+  "app_version": "3.28.1",
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "da65374a8156adaab9dc3be07dadd4ae81beb445a464f28971df4553df3e15f5"
+      "sha256": "4bdc496e98b4ee58e028583e9019a03bb97b9aea0b315c933479bdc086e2236e"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -23,7 +23,7 @@
     },
     "modules/controllers/entities-controller.js": {
       "counter": 1,
-      "sha256": "fbfb5c3f4605610029c06f815374e7798b101c143f4d2b02397f4ba7b6613b0a"
+      "sha256": "1b32e94c2ad6f86e9dd2f541b9ffd91c4ef73e2105d045c9e1e4b909aa1d172f"
     },
     "modules/controllers/inventory-controller.js": {
       "counter": 1,
@@ -141,9 +141,5 @@
       "counter": 1,
       "sha256": "6005ac521f488a6adec4f1ac36e8ee8bd4985aa9ebd14ad7084270f1b64282d7"
     }
-  },
-  "app.js": 2,
-  "public_products.js": 2,
-  "entities-controller.js": 2,
-  "entity-product-mutations.js": 2
+  }
 }

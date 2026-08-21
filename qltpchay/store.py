@@ -830,6 +830,23 @@ class InventoryStore:
             self._backfill_receipts_from_transactions_if_needed(connection)
             self._backfill_batches_from_transactions_if_needed(connection)
 
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS zalo_groups (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    zalo_url TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                """
+            )
+            try:
+                connection.execute("ALTER TABLE customers ADD COLUMN zalo_group_id TEXT")
+            except Exception:
+                pass
+
     def _migrate_legacy_sync_state_if_needed(self, connection: sqlite3.Connection) -> None:
         for state_key in self.SYNC_COLLECTION_KEYS:
             table_name = state_key
