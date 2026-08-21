@@ -294,6 +294,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     phone = "0999999999"
                 else:
                     import urllib.request
+                    import urllib.error
                     import json
                     import urllib.parse
                     
@@ -336,6 +337,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             
                         zalo_id = str(user_data.get("id", ""))
                         name = user_data.get("name", "")
+                        avatar = ""
                         avatar_dict = user_data.get("picture", {})
                         if isinstance(avatar_dict, dict) and "data" in avatar_dict:
                             avatar = avatar_dict["data"].get("url", "")
@@ -345,6 +347,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         # Since phone is required by schema, we fallback to a pseudo phone if not available.
                         phone = f"Zalo:{zalo_id}"
                         
+                    except urllib.error.HTTPError as e:
+                        err_body = e.read().decode("utf-8", errors="ignore")
+                        self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"HTTP {e.code}", "details": err_body})
+                        return
                     except Exception as e:
                         self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
                         return
