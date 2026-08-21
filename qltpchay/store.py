@@ -599,6 +599,14 @@ class InventoryStore:
             audit_columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(audit_logs)").fetchall()
             }
+            customer_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(customers)").fetchall()
+            }
+            if "zalo_id" not in customer_columns:
+                connection.execute(
+                    "ALTER TABLE customers ADD COLUMN zalo_id TEXT NOT NULL DEFAULT ''"
+                )
+            
             if "actor" not in audit_columns:
                 connection.execute(
                     "ALTER TABLE audit_logs ADD COLUMN actor TEXT NOT NULL DEFAULT ''"
