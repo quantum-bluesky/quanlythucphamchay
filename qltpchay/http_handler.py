@@ -277,7 +277,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     callback_path = raw_path.replace("/zalo-login", "/zalo-callback")
                     redirect_uri = f"{protocol}://{host}{callback_path}"
                 import urllib.parse
-                auth_url = f"https://oauth.zaloapp.com/v4/permission?app_id={app_id}&redirect_uri={urllib.parse.quote(redirect_uri)}&state=zalo_login"
+                auth_url = f"https://oauth.zaloapp.com/v4/permission?app_id={app_id}&redirect_uri={urllib.parse.quote(redirect_uri)}&state=zalo_login&scope=user.name,user.avatar"
                 self.send_response(HTTPStatus.FOUND)
                 self.send_header("Location", auth_url)
                 self.end_headers()
