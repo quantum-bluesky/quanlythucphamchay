@@ -286,8 +286,15 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     else:
                         protocol = "https" if "localhost" not in host and "127.0.0.1" not in host else "http"
                         
-                    fwd_prefix = self.headers.get("X-Forwarded-Prefix")
-                    if not fwd_prefix:
+                    raw_path = urlparse(self.path).path
+                    
+                    # Extract any subpath prefix before /api/ in raw_path
+                    raw_prefix = ""
+                    if "/api/" in raw_path:
+                        raw_prefix = raw_path.split("/api/")[0]
+                    
+                    fwd_prefix = self.headers.get("X-Forwarded-Prefix") or ""
+                    if not fwd_prefix and not raw_prefix:
                         referer = self.headers.get("Referer")
                         if referer:
                             ref_path = urlparse(referer).path
@@ -295,12 +302,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                                 ref_path = ref_path[:-11]
                             if ref_path.endswith("/"):
                                 ref_path = ref_path[:-1]
+                            if "/api/" in ref_path:
+                                ref_path = ref_path.split("/api/")[0]
                             fwd_prefix = ref_path
                             
-                    raw_path = urlparse(self.path).path
-                    callback_path = raw_path.replace("/zalo-login", "/zalo-callback")
-                    if fwd_prefix:
-                        callback_path = fwd_prefix + callback_path
+                    prefix = (raw_prefix or fwd_prefix or "").rstrip("/")
+                    callback_path = f"{prefix}/api/public/zalo-callback"
                     redirect_uri = f"{protocol}://{host}{callback_path}"
                 import urllib.parse
                 import os
@@ -431,7 +438,11 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             group_zalo_url: {json.dumps(customer.get('group_zalo_url', ''))}
         }};
         localStorage.setItem("public_customer_info", JSON.stringify(user));
-        window.location.href = "../../ProductList";
+        let targetUrl = window.location.pathname.split("/api/")[0];
+        if (!targetUrl.toLowerCase().endsWith("productlist")) {{
+            targetUrl = targetUrl + (targetUrl.endsWith("/") ? "ProductList" : "/ProductList");
+        }}
+        window.location.href = targetUrl || "/ProductList";
     </script>
 </body>
 </html>"""
