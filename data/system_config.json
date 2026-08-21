@@ -1,5 +1,5 @@
 {
-    "version": "3.28.3",
+    "version": "3.28.6",
     "server": {
         "host": "0.0.0.0",
         "port": 4000
@@ -90,9 +90,9 @@
         "thumbnail_size_pc": 180
     },
     "zalo_login": {
-        "app_id": "4210084145433077581",
-        "secret_key": "v7lBc0Cr16gDSUP4v9dA",
-        "mock_test_mode": false,
+        "app_id": "123",
+        "secret_key": "123",
+        "mock_test_mode": true,
         "require_zalo_login": true,
         "require_zalo_group_to_order": false,
         "seller_zalo_url": "https://zalo.me/0987862241",
