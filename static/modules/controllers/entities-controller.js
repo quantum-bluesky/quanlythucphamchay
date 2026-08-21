@@ -50,6 +50,7 @@ export function registerEntitiesControllerEvents(contract) {
         phone: dom.customerPhoneInput.value,
         address: dom.customerAddressInput.value,
         zaloUrl: dom.customerZaloInput.value,
+        zalo_group_id: document.getElementById("customerZaloGroupInput")?.value || null,
       }, state.editingCustomerFormId);
       dom.customerForm.reset();
       state.editingCustomerFormId = null;
@@ -134,6 +135,8 @@ export function registerEntitiesControllerEvents(contract) {
       dom.customerPhoneInput.value = customer.phone || "";
       dom.customerAddressInput.value = customer.address || "";
       dom.customerZaloInput.value = customer.zaloUrl || "";
+      const zgInput = document.getElementById("customerZaloGroupInput");
+      if (zgInput) zgInput.value = customer.zalo_group_id || "";
       state.customerFormCollapsed = false;
       renderers.renderEntityForms();
       return;
@@ -211,6 +214,8 @@ export function registerEntitiesControllerEvents(contract) {
       dom.customerPhoneInput.value = customer.phone || "";
       dom.customerAddressInput.value = customer.address || "";
       dom.customerZaloInput.value = customer.zaloUrl || "";
+      const zgInput = document.getElementById("customerZaloGroupInput");
+      if (zgInput) zgInput.value = customer.zalo_group_id || "";
       state.customerFormCollapsed = false;
       renderers.renderEntityForms();
     }

@@ -7700,6 +7700,7 @@ async function bootApplication() {
 
   try {
     await refreshSessionStatus();
+    await loadZaloGroups();
     if (state.admin?.enableLogin && !state.admin?.authenticated) {
       state.activeMenu = "login";
       state.menuHistory = ["login"];
@@ -7856,3 +7857,89 @@ const initProductDetailModal = () => {
   }
 };
 initProductDetailModal();
+
+
+async function loadZaloGroups() {
+  try {
+    const payload = await apiRequest("/api/admin/zalo-groups");
+    state.zaloGroups = payload.zalo_groups || [];
+    renderZaloGroupsAdmin();
+    renderZaloGroupsOptions();
+  } catch (err) {
+    console.error("Failed to load zalo groups", err);
+  }
+}
+
+function renderZaloGroupsOptions() {
+  const select = document.getElementById("customerZaloGroupInput");
+  if (!select) return;
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">-- Không thuộc nhóm nào --</option>' + 
+    state.zaloGroups.map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join("");
+  select.value = currentVal;
+}
+
+function renderZaloGroupsAdmin() {
+  const tbody = document.getElementById("zaloGroupsTableBody");
+  if (!tbody) return;
+  tbody.innerHTML = state.zaloGroups.map(g => `
+    <tr style="border-bottom: 1px solid var(--border-color);">
+      <td style="padding: 8px;">${escapeHtml(g.name)}</td>
+      <td style="padding: 8px;"><a href="${escapeHtml(g.zalo_url)}" target="_blank" style="color: var(--primary-color);">${escapeHtml(g.zalo_url)}</a></td>
+      <td style="padding: 8px;">
+        <button type="button" class="ghost-button compact-button" onclick="editZaloGroup('${g.id}')">Sửa</button>
+        <button type="button" class="ghost-button compact-button" onclick="deleteZaloGroup('${g.id}')" style="color: var(--danger-color);">Xóa</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+window.editZaloGroup = (id) => {
+  const group = state.zaloGroups.find(g => g.id === id);
+  if (!group) return;
+  document.getElementById("zaloGroupIdInput").value = group.id;
+  document.getElementById("zaloGroupNameInput").value = group.name;
+  document.getElementById("zaloGroupUrlInput").value = group.zalo_url || "";
+  document.getElementById("zaloGroupCancelBtn").style.display = "inline-block";
+};
+
+window.deleteZaloGroup = async (id) => {
+  if (!confirm("Bạn có chắc chắn muốn xóa nhóm này?")) return;
+  try {
+    await apiRequest(`/api/admin/zalo-groups/${id}`, { method: "DELETE" });
+    showToast("Đã xóa nhóm Zalo.");
+    await loadZaloGroups();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+};
+
+  const zgForm = document.getElementById("zaloGroupForm");
+  if (zgForm) {
+    zgForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        id: document.getElementById("zaloGroupIdInput").value,
+        name: document.getElementById("zaloGroupNameInput").value,
+        zalo_url: document.getElementById("zaloGroupUrlInput").value
+      };
+      try {
+        await apiRequest("/api/admin/zalo-groups", { method: "POST", body: JSON.stringify(payload) });
+        showToast("Đã lưu nhóm Zalo.");
+        zgForm.reset();
+        document.getElementById("zaloGroupIdInput").value = "";
+        document.getElementById("zaloGroupCancelBtn").style.display = "none";
+        await loadZaloGroups();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    });
+  }
+  const zgCancel = document.getElementById("zaloGroupCancelBtn");
+  if (zgCancel) {
+    zgCancel.addEventListener("click", () => {
+      document.getElementById("zaloGroupForm").reset();
+      document.getElementById("zaloGroupIdInput").value = "";
+      zgCancel.style.display = "none";
+    });
+  }

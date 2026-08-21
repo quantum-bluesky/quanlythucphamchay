@@ -388,7 +388,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             name: {json.dumps(customer['name'])},
             phone: {json.dumps(customer['phone'])},
             address: {json.dumps(customer['address'])},
-            zalo_id: {json.dumps(customer.get('zalo_id', ''))}
+            zalo_id: {json.dumps(customer.get('zalo_id', ''))},
+            zalo_group_id: {json.dumps(customer.get('zalo_group_id', ''))},
+            group_zalo_url: {json.dumps(customer.get('group_zalo_url', ''))}
         }};
         localStorage.setItem("public_customer_info", JSON.stringify(user));
         window.location.href = "../../ProductList";

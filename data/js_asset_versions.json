@@ -141,5 +141,9 @@
       "counter": 1,
       "sha256": "6005ac521f488a6adec4f1ac36e8ee8bd4985aa9ebd14ad7084270f1b64282d7"
     }
-  }
+  },
+  "app.js": 2,
+  "public_products.js": 2,
+  "entities-controller.js": 2,
+  "entity-product-mutations.js": 2
 }
