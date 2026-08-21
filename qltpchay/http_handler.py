@@ -289,6 +289,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 code_challenge = base64.urlsafe_b64encode(sha256_digest).decode('utf-8').rstrip('=')
                 
                 auth_url = f"https://oauth.zaloapp.com/v4/permission?app_id={app_id}&redirect_uri={urllib.parse.quote(redirect_uri, safe='')}&code_challenge={code_challenge}&state=zalo_login"
+                print(f"DEBUG ZALO OAUTH URL: {auth_url}")
                 self.send_response(HTTPStatus.FOUND)
                 self.send_header("Location", auth_url)
                 self.send_header("Set-Cookie", f"zalo_code_verifier={code_verifier}; Path=/; HttpOnly; SameSite=Lax; Max-Age=300")
