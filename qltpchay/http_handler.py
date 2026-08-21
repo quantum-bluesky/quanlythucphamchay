@@ -224,7 +224,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return
 
             if route == "/api/public/orders":
-                phone = str(self._get_query_param("phone") or "").strip()
+                query = parse_qs(parsed.query)
+                phone = str(query.get("phone", [""])[0]).strip()
                 if not phone:
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Cần số điện thoại để tra cứu."})
                     return
@@ -273,7 +274,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return
 
             if route == "/api/public/zalo-callback":
-                code = str(self._get_query_param("code") or "").strip()
+                query = parse_qs(parsed.query)
+                code = str(query.get("code", [""])[0]).strip()
                 if not code:
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Missing code"})
                     return
