@@ -194,6 +194,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 self._send_json(HTTPStatus.OK, self._get_session_status_payload())
                 return
 
+
+            if route == "/api/admin/zalo-groups":
+                self._send_json(HTTPStatus.OK, {"zalo_groups": store.get_zalo_groups()})
+                return
             if route == "/api/admin/status":
                 self._send_json(HTTPStatus.OK, self._get_session_status_payload())
                 return
@@ -657,7 +661,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 if route == "/api/admin/public-web-config":
                     self._send_json(
                         HTTPStatus.OK,
-                        {"public_web": (system_config or {}).get("public_web", {})},
+                        {
+                            "public_web": (system_config or {}).get("public_web", {}),
+                            "zalo_login": (system_config or {}).get("zalo_login", {})
+                        },
                     )
                     return
 
@@ -707,6 +714,24 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
         def do_POST(self) -> None:
             route = self._normalize_route_path(self.path)
+            
+            if route == "/api/admin/zalo-groups":
+                try:
+                    payload = self._read_json_body()
+                    group_id = str(payload.get("id") or "").strip()
+                    name = str(payload.get("name") or "").strip()
+                    zalo_url = str(payload.get("zalo_url") or "").strip()
+                    if not group_id:
+                        import secrets
+                        group_id = f"zg_{secrets.token_hex(4)}"
+                    if not name:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Ten nhom la b?t bu?c."})
+                        return
+                    group = store.upsert_zalo_group(group_id, name, zalo_url, is_active=1)
+                    self._send_json(HTTPStatus.OK, {"message": "?a l?u nhom Zalo.", "zalo_group": group})
+                except Exception as exc:
+                    self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(exc)})
+                return
             if route == "/api/session/login":
                 try:
                     payload = self._read_json_body()
@@ -1902,6 +1927,17 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
 
         def do_DELETE(self) -> None:
+            route = self._normalize_route_path(self.path)
+
+            match_zg = re.fullmatch(r"/api/admin/zalo-groups/([^/]+)", route)
+            if match_zg:
+                try:
+                    store.delete_zalo_group(match_zg.group(1))
+                    self._send_json(HTTPStatus.OK, {"message": "?a xoa nhom Zalo."})
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
             route = self._normalize_route_path(self.path)
             if self._is_login_enabled() and not self._require_authenticated_session():
                 return

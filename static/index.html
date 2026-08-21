@@ -56,7 +56,15 @@
             <span>Mật khẩu</span>
             <input id="adminPasswordInput" type="password" autocomplete="current-password" required>
           </label>
-          <div class="customer-form-actions">
+          
+              <label>
+                <span>Nhóm Zalo (Chi nhánh)</span>
+                <select id="customerZaloGroupInput" name="zalo_group_id">
+                  <option value="">-- Không thuộc nhóm nào --</option>
+                </select>
+              </label>
+
+              <div class="customer-form-actions">
             <button type="submit" class="primary-button">Login</button>
           </div>
         </form>
@@ -187,7 +195,15 @@
               <input id="inventoryReceiptNoteInput" type="text" maxlength="160" placeholder="Tùy chọn">
             </label>
             <div id="inventoryReceiptItems" class="cart-items-list"></div>
-            <div class="customer-form-actions">
+            
+              <label>
+                <span>Nhóm Zalo (Chi nhánh)</span>
+                <select id="customerZaloGroupInput" name="zalo_group_id">
+                  <option value="">-- Không thuộc nhóm nào --</option>
+                </select>
+              </label>
+
+              <div class="customer-form-actions">
               <button type="button" id="inventoryReceiptSubmitButton" class="primary-button">Tạo phiếu điều chỉnh</button>
               <button type="button" id="inventoryReceiptClearButton" class="ghost-button">Làm mới phiếu</button>
             </div>
@@ -454,6 +470,14 @@
                 <span>Link Zalo</span>
                 <input id="customerZaloInput" name="zalo_url" type="url" maxlength="180" placeholder="https://zalo.me/...">
               </label>
+              
+              <label>
+                <span>Nhóm Zalo (Chi nhánh)</span>
+                <select id="customerZaloGroupInput" name="zalo_group_id">
+                  <option value="">-- Không thuộc nhóm nào --</option>
+                </select>
+              </label>
+
               <div class="customer-form-actions">
                 <button type="submit" class="primary-button">Lưu khách hàng</button>
                 <button type="button" id="customerFormCancelButton" class="ghost-button">Hủy sửa</button>
@@ -725,6 +749,14 @@
                 <span>Ghi chú</span>
                 <input id="supplierNoteInput" name="note" type="text" maxlength="180" placeholder="Ví dụ: giao hàng sáng, chuyên đồ đông lạnh">
               </label>
+              
+              <label>
+                <span>Nhóm Zalo (Chi nhánh)</span>
+                <select id="customerZaloGroupInput" name="zalo_group_id">
+                  <option value="">-- Không thuộc nhóm nào --</option>
+                </select>
+              </label>
+
               <div class="customer-form-actions">
                 <button type="submit" class="primary-button">Lưu nhà cung cấp</button>
                 <button type="button" id="supplierFormCancelButton" class="ghost-button">Hủy sửa</button>
@@ -1093,10 +1125,55 @@
             <label for="publicWebThemeColor">Màu chủ đạo (Hex code)</label>
             <input type="text" id="publicWebThemeColor" name="theme_color" placeholder="VD: #43a047">
           </div>
+          
+          <div class="form-group full-width">
+            <label class="checkbox-label" style="display: flex; gap: 8px; align-items: center;">
+              <input type="checkbox" id="publicWebRequireZaloGroup" name="require_zalo_group_to_order">
+              <span>Bắt buộc khách hàng Zalo phải thuộc Nhóm / Chi nhánh mới được chốt đơn</span>
+            </label>
+          </div>
+
           <div class="form-group full-width" style="margin-top: 1rem;">
             <button type="submit" class="primary-button compact-button">Lưu cấu hình</button>
           </div>
         </form>
+      </section>
+
+      <section class="panel" style="margin-top: 1rem;">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Nhóm Zalo</p>
+            <h2>Quản lý Chi nhánh / Nhóm Zalo</h2>
+          </div>
+          <p class="panel-note">Chỉ khách hàng thuộc một trong các Nhóm này mới được phép chốt đơn (nếu bật tính năng bắt buộc). Mỗi nhóm có thể có 1 link Zalo riêng.</p>
+        </div>
+        <div class="form-group full-width" style="margin-bottom: 1rem;">
+          <form id="zaloGroupForm" class="edit-form-grid compact-form" style="display: flex; gap: 10px; align-items: flex-end;">
+            <label style="flex: 1">
+              <span>Tên nhóm</span>
+              <input type="text" id="zaloGroupNameInput" placeholder="VD: Chi nhánh Q1" required>
+            </label>
+            <label style="flex: 2">
+              <span>Link Zalo Chi nhánh</span>
+              <input type="url" id="zaloGroupUrlInput" placeholder="https://zalo.me/...">
+            </label>
+            <input type="hidden" id="zaloGroupIdInput">
+            <button type="submit" class="primary-button compact-button" style="margin-bottom: 2px;">Lưu</button>
+            <button type="button" id="zaloGroupCancelBtn" class="ghost-button compact-button" style="margin-bottom: 2px; display: none;">Hủy</button>
+          </form>
+        </div>
+        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+              <th style="padding: 8px;">Tên nhóm</th>
+              <th style="padding: 8px;">Link Zalo</th>
+              <th style="padding: 8px; width: 100px;">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="zaloGroupsTableBody">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
       </section>
     </section>
 

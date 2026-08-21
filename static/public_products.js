@@ -414,7 +414,7 @@ function showOrderSuccessPopup(cart, itemsSummary, totalAmount, customerInfo, no
   document.getElementById("orderSuccessSummary").innerHTML = summaryHtml;
   
   // Link Zalo người bán
-  const sellerZaloUrl = globalSettings.seller_zalo_url || "https://zalo.me/";
+  const sellerZaloUrl = (currentUser && currentUser.group_zalo_url) || globalSettings.seller_zalo_url || "https://zalo.me/";
   const sellerZaloBtn = document.getElementById("sellerZaloLinkBtn");
   if (sellerZaloBtn) {
     sellerZaloBtn.href = sellerZaloUrl;

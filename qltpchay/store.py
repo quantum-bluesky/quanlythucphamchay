@@ -125,6 +125,36 @@ class BulkOrderRequestDuplicateError(ValueError):
 
 
 class InventoryStore:
+
+    def get_zalo_groups(self) -> list[dict]:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT * FROM zalo_groups ORDER BY created_at ASC").fetchall()
+            return [dict(row) for row in rows]
+
+    def upsert_zalo_group(self, group_id: str, name: str, zalo_url: str = "", is_active: int = 1) -> dict:
+        now = utc_now_iso()
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM zalo_groups WHERE id = ?", (group_id,)).fetchone()
+            if row:
+                connection.execute(
+                    "UPDATE zalo_groups SET name = ?, zalo_url = ?, is_active = ?, updated_at = ? WHERE id = ?",
+                    (name, zalo_url, is_active, now, group_id)
+                )
+            else:
+                connection.execute(
+                    "INSERT INTO zalo_groups(id, name, zalo_url, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)",
+                    (group_id, name, zalo_url, is_active, now, now)
+                )
+            row = connection.execute("SELECT * FROM zalo_groups WHERE id = ?", (group_id,)).fetchone()
+            return dict(row)
+
+    def delete_zalo_group(self, group_id: str) -> None:
+        with self._connect() as connection:
+            count = connection.execute("SELECT COUNT(*) FROM customers WHERE zalo_group_id = ? AND deleted_at IS NULL", (group_id,)).fetchone()[0]
+            if count > 0:
+                raise ValueError(f"Khong th? xoa nhom Zalo nay vi ?ang co {count} khach hang thu?c nhom.")
+            connection.execute("DELETE FROM zalo_groups WHERE id = ?", (group_id,))
+
     SYNC_COLLECTION_KEYS = ("customers", "suppliers", "carts", "purchases")
 
     def __init__(self, db_path: Path):
@@ -2228,8 +2258,8 @@ class InventoryStore:
                     continue
                 connection.execute(
                     """
-                    INSERT INTO customers(id, name, phone, address, zalo_url, created_at, updated_at, deleted_at)
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO customers(id, name, phone, address, zalo_url, zalo_id, zalo_group_id, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(record.get("id") or f"customer_{secrets.token_hex(6)}"),
@@ -2237,6 +2267,8 @@ class InventoryStore:
                         str(record.get("phone") or "").strip(),
                         str(record.get("address") or "").strip(),
                         str(record.get("zaloUrl") or record.get("zalo_url") or "").strip(),
+                        str(record.get("zalo_id") or "").strip(),
+                        str(record.get("zalo_group_id") or "").strip() or None,
                         str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
                         str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
                         record.get("deletedAt") or record.get("deleted_at"),
@@ -13263,5 +13295,5 @@ class InventoryStore:
             
             canonical = self._refresh_sync_collection_cache(connection, "customers", updated_at=now)
             
-            row = connection.execute("SELECT * FROM customers WHERE id = ?", (customer_id,)).fetchone()
+            row = connection.execute("SELECT c.*, g.name as group_name, g.zalo_url as group_zalo_url FROM customers c LEFT JOIN zalo_groups g ON c.zalo_group_id = g.id WHERE c.id = ?", (customer_id,)).fetchone()
             return self._serialize_customer_row(row)

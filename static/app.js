@@ -7763,6 +7763,8 @@ document.addEventListener("click", async (event) => {
       if (publicWebThumbPc) publicWebThumbPc.value = config.thumbnail_size_pc || 240;
       if (publicWebBannerUrl) publicWebBannerUrl.value = config.banner_url || "";
       if (publicWebThemeColor) publicWebThemeColor.value = config.theme_color || "";
+      const zaloConfig = payload.zalo_login || {};
+      if (publicWebRequireZaloGroup) publicWebRequireZaloGroup.checked = !!zaloConfig.require_zalo_group_to_order;
     } catch (err) {
       // Ignored if not admin or not loaded yet
       if (err.message && !err.message.includes("Unauthorized")) {
@@ -7780,6 +7782,7 @@ if (publicWebConfigForm) {
       thumbnail_size_pc: parseInt(publicWebThumbPc.value || "240", 10),
       banner_url: publicWebBannerUrl.value.trim(),
       theme_color: publicWebThemeColor.value.trim(),
+      require_zalo_group_to_order: publicWebRequireZaloGroup ? publicWebRequireZaloGroup.checked : false,
     };
     try {
       await apiRequest("/api/admin/public-web-config", {

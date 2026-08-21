@@ -61,6 +61,7 @@ export function createEntityProductMutationHelpers(deps) {
     const cleanPhone = String(payload.phone || "").trim();
     const cleanAddress = String(payload.address || "").trim();
     const cleanZaloUrl = String(payload.zaloUrl || payload.zalo_url || "").trim();
+    const cleanZaloGroupId = payload.zalo_group_id || null;
     if (!cleanName) throw new Error("Tên khách hàng là bắt buộc.");
     const duplicateByName = getActiveCustomers().find((customer) => customer.id !== customerId && normalizeText(customer.name) === normalizeText(cleanName));
     if (duplicateByName) throw new Error("Tên khách hàng đã tồn tại.");
@@ -69,14 +70,14 @@ export function createEntityProductMutationHelpers(deps) {
       if (duplicateByPhone) throw new Error("Số điện thoại khách hàng đã tồn tại.");
     }
     if (customerId) {
-      state.customers = state.customers.map((customer) => customer.id === customerId ? { ...customer, name: cleanName, phone: cleanPhone, address: cleanAddress, zaloUrl: cleanZaloUrl, updatedAt: nowIso() } : customer);
+      state.customers = state.customers.map((customer) => customer.id === customerId ? { ...customer, name: cleanName, phone: cleanPhone, address: cleanAddress, zaloUrl: cleanZaloUrl, zalo_group_id: cleanZaloGroupId, updatedAt: nowIso() } : customer);
       state.carts = state.carts.map((cart) => (
         cart.customerId === customerId && cart.status === "draft"
           ? decorateCart({ ...cart, customerName: cleanName, updatedAt: nowIso() })
           : cart
       ));
     } else {
-      state.customers.push({ id: createId("customer"), name: cleanName, phone: cleanPhone, address: cleanAddress, zaloUrl: cleanZaloUrl, createdAt: nowIso(), updatedAt: nowIso() });
+      state.customers.push({ id: createId("customer"), name: cleanName, phone: cleanPhone, address: cleanAddress, zaloUrl: cleanZaloUrl, zalo_group_id: cleanZaloGroupId, createdAt: nowIso(), updatedAt: nowIso() });
     }
     saveAndRenderAll(["customers", "carts"]);
   }
