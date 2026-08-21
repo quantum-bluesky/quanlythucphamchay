@@ -6,7 +6,7 @@ from pathlib import Path
 
 from qltpchay.auth import AdminSessionManager
 from qltpchay.config import load_system_config
-from qltpchay.constants import BASE_DIR, CONFIG_PATH, DB_PATH, DEFAULT_INIT_FILE
+from qltpchay.constants import APP_ENV, BASE_DIR, CONFIG_PATH, DB_PATH, DEFAULT_INIT_FILE
 from qltpchay.http_handler import create_handler as modular_create_handler
 from qltpchay.importer import import_products_from_file as modular_import_products_from_file
 from qltpchay.store import InventoryStore
@@ -128,20 +128,23 @@ def run_server(system_config: dict, host: str | None = None, port: int | None = 
         (resolved_host, resolved_port),
         modular_create_handler(store, admin_sessions, system_config=system_config),
     )
-    from qltpchay.logger import log_info
-    log_info(f"Inventory app running at http://{resolved_host}:{resolved_port}")
-    log_info(f"System config file: {CONFIG_PATH}")
-    log_info(f"Master Admin username: {system_config['admin']['username']}")
+    from qltpchay.logger import log_always, log_info
+    version = system_config.get("version", "unknown")
+    log_always(f"=== Starting Inventory App v{version} (Environment: {APP_ENV}) ===")
+    log_always(f"Inventory app running at http://{resolved_host}:{resolved_port}")
+    log_always(f"System config file: {CONFIG_PATH}")
+    log_always(f"Master Admin username: {system_config['admin']['username']}")
     if system_config.get("EnableLogin"):
-        log_info("Login mode: enabled")
+        log_always("Login mode: enabled")
     if system_config.get("debug", {}).get("sync_state"):
-        log_info("Sync debug logging: enabled")
+        log_always("Sync debug logging: enabled")
     if system_config.get("debug", {}).get("file_logging"):
-        log_info("File logging: enabled")
+        log_level = system_config.get("debug", {}).get("log_level", "INFO").upper()
+        log_always(f"File logging: enabled (log_level: {log_level})")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        log_info("Shutting down server...")
+        log_always("Shutting down server...")
     finally:
         server.server_close()
 
