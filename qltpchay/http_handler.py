@@ -239,7 +239,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 app_id = zalo_config.get("app_id")
                 mock_mode = zalo_config.get("mock_test_mode")
                 if mock_mode:
-                    mock_url = f"/api/public/zalo-callback?code=MOCK_CODE"
+                    mock_url = f"./zalo-callback?code=MOCK_CODE"
                     self.send_response(HTTPStatus.FOUND)
                     self.send_header("Location", mock_url)
                     self.end_headers()
@@ -251,7 +251,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 
                 host = self.headers.get("Host") or "localhost"
                 protocol = "https" if "localhost" not in host and "127.0.0.1" not in host else "http"
-                redirect_uri = f"{protocol}://{host}/api/public/zalo-callback"
+                raw_path = urlparse(self.path).path
+                callback_path = raw_path.replace("/zalo-login", "/zalo-callback")
+                redirect_uri = f"{protocol}://{host}{callback_path}"
                 import urllib.parse
                 auth_url = f"https://oauth.zaloapp.com/v4/permission?app_id={app_id}&redirect_uri={urllib.parse.quote(redirect_uri)}&state=zalo_login"
                 self.send_response(HTTPStatus.FOUND)
@@ -356,7 +358,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             zalo_id: {json.dumps(customer.get('zalo_id', ''))}
         }};
         localStorage.setItem("public_customer_info", JSON.stringify(user));
-        window.location.href = "/ProductList";
+        window.location.href = {json.dumps(urlparse(self.path).path.replace("/api/public/zalo-callback", "/ProductList"))};
     </script>
 </body>
 </html>"""

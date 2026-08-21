@@ -137,7 +137,7 @@ function setupCart() {
       const zalo_id = savedInfo.zalo_id || '';
 
       try {
-        const res = await fetch("/api/public/orders", {
+        const res = await fetch("./api/public/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -707,7 +707,7 @@ function setupMyOrders() {
     listContainer.innerHTML = '<div class="loading-spinner">Đang tải đơn hàng...</div>';
 
     try {
-      const res = await fetch(`/api/public/orders?phone=${encodeURIComponent(savedInfo.phone)}`);
+      const res = await fetch(`./api/public/orders?phone=${encodeURIComponent(savedInfo.phone)}`);
       if (!res.ok) throw new Error("Lỗi tải đơn hàng");
       
       const data = await res.json();
