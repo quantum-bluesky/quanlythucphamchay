@@ -278,6 +278,8 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         "debug": {
             "sync_state": bool(raw_config.get("debug", {}).get("sync_state", defaults["debug"]["sync_state"])),
         },
+        "public_web": _normalize_public_web_config(raw_config.get("public_web", defaults.get("public_web", {}))),
+        "zalo_login": raw_config.get("zalo_login", {}),
         "pagination": {
             "items_per_page": _normalize_page_size(
                 raw_config.get("pagination", {}).get("items_per_page", defaults["pagination"]["items_per_page"]),
