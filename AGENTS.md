@@ -100,10 +100,19 @@ Trước khi bắt tay vào viết mới hoặc chỉnh sửa bất kỳ câu l�
 
 ## Cách chạy
 
-Chạy app:
+Chạy app (môi trường test, mặc định dùng `data/system_config.json`):
 
 ```powershell
 python app.py
+```
+
+Chạy app trên môi trường production (dùng `data/system_config.production.json`):
+
+```powershell
+# Windows PowerShell
+$env:APP_ENV="production"; python app.py
+# Linux/bash
+APP_ENV=production python app.py
 ```
 
 Chạy với host/port cụ thể:
