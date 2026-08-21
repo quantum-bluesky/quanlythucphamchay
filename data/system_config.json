@@ -1,101 +1,101 @@
 {
-    "version": "3.28.1",
+    "version": "3.28.2",
     "server": {
         "host": "0.0.0.0",
         "port": 4000
-  },
-  "EnableLogin": true,
-  "EnableMultiuserConflictCheck": false,
-  "EnableAdminLockedEdit": false,
-  "session_timeout_minutes": 360,
-  "admin_session_timeout_minutes": 30,
-  "admin": {
-    "username": "masteradmin",
-    "password": "admin12345"
-  },
-  "users": [
-    {
-      "username": "user",
-      "password": "user12345",
-      "permissions": [
-        "bulk_order_commit",
-        "bulk_order_create"
-      ]
     },
-    {
-      "username": "bizmanager",
-      "password": "biz12345",
-      "permissions": [
-        "bulk_order_commit",
-        "bulk_order_create",
-        "document_cancel_approve",
-        "inventory_adjust_manage",
-        "order_batch_manage",
-        "procurement_batch_manage"
-      ]
+    "EnableLogin": true,
+    "EnableMultiuserConflictCheck": false,
+    "EnableAdminLockedEdit": false,
+    "session_timeout_minutes": 360,
+    "admin_session_timeout_minutes": 30,
+    "admin": {
+        "username": "masteradmin",
+        "password": "admin12345"
     },
-    {
-      "username": "quan",
-      "password": "ndq123",
-      "permissions": [
-        "bulk_order_commit",
-        "bulk_order_create"
-      ]
+    "users": [
+        {
+            "username": "user",
+            "password": "user12345",
+            "permissions": [
+                "bulk_order_commit",
+                "bulk_order_create"
+            ]
+        },
+        {
+            "username": "bizmanager",
+            "password": "biz12345",
+            "permissions": [
+                "bulk_order_commit",
+                "bulk_order_create",
+                "document_cancel_approve",
+                "inventory_adjust_manage",
+                "order_batch_manage",
+                "procurement_batch_manage"
+            ]
+        },
+        {
+            "username": "quan",
+            "password": "ndq123",
+            "permissions": [
+                "bulk_order_commit",
+                "bulk_order_create"
+            ]
+        },
+        {
+            "username": "hai",
+            "password": "h123",
+            "permissions": []
+        },
+        {
+            "username": "ngoc",
+            "password": "n123",
+            "permissions": []
+        }
+    ],
+    "debug": {
+        "sync_state": true
     },
-    {
-      "username": "hai",
-      "password": "h123",
-      "permissions": []
+    "pagination": {
+        "items_per_page": 20,
+        "documents_per_page": 20
     },
-    {
-      "username": "ngoc",
-      "password": "n123",
-      "permissions": []
+    "procurement": {
+        "batch_planner_enabled": true,
+        "batch_lock_timeout_minutes": 180,
+        "allow_daily_quick_shortage_flow": true,
+        "required_login_for_batch_mode": true,
+        "planner_manager_usernames": [
+            "bizmanager",
+            "masteradmin"
+        ]
+    },
+    "mail": {
+        "enabled": false,
+        "smtp_host": "",
+        "smtp_port": 587,
+        "username": "",
+        "password": "",
+        "from_email": "",
+        "to_emails": [],
+        "use_tls": true,
+        "use_ssl": false,
+        "subject_prefix": "[QuanLyThucPhamChay]"
+    },
+    "public_web": {
+        "banner_url": "",
+        "theme_color": "#4caf50",
+        "thumbnail_size_mobile": 120,
+        "thumbnail_size_pc": 180
+    },
+    "zalo_login": {
+        "app_id": "4210084145433077581",
+        "secret_key": "v7lBc0Cr16gDSUP4v9dA",
+        "mock_test_mode": false,
+        "require_zalo_login": true,
+        "require_zalo_group_to_order": false,
+        "seller_zalo_url": "https://zalo.me/0987862241",
+        "order_note_shipping": "Ch\u01b0a bao g\u1ed3m chi ph\u00ed v\u1eadn chuy\u1ec3n",
+        "zalo_confirm_template": "Ch\u00e0o shop, m\u00ecnh v\u1eeba \u0111\u1eb7t \u0111\u01a1n h\u00e0ng tr\u00ean web. M\u00e3 \u0111\u01a1n: {order_id}. Nh\u1edd shop ki\u1ec3m tra v\u00e0 x\u00e1c nh\u1eadn \u0111\u01a1n gi\u00fap m\u00ecnh nh\u00e9!"
     }
-  ],
-  "debug": {
-    "sync_state": true
-  },
-  "pagination": {
-    "items_per_page": 20,
-    "documents_per_page": 20
-  },
-  "procurement": {
-    "batch_planner_enabled": true,
-    "batch_lock_timeout_minutes": 180,
-    "allow_daily_quick_shortage_flow": true,
-    "required_login_for_batch_mode": true,
-    "planner_manager_usernames": [
-      "bizmanager",
-      "masteradmin"
-    ]
-  },
-  "mail": {
-    "enabled": false,
-    "smtp_host": "",
-    "smtp_port": 587,
-    "username": "",
-    "password": "",
-    "from_email": "",
-    "to_emails": [],
-    "use_tls": true,
-    "use_ssl": false,
-    "subject_prefix": "[QuanLyThucPhamChay]"
-  },
-  "public_web": {
-    "banner_url": "",
-    "theme_color": "#4caf50",   
-    "thumbnail_size_mobile": 120,
-    "thumbnail_size_pc": 180
-  },
-  "zalo_login": {
-    "app_id": "4210084145433077581",
-    "secret_key": "v7lBc0Cr16gDSUP4v9dA",
-    "mock_test_mode": false,
-    "require_zalo_login": true,
-    "require_zalo_group_to_order": false,
-    "seller_zalo_url": "https://zalo.me/0987862241",
-    "order_note_shipping": "Chưa bao gồm chi phí vận chuyển",
-    "zalo_confirm_template": "Chào shop, mình vừa đặt đơn hàng trên web. Mã đơn: {order_id}. Nhờ shop kiểm tra và xác nhận đơn giúp mình nhé!"
-  }
 }
