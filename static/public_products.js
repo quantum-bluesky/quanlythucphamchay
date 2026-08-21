@@ -19,17 +19,29 @@ function setupZaloButton() {
   const zaloBtn = document.getElementById("zaloLoginBtn");
   if (!zaloBtn) return;
   const savedInfo = JSON.parse(localStorage.getItem('public_customer_info') || '{}');
+  
   if (savedInfo.name) {
-    zaloBtn.innerHTML = `<span>👋 Chào, ${savedInfo.name.split(' ').pop()}</span>`;
-    zaloBtn.style.background = "#e8f5e9";
-    zaloBtn.style.color = "#2e7d32";
-    zaloBtn.style.borderColor = "#c8e6c9";
-    zaloBtn.href = "#"; // Prevent login again if already has info
-    zaloBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      // Click again could mean profile edit or logout, for now just show a toast
-      showToast("Bạn đã đăng nhập.");
-    });
+    // Ẩn nút đăng nhập gốc
+    zaloBtn.style.display = "none";
+    
+    // Tạo container chứa info và nút đăng xuất
+    const userContainer = document.createElement("div");
+    userContainer.style.display = "flex";
+    userContainer.style.alignItems = "center";
+    userContainer.style.gap = "8px";
+    
+    const isZalo = !!savedInfo.zalo_id;
+    const bgColor = isZalo ? "#e3f2fd" : "#fff3e0";
+    const textColor = isZalo ? "#1976d2" : "#f57c00";
+    
+    userContainer.innerHTML = `
+      <div style="background: ${bgColor}; color: ${textColor}; padding: 4px 12px; border-radius: 20px; font-size: 0.9em; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+        👋 ${savedInfo.name.split(' ').pop()}
+      </div>
+      <button onclick="localStorage.removeItem('public_customer_info'); window.location.reload();" class="ghost-button compact-button" style="padding: 4px 8px; font-size: 0.85em;" title="Đăng xuất">Thoát</button>
+    `;
+    
+    zaloBtn.parentNode.insertBefore(userContainer, zaloBtn);
   }
 }
 
@@ -118,7 +130,6 @@ function setupCart() {
             </div>
             <div style="font-size: 0.9em; color: #424242;">${savedInfo.name || ''} - ${savedInfo.phone || ''}</div>
           </div>
-          <button type="button" class="ghost-button compact-button" style="padding: 4px 8px; font-size: 0.85em;" onclick="localStorage.removeItem('public_customer_info'); window.location.reload();">Đăng xuất</button>
         `;
         
         document.getElementById('checkoutName').value = savedInfo.name || '';
@@ -146,7 +157,6 @@ function setupCart() {
             <div style="font-weight: 600; color: #F57C00;">Khách hàng</div>
             <div style="font-size: 0.9em; color: #424242;">${savedInfo.name || ''} - ${savedInfo.phone || ''}</div>
           </div>
-          <button type="button" class="ghost-button compact-button" style="padding: 4px 8px; font-size: 0.85em;" onclick="localStorage.removeItem('public_customer_info'); window.location.reload();">Đăng xuất</button>
         `;
         
         document.getElementById('checkoutName').value = savedInfo.name || '';
