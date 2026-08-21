@@ -99,7 +99,7 @@ function setupCart() {
         // Đã đăng nhập bằng Zalo
         authOptions.style.display = "none";
         manualForm.style.display = "block";
-        cancelBtn.style.display = "none";
+        if (cancelBtn) cancelBtn.style.display = "none";
         userInfo.style.display = "flex";
         
         userInfo.innerHTML = `
@@ -118,24 +118,37 @@ function setupCart() {
         document.getElementById('checkoutName').value = savedInfo.name || '';
         document.getElementById('checkoutPhone').value = savedInfo.phone || '';
         document.getElementById('checkoutAddress').value = savedInfo.address || '';
-      } else {
-        // Chưa đăng nhập, hiện lựa chọn Zalo hoặc thủ công
-        authOptions.style.display = "flex";
-        manualForm.style.display = "none";
-        cancelBtn.style.display = "block";
+      } else if (savedInfo.name && savedInfo.phone) {
+        // Đã nhập thủ công trước đó
+        authOptions.style.display = "none";
+        manualForm.style.display = "block";
+        if (cancelBtn) cancelBtn.style.display = "block"; // Vẫn có thể lùi lại để chọn Zalo nếu muốn
         userInfo.style.display = "none";
         
-        // Nút hiện form thủ công
-        document.getElementById('showManualFormBtn').onclick = () => {
+        document.getElementById('checkoutName').value = savedInfo.name || '';
+        document.getElementById('checkoutPhone').value = savedInfo.phone || '';
+        document.getElementById('checkoutAddress').value = savedInfo.address || '';
+      } else {
+        // Chưa có thông tin gì, ưu tiên hiện Zalo
+        authOptions.style.display = "flex";
+        manualForm.style.display = "none";
+        if (cancelBtn) cancelBtn.style.display = "block";
+        userInfo.style.display = "none";
+      }
+
+      // Luôn gán lại sự kiện cho các nút để đảm bảo an toàn
+      const showManualBtn = document.getElementById('showManualFormBtn');
+      if (showManualBtn) {
+        showManualBtn.onclick = () => {
           authOptions.style.display = "none";
           manualForm.style.display = "block";
-          
           if (savedInfo.name) document.getElementById('checkoutName').value = savedInfo.name;
           if (savedInfo.phone) document.getElementById('checkoutPhone').value = savedInfo.phone;
           if (savedInfo.address) document.getElementById('checkoutAddress').value = savedInfo.address;
         };
-        
-        // Nút quay lại từ form thủ công
+      }
+      
+      if (cancelBtn) {
         cancelBtn.onclick = () => {
           manualForm.style.display = "none";
           authOptions.style.display = "flex";
