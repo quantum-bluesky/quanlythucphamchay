@@ -1640,14 +1640,20 @@ class InventoryStore:
     def _serialize_customer_row(self, row: sqlite3.Row) -> dict:
         deleted_at = row["deleted_at"]
         keys = row.keys()
+        avatar_val = row["avatar_url"] if "avatar_url" in keys and row["avatar_url"] else ""
+        zalo_id_val = row["zalo_id"] if "zalo_id" in keys and row["zalo_id"] else ""
+        zalo_url_val = row["zalo_url"] or ""
         return {
             "id": row["id"],
             "name": row["name"],
             "phone": row["phone"] or "",
             "address": row["address"] or "",
-            "zaloUrl": row["zalo_url"] or "",
-            "avatar_url": row["avatar_url"] if "avatar_url" in keys and row["avatar_url"] else "",
-            "zalo_id": row["zalo_id"] if "zalo_id" in keys and row["zalo_id"] else "",
+            "zaloUrl": zalo_url_val,
+            "zalo_url": zalo_url_val,
+            "avatar_url": avatar_val,
+            "avatarUrl": avatar_val,
+            "zalo_id": zalo_id_val,
+            "zaloId": zalo_id_val,
             "zalo_group_id": row["zalo_group_id"] if "zalo_group_id" in keys else None,
             "group_name": row["group_name"] if "group_name" in keys else None,
             "group_zalo_url": row["group_zalo_url"] if "group_zalo_url" in keys else None,
@@ -1693,11 +1699,12 @@ class InventoryStore:
             return None
         row = connection.execute(
             """
-            SELECT id, name, phone, address, zalo_url, created_at, updated_at, deleted_at
-            FROM customers
-            WHERE deleted_at IS NULL
-              AND name = ? COLLATE NOCASE
-            ORDER BY datetime(updated_at) DESC, id
+            SELECT c.*, g.name as group_name, g.zalo_url as group_zalo_url
+            FROM customers c
+            LEFT JOIN zalo_groups g ON c.zalo_group_id = g.id
+            WHERE c.deleted_at IS NULL
+              AND c.name = ? COLLATE NOCASE
+            ORDER BY datetime(c.updated_at) DESC, c.id
             LIMIT 1
             """,
             (clean_customer_name,),
@@ -1717,10 +1724,11 @@ class InventoryStore:
         if clean_customer_id:
             row = connection.execute(
                 """
-                SELECT id, name, phone, address, zalo_url, created_at, updated_at, deleted_at
-                FROM customers
-                WHERE id = ?
-                  AND deleted_at IS NULL
+                SELECT c.*, g.name as group_name, g.zalo_url as group_zalo_url
+                FROM customers c
+                LEFT JOIN zalo_groups g ON c.zalo_group_id = g.id
+                WHERE c.id = ?
+                  AND c.deleted_at IS NULL
                 """,
                 (clean_customer_id,),
             ).fetchone()
@@ -2335,7 +2343,7 @@ class InventoryStore:
         if state_key == "customers":
             seen_zalo_ids = {}
             for record in records:
-                z_id = str(record.get("zalo_id") or "").strip()
+                z_id = str(record.get("zalo_id") or record.get("zaloId") or "").strip()
                 c_name = str(record.get("name") or "").strip()
                 if z_id and not record.get("deletedAt") and not record.get("deleted_at"):
                     if z_id in seen_zalo_ids:
@@ -2355,6 +2363,8 @@ class InventoryStore:
                 if not zalo_url and phone:
                     zalo_url = f"https://zalo.me/{phone.replace(' ', '')}"
                 avatar_url = str(record.get("avatar_url") or record.get("avatarUrl") or "").strip()
+                zalo_id = str(record.get("zalo_id") or record.get("zaloId") or "").strip()
+                zalo_group_id = str(record.get("zalo_group_id") or record.get("zaloGroupId") or "").strip() or None
 
                 connection.execute(
                     """
@@ -2368,8 +2378,8 @@ class InventoryStore:
                         str(record.get("address") or "").strip(),
                         zalo_url,
                         avatar_url,
-                        str(record.get("zalo_id") or "").strip(),
-                        str(record.get("zalo_group_id") or "").strip() or None,
+                        zalo_id,
+                        zalo_group_id,
                         str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
                         str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
                         record.get("deletedAt") or record.get("deleted_at"),
@@ -13393,6 +13403,12 @@ class InventoryStore:
                 (clean_zalo_id,)
             ).fetchone()
             
+            if not row and clean_name:
+                row = connection.execute(
+                    "SELECT * FROM customers WHERE name = ? COLLATE NOCASE AND (zalo_id IS NULL OR zalo_id = '') AND deleted_at IS NULL ORDER BY datetime(updated_at) DESC LIMIT 1",
+                    (clean_name,)
+                ).fetchone()
+
             if row:
                 # Update existing
                 existing_phone = row["phone"] if row["phone"] and not str(row["phone"]).startswith("Zalo:") else ""
@@ -13404,10 +13420,10 @@ class InventoryStore:
                 connection.execute(
                     """
                     UPDATE customers 
-                    SET name = ?, phone = ?, zalo_url = ?, avatar_url = ?, updated_at = ?
+                    SET name = ?, phone = ?, zalo_url = ?, avatar_url = ?, zalo_id = ?, updated_at = ?
                     WHERE id = ?
                     """,
-                    (clean_name, final_phone, final_zalo_url, final_avatar_url, now, row["id"])
+                    (clean_name, final_phone, final_zalo_url, final_avatar_url, clean_zalo_id, now, row["id"])
                 )
                 customer_id = row["id"]
             else:

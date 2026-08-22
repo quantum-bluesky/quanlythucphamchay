@@ -99,11 +99,14 @@ export function createEntitiesUi(deps) {
       const relatedCarts = state.carts.filter((cart) => cart.customerId === selectedCustomer.id && cart.status !== "cancelled");
       const pendingCount = relatedCarts.filter((cart) => ["draft", "committed"].includes(cart.status)).length;
       const completedCount = relatedCarts.filter((cart) => cart.status === "completed").length;
-      const avatarDetailHtml = selectedCustomer.avatar_url
-        ? `<div style="display: inline-flex; align-items: center; gap: 6px;"><img src="${escapeHtml(selectedCustomer.avatar_url)}" alt="Avatar" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #ccc;"> <a href="${escapeHtml(selectedCustomer.avatar_url)}" target="_blank" rel="noopener noreferrer" style="font-size: 0.85em; color: #1976d2;">Xem ảnh</a></div>`
+      const avatarUrl = selectedCustomer.avatar_url || selectedCustomer.avatarUrl || "";
+      const zaloUrl = selectedCustomer.zaloUrl || selectedCustomer.zalo_url || "";
+      const zaloId = selectedCustomer.zalo_id || selectedCustomer.zaloId || "";
+      const avatarDetailHtml = avatarUrl
+        ? `<div style="display: inline-flex; align-items: center; gap: 6px;"><img src="${escapeHtml(avatarUrl)}" alt="Avatar" onerror="this.style.display='none'" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #ccc;"> <a href="${escapeHtml(avatarUrl)}" target="_blank" rel="noopener noreferrer" style="font-size: 0.85em; color: #1976d2;">Xem ảnh</a></div>`
         : "Chưa có";
-      const zaloUrlDetailHtml = selectedCustomer.zaloUrl
-        ? `<a href="${escapeHtml(selectedCustomer.zaloUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0068ff; text-decoration: none; font-weight: 500;">💬 ${escapeHtml(selectedCustomer.zaloUrl)}</a>`
+      const zaloUrlDetailHtml = zaloUrl
+        ? `<a href="${escapeHtml(zaloUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0068ff; text-decoration: none; font-weight: 500;">💬 ${escapeHtml(zaloUrl)}</a>`
         : "Chưa có";
 
       renderEntityDetailPanel({
@@ -122,7 +125,7 @@ export function createEntitiesUi(deps) {
           { label: "Địa chỉ ship", value: selectedCustomer.address || "Chưa có" },
           { label: "Link Zalo", value: zaloUrlDetailHtml, isHtml: true },
           { label: "Ảnh đại diện", value: avatarDetailHtml, isHtml: true },
-          { label: "Zalo ID", value: selectedCustomer.zalo_id || "Chưa liên kết" },
+          { label: "Zalo ID", value: zaloId || "Chưa liên kết" },
           { label: "Nhóm Zalo", value: selectedCustomer.group_name || "Không thuộc nhóm" },
           { label: "Đơn đang xử lý", value: String(pendingCount) },
           { label: "Đơn đã xuất", value: String(completedCount) },
@@ -151,15 +154,17 @@ export function createEntitiesUi(deps) {
         ? `<button type="button" class="status-pill ${pendingCount > 0 ? "draft" : "completed"} status-pill-button" data-customer-action="open-orders" data-customer-id="${customer.id}">${escapeHtml(orderLinkLabel)}</button>`
         : '<span class="status-pill cancelled">Chưa có đơn</span>';
       
-      const avatarMarkup = customer.avatar_url
-        ? `<img src="${escapeHtml(customer.avatar_url)}" alt="Avatar" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(0,0,0,0.1); flex-shrink: 0;">`
+      const cardAvatarUrl = customer.avatar_url || customer.avatarUrl || "";
+      const cardZaloUrl = customer.zaloUrl || customer.zalo_url || "";
+      const avatarMarkup = cardAvatarUrl
+        ? `<img src="${escapeHtml(cardAvatarUrl)}" alt="Avatar" onerror="this.style.display='none'" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(0,0,0,0.1); flex-shrink: 0;">`
         : "";
       const headerTitleMarkup = avatarMarkup
         ? `<div style="display: flex; align-items: center; gap: 8px;">${avatarMarkup}<strong>${escapeHtml(customer.name)}</strong></div>`
         : `<strong>${escapeHtml(customer.name)}</strong>`;
 
-      const zaloLinkMarkup = customer.zaloUrl
-        ? `<a href="${escapeHtml(customer.zaloUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0068ff; text-decoration: none; font-size: 0.9em; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;" title="Mở chat Zalo">💬 ${escapeHtml(customer.zaloUrl)}</a>`
+      const zaloLinkMarkup = cardZaloUrl
+        ? `<a href="${escapeHtml(cardZaloUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0068ff; text-decoration: none; font-size: 0.9em; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;" title="Mở chat Zalo">💬 ${escapeHtml(cardZaloUrl)}</a>`
         : "";
 
       if (compact) {
@@ -185,7 +190,7 @@ export function createEntitiesUi(deps) {
           <div class="customer-header">${headerTitleMarkup}${orderLinkMarkup}</div>
           <div class="customer-meta"><span>${escapeHtml(historyCount)} đơn đã xuất</span><span>Cập nhật ${escapeHtml(formatDate(customer.updatedAt))}</span></div>
           <div class="customer-meta"><span>${escapeHtml(customer.phone || "Chưa có số liên lạc")}</span><span>${escapeHtml(customer.address || "Chưa có địa chỉ")}</span></div>
-          <div class="customer-meta"><span>${zaloLinkMarkup || escapeHtml(customer.zaloUrl || "Chưa có link Zalo")}</span></div>
+          <div class="customer-meta"><span>${zaloLinkMarkup || escapeHtml(cardZaloUrl || "Chưa có link Zalo")}</span></div>
           <div class="customer-actions">
             <button type="button" class="ghost-button compact-button" data-customer-action="open-cart" data-customer-id="${customer.id}">Mở giỏ</button>
             <button type="button" class="ghost-button compact-button" data-customer-action="edit" data-customer-id="${customer.id}">Sửa</button>

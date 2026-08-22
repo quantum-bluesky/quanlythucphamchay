@@ -37,26 +37,32 @@ export function registerEntitiesControllerEvents(contract) {
   }
 
   function populateCustomerForm(customer) {
+    const avatarUrl = customer.avatar_url || customer.avatarUrl || "";
+    const zaloId = customer.zalo_id || customer.zaloId || "";
+    const zaloUrl = customer.zaloUrl || customer.zalo_url || (customer.phone ? `https://zalo.me/${customer.phone.replace(/\s+/g, '')}` : "");
+    const zaloGroupId = customer.zalo_group_id || customer.zaloGroupId || "";
+
     dom.customerNameInput.value = customer.name || "";
     dom.customerPhoneInput.value = customer.phone || "";
     dom.customerAddressInput.value = customer.address || "";
-    dom.customerZaloInput.value = customer.zaloUrl || (customer.phone ? `https://zalo.me/${customer.phone.replace(/\s+/g, '')}` : "");
+    dom.customerZaloInput.value = zaloUrl;
     if (dom.customerAvatarInput) {
-      dom.customerAvatarInput.value = customer.avatar_url || "";
+      dom.customerAvatarInput.value = avatarUrl;
       if (dom.customerAvatarPreview) {
-        if (customer.avatar_url) {
-          dom.customerAvatarPreview.src = customer.avatar_url;
+        if (avatarUrl) {
+          dom.customerAvatarPreview.src = avatarUrl;
           dom.customerAvatarPreview.style.display = "block";
         } else {
           dom.customerAvatarPreview.style.display = "none";
+          dom.customerAvatarPreview.src = "";
         }
       }
     }
     if (dom.customerZaloIdInput) {
-      dom.customerZaloIdInput.value = customer.zalo_id || "";
+      dom.customerZaloIdInput.value = zaloId;
     }
     if (dom.customerZaloGroupInput) {
-      dom.customerZaloGroupInput.value = customer.zalo_group_id || "";
+      dom.customerZaloGroupInput.value = zaloGroupId;
     }
   }
 

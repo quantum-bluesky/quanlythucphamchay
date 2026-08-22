@@ -2,8 +2,8 @@
   "app_version": "3.29.0",
   "files": {
     "app.js": {
-      "counter": 1,
-      "sha256": "6d2a60ee2759c5143372e0e416988231c66b32480d1387158147e9b5a025e633"
+      "counter": 2,
+      "sha256": "cf5e724deedb968bad20706913b3c618597d3358e98c89f57abe9206d104f142"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -22,8 +22,8 @@
       "sha256": "a3412cb7536866596fbcaa798933e8afd45db69bf6adb4f22978da3d0a21c71d"
     },
     "modules/controllers/entities-controller.js": {
-      "counter": 1,
-      "sha256": "4eb1cdf71fd116c2a8f920e29a1dbd19b524bc9ea7d272cebbf37d62823f48ba"
+      "counter": 2,
+      "sha256": "d67d0a6e9099187d0c2f90ffb6a37a7fb57b99b72c5da39ef62c23142a4110b1"
     },
     "modules/controllers/inventory-controller.js": {
       "counter": 1,
@@ -66,8 +66,8 @@
       "sha256": "49bfdf8ba4bb122e7961632ce527c477238e5469fb38978857b0a3fbd0248430"
     },
     "modules/entity-product-mutations.js": {
-      "counter": 1,
-      "sha256": "aa104d6e4c0fb72887ecea7e44b848e0e1ad6b79fa7ad1702425dc8ae5ca5f4c"
+      "counter": 2,
+      "sha256": "34eb437a1319bf0c03a5357fea73db2839a6f9dd920b2577173b3e9ba448be2d"
     },
     "modules/navigation-runtime.js": {
       "counter": 1,
@@ -90,8 +90,8 @@
       "sha256": "cca67d41bbaf0d20aa048e076295c430b0635d40329ad9ff19fd0954bcdc8e5b"
     },
     "modules/ui/entities-ui.js": {
-      "counter": 1,
-      "sha256": "e68dd9d6b8452a04b2e757ae2feebc85c6d0b60d988b0a2b1e72fbe301f688f5"
+      "counter": 2,
+      "sha256": "dc9eb39bd16c2d040e83fdea6757856e6c23fdd54a0c105540c19a7d3603aa51"
     },
     "modules/ui/inventory-ui.js": {
       "counter": 1,

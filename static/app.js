@@ -2177,16 +2177,29 @@ function decorateCart(cart) {
 
 function syncSalesState() {
   state.customers = (Array.isArray(state.customers) ? state.customers : [])
-    .map((customer) => ({
-      id: customer.id || createId("customer"),
-      name: String(customer.name || "").trim(),
-      phone: String(customer.phone || "").trim(),
-      address: String(customer.address || "").trim(),
-      zaloUrl: String(customer.zaloUrl || customer.zalo_url || "").trim(),
-      deletedAt: customer.deletedAt || customer.deleted_at || null,
-      createdAt: customer.createdAt || nowIso(),
-      updatedAt: customer.updatedAt || customer.createdAt || nowIso(),
-    }))
+    .map((customer) => {
+      const avatarUrl = String(customer.avatar_url || customer.avatarUrl || "").trim();
+      const zaloId = String(customer.zalo_id || customer.zaloId || "").trim();
+      const zaloUrl = String(customer.zaloUrl || customer.zalo_url || "").trim();
+      return {
+        id: customer.id || createId("customer"),
+        name: String(customer.name || "").trim(),
+        phone: String(customer.phone || "").trim(),
+        address: String(customer.address || "").trim(),
+        zaloUrl: zaloUrl,
+        zalo_url: zaloUrl,
+        avatar_url: avatarUrl,
+        avatarUrl: avatarUrl,
+        zalo_id: zaloId,
+        zaloId: zaloId,
+        zalo_group_id: customer.zalo_group_id || customer.zaloGroupId || null,
+        group_name: customer.group_name || customer.groupName || null,
+        group_zalo_url: customer.group_zalo_url || customer.groupZaloUrl || null,
+        deletedAt: customer.deletedAt || customer.deleted_at || null,
+        createdAt: customer.createdAt || nowIso(),
+        updatedAt: customer.updatedAt || customer.createdAt || nowIso(),
+      };
+    })
     .filter((customer) => customer.name)
     .sort((left, right) => left.name.localeCompare(right.name, "vi"));
 

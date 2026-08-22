@@ -88,8 +88,11 @@ export function createEntityProductMutationHelpers(deps) {
         phone: cleanPhone,
         address: cleanAddress,
         zaloUrl: cleanZaloUrl,
-        avatar_url: cleanAvatarUrl || existing?.avatar_url || "",
-        zalo_id: cleanZaloId || existing?.zalo_id || "",
+        zalo_url: cleanZaloUrl,
+        avatar_url: cleanAvatarUrl,
+        avatarUrl: cleanAvatarUrl,
+        zalo_id: cleanZaloId || String(customer.zalo_id || customer.zaloId || "").trim(),
+        zaloId: cleanZaloId || String(customer.zalo_id || customer.zaloId || "").trim(),
         zalo_group_id: cleanZaloGroupId,
         updatedAt: nowIso()
       } : customer);
@@ -105,8 +108,11 @@ export function createEntityProductMutationHelpers(deps) {
         phone: cleanPhone,
         address: cleanAddress,
         zaloUrl: cleanZaloUrl,
+        zalo_url: cleanZaloUrl,
         avatar_url: cleanAvatarUrl,
+        avatarUrl: cleanAvatarUrl,
         zalo_id: cleanZaloId,
+        zaloId: cleanZaloId,
         zalo_group_id: cleanZaloGroupId,
         createdAt: nowIso(),
         updatedAt: nowIso()
