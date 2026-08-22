@@ -36,10 +36,65 @@ export function registerEntitiesControllerEvents(contract) {
     return supplier;
   }
 
+  function populateCustomerForm(customer) {
+    dom.customerNameInput.value = customer.name || "";
+    dom.customerPhoneInput.value = customer.phone || "";
+    dom.customerAddressInput.value = customer.address || "";
+    dom.customerZaloInput.value = customer.zaloUrl || (customer.phone ? `https://zalo.me/${customer.phone.replace(/\s+/g, '')}` : "");
+    if (dom.customerAvatarInput) {
+      dom.customerAvatarInput.value = customer.avatar_url || "";
+      if (dom.customerAvatarPreview) {
+        if (customer.avatar_url) {
+          dom.customerAvatarPreview.src = customer.avatar_url;
+          dom.customerAvatarPreview.style.display = "block";
+        } else {
+          dom.customerAvatarPreview.style.display = "none";
+        }
+      }
+    }
+    if (dom.customerZaloIdInput) {
+      dom.customerZaloIdInput.value = customer.zalo_id || "";
+    }
+    if (dom.customerZaloGroupInput) {
+      dom.customerZaloGroupInput.value = customer.zalo_group_id || "";
+    }
+  }
+
+  function resetCustomerForm() {
+    dom.customerForm.reset();
+    if (dom.customerAvatarPreview) {
+      dom.customerAvatarPreview.style.display = "none";
+      dom.customerAvatarPreview.src = "";
+    }
+    if (dom.customerZaloIdInput) {
+      dom.customerZaloIdInput.value = "";
+    }
+  }
+
   dom.customerSearchInput.addEventListener("input", (event) => {
     state.customerSearchTerm = event.target.value;
     state.pagination.customers = 1;
     renderers.renderCustomers();
+  });
+
+  dom.customerPhoneInput.addEventListener("input", (event) => {
+    const phone = event.target.value.trim().replace(/\s+/g, "");
+    const currentZalo = dom.customerZaloInput.value.trim();
+    if (!currentZalo || currentZalo.startsWith("https://zalo.me/")) {
+      dom.customerZaloInput.value = phone ? `https://zalo.me/${phone}` : "";
+    }
+  });
+
+  dom.customerAvatarInput?.addEventListener("input", (event) => {
+    const url = event.target.value.trim();
+    if (dom.customerAvatarPreview) {
+      if (url) {
+        dom.customerAvatarPreview.src = url;
+        dom.customerAvatarPreview.style.display = "block";
+      } else {
+        dom.customerAvatarPreview.style.display = "none";
+      }
+    }
   });
 
   dom.customerForm.addEventListener("submit", (event) => {
@@ -50,9 +105,11 @@ export function registerEntitiesControllerEvents(contract) {
         phone: dom.customerPhoneInput.value,
         address: dom.customerAddressInput.value,
         zaloUrl: dom.customerZaloInput.value,
-        zalo_group_id: document.getElementById("customerZaloGroupInput")?.value || null,
+        avatar_url: dom.customerAvatarInput?.value || "",
+        zalo_id: dom.customerZaloIdInput?.value || "",
+        zalo_group_id: dom.customerZaloGroupInput?.value || null,
       }, state.editingCustomerFormId);
-      dom.customerForm.reset();
+      resetCustomerForm();
       state.editingCustomerFormId = null;
       state.customerFormCollapsed = true;
       renderers.renderEntityForms();
@@ -64,18 +121,18 @@ export function registerEntitiesControllerEvents(contract) {
 
   dom.customerFormCancelButton.addEventListener("click", () => {
     state.editingCustomerFormId = null;
-    dom.customerForm.reset();
+    resetCustomerForm();
     state.customerFormCollapsed = true;
     renderers.renderEntityForms();
   });
 
   dom.customerFormToggleButton?.addEventListener("click", () => {
     if (!state.customerFormCollapsed && !state.editingCustomerFormId) {
-      dom.customerForm.reset();
+      resetCustomerForm();
     }
     if (state.customerFormCollapsed) {
       state.editingCustomerFormId = null;
-      dom.customerForm.reset();
+      resetCustomerForm();
     }
     state.customerFormCollapsed = !state.customerFormCollapsed;
     renderers.renderEntityForms();
@@ -131,12 +188,7 @@ export function registerEntitiesControllerEvents(contract) {
     if (button.dataset.customerAction === "edit") {
       state.selectedCustomerId = customerId;
       state.editingCustomerFormId = customerId;
-      dom.customerNameInput.value = customer.name;
-      dom.customerPhoneInput.value = customer.phone || "";
-      dom.customerAddressInput.value = customer.address || "";
-      dom.customerZaloInput.value = customer.zaloUrl || "";
-      const zgInput = document.getElementById("customerZaloGroupInput");
-      if (zgInput) zgInput.value = customer.zalo_group_id || "";
+      populateCustomerForm(customer);
       state.customerFormCollapsed = false;
       renderers.renderEntityForms();
       return;
@@ -210,12 +262,7 @@ export function registerEntitiesControllerEvents(contract) {
     }
     if (button.dataset.customerDetailAction === "edit") {
       state.editingCustomerFormId = customer.id;
-      dom.customerNameInput.value = customer.name;
-      dom.customerPhoneInput.value = customer.phone || "";
-      dom.customerAddressInput.value = customer.address || "";
-      dom.customerZaloInput.value = customer.zaloUrl || "";
-      const zgInput = document.getElementById("customerZaloGroupInput");
-      if (zgInput) zgInput.value = customer.zalo_group_id || "";
+      populateCustomerForm(customer);
       state.customerFormCollapsed = false;
       renderers.renderEntityForms();
     }

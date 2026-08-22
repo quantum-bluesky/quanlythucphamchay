@@ -1,5 +1,5 @@
 {
-    "version": "3.28.9",
+    "version": "3.29.0",
     "server": {
         "host": "0.0.0.0",
         "port": 4000

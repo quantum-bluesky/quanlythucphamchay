@@ -155,11 +155,12 @@ export const SCREEN_HELP = {
   },
   customers: {
     title: "Quản lý khách hàng",
-    overview: "Dùng để thêm mới, sửa, xóa mềm và tra cứu thông tin giao hàng, số liên lạc, Zalo của khách.",
+    overview: "Dùng để thêm mới, sửa, xóa mềm và tra cứu thông tin giao hàng, số liên lạc, Zalo, avatar của khách.",
     steps: [
-      "Mở vào màn là thấy ngay danh sách khách hàng hiện hành.",
-      "Form tạo/sửa được thu gọn sẵn để ưu tiên phần danh sách; bấm Thêm mới hoặc Sửa để mở đúng lúc cần nhập liệu.",
-      "Chạm vào một khách trong danh sách để mở panel detail riêng. Panel này hiện đủ số liên lạc, địa chỉ ship, link Zalo và số đơn liên quan, kèm nút `Previous / Next` và `Đóng` để duyệt nhanh mà không mất search hiện tại.",
+      "Mở vào màn là thấy ngay danh sách khách hàng hiện hành kèm ảnh đại diện và link chat Zalo nhanh.",
+      "Form tạo/sửa gồm Tên khách hàng, Số liên lạc, Địa chỉ ship, Link Zalo (tự sinh từ SĐT dạng https://zalo.me/sđt, có thể sửa), Link Avatar (kèm xem trước ảnh), Zalo ID (chỉ đọc) và Nhóm Zalo (Chi nhánh).",
+      "Hệ thống tự động kiểm tra để không cho phép lưu 2 khách hàng trùng Zalo ID hoặc trùng số điện thoại.",
+      "Chạm vào một khách trong danh sách để mở panel detail riêng. Panel này hiện đủ số liên lạc, địa chỉ ship, link Zalo (bấm mở chat), ảnh đại diện, Zalo ID và số đơn liên quan, kèm nút `Previous / Next` và `Đóng` để duyệt nhanh mà không mất search hiện tại.",
       "Tìm nhanh bằng tên, số điện thoại hoặc địa chỉ để tránh nhập trùng.",
       "Badge `giỏ chờ` hoặc `đơn` trên từng khách là link sang màn Đơn hàng; nếu khách chỉ có đúng 1 phiếu thì app sẽ mở thẳng detail của phiếu đó để đối chiếu nhanh.",
       DESKTOP_PAGINATION_HINT,

@@ -202,12 +202,12 @@ Liên kết detail hiện có:
   - mở nhanh giỏ hàng cho khách
 - thành phần chính:
   - search khách hàng
-  - danh sách khách
-  - form tạo/sửa thu gọn
+  - danh sách khách kèm Avatar và link Zalo chat nhanh
+  - form tạo/sửa gồm: Tên khách hàng, Số liên lạc, Địa chỉ ship, Link Zalo (tự đồng bộ từ SĐT, có thể sửa), Link Avatar (kèm preview ảnh), Zalo ID (chỉ đọc), Nhóm Zalo (Chi nhánh)
 - nguyên tắc UI:
-  - trên mobile, card khách nên giữ ở khoảng 3 dòng để ưu tiên mật độ danh sách
+  - trên mobile, card khách giữ gọn, hiển thị ảnh đại diện và link Zalo chat nhanh
   - dòng cuối của card mobile ưu tiên `số liên lạc` và các action ngắn cùng hàng để thấy được nhiều khách hơn
-  - detail của khách mở ở panel riêng khi user chọn card; panel này hiện đủ liên hệ/ship/Zalo, có `Previous / Next` theo danh sách đang lọc và có nút `Đóng`
+  - detail của khách mở ở panel riêng khi user chọn card; panel này hiện đủ liên hệ/ship/Zalo (link bấm mở chat), ảnh Avatar, Zalo ID (nếu có), có `Previous / Next` theo danh sách đang lọc và có nút `Đóng`
   - badge `giỏ chờ` hoặc `đơn` trên card là link nội bộ sang màn `orders`; nếu chỉ có 1 phiếu liên quan thì app mở thẳng detail phiếu đó
 
 ### `products` - Quản lý sản phẩm

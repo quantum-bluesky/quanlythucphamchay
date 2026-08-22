@@ -337,19 +337,22 @@ Vào menu:
 5. Quản lý khách hàng
 ```
 
-Thông tin nên lưu:
+Thông tin quản lý:
 
 - tên khách hàng
 - số liên lạc
 - địa chỉ ship
-- link Zalo
+- link Zalo (hệ thống tự động sinh `https://zalo.me/sđt` khi nhập số liên lạc, cho phép tùy chỉnh link Zalo riêng nếu cần)
+- link Avatar (ảnh đại diện từ Zalo hoặc link tùy chọn, có hiển thị xem trước)
+- Zalo ID (chỉ đọc, tự động liên kết khi khách đăng nhập Zalo; hệ thống chặn không cho phép trùng Zalo ID giữa các khách)
+- nhóm Zalo (chi nhánh)
 
 ### Cách dùng
 
-1. Mở màn là thấy ngay danh sách khách hàng để tìm nhanh
-2. Chạm vào một khách trong list để mở panel detail riêng; panel này hiện đủ liên hệ, địa chỉ ship, link Zalo và có `Previous / Next` để chuyển nhanh giữa các khách đang hiện trên list
+1. Mở màn là thấy ngay danh sách khách hàng kèm ảnh đại diện và link chat Zalo để tìm nhanh
+2. Chạm vào một khách trong list để mở panel detail riêng; panel này hiện đủ liên hệ, địa chỉ ship, link Zalo (bấm mở chat), ảnh đại diện, Zalo ID và có `Previous / Next` để chuyển nhanh giữa các khách đang hiện trên list
 3. Khi cần tạo mới, bấm `Thêm mới` để mở form
-4. Điền thông tin rồi bấm `Lưu khách hàng`
+4. Điền thông tin rồi bấm `Lưu khách hàng` (khi gõ số liên lạc, ô Link Zalo sẽ tự cập nhật dạng `https://zalo.me/sđt`)
 5. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
 6. Khi cần mở giỏ hàng nhanh cho khách, bấm `Mở giỏ`
 7. Nếu muốn xem lại phiếu hàng của khách, bấm badge `giỏ chờ` hoặc `đơn`; nếu khách chỉ có 1 phiếu thì app sẽ mở thẳng detail của phiếu đó ở màn `Quản lý đơn hàng`
@@ -357,6 +360,7 @@ Thông tin nên lưu:
 Khuyến nghị:
 
 - luôn lưu số liên lạc và địa chỉ ship cho khách thường xuyên đặt hàng
+- sử dụng link Zalo để liên hệ và trao đổi đơn hàng nhanh chóng với khách
 
 ## 7. Luồng quản lý sản phẩm
 

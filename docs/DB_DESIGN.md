@@ -171,7 +171,8 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 
 ### `customers`
 
-- `id`, `name`, `phone`, `address`, `zalo_url`
+- `id`, `name`, `phone`, `address`, `zalo_url`, `avatar_url`, `zalo_id`, `zalo_group_id`
+- Unique index: `idx_customers_zalo_id` trên `zalo_id` khi `zalo_id` không rỗng và chưa bị xóa (`deleted_at IS NULL`)
 - `created_at`, `updated_at`, `deleted_at`
 
 ### `suppliers`

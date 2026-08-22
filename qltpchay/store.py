@@ -341,6 +341,7 @@ class InventoryStore:
                     phone TEXT NOT NULL DEFAULT '',
                     address TEXT NOT NULL DEFAULT '',
                     zalo_url TEXT NOT NULL DEFAULT '',
+                    avatar_url TEXT NOT NULL DEFAULT '',
                     zalo_id TEXT,
                     zalo_group_id TEXT,
                     created_at TEXT NOT NULL,
@@ -350,6 +351,19 @@ class InventoryStore:
 
                 CREATE INDEX IF NOT EXISTS idx_customers_name
                 ON customers(name COLLATE NOCASE);
+
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_zalo_id
+                ON customers(zalo_id)
+                WHERE zalo_id IS NOT NULL AND zalo_id != '' AND deleted_at IS NULL;
+
+                CREATE TABLE IF NOT EXISTS zalo_groups (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    zalo_url TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
 
                 CREATE TABLE IF NOT EXISTS suppliers (
                     id TEXT PRIMARY KEY,
@@ -629,6 +643,18 @@ class InventoryStore:
                     "ALTER TABLE products ADD COLUMN recipe TEXT NOT NULL DEFAULT ''"
                 )
             now = utc_now_iso()
+            transaction_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(transactions)").fetchall()
+            }
+            if "transaction_type" not in transaction_columns:
+                connection.execute(
+                    "ALTER TABLE transactions ADD COLUMN transaction_type TEXT NOT NULL DEFAULT 'in'"
+                )
+                if "type" in transaction_columns:
+                    connection.execute(
+                        "UPDATE transactions SET transaction_type = type WHERE type IS NOT NULL"
+                    )
+
             audit_columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(audit_logs)").fetchall()
             }
@@ -639,10 +665,36 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE customers ADD COLUMN zalo_id TEXT NOT NULL DEFAULT ''"
                 )
+            if "avatar_url" not in customer_columns:
+                connection.execute(
+                    "ALTER TABLE customers ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''"
+                )
             if "zalo_group_id" not in customer_columns:
                 connection.execute(
                     "ALTER TABLE customers ADD COLUMN zalo_group_id TEXT"
                 )
+            # Data cleanup for legacy incorrect storage
+            connection.execute(
+                """
+                UPDATE customers
+                SET avatar_url = zalo_url,
+                    zalo_url = CASE 
+                        WHEN phone != '' AND phone NOT LIKE 'Zalo:%' THEN 'https://zalo.me/' || REPLACE(phone, ' ', '')
+                        ELSE ''
+                    END
+                WHERE (zalo_url LIKE 'https://s120%' OR zalo_url LIKE '%-ava-talk%') AND avatar_url = ''
+                """
+            )
+            connection.execute(
+                """
+                UPDATE customers
+                SET phone = ''
+                WHERE phone LIKE 'Zalo:%'
+                """
+            )
+            connection.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_zalo_id ON customers(zalo_id) WHERE zalo_id IS NOT NULL AND zalo_id != '' AND deleted_at IS NULL"
+            )
             
             if "actor" not in audit_columns:
                 connection.execute(
@@ -1587,13 +1639,18 @@ class InventoryStore:
 
     def _serialize_customer_row(self, row: sqlite3.Row) -> dict:
         deleted_at = row["deleted_at"]
+        keys = row.keys()
         return {
             "id": row["id"],
             "name": row["name"],
-            "phone": row["phone"],
-            "address": row["address"],
-            "zaloUrl": row["zalo_url"],
-            "zalo_id": row["zalo_id"] if "zalo_id" in row.keys() else None,
+            "phone": row["phone"] or "",
+            "address": row["address"] or "",
+            "zaloUrl": row["zalo_url"] or "",
+            "avatar_url": row["avatar_url"] if "avatar_url" in keys and row["avatar_url"] else "",
+            "zalo_id": row["zalo_id"] if "zalo_id" in keys and row["zalo_id"] else "",
+            "zalo_group_id": row["zalo_group_id"] if "zalo_group_id" in keys else None,
+            "group_name": row["group_name"] if "group_name" in keys else None,
+            "group_zalo_url": row["group_zalo_url"] if "group_zalo_url" in keys else None,
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
             "deletedAt": deleted_at,
@@ -2079,9 +2136,10 @@ class InventoryStore:
         if state_key == "customers":
             rows = connection.execute(
                 """
-                SELECT id, name, phone, address, zalo_url, created_at, updated_at, deleted_at
-                FROM customers
-                ORDER BY datetime(updated_at) DESC, name COLLATE NOCASE, id
+                SELECT c.*, g.name as group_name, g.zalo_url as group_zalo_url
+                FROM customers c
+                LEFT JOIN zalo_groups g ON c.zalo_group_id = g.id
+                ORDER BY datetime(c.updated_at) DESC, c.name COLLATE NOCASE, c.id
                 """
             ).fetchall()
             return [self._serialize_customer_row(row) for row in rows]
@@ -2275,22 +2333,41 @@ class InventoryStore:
         records: list[dict],
     ) -> None:
         if state_key == "customers":
+            seen_zalo_ids = {}
+            for record in records:
+                z_id = str(record.get("zalo_id") or "").strip()
+                c_name = str(record.get("name") or "").strip()
+                if z_id and not record.get("deletedAt") and not record.get("deleted_at"):
+                    if z_id in seen_zalo_ids:
+                        prev_name = seen_zalo_ids[z_id]
+                        raise ValueError(f"Không thể lưu: Khách hàng '{c_name}' và '{prev_name}' có cùng Zalo ID '{z_id}'.")
+                    seen_zalo_ids[z_id] = c_name
+
             connection.execute("DELETE FROM customers")
             for record in records:
                 name = str(record.get("name") or "").strip()
                 if not name:
                     continue
+                phone = str(record.get("phone") or "").strip()
+                if phone.startswith("Zalo:"):
+                    phone = ""
+                zalo_url = str(record.get("zaloUrl") or record.get("zalo_url") or "").strip()
+                if not zalo_url and phone:
+                    zalo_url = f"https://zalo.me/{phone.replace(' ', '')}"
+                avatar_url = str(record.get("avatar_url") or record.get("avatarUrl") or "").strip()
+
                 connection.execute(
                     """
-                    INSERT INTO customers(id, name, phone, address, zalo_url, zalo_id, zalo_group_id, created_at, updated_at, deleted_at)
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO customers(id, name, phone, address, zalo_url, avatar_url, zalo_id, zalo_group_id, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(record.get("id") or f"customer_{secrets.token_hex(6)}"),
                         name,
-                        str(record.get("phone") or "").strip(),
+                        phone,
                         str(record.get("address") or "").strip(),
-                        str(record.get("zaloUrl") or record.get("zalo_url") or "").strip(),
+                        zalo_url,
+                        avatar_url,
                         str(record.get("zalo_id") or "").strip(),
                         str(record.get("zalo_group_id") or "").strip() or None,
                         str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
@@ -6589,18 +6666,21 @@ class InventoryStore:
             
             if not existing_customer:
                 customer_id = f"customer_{secrets.token_hex(6)}"
+                default_zalo_url = f"https://zalo.me/{clean_phone.replace(' ', '')}" if clean_phone else ""
                 connection.execute(
                     """
-                    INSERT INTO customers(id, name, phone, address, zalo_url, zalo_id, created_at, updated_at, deleted_at)
-                    VALUES(?, ?, ?, ?, '', ?, ?, ?, NULL)
+                    INSERT INTO customers(id, name, phone, address, zalo_url, avatar_url, zalo_id, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, ?, ?, '', ?, ?, ?, NULL)
                     """,
-                    (customer_id, clean_name, clean_phone, clean_address, clean_zalo_id, now, now)
+                    (customer_id, clean_name, clean_phone, clean_address, default_zalo_url, clean_zalo_id, now, now)
                 )
             else:
                 customer_id = existing_customer["id"]
-                # Cập nhật sđt/địa chỉ/zalo_id nếu khách chưa có
+                # Cập nhật sđt/địa chỉ/zalo_id/zalo_url nếu khách chưa có
                 if clean_phone and not existing_customer.get("phone"):
                     connection.execute("UPDATE customers SET phone = ? WHERE id = ?", (clean_phone, customer_id))
+                    if not existing_customer.get("zaloUrl"):
+                        connection.execute("UPDATE customers SET zalo_url = ? WHERE id = ?", (f"https://zalo.me/{clean_phone.replace(' ', '')}", customer_id))
                 if clean_address and not existing_customer.get("address"):
                     connection.execute("UPDATE customers SET address = ? WHERE id = ?", (clean_address, customer_id))
                 if clean_zalo_id and not existing_customer.get("zalo_id"):
@@ -13298,25 +13378,36 @@ class InventoryStore:
     def upsert_zalo_customer(self, zalo_id: str, name: str, phone: str = "", avatar_url: str = "") -> dict:
         if not zalo_id:
             raise ValueError("zalo_id is required")
+        clean_zalo_id = str(zalo_id).strip()
         clean_name = str(name or "").strip() or "Khách Zalo"
         clean_phone = str(phone or "").strip()
+        if clean_phone.startswith("Zalo:"):
+            clean_phone = ""
+        clean_avatar_url = str(avatar_url or "").strip()
+        default_zalo_url = f"https://zalo.me/{clean_phone.replace(' ', '')}" if clean_phone else ""
         now = utc_now_iso()
 
         with self._connect() as connection:
             row = connection.execute(
                 "SELECT * FROM customers WHERE zalo_id = ? AND deleted_at IS NULL",
-                (zalo_id,)
+                (clean_zalo_id,)
             ).fetchone()
             
             if row:
                 # Update existing
+                existing_phone = row["phone"] if row["phone"] and not str(row["phone"]).startswith("Zalo:") else ""
+                final_phone = clean_phone or existing_phone
+                existing_zalo_url = row["zalo_url"] if row["zalo_url"] and not str(row["zalo_url"]).startswith("https://s120") and not "-ava-talk" in str(row["zalo_url"]) else ""
+                final_zalo_url = existing_zalo_url or (f"https://zalo.me/{final_phone.replace(' ', '')}" if final_phone else "")
+                final_avatar_url = clean_avatar_url or (row["avatar_url"] if "avatar_url" in row.keys() else "")
+                
                 connection.execute(
                     """
                     UPDATE customers 
-                    SET name = ?, phone = ?, zalo_url = ?, updated_at = ?
+                    SET name = ?, phone = ?, zalo_url = ?, avatar_url = ?, updated_at = ?
                     WHERE id = ?
                     """,
-                    (clean_name, clean_phone or row["phone"], avatar_url, now, row["id"])
+                    (clean_name, final_phone, final_zalo_url, final_avatar_url, now, row["id"])
                 )
                 customer_id = row["id"]
             else:
@@ -13325,10 +13416,10 @@ class InventoryStore:
                 customer_id = f"customer_{secrets.token_hex(6)}"
                 connection.execute(
                     """
-                    INSERT INTO customers(id, name, phone, address, zalo_url, zalo_id, created_at, updated_at, deleted_at)
-                    VALUES(?, ?, ?, '', ?, ?, ?, ?, NULL)
+                    INSERT INTO customers(id, name, phone, address, zalo_url, avatar_url, zalo_id, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, '', ?, ?, ?, ?, ?, NULL)
                     """,
-                    (customer_id, clean_name, clean_phone, avatar_url, zalo_id, now, now)
+                    (customer_id, clean_name, clean_phone, default_zalo_url, clean_avatar_url, clean_zalo_id, now, now)
                 )
             
             canonical = self._refresh_sync_collection_cache(connection, "customers", updated_at=now)

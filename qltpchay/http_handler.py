@@ -404,10 +404,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         if isinstance(avatar_dict, dict) and "data" in avatar_dict:
                             avatar = avatar_dict["data"].get("url", "")
                             
-                        # Note: to get phone we need to decrypt token_data or call endpoint. Let's fallback to dummy phone
-                        # Real app might need 'phone' permission to fetch phone from Zalo Graph.
-                        # Since phone is required by schema, we fallback to a pseudo phone if not available.
-                        phone = f"Zalo:{zalo_id}"
+                        phone = ""
                         
                     except urllib.error.HTTPError as e:
                         err_body = e.read().decode("utf-8", errors="ignore")
@@ -435,6 +432,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             phone: {json.dumps(customer['phone'])},
             address: {json.dumps(customer['address'])},
             zalo_id: {json.dumps(customer.get('zalo_id', ''))},
+            avatar_url: {json.dumps(customer.get('avatar_url', ''))},
+            zalo_url: {json.dumps(customer.get('zaloUrl', ''))},
             zalo_group_id: {json.dumps(customer.get('zalo_group_id', ''))},
             group_zalo_url: {json.dumps(customer.get('group_zalo_url', ''))}
         }};
@@ -785,10 +784,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         import secrets
                         group_id = f"zg_{secrets.token_hex(4)}"
                     if not name:
-                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Ten nhom la b?t bu?c."})
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Tên nhóm là bắt buộc."})
                         return
                     group = store.upsert_zalo_group(group_id, name, zalo_url, is_active=1)
-                    self._send_json(HTTPStatus.OK, {"message": "?a l?u nhom Zalo.", "zalo_group": group})
+                    self._send_json(HTTPStatus.OK, {"message": "Đã lưu nhóm Zalo.", "zalo_group": group})
                 except Exception as exc:
                     self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(exc)})
                 return
@@ -2009,7 +2008,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             if match_zg:
                 try:
                     store.delete_zalo_group(match_zg.group(1))
-                    self._send_json(HTTPStatus.OK, {"message": "?a xoa nhom Zalo."})
+                    self._send_json(HTTPStatus.OK, {"message": "Đã xóa nhóm Zalo."})
                 except ValueError as exc:
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return

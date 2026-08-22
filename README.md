@@ -189,8 +189,8 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Có audit log Phase D cho thay đổi trạng thái đơn/phiếu, thay đổi giá chung và lưu người thao tác để truy vết
 - Báo cáo nhập xuất theo tháng, tách riêng `hoàn khách`, `trả NCC`, `điều chỉnh tồn`, có thêm khối audit chứng từ để tra cứu ngay trong màn `Báo cáo`
 - Khối audit chứng từ ở màn `Báo cáo` hỗ trợ tìm theo mã phiếu và mã tham chiếu nguồn để đối chiếu nhanh
-- Quản lý khách hàng có thêm số liên lạc, địa chỉ ship và link Zalo
-- Màn Khách hàng trên mobile được nén còn khoảng 3 dòng mỗi card để thấy nhiều khách hơn; dòng cuối ưu tiên số liên lạc và action ngắn
+- Quản lý khách hàng có thêm số liên lạc, địa chỉ ship, link Zalo (tự sinh từ SĐT dạng `https://zalo.me/sđt`, cho phép chỉnh sửa), ảnh đại diện (Avatar), Zalo ID (chỉ đọc, tự động kiểm tra chống trùng lặp) và Nhóm Zalo
+- Màn Khách hàng trên mobile được nén gọn kèm ảnh đại diện và link chat Zalo nhanh để tiện liên hệ; dòng cuối ưu tiên số liên lạc và action ngắn
 - Màn Khách hàng và Nhà cung cấp ưu tiên hiển thị danh sách; form tạo/sửa được thu gọn và chỉ mở khi bấm `Thêm mới` hoặc `Sửa`; khi chọn một card sẽ mở panel detail riêng có `Previous / Next` và `Đóng`
 - Màn Đơn hàng và danh sách Phiếu nhập dùng pattern `list là chính, detail mở riêng`: chọn card để mở detail đầy đủ, giữ nguyên bộ lọc/search hiện tại, có `Previous / Next` để chuyển nhanh trong danh sách đang xem
 - Ở màn Đơn hàng, danh sách mặt hàng trong detail mặc định thu gọn để màn mobile gọn hơn; ở màn Phiếu nhập, detail vẫn hiện trọn danh sách dòng hàng để rà phiếu nhanh

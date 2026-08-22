@@ -205,6 +205,15 @@ Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối
   - kiểm tra `Quản lý nhập hàng`
   - kiểm tra `Báo cáo`
 
+## Quy định về mã hóa ký tự (UTF-8 Encoding Standard)
+
+- Dự án hoàn toàn sử dụng tiếng Việt và bảng mã chuẩn `UTF-8`; tuyệt đối không dựa trên hoặc sử dụng codec `cp932` hay bảng mã tiếng Nhật/OEM khác.
+- Tất cả các thao tác đọc/ghi file văn bản (`.py`, `.js`, `.html`, `.css`, `.json`, `.md`, `.txt`, `.sql`, `.db`) bắt buộc phải chỉ định `encoding="utf-8"`.
+- Khi thực thi các lệnh Python CLI / scratch script / kiểm tra terminal trên môi trường Windows:
+  - Đảm bảo môi trường chạy dùng UTF-8 (ví dụ: `PYTHONIOENCODING=utf-8`).
+  - Khi in chuỗi tiếng Việt hoặc debug ra console, sử dụng `json.dumps(..., ensure_ascii=True)` hoặc cấu hình `sys.stdout.reconfigure(encoding='utf-8')` để tránh lỗi `UnicodeEncodeError`.
+- Khi thao tác với SQLite hoặc file cấu hình, luôn đảm bảo luồng dữ liệu truyền nhận ở định dạng UTF-8.
+
 ## Quy ước Git theo Issue
 
 Áp dụng như global rule khi làm việc theo danh sách Issue:

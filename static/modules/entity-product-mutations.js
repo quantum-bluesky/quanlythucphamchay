@@ -60,8 +60,14 @@ export function createEntityProductMutationHelpers(deps) {
     const cleanName = String(payload.name || "").trim();
     const cleanPhone = String(payload.phone || "").trim();
     const cleanAddress = String(payload.address || "").trim();
-    const cleanZaloUrl = String(payload.zaloUrl || payload.zalo_url || "").trim();
+    let cleanZaloUrl = String(payload.zaloUrl || payload.zalo_url || "").trim();
+    if (!cleanZaloUrl && cleanPhone) {
+      cleanZaloUrl = `https://zalo.me/${cleanPhone.replace(/\s+/g, '')}`;
+    }
+    const cleanAvatarUrl = String(payload.avatar_url || payload.avatarUrl || "").trim();
+    const cleanZaloId = String(payload.zalo_id || "").trim();
     const cleanZaloGroupId = payload.zalo_group_id || null;
+
     if (!cleanName) throw new Error("Tên khách hàng là bắt buộc.");
     const duplicateByName = getActiveCustomers().find((customer) => customer.id !== customerId && normalizeText(customer.name) === normalizeText(cleanName));
     if (duplicateByName) throw new Error("Tên khách hàng đã tồn tại.");
@@ -69,15 +75,42 @@ export function createEntityProductMutationHelpers(deps) {
       const duplicateByPhone = getActiveCustomers().find((customer) => customer.id !== customerId && normalizeText(customer.phone) === normalizeText(cleanPhone));
       if (duplicateByPhone) throw new Error("Số điện thoại khách hàng đã tồn tại.");
     }
+    if (cleanZaloId) {
+      const duplicateByZalo = getActiveCustomers().find((customer) => customer.id !== customerId && customer.zalo_id && String(customer.zalo_id).trim() === cleanZaloId);
+      if (duplicateByZalo) throw new Error(`Zalo ID '${cleanZaloId}' đã thuộc về khách hàng khác (${duplicateByZalo.name}).`);
+    }
+
     if (customerId) {
-      state.customers = state.customers.map((customer) => customer.id === customerId ? { ...customer, name: cleanName, phone: cleanPhone, address: cleanAddress, zaloUrl: cleanZaloUrl, zalo_group_id: cleanZaloGroupId, updatedAt: nowIso() } : customer);
+      const existing = state.customers.find((c) => c.id === customerId);
+      state.customers = state.customers.map((customer) => customer.id === customerId ? {
+        ...customer,
+        name: cleanName,
+        phone: cleanPhone,
+        address: cleanAddress,
+        zaloUrl: cleanZaloUrl,
+        avatar_url: cleanAvatarUrl || existing?.avatar_url || "",
+        zalo_id: cleanZaloId || existing?.zalo_id || "",
+        zalo_group_id: cleanZaloGroupId,
+        updatedAt: nowIso()
+      } : customer);
       state.carts = state.carts.map((cart) => (
         cart.customerId === customerId && cart.status === "draft"
           ? decorateCart({ ...cart, customerName: cleanName, updatedAt: nowIso() })
           : cart
       ));
     } else {
-      state.customers.push({ id: createId("customer"), name: cleanName, phone: cleanPhone, address: cleanAddress, zaloUrl: cleanZaloUrl, zalo_group_id: cleanZaloGroupId, createdAt: nowIso(), updatedAt: nowIso() });
+      state.customers.push({
+        id: createId("customer"),
+        name: cleanName,
+        phone: cleanPhone,
+        address: cleanAddress,
+        zaloUrl: cleanZaloUrl,
+        avatar_url: cleanAvatarUrl,
+        zalo_id: cleanZaloId,
+        zalo_group_id: cleanZaloGroupId,
+        createdAt: nowIso(),
+        updatedAt: nowIso()
+      });
     }
     saveAndRenderAll(["customers", "carts"]);
   }
