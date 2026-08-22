@@ -249,10 +249,11 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             if route == "/api/public/orders":
                 query = parse_qs(parsed.query)
                 phone = str(query.get("phone", [""])[0]).strip()
-                if not phone:
-                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Cần số điện thoại để tra cứu."})
+                zalo_id = str(query.get("zalo_id", [""])[0]).strip()
+                if not phone and not zalo_id:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Cần số điện thoại hoặc Zalo ID để tra cứu."})
                     return
-                orders = store.get_public_orders(phone=phone)
+                orders = store.get_public_orders(phone=phone, zalo_id=zalo_id)
                 self._send_json(HTTPStatus.OK, {"orders": orders})
                 return
 

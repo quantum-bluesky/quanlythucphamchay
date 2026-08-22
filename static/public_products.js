@@ -15,6 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupMyOrders();
   setupZaloButton();
   setupOrderSuccessModal();
+  setupLogoutModal();
 });
 
 function setupZaloButton() {
@@ -28,6 +29,7 @@ function setupZaloButton() {
     
     // Tạo container chứa info và nút đăng xuất
     const userContainer = document.createElement("div");
+    userContainer.id = "publicUserContainer";
     userContainer.style.display = "flex";
     userContainer.style.alignItems = "center";
     userContainer.style.gap = "8px";
@@ -40,10 +42,65 @@ function setupZaloButton() {
       <div style="background: ${bgColor}; color: ${textColor}; padding: 4px 12px; border-radius: 20px; font-size: 0.9em; font-weight: 500; display: flex; align-items: center; gap: 4px;">
         👋 ${savedInfo.name.split(' ').pop()}
       </div>
-      <button onclick="localStorage.removeItem('public_customer_info'); window.location.reload();" class="ghost-button compact-button" style="padding: 4px 8px; font-size: 0.85em;" title="Đăng xuất">Thoát</button>
+      <button type="button" id="publicLogoutBtn" class="ghost-button compact-button" style="padding: 4px 8px; font-size: 0.85em;" title="Đăng xuất">Thoát</button>
     `;
     
     zaloBtn.parentNode.insertBefore(userContainer, zaloBtn);
+    
+    const logoutBtn = document.getElementById("publicLogoutBtn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", logoutPublicCustomer);
+    }
+  }
+}
+
+function logoutPublicCustomer() {
+  const savedInfo = JSON.parse(localStorage.getItem('public_customer_info') || '{}');
+  const isZalo = !!savedInfo.zalo_id;
+  const userName = savedInfo.name || "khách hàng";
+  
+  // Xóa sạch toàn bộ thông tin đăng nhập của user hiện tại
+  localStorage.removeItem('public_customer_info');
+  sessionStorage.clear();
+  document.cookie = "zalo_code_verifier=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+  
+  if (isZalo) {
+    showLogoutModal(userName);
+  } else {
+    showToast(`Đã thoát tài khoản ${userName}`);
+    setTimeout(() => window.location.reload(), 400);
+  }
+}
+
+function setupLogoutModal() {
+  const modal = document.getElementById("logoutModal");
+  const closeBtn = document.getElementById("closeLogoutModal");
+  const reloadBtn = document.getElementById("confirmLogoutReloadBtn");
+  
+  if (closeBtn && modal) {
+    closeBtn.addEventListener("click", () => {
+      modal.classList.add("hidden");
+      document.body.style.overflow = "";
+      window.location.reload();
+    });
+  }
+  
+  if (reloadBtn) {
+    reloadBtn.addEventListener("click", () => {
+      window.location.reload();
+    });
+  }
+}
+
+function showLogoutModal(userName) {
+  const modal = document.getElementById("logoutModal");
+  const desc = document.getElementById("logoutModalDesc");
+  if (desc) {
+    desc.innerHTML = `Đã đăng xuất tài khoản <strong>${userName}</strong> khỏi hệ thống cửa hàng.<br><br>Để <strong>đổi sang tài khoản Zalo khác</strong> trên trình duyệt này, bạn vui lòng đăng xuất tài khoản Zalo hiện tại hoặc mở tab Ẩn danh (Incognito) trước khi bấm đăng nhập lại.`;
+  }
+  if (modal) {
+    modal.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
   }
 }
 
@@ -993,8 +1050,8 @@ function setupMyOrders() {
 
   btn.addEventListener("click", async () => {
     const savedInfo = JSON.parse(localStorage.getItem('public_customer_info') || '{}');
-    if (!savedInfo.phone) {
-      alert("Vui lòng đặt ít nhất 1 đơn hàng để hệ thống ghi nhớ số điện thoại của bạn, hoặc liên hệ trực tiếp.");
+    if (!savedInfo.phone && !savedInfo.zalo_id) {
+      alert("Vui lòng đăng nhập hoặc đặt ít nhất 1 đơn hàng để xem danh sách đơn của bạn.");
       return;
     }
 
@@ -1003,7 +1060,11 @@ function setupMyOrders() {
     listContainer.innerHTML = '<div class="loading-spinner">Đang tải đơn hàng...</div>';
 
     try {
-      const res = await fetch(`./api/public/orders?phone=${encodeURIComponent(savedInfo.phone)}`);
+      const params = new URLSearchParams();
+      if (savedInfo.zalo_id) params.set("zalo_id", savedInfo.zalo_id);
+      if (savedInfo.phone) params.set("phone", savedInfo.phone);
+
+      const res = await fetch(`./api/public/orders?${params.toString()}`);
       if (!res.ok) throw new Error("Lỗi tải đơn hàng");
       
       const data = await res.json();

@@ -6687,22 +6687,35 @@ class InventoryStore:
                 "cart": created_cart,
             }
 
-    def get_public_orders(self, *, phone: str) -> list[dict]:
+    def get_public_orders(self, *, phone: str = "", zalo_id: str = "") -> list[dict]:
         clean_phone = str(phone or "").strip()
-        if not clean_phone:
+        clean_zalo_id = str(zalo_id or "").strip()
+        if not clean_phone and not clean_zalo_id:
             return []
             
         with self._connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT c.* 
-                FROM carts c
-                JOIN customers cust ON c.customer_id = cust.id
-                WHERE cust.phone = ? AND c.created_mode = 'online'
-                ORDER BY c.created_at DESC
-                """,
-                (clean_phone,)
-            ).fetchall()
+            if clean_zalo_id:
+                rows = connection.execute(
+                    """
+                    SELECT c.* 
+                    FROM carts c
+                    JOIN customers cust ON c.customer_id = cust.id
+                    WHERE cust.zalo_id = ? AND c.created_mode = 'online'
+                    ORDER BY c.created_at DESC
+                    """,
+                    (clean_zalo_id,)
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """
+                    SELECT c.* 
+                    FROM carts c
+                    JOIN customers cust ON c.customer_id = cust.id
+                    WHERE cust.phone = ? AND c.created_mode = 'online'
+                    ORDER BY c.created_at DESC
+                    """,
+                    (clean_phone,)
+                ).fetchall()
             
             result = []
             for row in rows:
