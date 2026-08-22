@@ -2181,6 +2181,10 @@ function syncSalesState() {
       const avatarUrl = String(customer.avatar_url || customer.avatarUrl || "").trim();
       const zaloId = String(customer.zalo_id || customer.zaloId || "").trim();
       const zaloUrl = String(customer.zaloUrl || customer.zalo_url || "").trim();
+      const groupId = customer.zalo_group_id || customer.zaloGroupId || null;
+      const matchedGroup = groupId && Array.isArray(state.zaloGroups) ? state.zaloGroups.find(g => String(g.id) === String(groupId)) : null;
+      const groupName = matchedGroup ? matchedGroup.name : (customer.group_name || customer.groupName || null);
+      const groupZaloUrl = matchedGroup ? matchedGroup.zalo_url : (customer.group_zalo_url || customer.groupZaloUrl || null);
       return {
         id: customer.id || createId("customer"),
         name: String(customer.name || "").trim(),
@@ -2192,9 +2196,9 @@ function syncSalesState() {
         avatarUrl: avatarUrl,
         zalo_id: zaloId,
         zaloId: zaloId,
-        zalo_group_id: customer.zalo_group_id || customer.zaloGroupId || null,
-        group_name: customer.group_name || customer.groupName || null,
-        group_zalo_url: customer.group_zalo_url || customer.groupZaloUrl || null,
+        zalo_group_id: groupId,
+        group_name: groupName,
+        group_zalo_url: groupZaloUrl,
         deletedAt: customer.deletedAt || customer.deleted_at || null,
         createdAt: customer.createdAt || nowIso(),
         updatedAt: customer.updatedAt || customer.createdAt || nowIso(),

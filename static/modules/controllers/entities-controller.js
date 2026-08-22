@@ -106,6 +106,7 @@ export function registerEntitiesControllerEvents(contract) {
   dom.customerForm.addEventListener("submit", (event) => {
     event.preventDefault();
     try {
+      const targetCustomerId = state.editingCustomerFormId;
       actions.upsertCustomer({
         name: dom.customerNameInput.value,
         phone: dom.customerPhoneInput.value,
@@ -114,11 +115,15 @@ export function registerEntitiesControllerEvents(contract) {
         avatar_url: dom.customerAvatarInput?.value || "",
         zalo_id: dom.customerZaloIdInput?.value || "",
         zalo_group_id: dom.customerZaloGroupInput?.value || null,
-      }, state.editingCustomerFormId);
+      }, targetCustomerId);
+      if (targetCustomerId) {
+        state.selectedCustomerId = targetCustomerId;
+      }
       resetCustomerForm();
       state.editingCustomerFormId = null;
       state.customerFormCollapsed = true;
       renderers.renderEntityForms();
+      renderers.renderCustomers();
       actions.showToast("Đã lưu khách hàng.");
     } catch (error) {
       actions.showToast(error.message, true);

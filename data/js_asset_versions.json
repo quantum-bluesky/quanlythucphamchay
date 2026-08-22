@@ -2,8 +2,8 @@
   "app_version": "3.29.0",
   "files": {
     "app.js": {
-      "counter": 2,
-      "sha256": "cf5e724deedb968bad20706913b3c618597d3358e98c89f57abe9206d104f142"
+      "counter": 3,
+      "sha256": "528a7180c57e5047899d2d9fda43b91c21624e58fd18982cd0f533e12ce7ab0b"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -22,8 +22,8 @@
       "sha256": "a3412cb7536866596fbcaa798933e8afd45db69bf6adb4f22978da3d0a21c71d"
     },
     "modules/controllers/entities-controller.js": {
-      "counter": 2,
-      "sha256": "d67d0a6e9099187d0c2f90ffb6a37a7fb57b99b72c5da39ef62c23142a4110b1"
+      "counter": 3,
+      "sha256": "8983d1e02a468d789e26c275a1a479bbc7e4a06ee6d098149015f7b7b65b52c8"
     },
     "modules/controllers/inventory-controller.js": {
       "counter": 1,
@@ -66,8 +66,8 @@
       "sha256": "49bfdf8ba4bb122e7961632ce527c477238e5469fb38978857b0a3fbd0248430"
     },
     "modules/entity-product-mutations.js": {
-      "counter": 3,
-      "sha256": "d06bba64e43552b3d07952cdb3a29f8841cc6220369abde60b10b1bd61f0846e"
+      "counter": 4,
+      "sha256": "9f995b8962c6f70481eb9f48b7cd118f3be05f337cc02a3cee6721c11e59acc7"
     },
     "modules/navigation-runtime.js": {
       "counter": 1,
@@ -90,8 +90,8 @@
       "sha256": "cca67d41bbaf0d20aa048e076295c430b0635d40329ad9ff19fd0954bcdc8e5b"
     },
     "modules/ui/entities-ui.js": {
-      "counter": 2,
-      "sha256": "dc9eb39bd16c2d040e83fdea6757856e6c23fdd54a0c105540c19a7d3603aa51"
+      "counter": 3,
+      "sha256": "0d9a12ad9f3a047981641724fa1017b290a5a72a2fee1b6649e35ef65b0cdef6"
     },
     "modules/ui/inventory-ui.js": {
       "counter": 1,
@@ -126,8 +126,8 @@
       "sha256": "9758b25c52cf31ad5a29ffa31158594c5c9b142edfe386234570433ba8f6dd89"
     },
     "public_products.js": {
-      "counter": 2,
-      "sha256": "95459402ce296ac9aaf87e650411f894e78e304c760d9a27f2c025b3b500903e"
+      "counter": 3,
+      "sha256": "b1bdd1103224b100feace113483fbc17f816850ad1fdf036841a1231d4c3a00f"
     },
     "styles.css": {
       "counter": 1,

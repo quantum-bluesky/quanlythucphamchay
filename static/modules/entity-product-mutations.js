@@ -82,6 +82,12 @@ export function createEntityProductMutationHelpers(deps) {
 
     if (customerId) {
       const existing = state.customers.find((c) => String(c.id) === String(customerId));
+      const matchedGroup = cleanZaloGroupId && Array.isArray(state.zaloGroups)
+        ? state.zaloGroups.find((g) => String(g.id) === String(cleanZaloGroupId))
+        : null;
+      const groupName = matchedGroup ? matchedGroup.name : (cleanZaloGroupId ? existing?.group_name || null : null);
+      const groupZaloUrl = matchedGroup ? matchedGroup.zalo_url : (cleanZaloGroupId ? existing?.group_zalo_url || null : null);
+
       state.customers = state.customers.map((customer) => String(customer.id) === String(customerId) ? {
         ...customer,
         name: cleanName,
@@ -94,6 +100,8 @@ export function createEntityProductMutationHelpers(deps) {
         zalo_id: cleanZaloId || String(customer.zalo_id || customer.zaloId || "").trim(),
         zaloId: cleanZaloId || String(customer.zalo_id || customer.zaloId || "").trim(),
         zalo_group_id: cleanZaloGroupId,
+        group_name: groupName,
+        group_zalo_url: groupZaloUrl,
         updatedAt: nowIso()
       } : customer);
       state.carts = state.carts.map((cart) => (
@@ -102,6 +110,9 @@ export function createEntityProductMutationHelpers(deps) {
           : cart
       ));
     } else {
+      const matchedGroup = cleanZaloGroupId && Array.isArray(state.zaloGroups)
+        ? state.zaloGroups.find((g) => String(g.id) === String(cleanZaloGroupId))
+        : null;
       state.customers.push({
         id: createId("customer"),
         name: cleanName,
@@ -114,6 +125,8 @@ export function createEntityProductMutationHelpers(deps) {
         zalo_id: cleanZaloId,
         zaloId: cleanZaloId,
         zalo_group_id: cleanZaloGroupId,
+        group_name: matchedGroup ? matchedGroup.name : null,
+        group_zalo_url: matchedGroup ? matchedGroup.zalo_url : null,
         createdAt: nowIso(),
         updatedAt: nowIso()
       });

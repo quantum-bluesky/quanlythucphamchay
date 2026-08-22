@@ -277,44 +277,47 @@ function setupCart() {
         };
       }
       
-      // Render order review
+      // Render order review (ẩn chi phí khi đặt hàng, chỉ hiện số lượng)
       const reviewContainer = document.getElementById('checkoutReviewItems');
       const reviewTotal = document.getElementById('checkoutReviewTotal');
       reviewContainer.innerHTML = '';
-      let totalAmount = 0;
+      let totalQuantity = 0;
       
       Object.keys(window.selectedProducts).forEach(id => {
         const qty = window.selectedProducts[id];
         if (qty > 0) {
           const p = allProducts.find(x => String(x.id) === id);
           if (p) {
-            const price = p.sale_price || p.price || 0;
-            const lineTotal = price * qty;
-            totalAmount += lineTotal;
+            totalQuantity += qty;
             
             const itemDiv = document.createElement('div');
             itemDiv.style.display = 'flex';
             itemDiv.style.justifyContent = 'space-between';
+            itemDiv.style.alignItems = 'center';
             itemDiv.style.marginBottom = '8px';
             itemDiv.style.paddingBottom = '8px';
             itemDiv.style.borderBottom = '1px dashed #eee';
             
             itemDiv.innerHTML = `
               <div style="flex: 1; padding-right: 8px;">
-                <div style="font-weight: 500;">${p.name}</div>
-                <div style="color: #757575; font-size: 0.9em;">${qty} ${p.unit} x ${formatVND(price)}</div>
+                <div style="font-weight: 500; color: #212121;">${p.name}</div>
               </div>
-              <div style="font-weight: 500;">${formatVND(lineTotal)}</div>
+              <div style="font-weight: 600; color: #1976d2; background: #e3f2fd; padding: 2px 8px; border-radius: 12px; font-size: 0.9em; white-space: nowrap;">
+                x${qty} ${p.unit || 'món'}
+              </div>
             `;
             reviewContainer.appendChild(itemDiv);
           }
         }
       });
       
-      if (totalAmount === 0) {
+      if (totalQuantity === 0) {
         reviewContainer.innerHTML = '<div style="color: #757575; font-style: italic;">Giỏ hàng trống</div>';
       }
-      reviewTotal.textContent = `Tổng cộng: ${formatVND(totalAmount)}`;
+      reviewTotal.textContent = `Tổng số lượng: ${totalQuantity} món`;
+      if (shippingLabel) {
+        shippingLabel.textContent = `*Shop sẽ liên hệ báo chi phí & phí vận chuyển khi xác nhận đơn*`;
+      }
 
       checkoutModal.classList.remove("hidden");
       document.body.style.overflow = "hidden";
@@ -458,21 +461,27 @@ function showOrderSuccessPopup(cart, itemsSummary, totalAmount, customerInfo, no
   const orderCode = cart.order_code || cart.id || "N/A";
   document.getElementById("orderSuccessCode").textContent = `Mã đơn: ${orderCode}`;
   
+  let totalQty = 0;
+  itemsSummary.forEach(item => { totalQty += (item.quantity || 0); });
+
   let summaryHtml = `
-    <div style="font-weight: 600; margin-bottom: 6px; color: #333;">Chi tiết đơn hàng:</div>
+    <div style="font-weight: 600; margin-bottom: 6px; color: #333;">Chi tiết các món đã đặt:</div>
     <ul style="margin: 0 0 8px 0; padding-left: 18px;">
   `;
   itemsSummary.forEach(item => {
-    summaryHtml += `<li>${item.name} x ${item.quantity} ${item.unit} (${formatVND(item.total)})</li>`;
+    summaryHtml += `<li style="margin-bottom: 4px;"><strong>${item.name}</strong> x ${item.quantity} ${item.unit}</li>`;
   });
   summaryHtml += `
     </ul>
-    <div style="font-weight: bold; color: #d32f2f; border-top: 1px dashed #ddd; padding-top: 4px;">
-      Tổng tiền: ${formatVND(totalAmount)}
+    <div style="font-weight: 600; color: #1976d2; border-top: 1px dashed #ddd; padding-top: 6px; margin-bottom: 8px;">
+      Tổng số lượng: ${totalQty} món
     </div>
-    <div style="margin-top: 6px; font-size: 0.9em; color: #666;">
+    <div style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 6px; padding: 8px; font-size: 0.9em; color: #2e7d32; margin-bottom: 8px;">
+      💬 <strong>Lưu ý:</strong> Shop sẽ liên hệ với bạn để báo giá chi tiết và xác nhận chi phí vận chuyển.
+    </div>
+    <div style="font-size: 0.9em; color: #555;">
       Người nhận: <strong>${customerInfo.name}</strong> - ${customerInfo.phone}<br>
-      Địa chỉ: ${customerInfo.address || 'Không có'}
+      Địa chỉ: ${customerInfo.address || 'Chưa cung cấp'}
     </div>
   `;
   document.getElementById("orderSuccessSummary").innerHTML = summaryHtml;
@@ -490,18 +499,17 @@ function showOrderSuccessPopup(cart, itemsSummary, totalAmount, customerInfo, no
     sellerZaloBtn.href = sellerZaloUrl;
   }
   
-  // Nội dung sao chép gửi Zalo
-  let copyMessage = `[XÁC NHẬN ĐƠN HÀNG]\n`;
+  // Nội dung sao chép gửi Zalo (không chứa giá tiền, shop sẽ báo giá trực tiếp)
+  let copyMessage = `[ĐƠN HÀNG MỚI]\n`;
   copyMessage += `Mã đơn: ${orderCode}\n`;
   copyMessage += `Khách hàng: ${customerInfo.name} - ${customerInfo.phone}\n`;
   if (customerInfo.address) copyMessage += `Địa chỉ: ${customerInfo.address}\n`;
   if (note) copyMessage += `Ghi chú: ${note}\n`;
-  copyMessage += `\nDanh sách món:\n`;
+  copyMessage += `\nDanh sách món (${totalQty} món):\n`;
   itemsSummary.forEach(item => {
-    copyMessage += `- ${item.name} x ${item.quantity} ${item.unit}: ${formatVND(item.total)}\n`;
+    copyMessage += `- ${item.name} x ${item.quantity} ${item.unit}\n`;
   });
-  copyMessage += `\nTổng cộng: ${formatVND(totalAmount)} (*Chưa bao gồm phí vận chuyển*)\n`;
-  copyMessage += `Nhờ shop kiểm tra và xác nhận đơn giúp mình nhé!`;
+  copyMessage += `\nNhờ shop kiểm tra, báo giá và xác nhận đơn giúp mình nhé!`;
 
   const copyBtn = document.getElementById("copyOrderToZaloBtn");
   if (copyBtn) {

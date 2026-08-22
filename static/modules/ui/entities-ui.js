@@ -94,20 +94,28 @@ export function createEntitiesUi(deps) {
       dom.customerList.innerHTML = '<div class="empty-state">Không có khách hàng phù hợp.</div>';
       return;
     }
-    const selectedCustomer = filtered.find((customer) => customer.id === state.selectedCustomerId) || null;
+    const selectedCustomer = filtered.find((customer) => String(customer.id) === String(state.selectedCustomerId)) || null;
     if (selectedCustomer) {
-      const relatedCarts = state.carts.filter((cart) => cart.customerId === selectedCustomer.id && cart.status !== "cancelled");
+      const relatedCarts = state.carts.filter((cart) => String(cart.customerId) === String(selectedCustomer.id) && cart.status !== "cancelled");
       const pendingCount = relatedCarts.filter((cart) => ["draft", "committed"].includes(cart.status)).length;
       const completedCount = relatedCarts.filter((cart) => cart.status === "completed").length;
       const avatarUrl = selectedCustomer.avatar_url || selectedCustomer.avatarUrl || "";
       const zaloUrl = selectedCustomer.zaloUrl || selectedCustomer.zalo_url || "";
       const zaloId = selectedCustomer.zalo_id || selectedCustomer.zaloId || "";
+      const groupId = selectedCustomer.zalo_group_id || selectedCustomer.zaloGroupId || null;
+      const matchedGroup = groupId && Array.isArray(state.zaloGroups) ? state.zaloGroups.find(g => String(g.id) === String(groupId)) : null;
+      const groupName = matchedGroup ? matchedGroup.name : (selectedCustomer.group_name || selectedCustomer.groupName || "");
+      const groupZaloUrl = matchedGroup ? matchedGroup.zalo_url : (selectedCustomer.group_zalo_url || selectedCustomer.groupZaloUrl || "");
+
       const avatarDetailHtml = avatarUrl
-        ? `<div style="display: inline-flex; align-items: center; gap: 6px;"><img src="${escapeHtml(avatarUrl)}" alt="Avatar" onerror="this.style.display='none'" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #ccc;"> <a href="${escapeHtml(avatarUrl)}" target="_blank" rel="noopener noreferrer" style="font-size: 0.85em; color: #1976d2;">Xem ảnh</a></div>`
+        ? `<div style="display: flex; flex-direction: column; gap: 4px;"><div style="display: inline-flex; align-items: center; gap: 8px;"><img src="${escapeHtml(avatarUrl)}" alt="Avatar" onerror="this.style.display='none'" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid #ccc; flex-shrink: 0;"><a href="${escapeHtml(avatarUrl)}" target="_blank" rel="noopener noreferrer" style="font-size: 0.9em; color: #1976d2; font-weight: 500;">Xem ảnh gốc</a></div><div style="font-size: 0.8em; color: #666; word-break: break-all; max-width: 300px;">${escapeHtml(avatarUrl)}</div></div>`
         : "Chưa có";
       const zaloUrlDetailHtml = zaloUrl
         ? `<a href="${escapeHtml(zaloUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0068ff; text-decoration: none; font-weight: 500;">💬 ${escapeHtml(zaloUrl)}</a>`
         : "Chưa có";
+      const groupDetailHtml = groupName
+        ? (groupZaloUrl ? `<a href="${escapeHtml(groupZaloUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0068ff; font-weight: 500; text-decoration: none;">👥 ${escapeHtml(groupName)}</a>` : `👥 ${escapeHtml(groupName)}`)
+        : "Không thuộc nhóm";
 
       renderEntityDetailPanel({
         panel: dom.customerDetailPanel,
@@ -124,9 +132,9 @@ export function createEntitiesUi(deps) {
           { label: "Số liên lạc", value: selectedCustomer.phone || "Chưa có" },
           { label: "Địa chỉ ship", value: selectedCustomer.address || "Chưa có" },
           { label: "Link Zalo", value: zaloUrlDetailHtml, isHtml: true },
-          { label: "Ảnh đại diện", value: avatarDetailHtml, isHtml: true },
+          { label: "Link Avatar", value: avatarDetailHtml, isHtml: true },
           { label: "Zalo ID", value: zaloId || "Chưa liên kết" },
-          { label: "Nhóm Zalo", value: selectedCustomer.group_name || "Không thuộc nhóm" },
+          { label: "Nhóm Zalo", value: groupDetailHtml, isHtml: true },
           { label: "Đơn đang xử lý", value: String(pendingCount) },
           { label: "Đơn đã xuất", value: String(completedCount) },
           { label: "Tổng số phiếu", value: String(relatedCarts.length) },
@@ -145,7 +153,7 @@ export function createEntitiesUi(deps) {
 
     const pageData = paginateItems(filtered, "customers");
     dom.customerList.innerHTML = pageData.items.map((customer) => {
-      const relatedCarts = state.carts.filter((cart) => cart.customerId === customer.id && cart.status !== "cancelled");
+      const relatedCarts = state.carts.filter((cart) => String(cart.customerId) === String(customer.id) && cart.status !== "cancelled");
       const pendingCount = relatedCarts.filter((cart) => ["draft", "committed"].includes(cart.status)).length;
       const historyCount = relatedCarts.filter((cart) => cart.status === "completed").length;
       const isSelected = String(state.selectedCustomerId || "") === String(customer.id);
@@ -156,12 +164,21 @@ export function createEntitiesUi(deps) {
       
       const cardAvatarUrl = customer.avatar_url || customer.avatarUrl || "";
       const cardZaloUrl = customer.zaloUrl || customer.zalo_url || "";
+      const customerGroupId = customer.zalo_group_id || customer.zaloGroupId || null;
+      const customerGroup = customerGroupId && Array.isArray(state.zaloGroups) ? state.zaloGroups.find(g => String(g.id) === String(customerGroupId)) : null;
+      const customerGroupName = customerGroup ? customerGroup.name : (customer.group_name || customer.groupName || "");
+      const groupBadgeMarkup = customerGroupName
+        ? `<span class="status-pill draft" style="font-size: 0.75em; padding: 2px 6px;" title="Nhóm Zalo">👥 ${escapeHtml(customerGroupName)}</span>`
+        : "";
+
       const avatarMarkup = cardAvatarUrl
         ? `<img src="${escapeHtml(cardAvatarUrl)}" alt="Avatar" onerror="this.style.display='none'" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(0,0,0,0.1); flex-shrink: 0;">`
         : "";
-      const headerTitleMarkup = avatarMarkup
-        ? `<div style="display: flex; align-items: center; gap: 8px;">${avatarMarkup}<strong>${escapeHtml(customer.name)}</strong></div>`
-        : `<strong>${escapeHtml(customer.name)}</strong>`;
+      const headerTitleMarkup = `
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          ${avatarMarkup}<strong>${escapeHtml(customer.name)}</strong>${groupBadgeMarkup}
+        </div>
+      `;
 
       const zaloLinkMarkup = cardZaloUrl
         ? `<a href="${escapeHtml(cardZaloUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0068ff; text-decoration: none; font-size: 0.9em; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;" title="Mở chat Zalo">💬 ${escapeHtml(cardZaloUrl)}</a>`
