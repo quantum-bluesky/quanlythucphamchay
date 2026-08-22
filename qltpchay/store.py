@@ -6635,6 +6635,7 @@ class InventoryStore:
         customer_phone: str = "",
         customer_address: str = "",
         zalo_id: str = "",
+        avatar_url: str = "",
         note: str = "",
         items: list[dict],
     ) -> dict:
@@ -6642,6 +6643,7 @@ class InventoryStore:
         clean_phone = str(customer_phone or "").strip()
         clean_address = str(customer_address or "").strip()
         clean_zalo_id = str(zalo_id or "").strip()
+        clean_avatar_url = str(avatar_url or "").strip()
         clean_note = str(note or "").strip()
         if not clean_name and not clean_phone and not clean_zalo_id:
             raise ValueError("Cần ít nhất Tên hoặc Số điện thoại để chốt đơn.")
@@ -6680,22 +6682,38 @@ class InventoryStore:
                 connection.execute(
                     """
                     INSERT INTO customers(id, name, phone, address, zalo_url, avatar_url, zalo_id, created_at, updated_at, deleted_at)
-                    VALUES(?, ?, ?, ?, ?, '', ?, ?, ?, NULL)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
                     """,
-                    (customer_id, clean_name, clean_phone, clean_address, default_zalo_url, clean_zalo_id, now, now)
+                    (customer_id, clean_name, clean_phone, clean_address, default_zalo_url, clean_avatar_url, clean_zalo_id, now, now)
                 )
             else:
                 customer_id = existing_customer["id"]
-                # Cập nhật sđt/địa chỉ/zalo_id/zalo_url nếu khách chưa có
-                if clean_phone and not existing_customer.get("phone"):
-                    connection.execute("UPDATE customers SET phone = ? WHERE id = ?", (clean_phone, customer_id))
-                    if not existing_customer.get("zaloUrl"):
-                        connection.execute("UPDATE customers SET zalo_url = ? WHERE id = ?", (f"https://zalo.me/{clean_phone.replace(' ', '')}", customer_id))
-                if clean_address and not existing_customer.get("address"):
-                    connection.execute("UPDATE customers SET address = ? WHERE id = ?", (clean_address, customer_id))
+                updates = []
+                params = []
+                if clean_name and clean_name != existing_customer.get("name"):
+                    updates.append("name = ?")
+                    params.append(clean_name)
+                if clean_phone and clean_phone != existing_customer.get("phone"):
+                    updates.append("phone = ?")
+                    params.append(clean_phone)
+                    if not existing_customer.get("zaloUrl") or str(existing_customer.get("zaloUrl", "")).startswith("https://zalo.me/"):
+                        updates.append("zalo_url = ?")
+                        params.append(f"https://zalo.me/{clean_phone.replace(' ', '')}")
+                if clean_address and clean_address != existing_customer.get("address"):
+                    updates.append("address = ?")
+                    params.append(clean_address)
                 if clean_zalo_id and not existing_customer.get("zalo_id"):
-                    connection.execute("UPDATE customers SET zalo_id = ? WHERE id = ?", (clean_zalo_id, customer_id))
-                clean_name = existing_customer["name"]
+                    updates.append("zalo_id = ?")
+                    params.append(clean_zalo_id)
+                if clean_avatar_url and not existing_customer.get("avatar_url"):
+                    updates.append("avatar_url = ?")
+                    params.append(clean_avatar_url)
+                if updates:
+                    updates.append("updated_at = ?")
+                    params.append(now)
+                    params.append(customer_id)
+                    connection.execute(f"UPDATE customers SET {', '.join(updates)} WHERE id = ?", params)
+                clean_name = clean_name or existing_customer["name"]
 
             # Kiểm tra xem khách đã có đơn online nào đang pending (draft) chưa
             existing_cart_row = connection.execute(
@@ -6771,6 +6789,9 @@ class InventoryStore:
                     note_prefix="Tạo đơn hàng online",
                 )
             
+            self._refresh_sync_collection_cache(connection, "customers", updated_at=now)
+            self._refresh_sync_collection_cache(connection, "carts", updated_at=now)
+
             log_info(f"Nghiệp vụ: Khách hàng {clean_name} ({clean_phone}/{clean_zalo_id}) đặt hàng online thành công (ID: {cart_id})")
             return {
                 "message": "Đã ghi nhận đơn hàng.",

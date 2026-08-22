@@ -69,20 +69,20 @@ export function createEntityProductMutationHelpers(deps) {
     const cleanZaloGroupId = payload.zalo_group_id || null;
 
     if (!cleanName) throw new Error("Tên khách hàng là bắt buộc.");
-    const duplicateByName = getActiveCustomers().find((customer) => customer.id !== customerId && normalizeText(customer.name) === normalizeText(cleanName));
+    const duplicateByName = getActiveCustomers().find((customer) => String(customer.id) !== String(customerId) && normalizeText(customer.name) === normalizeText(cleanName));
     if (duplicateByName) throw new Error("Tên khách hàng đã tồn tại.");
     if (cleanPhone) {
-      const duplicateByPhone = getActiveCustomers().find((customer) => customer.id !== customerId && normalizeText(customer.phone) === normalizeText(cleanPhone));
+      const duplicateByPhone = getActiveCustomers().find((customer) => String(customer.id) !== String(customerId) && normalizeText(customer.phone) === normalizeText(cleanPhone));
       if (duplicateByPhone) throw new Error("Số điện thoại khách hàng đã tồn tại.");
     }
     if (cleanZaloId) {
-      const duplicateByZalo = getActiveCustomers().find((customer) => customer.id !== customerId && customer.zalo_id && String(customer.zalo_id).trim() === cleanZaloId);
+      const duplicateByZalo = getActiveCustomers().find((customer) => String(customer.id) !== String(customerId) && (customer.zalo_id || customer.zaloId) && String(customer.zalo_id || customer.zaloId).trim() === cleanZaloId);
       if (duplicateByZalo) throw new Error(`Zalo ID '${cleanZaloId}' đã thuộc về khách hàng khác (${duplicateByZalo.name}).`);
     }
 
     if (customerId) {
-      const existing = state.customers.find((c) => c.id === customerId);
-      state.customers = state.customers.map((customer) => customer.id === customerId ? {
+      const existing = state.customers.find((c) => String(c.id) === String(customerId));
+      state.customers = state.customers.map((customer) => String(customer.id) === String(customerId) ? {
         ...customer,
         name: cleanName,
         phone: cleanPhone,
@@ -97,7 +97,7 @@ export function createEntityProductMutationHelpers(deps) {
         updatedAt: nowIso()
       } : customer);
       state.carts = state.carts.map((cart) => (
-        cart.customerId === customerId && cart.status === "draft"
+        String(cart.customerId) === String(customerId) && cart.status === "draft"
           ? decorateCart({ ...cart, customerName: cleanName, updatedAt: nowIso() })
           : cart
       ));
@@ -185,11 +185,11 @@ export function createEntityProductMutationHelpers(deps) {
   function renameCustomer(customerId, newName) {
     const cleanName = String(newName || "").trim();
     if (!cleanName) throw new Error("Tên khách hàng không được để trống.");
-    const duplicate = getActiveCustomers().find((customer) => customer.id !== customerId && normalizeText(customer.name) === normalizeText(cleanName));
+    const duplicate = getActiveCustomers().find((customer) => String(customer.id) !== String(customerId) && normalizeText(customer.name) === normalizeText(cleanName));
     if (duplicate) throw new Error("Tên khách hàng đã tồn tại.");
-    state.customers = state.customers.map((customer) => customer.id === customerId ? { ...customer, name: cleanName, updatedAt: nowIso() } : customer);
+    state.customers = state.customers.map((customer) => String(customer.id) === String(customerId) ? { ...customer, name: cleanName, updatedAt: nowIso() } : customer);
     state.carts = state.carts.map((cart) => (
-      cart.customerId === customerId && cart.status === "draft"
+      String(cart.customerId) === String(customerId) && cart.status === "draft"
         ? decorateCart({ ...cart, customerName: cleanName, updatedAt: nowIso() })
         : cart
     ));
@@ -199,11 +199,11 @@ export function createEntityProductMutationHelpers(deps) {
   }
 
   function deleteCustomer(customerId) {
-    const customer = state.customers.find((entry) => entry.id === customerId);
+    const customer = state.customers.find((entry) => String(entry.id) === String(customerId));
     if (!customer) throw new Error("Không tìm thấy khách hàng.");
     const impact = getCustomerDeleteImpact(customerId);
     if (impact.draftCount > 0) throw new Error("Khách hàng đang có giỏ hàng nháp, không thể xóa.");
-    state.customers = state.customers.map((entry) => entry.id === customerId ? { ...entry, deletedAt: nowIso(), updatedAt: nowIso() } : entry);
+    state.customers = state.customers.map((entry) => String(entry.id) === String(customerId) ? { ...entry, deletedAt: nowIso(), updatedAt: nowIso() } : entry);
     if (customerLookupInput.value && normalizeText(customerLookupInput.value) === normalizeText(customer.name)) {
       customerLookupInput.value = "";
     }
@@ -211,15 +211,15 @@ export function createEntityProductMutationHelpers(deps) {
   }
 
   function restoreCustomer(customerId) {
-    const customer = state.customers.find((entry) => entry.id === customerId);
+    const customer = state.customers.find((entry) => String(entry.id) === String(customerId));
     if (!customer) throw new Error("Không tìm thấy khách hàng.");
-    const duplicateByName = getActiveCustomers().find((entry) => entry.id !== customerId && normalizeText(entry.name) === normalizeText(customer.name));
+    const duplicateByName = getActiveCustomers().find((entry) => String(entry.id) !== String(customerId) && normalizeText(entry.name) === normalizeText(customer.name));
     if (duplicateByName) throw new Error("Đang có khách hàng hoạt động khác trùng tên, không thể khôi phục.");
     if (customer.phone) {
-      const duplicateByPhone = getActiveCustomers().find((entry) => entry.id !== customerId && normalizeText(entry.phone) === normalizeText(customer.phone));
+      const duplicateByPhone = getActiveCustomers().find((entry) => String(entry.id) !== String(customerId) && normalizeText(entry.phone) === normalizeText(customer.phone));
       if (duplicateByPhone) throw new Error("Đang có khách hàng hoạt động khác trùng số điện thoại, không thể khôi phục.");
     }
-    state.customers = state.customers.map((entry) => entry.id === customerId ? { ...entry, deletedAt: null, updatedAt: nowIso() } : entry);
+    state.customers = state.customers.map((entry) => String(entry.id) === String(customerId) ? { ...entry, deletedAt: null, updatedAt: nowIso() } : entry);
     saveAndRenderAll(["customers"]);
   }
 

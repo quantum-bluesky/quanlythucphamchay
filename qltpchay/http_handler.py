@@ -877,6 +877,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         customer_phone=payload.get("customer_phone") or "",
                         customer_address=payload.get("customer_address") or "",
                         zalo_id=payload.get("zalo_id") or "",
+                        avatar_url=payload.get("avatar_url") or "",
                         note=payload.get("note") or "",
                         items=payload.get("items") or [],
                     )

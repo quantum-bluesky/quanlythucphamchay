@@ -37,10 +37,13 @@ function setupZaloButton() {
     const isZalo = !!savedInfo.zalo_id;
     const bgColor = isZalo ? "#e3f2fd" : "#fff3e0";
     const textColor = isZalo ? "#1976d2" : "#f57c00";
+    const avatarImg = savedInfo.avatar_url
+      ? `<img src="${savedInfo.avatar_url}" alt="Avatar" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 1px solid #ccc; flex-shrink: 0;" onerror="this.style.display='none'">`
+      : "";
     
     userContainer.innerHTML = `
-      <div style="background: ${bgColor}; color: ${textColor}; padding: 4px 12px; border-radius: 20px; font-size: 0.9em; font-weight: 500; display: flex; align-items: center; gap: 4px;">
-        👋 ${savedInfo.name.split(' ').pop()}
+      <div style="background: ${bgColor}; color: ${textColor}; padding: 4px 12px; border-radius: 20px; font-size: 0.9em; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+        ${avatarImg}<span>👋 ${savedInfo.name.split(' ').pop()}</span>
       </div>
       <button type="button" id="publicLogoutBtn" class="ghost-button compact-button" style="padding: 4px 8px; font-size: 0.85em;" title="Đăng xuất">Thoát</button>
     `;
@@ -188,15 +191,17 @@ function setupCart() {
         if (cancelBtn) cancelBtn.style.display = "none";
         userInfo.style.display = "flex";
         
+        const avatarMarkup = savedInfo.avatar_url
+          ? `<img src="${savedInfo.avatar_url}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #ccc; flex-shrink: 0;" onerror="this.style.display='none'">`
+          : `<div style="width: 40px; height: 40px; background: #2196F3; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; flex-shrink: 0;">${savedInfo.name ? savedInfo.name.charAt(0).toUpperCase() : 'Z'}</div>`;
+
         userInfo.innerHTML = `
-          <div style="width: 40px; height: 40px; background: #2196F3; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;">
-            ${savedInfo.name ? savedInfo.name.charAt(0).toUpperCase() : 'Z'}
-          </div>
+          ${avatarMarkup}
           <div style="flex: 1;">
             <div style="font-weight: 600; color: #1976D2; display: flex; align-items: center; gap: 4px;">
               Đã liên kết Zalo <svg width="14" height="14" viewBox="0 0 24 24" fill="#4CAF50"><path d="M12 2C6.5 2 2 6.5 2 12S6.5 22 12 22 22 17.5 22 12 17.5 2 12 2M10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z"/></svg>
             </div>
-            <div style="font-size: 0.9em; color: #424242;">${savedInfo.name || ''} - ${savedInfo.phone || ''}</div>
+            <div style="font-size: 0.9em; color: #424242;">${savedInfo.name || ''}${savedInfo.phone ? ' - ' + savedInfo.phone : ''}</div>
           </div>
         `;
         
@@ -204,11 +209,10 @@ function setupCart() {
         document.getElementById('checkoutPhone').value = savedInfo.phone || '';
         document.getElementById('checkoutAddress').value = savedInfo.address || '';
         
-        // Ẩn đi các trường Name/Phone vì đã có ở phần userInfo
-        document.getElementById('checkoutNameGroup').style.display = "none";
-        document.getElementById('checkoutPhoneGroup').style.display = "none";
-        document.getElementById('checkoutName').required = false;
-        document.getElementById('checkoutPhone').required = false;
+        document.getElementById('checkoutNameGroup').style.display = "block";
+        document.getElementById('checkoutPhoneGroup').style.display = "block";
+        document.getElementById('checkoutName').required = true;
+        document.getElementById('checkoutPhone').required = true;
 
       } else if (!requireZalo && savedInfo.name && savedInfo.phone) {
         // Đã nhập thủ công trước đó (chỉ khi không bắt buộc Zalo)
@@ -218,7 +222,7 @@ function setupCart() {
         userInfo.style.display = "flex";
         
         userInfo.innerHTML = `
-          <div style="width: 40px; height: 40px; background: #FF9800; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;">
+          <div style="width: 40px; height: 40px; background: #FF9800; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; flex-shrink: 0;">
             ${savedInfo.name ? savedInfo.name.charAt(0).toUpperCase() : 'U'}
           </div>
           <div style="flex: 1;">
@@ -231,11 +235,10 @@ function setupCart() {
         document.getElementById('checkoutPhone').value = savedInfo.phone || '';
         document.getElementById('checkoutAddress').value = savedInfo.address || '';
         
-        // Ẩn Name/Phone đi cho gọn
-        document.getElementById('checkoutNameGroup').style.display = "none";
-        document.getElementById('checkoutPhoneGroup').style.display = "none";
-        document.getElementById('checkoutName').required = false;
-        document.getElementById('checkoutPhone').required = false;
+        document.getElementById('checkoutNameGroup').style.display = "block";
+        document.getElementById('checkoutPhoneGroup').style.display = "block";
+        document.getElementById('checkoutName').required = true;
+        document.getElementById('checkoutPhone').required = true;
       } else {
         // Chưa đăng nhập Zalo
         authOptions.style.display = "flex";
@@ -378,6 +381,7 @@ function setupCart() {
 
       const savedInfo = JSON.parse(localStorage.getItem('public_customer_info') || '{}');
       const zalo_id = savedInfo.zalo_id || '';
+      const avatar_url = savedInfo.avatar_url || '';
 
       try {
         const res = await fetch("./api/public/orders", {
@@ -388,6 +392,7 @@ function setupCart() {
             customer_phone,
             customer_address,
             zalo_id,
+            avatar_url,
             note,
             items
           })
@@ -398,10 +403,12 @@ function setupCart() {
         if (res.ok) {
           // Lưu info vào localStorage
           localStorage.setItem('public_customer_info', JSON.stringify({
+            ...savedInfo,
             name: customer_name,
             phone: customer_phone,
             address: customer_address,
-            zalo_id: zalo_id
+            zalo_id: zalo_id,
+            avatar_url: avatar_url
           }));
           
           showToast(data.message || "Đã chốt đơn thành công!");

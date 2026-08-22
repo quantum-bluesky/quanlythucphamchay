@@ -66,8 +66,8 @@
       "sha256": "49bfdf8ba4bb122e7961632ce527c477238e5469fb38978857b0a3fbd0248430"
     },
     "modules/entity-product-mutations.js": {
-      "counter": 2,
-      "sha256": "34eb437a1319bf0c03a5357fea73db2839a6f9dd920b2577173b3e9ba448be2d"
+      "counter": 3,
+      "sha256": "d06bba64e43552b3d07952cdb3a29f8841cc6220369abde60b10b1bd61f0846e"
     },
     "modules/navigation-runtime.js": {
       "counter": 1,
@@ -126,8 +126,8 @@
       "sha256": "9758b25c52cf31ad5a29ffa31158594c5c9b142edfe386234570433ba8f6dd89"
     },
     "public_products.js": {
-      "counter": 1,
-      "sha256": "d999b32f3af2361776d757dc0a6e58429d0a70af8f4ae6a4c588456202dfa049"
+      "counter": 2,
+      "sha256": "95459402ce296ac9aaf87e650411f894e78e304c760d9a27f2c025b3b500903e"
     },
     "styles.css": {
       "counter": 1,
