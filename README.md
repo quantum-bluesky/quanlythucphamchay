@@ -224,7 +224,8 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 python app.py
 ```
 
-Sau đó mở trình duyệt tại `http://127.0.0.1:8000`.
+App sẽ chạy ở cổng 4000 theo cấu hình `data/system_config.json`.
+Sau đó mở trình duyệt tại `http://127.0.0.1:4000` cho cửa hàng (khách hàng) hoặc `http://127.0.0.1:4000/admin` cho trang quản trị.
 
 Dữ liệu nghiệp vụ được lưu trong `data\inventory.db`. Nếu nhiều máy cùng mở vào cùng một địa chỉ app/server thì sẽ dùng chung một nguồn dữ liệu.
 

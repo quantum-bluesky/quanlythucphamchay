@@ -161,6 +161,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             if "/productlist" in lower_path:
                 return "/ProductList"
                 
+            if "/admin" in lower_path:
+                return "/admin"
+                
             last_segment = parsed_path.rsplit("/", 1)[-1]
             if not last_segment or "." not in last_segment:
                 return "/"
@@ -179,6 +182,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             route = self._normalize_route_path(parsed.path)
 
             if route == "/":
+                self._serve_static_file("public_products.html", request_path=parsed.path)
+                return
+
+            if route.lower() == "/admin":
                 self._serve_static_file("index.html", request_path=parsed.path)
                 return
 
@@ -438,11 +445,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             group_zalo_url: {json.dumps(customer.get('group_zalo_url', ''))}
         }};
         localStorage.setItem("public_customer_info", JSON.stringify(user));
-        let targetUrl = window.location.pathname.split("/api/")[0];
-        if (!targetUrl.toLowerCase().endsWith("productlist")) {{
-            targetUrl = targetUrl + (targetUrl.endsWith("/") ? "ProductList" : "/ProductList");
-        }}
-        window.location.href = targetUrl || "/ProductList";
+        let targetUrl = window.location.pathname.split("/api/")[0] || "/";
+        window.location.href = targetUrl;
     </script>
 </body>
 </html>"""

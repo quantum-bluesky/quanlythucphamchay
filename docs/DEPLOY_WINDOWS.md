@@ -103,8 +103,8 @@ python app.py --host 0.0.0.0 --port 8000
 
 Sau đó:
 
-- Trên máy chủ: mở `http://127.0.0.1:8000`
-- Trên điện thoại / máy khác: mở `http://IP_MAY_CHU:8000`
+- Trên máy chủ: mở `http://127.0.0.1:8000` cho Khách hàng, và `http://127.0.0.1:8000/admin` cho Quản trị viên
+- Trên điện thoại / máy khác: mở `http://IP_MAY_CHU:8000` cho Khách hàng, và `http://IP_MAY_CHU:8000/admin` cho Quản trị viên
 
 Ví dụ:
 

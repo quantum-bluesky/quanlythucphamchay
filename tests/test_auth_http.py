@@ -436,7 +436,7 @@ class AuthHttpTests(unittest.TestCase):
         }
         self._start_server(config)
 
-        html_status, html_body, html_headers = self._request_text("GET", "/")
+        html_status, html_body, html_headers = self._request_text("GET", "/admin")
         self.assertEqual(html_status, 200)
         self.assertNotIn("<base ", html_body)
         self.assertIn(f'./static/bootstrap.js?v={app_version}.', html_body)
@@ -543,12 +543,12 @@ class AuthHttpTests(unittest.TestCase):
         }
         self._start_server(config)
 
-        stripped_proxy_html_status, stripped_proxy_html_body, _ = self._request_text("GET", "/")
+        stripped_proxy_html_status, stripped_proxy_html_body, _ = self._request_text("GET", "/admin")
         self.assertEqual(stripped_proxy_html_status, 200)
         self.assertNotIn("<base ", stripped_proxy_html_body)
         self.assertIn("./static/bootstrap.js?v=", stripped_proxy_html_body)
 
-        html_status, html_body, _ = self._request_text("GET", "/qltp")
+        html_status, html_body, _ = self._request_text("GET", "/qltp/admin")
         self.assertEqual(html_status, 200)
         self.assertNotIn("<base ", html_body)
         self.assertIn("./static/bootstrap.js?v=", html_body)
