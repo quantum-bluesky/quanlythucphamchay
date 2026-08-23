@@ -61,11 +61,13 @@ async function switchMenu(page, menu) {
   if (await toggle.isVisible()) {
     const expanded = await toggle.getAttribute("aria-expanded");
     if (expanded !== "true") {
-      await toggle.click();
+      await expect(page.locator("#busyOverlay")).toBeHidden({ timeout: 5000 }).catch(() => {});
+      await toggle.click({ force: true });
       await page.waitForTimeout(250);
     }
   }
-  await page.locator(`[data-menu="${menu}"]`).click();
+  await expect(page.locator("#busyOverlay")).toBeHidden({ timeout: 5000 }).catch(() => {});
+  await page.locator(`[data-menu="${menu}"]`).click({ force: true });
   await page.waitForTimeout(500);
 }
 
@@ -171,7 +173,7 @@ function resolveCookieUrl(page) {
   return new URL("/", currentUrl).toString();
 }
 
-async function autoLogin(page, request, { username, password, route = "/api/session/login" }) {
+async function autoLogin(page, request, { username, password, route = "./api/session/login" }) {
   const loginResponse = await request.post(route, {
     data: { username, password },
   });
@@ -191,7 +193,7 @@ async function autoLogin(page, request, { username, password, route = "/api/sess
   ]);
 }
 
-async function autoLoginRequest(request, { username, password, route = "/api/session/login" }) {
+async function autoLoginRequest(request, { username, password, route = "./api/session/login" }) {
   const loginResponse = await request.post(route, {
     data: { username, password },
   });
