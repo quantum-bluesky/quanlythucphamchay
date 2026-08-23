@@ -80,6 +80,7 @@ async function main() {
 
   const result = spawnSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, {
     stdio: 'inherit',
+    shell: true,
     env: { ...process.env, PLAYWRIGHT_BASE_URL: url, TEST_ADMIN_PATH: adminPath }
   });
 
