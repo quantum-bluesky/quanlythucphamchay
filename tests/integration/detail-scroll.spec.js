@@ -97,7 +97,7 @@ test("IT-NAV-01 open detail actions scroll to the opened receipt info", async ({
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });

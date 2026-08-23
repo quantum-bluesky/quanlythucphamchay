@@ -12,7 +12,7 @@ test("IT-INV-02 inventory import shortcut does not append item into active order
   const runtime = attachRuntimeTracking(page);
   const userCookie = await autoLoginUserRequest(request);
 
-  await page.goto("admin");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });

@@ -185,7 +185,7 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
   const originalState = await stateResponseAuthed.json();
 
   try {
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -242,7 +242,7 @@ test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the exis
   const originalState = await fetchSyncState(request, userCookie);
 
   try {
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -369,7 +369,7 @@ test("IT-PURSUP-04 empty purchase draft can be deleted and supplier button can s
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -466,7 +466,7 @@ test("IT-PURSUP-08 purchases can repeat a received purchase into a new draft wit
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -568,7 +568,7 @@ test("IT-PURSUP-09 received purchase note stays editable until paid", async ({ p
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -704,7 +704,7 @@ test("IT-PURSUP-10 purchases merge only open receipts of the same supplier and c
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -840,7 +840,7 @@ test("IT-PURSUP-11 purchases screen can bulk mark selected drafts ordered and ke
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -932,7 +932,7 @@ test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -1007,7 +1007,7 @@ test("IT-PURSUP-06 purchase supplier suggestions prioritize multiple historical 
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -1081,7 +1081,7 @@ test("IT-PURSUP-07 purchases warn and review open receipts when one product is p
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -1180,7 +1180,7 @@ test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid pur
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });

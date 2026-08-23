@@ -18,7 +18,7 @@ test("ACC-ABOUT-01 version button opens about screen with backend app version", 
   expect(versionResponse.ok()).toBeTruthy();
   const versionPayload = await versionResponse.json();
 
-  await page.goto("admin");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -38,7 +38,7 @@ test("ACC-ABOUT-01 version button opens about screen with backend app version", 
 test("ACC-INV-01 inventory shortcuts open import and sales workflows", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("admin");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -59,7 +59,7 @@ test("ACC-INV-01 inventory shortcuts open import and sales workflows", async ({ 
 test("ACC-REP-01 and ACC-HIS-01 reports refresh and history screen render healthy", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("admin");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -118,7 +118,7 @@ test("ACC-SUP-02 suppliers create stays healthy with legacy paid purchases using
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("admin");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });

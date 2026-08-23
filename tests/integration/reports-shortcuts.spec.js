@@ -10,7 +10,7 @@ const {
 test("IT-REP-01 audit shortcut scrolls to receipt audit section", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("admin");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });

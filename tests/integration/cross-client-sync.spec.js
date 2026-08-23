@@ -21,7 +21,7 @@ function formatMoney(value) {
 test("ACC-SYNC-01 create-order screen auto refreshes stock and price after changes from another client", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("admin");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });

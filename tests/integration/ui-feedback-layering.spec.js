@@ -8,7 +8,7 @@ const {
 test("IT-UI-01 non-confirm toast stays above loading overlay", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("admin");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });

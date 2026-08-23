@@ -61,7 +61,7 @@ test("IT-MOV-01 inventory detail opens product movement screen with the selected
   const { productName } = await seedProductMovementFixture(request);
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("admin");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -90,7 +90,7 @@ test("IT-MOV-02 product movement screen stays readable on mobile", async ({ page
   const { productName } = await seedProductMovementFixture(request);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("admin");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -141,7 +141,7 @@ test("IT-MOV-03 product movement screen defaults to descending and supports asce
   const { productName } = await seedProductMovementFixture(request);
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("admin");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -175,7 +175,7 @@ test("IT-MOV-04 product movement screen opens inventory adjustment receipt for t
   const { productName } = await seedProductMovementFixture(request);
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("admin");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginProcurementManager(page, request);
   await page.reload({ waitUntil: "networkidle" });
