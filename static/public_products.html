@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Danh sách các thực phẩm chay</title>
-  <link rel="stylesheet" href="/static/styles.css">
-  <link rel="stylesheet" href="/static/public_products.css">
+  <link rel="stylesheet" href="./static/styles.css">
+  <link rel="stylesheet" href="./static/public_products.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -17,7 +17,7 @@
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 16px;">
         <h1 style="margin: 0; font-size: 1.25rem;">Danh sách các thực phẩm chay</h1>
         <div style="display: flex; gap: 8px; align-items: center;">
-          <a href="/api/public/zalo-login" id="zaloLoginBtn" class="primary-button compact-button" style="background: #0068FF; color: white; text-decoration: none; border-color: #0068FF; font-weight: 600; padding: 4px 12px; display: flex; align-items: center; gap: 4px; font-size: 0.9em; border-radius: 6px;">
+          <a href="./api/public/zalo-login" id="zaloLoginBtn" class="primary-button compact-button" style="background: #0068FF; color: white; text-decoration: none; border-color: #0068FF; font-weight: 600; padding: 4px 12px; display: flex; align-items: center; gap: 4px; font-size: 0.9em; border-radius: 6px;">
             <svg width="18" height="18" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg" style="fill: white;"><path d="M460 230C460 102.975 357.025 0 230 0C102.975 0 0 102.975 0 230C0 357.025 102.975 460 230 460C357.025 460 460 357.025 460 230ZM329.833 154.516C329.833 162.721 323.011 169.544 314.806 169.544H209.734L337.892 284.156C341.258 287.165 342.348 291.956 340.672 296.386C338.995 300.817 334.821 303.743 330.138 303.743H159.208C150.932 303.743 144.223 297.034 144.223 288.758C144.223 280.482 150.932 273.774 159.208 273.774H264.492L136.333 159.162C132.967 156.152 131.877 151.362 133.553 146.931C135.23 142.5 139.404 139.574 144.088 139.574H314.806C323.082 139.574 329.833 146.31 329.833 154.516Z"/></svg>
             Zalo
           </a>
@@ -119,7 +119,7 @@
         </div>
         
         <div id="checkoutAuthOptions" style="display: none; flex-direction: column; gap: 16px; margin-bottom: 24px;">
-          <a href="/api/public/zalo-login" class="primary-button" style="background: #0068FF; color: white; text-align: center; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;">
+          <a href="./api/public/zalo-login" class="primary-button" style="background: #0068FF; color: white; text-align: center; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;">
             <svg width="24" height="24" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg" style="fill: white;"><path d="M460 230C460 102.975 357.025 0 230 0C102.975 0 0 102.975 0 230C0 357.025 102.975 460 230 460C357.025 460 460 357.025 460 230ZM329.833 154.516C329.833 162.721 323.011 169.544 314.806 169.544H209.734L337.892 284.156C341.258 287.165 342.348 291.956 340.672 296.386C338.995 300.817 334.821 303.743 330.138 303.743H159.208C150.932 303.743 144.223 297.034 144.223 288.758C144.223 280.482 150.932 273.774 159.208 273.774H264.492L136.333 159.162C132.967 156.152 131.877 151.362 133.553 146.931C135.23 142.5 139.404 139.574 144.088 139.574H314.806C323.082 139.574 329.833 146.31 329.833 154.516Z"/></svg>
             Đăng nhập nhanh bằng Zalo
           </a>
@@ -234,6 +234,6 @@
 
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="/static/public_products.js"></script>
+  <script src="./static/public_products.js"></script>
 </body>
 </html>
