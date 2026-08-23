@@ -74,7 +74,7 @@
         <button type="button" id="menuToggleButton" class="ghost-button compact-button menu-toggle-button" aria-expanded="true" aria-controls="menuGrid">Thu gọn menu</button>
       </div>
       <div class="menu-grid" id="menuGrid">
-        <a href="/" class="menu-button" style="text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center;">🏠 Cửa hàng Public</a>
+        <a href="#" onclick="event.preventDefault(); const s = window.location.pathname.split('/').filter(Boolean); s.pop(); window.location.href = '/' + s.join('/') + (s.length ? '/' : '');" class="menu-button" style="text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center;">🏠 Cửa hàng Public</a>
         <button type="button" class="menu-button is-active" data-menu="inventory">1. Tồn kho</button>
         <button type="button" class="menu-button" data-menu="create-order">2. Tạo đơn</button>
         <button type="button" class="menu-button" data-menu="bulk-orders" hidden>3. Xuất nhanh</button>
