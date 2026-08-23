@@ -15,7 +15,7 @@ test.describe.configure({ timeout: 120000 });
 
 async function createBackupSnapshot(request) {
   const adminCookie = await autoLoginAdminRequest(request);
-  const response = await request.get("/api/admin/backup", {
+  const response = await request.get("./api/admin/backup", {
     headers: { Cookie: adminCookie },
   });
   expect(response.ok()).toBeTruthy();
@@ -24,7 +24,7 @@ async function createBackupSnapshot(request) {
 
 async function restoreBackupSnapshot(request, snapshot) {
   const adminCookie = await autoLoginAdminRequest(request);
-  const response = await request.post("/api/admin/restore", {
+  const response = await request.post("./api/admin/restore", {
     headers: { Cookie: adminCookie },
     data: {
       content_base64: snapshot.toString("base64"),
@@ -37,7 +37,7 @@ async function restoreBackupSnapshot(request, snapshot) {
 }
 
 async function fetchProducts(request, cookie) {
-  const response = await request.get("/api/products", {
+  const response = await request.get("./api/products", {
     headers: { Cookie: cookie },
   });
   expect(response.ok()).toBeTruthy();
@@ -46,7 +46,7 @@ async function fetchProducts(request, cookie) {
 }
 
 async function fetchTransactions(request, cookie, limit = 12) {
-  const response = await request.get(`/api/transactions?limit=${limit}`, {
+  const response = await request.get(`./api/transactions?limit=${limit}`, {
     headers: { Cookie: cookie },
   });
   expect(response.ok()).toBeTruthy();
@@ -55,7 +55,7 @@ async function fetchTransactions(request, cookie, limit = 12) {
 }
 
 async function fetchSyncState(request, cookie) {
-  const response = await request.get("/api/state?transaction_limit=16", {
+  const response = await request.get("./api/state?transaction_limit=16", {
     headers: { Cookie: cookie },
   });
   expect(response.ok()).toBeTruthy();
@@ -63,7 +63,7 @@ async function fetchSyncState(request, cookie) {
 }
 
 async function saveSyncState(request, cookie, payload) {
-  const response = await request.put("/api/state", {
+  const response = await request.put("./api/state", {
     headers: { Cookie: cookie },
     data: payload,
   });
@@ -148,7 +148,7 @@ test("IT-PHB-02 customer return receipt UI creates from completed order", async 
       "Không tìm thấy sản phẩm đủ tồn kho để test trả hàng khách từ đơn cũ."
     );
     const customerName = `IT PHB Customer ${Date.now()}`;
-    const checkoutResponse = await request.post("/api/orders/checkout", {
+    const checkoutResponse = await request.post("./api/orders/checkout", {
       headers: { Cookie: userCookie },
       data: {
         customer_name: customerName,

@@ -39,20 +39,20 @@ async function captureDialog(page, trigger, { value = undefined, accept = true }
 }
 
 async function fetchSyncState(request, cookie) {
-  const response = await request.get("/api/state?transaction_limit=24", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/state?transaction_limit=24", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   return response.json();
 }
 
 async function fetchProducts(request, cookie) {
-  const response = await request.get("/api/products", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/products", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.products || [];
 }
 
 async function createQuickPurchase(request, cookie, payload) {
-  const response = await request.post("/api/purchases/quick-create", {
+  const response = await request.post("./api/purchases/quick-create", {
     headers: { Cookie: cookie },
     data: payload,
   });
@@ -61,7 +61,7 @@ async function createQuickPurchase(request, cookie, payload) {
 }
 
 async function createQuickSale(request, cookie, payload) {
-  const response = await request.post("/api/orders/quick-create", {
+  const response = await request.post("./api/orders/quick-create", {
     headers: { Cookie: cookie },
     data: payload,
   });

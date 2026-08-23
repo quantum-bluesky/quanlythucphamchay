@@ -13,7 +13,7 @@ const {
 async function seedProductMovementFixture(request) {
   const adminCookie = await autoLoginAdminRequest(request);
   const productName = `IT MOV ${Date.now()}`;
-  const createProductResponse = await request.post("/api/products", {
+  const createProductResponse = await request.post("./api/products", {
     headers: { Cookie: adminCookie },
     data: {
       name: productName,
@@ -29,7 +29,7 @@ async function seedProductMovementFixture(request) {
   const product = createProductPayload.product || createProductPayload;
   expect(product?.id).toBeTruthy();
 
-  const stockInResponse = await request.post("/api/transactions", {
+  const stockInResponse = await request.post("./api/transactions", {
     headers: { Cookie: adminCookie },
     data: {
       product_id: product.id,
@@ -41,7 +41,7 @@ async function seedProductMovementFixture(request) {
   });
   expect(stockInResponse.ok()).toBeTruthy();
 
-  const stockOutResponse = await request.post("/api/transactions", {
+  const stockOutResponse = await request.post("./api/transactions", {
     headers: { Cookie: adminCookie },
     data: {
       product_id: product.id,

@@ -17,7 +17,7 @@ const ADMIN_CREDENTIALS = {
 test.describe.configure({ timeout: 120000 });
 
 async function loginAdminApi(request) {
-  const response = await request.post("/api/admin/login", {
+  const response = await request.post("./api/admin/login", {
     data: ADMIN_CREDENTIALS,
   });
   expect(response.ok()).toBeTruthy();
@@ -26,7 +26,7 @@ async function loginAdminApi(request) {
 
 async function createBackupSnapshot(request) {
   const adminCookie = await loginAdminApi(request);
-  const response = await request.get("/api/admin/backup", {
+  const response = await request.get("./api/admin/backup", {
     headers: { Cookie: adminCookie },
   });
   expect(response.ok()).toBeTruthy();
@@ -38,7 +38,7 @@ async function restoreBackupSnapshot(request, snapshot, page = null) {
     await page.close();
   }
   const adminCookie = await loginAdminApi(request);
-  const response = await request.post("/api/admin/restore", {
+  const response = await request.post("./api/admin/restore", {
     headers: { Cookie: adminCookie },
     data: {
       content_base64: snapshot.toString("base64"),
@@ -48,21 +48,21 @@ async function restoreBackupSnapshot(request, snapshot, page = null) {
 }
 
 async function fetchProducts(request, cookie) {
-  const response = await request.get("/api/products", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/products", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.products || [];
 }
 
 async function fetchTransactions(request, cookie, limit = 10) {
-  const response = await request.get(`/api/transactions?limit=${limit}`, { headers: { Cookie: cookie } });
+  const response = await request.get(`./api/transactions?limit=${limit}`, { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.transactions || [];
 }
 
 async function fetchMonthlyReport(request, cookie, focusMonth) {
-  const response = await request.get(`/api/reports/monthly?months=3&focus_month=${focusMonth}`, {
+  const response = await request.get(`./api/reports/monthly?months=3&focus_month=${focusMonth}`, {
     headers: { Cookie: cookie },
   });
   expect(response.ok()).toBeTruthy();
@@ -75,7 +75,7 @@ async function fetchReceiptHistory(request, cookie, startDateTime, endDateTime) 
     start_date: startDateTime,
     end_date: endDateTime,
   });
-  const response = await request.get(`/api/receipts/history?${params.toString()}`, {
+  const response = await request.get(`./api/receipts/history?${params.toString()}`, {
     headers: { Cookie: cookie },
   });
   expect(response.ok()).toBeTruthy();
@@ -84,7 +84,7 @@ async function fetchReceiptHistory(request, cookie, startDateTime, endDateTime) 
 }
 
 async function fetchSyncState(request, cookie) {
-  const response = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   return response.json();
 }
@@ -128,7 +128,7 @@ async function seedDraftCartForCustomer(request, cookie, customerName, items = [
     updatedAt: new Date().toISOString(),
     items,
   };
-  const response = await request.put("/api/state", {
+  const response = await request.put("./api/state", {
     headers: { Cookie: cookie },
     data: {
       customers: [...(state.customers || []), customer],
@@ -212,7 +212,7 @@ test("ACC-SALE-01 complete checkout updates stock and order history", async ({ r
       (entry) => Number(entry.current_stock) >= 2,
       "Không tìm thấy sản phẩm đủ tồn kho để checkout."
     );
-    const checkoutResponse = await request.post("/api/orders/checkout", {
+    const checkoutResponse = await request.post("./api/orders/checkout", {
       headers: { Cookie: userCookie },
       data: {
         customer_name: customerName,
@@ -378,7 +378,7 @@ test("ACC-SALE-02 shortage commit allows ordered purchase coverage and otherwise
     } else {
       nextPurchases.unshift(orderedCoveragePurchase);
     }
-    const orderedCoverageResponse = await request.put("/api/state", {
+    const orderedCoverageResponse = await request.put("./api/state", {
       headers: { Cookie: adminCookie },
       data: {
         purchases: nextPurchases,
@@ -426,7 +426,7 @@ test("ACC-PHB-01 inventory adjustment receipt updates stock and audit trail", as
       "Không tìm thấy sản phẩm đủ tồn kho để kiểm thử phiếu điều chỉnh."
     );
 
-    const response = await request.post("/api/adjustments/inventory", {
+    const response = await request.post("./api/adjustments/inventory", {
       headers: { Cookie: adminCookie },
       data: {
         reason: "ACC Phase B kiểm kho lệch",
@@ -467,7 +467,7 @@ test("ACC-PHB-02 customer return receipt adds stock and writes transaction note"
     const beforeProducts = await fetchProducts(request, adminCookie);
     const returnedProduct = getProduct(beforeProducts, () => true, "Không tìm thấy sản phẩm để kiểm thử trả hàng khách.");
 
-    const response = await request.post("/api/returns/customers", {
+    const response = await request.post("./api/returns/customers", {
       headers: { Cookie: adminCookie },
       data: {
         customer_name: "Khách ACC Phase B",
@@ -512,7 +512,7 @@ test("ACC-PHB-03 supplier return receipt reduces stock and writes transaction no
       "Không tìm thấy sản phẩm đủ tồn kho để kiểm thử trả nhà cung cấp."
     );
 
-    const response = await request.post("/api/returns/suppliers", {
+    const response = await request.post("./api/returns/suppliers", {
       headers: { Cookie: adminCookie },
       data: {
         supplier_name: "NCC ACC Phase B",
@@ -573,7 +573,7 @@ test("ACC-PHB-04 reports and receipt audit track phase B receipts separately", a
     const supplierName = "NCC ACC PHB 04";
     const now = new Date().toISOString();
 
-    const seedPurchaseResponse = await request.put("/api/state", {
+    const seedPurchaseResponse = await request.put("./api/state", {
       headers: { Cookie: adminCookie },
       data: {
         purchases: [
@@ -602,7 +602,7 @@ test("ACC-PHB-04 reports and receipt audit track phase B receipts separately", a
     });
     expect(seedPurchaseResponse.ok()).toBeTruthy();
 
-    const purchaseResponse = await request.post("/api/purchases/receive", {
+    const purchaseResponse = await request.post("./api/purchases/receive", {
       headers: { Cookie: adminCookie },
       data: {
         purchase_id: purchaseId,
@@ -611,7 +611,7 @@ test("ACC-PHB-04 reports and receipt audit track phase B receipts separately", a
     expect(purchaseResponse.status()).toBe(201);
     const purchasePayload = await purchaseResponse.json();
 
-    const checkoutResponse = await request.post("/api/orders/checkout", {
+    const checkoutResponse = await request.post("./api/orders/checkout", {
       headers: { Cookie: adminCookie },
       data: {
         customer_name: "Khách ACC PHB 04",
@@ -628,7 +628,7 @@ test("ACC-PHB-04 reports and receipt audit track phase B receipts separately", a
     expect(checkoutResponse.status()).toBe(201);
     const checkoutPayload = await checkoutResponse.json();
 
-    const customerReturnResponse = await request.post("/api/returns/customers", {
+    const customerReturnResponse = await request.post("./api/returns/customers", {
       headers: { Cookie: adminCookie },
       data: {
         customer_name: "Khách ACC PHB 04",
@@ -647,7 +647,7 @@ test("ACC-PHB-04 reports and receipt audit track phase B receipts separately", a
     expect(customerReturnResponse.status()).toBe(201);
     const customerReturnPayload = await customerReturnResponse.json();
 
-    const supplierReturnResponse = await request.post("/api/returns/suppliers", {
+    const supplierReturnResponse = await request.post("./api/returns/suppliers", {
       headers: { Cookie: adminCookie },
       data: {
         supplier_name: supplierName,
@@ -666,7 +666,7 @@ test("ACC-PHB-04 reports and receipt audit track phase B receipts separately", a
     expect(supplierReturnResponse.status()).toBe(201);
     const supplierReturnPayload = await supplierReturnResponse.json();
 
-    const adjustmentResponse = await request.post("/api/adjustments/inventory", {
+    const adjustmentResponse = await request.post("./api/adjustments/inventory", {
       headers: { Cookie: adminCookie },
       data: {
         reason: "ACC-PHB-04 adjustment",

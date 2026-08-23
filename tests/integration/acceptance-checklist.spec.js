@@ -14,7 +14,7 @@ test("ACC-ABOUT-01 version button opens about screen with backend app version", 
   const runtime = attachRuntimeTracking(page);
   const userCookie = await autoLoginUserRequest(request);
 
-  const versionResponse = await request.get("/api/runtime-version", { headers: { Cookie: userCookie } });
+  const versionResponse = await request.get("./api/runtime-version", { headers: { Cookie: userCookie } });
   expect(versionResponse.ok()).toBeTruthy();
   const versionPayload = await versionResponse.json();
 
@@ -92,7 +92,7 @@ test("ACC-SUP-02 suppliers create stays healthy with legacy paid purchases using
   const supplierPhone = `09${String(timestamp).slice(-8)}`;
   const userCookie = await autoLoginUserRequest(request);
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
 
@@ -110,7 +110,7 @@ test("ACC-SUP-02 suppliers create stays healthy with legacy paid purchases using
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         purchases: [...(originalState.purchases || []), legacyPaidPurchase],
@@ -138,12 +138,12 @@ test("ACC-SUP-02 suppliers create stays healthy with legacy paid purchases using
     });
     expect(toastText).toContain("Đã lưu nhà cung cấp");
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     expect((latestState.suppliers || []).some((supplier) => supplier.name === supplierName)).toBeTruthy();
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,

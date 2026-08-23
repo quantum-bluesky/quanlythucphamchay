@@ -10,20 +10,20 @@ const {
 } = require("./support/ui");
 
 async function fetchState(request, cookie) {
-  const response = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   return response.json();
 }
 
 async function fetchProducts(request, cookie) {
-  const response = await request.get("/api/products", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/products", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.products || [];
 }
 
 async function createQuickPurchase(request, cookie, payload) {
-  const response = await request.post("/api/purchases/quick-create", {
+  const response = await request.post("./api/purchases/quick-create", {
     headers: { Cookie: cookie },
     data: payload,
   });

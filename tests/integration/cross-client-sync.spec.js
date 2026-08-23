@@ -38,7 +38,7 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
 
   const adminCookie = await autoLoginAdminRequest(request);
   expect(adminCookie).toBeTruthy();
-  const productsResponse = await request.get("/api/products", {
+  const productsResponse = await request.get("./api/products", {
     headers: {
       Cookie: adminCookie,
     },
@@ -57,7 +57,7 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
   await expect(productRow).toContainText(`Giá nhập ${formatMoney(originalPrice)}`);
 
   try {
-    const stockResponse = await request.post("/api/transactions", {
+    const stockResponse = await request.post("./api/transactions", {
       headers: {
         Cookie: adminCookie,
       },
@@ -70,7 +70,7 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
     });
     expect(stockResponse.ok()).toBeTruthy();
 
-    const priceResponse = await request.put(`/api/products/${product.id}/price`, {
+    const priceResponse = await request.put(`./api/products/${product.id}/price`, {
       headers: {
         Cookie: adminCookie,
       },
@@ -86,7 +86,7 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
     await expect(productRow).toContainText(`Tồn ${formatQuantity(updatedStock)} gói`, { timeout: 12000 });
     await expect(productRow).toContainText(`Giá nhập ${formatMoney(updatedPrice)}`, { timeout: 12000 });
   } finally {
-    await request.put(`/api/products/${product.id}/price`, {
+    await request.put(`./api/products/${product.id}/price`, {
       headers: {
         Cookie: adminCookie,
       },
@@ -94,7 +94,7 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
         price: originalPrice,
       },
     });
-    await request.post("/api/transactions", {
+    await request.post("./api/transactions", {
       headers: {
         Cookie: adminCookie,
       },

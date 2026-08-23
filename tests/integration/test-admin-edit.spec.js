@@ -24,7 +24,7 @@ test("ADMIN-EDIT-FULL Master Admin can edit locked received purchase and locked 
   });
 
   const adminCookie = await autoLoginAdminRequest(request);
-  const stateRes = await request.get("/api/state", { headers: { Cookie: adminCookie } });
+  const stateRes = await request.get("./api/state", { headers: { Cookie: adminCookie } });
   const originalState = await stateRes.json();
   const timestamp = Date.now();
   const product = originalState.products[0];
@@ -83,7 +83,7 @@ test("ADMIN-EDIT-FULL Master Admin can edit locked received purchase and locked 
     ],
   };
 
-  const seedResponse = await request.put("/api/state", {
+  const seedResponse = await request.put("./api/state", {
     headers: { Cookie: adminCookie },
     data: {
       customers: originalState.customers,

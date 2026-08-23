@@ -28,7 +28,7 @@ test("IT-INV-02 inventory import shortcut does not append item into active order
   const toastText = await collectToast(page, runtime, "it-inv-02-open-import-draft", { errorPattern: /^$/ });
   expect(toastText).toContain("Đã mở phiếu nhập nháp");
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", {
+  const stateResponse = await request.get("./api/state?transaction_limit=16", {
     headers: { Cookie: userCookie },
   });
   expect(stateResponse.ok()).toBeTruthy();
