@@ -94,7 +94,7 @@ async function reloadHealthy(page, runtime, label, expectedTitle) {
   await collectToast(page, runtime, label);
 }
 
-async function gotoWithRetry(page, url = "/", { waitUntil = "load", retries = 3, retryDelayMs = 1000 } = {}) {
+async function gotoWithRetry(page, url = "/admin", { waitUntil = "load", retries = 3, retryDelayMs = 1000 } = {}) {
   let lastError = null;
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     try {
@@ -290,3 +290,6 @@ module.exports = {
   switchMenu,
   waitForAppReady,
 };
+
+
+

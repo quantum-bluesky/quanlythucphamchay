@@ -8,7 +8,7 @@ const {
 test("IT-UI-01 non-confirm toast stays above loading overlay", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/");
+  await page.goto("/admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -41,3 +41,6 @@ test("IT-UI-01 non-confirm toast stays above loading overlay", async ({ page, re
   expect(overlayCheck.toastOnTop).toBeTruthy();
   expectNoRuntimeErrors(runtime);
 });
+
+
+

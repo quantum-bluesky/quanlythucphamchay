@@ -76,7 +76,7 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -210,7 +210,7 @@ test("IT-ORD-08 create-order screen can create a separate new draft without reus
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -276,7 +276,7 @@ test("IT-ORD-09 sales order note can be created from form and edited from order 
   const originalState = await stateResponse.json();
 
   try {
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -389,7 +389,7 @@ test("IT-ORD-05 commit warns when sale total is lower than purchase total", asyn
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -490,7 +490,7 @@ test("IT-ORD-07 orders screen can bulk commit selected drafts and keep invalid d
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -583,7 +583,7 @@ test("IT-ORD-02 sales draft cart can save document discount from create-order sc
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -680,7 +680,7 @@ test("IT-ORD-03 orders screen can repeat a completed order into a new draft cart
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -836,7 +836,7 @@ test("IT-ORD-04 orders screen asks to merge repeat items into an existing draft 
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -1001,7 +1001,7 @@ test("IT-ORD-06 orders screen merges only open orders of the same customer and c
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -1075,3 +1075,6 @@ test("IT-ORD-06 orders screen merges only open orders of the same customer and c
 
   expectNoRuntimeErrors(runtime);
 });
+
+
+

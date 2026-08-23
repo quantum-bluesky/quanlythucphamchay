@@ -1,4 +1,4 @@
-﻿const { test, expect } = require("@playwright/test");
+const { test, expect } = require("@playwright/test");
 const {
   attachRuntimeTracking,
   autoLoginAdmin,
@@ -13,7 +13,7 @@ const path = require("path");
 test("IT-PROD-IMG-01 upload anh san pham thanh cong", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await gotoWithRetry(page, "/");
+  await gotoWithRetry(page, "/admin");
   await page.waitForLoadState("networkidle");
   await autoLoginAdmin(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -55,3 +55,6 @@ test("IT-PROD-IMG-01 upload anh san pham thanh cong", async ({ page, request }) 
     if (fs.existsSync(testImagePath)) fs.unlinkSync(testImagePath);
   }
 });
+
+
+

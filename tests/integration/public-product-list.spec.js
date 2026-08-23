@@ -7,7 +7,7 @@ test("Public ProductList loads via absolute and subdirectory paths", async ({ pa
   // Test absolute path
   await page.goto("/ProductList");
   await page.waitForLoadState("networkidle");
-  await expect(page.locator("h1")).toHaveText("Sản phẩm của chúng tôi");
+  await expect(page.locator("h1")).toHaveText("Danh sách các thực phẩm chay");
   
   // Wait for fetch products
   await page.waitForTimeout(500);
@@ -15,10 +15,13 @@ test("Public ProductList loads via absolute and subdirectory paths", async ({ pa
   // Test subdirectory path (simulating proxy routing)
   await page.goto("/qltp/ProductList");
   await page.waitForLoadState("networkidle");
-  await expect(page.locator("h1")).toHaveText("Sản phẩm của chúng tôi");
+  await expect(page.locator("h1")).toHaveText("Danh sách các thực phẩm chay");
 
   // Verify fetch products is successful
   await page.waitForTimeout(500);
 
   expectNoRuntimeErrors(runtime);
 });
+
+
+

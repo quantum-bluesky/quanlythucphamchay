@@ -113,7 +113,7 @@ test("ACC-CANCEL-01 user can request cancel and manager can approve for complete
   });
   expect(purchasePayload.purchase.status).toBe("received");
 
-  await page.goto("/");
+  await page.goto("/admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -154,7 +154,7 @@ test("ACC-CANCEL-01 user can request cancel and manager can approve for complete
   const managerPage = await managerContext.newPage();
   const managerRuntime = attachRuntimeTracking(managerPage, { autoAcceptDialogs: false });
   try {
-    await managerPage.goto("/");
+    await managerPage.goto("/admin");
     await managerPage.waitForLoadState("networkidle");
     await autoLoginProcurementManager(managerPage, request);
     await managerPage.reload({ waitUntil: "networkidle" });
@@ -206,3 +206,6 @@ test("ACC-CANCEL-01 user can request cancel and manager can approve for complete
   expectNoRuntimeErrors(runtime);
   expectNoRuntimeErrors(managerRuntime);
 });
+
+
+

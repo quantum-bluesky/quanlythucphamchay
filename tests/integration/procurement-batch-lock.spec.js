@@ -187,7 +187,7 @@ test("IT-PROC-01 start batch shows clickable conflict list for overlapping open 
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginProcurementManager(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -354,7 +354,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     expect(ownerUpdatedResponse.ok(), JSON.stringify(ownerUpdatedPayload)).toBeTruthy();
 
     await page.context().clearCookies();
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
     await switchMenu(page, "purchases");
@@ -469,7 +469,7 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginProcurementManager(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -574,7 +574,7 @@ test("IT-PROC-03A planner hides zero-need shortage rows and keeps mobile scroll 
     expect(seedResponse.ok(), JSON.stringify(seedPayload)).toBeTruthy();
 
     await page.setViewportSize({ width: 390, height: 480 });
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginProcurementManager(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -636,7 +636,7 @@ test("IT-PROC-04 leaving procurement flow prompts to finish batch and offers sta
   try {
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
 
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginProcurementManager(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -822,7 +822,7 @@ test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales doc
     expect(startResponse.ok(), JSON.stringify(startPayload)).toBeTruthy();
     batchStarted = true;
 
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginProcurementManager(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -866,3 +866,6 @@ test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales doc
 
   expectNoRuntimeErrors(runtime);
 });
+
+
+

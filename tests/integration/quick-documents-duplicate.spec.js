@@ -93,7 +93,7 @@ test("ACC-QUICK-06 quick import and export lock the saved form to prevent duplic
     mark_paid: false,
   });
 
-  await page.goto("/");
+  await page.goto("/admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -151,3 +151,6 @@ test("ACC-QUICK-06 quick import and export lock the saved form to prevent duplic
   expect(countByName(latestState.purchases, purchaseSupplierName, "supplierName")).toBe(1);
   expectNoRuntimeErrors(runtime);
 });
+
+
+

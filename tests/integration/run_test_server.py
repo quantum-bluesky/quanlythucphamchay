@@ -271,6 +271,7 @@ def main() -> int:
 
     system_config = load_system_config()
     system_config["EnableMultiuserConflictCheck"] = True
+    system_config["EnableAdminLockedEdit"] = True
     admin_sessions = AdminSessionManager(
         str(system_config["admin"]["username"]),
         str(system_config["admin"]["password"]),

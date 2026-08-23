@@ -137,7 +137,7 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
     expect(seedResponse.ok()).toBeTruthy();
     const seededState = await seedResponse.json();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -238,7 +238,7 @@ test("ACC-PUR-04 received purchase can save document discount before paid", asyn
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -329,7 +329,7 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -450,7 +450,7 @@ test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async
     expect(seedResponse.ok()).toBeTruthy();
     const seededState = await seedResponse.json();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -509,7 +509,7 @@ test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async
 test("IT-PUR-01 purchase suggestions allow overriding quantity before adding to draft", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
 
-  await page.goto("/");
+  await page.goto("/admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -698,7 +698,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -1017,7 +1017,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
     expect(seedResponse.ok()).toBeTruthy();
     const seededState = await seedResponse.json();
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -1089,7 +1089,7 @@ test("ACC-ADM-03 direct stock adjustment requires privileged login and a reason"
   });
   expect(anonymousResponse.status()).toBe(401);
 
-  await gotoWithRetry(page, "/", { waitUntil: "networkidle" });
+  await gotoWithRetry(page, "/admin", { waitUntil: "networkidle" });
   await autoLoginProcurementManager(page, request);
   await page.reload({ waitUntil: "networkidle" });
 
@@ -1135,3 +1135,6 @@ test("ACC-ADM-03 direct stock adjustment requires privileged login and a reason"
 
   expectNoRuntimeErrors(runtime);
 });
+
+
+

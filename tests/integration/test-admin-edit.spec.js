@@ -94,7 +94,7 @@ test("ADMIN-EDIT-FULL Master Admin can edit locked received purchase and locked 
   });
   expect(seedResponse.ok()).toBeTruthy();
 
-  await page.goto("/");
+  await page.goto("/admin");
   await page.waitForLoadState("networkidle");
   await autoLoginAdmin(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -186,3 +186,6 @@ test("ADMIN-EDIT-FULL Master Admin can edit locked received purchase and locked 
 
   expectNoRuntimeErrors(runtime);
 });
+
+
+

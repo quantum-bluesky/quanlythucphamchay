@@ -273,7 +273,7 @@ test("ACC-SALE-02 shortage commit allows ordered purchase coverage and otherwise
       },
     ]);
 
-    await page.goto("/");
+    await page.goto("/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -717,3 +717,6 @@ test("ACC-PHB-04 reports and receipt audit track phase B receipts separately", a
     await restoreBackupSnapshot(request, snapshot);
   }
 });
+
+
+

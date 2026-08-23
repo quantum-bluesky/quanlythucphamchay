@@ -12,7 +12,7 @@ const {
 test("ACC-INV-02 / ACC-PROD-01 inventory, purchases, sales and products stay healthy across navigation", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/");
+  await page.goto("/admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -40,3 +40,6 @@ test("ACC-INV-02 / ACC-PROD-01 inventory, purchases, sales and products stay hea
 
   expectNoRuntimeErrors(runtime);
 });
+
+
+

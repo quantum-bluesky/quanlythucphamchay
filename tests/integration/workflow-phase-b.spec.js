@@ -89,7 +89,7 @@ async function setFloatingSearch(page, term) {
 }
 
 async function openHomeWithLogin(page, request, loginFn) {
-  await gotoWithRetry(page, "/", { waitUntil: "networkidle" });
+  await gotoWithRetry(page, "/admin", { waitUntil: "networkidle" });
   await loginFn(page, request);
   await page.reload({ waitUntil: "networkidle" });
 }
@@ -350,3 +350,6 @@ test("IT-PHB-05 supplier return receipt UI hides standalone form outside purchas
 
   expectNoRuntimeErrors(runtime);
 });
+
+
+
