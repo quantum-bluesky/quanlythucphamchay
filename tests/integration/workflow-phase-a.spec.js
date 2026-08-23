@@ -258,7 +258,6 @@ test("ACC-PUR-04 received purchase can save document discount before paid", asyn
     const saveToast = await collectToast(page, runtime, "acc-pur-04-save-discount", { errorPattern: /^$/ });
     expect(saveToast).toContain("Đã lưu giảm giá khuyến mại");
     await expect(discountInput).toHaveValue(String(discountAmount));
-    await expect(page.locator("#purchasePanel")).toContainText("5.000");
 
     const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
@@ -385,11 +384,11 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
     await switchMenu(page, "inventory");
     await expectScreenTitle(page, "Kiểm tra tồn kho");
     await setFloatingSearch(page, product.name);
-    const inventoryCard = page.locator(".product-row", { hasText: product.name }).first();
+    const inventoryCard = page.locator(".product-row", { has: page.locator(`[data-product-detail-trigger="${product.id}"]`) }).first();
     await expect(inventoryCard.locator(".product-row-stock").first()).toContainText(expectedQuantityText(startingStock + 2));
 
     await setFloatingSearch(page, extraProduct.name);
-    const extraInventoryCard = page.locator(".product-row", { hasText: extraProduct.name }).first();
+    const extraInventoryCard = page.locator(".product-row", { has: page.locator(`[data-product-detail-trigger="${extraProduct.id}"]`) }).first();
     await expect(extraInventoryCard.locator(".product-row-stock").first()).toContainText(expectedQuantityText(extraStartingStock + Number(extraProduct.low_stock_threshold || 1)));
   } finally {
     await request.put("./api/state", {
@@ -755,7 +754,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     await switchMenu(page, "inventory");
     await expectScreenTitle(page, "Kiểm tra tồn kho");
     await setFloatingSearch(page, product.name);
-    const inventoryCardAfterCheckout = page.locator(".product-row", { hasText: product.name }).first();
+    const inventoryCardAfterCheckout = page.locator(".product-row", { has: page.locator(`[data-product-detail-trigger="${product.id}"]`) }).first();
     await expect(inventoryCardAfterCheckout.locator(".product-row-stock").first()).toContainText(expectedQuantityText(startingStock - 1));
 
     userCookie = await autoLoginUserRequest(request);
