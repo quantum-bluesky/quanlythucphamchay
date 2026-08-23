@@ -357,10 +357,6 @@ class InventoryStore:
                 CREATE INDEX IF NOT EXISTS idx_customers_name
                 ON customers(name COLLATE NOCASE);
 
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_zalo_id
-                ON customers(zalo_id)
-                WHERE zalo_id IS NOT NULL AND zalo_id != '' AND deleted_at IS NULL;
-
                 CREATE TABLE IF NOT EXISTS zalo_groups (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
