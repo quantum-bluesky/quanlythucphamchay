@@ -166,7 +166,12 @@ class InventoryStore:
 
         try:
             self._initialize_schema()
-        except sqlite3.OperationalError:
+        except sqlite3.OperationalError as e:
+            from .logger import log_error
+            log_error(f"Error initializing schema: {e}", exc_info=True)
+            from .constants import APP_ENV
+            if APP_ENV == "production" or APP_ENV == "Production":
+                raise
             # Some sandboxes block OS temp folders. Fall back to a workspace-local file.
             fallback_root = DATA_DIR / "_sandbox_db"
             fallback_root.mkdir(parents=True, exist_ok=True)
