@@ -221,7 +221,7 @@ async function autoLoginAdmin(page, request) {
   await autoLogin(page, request, {
     username: "masteradmin",
     password: "admin12345",
-    route: "/api/admin/login",
+    route: "./api/admin/login",
   });
 }
 
@@ -229,7 +229,7 @@ async function autoLoginAdminRequest(request) {
   return autoLoginRequest(request, {
     username: "masteradmin",
     password: "admin12345",
-    route: "/api/admin/login",
+    route: "./api/admin/login",
   });
 }
 

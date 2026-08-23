@@ -10,7 +10,7 @@ const {
 } = require("./support/ui");
 
 async function ensureMinimumProductCount(request, cookie, minimumCount) {
-  const productsResponse = await request.get("/api/products", {
+  const productsResponse = await request.get("./api/products", {
     headers: { Cookie: cookie },
   });
   expect(productsResponse.ok()).toBeTruthy();
@@ -19,7 +19,7 @@ async function ensureMinimumProductCount(request, cookie, minimumCount) {
   const missingCount = Math.max(0, minimumCount - existingCount);
 
   for (let index = 0; index < missingCount; index += 1) {
-    const createResponse = await request.post("/api/products", {
+    const createResponse = await request.post("./api/products", {
       headers: { Cookie: cookie },
       data: {
         name: `INV FLOAT TEST ${Date.now()} ${index + 1}`,

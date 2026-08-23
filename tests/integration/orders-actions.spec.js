@@ -27,10 +27,10 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
   const completedCustomerName = `Khách completed ORD ${timestamp}`;
   const draftCustomerName = `Khách draft ORD ${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -68,7 +68,7 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         carts: [draftCart, completedCart, ...(originalState.carts || [])],
@@ -92,10 +92,10 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
     await page.waitForTimeout(300);
     await expect(completedOrderCard.locator('[data-queue-action="mark-paid"]')).toHaveCount(1);
 
-    const currentStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const currentStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(currentStateResponse.ok()).toBeTruthy();
     const currentState = await currentStateResponse.json();
-    const payResponse = await request.put("/api/state", {
+    const payResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         carts: (currentState.carts || []).map((cart) => (
@@ -122,7 +122,7 @@ test("IT-ORD-01 orders screen actions expand details, mark paid, and reopen draf
     await expect(page.locator("#customerLookupInput")).toHaveValue(draftCustomerName);
     await collectToast(page, runtime, "orders-open-draft");
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -155,10 +155,10 @@ test("IT-ORD-08 create-order screen can create a separate new draft without reus
   const customerId = `customer_new_separate_${timestamp}`;
   const customerName = `Khách tách đơn ${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -201,7 +201,7 @@ test("IT-ORD-08 create-order screen can create a separate new draft without reus
   });
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: [seededCustomer, ...(originalState.customers || [])],
@@ -234,7 +234,7 @@ test("IT-ORD-08 create-order screen can create a separate new draft without reus
 
     await expect(page.locator("#selectedCartSection")).toBeHidden();
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     const draftCarts = (latestState.carts || []).filter((cart) => (
@@ -249,7 +249,7 @@ test("IT-ORD-08 create-order screen can create a separate new draft without reus
     expect(reusedExistingCart.items || []).toHaveLength(1);
     expect(newDraftCart.items || []).toHaveLength(0);
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -271,7 +271,7 @@ test("IT-ORD-09 sales order note can be created from form and edited from order 
   const initialNote = `Ghi chú tạo mới ${timestamp}`;
   const updatedNote = `Ghi chú đã sửa ${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
 
@@ -295,7 +295,7 @@ test("IT-ORD-09 sales order note can be created from form and edited from order 
     const saveDraftNoteToast = await collectToast(page, runtime, "it-ord-09-save-draft-note", { errorPattern: /^$/ });
     expect(saveDraftNoteToast).toContain("Đã lưu ghi chú phiếu xuất.");
 
-    const draftStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const draftStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(draftStateResponse.ok()).toBeTruthy();
     const draftState = await draftStateResponse.json();
     const createdDraft = (draftState.carts || []).find((cart) =>
@@ -324,14 +324,14 @@ test("IT-ORD-09 sales order note can be created from form and edited from order 
     const saveDetailNoteToast = await collectToast(page, runtime, "it-ord-09-save-detail-note", { errorPattern: /^$/ });
     expect(saveDetailNoteToast).toContain("Đã lưu ghi chú phiếu xuất.");
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     const updatedDraft = (latestState.carts || []).find((cart) => cart.id === createdDraft.id);
     expect(updatedDraft).toBeTruthy();
     expect(String(updatedDraft.note || "")).toBe(updatedNote);
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -351,10 +351,10 @@ test("IT-ORD-05 commit warns when sale total is lower than purchase total", asyn
   const timestamp = Date.now();
   const customerName = `Khách cảnh báo giá ${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.find((entry) => Number(entry.current_stock || 0) >= 2) || productsPayload.products?.[0];
@@ -381,7 +381,7 @@ test("IT-ORD-05 commit warns when sale total is lower than purchase total", asyn
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         carts: [draftCart, ...(originalState.carts || [])],
@@ -422,7 +422,7 @@ test("IT-ORD-05 commit warns when sale total is lower than purchase total", asyn
     const commitToast = await collectToast(page, runtime, "it-ord-05-commit-warning", { errorPattern: /^$/ });
     expect(commitToast).toContain("Đã chốt đơn");
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -442,10 +442,10 @@ test("IT-ORD-07 orders screen can bulk commit selected drafts and keep invalid d
   const timestamp = Date.now();
   const customerPrefix = `Khách bulk commit ${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.find((entry) => Number(entry.current_stock || 0) >= 1) || productsPayload.products?.[0];
@@ -482,7 +482,7 @@ test("IT-ORD-07 orders screen can bulk commit selected drafts and keep invalid d
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         carts: [validCart, invalidCart, ...(originalState.carts || [])],
@@ -510,7 +510,7 @@ test("IT-ORD-07 orders screen can bulk commit selected drafts and keep invalid d
     const bulkCommitToast = await collectToast(page, runtime, "it-ord-07-bulk-commit", { errorPattern: /^$/ });
     expect(bulkCommitToast).toContain("Đã chốt 1 đơn đã chọn.");
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     const latestValidCart = (latestState.carts || []).find((cart) => cart.id === validCart.id);
@@ -521,7 +521,7 @@ test("IT-ORD-07 orders screen can bulk commit selected drafts and keep invalid d
     await expect(page.locator("#cartQueueList .inline-alert.warning")).toContainText("1 phiếu xuất đang được chọn");
     await expect(invalidCheckbox).toBeChecked();
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -543,10 +543,10 @@ test("IT-ORD-02 sales draft cart can save document discount from create-order sc
   const draftCartId = `cart_discount_draft_${timestamp}`;
   const draftDiscountAmount = 3000;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -575,7 +575,7 @@ test("IT-ORD-02 sales draft cart can save document discount from create-order sc
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         carts: [draftCart, ...(originalState.carts || [])],
@@ -607,14 +607,14 @@ test("IT-ORD-02 sales draft cart can save document discount from create-order sc
     expect(draftToast).toContain("Đã lưu giảm giá khuyến mại");
     await expect(draftDiscountInput).toHaveValue(String(draftDiscountAmount));
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     const latestDraftCart = (latestState.carts || []).find((cart) => cart.id === draftCartId);
     expect(latestDraftCart).toBeTruthy();
     expect(Number(latestDraftCart.discountAmount || latestDraftCart.discount_amount || 0)).toBe(draftDiscountAmount);
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -637,10 +637,10 @@ test("IT-ORD-03 orders screen can repeat a completed order into a new draft cart
   const discountAmount = 4000;
   const shipAddress = `Địa chỉ lặp đơn ${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -672,7 +672,7 @@ test("IT-ORD-03 orders screen can repeat a completed order into a new draft cart
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         carts: [completedCart, ...(originalState.carts || [])],
@@ -712,7 +712,7 @@ test("IT-ORD-03 orders screen can repeat a completed order into a new draft cart
     await expect(page.locator("#activeCartPanel [data-cart-ship-address-input]")).toHaveValue(shipAddress);
     await expect(page.locator("#activeCartPanel [data-cart-discount-input]")).toHaveValue(String(discountAmount));
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     const repeatedDrafts = (latestState.carts || []).filter((cart) =>
@@ -736,7 +736,7 @@ test("IT-ORD-03 orders screen can repeat a completed order into a new draft cart
     expect(unchangedCompletedCart.status).toBe("completed");
     expect(String(unchangedCompletedCart.orderCode || "")).toBe(completedCart.orderCode);
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -759,10 +759,10 @@ test("IT-ORD-04 orders screen asks to merge repeat items into an existing draft 
   const completedCartId = `order_repeat_merge_source_${timestamp}`;
   const draftCartId = `order_repeat_merge_target_${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const firstProduct = productsPayload.products?.[0];
@@ -827,7 +827,7 @@ test("IT-ORD-04 orders screen asks to merge repeat items into an existing draft 
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: [...(originalState.customers || []), customer],
@@ -866,7 +866,7 @@ test("IT-ORD-04 orders screen asks to merge repeat items into an existing draft 
     await expectScreenTitle(page, "Tạo đơn xuất hàng");
     await expect(page.locator("#customerLookupInput")).toHaveValue(customerName);
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     const repeatedDrafts = (latestState.carts || []).filter((cart) =>
@@ -885,7 +885,7 @@ test("IT-ORD-04 orders screen asks to merge repeat items into an existing draft 
     expect(unchangedCompletedCart).toBeTruthy();
     expect(unchangedCompletedCart.status).toBe("completed");
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -907,10 +907,10 @@ test("IT-ORD-06 orders screen merges only open orders of the same customer and c
   const sameCustomerName = `Khách gộp ORD ${timestamp}`;
   const otherCustomerName = `Khách gộp ORD ${timestamp} khác`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -993,7 +993,7 @@ test("IT-ORD-06 orders screen merges only open orders of the same customer and c
   }
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         carts: [committedCart, draftCart, otherDraftCart, ...(originalState.carts || [])],
@@ -1045,7 +1045,7 @@ test("IT-ORD-06 orders screen merges only open orders of the same customer and c
     const mergeToast = await collectToast(page, runtime, "it-ord-06-merge", { errorPattern: /^$/ });
     expect(mergeToast).toContain("Đã gộp các phiếu xuất đã chọn vào phiếu hiện hành.");
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     const mergedCommittedCart = (latestState.carts || []).find((cart) => cart.id === committedCart.id);
@@ -1062,7 +1062,7 @@ test("IT-ORD-06 orders screen merges only open orders of the same customer and c
     expect(untouchedOtherCart).toBeTruthy();
     expect(untouchedOtherCart.status).toBe("draft");
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,

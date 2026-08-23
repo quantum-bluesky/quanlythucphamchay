@@ -41,10 +41,10 @@ test("IT-NAV-01 open detail actions scroll to the opened receipt info", async ({
   const draftCustomerName = `Khách mở giỏ ORD ${timestamp}`;
   const supplierName = `NCC mở phiếu ${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -88,7 +88,7 @@ test("IT-NAV-01 open detail actions scroll to the opened receipt info", async ({
     ],
   };
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         carts: [draftCart, ...(originalState.carts || [])],
@@ -129,7 +129,7 @@ test("IT-NAV-01 open detail actions scroll to the opened receipt info", async ({
     await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierName);
     await expectLocatorVisibleAfterScroll(page, page.locator("#purchasePanel"), purchaseCardBeforeTop);
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,

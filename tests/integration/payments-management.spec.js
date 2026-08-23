@@ -29,13 +29,13 @@ async function setPaymentFilter(page, value) {
 }
 
 async function fetchSyncState(request, cookie) {
-  const response = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   return response.json();
 }
 
 async function fetchProducts(request, cookie) {
-  const response = await request.get("/api/products", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/products", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.products || [];
@@ -98,7 +98,7 @@ test("IT-PAY-01 payments screen filters unpaid items, updates payment info, and 
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -178,7 +178,7 @@ test("IT-PAY-01 payments screen filters unpaid items, updates payment info, and 
     await expectScreenTitle(page, "Nhập hàng");
     await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierName);
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,

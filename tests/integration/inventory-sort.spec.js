@@ -22,11 +22,10 @@ test("IT-INV-SORT-01 inventory sort control lives in pagination and sorts by sto
   await expect(sortSelect).toBeVisible();
   await expect(page.locator(".list-search-toolbar [data-inventory-sort]")).toHaveCount(0);
 
-  // Helper to wait for the next inventory data fetch
+  // Helper to wait for the client-side sorting to complete
   const waitForSort = async (option) => {
-    const responsePromise = page.waitForResponse(resp => resp.url().includes('/api/inventory/') && resp.status() === 200);
     await sortSelect.selectOption(option);
-    await responsePromise;
+    await page.waitForTimeout(500); // Give JS time to re-render DOM
     await expect(page.locator("#productGrid .product-row").first()).toBeVisible();
   };
 

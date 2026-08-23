@@ -102,7 +102,7 @@ test("IT-LOG-02 login form submit does not trigger login guard dialog while busy
 
   let loginCandidate = null;
   for (const candidate of candidates) {
-    const response = await request.post("/api/session/login", {
+    const response = await request.post("./api/session/login", {
       data: candidate,
     });
     if (response.ok()) {

@@ -106,7 +106,7 @@ test.skip("ACC-ORD-17 bulk orders mobile keeps card UI and only commits valid cu
   const savedDraftCard = page.locator("#bulkOrderList .bulk-order-card").filter({ hasText: "Khách bulk A" }).first();
   await expect(savedDraftCard).toContainText("Đã lưu nháp");
 
-  const afterDraftStateResponse = await request.get("/api/state?transaction_limit=16", {
+  const afterDraftStateResponse = await request.get("./api/state?transaction_limit=16", {
     headers: { Cookie: adminCookie },
   });
   expect(afterDraftStateResponse.ok()).toBeTruthy();
@@ -160,7 +160,7 @@ test.skip("ACC-ORD-17 bulk orders mobile keeps card UI and only commits valid cu
   await expect(page.locator("#bulkOrderResultSummary")).toContainText("1 thành công / 1 lỗi");
   await expect(successCard).toContainText("Đã chốt");
 
-  const latestStateResponse = await request.get("/api/state?transaction_limit=16", {
+  const latestStateResponse = await request.get("./api/state?transaction_limit=16", {
     headers: { Cookie: adminCookie },
   });
   expect(latestStateResponse.ok()).toBeTruthy();
