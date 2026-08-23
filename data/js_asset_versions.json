@@ -130,8 +130,8 @@
       "sha256": "b1bdd1103224b100feace113483fbc17f816850ad1fdf036841a1231d4c3a00f"
     },
     "styles.css": {
-      "counter": 1,
-      "sha256": "79a75ef7cc5a252c5723fc55e6dd346c45dddd16f27dfec3a964d6703b03fc0d"
+      "counter": 2,
+      "sha256": "6714a6370181dc68c763e628df37c2226f6218509a5281da6341084bd69ce86a"
     },
     "vendor/quill/quill.min.js": {
       "counter": 1,

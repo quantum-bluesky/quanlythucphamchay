@@ -161,8 +161,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             if "/productlist" in lower_path:
                 return "/ProductList"
                 
-            if "/admin" in lower_path:
-                return "/admin"
+            admin_path = str((system_config or {}).get("admin_path", "/admin")).lower()
+            if not admin_path.startswith("/"):
+                admin_path = "/" + admin_path
+
+            if admin_path in lower_path:
+                return admin_path
                 
             last_segment = parsed_path.rsplit("/", 1)[-1]
             if not last_segment or "." not in last_segment:
@@ -185,7 +189,11 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 self._serve_static_file("public_products.html", request_path=parsed.path)
                 return
 
-            if route.lower() == "/admin":
+            admin_path = str((system_config or {}).get("admin_path", "/admin")).lower()
+            if not admin_path.startswith("/"):
+                admin_path = "/" + admin_path
+
+            if route.lower() == admin_path:
                 self._serve_static_file("index.html", request_path=parsed.path)
                 return
 
