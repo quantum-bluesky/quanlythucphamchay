@@ -103,6 +103,13 @@ test("ADMIN-EDIT-FULL Master Admin can edit locked received purchase and locked 
   await switchMenu(page, "purchases");
   await expectScreenTitle(page, "Nhập hàng");
 
+  // If the app auto-opened an existing draft (because of staging data), go back to the list
+  const purchasesListBtn = page.locator('[data-screen="purchases"] button').filter({ hasText: "Danh sách phiếu" });
+  if (await purchasesListBtn.isVisible()) {
+    await purchasesListBtn.click();
+    await page.waitForTimeout(500);
+  }
+
   // Check if admin edit button exists on the received purchase in list
   const purchaseCard = page.locator(`[data-purchase-select="${purchaseId}"]`);
   await expect(purchaseCard).toBeVisible({ timeout: 10000 });
