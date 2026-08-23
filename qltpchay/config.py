@@ -209,6 +209,7 @@ def _normalize_zalo_login_config(raw_zalo, defaults: dict | None = None) -> dict
 def build_default_system_config(*, use_env_seed: bool) -> dict:
     config = {
         "version": DEFAULT_APP_VERSION,
+        "admin_path": "/admin",
         "server": {
             "host": DEFAULT_HOST,
             "port": DEFAULT_PORT,
@@ -238,6 +239,7 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
         "zalo_login": _normalize_zalo_login_config({}),
     }
     if use_env_seed:
+        config["admin_path"] = os.environ.get("APP_ADMIN_PATH", "/admin")
         config["server"]["host"] = os.environ.get("APP_HOST", DEFAULT_HOST)
         try:
             config["server"]["port"] = int(os.environ.get("APP_PORT", str(DEFAULT_PORT)))
@@ -281,6 +283,7 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
     defaults = build_default_system_config(use_env_seed=False)
     config = {
         "version": str(raw_config.get("version") or defaults["version"]).strip(),
+        "admin_path": str(raw_config.get("admin_path") or defaults.get("admin_path", "/admin")).strip(),
         "server": {
             "host": str(raw_config.get("server", {}).get("host") or defaults["server"]["host"]).strip(),
             "port": defaults["server"]["port"],
