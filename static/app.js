@@ -5082,10 +5082,12 @@ function updateAdminSessionState(payload = {}) {
   const returnMenuAfterLogin = String(
     payload.return_menu_after_login ?? payload.returnMenuAfterLogin ?? previous.returnMenuAfterLogin ?? ""
   ).trim();
+  const adminPath = String(payload.admin_path ?? payload.adminPath ?? "/admin").trim();
   state.admin = {
     authenticated,
     username: String(payload.username || ""),
     role: String(payload.role || ""),
+    adminPath,
     permissions: Array.isArray(payload.permissions) ? payload.permissions.map((entry) => String(entry || "").trim()).filter(Boolean) : [],
     isAdmin: Boolean(payload.is_admin ?? payload.isAdmin),
     enableLogin: Boolean(payload.enable_login ?? payload.enableLogin),
@@ -7968,3 +7970,22 @@ window.deleteZaloGroup = async (id) => {
       zgCancel.style.display = "none";
     });
   }
+
+document.getElementById('publicHomeBtn')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  let adminPath = (state.admin && state.admin.adminPath) || '/admin';
+  if (adminPath.startsWith('/')) adminPath = adminPath.slice(1);
+  if (adminPath.endsWith('/')) adminPath = adminPath.slice(0, -1);
+  const path = window.location.pathname;
+  let target = '/';
+  const adminPathSegments = adminPath.split('/').filter(Boolean);
+  const pathSegments = path.split('/').filter(Boolean);
+  if (adminPathSegments.length > 0 && pathSegments.length >= adminPathSegments.length) {
+    const tail = pathSegments.slice(-adminPathSegments.length);
+    if (tail.join('/') === adminPathSegments.join('/')) {
+      const head = pathSegments.slice(0, -adminPathSegments.length);
+      target = '/' + head.join('/') + (head.length > 0 ? '/' : '');
+    }
+  }
+  window.location.href = target;
+});

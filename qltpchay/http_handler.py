@@ -2555,10 +2555,16 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             session = admin_sessions.get_session(token, touch=False)
             username = str(session.get("username") or "") if session else ""
             role = str(session.get("role") or "") if session else ""
+            
+            configured_admin_path = str((system_config or {}).get("admin_path", "/admin")).lower()
+            if not configured_admin_path.startswith("/"):
+                configured_admin_path = "/" + configured_admin_path
+                
             return {
                 "authenticated": bool(session),
                 "username": username,
                 "role": role,
+                "admin_path": configured_admin_path,
                 "permissions": [
                     str(permission or "").strip()
                     for permission in ((session or {}).get("permissions") or [])
