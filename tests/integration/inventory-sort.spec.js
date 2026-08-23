@@ -13,7 +13,7 @@ async function firstInventoryName(page) {
 
 test("IT-INV-SORT-01 inventory sort control lives in pagination and sorts by stock, priority and expiry", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
-  await page.goto("/admin");
+  await page.goto("admin");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
   await waitForAppReady(page);
@@ -43,7 +43,7 @@ test("IT-INV-SORT-01 inventory sort control lives in pagination and sorts by sto
 
 test("IT-PROD-LIFE-01 product life metadata saves from inline edit", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
-  await page.goto("/admin");
+  await page.goto("admin");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
   await waitForAppReady(page);
@@ -67,7 +67,7 @@ test("IT-PROD-LIFE-01 product life metadata saves from inline edit", async ({ pa
 test("IT-INV-SORT-02 inventory sort control remains visible in desktop pagination", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/admin");
+  await page.goto("admin");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
   await waitForAppReady(page);

@@ -16,7 +16,7 @@ test("ACC-SCR-CAP-01 capture all main screens and save to test-results", async (
   }
 
   // Login
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -77,7 +77,7 @@ test("ACC-SCR-CAP-02 capture all main screens on tablet and save to test-results
   await page.setViewportSize({ width: 768, height: 1024 });
 
   // Login
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });

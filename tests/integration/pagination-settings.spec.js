@@ -45,7 +45,7 @@ test("IT-PAG-01 desktop pagination uses adaptive defaults and supports 25/50/100
   const runtime = attachRuntimeTracking(page);
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   const userCookie = await autoLoginUserRequest(request);

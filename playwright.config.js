@@ -8,13 +8,13 @@ module.exports = defineConfig({
   reporter: [["list"]],
   outputDir: "test-results/playwright",
   use: {
-    baseURL: "http://127.0.0.1:8130",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:8130",
     headless: true,
     viewport: { width: 480, height: 900 },
     acceptDownloads: true,
     trace: "retain-on-failure",
   },
-  webServer: {
+  webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
     command: "python tests/integration/run_test_server.py --host 127.0.0.1 --port 8130",
     url: "http://127.0.0.1:8130",
     reuseExistingServer: false,

@@ -17,7 +17,7 @@ test("ACC-ADM-01 / ACC-ADM-02 master admin login, export, import, backup and res
   const downloadsDir = testInfo.outputPath("downloads");
   fs.mkdirSync(downloadsDir, { recursive: true });
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginAdmin(page, request);
   await page.reload({ waitUntil: "networkidle" });

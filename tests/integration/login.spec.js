@@ -13,7 +13,7 @@ const {
 test("ACC-LOG-01 normal user, delegated stock adjust user, and admin update header state and permissions correctly", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
 
   await expect(page.locator("#adminLogoutButton")).toHaveText("Login");
@@ -35,7 +35,7 @@ test("ACC-LOG-01 normal user, delegated stock adjust user, and admin update head
   await expect(page.locator('[data-product-action="toggle-expand"]').first()).toBeVisible();
 
   await page.evaluate(async () => {
-    await fetch("/api/session/logout", { method: "POST" });
+    await fetch("./api/session/logout", { method: "POST" });
   });
   await page.reload({ waitUntil: "networkidle" });
   await collectToast(page, runtime, "user-logout");
@@ -57,7 +57,7 @@ test("ACC-LOG-01 normal user, delegated stock adjust user, and admin update head
   await expect(page.locator('[data-product-action="start-price-edit"]')).toHaveCount(0);
 
   await page.evaluate(async () => {
-    await fetch("/api/session/logout", { method: "POST" });
+    await fetch("./api/session/logout", { method: "POST" });
   });
   await page.reload({ waitUntil: "networkidle" });
   await collectToast(page, runtime, "inventory-manager-logout");
@@ -96,7 +96,7 @@ test("IT-LOG-02 login form submit does not trigger login guard dialog while busy
   });
 
   await page.context().clearCookies();
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
 
@@ -136,7 +136,7 @@ test("IT-LOG-03 bootstrap retries once when app module import fails during authe
     await route.continue();
   });
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
 
   await autoLoginUser(page, request);
@@ -152,10 +152,10 @@ test("IT-LOG-03 bootstrap retries once when app module import fails during authe
 test("IT-LOG-04 quick account picker and switch user require password before changing permissions", async ({ page }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   const publicSessionStatus = await page.evaluate(async () => {
-    const response = await fetch("/api/session/status", { headers: { "X-Session-Activity": "passive" } });
+    const response = await fetch("./api/session/status", { headers: { "X-Session-Activity": "passive" } });
     return response.json();
   });
   expect(publicSessionStatus.auth_accounts).toBeUndefined();

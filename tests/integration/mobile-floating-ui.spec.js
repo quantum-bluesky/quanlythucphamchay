@@ -59,7 +59,7 @@ async function fillInventorySearch(page, text) {
 test("IT-MOB-01 mobile floating clusters auto-hide to screen edges and reveal without firing actions", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -110,7 +110,7 @@ test("IT-MOB-02 screen header stays visible on tablet and version button still o
   const runtime = attachRuntimeTracking(page);
 
   await page.setViewportSize({ width: 820, height: 1180 });
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -142,7 +142,7 @@ test("IT-NAV-05 inventory paging only floats when filtered results fill a mobile
   test.slow();
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   const adminCookie = await autoLoginAdminRequest(request);
@@ -219,7 +219,7 @@ test("IT-NAV-02 desktop menu auto-collapses outside and expands from the menu bu
   const runtime = attachRuntimeTracking(page);
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -268,7 +268,7 @@ test("IT-NAV-03 rotating portrait and landscape keeps menu navigation working", 
   const runtime = attachRuntimeTracking(page);
 
   await page.setViewportSize({ width: 480, height: 900 });
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -307,7 +307,7 @@ test("IT-NAV-04 tablet touch can open menu and navigate right after login", asyn
   const runtime = attachRuntimeTracking(page);
 
   try {
-    await page.goto("/admin");
+    await page.goto("admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -334,7 +334,7 @@ test("IT-TAB-01 tablet input keeps focus when viewport height changes", async ({
   const runtime = attachRuntimeTracking(page);
 
   await page.setViewportSize({ width: 820, height: 1180 });
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });

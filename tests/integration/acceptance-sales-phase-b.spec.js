@@ -273,7 +273,7 @@ test("ACC-SALE-02 shortage commit allows ordered purchase coverage and otherwise
       },
     ]);
 
-    await page.goto("/admin");
+    await page.goto("admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });

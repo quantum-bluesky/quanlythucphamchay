@@ -49,7 +49,7 @@ test.skip("ACC-ORD-17 bulk orders mobile keeps card UI and only commits valid cu
   await page.setViewportSize({ width: 390, height: 844 });
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginAdmin(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -186,7 +186,7 @@ test.skip("ACC-ORD-18 bulk order approval requests stay visible across users and
   await page.setViewportSize({ width: 390, height: 844 });
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -250,7 +250,7 @@ test.skip("ACC-ORD-19 audit history modal opens from request detail and order de
   await page.setViewportSize({ width: 390, height: 844 });
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -308,7 +308,7 @@ test.skip("ACC-ORD-20 pending bulk order request can be deleted by owner or mana
   await page.setViewportSize({ width: 390, height: 844 });
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });

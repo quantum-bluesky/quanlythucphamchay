@@ -113,7 +113,7 @@ test("ACC-CANCEL-01 user can request cancel and manager can approve for complete
   });
   expect(purchasePayload.purchase.status).toBe("received");
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });

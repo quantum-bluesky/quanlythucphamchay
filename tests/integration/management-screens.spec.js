@@ -12,7 +12,7 @@ const {
 test("ACC-ORD-01 / ACC-CUS-01 / ACC-SUP-01 / ACC-REP-01 / ACC-HIS-01 orders, customers, suppliers, reports and history stay healthy", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });

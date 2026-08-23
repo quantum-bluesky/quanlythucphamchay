@@ -88,7 +88,7 @@ test("IT-PHD-03 product history filter form applies actor and date filters in UI
   });
   expect(updateResponse.ok()).toBeTruthy();
 
-  await page.goto("/admin");
+  await page.goto("admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
