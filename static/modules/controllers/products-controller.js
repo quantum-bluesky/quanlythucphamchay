@@ -154,6 +154,43 @@ export function registerProductsControllerEvents(contract) {
       dom.productImageUpload.click();
     });
 
+    const resizeImage = async (file, maxDim = 1024) => {
+      if (!file.type.match(/image.*/)) return file;
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width <= maxDim && height <= maxDim && file.size < 500 * 1024) {
+            URL.revokeObjectURL(img.src);
+            return resolve(file);
+          }
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(img.src);
+          canvas.toBlob((blob) => {
+            if (!blob) return resolve(file);
+            resolve(new File([blob], file.name, { type: "image/jpeg", lastModified: Date.now() }));
+          }, "image/jpeg", 0.85);
+        };
+        img.onerror = () => resolve(file);
+        img.src = URL.createObjectURL(file);
+      });
+    };
+
     dom.productImageUpload.addEventListener("change", async (event) => {
       const files = event.target.files;
       if (!files || files.length === 0) return;
@@ -164,7 +201,8 @@ export function registerProductsControllerEvents(contract) {
 
       try {
         const urls = [];
-        for (const file of files) {
+        for (let file of files) {
+          file = await resizeImage(file);
           // Issue: đọc thành ArrayBuffer để browser tự gắn Content-Length đúng,
           // tránh chunked transfer encoding mà Python BaseHTTPServer không xử lý được
           const buffer = await file.arrayBuffer();
