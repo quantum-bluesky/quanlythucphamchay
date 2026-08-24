@@ -412,3 +412,9 @@ body {
   from { transform: translateX(0); opacity: 1; }
   to { transform: translateX(100%); opacity: 0; }
 }
+
+
+/* Force 1 line list mode */
+.product-grid.list-mode .product-list-item { flex-direction: row; align-items: center; justify-content: space-between; }
+.product-grid.list-mode .product-info-compact { flex-direction: row; align-items: center; justify-content: space-between; flex: 1; }
+.product-grid.list-mode .product-select-row { margin-top: 0; padding-top: 0; border-top: none; }
