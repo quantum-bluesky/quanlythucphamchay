@@ -2061,7 +2061,7 @@ class InventoryStore:
     @staticmethod
     def _normalize_document_created_mode(value) -> str:
         clean_mode = str(value or "normal").strip() or "normal"
-        return clean_mode if clean_mode in {"normal", "quick_import", "quick_export"} else "normal"
+        return clean_mode if clean_mode in {"normal", "quick_import", "quick_export", "online"} else "normal"
 
     @staticmethod
     def _normalize_quick_sale_final_status(value) -> str:
