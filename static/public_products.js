@@ -611,16 +611,9 @@ function renderProducts(products) {
   const viewMode = document.querySelector('input[name="viewMode"]:checked')?.value || 'thumbnail';
   
   if (viewMode === 'list') {
-      card.className = "product-list-item";
-      card.innerHTML = `
-        <div class="product-info-compact" style="flex: 1; display: flex; align-items: center; justify-content: space-between; overflow: hidden; gap: 8px;">
-          <h3 class="product-title" style="margin: 0; font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.name}">${p.name}</h3>
-          <div style="display: flex; align-items: center;">
-            ${selectHtml}
-          </div>
-        </div>
-      `;
-    } else {
+    grid.classList.add('list-mode');
+    grid.classList.remove('thumbnail-mode');
+  } else {
     grid.classList.add('thumbnail-mode');
     grid.classList.remove('list-mode');
   }
