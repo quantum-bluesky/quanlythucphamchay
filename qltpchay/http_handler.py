@@ -165,7 +165,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             if not admin_path.startswith("/"):
                 admin_path = "/" + admin_path
 
-            if admin_path in lower_path:
+            if lower_path.endswith(admin_path) or lower_path.endswith(admin_path + "/"):
                 return admin_path
                 
             last_segment = parsed_path.rsplit("/", 1)[-1]
