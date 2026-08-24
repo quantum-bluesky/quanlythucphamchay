@@ -436,7 +436,10 @@ class AuthHttpTests(unittest.TestCase):
         }
         self._start_server(config)
 
-        html_status, html_body, html_headers = self._request_text("GET", "/admin")
+        admin_path = str(runtime_config.get("admin_path", "/admin")).lower()
+        if not admin_path.startswith("/"):
+            admin_path = "/" + admin_path
+        html_status, html_body, html_headers = self._request_text("GET", admin_path)
         self.assertEqual(html_status, 200)
         self.assertNotIn("<base ", html_body)
         self.assertIn(f'./static/bootstrap.js?v={app_version}.', html_body)
@@ -543,12 +546,15 @@ class AuthHttpTests(unittest.TestCase):
         }
         self._start_server(config)
 
-        stripped_proxy_html_status, stripped_proxy_html_body, _ = self._request_text("GET", "/admin")
+        admin_path = str(runtime_config.get("admin_path", "/admin")).lower()
+        if not admin_path.startswith("/"):
+            admin_path = "/" + admin_path
+        stripped_proxy_html_status, stripped_proxy_html_body, _ = self._request_text("GET", admin_path)
         self.assertEqual(stripped_proxy_html_status, 200)
         self.assertNotIn("<base ", stripped_proxy_html_body)
         self.assertIn("./static/bootstrap.js?v=", stripped_proxy_html_body)
 
-        html_status, html_body, _ = self._request_text("GET", "/qltp/admin")
+        html_status, html_body, _ = self._request_text("GET", f"/qltp{admin_path}")
         self.assertEqual(html_status, 200)
         self.assertNotIn("<base ", html_body)
         self.assertIn("./static/bootstrap.js?v=", html_body)
