@@ -1238,7 +1238,20 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     image_dir = constants.DATA_DIR / "images" / "products"
                     image_dir.mkdir(parents=True, exist_ok=True)
                     (image_dir / unique_name).write_bytes(payload)
-                    self._send_json(HTTPStatus.OK, {"url": f"/images/products/{unique_name}"})
+                    _parsed = urlparse(self.path)
+                    base_path = ""
+                    api_idx = _parsed.path.find("/api/")
+                    if api_idx > 0:
+                        base_path = _parsed.path[:api_idx]
+                        
+                    scheme = self.headers.get("X-Forwarded-Proto", "http")
+                    # Support multiple comma-separated schemes in X-Forwarded-Proto just in case
+                    if "," in scheme:
+                        scheme = scheme.split(",")[0].strip()
+                    host = self.headers.get("Host", "127.0.0.1:4000")
+                    
+                    full_url = f"{scheme}://{host}{base_path}/images/products/{unique_name}"
+                    self._send_json(HTTPStatus.OK, {"url": full_url})
                 except Exception as exc:
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
