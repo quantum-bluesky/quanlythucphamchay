@@ -611,9 +611,16 @@ function renderProducts(products) {
   const viewMode = document.querySelector('input[name="viewMode"]:checked')?.value || 'thumbnail';
   
   if (viewMode === 'list') {
-    grid.classList.add('list-mode');
-    grid.classList.remove('thumbnail-mode');
-  } else {
+      card.className = "product-list-item";
+      card.innerHTML = `
+        <div class="product-info-compact" style="flex: 1; display: flex; align-items: center; justify-content: space-between; overflow: hidden; gap: 8px;">
+          <h3 class="product-title" style="margin: 0; font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.name}">${p.name}</h3>
+          <div style="display: flex; align-items: center;">
+            ${selectHtml}
+          </div>
+        </div>
+      `;
+    } else {
     grid.classList.add('thumbnail-mode');
     grid.classList.remove('list-mode');
   }
@@ -623,16 +630,17 @@ function renderProducts(products) {
     
     const qty = window.selectedProducts[p.id] || 0;
     
+    const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+    const stepVal = isIndivisible ? "1" : "0.1";
     const selectHtml = `
-      <div class="product-select-row" onclick="event.stopPropagation()">
-        <label class="toggle-inline" style="cursor: pointer; user-select: none;">
+      <div class="product-select-row" onclick="event.stopPropagation()" style="gap: 8px; flex-wrap: nowrap; align-items: center; justify-content: flex-end;">
+        <label class="toggle-inline" style="cursor: pointer; user-select: none; margin: 0;">
           <input type="checkbox" class="item-checkbox" data-id="${p.id}" ${qty > 0 ? 'checked' : ''}>
-          <span>Chọn</span>
+          <span style="white-space: nowrap;">Chọn</span>
         </label>
-        <div class="qty-control" style="${qty > 0 ? '' : 'display: none;'}">
-          <button type="button" class="btn-qty-minus" data-id="${p.id}">-</button>
-          <input type="number" class="input-qty" data-id="${p.id}" value="${qty > 0 ? qty : 1}" min="1" step="1">
-          <button type="button" class="btn-qty-plus" data-id="${p.id}">+</button>
+        <div class="qty-control" style="${qty > 0 ? 'display: flex; align-items: center; gap: 4px;' : 'display: none;'}">
+          <input type="number" class="input-qty" data-id="${p.id}" value="${qty > 0 ? qty : 1}" min="${stepVal}" step="${stepVal}" style="width: 60px; text-align: center; height: 32px; border-radius: 4px; border: 1px solid #ccc; padding: 0 4px;">
+          <span class="unit-display" style="font-size: 0.9em; color: #555; white-space: nowrap;">${p.unit || ''}</span>
         </div>
       </div>
     `;
@@ -648,11 +656,11 @@ function renderProducts(products) {
     if (viewMode === 'list') {
       card.className = "product-list-item";
       card.innerHTML = `
-        <div class="product-info-compact" style="flex: 1;">
-          <h3 class="product-title" style="margin: 0; font-size: 1rem;">${p.name}</h3>
-        </div>
-        <div style="display: flex; flex-direction: column; min-width: 200px;">
-          ${actionsHtml}
+        <div class="product-info-compact" style="flex: 1; display: flex; align-items: center; justify-content: space-between; overflow: hidden; gap: 8px;">
+          <h3 class="product-title" style="margin: 0; font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.name}">${p.name}</h3>
+          <div style="display: flex; align-items: center;">
+            ${selectHtml}
+          </div>
         </div>
       `;
     } else {
@@ -704,13 +712,18 @@ function renderProducts(products) {
     const checkbox = card.querySelector('.item-checkbox');
     const inputQty = card.querySelector('.input-qty');
     const qtyControl = card.querySelector('.qty-control');
-    const btnMinus = card.querySelector('.btn-qty-minus');
-    const btnPlus = card.querySelector('.btn-qty-plus');
+    
 
     if (checkbox) {
       checkbox.addEventListener('change', (e) => {
         if (e.target.checked) {
-          window.selectedProducts[p.id] = parseInt(inputQty.value) || 1;
+          let val = parseFloat(inputQty.value) || 1;
+          const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+          if (isIndivisible && !Number.isInteger(val)) {
+            val = Math.round(val);
+            inputQty.value = val;
+          }
+          window.selectedProducts[p.id] = val;
           qtyControl.style.display = 'flex';
         } else {
           delete window.selectedProducts[p.id];
@@ -722,37 +735,14 @@ function renderProducts(products) {
 
     if (inputQty) {
       inputQty.addEventListener('change', (e) => {
-        let val = parseInt(e.target.value);
+        let val = parseFloat(e.target.value);
+          const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+          if (isIndivisible && !Number.isInteger(val)) {
+            val = Math.round(val);
+            e.target.value = val;
+          }
         if (isNaN(val) || val < 1) val = 1;
         e.target.value = val;
-        if (checkbox.checked) {
-          window.selectedProducts[p.id] = val;
-          updateCartUI();
-        }
-      });
-    }
-
-    if (btnMinus) {
-      btnMinus.addEventListener('click', (e) => {
-        e.stopPropagation();
-        let val = parseInt(inputQty.value);
-        if (val > 1) {
-          val--;
-          inputQty.value = val;
-          if (checkbox.checked) {
-            window.selectedProducts[p.id] = val;
-            updateCartUI();
-          }
-        }
-      });
-    }
-
-    if (btnPlus) {
-      btnPlus.addEventListener('click', (e) => {
-        e.stopPropagation();
-        let val = parseInt(inputQty.value);
-        val++;
-        inputQty.value = val;
         if (checkbox.checked) {
           window.selectedProducts[p.id] = val;
           updateCartUI();
@@ -767,14 +757,44 @@ function renderProducts(products) {
 function updateCartUI() {
   const cartBar = document.getElementById('cartBar');
   const countBadge = document.getElementById('cartCountBadge');
+  const itemsPanel = document.getElementById('selectedItemsPanel');
+  const itemsCountBadge = document.getElementById('selectedItemsCountBadge');
+  const itemsList = document.getElementById('selectedItemsList');
   
   const count = Object.keys(window.selectedProducts).length;
   countBadge.textContent = count;
   
   if (count > 0) {
     cartBar.classList.remove('hidden');
+    if(itemsPanel) itemsPanel.style.display = 'block';
+    if(itemsCountBadge) itemsCountBadge.textContent = count;
+    
+    // Render list
+    if (itemsList) {
+      itemsList.innerHTML = '';
+      Object.keys(window.selectedProducts).forEach(id => {
+        const qty = window.selectedProducts[id];
+        if (qty > 0) {
+          const p = allProducts.find(x => String(x.id) === id);
+          if (p) {
+            const div = document.createElement('div');
+            div.style.cssText = "display: flex; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid #eee;";
+            div.innerHTML = `
+              <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 8px;">${p.name}</span>
+              <span style="font-weight: 500; white-space: nowrap;">${qty} ${p.unit || ''}</span>
+            `;
+            itemsList.appendChild(div);
+          }
+        }
+      });
+      // Remove last border
+      if (itemsList.lastElementChild) {
+        itemsList.lastElementChild.style.borderBottom = 'none';
+      }
+    }
   } else {
     cartBar.classList.add('hidden');
+    if(itemsPanel) itemsPanel.style.display = 'none';
   }
 }
 

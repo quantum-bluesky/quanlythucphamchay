@@ -9,7 +9,7 @@ class TestGlobalID(unittest.TestCase):
         self.temp_dir = TemporaryDirectory()
         self.db_path = os.path.join(self.temp_dir.name, "test.db")
         self.store = InventoryStore(self.db_path)
-        self.handler = create_handler(self.store, None, None)
+        self.handler = create_handler(self.store, None, {"asset_versions_path": os.path.join(self.temp_dir.name, "js_asset_versions.json")})
 
     def tearDown(self):
         self.temp_dir.cleanup()
