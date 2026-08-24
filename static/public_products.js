@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupZaloButton();
   setupOrderSuccessModal();
   setupLogoutModal();
+  setupSelectedItemsPanel();
 });
 
 function setupZaloButton() {
@@ -625,10 +626,12 @@ function renderProducts(products) {
     
     const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
     const stepVal = isIndivisible ? "1" : "0.1";
+    
+    const selectListStyle = viewMode === 'list' ? 'margin: 0; padding: 0; border: none; display: flex; flex-direction: row;' : 'display: flex; flex-direction: row;';
     const selectHtml = `
-      <div class="product-select-row" onclick="event.stopPropagation()" style="gap: 8px; flex-wrap: nowrap; align-items: center; justify-content: flex-end;">
-        <label class="toggle-inline" style="cursor: pointer; user-select: none; margin: 0;">
-          <input type="checkbox" class="item-checkbox" data-id="${p.id}" ${qty > 0 ? 'checked' : ''}>
+      <div class="product-select-row" onclick="event.stopPropagation()" style="gap: 8px; flex-wrap: nowrap; align-items: center; justify-content: flex-end; ${selectListStyle}">
+        <label class="toggle-inline" style="cursor: pointer; user-select: none; margin: 0; display: flex; align-items: center; white-space: nowrap;">
+          <input type="checkbox" class="item-checkbox" data-id="${p.id}" ${qty > 0 ? 'checked' : ''} style="margin: 0 4px 0 0;">
           <span style="white-space: nowrap;">Chọn</span>
         </label>
         <div class="qty-control" style="${qty > 0 ? 'display: flex; align-items: center; gap: 4px;' : 'display: none;'}">
@@ -649,9 +652,9 @@ function renderProducts(products) {
     if (viewMode === 'list') {
       card.className = "product-list-item";
       card.innerHTML = `
-        <div class="product-info-compact" style="flex: 1; display: flex; align-items: center; justify-content: space-between; overflow: hidden; gap: 8px;">
+        <div style="width: 100%; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: space-between; overflow: hidden; gap: 8px; padding: 0;">
           <h3 class="product-title" style="margin: 0; font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.name}">${p.name}</h3>
-          <div style="display: flex; align-items: center;">
+          <div style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; flex-shrink: 0; margin: 0; padding: 0;">
             ${selectHtml}
           </div>
         </div>

@@ -230,6 +230,7 @@ Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối
 
 ### Quy tắc chọn base branch
 
+- nếu có yêu cầu fix lại/chỉnh sửa bổ sung cho một Issue vừa làm xong (và chưa có nhánh mới nào khác đè lên), KHÔNG tạo branch mới, mà phải tiếp tục checkout và thêm commit trực tiếp trên chính branch của Issue cũ đó
 - nếu user giao nhiều Issue liên tiếp và Issue sau có chủ đích kế thừa kết quả của Issue trước, branch mới phải được tạo từ branch Issue gần nhất vừa hoàn thành trong chuỗi đó
 - nếu Issue mới độc lập, không có yêu cầu kế thừa, hoặc user chỉ giao 1 Issue riêng lẻ, branch mới phải được tạo từ branch gốc hiện hành đã được user/team dùng làm base cho đợt làm việc
 - nếu worktree đang có thay đổi dở dang, conflict base branch, hoặc chưa rõ Issue mới có phụ thuộc Issue trước hay không, phải confirm lại trước khi tạo branch để tránh chồng sai nền
