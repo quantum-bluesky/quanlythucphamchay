@@ -1154,3 +1154,19 @@ function setupMyOrders() {
     });
   }
 }
+function setupSelectedItemsPanel() {
+  const header = document.getElementById('selectedItemsHeader');
+  const content = document.getElementById('selectedItemsContent');
+  const icon = document.getElementById('selectedItemsToggleIcon');
+  if (header && content) {
+    header.addEventListener('click', () => {
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        if(icon) icon.textContent = '▼';
+      } else {
+        content.style.display = 'none';
+        if(icon) icon.textContent = '►';
+      }
+    });
+  }
+}
