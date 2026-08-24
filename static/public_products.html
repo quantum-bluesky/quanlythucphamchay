@@ -56,6 +56,16 @@
     </header>
     
     <main class="public-main" style="padding-bottom: 80px;">
+      <div id="selectedItemsPanel" class="selected-items-panel" style="display: none; margin-bottom: 16px; background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); overflow: hidden;">
+        <div id="selectedItemsHeader" style="padding: 12px 16px; background: #e3f2fd; color: #1976d2; font-weight: 600; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+          <span>Đã chọn (<span id="selectedItemsCountBadge">0</span>)</span>
+          <span id="selectedItemsToggleIcon">▼</span>
+        </div>
+        <div id="selectedItemsContent" style="padding: 0; display: none;">
+          <div id="selectedItemsList" style="display: flex; flex-direction: column;">
+          </div>
+        </div>
+      </div>
       <div id="productGrid" class="product-grid">
         <!-- Products will be rendered here -->
       </div>
