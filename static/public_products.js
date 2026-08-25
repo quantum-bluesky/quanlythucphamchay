@@ -627,15 +627,31 @@ function renderProducts(products) {
     const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
     const stepVal = isIndivisible ? "1" : "0.1";
     
+    const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+    const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
+    const isOutOfStock = !hasStock && !hasIncoming;
+    
+    let badgeHtml = '';
+    if (hasStock) {
+      badgeHtml = `<span style="display: inline-block; padding: 2px 6px; background: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Có sẵn</span>`;
+    } else if (hasIncoming) {
+      badgeHtml = `<span style="display: inline-block; padding: 2px 6px; background: #fff3e0; color: #ef6c00; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Sắp về</span>`;
+    } else {
+      badgeHtml = `<span style="display: inline-block; padding: 2px 6px; background: #eeeeee; color: #757575; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Hết hàng</span>`;
+    }
+
     const selectListStyle = viewMode === 'list' ? 'margin: 0; padding: 0; border: none; display: flex; flex-direction: row;' : 'display: flex; flex-direction: row;';
+    const checkboxDisabled = isOutOfStock ? 'disabled' : '';
+    const opacityStyle = isOutOfStock ? 'opacity: 0.6;' : '';
+
     const selectHtml = `
-      <div class="product-select-row" onclick="event.stopPropagation()" style="gap: 8px; flex-wrap: nowrap; align-items: center; justify-content: flex-end; ${selectListStyle}">
-        <label class="toggle-inline" style="cursor: pointer; user-select: none; margin: 0; display: flex; align-items: center; white-space: nowrap;">
-          <input type="checkbox" class="item-checkbox" data-id="${p.id}" ${qty > 0 ? 'checked' : ''} style="margin: 0 4px 0 0;">
-          <span style="white-space: nowrap;">Chọn</span>
+      <div class="product-select-row" onclick="event.stopPropagation()" style="gap: 8px; flex-wrap: nowrap; align-items: center; justify-content: flex-end; ${selectListStyle} ${opacityStyle}">
+        <label class="toggle-inline" style="cursor: ${isOutOfStock ? 'not-allowed' : 'pointer'}; user-select: none; margin: 0; display: flex; align-items: center; white-space: nowrap;">
+          <input type="checkbox" class="item-checkbox" data-id="${p.id}" ${qty > 0 ? 'checked' : ''} ${checkboxDisabled} style="margin: 0 4px 0 0;">
+          <span style="white-space: nowrap; ${isOutOfStock ? 'color: #999;' : ''}">Chọn</span>
         </label>
-        <div class="qty-control" style="${qty > 0 ? 'display: flex; align-items: center; gap: 4px;' : 'display: none;'}">
-          <input type="number" class="input-qty" data-id="${p.id}" value="${qty > 0 ? qty : 1}" min="${stepVal}" step="${stepVal}" style="width: 60px; text-align: center; height: 32px; border-radius: 4px; border: 1px solid #ccc; padding: 0 4px;">
+        <div class="qty-control" style="${qty > 0 && !isOutOfStock ? 'display: flex; align-items: center; gap: 4px;' : 'display: none;'}">
+          <input type="number" class="input-qty" data-id="${p.id}" value="${qty > 0 ? qty : 1}" min="${stepVal}" step="${stepVal}" ${checkboxDisabled} style="width: 60px; text-align: center; height: 32px; border-radius: 4px; border: 1px solid #ccc; padding: 0 4px;">
           <span class="unit-display" style="font-size: 0.9em; color: #555; white-space: nowrap;">${p.unit || ''}</span>
         </div>
       </div>
@@ -653,7 +669,7 @@ function renderProducts(products) {
       card.className = "product-list-item";
       card.innerHTML = `
         <div style="width: 100%; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: space-between; overflow: hidden; gap: 8px; padding: 0;">
-          <h3 class="product-title" style="margin: 0; font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.name}">${p.name}</h3>
+          <h3 class="product-title" style="margin: 0; font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; ${opacityStyle}" title="${p.name}">${p.name}${badgeHtml}</h3>
           <div style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; flex-shrink: 0; margin: 0; padding: 0;">
             ${selectHtml}
           </div>
@@ -669,16 +685,19 @@ function renderProducts(products) {
         } else if (!firstImage.startsWith("http") && !firstImage.startsWith("./images/")) {
           firstImage = "./images/" + firstImage;
         }
-        imageHtml = `<img src="${firstImage}" class="product-image" alt="${p.name}" loading="lazy">`;
+        imageHtml = `<img src="${firstImage}" class="product-image" alt="${p.name}" loading="lazy" style="${opacityStyle}">`;
       }
       
       card.innerHTML = `
-        ${imageHtml}
-        <div class="product-info">
-          <h3 class="product-title">${p.name}</h3>
-          ${actionsHtml}
-        </div>
-      `;
+          <div style="position: relative;">
+            ${imageHtml}
+            <div style="position: absolute; top: 8px; right: 8px; z-index: 2;">${badgeHtml}</div>
+          </div>
+          <div class="product-info">
+            <h3 class="product-title" style="${opacityStyle}">${p.name}</h3>
+            ${actionsHtml}
+          </div>
+        `;
     }
     
     // Thêm event listener thay vì dùng onclick toàn thẻ để tránh bấm nút bị đè event
@@ -829,14 +848,6 @@ function setupSearch() {
   if (input) {
     input.addEventListener("input", () => filterAndRenderProducts());
   }
-  const inStockCheckbox = document.getElementById("inStockCheckbox");
-  if (inStockCheckbox) {
-    inStockCheckbox.addEventListener("change", () => filterAndRenderProducts());
-  }
-  const incomingCheckbox = document.getElementById("incomingCheckbox");
-  if (incomingCheckbox) {
-    incomingCheckbox.addEventListener("change", () => filterAndRenderProducts());
-  }
   const viewModeRadios = document.querySelectorAll('input[name="viewMode"]');
   viewModeRadios.forEach(radio => {
     radio.addEventListener("change", () => renderProducts(allProducts));
@@ -845,20 +856,9 @@ function setupSearch() {
 
 function filterAndRenderProducts() {
   const input = document.getElementById("searchInput");
-  const inStockCheckbox = document.getElementById("inStockCheckbox");
-  const incomingCheckbox = document.getElementById("incomingCheckbox");
   const keyword = input ? removeDiacritics(input.value.trim().toLowerCase()) : "";
-  const inStockOnly = inStockCheckbox ? inStockCheckbox.checked : true;
-  const includeIncoming = incomingCheckbox ? incomingCheckbox.checked : false;
   
   const filtered = allProducts.filter(p => {
-    if (inStockOnly) {
-      const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
-      const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
-      if (!hasStock && !(includeIncoming && hasIncoming)) {
-        return false;
-      }
-    }
     if (keyword) {
       const matchName = removeDiacritics((p.name || "").toLowerCase()).includes(keyword);
       const matchCategory = p.category && removeDiacritics(p.category.toLowerCase()).includes(keyword);
