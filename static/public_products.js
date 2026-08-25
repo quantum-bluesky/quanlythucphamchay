@@ -641,17 +641,16 @@ function renderProducts(products) {
     }
 
     const selectListStyle = viewMode === 'list' ? 'margin: 0; padding: 0; border: none; display: flex; flex-direction: row;' : 'display: flex; flex-direction: row;';
-    const checkboxDisabled = isOutOfStock ? 'disabled' : '';
     const opacityStyle = isOutOfStock ? 'opacity: 0.6;' : '';
 
     const selectHtml = `
       <div class="product-select-row" onclick="event.stopPropagation()" style="gap: 8px; flex-wrap: nowrap; align-items: center; justify-content: flex-end; ${selectListStyle} ${opacityStyle}">
-        <label class="toggle-inline" style="cursor: ${isOutOfStock ? 'not-allowed' : 'pointer'}; user-select: none; margin: 0; display: flex; align-items: center; white-space: nowrap;">
-          <input type="checkbox" class="item-checkbox" data-id="${p.id}" ${qty > 0 ? 'checked' : ''} ${checkboxDisabled} style="margin: 0 4px 0 0;">
+        <label class="toggle-inline" style="cursor: pointer; user-select: none; margin: 0; display: flex; align-items: center; white-space: nowrap;">
+          <input type="checkbox" class="item-checkbox" data-id="${p.id}" ${qty > 0 ? 'checked' : ''} style="margin: 0 4px 0 0;">
           <span style="white-space: nowrap; ${isOutOfStock ? 'color: #999;' : ''}">Chọn</span>
         </label>
-        <div class="qty-control" style="${qty > 0 && !isOutOfStock ? 'display: flex; align-items: center; gap: 4px;' : 'display: none;'}">
-          <input type="number" class="input-qty" data-id="${p.id}" value="${qty > 0 ? qty : 1}" min="${stepVal}" step="${stepVal}" ${checkboxDisabled} style="width: 60px; text-align: center; height: 32px; border-radius: 4px; border: 1px solid #ccc; padding: 0 4px;">
+        <div class="qty-control" style="${qty > 0 ? 'display: flex; align-items: center; gap: 4px;' : 'display: none;'}">
+          <input type="number" class="input-qty" data-id="${p.id}" value="${qty > 0 ? qty : 1}" min="${stepVal}" step="${stepVal}" style="width: 60px; text-align: center; height: 32px; border-radius: 4px; border: 1px solid #ccc; padding: 0 4px;">
           <span class="unit-display" style="font-size: 0.9em; color: #555; white-space: nowrap;">${p.unit || ''}</span>
         </div>
       </div>
@@ -732,6 +731,9 @@ function renderProducts(products) {
     if (checkbox) {
       checkbox.addEventListener('change', (e) => {
         if (e.target.checked) {
+          if (isOutOfStock) {
+            showToast('Mặt hàng này đang hết. Nếu đặt chung bạn sẽ cần đợi hàng về, hoặc bạn có thể đặt thành đơn riêng.');
+          }
           let val = parseFloat(inputQty.value) || 1;
           const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
           if (isIndivisible && !Number.isInteger(val)) {
