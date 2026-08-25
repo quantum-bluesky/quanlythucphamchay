@@ -256,6 +256,7 @@ Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối
 - nếu một Issue buộc phải phụ thuộc Issue trước để chạy đúng, cần nêu rõ branch kế thừa nào đã được dùng làm base khi báo cáo kết quả
 - nếu chưa thể chạy đủ test, phải nói rõ đã chạy test nào, thiếu test nào, và lý do
 - khi làm nhiều Issue trong một chuỗi, sau mỗi Issue phải dừng ở trạng thái branch/commit của chính Issue đó để có thể review hoặc tách tiếp nhánh kế thừa cho Issue sau
+- tuyệt đối không tự ý lấy các file untracked/ngoài git đã có từ trước (không phải do quá trình code sinh ra) để đưa vào commit tùy tiện; nếu cần đưa những file đó vào commit, bắt buộc phải hỏi và được user xác nhận trước.
 
 ## Quy ước tăng version theo Issue
 
@@ -319,6 +320,7 @@ Mặc định nên:
 - mặc định phải đề xuất bổ sung và nếu hợp lý thì cập nhật luôn vào script setup + tài liệu setup/test/deploy để máy khác dùng lại được
 - ưu tiên giữ setup có thể chạy lặp lại nhiều lần an toàn
 - đã biết một dependency tooling cần có: `PyYAML` cho workflow Git Issue / `quick_validate.py`
+- Đối với môi trường Windows, khi thực thi lệnh CLI bị thiếu các công cụ Unix (như `grep`, `tail`, `head`...), tuyệt đối phải ưu tiên dùng công cụ có sẵn của Agent (`grep_search`, `view_file`) hoặc các lệnh PowerShell tương đương (`Select-String`, `Get-Content`) để công việc không bị gián đoạn. Đồng thời, nếu việc thiếu tool gây khó khăn lớn, hãy chủ động thông báo và hướng dẫn người dùng cài đặt các gói hỗ trợ (như Git Bash, GnuWin32, WSL) để môi trường hoạt động được êm ả.
 
 ## Prompt khởi động tốt cho Codex ở repo này
 
