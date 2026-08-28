@@ -126,6 +126,25 @@
           <div style="margin-top: 12px; border-top: 1px solid #ddd; padding-top: 8px; font-weight: bold; text-align: right; color: #d32f2f;" id="checkoutReviewTotal">Tổng: 0đ</div>
           <div style="margin-top: 4px; font-size: 0.85em; color: #e65100; font-style: italic; text-align: right;" id="shippingNoteLabel">*Chưa bao gồm chi phí vận chuyển*</div>
         </div>
+
+        <div id="checkoutSplitOptionSection" style="display: none; margin-bottom: 20px; background: #fffde7; padding: 12px; border-radius: 8px; border: 1px solid #fff59d;">
+          <div style="font-size: 14px; font-weight: 600; color: #f57f17; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <span>⚠️</span> Có món đang hết hàng trong giỏ
+          </div>
+          <div id="checkoutSplitHintText" style="font-size: 13px; color: #555; margin-bottom: 10px;">
+            Bạn có thể chọn đặt chung để nhận hàng khi có đủ, hoặc tách thành đơn riêng để nhận các món có sẵn trước:
+          </div>
+          <div id="checkoutSplitRadioGroup" style="display: flex; flex-direction: column; gap: 8px;">
+            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 13px; color: #333;">
+              <input type="radio" name="orderSplitChoice" value="single" checked style="margin-top: 2px;">
+              <span><strong>Đặt chung 1 đơn:</strong> Giao chung khi gom đủ tất cả các món (cần đợi thời gian nhập hàng).</span>
+            </label>
+            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 13px; color: #333;">
+              <input type="radio" name="orderSplitChoice" value="split" style="margin-top: 2px;">
+              <span><strong>Tách thành 2 đơn riêng:</strong> Giao ngay các món có sẵn trước, các món hết sẽ giao sau khi hàng về.</span>
+            </label>
+          </div>
+        </div>
         
         <div id="checkoutAuthOptions" style="display: none; flex-direction: column; gap: 16px; margin-bottom: 24px;">
           <a href="./api/public/zalo-login" class="primary-button" style="background: #0068FF; color: white; text-align: center; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;">

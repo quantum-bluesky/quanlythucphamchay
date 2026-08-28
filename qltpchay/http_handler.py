@@ -892,6 +892,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         avatar_url=payload.get("avatar_url") or "",
                         note=payload.get("note") or "",
                         items=payload.get("items") or [],
+                        force_new_order=bool(payload.get("force_new_order", False)),
                     )
                     self._send_json(HTTPStatus.CREATED, result)
                 except ValueError as exc:

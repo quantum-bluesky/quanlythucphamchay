@@ -114,6 +114,16 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(items_by_id[product["id"]]["quantity"] * items_by_id[product["id"]]["unitPrice"], 78000.0)
         self.assertEqual(items_by_id[price_only_product["id"]]["unitPrice"], 18000.0)
 
+        # Test force_new_order=True creates a separate cart instead of merging into existing draft cart
+        separate_result = self.store.create_online_order(
+            customer_name="Khách đặt web",
+            items=[{"product_id": product["id"], "quantity": 3}],
+            force_new_order=True,
+        )
+        self.assertNotEqual(separate_result["cart"]["id"], result["cart"]["id"])
+        self.assertEqual(len(separate_result["cart"]["items"]), 1)
+        self.assertEqual(separate_result["cart"]["items"][0]["quantity"], 3.0)
+
     def test_ut_invsort_01_product_life_fields_and_priority_metrics_are_normalized(self) -> None:
         product = self.store.create_product(
             name="Bò kho ưu tiên",

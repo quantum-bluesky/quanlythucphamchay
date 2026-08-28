@@ -6639,6 +6639,7 @@ class InventoryStore:
         avatar_url: str = "",
         note: str = "",
         items: list[dict],
+        force_new_order: bool = False,
     ) -> dict:
         clean_name = str(customer_name or "").strip()
         clean_phone = str(customer_phone or "").strip()
@@ -6716,11 +6717,13 @@ class InventoryStore:
                     connection.execute(f"UPDATE customers SET {', '.join(updates)} WHERE id = ?", params)
                 clean_name = clean_name or existing_customer["name"]
 
-            # Kiểm tra xem khách đã có đơn online nào đang pending (draft) chưa
-            existing_cart_row = connection.execute(
-                "SELECT id, discount_amount, note, ship_address FROM carts WHERE customer_id = ? AND created_mode = 'online' AND status = 'draft' ORDER BY created_at DESC LIMIT 1",
-                (customer_id,)
-            ).fetchone()
+            # Kiểm tra xem khách đã có đơn online nào đang pending (draft) chưa (nếu không yêu cầu tách đơn riêng)
+            existing_cart_row = None
+            if not force_new_order:
+                existing_cart_row = connection.execute(
+                    "SELECT id, discount_amount, note, ship_address FROM carts WHERE customer_id = ? AND created_mode = 'online' AND status = 'draft' ORDER BY created_at DESC LIMIT 1",
+                    (customer_id,)
+                ).fetchone()
 
             if existing_cart_row:
                 cart_id = existing_cart_row["id"]
