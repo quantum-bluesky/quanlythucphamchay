@@ -315,7 +315,8 @@ function setupCart() {
       if (totalQuantity === 0) {
         reviewContainer.innerHTML = '<div style="color: #757575; font-style: italic;">Giỏ hàng trống</div>';
       }
-      reviewTotal.textContent = `Tổng số lượng: ${totalQuantity} món`;
+      const formattedTotal = Math.round(totalQuantity * 10) / 10;
+      reviewTotal.textContent = `Tổng số lượng: ${formattedTotal} món`;
       if (shippingLabel) {
         shippingLabel.textContent = `*Shop sẽ liên hệ báo chi phí & phí vận chuyển khi xác nhận đơn*`;
       }
@@ -464,6 +465,7 @@ function showOrderSuccessPopup(cart, itemsSummary, totalAmount, customerInfo, no
   
   let totalQty = 0;
   itemsSummary.forEach(item => { totalQty += (item.quantity || 0); });
+  totalQty = Math.round(totalQty * 10) / 10;
 
   let summaryHtml = `
     <div style="font-weight: 600; margin-bottom: 6px; color: #333;">Chi tiết các món đã đặt:</div>
@@ -734,12 +736,17 @@ function renderProducts(products) {
           if (isOutOfStock) {
             showToast('Mặt hàng này đang hết. Nếu đặt chung bạn sẽ cần đợi hàng về, hoặc bạn có thể đặt thành đơn riêng.');
           }
-          let val = parseFloat(inputQty.value) || 1;
+          let rawStr = String(inputQty.value || '').replace(',', '.');
+          let val = parseFloat(rawStr) || 1;
           const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
-          if (isIndivisible && !Number.isInteger(val)) {
-            val = Math.round(val);
-            inputQty.value = val;
+          if (isIndivisible) {
+            if (isNaN(val) || val < 1) val = 1;
+            else val = Math.round(val);
+          } else {
+            if (isNaN(val) || val <= 0) val = 1;
+            else val = Math.round(val * 10) / 10;
           }
+          inputQty.value = val;
           window.selectedProducts[p.id] = val;
           qtyControl.style.display = 'flex';
         } else {
@@ -752,13 +759,16 @@ function renderProducts(products) {
 
     if (inputQty) {
       inputQty.addEventListener('change', (e) => {
-        let val = parseFloat(e.target.value);
-          const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
-          if (isIndivisible && !Number.isInteger(val)) {
-            val = Math.round(val);
-            e.target.value = val;
-          }
-        if (isNaN(val) || val < 1) val = 1;
+        let rawStr = String(e.target.value || '').replace(',', '.');
+        let val = parseFloat(rawStr);
+        const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+        if (isIndivisible) {
+          if (isNaN(val) || val < 1) val = 1;
+          else val = Math.round(val);
+        } else {
+          if (isNaN(val) || val <= 0) val = 0.1;
+          else val = Math.round(val * 10) / 10;
+        }
         e.target.value = val;
         if (checkbox.checked) {
           window.selectedProducts[p.id] = val;
