@@ -1279,6 +1279,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         details=payload.get("details"),
                         recipe=payload.get("recipe"),
                         actor=self._get_current_actor_name(),
+                        unit_conversions=payload.get("unit_conversions"),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -1963,6 +1964,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         details=payload.get("details"),
                         recipe=payload.get("recipe"),
                         actor=payload.get("actor") or self._get_current_actor_name(),
+                        unit_conversions=payload.get("unit_conversions"),
                     )
                     self._send_json(
                         HTTPStatus.OK,

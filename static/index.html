@@ -116,10 +116,18 @@
               <span>Sản phẩm</span>
               <input id="productLookupInput" name="product_lookup" list="productOptions" type="text" placeholder="Gõ tên sản phẩm..." required>
             </label>
-            <label>
-              <span>Số lượng</span>
-              <input id="quantityInput" name="quantity" type="number" step="0.01" min="0.01" placeholder="Ví dụ: 10" required>
-            </label>
+            <div class="flex-row" style="display: flex; gap: 8px;">
+              <label style="flex: 1;">
+                <span>Đơn vị</span>
+                <select id="productLookupUnitSelect">
+                  <option value="1">Đơn vị (gốc)</option>
+                </select>
+              </label>
+              <label style="flex: 1;">
+                <span>Số lượng</span>
+                <input id="quantityInput" name="quantity" type="number" step="0.01" min="0.01" placeholder="Ví dụ: 10" required>
+              </label>
+            </div>
             <label>
               <span>Ghi chú</span>
               <input id="noteInput" name="note" type="text" maxlength="120" placeholder="Tùy chọn">
@@ -540,9 +548,13 @@
                 <input name="category" type="text" maxlength="50" value="Đồ chay đông lạnh" required>
               </label>
               <label>
-                <span>Đơn vị tính</span>
+                <span>Đơn vị tính (Gốc)</span>
                 <input name="unit" type="text" maxlength="30" value="gói" required>
               </label>
+              <div class="form-section-title">Quy đổi đơn vị (tùy chọn)</div>
+              <div id="productUnitConversionsContainer"></div>
+              <button type="button" id="productAddUnitConversionButton" class="ghost-button compact-button" style="margin-bottom: 12px">+ Thêm đơn vị quy đổi</button>
+
               <div data-price-warning-group data-price-warning-mode="edit">
                 <label data-price-warning-field="purchase">
                   <span>Giá nhập</span>

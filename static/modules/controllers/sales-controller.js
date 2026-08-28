@@ -144,6 +144,8 @@ export function registerSalesControllerEvents(contract) {
     state.quickSaleDraft.productText = String(dom.quickSalePanel.querySelector("#quickSaleProductInput")?.value || "").trim();
     state.quickSaleDraft.quantity = String(dom.quickSalePanel.querySelector("#quickSaleQuantityInput")?.value || "").trim() || "1";
     state.quickSaleDraft.unitPrice = String(dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput")?.value || "").trim();
+    state.quickSaleDraft.conversionFactor = String(dom.quickSalePanel.querySelector("#quickSaleUnitSelect")?.value || "1").trim();
+    state.quickSaleDraft.unitName = dom.quickSalePanel.querySelector("#quickSaleUnitSelect")?.options?.[dom.quickSalePanel.querySelector("#quickSaleUnitSelect").selectedIndex]?.dataset?.unitName || "";
     const selectedStatus = dom.quickSalePanel.querySelector('input[name="quickSaleFinalStatus"]:checked');
     state.quickSaleDraft.finalStatus = selectedStatus?.value || "completed";
     state.quickSaleDraft.markPaid = Boolean(dom.quickSalePanel.querySelector("#quickSaleMarkPaidInput")?.checked);
@@ -171,7 +173,9 @@ export function registerSalesControllerEvents(contract) {
       actions.showToast("Chọn đúng sản phẩm để thêm vào xuất nhanh.", true);
       return;
     }
-    const quantity = Number(draft.quantity || 0);
+    const inputQuantity = Number(draft.quantity || 0);
+    const conversionFactor = Number(draft.conversionFactor || 1);
+    const quantity = inputQuantity * conversionFactor;
     const unitPrice = Number(draft.unitPrice || product.sale_price || 0);
     if (!Number.isFinite(quantity) || quantity <= 0) {
       actions.showToast("Số lượng phải lớn hơn 0.", true);
@@ -192,6 +196,9 @@ export function registerSalesControllerEvents(contract) {
         productName: product.name,
         quantity: Number(quantity.toFixed(2)),
         unitPrice: Number(unitPrice.toFixed(2)),
+        inputQuantity: inputQuantity,
+        inputUnit: draft.unitName || product.unit,
+        conversionFactor: conversionFactor,
       });
     }
     draft.productText = "";
@@ -308,6 +315,30 @@ export function registerSalesControllerEvents(contract) {
       await startSeparatedDraftCart();
     } catch (error) {
       actions.showToast(error.message, true);
+    }
+  });
+
+  dom.quickSalePanel?.addEventListener("input", (event) => {
+    if (event.target.id === "quickSaleProductInput") {
+      const select = dom.quickSalePanel.querySelector("#quickSaleUnitSelect");
+      if (!select) return;
+      const text = event.target.value;
+      if (!text) {
+        select.innerHTML = '<option value="1">Đơn vị (gốc)</option>';
+        return;
+      }
+      const parts = text.split("-");
+      const idStr = parts[parts.length - 1];
+      if (!idStr) return;
+      const id = parseInt(idStr.trim(), 10);
+      if (!id) return;
+      const product = state.products.find(p => p.id === id);
+      if (product) {
+        select.innerHTML = `
+          <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}">${utils.escapeHtml(product.unit)} (gốc)</option>
+          ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}">${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
+        `;
+      }
     }
   });
 

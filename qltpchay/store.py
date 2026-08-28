@@ -413,6 +413,9 @@ class InventoryStore:
                     unit_price REAL NOT NULL DEFAULT 0,
                     note TEXT NOT NULL DEFAULT '',
                     sort_order INTEGER NOT NULL DEFAULT 0,
+                    input_quantity REAL,
+                    input_unit TEXT,
+                    conversion_factor REAL,
                     FOREIGN KEY (cart_id) REFERENCES carts(id) ON DELETE CASCADE
                 );
 
@@ -458,6 +461,9 @@ class InventoryStore:
                     manufacture_date TEXT,
                     expiry_date TEXT,
                     sort_order INTEGER NOT NULL DEFAULT 0,
+                    input_quantity REAL,
+                    input_unit TEXT,
+                    conversion_factor REAL,
                     FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE
                 );
 
@@ -579,6 +585,20 @@ class InventoryStore:
 
                 CREATE INDEX IF NOT EXISTS idx_procurement_assignments_purchase
                 ON procurement_assignments(purchase_id, status, id);
+
+                CREATE TABLE IF NOT EXISTS product_unit_conversion (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    product_id INTEGER NOT NULL,
+                    from_unit TEXT NOT NULL,
+                    conversion_factor REAL NOT NULL,
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_product_unit_conversion_product
+                ON product_unit_conversion(product_id, is_active);
                 """
             )
             columns = {
@@ -933,6 +953,31 @@ class InventoryStore:
                 "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
                 (json.dumps(canonical, ensure_ascii=False), row["updated_at"], state_key),
             )
+
+
+            try:
+                connection.execute("ALTER TABLE cart_items ADD COLUMN input_quantity REAL")
+                connection.execute("ALTER TABLE cart_items ADD COLUMN input_unit TEXT")
+                connection.execute("ALTER TABLE cart_items ADD COLUMN conversion_factor REAL")
+                connection.execute("UPDATE cart_items SET input_quantity = quantity, conversion_factor = 1.0 WHERE input_quantity IS NULL")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                connection.execute("ALTER TABLE purchase_items ADD COLUMN input_quantity REAL")
+                connection.execute("ALTER TABLE purchase_items ADD COLUMN input_unit TEXT")
+                connection.execute("ALTER TABLE purchase_items ADD COLUMN conversion_factor REAL")
+                connection.execute("UPDATE purchase_items SET input_quantity = quantity, conversion_factor = 1.0 WHERE input_quantity IS NULL")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                connection.execute("ALTER TABLE inventory_receipt_items ADD COLUMN input_quantity REAL")
+                connection.execute("ALTER TABLE inventory_receipt_items ADD COLUMN input_unit TEXT")
+                connection.execute("ALTER TABLE inventory_receipt_items ADD COLUMN conversion_factor REAL")
+                connection.execute("UPDATE inventory_receipt_items SET input_quantity = quantity, conversion_factor = 1.0 WHERE input_quantity IS NULL")
+            except sqlite3.OperationalError:
+                pass
 
     def _backfill_receipts_from_transactions_if_needed(self, connection: sqlite3.Connection) -> None:
         row = connection.execute(
@@ -1525,6 +1570,28 @@ class InventoryStore:
             created_at=created_at,
         )
 
+    
+    def _build_unit_conversions_map(self, connection: sqlite3.Connection, product_ids: list[int]) -> dict[int, list[dict]]:
+        if not product_ids:
+            return {}
+        placeholders = ",".join("?" for _ in product_ids)
+        rows = connection.execute(
+            f"SELECT id, product_id, from_unit, conversion_factor, is_active FROM product_unit_conversion WHERE product_id IN ({placeholders}) AND is_active = 1",
+            product_ids,
+        ).fetchall()
+        result = {}
+        for row in rows:
+            pid = int(row["product_id"])
+            if pid not in result:
+                result[pid] = []
+            result[pid].append({
+                "id": int(row["id"]),
+                "from_unit": str(row["from_unit"]),
+                "conversion_factor": float(row["conversion_factor"]),
+                "is_active": bool(row["is_active"])
+            })
+        return result
+
     def _build_batch_map_for_products(
         self,
         connection: sqlite3.Connection,
@@ -1688,6 +1755,9 @@ class InventoryStore:
             "unitPrice": round(float(row["unit_price"] or 0), 2),
             "unit_price": round(float(row["unit_price"] or 0), 2),
             "note": row["note"] or "",
+            "inputQuantity": round(float(row["input_quantity"] or 0), 2) if "input_quantity" in row.keys() and row["input_quantity"] is not None else None,
+            "inputUnit": row["input_unit"] if "input_unit" in row.keys() else None,
+            "conversionFactor": float(row["conversion_factor"]) if "conversion_factor" in row.keys() and row["conversion_factor"] is not None else 1.0,
         }
 
     def _find_active_customer_by_name(
@@ -1906,8 +1976,8 @@ class InventoryStore:
         for index, item in enumerate(items):
             connection.execute(
                 """
-                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order)
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
@@ -1918,6 +1988,9 @@ class InventoryStore:
                     float(item.get("unitPrice") or item.get("unit_price") or 0),
                     str(item.get("note") or "").strip(),
                     index,
+                    float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
+                    str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
+                    float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
                 ),
             )
 
@@ -1964,6 +2037,9 @@ class InventoryStore:
             "manufacture_date": row["manufacture_date"] or "",
             "expiryDate": row["expiry_date"] or "",
             "expiry_date": row["expiry_date"] or "",
+            "inputQuantity": round(float(row["input_quantity"] or 0), 2) if "input_quantity" in row.keys() and row["input_quantity"] is not None else None,
+            "inputUnit": row["input_unit"] if "input_unit" in row.keys() else None,
+            "conversionFactor": float(row["conversion_factor"]) if "conversion_factor" in row.keys() and row["conversion_factor"] is not None else 1.0,
         }
 
     @staticmethod
@@ -2453,8 +2529,8 @@ class InventoryStore:
                 for index, item in enumerate(record.get("items") or []):
                     connection.execute(
                         """
-                        INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order)
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
@@ -2465,6 +2541,9 @@ class InventoryStore:
                             float(item.get("unitPrice") or item.get("unit_price") or 0),
                             str(item.get("note") or "").strip(),
                             index,
+                            float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
+                            str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
+                            float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
                         ),
                     )
             return
@@ -3047,6 +3126,7 @@ class InventoryStore:
         is_public: bool = True,
         actor: str = "",
         global_id: str | None = None,
+        unit_conversions: list[dict] | None = None,
     ) -> dict:
         (
             clean_name,
@@ -3113,6 +3193,12 @@ class InventoryStore:
                 raise ValueError("Tên sản phẩm đã tồn tại.") from exc
 
             product_id = cursor.lastrowid
+            if unit_conversions:
+                for conv in unit_conversions:
+                    connection.execute(
+                        "INSERT INTO product_unit_conversion(product_id, from_unit, conversion_factor, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)",
+                        (product_id, str(conv.get("from_unit", "")).strip(), float(conv.get("conversion_factor", 1.0)), 1, now, now)
+                    )
             self._record_audit(
                 connection,
                 entity_type="product",
@@ -10068,11 +10154,13 @@ class InventoryStore:
         product_ids = [int(row["id"]) for row in rows]
         metric_map = self._build_product_metric_map(connection, product_ids)
         batch_map = self._build_batch_map_for_products(connection, product_ids)
+        unit_map = self._build_unit_conversions_map(connection, product_ids)
         return [
             self._serialize_product_row(
                 row,
                 metric_map.get(int(row["id"]), {}),
                 batch_map.get(int(row["id"]), []),
+                unit_map.get(int(row["id"]), []),
             )
             for row in rows
         ]
@@ -10082,6 +10170,7 @@ class InventoryStore:
         row: sqlite3.Row,
         metrics: dict | None = None,
         lots: list[dict] | None = None,
+        unit_conversions: list[dict] | None = None,
     ) -> dict:
         metrics = metrics or {}
         lots = lots or []
@@ -13035,8 +13124,8 @@ class InventoryStore:
         for index, item in enumerate(new_items):
             connection.execute(
                 """
-                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order)
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
@@ -13047,6 +13136,9 @@ class InventoryStore:
                     float(item.get("unitPrice") or item.get("unit_price") or 0),
                     str(item.get("note") or "").strip(),
                     index,
+                    float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
+                    str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
+                    float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
                 ),
             )
 
@@ -13214,6 +13306,9 @@ class InventoryStore:
                     expiry_metadata["manufacture_date"],
                     expiry_metadata["expiry_date"],
                     index,
+                    float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
+                    str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
+                    float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
                 ),
             )
 

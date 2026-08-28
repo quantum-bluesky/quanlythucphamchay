@@ -299,6 +299,20 @@ export function createPurchasesUi(deps) {
           <input id="quickPurchaseProductInput" type="text" list="productOptions" placeholder="Tìm sản phẩm để nhập nhanh" value="${escapeHtml(String(draft.productText || ""))}" ${disableEditAttr}>
         </label>
         <label>
+          <span>Đơn vị</span>
+          <select id="quickPurchaseUnitSelect" ${disableEditAttr}>
+            <option value="1" data-unit-name="${escapeHtml(draft.unitName || "")}">Đơn vị (gốc)</option>
+            ${(() => {
+              const text = String(draft.productText || "").trim();
+              if (!text) return "";
+              const normalizedText = utils.normalizeLookup(text);
+              const exactMatch = state.products.find(p => utils.normalizeLookup(p.name) === normalizedText);
+              if (!exactMatch) return "";
+              return (exactMatch.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${escapeHtml(conv.from_unit)}" ${draft.conversionFactor == conv.conversion_factor ? "selected" : ""}>${escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("");
+            })()}
+          </select>
+        </label>
+        <label>
           <span>SL</span>
           <input id="quickPurchaseQuantityInput" type="number" min="0.01" step="0.01" value="${escapeHtml(String(draft.quantity || "1"))}" ${disableEditAttr}>
         </label>

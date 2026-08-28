@@ -21,6 +21,27 @@ export function registerInventoryControllerEvents(contract) {
     return false;
   };
 
+  dom.productLookupInput.addEventListener("input", (event) => {
+    if (!dom.productLookupUnitSelect) return;
+    const text = event.target.value;
+    if (!text) {
+      dom.productLookupUnitSelect.innerHTML = '<option value="1">Đơn vị (gốc)</option>';
+      return;
+    }
+    const parts = text.split("-");
+    const idStr = parts[parts.length - 1];
+    if (!idStr) return;
+    const id = parseInt(idStr.trim(), 10);
+    if (!id) return;
+    const product = state.products.find(p => p.id === id);
+    if (product) {
+      dom.productLookupUnitSelect.innerHTML = `
+        <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}">${utils.escapeHtml(product.unit)} (gốc)</option>
+        ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}">${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
+      `;
+    }
+  });
+
   dom.quickTransactionForm.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-transaction]");
     if (!button) return;
@@ -30,7 +51,7 @@ export function registerInventoryControllerEvents(contract) {
       await actions.submitTransaction(
         button.dataset.transaction,
         dom.productLookupInput.value,
-        dom.quantityInput.value,
+        Number(dom.quantityInput.value) * Number(dom.productLookupUnitSelect ? dom.productLookupUnitSelect.value : 1),
         dom.noteInput.value,
         {
           directAdjustment: true,

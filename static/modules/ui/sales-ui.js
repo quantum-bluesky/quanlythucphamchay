@@ -494,6 +494,20 @@ export function createSalesUi(deps) {
           <input id="quickSaleProductInput" type="text" list="productOptions" placeholder="Tìm sản phẩm để thêm nhanh" value="${escapeHtml(String(draft.productText || ""))}" ${disableEditAttr}>
         </label>
         <label>
+          <span>Đơn vị</span>
+          <select id="quickSaleUnitSelect" ${disableEditAttr}>
+            <option value="1" data-unit-name="${escapeHtml(draft.unitName || "")}">Đơn vị (gốc)</option>
+            ${(() => {
+              const text = String(draft.productText || "").trim();
+              if (!text) return "";
+              const normalizedText = utils.normalizeLookup(text);
+              const exactMatch = state.products.find(p => utils.normalizeLookup(p.name) === normalizedText);
+              if (!exactMatch) return "";
+              return (exactMatch.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${escapeHtml(conv.from_unit)}" ${draft.conversionFactor == conv.conversion_factor ? "selected" : ""}>${escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("");
+            })()}
+          </select>
+        </label>
+        <label>
           <span>SL</span>
           <input id="quickSaleQuantityInput" type="number" min="0.01" step="0.01" value="${escapeHtml(String(draft.quantity || "1"))}" ${disableEditAttr}>
         </label>
@@ -695,7 +709,7 @@ export function createSalesUi(deps) {
               <button type="button" class="ghost-button compact-button" data-sales-inline-action="toggle-detail" data-product-id="${product.id}">...</button>
             </div>
             ${expandedInline ? (inCart
-              ? `<div class="sales-inline-detail" data-price-warning-group data-price-warning-mode="edit" data-price-warning-purchase="${escapeHtml(product.price)}"><div class="sales-inline-editor"><label class="sales-inline-qty"><span>SL</span><input type="number" min="0.01" step="0.01" value="${cartItem.quantity}" data-sales-inline-qty="${cartItem.id}"></label></div><label class="price-field" data-price-warning-field="sale"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${cartItem.unitPrice}" data-sales-inline-price="${cartItem.id}" data-price-warning-input="sale"></label><div class="line-actions"><button type="button" class="ghost-button compact-button" data-sales-inline-action="save" data-item-id="${cartItem.id}">Lưu</button><button type="button" class="ghost-button compact-button" data-sales-inline-action="update-default-price" data-product-id="${product.id}" data-item-id="${cartItem.id}">Giá chung</button></div></div><div data-price-warning-host>${renderPriceWarningMarkup(productPriceAlerts, "edit")}</div>`
+              ? `<div class="sales-inline-detail" data-price-warning-group data-price-warning-mode="edit" data-price-warning-purchase="${escapeHtml(product.price)}"><div class="sales-inline-editor">  <label class="sales-inline-unit">    <span>Đơn vị</span>    <select data-sales-inline-unit="${cartItem.id}">      <option value="1" data-unit-name="${escapeHtml(product.unit)}" ${(!cartItem.conversionFactor || cartItem.conversionFactor == 1) ? "selected" : ""}>${escapeHtml(product.unit)} (gốc)</option>      ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${escapeHtml(conv.from_unit)}" ${cartItem.conversionFactor == conv.conversion_factor ? "selected" : ""}>${escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}    </select>  </label>  <label class="sales-inline-qty">    <span>SL</span>    <input type="number" min="0.01" step="0.01" value="${cartItem.inputQuantity || cartItem.quantity}" data-sales-inline-qty="${cartItem.id}">  </label></div><label class="price-field" data-price-warning-field="sale"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${cartItem.unitPrice}" data-sales-inline-price="${cartItem.id}" data-price-warning-input="sale"></label><div class="line-actions"><button type="button" class="ghost-button compact-button" data-sales-inline-action="save" data-item-id="${cartItem.id}">Lưu</button><button type="button" class="ghost-button compact-button" data-sales-inline-action="update-default-price" data-product-id="${product.id}" data-item-id="${cartItem.id}">Giá chung</button></div></div><div data-price-warning-host>${renderPriceWarningMarkup(productPriceAlerts, "edit")}</div>`
               : `<div class="sales-inline-detail"><div class="cart-line-note">Tick chọn sản phẩm để đưa vào đơn, sau đó nhập số lượng và giá bán chi tiết tại đây.</div></div>`)
             : ""}
           </article>

@@ -384,6 +384,9 @@ export function registerProductsControllerEvents(contract) {
       if (dom.productForm.recipe) dom.productForm.recipe.value = product.recipe || "";
       if (dom.productForm.is_public) dom.productForm.is_public.checked = product.is_public !== 0 && product.is_public !== false;
       
+      currentUnitConversions = Array.isArray(product.unit_conversions) ? JSON.parse(JSON.stringify(product.unit_conversions)) : [];
+      renderUnitConversions();
+      
         let detailsHtml = product.details || "";
         if (detailsHtml && !detailsHtml.includes("<") && detailsHtml.includes("\n")) {
           detailsHtml = detailsHtml.replace(/\n/g, "<br>");
