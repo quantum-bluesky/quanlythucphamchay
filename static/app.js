@@ -7840,10 +7840,20 @@ function showProductDetailModal(productId) {
   if (!modal) return;
   
   const title = document.getElementById("productDetailModalTitle");
+  const modalNote = document.getElementById("productDetailModalNote");
   const imgContainer = document.getElementById("productDetailImagesContainer");
   const content = document.getElementById("productDetailContent");
   
   if (title) title.textContent = product.name;
+  if (modalNote) {
+    if (product.note && product.note.trim()) {
+      modalNote.textContent = `📝 ${product.note.trim()}`;
+      modalNote.hidden = false;
+    } else {
+      modalNote.textContent = "";
+      modalNote.hidden = true;
+    }
+  }
   
   if (imgContainer) {
     imgContainer.innerHTML = "";

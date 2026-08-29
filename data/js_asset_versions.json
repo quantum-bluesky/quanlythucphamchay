@@ -1,9 +1,9 @@
 {
-  "app_version": "3.30.17",
+  "app_version": "3.30.18",
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "405d9a8a736a604beb134941fba600df81194daef3888f66d054e1e339cf4778"
+      "sha256": "08a824d5d6a3e2ebb6c52c1122437400196ce8fa302c127dd8e998138fbc49d2"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -35,7 +35,7 @@
     },
     "modules/controllers/products-controller.js": {
       "counter": 1,
-      "sha256": "d3d70ce30838ba4478c37072ee0e7f40933bed44abfb8dc2e2e4d76e9d649a3f"
+      "sha256": "211e5f44d2ef4ec17aa721e1110b582f8ad595f62795c900027826351fa20df0"
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
@@ -103,7 +103,7 @@
     },
     "modules/ui/products-ui.js": {
       "counter": 1,
-      "sha256": "67d9e965b9dd18c404afdf0bae822dd552522ca59f6c338c8420b8fa76a1a9a8"
+      "sha256": "6a030e858f0f49938619810e95bd59df05226de9b7a97df1351a87e19769e9bc"
     },
     "modules/ui/purchases-ui.js": {
       "counter": 1,
@@ -126,8 +126,8 @@
       "sha256": "9fcbe4420cfeb6dbbf7ec6afcbb02c10d0775f0b258a832298bfe00154302593"
     },
     "public_products.js": {
-      "counter": 1,
-      "sha256": "0d1e3916cf4bea41ba3853a75a82649824cbe16409d5bc9693ce6f70fdbdf202"
+      "counter": 2,
+      "sha256": "c0a96b6ea4f7d9cd01d9bdece3dbfe5b6187d04fb2993f90acd1d2e0d2ff2272"
     },
     "styles.css": {
       "counter": 1,

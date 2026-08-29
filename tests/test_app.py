@@ -70,28 +70,32 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(summary["product_count"], 1)
         self.assertEqual(summary["total_stock"], 6.0)
 
-    def test_ut_db_product_recipe_field_support(self) -> None:
-        # Issue recipe field serialization and persistence test
+    def test_ut_db_product_recipe_and_note_field_support(self) -> None:
+        # Issue recipe and note field serialization and persistence test
         product = self.store.create_product(
             name="Cá chay kho riềng",
             category="Đồ chay đông lạnh",
             unit="gói",
             details="<p>Mô tả chi tiết sản phẩm</p>",
             recipe="<p>Hướng dẫn cách nấu cá kho riềng</p>",
+            note="Đặt trước 1 ngày",
         )
         self.assertEqual(product["details"], "<p>Mô tả chi tiết sản phẩm</p>")
         self.assertEqual(product["recipe"], "<p>Hướng dẫn cách nấu cá kho riềng</p>")
+        self.assertEqual(product["note"], "Đặt trước 1 ngày")
 
         # Test get_product_by_id
         fetched = self.store.get_product_by_id(product["id"])
         self.assertEqual(fetched["details"], "<p>Mô tả chi tiết sản phẩm</p>")
         self.assertEqual(fetched["recipe"], "<p>Hướng dẫn cách nấu cá kho riềng</p>")
+        self.assertEqual(fetched["note"], "Đặt trước 1 ngày")
 
         # Test get_products
         products = self.store.get_products()
         found = next((p for p in products if p["id"] == product["id"]), None)
         self.assertIsNotNone(found)
         self.assertEqual(found["recipe"], "<p>Hướng dẫn cách nấu cá kho riềng</p>")
+        self.assertEqual(found["note"], "Đặt trước 1 ngày")
 
         # Test update_product
         self.store.update_product(
@@ -101,9 +105,11 @@ class InventoryStoreTests(unittest.TestCase):
             unit=product["unit"],
             low_stock_threshold=product["low_stock_threshold"],
             recipe="<p>Công thức mới cập nhật</p>",
+            note="Chỉ bán từ 2 gói trở lên",
         )
         updated = self.store.get_product_by_id(product["id"])
         self.assertEqual(updated["recipe"], "<p>Công thức mới cập nhật</p>")
+        self.assertEqual(updated["note"], "Chỉ bán từ 2 gói trở lên")
 
     def test_ut_db_02_stock_out_cannot_exceed_inventory(self) -> None:
         product = self.store.create_product(

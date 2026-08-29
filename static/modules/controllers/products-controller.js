@@ -22,6 +22,7 @@ export function registerProductsControllerEvents(contract) {
     if (dom.productForm.images) dom.productForm.images.value = "";
     if (dom.productForm.details) dom.productForm.details.value = "";
     if (dom.productForm.recipe) dom.productForm.recipe.value = "";
+    if (dom.productForm.note) dom.productForm.note.value = "";
     if (dom.productForm.is_public) dom.productForm.is_public.checked = true;
     
     if (quillEditor) {
@@ -382,6 +383,7 @@ export function registerProductsControllerEvents(contract) {
       if (dom.productForm.images) dom.productForm.images.value = product.images ? product.images.join("\n") : "";
       if (dom.productForm.details) dom.productForm.details.value = product.details || "";
       if (dom.productForm.recipe) dom.productForm.recipe.value = product.recipe || "";
+      if (dom.productForm.note) dom.productForm.note.value = product.note || "";
       if (dom.productForm.is_public) dom.productForm.is_public.checked = product.is_public !== 0 && product.is_public !== false;
       
         let detailsHtml = product.details || "";
