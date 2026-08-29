@@ -145,12 +145,12 @@
             Bạn có thể chọn đặt chung để nhận hàng khi có đủ, hoặc tách thành đơn riêng để nhận các món có sẵn trước:
           </div>
           <div id="checkoutSplitRadioGroup" style="display: flex; flex-direction: column; gap: 8px;">
-            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 13px; color: #333;">
-              <input type="radio" name="orderSplitChoice" value="single" checked style="margin-top: 2px;">
+            <input type="radio" id="orderSplitSingle" name="orderSplitChoice" value="single" checked style="margin-top: 2px;">
+            <label for="orderSplitSingle" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 15px; color: #333;">
               <span><strong>Đặt chung 1 đơn:</strong> Giao chung khi gom đủ tất cả các món (cần đợi thời gian nhập hàng).</span>
             </label>
-            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 13px; color: #333;">
-              <input type="radio" name="orderSplitChoice" value="split" style="margin-top: 2px;">
+            <input type="radio" id="orderSplitMultiple" name="orderSplitChoice" value="split" style="margin-top: 2px;">
+            <label for="orderSplitMultiple" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 15px; color: #333;">
               <span><strong>Tách thành 2 đơn riêng:</strong> Giao ngay các món có sẵn trước, các món hết sẽ giao sau khi hàng về.</span>
             </label>
           </div>
