@@ -1,9 +1,9 @@
 {
-  "app_version": "3.30.16",
+  "app_version": "3.30.17",
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "83c00ee7e5b3c972db8d2246e74f74aca4dacd952e2326a63dd4a32dbb8d17d7"
+      "sha256": "405d9a8a736a604beb134941fba600df81194daef3888f66d054e1e339cf4778"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -126,8 +126,8 @@
       "sha256": "9fcbe4420cfeb6dbbf7ec6afcbb02c10d0775f0b258a832298bfe00154302593"
     },
     "public_products.js": {
-      "counter": 2,
-      "sha256": "86f61352ca5ee3879d8cccce6b4b26f63226db6a3869fe9aa32412a192cf7b44"
+      "counter": 1,
+      "sha256": "0d1e3916cf4bea41ba3853a75a82649824cbe16409d5bc9693ce6f70fdbdf202"
     },
     "styles.css": {
       "counter": 1,

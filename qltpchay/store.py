@@ -2906,6 +2906,7 @@ class InventoryStore:
                     p.updated_at,
                     p.images,
                     p.details,
+                    p.recipe,
                     COALESCE(
                         (SELECT SUM(pi.quantity)
                          FROM purchase_items pi
@@ -3690,6 +3691,7 @@ class InventoryStore:
                     p.updated_at,
                     p.images,
                     p.details,
+                    p.recipe,
                     COALESCE(
                         (SELECT SUM(pi.quantity)
                          FROM purchase_items pi
@@ -12113,6 +12115,7 @@ class InventoryStore:
                 images = []
 
             details = str(record.get("details") or "").strip()
+            recipe = str(record.get("recipe") or "").strip()
             is_deleted_str = str(record.get("is_deleted") or "").strip().lower()
             wants_deleted = is_deleted_str in ("1", "true", "yes")
 
@@ -12141,6 +12144,7 @@ class InventoryStore:
                     storage_life_days=storage_life_days,
                     images=images,
                     details=details,
+                    recipe=recipe,
                     is_public=bool(record.get("is_public", 1)),
                     actor=actor,
                     allow_deleted=True,
@@ -12163,6 +12167,7 @@ class InventoryStore:
                     storage_life_days=storage_life_days,
                     images=images,
                     details=details,
+                    recipe=recipe,
                     is_public=bool(record.get("is_public", 1)),
                     actor=actor,
                     global_id=global_id,

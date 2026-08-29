@@ -1411,16 +1411,29 @@ function openModal(product) {
   document.getElementById("modalName").textContent = product.name;
   document.getElementById("modalCategory").textContent = product.category || "";
   
-  let detailsHtml = product.details || "Không có mô tả.";
-  if (detailsHtml && !detailsHtml.includes("<") && detailsHtml.includes("\n")) {
-    detailsHtml = detailsHtml.replace(/\n/g, "<br>");
+  const detailsEl = document.getElementById("modalDetails");
+  const rawDetails = (product.details || "").trim();
+  const rawRecipe = (product.recipe || "").trim();
+
+  if (rawDetails && rawDetails !== "<p><br></p>") {
+    let detailsHtml = rawDetails;
+    if (!detailsHtml.includes("<") && detailsHtml.includes("\n")) {
+      detailsHtml = detailsHtml.replace(/\n/g, "<br>");
+    }
+    detailsEl.innerHTML = detailsHtml;
+    detailsEl.style.display = "block";
+  } else if (!rawRecipe || rawRecipe === "<p><br></p>") {
+    detailsEl.innerHTML = "<p class='text-muted' style='font-style: italic;'>Không có mô tả.</p>";
+    detailsEl.style.display = "block";
+  } else {
+    detailsEl.innerHTML = "";
+    detailsEl.style.display = "none";
   }
-  document.getElementById("modalDetails").innerHTML = detailsHtml;
 
   const recipeContainer = document.getElementById("modalRecipeContainer");
   const recipeEl = document.getElementById("modalRecipe");
-  if (product.recipe && product.recipe.trim() !== "") {
-    let recipeHtml = product.recipe;
+  if (rawRecipe && rawRecipe !== "<p><br></p>") {
+    let recipeHtml = rawRecipe;
     if (!recipeHtml.includes("<") && recipeHtml.includes("\n")) {
       recipeHtml = recipeHtml.replace(/\n/g, "<br>");
     }

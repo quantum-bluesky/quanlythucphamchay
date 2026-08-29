@@ -7861,7 +7861,37 @@ function showProductDetailModal(productId) {
   }
   
   if (content) {
-    content.innerHTML = product.details || "<i>Chưa có thông tin chi tiết.</i>";
+    const rawDetails = (product.details || "").trim();
+    const rawRecipe = (product.recipe || "").trim();
+    if (rawDetails && rawDetails !== "<p><br></p>") {
+      let detailsHtml = rawDetails;
+      if (!detailsHtml.includes("<") && detailsHtml.includes("\n")) {
+        detailsHtml = detailsHtml.replace(/\n/g, "<br>");
+      }
+      content.innerHTML = detailsHtml;
+      content.hidden = false;
+    } else if (!rawRecipe || rawRecipe === "<p><br></p>") {
+      content.innerHTML = "<i>Chưa có thông tin chi tiết.</i>";
+      content.hidden = false;
+    } else {
+      content.innerHTML = "";
+      content.hidden = true;
+    }
+  }
+
+  const recipeContainer = document.getElementById("productDetailRecipeContainer");
+  const recipeEl = document.getElementById("productDetailRecipe");
+  const rawRecipe = (product.recipe || "").trim();
+  if (rawRecipe && rawRecipe !== "<p><br></p>") {
+    let recipeHtml = rawRecipe;
+    if (!recipeHtml.includes("<") && recipeHtml.includes("\n")) {
+      recipeHtml = recipeHtml.replace(/\n/g, "<br>");
+    }
+    if (recipeEl) recipeEl.innerHTML = recipeHtml;
+    if (recipeContainer) recipeContainer.hidden = false;
+  } else {
+    if (recipeEl) recipeEl.innerHTML = "";
+    if (recipeContainer) recipeContainer.hidden = true;
   }
   
   modal.hidden = false;
