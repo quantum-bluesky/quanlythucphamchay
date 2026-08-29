@@ -6861,6 +6861,7 @@ registerProductsControllerEvents({
   dom: {
     productForm,
     productDetailEditor,
+    productRecipeEditor,
     productImageUpload: document.getElementById("productImageUpload"),
     uploadProductImageButton: document.getElementById("uploadProductImageButton"),
     productFormCancelButton,
@@ -6869,6 +6870,8 @@ registerProductsControllerEvents({
     productHistoryStartDateInput,
     productHistoryEndDateInput,
     productManageList,
+    productFormSection,
+    productFormWrap,
     productFormToggleButton,
     productHistoryToggleButton,
     mobileQuery,

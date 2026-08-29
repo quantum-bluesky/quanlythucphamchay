@@ -108,7 +108,7 @@ export function registerProductsControllerEvents(contract) {
   // Issue: observer theo viewport có thể bỏ sót lúc form mở bằng render động,
   // nên theo dõi wrapper hidden để khởi tạo toolbar Quill chắc chắn hơn.
   const scheduleQuillInitialization = () => {
-    if (!dom.productDetailEditor || quillEditor) return;
+    if ((!dom.productDetailEditor && !dom.productRecipeEditor) || (quillEditor && recipeQuillEditor)) return;
     window.setTimeout(() => {
       if (!dom.productFormWrap?.hidden) {
         ensureQuillInitialized();
@@ -116,21 +116,21 @@ export function registerProductsControllerEvents(contract) {
     }, 0);
   };
 
-  if (dom.productDetailEditor && !quillEditor) {
-    if (dom.productDetailEditor.offsetParent !== null) {
+  if ((dom.productDetailEditor || dom.productRecipeEditor) && (!quillEditor || !recipeQuillEditor)) {
+    if (dom.productDetailEditor && dom.productDetailEditor.offsetParent !== null) {
       ensureQuillInitialized();
     } else {
       const initObserver = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && !quillEditor) {
+        if (entries[0].isIntersecting && (!quillEditor || !recipeQuillEditor)) {
           ensureQuillInitialized();
           initObserver.disconnect();
         }
       });
-      initObserver.observe(dom.productDetailEditor);
+      if (dom.productDetailEditor) initObserver.observe(dom.productDetailEditor);
     }
   }
 
-  if (dom.productFormWrap && !quillEditor) {
+  if (dom.productFormWrap && (!quillEditor || !recipeQuillEditor)) {
     const wrapObserver = new MutationObserver(() => {
       if (!dom.productFormWrap?.hidden) {
         scheduleQuillInitialization();
@@ -395,23 +395,35 @@ export function registerProductsControllerEvents(contract) {
           recipeHtml = recipeHtml.replace(/\n/g, "<br>");
         }
         
-        // Wait briefly so if the intersection observer just fired, quillEditor is assigned
-        window.setTimeout(() => {
+        actions.openProductFormSection();
+        ensureQuillInitialized();
+
+        const setEditorContent = () => {
           if (quillEditor) {
-            const delta = quillEditor.clipboard.convert({ html: detailsHtml });
-            quillEditor.setContents(delta, 'silent');
+            try {
+              const delta = quillEditor.clipboard.convert({ html: detailsHtml });
+              quillEditor.setContents(delta, 'silent');
+            } catch (e) {
+              quillEditor.root.innerHTML = detailsHtml;
+            }
           } else if (dom.productDetailEditor) {
             dom.productDetailEditor.innerHTML = detailsHtml;
           }
           if (recipeQuillEditor) {
-            const delta = recipeQuillEditor.clipboard.convert({ html: recipeHtml });
-            recipeQuillEditor.setContents(delta, 'silent');
+            try {
+              const delta = recipeQuillEditor.clipboard.convert({ html: recipeHtml });
+              recipeQuillEditor.setContents(delta, 'silent');
+            } catch (e) {
+              recipeQuillEditor.root.innerHTML = recipeHtml;
+            }
           } else if (dom.productRecipeEditor) {
             dom.productRecipeEditor.innerHTML = recipeHtml;
           }
-        }, 50);
+        };
+
+        setEditorContent();
+        window.setTimeout(setEditorContent, 50);
       
-      actions.openProductFormSection();
       scheduleQuillInitialization();
       utils.syncPriceWarningGroups(dom.productForm);
       return;
