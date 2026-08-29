@@ -68,6 +68,7 @@ export function createProductsUi(deps) {
             <div class="product-manage-compact">
               <div class="product-manage-left">
                 <div class="product-row-name"><span class="product-name-link" data-product-detail-trigger="${product.id}">${escapeHtml(product.name)}</span></div>
+                ${product.note ? `<div class="product-row-note" style="font-size: 0.8rem; color: #e65100; font-style: italic; margin-top: 1px;">📝 ${escapeHtml(product.note)}</div>` : ""}
                 <div class="product-row-meta">
                   <span>${escapeHtml(product.category)}</span>
                 </div>
@@ -100,6 +101,7 @@ export function createProductsUi(deps) {
                 <div class="product-row-head">
                   <div>
                     <div class="product-row-name"><span class="product-name-link" data-product-detail-trigger="${product.id}">${escapeHtml(product.name)}</span></div>
+                    ${product.note ? `<div class="product-row-note" style="font-size: 0.8rem; color: #e65100; font-style: italic; margin-top: 1px;">📝 ${escapeHtml(product.note)}</div>` : ""}
                     <div class="product-row-meta">
                       <span>${escapeHtml(product.category)}</span>
                     </div>

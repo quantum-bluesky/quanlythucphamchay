@@ -242,6 +242,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "images": p["images"],
                         "details": p["details"],
                         "recipe": p.get("recipe", ""),
+                        "note": p.get("note", ""),
                     }
                     for p in all_products
                     if p.get("is_public", 1) and not p.get("is_deleted", 0)
@@ -1236,6 +1237,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     ext = Path(filename).suffix
                     if ext.lower() not in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]:
                         ext = ".jpg"
+                    if ext.lower() != ".svg":
+                        payload, optimized_ext = helpers.resize_image_bytes(payload, max_dim=1024)
+                        if optimized_ext:
+                            ext = optimized_ext
                     import uuid
                     unique_name = f"{uuid.uuid4().hex}{ext}"
                     image_dir = constants.DATA_DIR / "images" / "products"
@@ -1280,6 +1285,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         images=payload.get("images"),
                         details=payload.get("details"),
                         recipe=payload.get("recipe"),
+                        note=payload.get("note", ""),
                         actor=self._get_current_actor_name(),
                     )
                     self._send_json(
@@ -1964,6 +1970,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         images=payload.get("images"),
                         details=payload.get("details"),
                         recipe=payload.get("recipe"),
+                        note=payload.get("note"),
                         actor=payload.get("actor") or self._get_current_actor_name(),
                     )
                     self._send_json(
@@ -2136,6 +2143,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     "storage_life_days",
                     "images",
                     "details",
+                    "recipe",
+                    "note",
                     "is_public",
                     "is_deleted",
                     "deleted_at",
@@ -2254,6 +2263,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "storage_life_days": storage_life_days,
                             "images": data.get("images", ""),
                             "details": data.get("details", ""),
+                            "recipe": data.get("recipe", ""),
+                            "note": data.get("note", ""),
                             "is_deleted": data.get("is_deleted", ""),
                             "deleted_at": data.get("deleted_at", ""),
                             "created_at": data.get("created_at", ""),

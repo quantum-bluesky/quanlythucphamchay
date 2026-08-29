@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <script>
@@ -9,21 +10,30 @@
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Danh sách các thực phẩm chay</title>
+  <link rel="icon" type="image/png" href="./static/favicon.ico">
   <link rel="stylesheet" href="./static/styles.css">
   <link rel="stylesheet" href="./static/public_products.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
   <div class="public-container">
-    <div id="publicWebBanner" style="display: none; width: 100%; text-align: center; overflow: hidden; background: #f0f0f0;">
-      <img id="publicWebBannerImg" src="" alt="Banner" style="max-width: 100%; height: auto; display: block; margin: 0 auto; max-height: 300px; object-fit: cover;">
+    <div id="publicWebBanner"
+      style="display: none; width: 100%; text-align: center; overflow: hidden; background: #f0f0f0;">
+      <img id="publicWebBannerImg" src="" alt="Banner"
+        style="max-width: 100%; height: auto; display: block; margin: 0 auto; max-height: 300px; object-fit: cover;">
     </div>
     <header class="public-header">
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 16px;">
         <h1 style="margin: 0; font-size: 1.25rem;">Danh sách các thực phẩm chay</h1>
         <div style="display: flex; gap: 8px; align-items: center;">
-          <a href="./api/public/zalo-login" id="zaloLoginBtn" class="primary-button compact-button" style="background: #0068FF; color: white; text-decoration: none; border-color: #0068FF; font-weight: 600; padding: 4px 12px; display: flex; align-items: center; gap: 4px; font-size: 0.9em; border-radius: 6px;">
-            <svg width="18" height="18" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg" style="fill: white;"><path d="M460 230C460 102.975 357.025 0 230 0C102.975 0 0 102.975 0 230C0 357.025 102.975 460 230 460C357.025 460 460 357.025 460 230ZM329.833 154.516C329.833 162.721 323.011 169.544 314.806 169.544H209.734L337.892 284.156C341.258 287.165 342.348 291.956 340.672 296.386C338.995 300.817 334.821 303.743 330.138 303.743H159.208C150.932 303.743 144.223 297.034 144.223 288.758C144.223 280.482 150.932 273.774 159.208 273.774H264.492L136.333 159.162C132.967 156.152 131.877 151.362 133.553 146.931C135.23 142.5 139.404 139.574 144.088 139.574H314.806C323.082 139.574 329.833 146.31 329.833 154.516Z"/></svg>
+          <a href="./api/public/zalo-login" id="zaloLoginBtn" class="primary-button compact-button"
+            style="background: #0068FF; color: white; text-decoration: none; border-color: #0068FF; font-weight: 600; padding: 4px 12px; display: flex; align-items: center; gap: 4px; font-size: 0.9em; border-radius: 6px;">
+            <svg width="18" height="18" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg"
+              style="fill: white;">
+              <path
+                d="M460 230C460 102.975 357.025 0 230 0C102.975 0 0 102.975 0 230C0 357.025 102.975 460 230 460C357.025 460 460 357.025 460 230ZM329.833 154.516C329.833 162.721 323.011 169.544 314.806 169.544H209.734L337.892 284.156C341.258 287.165 342.348 291.956 340.672 296.386C338.995 300.817 334.821 303.743 330.138 303.743H159.208C150.932 303.743 144.223 297.034 144.223 288.758C144.223 280.482 150.932 273.774 159.208 273.774H264.492L136.333 159.162C132.967 156.152 131.877 151.362 133.553 146.931C135.23 142.5 139.404 139.574 144.088 139.574H314.806C323.082 139.574 329.833 146.31 329.833 154.516Z" />
+            </svg>
             Zalo
           </a>
           <button id="myOrdersBtn" class="secondary-button compact-button">Đơn của tôi</button>
@@ -32,7 +42,8 @@
       <div class="search-bar">
         <input type="text" id="searchInput" placeholder="Tìm kiếm sản phẩm..." autocomplete="off">
       </div>
-      <div class="view-mode-bar" style="display: flex; gap: 0.75rem; margin-top: 12px; padding: 0 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+      <div class="view-mode-bar"
+        style="display: flex; gap: 0.75rem; margin-top: 12px; padding: 0 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
         <div style="display: flex; gap: 0.75rem; align-items: center;">
           <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted);">Giao diện:</span>
           <label class="toggle-inline" style="cursor: pointer; user-select: none;">
@@ -45,8 +56,10 @@
           </label>
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted); white-space: nowrap;">Sắp xếp:</span>
-          <select id="sortSelect" class="form-input" style="padding: 4px 8px; font-size: 0.85em; border-radius: 6px; border: 1px solid var(--line); background: white; cursor: pointer;">
+          <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted); white-space: nowrap;">Sắp
+            xếp:</span>
+          <select id="sortSelect" class="form-input"
+            style="padding: 4px 8px; font-size: 0.85em; border-radius: 6px; border: 1px solid var(--line); background: white; cursor: pointer;">
             <option value="name" selected>Theo tên sản phẩm</option>
             <option value="in_stock">Sản phẩm có sẵn</option>
             <option value="popular">Sản phẩm ưa thích</option>
@@ -54,14 +67,18 @@
         </div>
       </div>
     </header>
-    
+
     <main class="public-main" style="padding-bottom: 80px;">
-      <div id="localDisclaimer" style="margin: 12px 16px; padding: 12px; background: #fff3e0; color: #e65100; border-radius: 8px; font-size: 0.9em; text-align: center; border: 1px solid #ffcc80; line-height: 1.4;">
-        <strong>Lưu ý:</strong> Trang web này phục vụ mục đích giới thiệu sản phẩm chay và gieo duyên nội bộ. Chúng tôi xin phép <strong>chỉ nhận và giao đơn hàng trong khu vực nội bộ</strong>.
+      <div id="localDisclaimer"
+        style="margin: 12px 16px; padding: 12px; background: #fff3e0; color: #e65100; border-radius: 8px; font-size: 0.9em; text-align: center; border: 1px solid #ffcc80; line-height: 1.4;">
+        <strong>Lưu ý:</strong> Trang web này phục vụ mục đích giới thiệu sản phẩm chay và gieo duyên nội bộ. Chúng tôi
+        xin phép <strong>chỉ nhận và giao đơn hàng trong khu vực nội bộ</strong>.
       </div>
-      
-      <div id="selectedItemsPanel" class="selected-items-panel" style="display: none; margin-bottom: 16px; background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); overflow: hidden;">
-        <div id="selectedItemsHeader" style="padding: 12px 16px; background: #e3f2fd; color: #1976d2; font-weight: 600; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+
+      <div id="selectedItemsPanel" class="selected-items-panel"
+        style="display: none; margin-bottom: 16px; background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); overflow: hidden;">
+        <div id="selectedItemsHeader"
+          style="padding: 12px 16px; background: #e3f2fd; color: #1976d2; font-weight: 600; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
           <span>Đã chọn (<span id="selectedItemsCountBadge">0</span>)</span>
           <span id="selectedItemsToggleIcon">▼</span>
         </div>
@@ -75,15 +92,17 @@
       </div>
       <div id="loading" class="loading-spinner">Đang tải...</div>
     </main>
-    
+
     <div id="cartBar" class="public-cart-bar hidden">
       <div class="cart-bar-info">
         <span id="cartCountBadge" class="cart-badge">0</span>
         <span class="cart-label">sản phẩm đã chọn</span>
       </div>
       <div class="cart-bar-actions" style="display: flex; flex-direction: column; gap: 8px; min-width: 140px;">
-        <button id="checkoutBtn" class="primary-button compact-button" style="width: 100%; padding: 8px;">Chốt đơn</button>
-        <button id="copySelectedBtn" class="secondary-button compact-button" style="width: 100%;">Copy danh sách</button>
+        <button id="checkoutBtn" class="primary-button compact-button" style="width: 100%; padding: 8px;">Chốt
+          đơn</button>
+        <button id="copySelectedBtn" class="secondary-button compact-button" style="width: 100%;">Copy danh
+          sách</button>
       </div>
     </div>
   </div>
@@ -101,8 +120,13 @@
         </div>
         <div class="modal-info">
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <h2 id="modalName" style="margin-top: 0;"></h2>
-            <button id="copyLinkBtn" class="secondary-button compact-button" style="padding: 4px 8px; font-size: 0.9em; flex-shrink: 0;" title="Chia sẻ liên kết">🔗 Chia sẻ</button>
+            <div>
+              <h2 id="modalName" style="margin-top: 0; margin-bottom: 4px;"></h2>
+              <div id="modalNote"
+                style="font-size: 0.9em; color: #e65100; font-style: italic; margin-bottom: 4px; display: none;"></div>
+            </div>
+            <button id="copyLinkBtn" class="secondary-button compact-button"
+              style="padding: 4px 8px; font-size: 0.9em; flex-shrink: 0;" title="Chia sẻ liên kết">🔗 Chia sẻ</button>
           </div>
           <p id="modalCategory" class="text-muted"></p>
           <div class="modal-price-row">
@@ -111,8 +135,9 @@
           </div>
           <p id="modalUnit" class="text-muted"></p>
           <div id="modalDetails" class="modal-details"></div>
-          
-          <div id="modalRecipeContainer" class="modal-recipe-container hidden" style="margin-top: 20px; padding: 16px; background: #fff8e1; border-radius: 8px; border: 1px solid #ffecb3; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+
+          <div id="modalRecipeContainer" class="modal-recipe-container hidden"
+            style="margin-top: 20px; padding: 16px; background: #fff8e1; border-radius: 8px; border: 1px solid #ffecb3; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
             <h3 style="margin-top: 0; color: #f57f17; display: flex; align-items: center; gap: 8px; font-size: 1.1em;">
               <span>👨‍🍳</span> Gợi ý chế biến
             </h3>
@@ -129,74 +154,100 @@
       <button id="closeCheckoutModal" class="modal-close">&times;</button>
       <div class="modal-body" style="display: block; padding: 24px;">
         <h2 style="margin-top: 0; margin-bottom: 20px;" id="checkoutModalTitle">Xác nhận đơn hàng</h2>
-        
-        <div id="checkoutReviewSection" style="margin-bottom: 20px; background: #fafafa; padding: 12px; border-radius: 8px; border: 1px solid #eee;">
+
+        <div id="checkoutReviewSection"
+          style="margin-bottom: 20px; background: #fafafa; padding: 12px; border-radius: 8px; border: 1px solid #eee;">
           <h3 style="margin-top: 0; font-size: 14px; color: #424242; margin-bottom: 12px;">Sản phẩm đã chọn:</h3>
           <div id="checkoutReviewItems" style="max-height: 150px; overflow-y: auto; font-size: 14px;"></div>
-          <div style="margin-top: 12px; border-top: 1px solid #ddd; padding-top: 8px; font-weight: bold; text-align: right; color: #d32f2f;" id="checkoutReviewTotal">Tổng: 0đ</div>
-          <div style="margin-top: 4px; font-size: 0.85em; color: #e65100; font-style: italic; text-align: right;" id="shippingNoteLabel">*Chưa bao gồm chi phí vận chuyển*</div>
+          <div
+            style="margin-top: 12px; border-top: 1px solid #ddd; padding-top: 8px; font-weight: bold; text-align: right; color: #d32f2f;"
+            id="checkoutReviewTotal">Tổng: 0đ</div>
+          <div style="margin-top: 4px; font-size: 0.85em; color: #e65100; font-style: italic; text-align: right;"
+            id="shippingNoteLabel">*Chưa bao gồm chi phí vận chuyển*</div>
         </div>
 
-        <div id="checkoutSplitOptionSection" style="display: none; margin-bottom: 20px; background: #fffde7; padding: 12px; border-radius: 8px; border: 1px solid #fff59d;">
-          <div style="font-size: 14px; font-weight: 600; color: #f57f17; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+        <div id="checkoutSplitOptionSection"
+          style="display: none; margin-bottom: 20px; background: #fffde7; padding: 12px; border-radius: 8px; border: 1px solid #fff59d;">
+          <div
+            style="font-size: 14px; font-weight: 600; color: #f57f17; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
             <span>⚠️</span> Có món đang hết hàng trong giỏ
           </div>
           <div id="checkoutSplitHintText" style="font-size: 13px; color: #555; margin-bottom: 10px;">
             Bạn có thể chọn đặt chung để nhận hàng khi có đủ, hoặc tách thành đơn riêng để nhận các món có sẵn trước:
           </div>
           <div id="checkoutSplitRadioGroup" style="display: flex; flex-direction: column; gap: 8px;">
-            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 13px; color: #333;">
-              <input type="radio" name="orderSplitChoice" value="single" checked style="margin-top: 2px;">
-              <span><strong>Đặt chung 1 đơn:</strong> Giao chung khi gom đủ tất cả các món (cần đợi thời gian nhập hàng).</span>
+            <input type="radio" id="orderSplitSingle" name="orderSplitChoice" value="single" checked
+              style="margin-top: 2px;">
+            <label for="orderSplitSingle"
+              style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 15px; color: #333;">
+              <span><strong>Đặt chung 1 đơn:</strong> Giao chung khi gom đủ tất cả các món (cần đợi thời gian nhập
+                hàng).</span>
             </label>
-            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 13px; color: #333;">
-              <input type="radio" name="orderSplitChoice" value="split" style="margin-top: 2px;">
-              <span><strong>Tách thành 2 đơn riêng:</strong> Giao ngay các món có sẵn trước, các món hết sẽ giao sau khi hàng về.</span>
+            <input type="radio" id="orderSplitMultiple" name="orderSplitChoice" value="split" style="margin-top: 2px;">
+            <label for="orderSplitMultiple"
+              style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 15px; color: #333;">
+              <span><strong>Tách thành 2 đơn riêng:</strong> Giao ngay các món có sẵn trước, các món hết sẽ giao sau khi
+                hàng về.</span>
             </label>
           </div>
         </div>
-        
+
         <div id="checkoutAuthOptions" style="display: none; flex-direction: column; gap: 16px; margin-bottom: 24px;">
-          <a href="./api/public/zalo-login" class="primary-button" style="background: #0068FF; color: white; text-align: center; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;">
-            <svg width="24" height="24" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg" style="fill: white;"><path d="M460 230C460 102.975 357.025 0 230 0C102.975 0 0 102.975 0 230C0 357.025 102.975 460 230 460C357.025 460 460 357.025 460 230ZM329.833 154.516C329.833 162.721 323.011 169.544 314.806 169.544H209.734L337.892 284.156C341.258 287.165 342.348 291.956 340.672 296.386C338.995 300.817 334.821 303.743 330.138 303.743H159.208C150.932 303.743 144.223 297.034 144.223 288.758C144.223 280.482 150.932 273.774 159.208 273.774H264.492L136.333 159.162C132.967 156.152 131.877 151.362 133.553 146.931C135.23 142.5 139.404 139.574 144.088 139.574H314.806C323.082 139.574 329.833 146.31 329.833 154.516Z"/></svg>
+          <a href="./api/public/zalo-login" class="primary-button"
+            style="background: #0068FF; color: white; text-align: center; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;">
+            <svg width="24" height="24" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg"
+              style="fill: white;">
+              <path
+                d="M460 230C460 102.975 357.025 0 230 0C102.975 0 0 102.975 0 230C0 357.025 102.975 460 230 460C357.025 460 460 357.025 460 230ZM329.833 154.516C329.833 162.721 323.011 169.544 314.806 169.544H209.734L337.892 284.156C341.258 287.165 342.348 291.956 340.672 296.386C338.995 300.817 334.821 303.743 330.138 303.743H159.208C150.932 303.743 144.223 297.034 144.223 288.758C144.223 280.482 150.932 273.774 159.208 273.774H264.492L136.333 159.162C132.967 156.152 131.877 151.362 133.553 146.931C135.23 142.5 139.404 139.574 144.088 139.574H314.806C323.082 139.574 329.833 146.31 329.833 154.516Z" />
+            </svg>
             Đăng nhập nhanh bằng Zalo
           </a>
-          
-          <div id="checkoutManualDivider" style="text-align: center; color: #757575; font-size: 0.9em; position: relative;">
-            <hr style="border: 0; border-top: 1px solid #e0e0e0; position: absolute; top: 50%; left: 0; right: 0; z-index: 1;">
+
+          <div id="checkoutManualDivider"
+            style="text-align: center; color: #757575; font-size: 0.9em; position: relative;">
+            <hr
+              style="border: 0; border-top: 1px solid #e0e0e0; position: absolute; top: 50%; left: 0; right: 0; z-index: 1;">
             <span style="background: white; padding: 0 10px; position: relative; z-index: 2;">Hoặc</span>
           </div>
-          
-          <button type="button" id="showManualFormBtn" class="secondary-button" style="width: 100%; padding: 12px; justify-content: center;">
+
+          <button type="button" id="showManualFormBtn" class="secondary-button"
+            style="width: 100%; padding: 12px; justify-content: center;">
             Nhập thông tin thủ công
           </button>
         </div>
-        
-        <div id="checkoutUserInfo" style="display: none; margin-bottom: 24px; padding: 12px; background: #e3f2fd; border-radius: 8px; align-items: center; gap: 12px;">
+
+        <div id="checkoutUserInfo"
+          style="display: none; margin-bottom: 24px; padding: 12px; background: #e3f2fd; border-radius: 8px; align-items: center; gap: 12px;">
           <!-- user info injected here -->
         </div>
 
         <form id="checkoutForm" style="display: none;">
           <div class="form-group" id="checkoutNameGroup" style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 4px; font-weight: 500;">Tên của bạn *</label>
-            <input type="text" id="checkoutName" required class="form-input" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
+            <input type="text" id="checkoutName" required class="form-input"
+              style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
           </div>
           <div class="form-group" id="checkoutPhoneGroup" style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 4px; font-weight: 500;">Số điện thoại *</label>
-            <input type="tel" id="checkoutPhone" required class="form-input" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
+            <input type="tel" id="checkoutPhone" required class="form-input"
+              style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
           </div>
           <div class="form-group" style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 4px; font-weight: 500;">Địa chỉ giao hàng</label>
-            <input type="text" id="checkoutAddress" class="form-input" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
+            <input type="text" id="checkoutAddress" class="form-input"
+              style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;">
           </div>
           <div class="form-group" style="margin-bottom: 24px;">
             <label style="display: block; margin-bottom: 4px; font-weight: 500;">Ghi chú thêm</label>
-            <textarea id="checkoutNote" class="form-input" rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;"></textarea>
+            <textarea id="checkoutNote" class="form-input" rows="3"
+              style="width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 4px;"></textarea>
           </div>
-          
+
           <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between;">
-            <button type="button" id="cancelManualFormBtn" class="secondary-button" style="display: none;">Quay lại</button>
-            <button type="submit" id="submitCheckoutBtn" class="primary-button" style="flex: 1; padding: 12px; font-size: 16px;">Gửi đơn hàng</button>
+            <button type="button" id="cancelManualFormBtn" class="secondary-button" style="display: none;">Quay
+              lại</button>
+            <button type="submit" id="submitCheckoutBtn" class="primary-button"
+              style="flex: 1; padding: 12px; font-size: 16px;">Gửi đơn hàng</button>
           </div>
         </form>
       </div>
@@ -207,27 +258,37 @@
   <div id="orderSuccessModal" class="modal-overlay hidden">
     <div class="modal-content" style="max-width: 480px; text-align: center;">
       <button id="closeOrderSuccessModal" class="modal-close">&times;</button>
-      <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px;">
-        <div style="width: 60px; height: 60px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; font-size: 32px;">
+      <div class="modal-body"
+        style="padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+        <div
+          style="width: 60px; height: 60px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; font-size: 32px;">
           ✓
         </div>
         <h2 style="margin: 0; color: #2e7d32; font-size: 1.3em;">Đặt hàng thành công!</h2>
         <div id="orderSuccessCode" style="font-weight: 600; color: #1976d2; font-size: 1.05em;">Mã đơn: ...</div>
-        <div id="orderSuccessSummary" style="font-size: 0.95em; color: #555; line-height: 1.5; background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 12px; width: 100%; text-align: left; max-height: 160px; overflow-y: auto;">
+        <div id="orderSuccessSummary"
+          style="font-size: 0.95em; color: #555; line-height: 1.5; background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 12px; width: 100%; text-align: left; max-height: 160px; overflow-y: auto;">
           <!-- Chi tiết đơn hàng tóm tắt -->
         </div>
-        <div style="color: #e65100; font-size: 0.9em; font-style: italic; background: #fff3e0; padding: 8px 12px; border-radius: 6px; width: 100%; border: 1px solid #ffe0b2;">
+        <div
+          style="color: #e65100; font-size: 0.9em; font-style: italic; background: #fff3e0; padding: 8px 12px; border-radius: 6px; width: 100%; border: 1px solid #ffe0b2;">
           *Lưu ý: Đơn hàng chưa bao gồm chi phí vận chuyển.
         </div>
         <p style="margin: 0; font-size: 0.95em; color: #333; line-height: 1.4;">
           Quý khách vui lòng liên hệ với người bán qua <strong>Zalo</strong> để xác nhận và hoàn tất đơn hàng:
         </p>
         <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
-          <a id="sellerZaloLinkBtn" href="#" target="_blank" class="primary-button" style="background: #0068FF; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;">
-            <svg width="20" height="20" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg" style="fill: white;"><path d="M460 230C460 102.975 357.025 0 230 0C102.975 0 0 102.975 0 230C0 357.025 102.975 460 230 460C357.025 460 460 357.025 460 230ZM329.833 154.516C329.833 162.721 323.011 169.544 314.806 169.544H209.734L337.892 284.156C341.258 287.165 342.348 291.956 340.672 296.386C338.995 300.817 334.821 303.743 330.138 303.743H159.208C150.932 303.743 144.223 297.034 144.223 288.758C144.223 280.482 150.932 273.774 159.208 273.774H264.492L136.333 159.162C132.967 156.152 131.877 151.362 133.553 146.931C135.23 142.5 139.404 139.574 144.088 139.574H314.806C323.082 139.574 329.833 146.31 329.833 154.516Z"/></svg>
+          <a id="sellerZaloLinkBtn" href="#" target="_blank" class="primary-button"
+            style="background: #0068FF; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg"
+              style="fill: white;">
+              <path
+                d="M460 230C460 102.975 357.025 0 230 0C102.975 0 0 102.975 0 230C0 357.025 102.975 460 230 460C357.025 460 460 357.025 460 230ZM329.833 154.516C329.833 162.721 323.011 169.544 314.806 169.544H209.734L337.892 284.156C341.258 287.165 342.348 291.956 340.672 296.386C338.995 300.817 334.821 303.743 330.138 303.743H159.208C150.932 303.743 144.223 297.034 144.223 288.758C144.223 280.482 150.932 273.774 159.208 273.774H264.492L136.333 159.162C132.967 156.152 131.877 151.362 133.553 146.931C135.23 142.5 139.404 139.574 144.088 139.574H314.806C323.082 139.574 329.833 146.31 329.833 154.516Z" />
+            </svg>
             Mở Zalo xác nhận đơn hàng
           </a>
-          <button type="button" id="copyOrderToZaloBtn" class="secondary-button" style="padding: 10px; font-weight: 500; display: flex; justify-content: center; align-items: center; gap: 6px;">
+          <button type="button" id="copyOrderToZaloBtn" class="secondary-button"
+            style="padding: 10px; font-weight: 500; display: flex; justify-content: center; align-items: center; gap: 6px;">
             📋 Sao chép thông tin gửi Zalo
           </button>
         </div>
@@ -252,17 +313,22 @@
   <div id="logoutModal" class="modal-overlay hidden">
     <div class="modal-content" style="max-width: 440px; text-align: center;">
       <button id="closeLogoutModal" class="modal-close">&times;</button>
-      <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 14px;">
+      <div class="modal-body"
+        style="padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 14px;">
         <div style="font-size: 36px;">👋</div>
         <h3 style="margin: 0; font-size: 1.2em; color: #333;">Đã thoát khỏi cửa hàng</h3>
-        <p id="logoutModalDesc" style="margin: 0; font-size: 0.95em; color: #555; line-height: 1.5; text-align: left; background: #f5f5f5; padding: 12px; border-radius: 8px;">
-          Để <strong>đổi sang tài khoản Zalo khác</strong> trên trình duyệt này, bạn vui lòng đăng xuất tài khoản Zalo hiện tại tại trang Zalo ID hoặc mở trong cửa sổ Ẩn danh (Incognito).
+        <p id="logoutModalDesc"
+          style="margin: 0; font-size: 0.95em; color: #555; line-height: 1.5; text-align: left; background: #f5f5f5; padding: 12px; border-radius: 8px;">
+          Để <strong>đổi sang tài khoản Zalo khác</strong> trên trình duyệt này, bạn vui lòng đăng xuất tài khoản Zalo
+          hiện tại tại trang Zalo ID hoặc mở trong cửa sổ Ẩn danh (Incognito).
         </p>
         <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
-          <a href="https://id.zalo.me" target="_blank" class="secondary-button" style="justify-content: center; text-decoration: none; padding: 10px; font-weight: 500;">
+          <a href="https://id.zalo.me" target="_blank" class="secondary-button"
+            style="justify-content: center; text-decoration: none; padding: 10px; font-weight: 500;">
             🔑 Quản lý / Đăng xuất tài khoản Zalo
           </a>
-          <button type="button" id="confirmLogoutReloadBtn" class="primary-button" style="justify-content: center; padding: 10px;">
+          <button type="button" id="confirmLogoutReloadBtn" class="primary-button"
+            style="justify-content: center; padding: 10px;">
             Đã hiểu & Tải lại trang
           </button>
         </div>
@@ -274,4 +340,5 @@
 
   <script src="./static/public_products.js"></script>
 </body>
+
 </html>

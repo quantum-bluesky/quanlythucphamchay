@@ -3748,3 +3748,102 @@ button:disabled {
   transform: none !important;
   box-shadow: none !important;
 }
+
+/* Rich Text Image Constraints (Details, Recipe, Editor, Modals) */
+.ql-editor img,
+.product-detail-content img,
+.modal-details img,
+.modal-recipe img,
+.modal-recipe-container img,
+#productDetailRecipe img {
+  max-width: 100% !important;
+  height: auto !important;
+  box-sizing: border-box;
+  border-radius: 6px;
+  vertical-align: middle;
+  object-fit: contain;
+}
+
+/* Quill Interactive Image Resizer Overlay */
+.quill-image-resizer {
+  position: absolute;
+  border: 2px dashed var(--primary, #1976d2);
+  pointer-events: none;
+  z-index: 100;
+  box-sizing: border-box;
+}
+
+.quill-image-resizer .resizer-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--primary, #1976d2);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  pointer-events: auto;
+  box-sizing: border-box;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.quill-image-resizer .resizer-handle-nw { top: -7px; left: -7px; cursor: nwse-resize; }
+.quill-image-resizer .resizer-handle-ne { top: -7px; right: -7px; cursor: nesw-resize; }
+.quill-image-resizer .resizer-handle-se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+.quill-image-resizer .resizer-handle-sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+
+.quill-image-resizer .resizer-size-badge {
+  position: absolute;
+  bottom: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.quill-image-resizer .resizer-quick-actions {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  background: #ffffff;
+  padding: 3px 6px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  pointer-events: auto;
+  border: 1px solid #ddd;
+}
+
+.quill-image-resizer .resizer-quick-actions button {
+  background: #f0f4f8;
+  border: 1px solid #c5d5e6;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  cursor: pointer;
+  color: #1976d2;
+  transition: all 0.15s;
+}
+
+.quill-image-resizer .resizer-quick-actions button:hover {
+  background: #1976d2;
+  color: #ffffff;
+}
+
+.quill-image-resizer .resizer-quick-actions button.btn-delete-img {
+  background: #ffebee;
+  border-color: #ffcdd2;
+  color: #d32f2f;
+}
+
+.quill-image-resizer .resizer-quick-actions button.btn-delete-img:hover {
+  background: #d32f2f;
+  color: #ffffff;
+}

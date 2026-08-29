@@ -418,3 +418,15 @@ body {
 .product-grid.list-mode .product-list-item { flex-direction: row; align-items: center; justify-content: space-between; }
 .product-grid.list-mode .product-info-compact { flex-direction: row; align-items: center; justify-content: space-between; flex: 1; }
 .product-grid.list-mode .product-select-row { margin-top: 0; padding-top: 0; border-top: none; }
+
+/* Image constraints in details and recipe */
+.modal-details img,
+.modal-recipe img,
+.modal-recipe-container img {
+  max-width: 100% !important;
+  height: auto !important;
+  box-sizing: border-box;
+  border-radius: 6px;
+  object-fit: contain;
+  vertical-align: middle;
+}

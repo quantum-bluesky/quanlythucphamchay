@@ -19,6 +19,7 @@ from .helpers import (
     extract_price_from_note,
     month_key,
     normalize_key,
+    optimize_html_embedded_images,
     parse_date_key,
     parse_non_negative_decimal,
     parse_month_key,
@@ -211,6 +212,7 @@ class InventoryStore:
                     images TEXT NOT NULL DEFAULT '[]',
                     details TEXT NOT NULL DEFAULT '',
                     recipe TEXT NOT NULL DEFAULT '',
+                    note TEXT NOT NULL DEFAULT '',
                     is_deleted INTEGER NOT NULL DEFAULT 0,
                     is_public INTEGER NOT NULL DEFAULT 1,
                     deleted_at TEXT,
@@ -642,6 +644,10 @@ class InventoryStore:
             if "recipe" not in columns:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN recipe TEXT NOT NULL DEFAULT ''"
+                )
+            if "note" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN note TEXT NOT NULL DEFAULT ''"
                 )
             now = utc_now_iso()
             transaction_columns = {
@@ -2906,6 +2912,8 @@ class InventoryStore:
                     p.updated_at,
                     p.images,
                     p.details,
+                    p.recipe,
+                    p.note,
                     COALESCE(
                         (SELECT SUM(pi.quantity)
                          FROM purchase_items pi
@@ -3058,6 +3066,7 @@ class InventoryStore:
         images: list[str] | None = None,
         details: str = "",
         recipe: str = "",
+        note: str = "",
         is_public: bool = True,
         actor: str = "",
         global_id: str | None = None,
@@ -3083,8 +3092,9 @@ class InventoryStore:
         )
         now = utc_now_iso()
         clean_images = json.dumps([str(img).strip() for img in (images or []) if str(img).strip()], ensure_ascii=False)
-        clean_details = str(details or "").strip()
-        clean_recipe = str(recipe or "").strip()
+        clean_details = optimize_html_embedded_images(str(details or "").strip(), max_dim=1024)
+        clean_recipe = optimize_html_embedded_images(str(recipe or "").strip(), max_dim=1024)
+        clean_note = str(note or "").strip()
         gid = str(global_id).strip() if global_id and str(global_id).strip() else f"prd_{uuid.uuid4().hex}"
 
         with self._connect() as connection:
@@ -3094,10 +3104,10 @@ class InventoryStore:
                     INSERT INTO products (
                         global_id, name, category, unit, low_stock_threshold,
                         price, sale_price, shelf_life_days, storage_life_days,
-                        images, details, recipe, is_public,
+                        images, details, recipe, note, is_public,
                         created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         gid,
@@ -3112,6 +3122,7 @@ class InventoryStore:
                         clean_images,
                         clean_details,
                         clean_recipe,
+                        clean_note,
                         1 if is_public else 0,
                         now,
                         now,
@@ -3269,6 +3280,7 @@ class InventoryStore:
         images: list[str] | None = None,
         details: str | None = None,
         recipe: str | None = None,
+        note: str | None = None,
         is_public: bool | None = None,
         actor: str = "",
         allow_deleted: bool = False,
@@ -3308,9 +3320,11 @@ class InventoryStore:
         if images is not None:
             next_values["images"] = json.dumps([str(img).strip() for img in images if str(img).strip()], ensure_ascii=False)
         if details is not None:
-            next_values["details"] = str(details).strip()
+            next_values["details"] = optimize_html_embedded_images(str(details).strip(), max_dim=1024)
         if recipe is not None:
-            next_values["recipe"] = str(recipe).strip()
+            next_values["recipe"] = optimize_html_embedded_images(str(recipe).strip(), max_dim=1024)
+        if note is not None:
+            next_values["note"] = str(note).strip()
         if is_public is not None:
             next_values["is_public"] = 1 if is_public else 0
         if global_id is not None:
@@ -3690,6 +3704,8 @@ class InventoryStore:
                     p.updated_at,
                     p.images,
                     p.details,
+                    p.recipe,
+                    p.note,
                     COALESCE(
                         (SELECT SUM(pi.quantity)
                          FROM purchase_items pi
@@ -10191,6 +10207,7 @@ class InventoryStore:
             "images": images,
             "details": row["details"] if "details" in row.keys() else "",
             "recipe": row["recipe"] if "recipe" in row.keys() else "",
+            "note": row["note"] if "note" in row.keys() else "",
             "is_deleted": bool(row["is_deleted"]),
             "deleted_at": row["deleted_at"],
             "created_at": row["created_at"],
@@ -12113,6 +12130,8 @@ class InventoryStore:
                 images = []
 
             details = str(record.get("details") or "").strip()
+            recipe = str(record.get("recipe") or "").strip()
+            note = str(record.get("note") or "").strip()
             is_deleted_str = str(record.get("is_deleted") or "").strip().lower()
             wants_deleted = is_deleted_str in ("1", "true", "yes")
 
@@ -12141,6 +12160,8 @@ class InventoryStore:
                     storage_life_days=storage_life_days,
                     images=images,
                     details=details,
+                    recipe=recipe,
+                    note=note,
                     is_public=bool(record.get("is_public", 1)),
                     actor=actor,
                     allow_deleted=True,
@@ -12163,6 +12184,8 @@ class InventoryStore:
                     storage_life_days=storage_life_days,
                     images=images,
                     details=details,
+                    recipe=recipe,
+                    note=note,
                     is_public=bool(record.get("is_public", 1)),
                     actor=actor,
                     global_id=global_id,

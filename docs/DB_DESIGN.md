@@ -70,6 +70,8 @@ Nguồn: `CREATE TABLE IF NOT EXISTS products` trong `qltpchay/store.py`.
 - `storage_life_days`: REAL nullable, thời gian bảo quản ước tính theo số ngày
 - `images`: TEXT nullable, JSON array các URL ảnh sản phẩm
 - `details`: TEXT nullable, chuỗi HTML hướng dẫn/thông tin chi tiết sản phẩm
+- `recipe`: TEXT nullable, chuỗi HTML hướng dẫn chế biến / công thức món ăn
+- `note`: TEXT nullable, chuỗi ghi chú sản phẩm hiển thị khi đặt hàng
 - `is_deleted`: INTEGER, soft delete flag
 - `deleted_at`: TEXT, thời điểm xóa mềm
 - `created_at`: TEXT, timestamp ISO

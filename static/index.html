@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="vi">
+
 <head>
   <meta charset="utf-8">
   <script>
@@ -9,9 +10,11 @@
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Quản lý thực phẩm chay</title>
+  <link rel="icon" type="image/png" href="./static/favicon.ico">
   <link rel="stylesheet" href="./static/styles.css">
   <link rel="stylesheet" href="./static/vendor/quill/quill.snow.css">
 </head>
+
 <body>
   <div class="screen-header-bar" id="screenHeaderBar" aria-live="polite">
     <div class="screen-header-main">
@@ -21,12 +24,14 @@
     <div class="screen-header-actions">
       <div id="adminSessionHeader" class="admin-session-header" hidden>
         <span id="adminSessionUserLabel" class="panel-note">Chưa đăng nhập</span>
-        <select id="adminSwitchUserSelect" class="ghost-button compact-button" aria-label="Chuyển nhóm quyền đăng nhập nhanh">
+        <select id="adminSwitchUserSelect" class="ghost-button compact-button"
+          aria-label="Chuyển nhóm quyền đăng nhập nhanh">
           <option value="">Chuyển quyền...</option>
         </select>
         <button type="button" id="adminLogoutButton" class="ghost-button compact-button">Login</button>
       </div>
-      <button type="button" id="appVersionButton" class="ghost-button compact-button app-version-button" aria-controls="aboutSection">
+      <button type="button" id="appVersionButton" class="ghost-button compact-button app-version-button"
+        aria-controls="aboutSection">
         <span class="app-version-caption">Version</span>
         <strong id="appVersionLabel">Đang tải...</strong>
       </button>
@@ -40,7 +45,8 @@
           <p class="panel-kicker">Đăng nhập hệ thống</p>
           <h2>Dùng tài khoản user hoặc admin</h2>
         </div>
-        <p class="panel-note">User thường dùng cho thao tác hằng ngày. Tài khoản có `inventory_adjust_manage` dùng thêm để chỉnh tồn trực tiếp. Admin dùng đầy đủ phần Master Admin.</p>
+        <p class="panel-note">User thường dùng cho thao tác hằng ngày. Tài khoản có `inventory_adjust_manage` dùng thêm
+          để chỉnh tồn trực tiếp. Admin dùng đầy đủ phần Master Admin.</p>
       </div>
 
       <section id="adminLoginPanel" class="sales-card">
@@ -55,14 +61,15 @@
           </label>
           <label>
             <span>Tài khoản thủ công</span>
-            <input id="adminUsernameInput" type="text" autocomplete="username" placeholder="Để trống nếu dùng tài khoản nhanh">
+            <input id="adminUsernameInput" type="text" autocomplete="username"
+              placeholder="Để trống nếu dùng tài khoản nhanh">
           </label>
           <label>
             <span>Mật khẩu</span>
             <input id="adminPasswordInput" type="password" autocomplete="current-password" required>
           </label>
-          
-              <div class="customer-form-actions">
+
+          <div class="customer-form-actions">
             <button type="submit" class="primary-button">Login</button>
           </div>
         </form>
@@ -76,10 +83,13 @@
     <nav class="panel menu-panel" id="menuPanel">
       <div class="menu-panel-head">
         <strong>Menu nghiệp vụ</strong>
-        <button type="button" id="menuToggleButton" class="ghost-button compact-button menu-toggle-button" aria-expanded="true" aria-controls="menuGrid">Thu gọn menu</button>
+        <button type="button" id="menuToggleButton" class="ghost-button compact-button menu-toggle-button"
+          aria-expanded="true" aria-controls="menuGrid">Thu gọn menu</button>
       </div>
       <div class="menu-grid" id="menuGrid">
-        <a href="#" id="publicHomeBtn" class="menu-button" style="text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center;">🏠 Cửa hàng Public</a>
+        <a href="#" id="publicHomeBtn" class="menu-button"
+          style="text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center;">🏠
+          Cửa hàng Public</a>
         <button type="button" class="menu-button is-active" data-menu="inventory">1. Tồn kho</button>
         <button type="button" class="menu-button" data-menu="create-order">2. Tạo đơn</button>
         <button type="button" class="menu-button" data-menu="bulk-orders" hidden>3. Xuất nhanh</button>
@@ -106,7 +116,8 @@
           </div>
           <div class="quick-panel-tools">
             <p class="panel-note">Gõ tên sản phẩm, nhập số lượng và chọn nhập hoặc xuất.</p>
-            <button type="button" id="quickPanelToggle" class="ghost-button quick-toggle" aria-expanded="true" aria-controls="quickPanelBody">Thu gọn</button>
+            <button type="button" id="quickPanelToggle" class="ghost-button quick-toggle" aria-expanded="true"
+              aria-controls="quickPanelBody">Thu gọn</button>
           </div>
         </div>
 
@@ -114,11 +125,13 @@
           <form id="quickTransactionForm" class="quick-form">
             <label>
               <span>Sản phẩm</span>
-              <input id="productLookupInput" name="product_lookup" list="productOptions" type="text" placeholder="Gõ tên sản phẩm..." required>
+              <input id="productLookupInput" name="product_lookup" list="productOptions" type="text"
+                placeholder="Gõ tên sản phẩm..." required>
             </label>
             <label>
               <span>Số lượng</span>
-              <input id="quantityInput" name="quantity" type="number" step="0.01" min="0.01" placeholder="Ví dụ: 10" required>
+              <input id="quantityInput" name="quantity" type="number" step="0.01" min="0.01" placeholder="Ví dụ: 10"
+                required>
             </label>
             <label>
               <span>Ghi chú</span>
@@ -132,7 +145,7 @@
         </div>
       </section>
 
-        <section class="panel inventory-panel">
+      <section class="panel inventory-panel">
         <div class="panel-heading inventory-heading">
           <div>
             <p class="panel-kicker">Tồn kho</p>
@@ -140,8 +153,10 @@
           </div>
           <div class="inventory-heading-actions">
             <div class="hero-stats" id="summaryCards"></div>
-            <button type="button" class="ghost-button compact-button" data-go-menu="procurement-planner">Xử lý nhập thiếu</button>
-            <button type="button" id="inventoryHistoryShortcutButton" class="ghost-button compact-button">Lịch sử biến động</button>
+            <button type="button" class="ghost-button compact-button" data-go-menu="procurement-planner">Xử lý nhập
+              thiếu</button>
+            <button type="button" id="inventoryHistoryShortcutButton" class="ghost-button compact-button">Lịch sử biến
+              động</button>
           </div>
         </div>
 
@@ -152,57 +167,58 @@
           </label>
         </div>
 
-          <div id="productGrid" class="product-list"></div>
-        </section>
-
-        <section id="inventoryReceiptSection" class="panel product-collapse-card is-collapsed">
-          <div class="subheading">
-            <div>
-              <p class="panel-kicker">Phiếu điều chỉnh tồn</p>
-              <h3>Tạo chứng từ điều chỉnh theo kiểm kho</h3>
-            </div>
-            <button type="button" id="inventoryReceiptToggleButton" class="ghost-button compact-button">Mở phiếu</button>
-          </div>
-          <div id="inventoryReceiptWrap" class="product-collapse-body" hidden>
-            <form id="inventoryReceiptEntryForm" class="quick-form">
-              <label>
-                <span>Sản phẩm</span>
-                <input id="inventoryReceiptProductInput" type="text" list="productOptions" placeholder="Gõ tên sản phẩm...">
-              </label>
-              <label>
-                <span>SL điều chỉnh (+/-)</span>
-                <input id="inventoryReceiptDeltaInput" type="number" step="0.01" placeholder="Ví dụ: -2 hoặc 3">
-              </label>
-              <label>
-                <span>Mã lô</span>
-                <input id="inventoryReceiptBatchCodeInput" type="text" maxlength="80" placeholder="Tùy chọn khi tăng tồn">
-              </label>
-              <label>
-                <span>Hạn dùng</span>
-                <input id="inventoryReceiptExpiryDateInput" type="date">
-              </label>
-              <div class="action-row">
-                <button type="button" id="inventoryReceiptAddButton" class="ghost-button">Thêm dòng</button>
-              </div>
-            </form>
-            <label class="price-field">
-              <span>Lý do điều chỉnh</span>
-              <input id="inventoryReceiptReasonInput" type="text" maxlength="160" placeholder="Bắt buộc">
-            </label>
-            <label class="price-field">
-              <span>Ghi chú</span>
-              <input id="inventoryReceiptNoteInput" type="text" maxlength="160" placeholder="Tùy chọn">
-            </label>
-            <div id="inventoryReceiptItems" class="cart-items-list"></div>
-            
-              <div class="customer-form-actions">
-              <button type="button" id="inventoryReceiptSubmitButton" class="primary-button">Tạo phiếu điều chỉnh</button>
-              <button type="button" id="inventoryReceiptClearButton" class="ghost-button">Làm mới phiếu</button>
-            </div>
-          </div>
-        </section>
-
+        <div id="productGrid" class="product-list"></div>
       </section>
+
+      <section id="inventoryReceiptSection" class="panel product-collapse-card is-collapsed">
+        <div class="subheading">
+          <div>
+            <p class="panel-kicker">Phiếu điều chỉnh tồn</p>
+            <h3>Tạo chứng từ điều chỉnh theo kiểm kho</h3>
+          </div>
+          <button type="button" id="inventoryReceiptToggleButton" class="ghost-button compact-button">Mở phiếu</button>
+        </div>
+        <div id="inventoryReceiptWrap" class="product-collapse-body" hidden>
+          <form id="inventoryReceiptEntryForm" class="quick-form">
+            <label>
+              <span>Sản phẩm</span>
+              <input id="inventoryReceiptProductInput" type="text" list="productOptions"
+                placeholder="Gõ tên sản phẩm...">
+            </label>
+            <label>
+              <span>SL điều chỉnh (+/-)</span>
+              <input id="inventoryReceiptDeltaInput" type="number" step="0.01" placeholder="Ví dụ: -2 hoặc 3">
+            </label>
+            <label>
+              <span>Mã lô</span>
+              <input id="inventoryReceiptBatchCodeInput" type="text" maxlength="80" placeholder="Tùy chọn khi tăng tồn">
+            </label>
+            <label>
+              <span>Hạn dùng</span>
+              <input id="inventoryReceiptExpiryDateInput" type="date">
+            </label>
+            <div class="action-row">
+              <button type="button" id="inventoryReceiptAddButton" class="ghost-button">Thêm dòng</button>
+            </div>
+          </form>
+          <label class="price-field">
+            <span>Lý do điều chỉnh</span>
+            <input id="inventoryReceiptReasonInput" type="text" maxlength="160" placeholder="Bắt buộc">
+          </label>
+          <label class="price-field">
+            <span>Ghi chú</span>
+            <input id="inventoryReceiptNoteInput" type="text" maxlength="160" placeholder="Tùy chọn">
+          </label>
+          <div id="inventoryReceiptItems" class="cart-items-list"></div>
+
+          <div class="customer-form-actions">
+            <button type="button" id="inventoryReceiptSubmitButton" class="primary-button">Tạo phiếu điều chỉnh</button>
+            <button type="button" id="inventoryReceiptClearButton" class="ghost-button">Làm mới phiếu</button>
+          </div>
+        </div>
+      </section>
+
+    </section>
 
     <section class="view-section" data-menu-section="product-movements">
       <section id="productMovementSection" class="panel inventory-panel">
@@ -212,7 +228,8 @@
             <h2>Lịch sử biến động sản phẩm</h2>
           </div>
           <div class="inline-menu-actions">
-            <button type="button" id="productMovementCreateReceiptButton" class="ghost-button compact-button" hidden>Phiếu DC</button>
+            <button type="button" id="productMovementCreateReceiptButton" class="ghost-button compact-button"
+              hidden>Phiếu DC</button>
             <button type="button" class="ghost-button compact-button" data-go-menu="inventory">Quay lại tồn kho</button>
           </div>
         </div>
@@ -227,7 +244,8 @@
           <form id="productMovementForm" class="quick-form product-movement-form">
             <label class="product-movement-product-field">
               <span>Sản phẩm</span>
-              <input id="productMovementProductInput" type="text" list="productOptions" placeholder="Gõ tên sản phẩm..." required>
+              <input id="productMovementProductInput" type="text" list="productOptions" placeholder="Gõ tên sản phẩm..."
+                required>
             </label>
             <label>
               <span>Từ ngày</span>
@@ -295,7 +313,8 @@
           <div class="sales-customer-form">
             <label>
               <span>Khách hàng</span>
-              <input id="customerLookupInput" type="text" list="customerOptions" maxlength="80" placeholder="Gõ tên khách hàng để tìm hoặc tạo mới">
+              <input id="customerLookupInput" type="text" list="customerOptions" maxlength="80"
+                placeholder="Gõ tên khách hàng để tìm hoặc tạo mới">
             </label>
             <label>
               <span>Ghi chú phiếu xuất</span>
@@ -362,14 +381,16 @@
             <p class="panel-kicker">Tạo nhiều đơn</p>
             <h2>Xuất nhanh theo khách</h2>
           </div>
-          <p class="panel-note">Thêm nhiều khách, mỗi khách nhiều mặt hàng, rồi `Lưu nháp` hoặc `Chốt đơn hợp lệ` mà không đổi workflow hiện tại.</p>
+          <p class="panel-note">Thêm nhiều khách, mỗi khách nhiều mặt hàng, rồi `Lưu nháp` hoặc `Chốt đơn hợp lệ` mà
+            không đổi workflow hiện tại.</p>
         </div>
 
         <section class="sales-customer-card bulk-order-entry-card">
           <div class="sales-customer-form bulk-order-customer-entry">
             <label>
               <span>Khách hàng</span>
-              <input id="bulkCustomerLookupInput" type="text" list="customerOptions" maxlength="80" placeholder="Gõ tên khách có sẵn hoặc tên khách mới">
+              <input id="bulkCustomerLookupInput" type="text" list="customerOptions" maxlength="80"
+                placeholder="Gõ tên khách có sẵn hoặc tên khách mới">
             </label>
             <button type="button" id="bulkAddCustomerButton" class="primary-button">+ Thêm khách</button>
           </div>
@@ -448,7 +469,8 @@
             <form id="customerForm" class="customer-form">
               <label>
                 <span>Tên khách hàng *</span>
-                <input id="customerNameInput" name="name" type="text" maxlength="80" placeholder="Ví dụ: Cô Lan" required>
+                <input id="customerNameInput" name="name" type="text" maxlength="80" placeholder="Ví dụ: Cô Lan"
+                  required>
               </label>
               <label>
                 <span>Số liên lạc</span>
@@ -456,22 +478,28 @@
               </label>
               <label>
                 <span>Địa chỉ ship</span>
-                <input id="customerAddressInput" name="address" type="text" maxlength="180" placeholder="Ví dụ: 12 Nguyễn Trãi, Q1">
+                <input id="customerAddressInput" name="address" type="text" maxlength="180"
+                  placeholder="Ví dụ: 12 Nguyễn Trãi, Q1">
               </label>
               <label>
                 <span>Link Zalo</span>
-                <input id="customerZaloInput" name="zalo_url" type="text" maxlength="500" placeholder="https://zalo.me/0909...">
+                <input id="customerZaloInput" name="zalo_url" type="text" maxlength="500"
+                  placeholder="https://zalo.me/0909...">
               </label>
               <label>
                 <span>Link Avatar (Ảnh đại diện)</span>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <img id="customerAvatarPreview" src="" alt="Avatar" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; display: none; border: 1px solid #ccc; flex-shrink: 0;">
-                  <input id="customerAvatarInput" name="avatar_url" type="text" maxlength="2000" placeholder="https://..." style="flex: 1;">
+                  <img id="customerAvatarPreview" src="" alt="Avatar"
+                    style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; display: none; border: 1px solid #ccc; flex-shrink: 0;">
+                  <input id="customerAvatarInput" name="avatar_url" type="text" maxlength="2000"
+                    placeholder="https://..." style="flex: 1;">
                 </div>
               </label>
               <label>
                 <span>Zalo ID (Chỉ đọc)</span>
-                <input id="customerZaloIdInput" name="zalo_id" type="text" readonly placeholder="Tự động gán qua Zalo Login" style="background: var(--surface-muted, #f5f5f5); color: var(--text-muted, #666); cursor: not-allowed;">
+                <input id="customerZaloIdInput" name="zalo_id" type="text" readonly
+                  placeholder="Tự động gán qua Zalo Login"
+                  style="background: var(--surface-muted, #f5f5f5); color: var(--text-muted, #666); cursor: not-allowed;">
               </label>
               <label>
                 <span>Nhóm Zalo (Chi nhánh)</span>
@@ -480,7 +508,7 @@
                 </select>
               </label>
 
-              
+
               <div class="customer-form-actions">
                 <button type="submit" class="primary-button">Lưu khách hàng</button>
                 <button type="button" id="customerFormCancelButton" class="ghost-button">Hủy sửa</button>
@@ -546,11 +574,13 @@
               <div data-price-warning-group data-price-warning-mode="edit">
                 <label data-price-warning-field="purchase">
                   <span>Giá nhập</span>
-                  <input name="price" type="number" step="1000" min="0" value="0" data-price-warning-input="purchase" required>
+                  <input name="price" type="number" step="1000" min="0" value="0" data-price-warning-input="purchase"
+                    required>
                 </label>
                 <label data-price-warning-field="sale">
                   <span>Giá bán mặc định</span>
-                  <input name="sale_price" type="number" step="1000" min="0" value="0" data-price-warning-input="sale" required>
+                  <input name="sale_price" type="number" step="1000" min="0" value="0" data-price-warning-input="sale"
+                    required>
                 </label>
                 <div data-price-warning-host></div>
               </div>
@@ -570,18 +600,28 @@
                 <span>Các liên kết ảnh (mỗi dòng 1 link)</span>
                 <textarea name="images" rows="3" placeholder="Ví dụ: https://example.com/image1.jpg"></textarea>
                 <input type="file" id="productImageUpload" accept="image/*" multiple style="display: none;">
-                <button type="button" id="uploadProductImageButton" class="ghost-button compact-button" style="margin-top: 4px;">Tải ảnh lên</button>
+                <button type="button" id="uploadProductImageButton" class="ghost-button compact-button"
+                  style="margin-top: 4px;">Tải ảnh lên</button>
               </label>
               <div class="rich-text-label" style="display: flex; flex-direction: column; gap: 4px;">
                 <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted);">Thông tin chi tiết</span>
-                <div id="productDetailEditor" class="wysiwyg-editor" style="min-height: 120px; max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); outline: none; line-height: 1.5;"></div>
+                <div id="productDetailEditor" class="wysiwyg-editor"
+                  style="min-height: 120px; max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); outline: none; line-height: 1.5;">
+                </div>
                 <textarea name="details" style="display:none;"></textarea>
               </div>
               <div class="rich-text-label" style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">
-                <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted);">Hướng dẫn nấu (Recipe)</span>
-                <div id="productRecipeEditor" class="wysiwyg-editor" style="min-height: 120px; max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); outline: none; line-height: 1.5;"></div>
+                <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted);">Hướng dẫn nấu
+                  (Recipe)</span>
+                <div id="productRecipeEditor" class="wysiwyg-editor"
+                  style="min-height: 120px; max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); outline: none; line-height: 1.5;">
+                </div>
                 <textarea name="recipe" style="display:none;"></textarea>
               </div>
+              <label style="margin-top: 8px;">
+                <span>Ghi chú sản phẩm (Hiển thị cho khách khi đặt hàng)</span>
+                <input name="note" type="text" placeholder="Ví dụ: Đặt trước 1 ngày, chỉ bán từ 2 gói...">
+              </label>
               <label class="toggle-inline" style="margin-top: 8px;">
                 <input name="is_public" type="checkbox" checked>
                 <span style="font-weight: 500;">Hiển thị trên Web (Public)</span>
@@ -599,7 +639,8 @@
               <p class="panel-kicker">Lịch sử sản phẩm</p>
               <h3>Các thay đổi gần đây trong quản lý sản phẩm</h3>
             </div>
-            <button type="button" id="productHistoryToggleButton" class="ghost-button compact-button">Mở lịch sử</button>
+            <button type="button" id="productHistoryToggleButton" class="ghost-button compact-button">Mở lịch
+              sử</button>
           </div>
           <div id="productHistoryWrap" class="product-collapse-body">
             <div class="sticky-toolbar">
@@ -636,7 +677,8 @@
           <div class="sales-customer-form">
             <label>
               <span>Nhà cung cấp / ghi chú nguồn hàng</span>
-              <input id="purchaseSupplierInput" type="text" list="supplierOptions" maxlength="120" placeholder="Ví dụ: Chợ đầu mối, NCC Minh Tâm">
+              <input id="purchaseSupplierInput" type="text" list="supplierOptions" maxlength="120"
+                placeholder="Ví dụ: Chợ đầu mối, NCC Minh Tâm">
             </label>
             <label>
               <span>Ghi chú phiếu nhập</span>
@@ -645,12 +687,15 @@
           </div>
           <div class="inline-menu-actions">
             <button type="button" id="createPurchaseDraftButton" class="ghost-button compact-button">Tạo phiếu</button>
-            <button type="button" id="togglePurchasePanelButton" class="ghost-button compact-button">Thu gọn phiếu nhập</button>
+            <button type="button" id="togglePurchasePanelButton" class="ghost-button compact-button">Thu gọn phiếu
+              nhập</button>
             <button type="button" class="ghost-button compact-button" data-go-menu="suppliers">NCC</button>
           </div>
           <div class="inline-menu-actions purchase-shortcut-actions">
-            <button type="button" class="ghost-button compact-button" data-purchase-shortcut="orders">Danh sách phiếu</button>
-            <button type="button" class="ghost-button compact-button" data-purchase-shortcut="suggestions">Chọn hàng</button>
+            <button type="button" class="ghost-button compact-button" data-purchase-shortcut="orders">Danh sách
+              phiếu</button>
+            <button type="button" class="ghost-button compact-button" data-purchase-shortcut="suggestions">Chọn
+              hàng</button>
           </div>
         </article>
 
@@ -704,10 +749,14 @@
           </div>
           <div class="inline-menu-actions">
             <button type="button" class="ghost-button compact-button" id="procurementRefreshButton">Làm mới</button>
-            <button type="button" class="primary-button compact-button" id="procurementCreateSelectedButton">Tạo phiếu đã chọn</button>
-            <button type="button" class="ghost-button compact-button" id="procurementReviewButton" hidden>Review phiếu</button>
-            <button type="button" class="primary-button compact-button" id="procurementStartBatchButton">Bắt đầu kỳ gom</button>
-            <button type="button" class="danger-button compact-button" id="procurementFinishBatchButton">Kết thúc kỳ gom</button>
+            <button type="button" class="primary-button compact-button" id="procurementCreateSelectedButton">Tạo phiếu
+              đã chọn</button>
+            <button type="button" class="ghost-button compact-button" id="procurementReviewButton" hidden>Review
+              phiếu</button>
+            <button type="button" class="primary-button compact-button" id="procurementStartBatchButton">Bắt đầu kỳ
+              gom</button>
+            <button type="button" class="danger-button compact-button" id="procurementFinishBatchButton">Kết thúc kỳ
+              gom</button>
           </div>
         </div>
         <div id="procurementStatusPanel" class="inline-alert"></div>
@@ -738,7 +787,8 @@
             <form id="supplierForm" class="customer-form">
               <label>
                 <span>Tên nhà cung cấp</span>
-                <input id="supplierNameInput" name="name" type="text" maxlength="120" placeholder="Ví dụ: NCC Minh Tâm" required>
+                <input id="supplierNameInput" name="name" type="text" maxlength="120" placeholder="Ví dụ: NCC Minh Tâm"
+                  required>
               </label>
               <label>
                 <span>Số liên lạc</span>
@@ -746,13 +796,15 @@
               </label>
               <label>
                 <span>Địa chỉ</span>
-                <input id="supplierAddressInput" name="address" type="text" maxlength="180" placeholder="Ví dụ: Chợ đầu mối Bình Điền">
+                <input id="supplierAddressInput" name="address" type="text" maxlength="180"
+                  placeholder="Ví dụ: Chợ đầu mối Bình Điền">
               </label>
               <label>
                 <span>Ghi chú</span>
-                <input id="supplierNoteInput" name="note" type="text" maxlength="180" placeholder="Ví dụ: giao hàng sáng, chuyên đồ đông lạnh">
+                <input id="supplierNoteInput" name="note" type="text" maxlength="180"
+                  placeholder="Ví dụ: giao hàng sáng, chuyên đồ đông lạnh">
               </label>
-              
+
               <div class="customer-form-actions">
                 <button type="submit" class="primary-button">Lưu nhà cung cấp</button>
                 <button type="button" id="supplierFormCancelButton" class="ghost-button">Hủy sửa</button>
@@ -780,7 +832,8 @@
             <p class="panel-kicker">Thanh toán & công nợ</p>
             <h2>Theo dõi phiếu đã thu / đã trả</h2>
           </div>
-          <p class="panel-note">Màn này gom các phiếu xuất và phiếu nhập đã tới bước thanh toán để dễ kiểm tra trên mobile, không cần theo dõi thêm bằng Excel.</p>
+          <p class="panel-note">Màn này gom các phiếu xuất và phiếu nhập đã tới bước thanh toán để dễ kiểm tra trên
+            mobile, không cần theo dõi thêm bằng Excel.</p>
         </div>
 
         <div class="inline-menu-actions payments-tab-bar" id="paymentTabBar">
@@ -791,7 +844,8 @@
         <div class="sticky-toolbar payments-toolbar list-search-toolbar">
           <label class="search-box">
             <span class="sr-only">Tìm phiếu thanh toán</span>
-            <input id="paymentsSearchInput" type="search" placeholder="Tìm theo mã phiếu, khách hàng hoặc nhà cung cấp...">
+            <input id="paymentsSearchInput" type="search"
+              placeholder="Tìm theo mã phiếu, khách hàng hoặc nhà cung cấp...">
           </label>
           <label>
             <span>Lọc nhanh</span>
@@ -819,7 +873,8 @@
             <p class="panel-kicker">Báo cáo tháng</p>
             <h2>Nhập xuất hàng và dự báo cần nhập</h2>
           </div>
-          <p class="panel-note">Xem xu hướng theo tháng, kiểm tra sản phẩm biến động mạnh và danh sách cần nhập thêm.</p>
+          <p class="panel-note">Xem xu hướng theo tháng, kiểm tra sản phẩm biến động mạnh và danh sách cần nhập thêm.
+          </p>
         </div>
 
         <section id="reportFiltersSection" class="sales-card report-collapse-card">
@@ -854,8 +909,10 @@
                   </select>
                 </label>
                 <div class="reports-filter-actions">
-                  <button type="button" id="refreshReportsButton" class="ghost-button compact-button">Làm mới báo cáo</button>
-                  <button type="button" id="clearReportDateFilterButton" class="ghost-button compact-button">Bỏ lọc ngày</button>
+                  <button type="button" id="refreshReportsButton" class="ghost-button compact-button">Làm mới báo
+                    cáo</button>
+                  <button type="button" id="clearReportDateFilterButton" class="ghost-button compact-button">Bỏ lọc
+                    ngày</button>
                 </div>
               </div>
             </div>
@@ -913,7 +970,8 @@
           <div class="sticky-toolbar list-search-toolbar">
             <label class="search-box">
               <span class="sr-only">Tìm mã phiếu hoặc mã tham chiếu</span>
-              <input id="reportReceiptSearchInput" type="search" list="reportReceiptReferenceOptions" placeholder="Tìm mã phiếu hoặc mã tham chiếu...">
+              <input id="reportReceiptSearchInput" type="search" list="reportReceiptReferenceOptions"
+                placeholder="Tìm mã phiếu hoặc mã tham chiếu...">
             </label>
             <datalist id="reportReceiptReferenceOptions"></datalist>
           </div>
@@ -973,7 +1031,8 @@
             <p class="panel-kicker">Master Admin</p>
             <h2>Import / export master data và backup hệ thống</h2>
           </div>
-          <p class="panel-note">Chỉ dùng cho quản trị hệ thống. Các thao tác restore có thể ghi đè toàn bộ dữ liệu hiện tại.</p>
+          <p class="panel-note">Chỉ dùng cho quản trị hệ thống. Các thao tác restore có thể ghi đè toàn bộ dữ liệu hiện
+            tại.</p>
         </div>
 
         <section id="adminModulePanel" class="sales-columns" hidden>
@@ -989,45 +1048,54 @@
               <article class="report-card">
                 <div class="report-card-head">
                   <strong>Mặt hàng</strong>
-                  <select id="adminMasterFormatProducts" class="ghost-button compact-button" aria-label="Định dạng file mặt hàng">
+                  <select id="adminMasterFormatProducts" class="ghost-button compact-button"
+                    aria-label="Định dạng file mặt hàng">
                     <option value="json" selected>JSON</option>
                     <option value="csv">CSV</option>
                   </select>
-                  <button type="button" class="ghost-button compact-button" data-admin-export="products">Xuất file</button>
+                  <button type="button" class="ghost-button compact-button" data-admin-export="products">Xuất
+                    file</button>
                 </div>
                 <div class="purchase-inline-grid">
                   <input id="adminImportProductsFile" type="file" accept=".json,application/json,.csv,text/csv">
-                  <button type="button" class="primary-button compact-button" data-admin-import="products">Nhập file</button>
+                  <button type="button" class="primary-button compact-button" data-admin-import="products">Nhập
+                    file</button>
                 </div>
               </article>
 
               <article class="report-card">
                 <div class="report-card-head">
                   <strong>Khách hàng</strong>
-                  <select id="adminMasterFormatCustomers" class="ghost-button compact-button" aria-label="Định dạng file khách hàng">
+                  <select id="adminMasterFormatCustomers" class="ghost-button compact-button"
+                    aria-label="Định dạng file khách hàng">
                     <option value="json" selected>JSON</option>
                     <option value="csv">CSV</option>
                   </select>
-                  <button type="button" class="ghost-button compact-button" data-admin-export="customers">Xuất file</button>
+                  <button type="button" class="ghost-button compact-button" data-admin-export="customers">Xuất
+                    file</button>
                 </div>
                 <div class="purchase-inline-grid">
                   <input id="adminImportCustomersFile" type="file" accept=".json,application/json,.csv,text/csv">
-                  <button type="button" class="primary-button compact-button" data-admin-import="customers">Nhập file</button>
+                  <button type="button" class="primary-button compact-button" data-admin-import="customers">Nhập
+                    file</button>
                 </div>
               </article>
 
               <article class="report-card">
                 <div class="report-card-head">
                   <strong>Nhà cung cấp</strong>
-                  <select id="adminMasterFormatSuppliers" class="ghost-button compact-button" aria-label="Định dạng file nhà cung cấp">
+                  <select id="adminMasterFormatSuppliers" class="ghost-button compact-button"
+                    aria-label="Định dạng file nhà cung cấp">
                     <option value="json" selected>JSON</option>
                     <option value="csv">CSV</option>
                   </select>
-                  <button type="button" class="ghost-button compact-button" data-admin-export="suppliers">Xuất file</button>
+                  <button type="button" class="ghost-button compact-button" data-admin-export="suppliers">Xuất
+                    file</button>
                 </div>
                 <div class="purchase-inline-grid">
                   <input id="adminImportSuppliersFile" type="file" accept=".json,application/json,.csv,text/csv">
-                  <button type="button" class="primary-button compact-button" data-admin-import="suppliers">Nhập file</button>
+                  <button type="button" class="primary-button compact-button" data-admin-import="suppliers">Nhập
+                    file</button>
                 </div>
               </article>
             </div>
@@ -1044,7 +1112,8 @@
               <article class="report-card">
                 <div class="report-card-head">
                   <strong>Backup database</strong>
-                  <button type="button" id="adminBackupButton" class="ghost-button compact-button">Tải file backup</button>
+                  <button type="button" id="adminBackupButton" class="ghost-button compact-button">Tải file
+                    backup</button>
                 </div>
                 <div class="cart-line-note">Tạo một bản sao toàn bộ hệ thống tại thời điểm hiện tại.</div>
               </article>
@@ -1053,7 +1122,8 @@
                 <div class="report-card-head">
                   <strong>Restore database</strong>
                 </div>
-                <div class="cart-line-note">Cảnh báo: restore sẽ ghi đè toàn bộ dữ liệu hiện tại. Hãy backup trước khi thực hiện.</div>
+                <div class="cart-line-note">Cảnh báo: restore sẽ ghi đè toàn bộ dữ liệu hiện tại. Hãy backup trước khi
+                  thực hiện.</div>
                 <div class="purchase-inline-grid">
                   <input id="adminRestoreDbFile" type="file" accept=".db,application/octet-stream">
                   <button type="button" id="adminRestoreButton" class="danger-button compact-button">Restore DB</button>
@@ -1069,11 +1139,14 @@
                 <h3>Rà soát và xử lý dữ liệu cũ</h3>
               </div>
               <div class="row-actions">
-                <button type="button" id="adminLegacyAuditRefreshButton" class="ghost-button compact-button">Làm mới audit</button>
-                <button type="button" id="adminLegacyApplySafeFixesButton" class="primary-button compact-button">Áp dụng fix an toàn</button>
+                <button type="button" id="adminLegacyAuditRefreshButton" class="ghost-button compact-button">Làm mới
+                  audit</button>
+                <button type="button" id="adminLegacyApplySafeFixesButton" class="primary-button compact-button">Áp dụng
+                  fix an toàn</button>
               </div>
             </div>
-            <div class="cart-line-note">Khối này dành cho dữ liệu legacy/restore bị lệch metadata hoặc workflow. Fix an toàn chỉ backfill timestamp chắc chắn; các record còn lại phải do admin review và xác nhận thủ công.</div>
+            <div class="cart-line-note">Khối này dành cho dữ liệu legacy/restore bị lệch metadata hoặc workflow. Fix an
+              toàn chỉ backfill timestamp chắc chắn; các record còn lại phải do admin review và xác nhận thủ công.</div>
             <div id="adminLegacyAuditSummary" class="hero-stats"></div>
             <div class="report-list admin-legacy-list">
               <article class="report-card">
@@ -1107,21 +1180,24 @@
         <form id="publicWebConfigForm" class="edit-form-grid compact-form">
           <div class="form-group full-width">
             <label for="publicWebThumbMobile">Kích thước Thumbnail trên Mobile/Tablet (px)</label>
-            <input type="number" id="publicWebThumbMobile" name="thumbnail_size_mobile" min="50" max="500" placeholder="VD: 120" required>
+            <input type="number" id="publicWebThumbMobile" name="thumbnail_size_mobile" min="50" max="500"
+              placeholder="VD: 120" required>
           </div>
           <div class="form-group full-width">
             <label for="publicWebThumbPc">Kích thước Thumbnail trên PC (px)</label>
-            <input type="number" id="publicWebThumbPc" name="thumbnail_size_pc" min="100" max="800" placeholder="VD: 240" required>
+            <input type="number" id="publicWebThumbPc" name="thumbnail_size_pc" min="100" max="800"
+              placeholder="VD: 240" required>
           </div>
           <div class="form-group full-width">
             <label for="publicWebBannerUrl">URL Banner (Link ảnh)</label>
-            <input type="text" id="publicWebBannerUrl" name="banner_url" placeholder="VD: https://example.com/banner.jpg">
+            <input type="text" id="publicWebBannerUrl" name="banner_url"
+              placeholder="VD: https://example.com/banner.jpg">
           </div>
           <div class="form-group full-width">
             <label for="publicWebThemeColor">Màu chủ đạo (Hex code)</label>
             <input type="text" id="publicWebThemeColor" name="theme_color" placeholder="VD: #43a047">
           </div>
-          
+
           <div class="form-group full-width">
             <label class="checkbox-label" style="display: flex; gap: 8px; align-items: center;">
               <input type="checkbox" id="publicWebRequireZaloGroup" name="require_zalo_group_to_order">
@@ -1141,10 +1217,12 @@
             <p class="panel-kicker">Nhóm Zalo</p>
             <h2>Quản lý Chi nhánh / Nhóm Zalo</h2>
           </div>
-          <p class="panel-note">Chỉ khách hàng thuộc một trong các Nhóm này mới được phép chốt đơn (nếu bật tính năng bắt buộc). Mỗi nhóm có thể có 1 link Zalo riêng.</p>
+          <p class="panel-note">Chỉ khách hàng thuộc một trong các Nhóm này mới được phép chốt đơn (nếu bật tính năng
+            bắt buộc). Mỗi nhóm có thể có 1 link Zalo riêng.</p>
         </div>
         <div class="form-group full-width" style="margin-bottom: 1rem;">
-          <form id="zaloGroupForm" class="edit-form-grid compact-form" style="display: flex; gap: 10px; align-items: flex-end;">
+          <form id="zaloGroupForm" class="edit-form-grid compact-form"
+            style="display: flex; gap: 10px; align-items: flex-end;">
             <label style="flex: 1">
               <span>Tên nhóm</span>
               <input type="text" id="zaloGroupNameInput" placeholder="VD: Chi nhánh Q1" required>
@@ -1155,7 +1233,8 @@
             </label>
             <input type="hidden" id="zaloGroupIdInput">
             <button type="submit" class="primary-button compact-button" style="margin-bottom: 2px;">Lưu</button>
-            <button type="button" id="zaloGroupCancelBtn" class="ghost-button compact-button" style="margin-bottom: 2px; display: none;">Hủy</button>
+            <button type="button" id="zaloGroupCancelBtn" class="ghost-button compact-button"
+              style="margin-bottom: 2px; display: none;">Hủy</button>
           </form>
         </div>
         <table class="data-table" style="width: 100%; border-collapse: collapse;">
@@ -1197,23 +1276,40 @@
           <div>
             <p class="panel-kicker">Chi tiết sản phẩm</p>
             <h2 id="productDetailModalTitle">Tên sản phẩm</h2>
+            <div id="productDetailModalNote"
+              style="font-size: 0.9em; color: #e65100; font-style: italic; margin-top: 4px;" hidden></div>
           </div>
-          <button type="button" id="closeProductDetailButton" class="ghost-button compact-button" aria-label="Đóng chi tiết">Đóng</button>
+          <button type="button" id="closeProductDetailButton" class="ghost-button compact-button"
+            aria-label="Đóng chi tiết">Đóng</button>
         </div>
         <div class="help-dialog-body">
           <div id="productDetailImagesContainer" class="product-detail-images" hidden></div>
           <div id="productDetailContent" class="product-detail-content"></div>
+          <div id="productDetailRecipeContainer" class="modal-recipe-container"
+            style="margin-top: 16px; padding: 12px; background: #fff8e1; border-radius: 8px; border: 1px solid #ffecb3;"
+            hidden>
+            <h4
+              style="margin-top: 0; margin-bottom: 8px; color: #f57f17; display: flex; align-items: center; gap: 6px;">
+              <span>👨‍🍳</span> Gợi ý chế biến (Recipe)
+            </h4>
+            <div id="productDetailRecipe" style="line-height: 1.6; color: #424242;"></div>
+          </div>
         </div>
       </section>
     </div>
   </main>
 
   <div class="screen-toolbox" aria-label="Công cụ điều hướng nhanh">
-    <button type="button" id="scrollTopButton" class="toolbox-button" title="Lên đầu trang" aria-label="Lên đầu trang">↑</button>
-    <button type="button" id="navBackButton" class="toolbox-button" title="Quay lại màn trước" aria-label="Quay lại màn trước">←</button>
-    <button type="button" id="openHelpButton" class="toolbox-button toolbox-button-help" title="Xem hướng dẫn màn hình hiện tại" aria-label="Xem hướng dẫn màn hình hiện tại">?</button>
-    <button type="button" id="navForwardButton" class="toolbox-button" title="Tiến tới màn kế tiếp trong lịch sử" aria-label="Tiến tới màn kế tiếp trong lịch sử">→</button>
-    <button type="button" id="scrollBottomButton" class="toolbox-button" title="Xuống cuối trang" aria-label="Xuống cuối trang">↓</button>
+    <button type="button" id="scrollTopButton" class="toolbox-button" title="Lên đầu trang"
+      aria-label="Lên đầu trang">↑</button>
+    <button type="button" id="navBackButton" class="toolbox-button" title="Quay lại màn trước"
+      aria-label="Quay lại màn trước">←</button>
+    <button type="button" id="openHelpButton" class="toolbox-button toolbox-button-help"
+      title="Xem hướng dẫn màn hình hiện tại" aria-label="Xem hướng dẫn màn hình hiện tại">?</button>
+    <button type="button" id="navForwardButton" class="toolbox-button" title="Tiến tới màn kế tiếp trong lịch sử"
+      aria-label="Tiến tới màn kế tiếp trong lịch sử">→</button>
+    <button type="button" id="scrollBottomButton" class="toolbox-button" title="Xuống cuối trang"
+      aria-label="Xuống cuối trang">↓</button>
   </div>
 
   <div id="floatingSearchDock" class="floating-search-dock" hidden>
@@ -1231,7 +1327,8 @@
           <p class="panel-kicker">Hướng dẫn nhanh</p>
           <h2 id="helpModalTitle">Trợ giúp màn hình</h2>
         </div>
-        <button type="button" id="closeHelpButton" class="ghost-button compact-button" aria-label="Đóng hướng dẫn">Đóng</button>
+        <button type="button" id="closeHelpButton" class="ghost-button compact-button"
+          aria-label="Đóng hướng dẫn">Đóng</button>
       </div>
       <div id="helpModalBody" class="help-dialog-body"></div>
     </section>
@@ -1253,13 +1350,15 @@
 
   <div id="bulkItemPickerModal" class="help-modal" hidden>
     <div class="help-backdrop" data-bulk-picker-close="backdrop"></div>
-    <section class="help-dialog bulk-item-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="bulkItemPickerTitle">
+    <section class="help-dialog bulk-item-picker-dialog" role="dialog" aria-modal="true"
+      aria-labelledby="bulkItemPickerTitle">
       <div class="help-dialog-head">
         <div>
           <p class="panel-kicker">Thêm hàng</p>
           <h2 id="bulkItemPickerTitle">Chọn mặt hàng cho khách</h2>
         </div>
-        <button type="button" id="bulkItemPickerCloseButton" class="ghost-button compact-button" aria-label="Đóng thêm hàng">Đóng</button>
+        <button type="button" id="bulkItemPickerCloseButton" class="ghost-button compact-button"
+          aria-label="Đóng thêm hàng">Đóng</button>
       </div>
       <div class="help-dialog-body">
         <label class="search-box">
@@ -1282,7 +1381,7 @@
     </section>
   </div>
 
-  
+
   <script>
     (() => {
       const RETRY_KEY = "qltpchay_bootstrap_retry_count";
@@ -1341,7 +1440,7 @@
       function clearRetryCount() {
         try {
           sessionStorage.removeItem(RETRY_KEY);
-        } catch {}
+        } catch { }
       }
 
       function scheduleReload(detail) {
@@ -1355,7 +1454,7 @@
             }, 250);
             return true;
           }
-        } catch {}
+        } catch { }
         return false;
       }
 
@@ -1379,6 +1478,8 @@
     })();
   </script>
   <script src="./static/vendor/quill/quill.min.js"></script>
-  <script type="module" src="./static/bootstrap.js" onerror="window.__qltpchayHandleBootstrapScriptError && window.__qltpchayHandleBootstrapScriptError()"></script>
+  <script type="module" src="./static/bootstrap.js"
+    onerror="window.__qltpchayHandleBootstrapScriptError && window.__qltpchayHandleBootstrapScriptError()"></script>
 </body>
+
 </html>
