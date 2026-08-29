@@ -146,6 +146,183 @@ function showLogoutModal(userName) {
   }
 }
 
+// Issue 8: Đồng bộ trạng thái checkbox & input số lượng ở danh sách sản phẩm bên ngoài khi sửa ở modal review
+function syncProductCardSelection(productId) {
+  const checkbox = document.querySelector(`.item-checkbox[data-id="${productId}"]`);
+  const inputQty = document.querySelector(`.input-qty[data-id="${productId}"]`);
+  const qtyControl = checkbox ? checkbox.closest('.product-select-row')?.querySelector('.qty-control') : null;
+  const qty = window.selectedProducts[productId] || 0;
+  
+  if (checkbox) {
+    checkbox.checked = qty > 0;
+  }
+  if (inputQty) {
+    inputQty.value = qty > 0 ? qty : 1;
+  }
+  if (qtyControl) {
+    qtyControl.style.display = qty > 0 ? 'flex' : 'none';
+  }
+}
+
+// Issue 8: Cập nhật phần chia tách đơn trong modal chốt đơn
+function updateCheckoutSplitSection() {
+  const splitOptionSection = document.getElementById('checkoutSplitOptionSection');
+  const splitHintText = document.getElementById('checkoutSplitHintText');
+  const splitRadioGroup = document.getElementById('checkoutSplitRadioGroup');
+  
+  let inStockCount = 0;
+  let outOfStockCount = 0;
+
+  Object.keys(window.selectedProducts || {}).forEach(id => {
+    const qty = window.selectedProducts[id];
+    if (qty > 0) {
+      const p = allProducts.find(x => String(x.id) === String(id));
+      if (p) {
+        const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+        const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
+        if (!hasStock && !hasIncoming) {
+          outOfStockCount++;
+        } else {
+          inStockCount++;
+        }
+      }
+    }
+  });
+
+  if (splitOptionSection) {
+    if (inStockCount > 0 && outOfStockCount > 0) {
+      splitOptionSection.style.display = 'block';
+      if (splitRadioGroup) splitRadioGroup.style.display = 'flex';
+      if (splitHintText) splitHintText.textContent = 'Bạn có thể chọn đặt chung để nhận hàng khi có đủ, hoặc tách thành đơn riêng để nhận các món có sẵn trước:';
+      const defaultRadio = document.querySelector('input[name="orderSplitChoice"][value="single"]');
+      if (defaultRadio && !document.querySelector('input[name="orderSplitChoice"]:checked')) {
+        defaultRadio.checked = true;
+      }
+    } else if (outOfStockCount > 0 && inStockCount === 0) {
+      splitOptionSection.style.display = 'block';
+      if (splitRadioGroup) splitRadioGroup.style.display = 'none';
+      if (splitHintText) splitHintText.textContent = 'ℹ️ Đơn hàng gồm toàn bộ mặt hàng đang hết chờ nhập về. Shop sẽ liên hệ xác nhận thời gian giao cụ thể khi hàng về.';
+    } else {
+      splitOptionSection.style.display = 'none';
+    }
+  }
+}
+
+// Issue 8: Render danh sách sản phẩm trong modal chốt đơn với font chữ to hơn và cho phép click chỉnh sửa số lượng trực tiếp
+function renderCheckoutReview() {
+  const reviewContainer = document.getElementById('checkoutReviewItems');
+  const reviewTotal = document.getElementById('checkoutReviewTotal');
+  const shippingLabel = document.getElementById('shippingNoteLabel');
+  if (!reviewContainer) return;
+  
+  reviewContainer.innerHTML = '';
+  let totalQuantity = 0;
+  
+  const productIds = Object.keys(window.selectedProducts || {});
+  productIds.forEach(id => {
+    const qty = window.selectedProducts[id];
+    if (qty > 0) {
+      const p = allProducts.find(x => String(x.id) === String(id));
+      if (p) {
+        totalQuantity += qty;
+        
+        const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+        const stepVal = isIndivisible ? "1" : "0.1";
+        
+        const itemDiv = document.createElement('div');
+        itemDiv.style.display = 'flex';
+        itemDiv.style.justifyContent = 'space-between';
+        itemDiv.style.alignItems = 'center';
+        itemDiv.style.marginBottom = '10px';
+        itemDiv.style.paddingBottom = '10px';
+        itemDiv.style.borderBottom = '1px dashed #eee';
+        itemDiv.style.gap = '8px';
+        
+        itemDiv.innerHTML = `
+          <div style="flex: 1; min-width: 0; padding-right: 4px;">
+            <div style="font-weight: 600; font-size: 1.05rem; color: #1a1a1a; line-height: 1.35; word-break: break-word;">${p.name}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+            <button type="button" class="btn-review-qty-minus" data-id="${p.id}" title="Giảm số lượng" style="width: 28px; height: 28px; padding: 0; font-size: 16px; font-weight: bold; border: 1px solid #ccc; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; cursor: pointer; user-select: none;">-</button>
+            <input type="number" class="review-input-qty" data-id="${p.id}" value="${qty}" min="0" step="${stepVal}" style="width: 52px; text-align: center; height: 28px; border-radius: 4px; border: 1px solid #1976d2; padding: 0 2px; font-weight: 600; color: #1976d2; font-size: 0.95rem; background: #e3f2fd;" title="Nhập số lượng">
+            <button type="button" class="btn-review-qty-plus" data-id="${p.id}" title="Tăng số lượng" style="width: 28px; height: 28px; padding: 0; font-size: 16px; font-weight: bold; border: 1px solid #ccc; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; cursor: pointer; user-select: none;">+</button>
+            <span style="font-size: 0.85em; color: #555; margin-left: 2px; white-space: nowrap;">${p.unit || 'món'}</span>
+          </div>
+        `;
+        
+        const minusBtn = itemDiv.querySelector('.btn-review-qty-minus');
+        const plusBtn = itemDiv.querySelector('.btn-review-qty-plus');
+        const qtyInput = itemDiv.querySelector('.review-input-qty');
+        
+        if (minusBtn) {
+          minusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            let cur = parseFloat(qtyInput.value) || 0;
+            let step = isIndivisible ? 1 : 0.1;
+            let next = Math.round((cur - step) * 10) / 10;
+            if (next <= 0) {
+              delete window.selectedProducts[p.id];
+            } else {
+              window.selectedProducts[p.id] = next;
+            }
+            saveSelectedProducts(window.selectedProducts);
+            renderCheckoutReview();
+            updateCartUI();
+            syncProductCardSelection(p.id);
+          });
+        }
+        
+        if (plusBtn) {
+          plusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            let cur = parseFloat(qtyInput.value) || 0;
+            let step = isIndivisible ? 1 : 0.1;
+            let next = Math.round((cur + step) * 10) / 10;
+            window.selectedProducts[p.id] = next;
+            saveSelectedProducts(window.selectedProducts);
+            renderCheckoutReview();
+            updateCartUI();
+            syncProductCardSelection(p.id);
+          });
+        }
+        
+        if (qtyInput) {
+          qtyInput.addEventListener('change', (e) => {
+            let rawStr = String(e.target.value || '').replace(',', '.');
+            let val = parseFloat(rawStr);
+            if (isNaN(val) || val <= 0) {
+              delete window.selectedProducts[p.id];
+            } else {
+              if (isIndivisible) val = Math.round(val);
+              else val = Math.round(val * 10) / 10;
+              window.selectedProducts[p.id] = val;
+            }
+            saveSelectedProducts(window.selectedProducts);
+            renderCheckoutReview();
+            updateCartUI();
+            syncProductCardSelection(p.id);
+          });
+        }
+        
+        reviewContainer.appendChild(itemDiv);
+      }
+    }
+  });
+  
+  if (totalQuantity === 0) {
+    reviewContainer.innerHTML = '<div style="color: #757575; font-style: italic;">Giỏ hàng trống</div>';
+  }
+  const formattedTotal = Math.round(totalQuantity * 10) / 10;
+  if (reviewTotal) {
+    reviewTotal.textContent = `Tổng số lượng: ${formattedTotal} món`;
+  }
+  if (shippingLabel) {
+    shippingLabel.textContent = `*Shop sẽ liên hệ báo chi phí & phí vận chuyển khi xác nhận đơn*`;
+  }
+  
+  updateCheckoutSplitSection();
+}
+
 function setupCart() {
   const copyBtn = document.getElementById("copySelectedBtn");
   const checkoutBtn = document.getElementById("checkoutBtn");
@@ -316,88 +493,8 @@ function setupCart() {
         };
       }
       
-      // Render order review (ẩn chi phí khi đặt hàng, chỉ hiện số lượng)
-      const reviewContainer = document.getElementById('checkoutReviewItems');
-      const reviewTotal = document.getElementById('checkoutReviewTotal');
-      reviewContainer.innerHTML = '';
-      let totalQuantity = 0;
-      
-      Object.keys(window.selectedProducts).forEach(id => {
-        const qty = window.selectedProducts[id];
-        if (qty > 0) {
-          const p = allProducts.find(x => String(x.id) === id);
-          if (p) {
-            totalQuantity += qty;
-            
-            const itemDiv = document.createElement('div');
-            itemDiv.style.display = 'flex';
-            itemDiv.style.justifyContent = 'space-between';
-            itemDiv.style.alignItems = 'center';
-            itemDiv.style.marginBottom = '8px';
-            itemDiv.style.paddingBottom = '8px';
-            itemDiv.style.borderBottom = '1px dashed #eee';
-            
-            itemDiv.innerHTML = `
-              <div style="flex: 1; padding-right: 8px;">
-                <div style="font-weight: 500; color: #212121;">${p.name}</div>
-              </div>
-              <div style="font-weight: 600; color: #1976d2; background: #e3f2fd; padding: 2px 8px; border-radius: 12px; font-size: 0.9em; white-space: nowrap;">
-                x${qty} ${p.unit || 'món'}
-              </div>
-            `;
-            reviewContainer.appendChild(itemDiv);
-          }
-        }
-      });
-      
-      if (totalQuantity === 0) {
-        reviewContainer.innerHTML = '<div style="color: #757575; font-style: italic;">Giỏ hàng trống</div>';
-      }
-      const formattedTotal = Math.round(totalQuantity * 10) / 10;
-      reviewTotal.textContent = `Tổng số lượng: ${formattedTotal} món`;
-      if (shippingLabel) {
-        shippingLabel.textContent = `*Shop sẽ liên hệ báo chi phí & phí vận chuyển khi xác nhận đơn*`;
-      }
-
-      // Kiểm tra tình trạng tồn kho của các món đã chọn
-      const splitOptionSection = document.getElementById('checkoutSplitOptionSection');
-      const splitHintText = document.getElementById('checkoutSplitHintText');
-      const splitRadioGroup = document.getElementById('checkoutSplitRadioGroup');
-      
-      let inStockCount = 0;
-      let outOfStockCount = 0;
-
-      Object.keys(window.selectedProducts).forEach(id => {
-        const qty = window.selectedProducts[id];
-        if (qty > 0) {
-          const p = allProducts.find(x => String(x.id) === id);
-          if (p) {
-            const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
-            const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
-            if (!hasStock && !hasIncoming) {
-              outOfStockCount++;
-            } else {
-              inStockCount++;
-            }
-          }
-        }
-      });
-
-      if (splitOptionSection) {
-        if (inStockCount > 0 && outOfStockCount > 0) {
-          splitOptionSection.style.display = 'block';
-          if (splitRadioGroup) splitRadioGroup.style.display = 'flex';
-          if (splitHintText) splitHintText.textContent = 'Bạn có thể chọn đặt chung để nhận hàng khi có đủ, hoặc tách thành đơn riêng để nhận các món có sẵn trước:';
-          const defaultRadio = document.querySelector('input[name="orderSplitChoice"][value="single"]');
-          if (defaultRadio) defaultRadio.checked = true;
-        } else if (outOfStockCount > 0 && inStockCount === 0) {
-          splitOptionSection.style.display = 'block';
-          if (splitRadioGroup) splitRadioGroup.style.display = 'none';
-          if (splitHintText) splitHintText.textContent = 'ℹ️ Đơn hàng gồm toàn bộ mặt hàng đang hết chờ nhập về. Shop sẽ liên hệ xác nhận thời gian giao cụ thể khi hàng về.';
-        } else {
-          splitOptionSection.style.display = 'none';
-        }
-      }
+      // Issue 8: Render review danh sách sản phẩm với font chữ to hơn và cho phép click chỉnh sửa số lượng trực tiếp
+      renderCheckoutReview();
 
       checkoutModal.classList.remove("hidden");
       document.body.style.overflow = "hidden";
@@ -1154,15 +1251,22 @@ function setupSearch() {
   }
   const viewModeRadios = document.querySelectorAll('input[name="viewMode"]');
   viewModeRadios.forEach(radio => {
-    radio.addEventListener("change", () => renderProducts(allProducts));
+    radio.addEventListener("change", () => filterAndRenderProducts());
   });
+  const sortSelect = document.getElementById("sortSelect");
+  if (sortSelect) {
+    sortSelect.addEventListener("change", () => filterAndRenderProducts());
+  }
 }
 
+// Issue 8: Sắp xếp danh sách sản phẩm theo thứ tự: Tên (mặc định), Có sẵn/sắp về, hoặc Ưa thích (bán chạy)
 function filterAndRenderProducts() {
   const input = document.getElementById("searchInput");
   const keyword = input ? removeDiacritics(input.value.trim().toLowerCase()) : "";
+  const sortSelect = document.getElementById("sortSelect");
+  const sortMode = sortSelect ? sortSelect.value : "name";
   
-  const filtered = allProducts.filter(p => {
+  let filtered = allProducts.filter(p => {
     if (keyword) {
       const matchName = removeDiacritics((p.name || "").toLowerCase()).includes(keyword);
       const matchCategory = p.category && removeDiacritics(p.category.toLowerCase()).includes(keyword);
@@ -1170,6 +1274,34 @@ function filterAndRenderProducts() {
     }
     return true;
   });
+
+  if (sortMode === "in_stock") {
+    // 1. Các sản phẩm có sẵn (bao gồm đang chờ nhập về)
+    filtered.sort((a, b) => {
+      const getPriority = (p) => {
+        const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+        const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
+        if (hasStock) return 1;
+        if (hasIncoming) return 2;
+        return 3;
+      };
+      const pA = getPriority(a);
+      const pB = getPriority(b);
+      if (pA !== pB) return pA - pB;
+      return (a.name || "").localeCompare(b.name || "", "vi", { sensitivity: "base" });
+    });
+  } else if (sortMode === "popular") {
+    // 2. Các sản phẩm ưa thích (được nhiều người mua)
+    filtered.sort((a, b) => {
+      const soldA = Number(a.sold_count || 0);
+      const soldB = Number(b.sold_count || 0);
+      if (soldB !== soldA) return soldB - soldA;
+      return (a.name || "").localeCompare(b.name || "", "vi", { sensitivity: "base" });
+    });
+  } else {
+    // 3. Theo tên các sản phẩm (chọn mặc định)
+    filtered.sort((a, b) => (a.name || "").localeCompare(b.name || "", "vi", { sensitivity: "base" }));
+  }
   
   renderProducts(filtered);
 }

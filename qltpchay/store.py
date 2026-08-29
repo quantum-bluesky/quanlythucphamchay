@@ -2936,6 +2936,20 @@ class InventoryStore:
             rows = connection.execute(sql, params).fetchall()
             return self._serialize_product_rows(connection, rows)
 
+    # Issue 8: Thống kê số lượng đã bán theo từng mặt hàng phục vụ sắp xếp sản phẩm ưa thích
+    def get_product_sales_stats(self) -> dict[int, float]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT ci.product_id, COALESCE(SUM(ci.quantity), 0) AS total_sold
+                FROM cart_items ci
+                JOIN carts c ON ci.cart_id = c.id
+                WHERE c.status != 'cancelled'
+                GROUP BY ci.product_id
+                """
+            ).fetchall()
+            return {int(row["product_id"]): float(row["total_sold"]) for row in rows}
+
     def get_summary(self) -> dict:
         products = self.get_products()
         total_stock = sum(product["current_stock"] for product in products)

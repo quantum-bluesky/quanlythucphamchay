@@ -32,16 +32,26 @@
       <div class="search-bar">
         <input type="text" id="searchInput" placeholder="Tìm kiếm sản phẩm..." autocomplete="off">
       </div>
-      <div class="view-mode-bar" style="display: flex; gap: 1rem; margin-top: 12px; padding: 0 1rem;">
-        <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted);">Giao diện:</span>
-        <label class="toggle-inline" style="cursor: pointer; user-select: none;">
-          <input type="radio" name="viewMode" value="thumbnail" checked>
-          <span>Ảnh (Thumbnail)</span>
-        </label>
-        <label class="toggle-inline" style="cursor: pointer; user-select: none;">
-          <input type="radio" name="viewMode" value="list">
-          <span>Danh sách rút gọn</span>
-        </label>
+      <div class="view-mode-bar" style="display: flex; gap: 0.75rem; margin-top: 12px; padding: 0 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted);">Giao diện:</span>
+          <label class="toggle-inline" style="cursor: pointer; user-select: none;">
+            <input type="radio" name="viewMode" value="thumbnail" checked>
+            <span>Ảnh</span>
+          </label>
+          <label class="toggle-inline" style="cursor: pointer; user-select: none;">
+            <input type="radio" name="viewMode" value="list">
+            <span>Rút gọn</span>
+          </label>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <span style="font-weight: 500; font-size: 0.9em; color: var(--text-muted); white-space: nowrap;">Sắp xếp:</span>
+          <select id="sortSelect" class="form-input" style="padding: 4px 8px; font-size: 0.85em; border-radius: 6px; border: 1px solid var(--line); background: white; cursor: pointer;">
+            <option value="name" selected>Theo tên sản phẩm</option>
+            <option value="in_stock">Sản phẩm có sẵn</option>
+            <option value="popular">Sản phẩm ưa thích</option>
+          </select>
+        </div>
       </div>
     </header>
     

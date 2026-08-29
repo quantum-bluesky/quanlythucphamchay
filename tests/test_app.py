@@ -124,6 +124,21 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(len(separate_result["cart"]["items"]), 1)
         self.assertEqual(separate_result["cart"]["items"][0]["quantity"], 3.0)
 
+    def test_ut_online_02_product_sales_stats(self) -> None:
+        p1 = self.store.create_product(name="SP Bán Chạy 1", category="Chay", unit="gói", price=10000, sale_price=15000, low_stock_threshold=1)
+        p2 = self.store.create_product(name="SP Bán Chạy 2", category="Chay", unit="gói", price=10000, sale_price=15000, low_stock_threshold=1)
+        
+        self.store.create_online_order(
+            customer_name="Khách Mua Nhiều",
+            items=[
+                {"product_id": p1["id"], "quantity": 5},
+                {"product_id": p2["id"], "quantity": 2},
+            ],
+        )
+        stats = self.store.get_product_sales_stats()
+        self.assertEqual(stats.get(p1["id"]), 5.0)
+        self.assertEqual(stats.get(p2["id"]), 2.0)
+
     def test_ut_invsort_01_product_life_fields_and_priority_metrics_are_normalized(self) -> None:
         product = self.store.create_product(
             name="Bò kho ưu tiên",
