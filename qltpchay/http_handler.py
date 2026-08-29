@@ -228,6 +228,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
             if route == "/api/public/products":
                 all_products = store.get_products()
+                sales_stats = store.get_product_sales_stats()
                 public_products = [
                     {
                         "id": p["id"],
@@ -237,6 +238,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "sale_price": p["sale_price"],
                         "current_stock": p.get("current_stock", 0),
                         "incoming_open_purchases": p.get("incoming_open_purchases", 0),
+                        "sold_count": sales_stats.get(p["id"], 0),
                         "images": p["images"],
                         "details": p["details"],
                         "recipe": p.get("recipe", ""),
@@ -892,6 +894,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         avatar_url=payload.get("avatar_url") or "",
                         note=payload.get("note") or "",
                         items=payload.get("items") or [],
+                        force_new_order=bool(payload.get("force_new_order", False)),
                     )
                     self._send_json(HTTPStatus.CREATED, result)
                 except ValueError as exc:

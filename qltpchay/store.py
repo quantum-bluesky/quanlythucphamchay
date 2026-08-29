@@ -2936,6 +2936,20 @@ class InventoryStore:
             rows = connection.execute(sql, params).fetchall()
             return self._serialize_product_rows(connection, rows)
 
+    # Issue 8: Thống kê số lượng đã bán theo từng mặt hàng phục vụ sắp xếp sản phẩm ưa thích
+    def get_product_sales_stats(self) -> dict[int, float]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT ci.product_id, COALESCE(SUM(ci.quantity), 0) AS total_sold
+                FROM cart_items ci
+                JOIN carts c ON ci.cart_id = c.id
+                WHERE c.status != 'cancelled'
+                GROUP BY ci.product_id
+                """
+            ).fetchall()
+            return {int(row["product_id"]): float(row["total_sold"]) for row in rows}
+
     def get_summary(self) -> dict:
         products = self.get_products()
         total_stock = sum(product["current_stock"] for product in products)
@@ -6639,6 +6653,7 @@ class InventoryStore:
         avatar_url: str = "",
         note: str = "",
         items: list[dict],
+        force_new_order: bool = False,
     ) -> dict:
         clean_name = str(customer_name or "").strip()
         clean_phone = str(customer_phone or "").strip()
@@ -6716,11 +6731,13 @@ class InventoryStore:
                     connection.execute(f"UPDATE customers SET {', '.join(updates)} WHERE id = ?", params)
                 clean_name = clean_name or existing_customer["name"]
 
-            # Kiểm tra xem khách đã có đơn online nào đang pending (draft) chưa
-            existing_cart_row = connection.execute(
-                "SELECT id, discount_amount, note, ship_address FROM carts WHERE customer_id = ? AND created_mode = 'online' AND status = 'draft' ORDER BY created_at DESC LIMIT 1",
-                (customer_id,)
-            ).fetchone()
+            # Kiểm tra xem khách đã có đơn online nào đang pending (draft) chưa (nếu không yêu cầu tách đơn riêng)
+            existing_cart_row = None
+            if not force_new_order:
+                existing_cart_row = connection.execute(
+                    "SELECT id, discount_amount, note, ship_address FROM carts WHERE customer_id = ? AND created_mode = 'online' AND status = 'draft' ORDER BY created_at DESC LIMIT 1",
+                    (customer_id,)
+                ).fetchone()
 
             if existing_cart_row:
                 cart_id = existing_cart_row["id"]

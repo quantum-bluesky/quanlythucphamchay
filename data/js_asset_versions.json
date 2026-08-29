@@ -1,5 +1,5 @@
 {
-  "app_version": "3.30.11",
+  "app_version": "3.30.16",
   "files": {
     "app.js": {
       "counter": 1,
@@ -122,12 +122,12 @@
       "sha256": "5d7d70a99338a593dd2ba9b778146dbbef8e8959f2c7eae39812d4397caabab2"
     },
     "public_products.css": {
-      "counter": 3,
+      "counter": 1,
       "sha256": "9fcbe4420cfeb6dbbf7ec6afcbb02c10d0775f0b258a832298bfe00154302593"
     },
     "public_products.js": {
-      "counter": 5,
-      "sha256": "71b1398b1f0f413f5b616b718011d7fbfde1d499c2909678420bec10dbee88d7"
+      "counter": 2,
+      "sha256": "86f61352ca5ee3879d8cccce6b4b26f63226db6a3869fe9aa32412a192cf7b44"
     },
     "styles.css": {
       "counter": 1,

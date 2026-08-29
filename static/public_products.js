@@ -3,6 +3,32 @@ let searchTimer = null;
 let currentCategory = "";
 let globalSettings = {};
 
+// Issue 8: Lưu và khôi phục danh sách sản phẩm đã chọn vào localStorage để không bị mất khi khách hàng đăng nhập
+function getSavedSelectedProducts() {
+  try {
+    const raw = localStorage.getItem('public_selected_products');
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveSelectedProducts(products) {
+  try {
+    localStorage.setItem('public_selected_products', JSON.stringify(products || {}));
+  } catch (e) {}
+}
+
+function clearSavedSelectedProducts() {
+  try {
+    localStorage.removeItem('public_selected_products');
+  } catch (e) {}
+}
+
+window.selectedProducts = getSavedSelectedProducts();
+
 function formatVND(amount) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 }
@@ -17,7 +43,19 @@ document.addEventListener("DOMContentLoaded", () => {
   setupOrderSuccessModal();
   setupLogoutModal();
   setupSelectedItemsPanel();
+  setupZaloLoginHooks();
 });
+
+// Issue 8: Gắn hook cho các link đăng nhập Zalo để ghi nhớ trạng thái đang chốt đơn
+function setupZaloLoginHooks() {
+  document.querySelectorAll('a[href*="zalo-login"]').forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.selectedProducts && Object.keys(window.selectedProducts).length > 0) {
+        sessionStorage.setItem('public_auto_open_checkout', '1');
+      }
+    });
+  });
+}
 
 function setupZaloButton() {
   const zaloBtn = document.getElementById("zaloLoginBtn");
@@ -106,6 +144,183 @@ function showLogoutModal(userName) {
     modal.classList.remove("hidden");
     document.body.style.overflow = "hidden";
   }
+}
+
+// Issue 8: Đồng bộ trạng thái checkbox & input số lượng ở danh sách sản phẩm bên ngoài khi sửa ở modal review
+function syncProductCardSelection(productId) {
+  const checkbox = document.querySelector(`.item-checkbox[data-id="${productId}"]`);
+  const inputQty = document.querySelector(`.input-qty[data-id="${productId}"]`);
+  const qtyControl = checkbox ? checkbox.closest('.product-select-row')?.querySelector('.qty-control') : null;
+  const qty = window.selectedProducts[productId] || 0;
+  
+  if (checkbox) {
+    checkbox.checked = qty > 0;
+  }
+  if (inputQty) {
+    inputQty.value = qty > 0 ? qty : 1;
+  }
+  if (qtyControl) {
+    qtyControl.style.display = qty > 0 ? 'flex' : 'none';
+  }
+}
+
+// Issue 8: Cập nhật phần chia tách đơn trong modal chốt đơn
+function updateCheckoutSplitSection() {
+  const splitOptionSection = document.getElementById('checkoutSplitOptionSection');
+  const splitHintText = document.getElementById('checkoutSplitHintText');
+  const splitRadioGroup = document.getElementById('checkoutSplitRadioGroup');
+  
+  let inStockCount = 0;
+  let outOfStockCount = 0;
+
+  Object.keys(window.selectedProducts || {}).forEach(id => {
+    const qty = window.selectedProducts[id];
+    if (qty > 0) {
+      const p = allProducts.find(x => String(x.id) === String(id));
+      if (p) {
+        const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+        const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
+        if (!hasStock && !hasIncoming) {
+          outOfStockCount++;
+        } else {
+          inStockCount++;
+        }
+      }
+    }
+  });
+
+  if (splitOptionSection) {
+    if (inStockCount > 0 && outOfStockCount > 0) {
+      splitOptionSection.style.display = 'block';
+      if (splitRadioGroup) splitRadioGroup.style.display = 'flex';
+      if (splitHintText) splitHintText.textContent = 'Bạn có thể chọn đặt chung để nhận hàng khi có đủ, hoặc tách thành đơn riêng để nhận các món có sẵn trước:';
+      const defaultRadio = document.querySelector('input[name="orderSplitChoice"][value="single"]');
+      if (defaultRadio && !document.querySelector('input[name="orderSplitChoice"]:checked')) {
+        defaultRadio.checked = true;
+      }
+    } else if (outOfStockCount > 0 && inStockCount === 0) {
+      splitOptionSection.style.display = 'block';
+      if (splitRadioGroup) splitRadioGroup.style.display = 'none';
+      if (splitHintText) splitHintText.textContent = 'ℹ️ Đơn hàng gồm toàn bộ mặt hàng đang hết chờ nhập về. Shop sẽ liên hệ xác nhận thời gian giao cụ thể khi hàng về.';
+    } else {
+      splitOptionSection.style.display = 'none';
+    }
+  }
+}
+
+// Issue 8: Render danh sách sản phẩm trong modal chốt đơn với font chữ to hơn và cho phép click chỉnh sửa số lượng trực tiếp
+function renderCheckoutReview() {
+  const reviewContainer = document.getElementById('checkoutReviewItems');
+  const reviewTotal = document.getElementById('checkoutReviewTotal');
+  const shippingLabel = document.getElementById('shippingNoteLabel');
+  if (!reviewContainer) return;
+  
+  reviewContainer.innerHTML = '';
+  let totalQuantity = 0;
+  
+  const productIds = Object.keys(window.selectedProducts || {});
+  productIds.forEach(id => {
+    const qty = window.selectedProducts[id];
+    if (qty > 0) {
+      const p = allProducts.find(x => String(x.id) === String(id));
+      if (p) {
+        totalQuantity += qty;
+        
+        const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+        const stepVal = isIndivisible ? "1" : "0.1";
+        
+        const itemDiv = document.createElement('div');
+        itemDiv.style.display = 'flex';
+        itemDiv.style.justifyContent = 'space-between';
+        itemDiv.style.alignItems = 'center';
+        itemDiv.style.marginBottom = '10px';
+        itemDiv.style.paddingBottom = '10px';
+        itemDiv.style.borderBottom = '1px dashed #eee';
+        itemDiv.style.gap = '8px';
+        
+        itemDiv.innerHTML = `
+          <div style="flex: 1; min-width: 0; padding-right: 4px;">
+            <div style="font-weight: 600; font-size: 1.05rem; color: #1a1a1a; line-height: 1.35; word-break: break-word;">${p.name}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+            <button type="button" class="btn-review-qty-minus" data-id="${p.id}" title="Giảm số lượng" style="width: 28px; height: 28px; padding: 0; font-size: 16px; font-weight: bold; border: 1px solid #ccc; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; cursor: pointer; user-select: none;">-</button>
+            <input type="number" class="review-input-qty" data-id="${p.id}" value="${qty}" min="0" step="${stepVal}" style="width: 52px; text-align: center; height: 28px; border-radius: 4px; border: 1px solid #1976d2; padding: 0 2px; font-weight: 600; color: #1976d2; font-size: 0.95rem; background: #e3f2fd;" title="Nhập số lượng">
+            <button type="button" class="btn-review-qty-plus" data-id="${p.id}" title="Tăng số lượng" style="width: 28px; height: 28px; padding: 0; font-size: 16px; font-weight: bold; border: 1px solid #ccc; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; cursor: pointer; user-select: none;">+</button>
+            <span style="font-size: 0.85em; color: #555; margin-left: 2px; white-space: nowrap;">${p.unit || 'món'}</span>
+          </div>
+        `;
+        
+        const minusBtn = itemDiv.querySelector('.btn-review-qty-minus');
+        const plusBtn = itemDiv.querySelector('.btn-review-qty-plus');
+        const qtyInput = itemDiv.querySelector('.review-input-qty');
+        
+        if (minusBtn) {
+          minusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            let cur = parseFloat(qtyInput.value) || 0;
+            let step = isIndivisible ? 1 : 0.1;
+            let next = Math.round((cur - step) * 10) / 10;
+            if (next <= 0) {
+              delete window.selectedProducts[p.id];
+            } else {
+              window.selectedProducts[p.id] = next;
+            }
+            saveSelectedProducts(window.selectedProducts);
+            renderCheckoutReview();
+            updateCartUI();
+            syncProductCardSelection(p.id);
+          });
+        }
+        
+        if (plusBtn) {
+          plusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            let cur = parseFloat(qtyInput.value) || 0;
+            let step = isIndivisible ? 1 : 0.1;
+            let next = Math.round((cur + step) * 10) / 10;
+            window.selectedProducts[p.id] = next;
+            saveSelectedProducts(window.selectedProducts);
+            renderCheckoutReview();
+            updateCartUI();
+            syncProductCardSelection(p.id);
+          });
+        }
+        
+        if (qtyInput) {
+          qtyInput.addEventListener('change', (e) => {
+            let rawStr = String(e.target.value || '').replace(',', '.');
+            let val = parseFloat(rawStr);
+            if (isNaN(val) || val <= 0) {
+              delete window.selectedProducts[p.id];
+            } else {
+              if (isIndivisible) val = Math.round(val);
+              else val = Math.round(val * 10) / 10;
+              window.selectedProducts[p.id] = val;
+            }
+            saveSelectedProducts(window.selectedProducts);
+            renderCheckoutReview();
+            updateCartUI();
+            syncProductCardSelection(p.id);
+          });
+        }
+        
+        reviewContainer.appendChild(itemDiv);
+      }
+    }
+  });
+  
+  if (totalQuantity === 0) {
+    reviewContainer.innerHTML = '<div style="color: #757575; font-style: italic;">Giỏ hàng trống</div>';
+  }
+  const formattedTotal = Math.round(totalQuantity * 10) / 10;
+  if (reviewTotal) {
+    reviewTotal.textContent = `Tổng số lượng: ${formattedTotal} món`;
+  }
+  if (shippingLabel) {
+    shippingLabel.textContent = `*Shop sẽ liên hệ báo chi phí & phí vận chuyển khi xác nhận đơn*`;
+  }
+  
+  updateCheckoutSplitSection();
 }
 
 function setupCart() {
@@ -278,47 +493,8 @@ function setupCart() {
         };
       }
       
-      // Render order review (ẩn chi phí khi đặt hàng, chỉ hiện số lượng)
-      const reviewContainer = document.getElementById('checkoutReviewItems');
-      const reviewTotal = document.getElementById('checkoutReviewTotal');
-      reviewContainer.innerHTML = '';
-      let totalQuantity = 0;
-      
-      Object.keys(window.selectedProducts).forEach(id => {
-        const qty = window.selectedProducts[id];
-        if (qty > 0) {
-          const p = allProducts.find(x => String(x.id) === id);
-          if (p) {
-            totalQuantity += qty;
-            
-            const itemDiv = document.createElement('div');
-            itemDiv.style.display = 'flex';
-            itemDiv.style.justifyContent = 'space-between';
-            itemDiv.style.alignItems = 'center';
-            itemDiv.style.marginBottom = '8px';
-            itemDiv.style.paddingBottom = '8px';
-            itemDiv.style.borderBottom = '1px dashed #eee';
-            
-            itemDiv.innerHTML = `
-              <div style="flex: 1; padding-right: 8px;">
-                <div style="font-weight: 500; color: #212121;">${p.name}</div>
-              </div>
-              <div style="font-weight: 600; color: #1976d2; background: #e3f2fd; padding: 2px 8px; border-radius: 12px; font-size: 0.9em; white-space: nowrap;">
-                x${qty} ${p.unit || 'món'}
-              </div>
-            `;
-            reviewContainer.appendChild(itemDiv);
-          }
-        }
-      });
-      
-      if (totalQuantity === 0) {
-        reviewContainer.innerHTML = '<div style="color: #757575; font-style: italic;">Giỏ hàng trống</div>';
-      }
-      reviewTotal.textContent = `Tổng số lượng: ${totalQuantity} món`;
-      if (shippingLabel) {
-        shippingLabel.textContent = `*Shop sẽ liên hệ báo chi phí & phí vận chuyển khi xác nhận đơn*`;
-      }
+      // Issue 8: Render review danh sách sản phẩm với font chữ to hơn và cho phép click chỉnh sửa số lượng trực tiếp
+      renderCheckoutReview();
 
       checkoutModal.classList.remove("hidden");
       document.body.style.overflow = "hidden";
@@ -345,9 +521,14 @@ function setupCart() {
       const customer_address = document.getElementById('checkoutAddress').value.trim();
       const note = document.getElementById('checkoutNote').value.trim();
 
-      const items = [];
-      const itemsSummary = [];
-      let totalAmount = 0;
+      const splitChoice = document.querySelector('input[name="orderSplitChoice"]:checked')?.value || 'single';
+
+      const inStockItems = [];
+      const outOfStockItems = [];
+      const inStockSummary = [];
+      const outOfStockSummary = [];
+      let totalAmountInStock = 0;
+      let totalAmountOutOfStock = 0;
 
       Object.keys(window.selectedProducts).forEach(id => {
         const p = allProducts.find(x => String(x.id) === id);
@@ -355,28 +536,41 @@ function setupCart() {
           const qty = window.selectedProducts[id];
           const price = p.sale_price || p.price || 0;
           const lineTotal = price * qty;
-          totalAmount += lineTotal;
+          const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+          const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
+          const isOutOfStock = !hasStock && !hasIncoming;
           
-          items.push({
+          const itemPayload = {
             product_id: p.id,
             product_name: p.name,
             quantity: qty,
             unit_price: price,
             price: price,
             unit: p.unit
-          });
-
-          itemsSummary.push({
+          };
+          const itemSummary = {
             name: p.name,
             quantity: qty,
             unit: p.unit,
             price: price,
-            total: lineTotal
-          });
+            total: lineTotal,
+            isOutOfStock
+          };
+
+          if (isOutOfStock) {
+            outOfStockItems.push(itemPayload);
+            outOfStockSummary.push(itemSummary);
+            totalAmountOutOfStock += lineTotal;
+          } else {
+            inStockItems.push(itemPayload);
+            inStockSummary.push(itemSummary);
+            totalAmountInStock += lineTotal;
+          }
         }
       });
 
-      if (items.length === 0) {
+      const totalItemsCount = inStockItems.length + outOfStockItems.length;
+      if (totalItemsCount === 0) {
         showToast("Giỏ hàng đang trống!");
         submitBtn.disabled = false;
         submitBtn.textContent = 'Gửi đơn hàng';
@@ -387,24 +581,58 @@ function setupCart() {
       const zalo_id = savedInfo.zalo_id || '';
       const avatar_url = savedInfo.avatar_url || '';
 
+      const isSplitOrder = (splitChoice === 'split' && inStockItems.length > 0 && outOfStockItems.length > 0);
+
       try {
-        const res = await fetch("./api/public/orders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customer_name,
-            customer_phone,
-            customer_address,
-            zalo_id,
-            avatar_url,
-            note,
-            items
-          })
-        });
-        
-        const data = await res.json();
-        
-        if (res.ok) {
+        if (isSplitOrder) {
+          // Gửi đơn 1: Hàng có sẵn/sắp về
+          const note1 = note ? `[Đơn hàng có sẵn/sắp về] ${note}` : '[Đơn hàng có sẵn/sắp về]';
+          const res1 = await fetch("./api/public/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customer_name,
+              customer_phone,
+              customer_address,
+              zalo_id,
+              avatar_url,
+              note: note1,
+              items: inStockItems,
+              force_new_order: true
+            })
+          });
+          const data1 = await res1.json();
+          if (!res1.ok) {
+            showToast(data1.error || "Lỗi khi gửi đơn hàng có sẵn.");
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Gửi đơn hàng';
+            return;
+          }
+
+          // Gửi đơn 2: Hàng đặt chờ nhập về
+          const note2 = note ? `[Đơn hàng chờ nhập về] ${note}` : '[Đơn hàng chờ nhập về]';
+          const res2 = await fetch("./api/public/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customer_name,
+              customer_phone,
+              customer_address,
+              zalo_id,
+              avatar_url,
+              note: note2,
+              items: outOfStockItems,
+              force_new_order: true
+            })
+          });
+          const data2 = await res2.json();
+          if (!res2.ok) {
+            showToast(data2.error || "Lỗi khi gửi đơn hàng chờ nhập về.");
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Gửi đơn hàng';
+            return;
+          }
+
           // Lưu info vào localStorage
           localStorage.setItem('public_customer_info', JSON.stringify({
             ...savedInfo,
@@ -414,25 +642,79 @@ function setupCart() {
             zalo_id: zalo_id,
             avatar_url: avatar_url
           }));
-          
-          showToast(data.message || "Đã chốt đơn thành công!");
+
+          showToast("Đã tách và gửi thành công 2 đơn hàng!");
+          // Issue 8: Xóa giỏ hàng đã lưu sau khi đặt hàng thành công
           window.selectedProducts = {};
+          clearSavedSelectedProducts();
+          sessionStorage.removeItem('public_auto_open_checkout');
           updateCartUI();
-          renderProducts(allProducts); // reset checked state
+          renderProducts(allProducts);
           checkoutModal.classList.add("hidden");
           document.body.style.overflow = "";
 
-          // Hiển thị modal thông báo thành công và liên hệ Zalo
-          const cart = data.cart || {};
           showOrderSuccessPopup(
-            cart,
-            itemsSummary,
-            totalAmount,
+            { isSplit: true, order1: data1.cart || {}, order2: data2.cart || {} },
+            { isSplit: true, inStockSummary, outOfStockSummary },
+            totalAmountInStock + totalAmountOutOfStock,
             { name: customer_name, phone: customer_phone, address: customer_address },
             note
           );
         } else {
-          showToast(data.error || "Lỗi khi gửi đơn hàng.");
+          // Gửi đơn chung 1 lần
+          const allItems = [...inStockItems, ...outOfStockItems];
+          const allSummary = [...inStockSummary, ...outOfStockSummary];
+          const totalAmount = totalAmountInStock + totalAmountOutOfStock;
+
+          const res = await fetch("./api/public/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customer_name,
+              customer_phone,
+              customer_address,
+              zalo_id,
+              avatar_url,
+              note,
+              items: allItems
+            })
+          });
+          
+          const data = await res.json();
+          
+          if (res.ok) {
+            // Lưu info vào localStorage
+            localStorage.setItem('public_customer_info', JSON.stringify({
+              ...savedInfo,
+              name: customer_name,
+              phone: customer_phone,
+              address: customer_address,
+              zalo_id: zalo_id,
+              avatar_url: avatar_url
+            }));
+            
+            showToast(data.message || "Đã chốt đơn thành công!");
+            // Issue 8: Xóa giỏ hàng đã lưu sau khi đặt hàng thành công
+            window.selectedProducts = {};
+            clearSavedSelectedProducts();
+            sessionStorage.removeItem('public_auto_open_checkout');
+            updateCartUI();
+            renderProducts(allProducts); // reset checked state
+            checkoutModal.classList.add("hidden");
+            document.body.style.overflow = "";
+
+            // Hiển thị modal thông báo thành công và liên hệ Zalo
+            const cart = data.cart || {};
+            showOrderSuccessPopup(
+              cart,
+              allSummary,
+              totalAmount,
+              { name: customer_name, phone: customer_phone, address: customer_address },
+              note
+            );
+          } else {
+            showToast(data.error || "Lỗi khi gửi đơn hàng.");
+          }
         }
       } catch (err) {
         showToast("Không thể kết nối đến máy chủ.");
@@ -459,34 +741,127 @@ function showOrderSuccessPopup(cart, itemsSummary, totalAmount, customerInfo, no
   const modal = document.getElementById("orderSuccessModal");
   if (!modal) return;
   
-  const orderCode = cart.order_code || cart.id || "N/A";
-  document.getElementById("orderSuccessCode").textContent = `Mã đơn: ${orderCode}`;
+  const isSplit = (cart && cart.isSplit) || (itemsSummary && itemsSummary.isSplit);
   
-  let totalQty = 0;
-  itemsSummary.forEach(item => { totalQty += (item.quantity || 0); });
+  let summaryHtml = '';
+  let copyMessage = '';
+  let orderCodeDisplay = '';
 
-  let summaryHtml = `
-    <div style="font-weight: 600; margin-bottom: 6px; color: #333;">Chi tiết các món đã đặt:</div>
-    <ul style="margin: 0 0 8px 0; padding-left: 18px;">
-  `;
-  itemsSummary.forEach(item => {
-    summaryHtml += `<li style="margin-bottom: 4px;"><strong>${item.name}</strong> x ${item.quantity} ${item.unit}</li>`;
-  });
-  summaryHtml += `
-    </ul>
-    <div style="font-weight: 600; color: #1976d2; border-top: 1px dashed #ddd; padding-top: 6px; margin-bottom: 8px;">
-      Tổng số lượng: ${totalQty} món
-    </div>
-    <div style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 6px; padding: 8px; font-size: 0.9em; color: #2e7d32; margin-bottom: 8px;">
-      💬 <strong>Lưu ý:</strong> Shop sẽ liên hệ với bạn để báo giá chi tiết và xác nhận chi phí vận chuyển.
-    </div>
-    <div style="font-size: 0.9em; color: #555;">
-      Người nhận: <strong>${customerInfo.name}</strong> - ${customerInfo.phone}<br>
-      Địa chỉ: ${customerInfo.address || 'Chưa cung cấp'}
-    </div>
-  `;
+  if (isSplit) {
+    const order1Code = cart.order1?.order_code || cart.order1?.id || "Đơn 1";
+    const order2Code = cart.order2?.order_code || cart.order2?.id || "Đơn 2";
+    
+    orderCodeDisplay = `
+      <div style="font-size: 0.95em; text-align: left; background: #e3f2fd; padding: 8px 12px; border-radius: 6px;">
+        <div style="margin-bottom: 4px;">📦 <strong>Đơn 1 (Có sẵn):</strong> <span style="color: #1976d2; font-weight: 600;">${order1Code}</span></div>
+        <div>⏳ <strong>Đơn 2 (Chờ nhập):</strong> <span style="color: #e65100; font-weight: 600;">${order2Code}</span></div>
+      </div>
+    `;
+
+    const inStockList = itemsSummary.inStockSummary || [];
+    const outOfStockList = itemsSummary.outOfStockSummary || [];
+
+    let totalQty1 = 0;
+    inStockList.forEach(item => { totalQty1 += (item.quantity || 0); });
+    totalQty1 = Math.round(totalQty1 * 10) / 10;
+
+    let totalQty2 = 0;
+    outOfStockList.forEach(item => { totalQty2 += (item.quantity || 0); });
+    totalQty2 = Math.round(totalQty2 * 10) / 10;
+
+    summaryHtml = `
+      <div style="margin-bottom: 10px;">
+        <div style="font-weight: 600; color: #2e7d32; margin-bottom: 4px;">📦 Đơn 1 - Hàng có sẵn/sắp về (${totalQty1} món):</div>
+        <ul style="margin: 0 0 6px 0; padding-left: 18px;">
+    `;
+    inStockList.forEach(item => {
+      summaryHtml += `<li style="margin-bottom: 2px;"><strong>${item.name}</strong> x ${item.quantity} ${item.unit}</li>`;
+    });
+    summaryHtml += `
+        </ul>
+      </div>
+      <div style="margin-bottom: 10px; border-top: 1px dashed #ddd; padding-top: 8px;">
+        <div style="font-weight: 600; color: #e65100; margin-bottom: 4px;">⏳ Đơn 2 - Hàng đặt chờ nhập về (${totalQty2} món):</div>
+        <ul style="margin: 0 0 6px 0; padding-left: 18px;">
+    `;
+    outOfStockList.forEach(item => {
+      summaryHtml += `<li style="margin-bottom: 2px;"><strong>${item.name}</strong> x ${item.quantity} ${item.unit}</li>`;
+    });
+    summaryHtml += `
+        </ul>
+      </div>
+      <div style="font-weight: 600; color: #1976d2; border-top: 1px solid #ddd; padding-top: 6px; margin-bottom: 8px;">
+        Tổng cộng 2 đơn: ${Math.round((totalQty1 + totalQty2) * 10) / 10} món
+      </div>
+      <div style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 6px; padding: 8px; font-size: 0.9em; color: #2e7d32; margin-bottom: 8px;">
+        💬 <strong>Lưu ý:</strong> Đơn hàng có sẵn sẽ được giao trước, đơn hàng chờ nhập sẽ được giao khi hàng về.
+      </div>
+      <div style="font-size: 0.9em; color: #555;">
+        Người nhận: <strong>${customerInfo.name}</strong> - ${customerInfo.phone}<br>
+        Địa chỉ: ${customerInfo.address || 'Chưa cung cấp'}
+      </div>
+    `;
+
+    copyMessage = `[ĐƠN HÀNG MỚI - ĐÃ TÁCH 2 ĐƠN]\n`;
+    copyMessage += `Mã đơn có sẵn: ${order1Code}\n`;
+    copyMessage += `Mã đơn chờ nhập: ${order2Code}\n`;
+    copyMessage += `Khách hàng: ${customerInfo.name} - ${customerInfo.phone}\n`;
+    if (customerInfo.address) copyMessage += `Địa chỉ: ${customerInfo.address}\n`;
+    if (note) copyMessage += `Ghi chú: ${note}\n`;
+    copyMessage += `\n1. Hàng có sẵn/sắp về (${totalQty1} món):\n`;
+    inStockList.forEach(item => {
+      copyMessage += `- ${item.name} x ${item.quantity} ${item.unit}\n`;
+    });
+    copyMessage += `\n2. Hàng đặt chờ nhập về (${totalQty2} món):\n`;
+    outOfStockList.forEach(item => {
+      copyMessage += `- ${item.name} x ${item.quantity} ${item.unit}\n`;
+    });
+    copyMessage += `\nNhờ shop kiểm tra, báo giá và xác nhận đơn giúp mình nhé!`;
+
+  } else {
+    const orderCode = cart.order_code || cart.id || "N/A";
+    orderCodeDisplay = `Mã đơn: ${orderCode}`;
+
+    let totalQty = 0;
+    (Array.isArray(itemsSummary) ? itemsSummary : []).forEach(item => { totalQty += (item.quantity || 0); });
+    totalQty = Math.round(totalQty * 10) / 10;
+
+    summaryHtml = `
+      <div style="font-weight: 600; margin-bottom: 6px; color: #333;">Chi tiết các món đã đặt:</div>
+      <ul style="margin: 0 0 8px 0; padding-left: 18px;">
+    `;
+    (Array.isArray(itemsSummary) ? itemsSummary : []).forEach(item => {
+      summaryHtml += `<li style="margin-bottom: 4px;"><strong>${item.name}</strong> x ${item.quantity} ${item.unit}</li>`;
+    });
+    summaryHtml += `
+      </ul>
+      <div style="font-weight: 600; color: #1976d2; border-top: 1px dashed #ddd; padding-top: 6px; margin-bottom: 8px;">
+        Tổng số lượng: ${totalQty} món
+      </div>
+      <div style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 6px; padding: 8px; font-size: 0.9em; color: #2e7d32; margin-bottom: 8px;">
+        💬 <strong>Lưu ý:</strong> Shop sẽ liên hệ với bạn để báo giá chi tiết và xác nhận chi phí vận chuyển.
+      </div>
+      <div style="font-size: 0.9em; color: #555;">
+        Người nhận: <strong>${customerInfo.name}</strong> - ${customerInfo.phone}<br>
+        Địa chỉ: ${customerInfo.address || 'Chưa cung cấp'}
+      </div>
+    `;
+
+    copyMessage = `[ĐƠN HÀNG MỚI]\n`;
+    copyMessage += `Mã đơn: ${orderCode}\n`;
+    copyMessage += `Khách hàng: ${customerInfo.name} - ${customerInfo.phone}\n`;
+    if (customerInfo.address) copyMessage += `Địa chỉ: ${customerInfo.address}\n`;
+    if (note) copyMessage += `Ghi chú: ${note}\n`;
+    copyMessage += `\nDanh sách món (${totalQty} món):\n`;
+    (Array.isArray(itemsSummary) ? itemsSummary : []).forEach(item => {
+      copyMessage += `- ${item.name} x ${item.quantity} ${item.unit}\n`;
+    });
+    copyMessage += `\nNhờ shop kiểm tra, báo giá và xác nhận đơn giúp mình nhé!`;
+  }
+
+  document.getElementById("orderSuccessCode").innerHTML = orderCodeDisplay;
   document.getElementById("orderSuccessSummary").innerHTML = summaryHtml;
-  
+
   // Link Zalo người bán
   let currentUserObj = null;
   try {
@@ -499,18 +874,6 @@ function showOrderSuccessPopup(cart, itemsSummary, totalAmount, customerInfo, no
   if (sellerZaloBtn) {
     sellerZaloBtn.href = sellerZaloUrl;
   }
-  
-  // Nội dung sao chép gửi Zalo (không chứa giá tiền, shop sẽ báo giá trực tiếp)
-  let copyMessage = `[ĐƠN HÀNG MỚI]\n`;
-  copyMessage += `Mã đơn: ${orderCode}\n`;
-  copyMessage += `Khách hàng: ${customerInfo.name} - ${customerInfo.phone}\n`;
-  if (customerInfo.address) copyMessage += `Địa chỉ: ${customerInfo.address}\n`;
-  if (note) copyMessage += `Ghi chú: ${note}\n`;
-  copyMessage += `\nDanh sách món (${totalQty} món):\n`;
-  itemsSummary.forEach(item => {
-    copyMessage += `- ${item.name} x ${item.quantity} ${item.unit}\n`;
-  });
-  copyMessage += `\nNhờ shop kiểm tra, báo giá và xác nhận đơn giúp mình nhé!`;
 
   const copyBtn = document.getElementById("copyOrderToZaloBtn");
   if (copyBtn) {
@@ -576,7 +939,34 @@ async function fetchProducts() {
       }
     }
     
+    // Issue 8: Dọn dẹp các sản phẩm không còn tồn tại trong danh mục nếu có
+    if (allProducts && allProducts.length > 0 && window.selectedProducts) {
+      let changed = false;
+      Object.keys(window.selectedProducts).forEach(id => {
+        if (!allProducts.some(p => String(p.id) === String(id))) {
+          delete window.selectedProducts[id];
+          changed = true;
+        }
+      });
+      if (changed) {
+        saveSelectedProducts(window.selectedProducts);
+      }
+    }
+    
     filterAndRenderProducts();
+    updateCartUI();
+    
+    // Issue 8: Tự động mở lại modal chốt đơn nếu khách vừa login Zalo trong lúc đang chốt đơn
+    if (sessionStorage.getItem('public_auto_open_checkout') === '1' && Object.keys(window.selectedProducts || {}).length > 0) {
+      sessionStorage.removeItem('public_auto_open_checkout');
+      const checkoutBtn = document.getElementById('checkoutBtn');
+      if (checkoutBtn) {
+        // Cho một khoảng delay nhỏ để UI ổn định rồi kích hoạt mở form chốt đơn
+        setTimeout(() => {
+          checkoutBtn.click();
+        }, 100);
+      }
+    }
     
     // Check if URL has a product ID to open modal
     const urlParams = new URLSearchParams(window.location.search);
@@ -594,8 +984,6 @@ async function fetchProducts() {
 function removeDiacritics(str) {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
 }
-
-window.selectedProducts = {};
 
 function renderProducts(products) {
   const grid = document.getElementById("productGrid");
@@ -627,12 +1015,27 @@ function renderProducts(products) {
     const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
     const stepVal = isIndivisible ? "1" : "0.1";
     
+    const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+    const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
+    const isOutOfStock = !hasStock && !hasIncoming;
+    
+    let badgeHtml = '';
+    if (hasStock) {
+      badgeHtml = `<span style="display: inline-block; padding: 2px 6px; background: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Có sẵn</span>`;
+    } else if (hasIncoming) {
+      badgeHtml = `<span style="display: inline-block; padding: 2px 6px; background: #fff3e0; color: #ef6c00; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Sắp về</span>`;
+    } else {
+      badgeHtml = `<span style="display: inline-block; padding: 2px 6px; background: #eeeeee; color: #757575; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Hết hàng</span>`;
+    }
+
     const selectListStyle = viewMode === 'list' ? 'margin: 0; padding: 0; border: none; display: flex; flex-direction: row;' : 'display: flex; flex-direction: row;';
+    const opacityStyle = isOutOfStock ? 'opacity: 0.6;' : '';
+
     const selectHtml = `
-      <div class="product-select-row" onclick="event.stopPropagation()" style="gap: 8px; flex-wrap: nowrap; align-items: center; justify-content: flex-end; ${selectListStyle}">
+      <div class="product-select-row" onclick="event.stopPropagation()" style="gap: 8px; flex-wrap: nowrap; align-items: center; justify-content: flex-end; ${selectListStyle} ${opacityStyle}">
         <label class="toggle-inline" style="cursor: pointer; user-select: none; margin: 0; display: flex; align-items: center; white-space: nowrap;">
           <input type="checkbox" class="item-checkbox" data-id="${p.id}" ${qty > 0 ? 'checked' : ''} style="margin: 0 4px 0 0;">
-          <span style="white-space: nowrap;">Chọn</span>
+          <span style="white-space: nowrap; ${isOutOfStock ? 'color: #999;' : ''}">Chọn</span>
         </label>
         <div class="qty-control" style="${qty > 0 ? 'display: flex; align-items: center; gap: 4px;' : 'display: none;'}">
           <input type="number" class="input-qty" data-id="${p.id}" value="${qty > 0 ? qty : 1}" min="${stepVal}" step="${stepVal}" style="width: 60px; text-align: center; height: 32px; border-radius: 4px; border: 1px solid #ccc; padding: 0 4px;">
@@ -653,7 +1056,7 @@ function renderProducts(products) {
       card.className = "product-list-item";
       card.innerHTML = `
         <div style="width: 100%; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: space-between; overflow: hidden; gap: 8px; padding: 0;">
-          <h3 class="product-title" style="margin: 0; font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.name}">${p.name}</h3>
+          <h3 class="product-title" style="margin: 0; font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; ${opacityStyle}" title="${p.name}">${p.name}${badgeHtml}</h3>
           <div style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; flex-shrink: 0; margin: 0; padding: 0;">
             ${selectHtml}
           </div>
@@ -669,16 +1072,19 @@ function renderProducts(products) {
         } else if (!firstImage.startsWith("http") && !firstImage.startsWith("./images/")) {
           firstImage = "./images/" + firstImage;
         }
-        imageHtml = `<img src="${firstImage}" class="product-image" alt="${p.name}" loading="lazy">`;
+        imageHtml = `<img src="${firstImage}" class="product-image" alt="${p.name}" loading="lazy" style="${opacityStyle}">`;
       }
       
       card.innerHTML = `
-        ${imageHtml}
-        <div class="product-info">
-          <h3 class="product-title">${p.name}</h3>
-          ${actionsHtml}
-        </div>
-      `;
+          <div style="position: relative;">
+            ${imageHtml}
+            <div style="position: absolute; top: 8px; right: 8px; z-index: 2;">${badgeHtml}</div>
+          </div>
+          <div class="product-info">
+            <h3 class="product-title" style="${opacityStyle}">${p.name}</h3>
+            ${actionsHtml}
+          </div>
+        `;
     }
     
     // Thêm event listener thay vì dùng onclick toàn thẻ để tránh bấm nút bị đè event
@@ -713,16 +1119,26 @@ function renderProducts(products) {
     if (checkbox) {
       checkbox.addEventListener('change', (e) => {
         if (e.target.checked) {
-          let val = parseFloat(inputQty.value) || 1;
-          const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
-          if (isIndivisible && !Number.isInteger(val)) {
-            val = Math.round(val);
-            inputQty.value = val;
+          if (isOutOfStock) {
+            showToast('Mặt hàng này đang hết. Nếu đặt chung bạn sẽ cần đợi hàng về, hoặc bạn có thể đặt thành đơn riêng.');
           }
+          let rawStr = String(inputQty.value || '').replace(',', '.');
+          let val = parseFloat(rawStr) || 1;
+          const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+          if (isIndivisible) {
+            if (isNaN(val) || val < 1) val = 1;
+            else val = Math.round(val);
+          } else {
+            if (isNaN(val) || val <= 0) val = 1;
+            else val = Math.round(val * 10) / 10;
+          }
+          inputQty.value = val;
           window.selectedProducts[p.id] = val;
+          saveSelectedProducts(window.selectedProducts);
           qtyControl.style.display = 'flex';
         } else {
           delete window.selectedProducts[p.id];
+          saveSelectedProducts(window.selectedProducts);
           qtyControl.style.display = 'none';
         }
         updateCartUI();
@@ -731,16 +1147,20 @@ function renderProducts(products) {
 
     if (inputQty) {
       inputQty.addEventListener('change', (e) => {
-        let val = parseFloat(e.target.value);
-          const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
-          if (isIndivisible && !Number.isInteger(val)) {
-            val = Math.round(val);
-            e.target.value = val;
-          }
-        if (isNaN(val) || val < 1) val = 1;
+        let rawStr = String(e.target.value || '').replace(',', '.');
+        let val = parseFloat(rawStr);
+        const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+        if (isIndivisible) {
+          if (isNaN(val) || val < 1) val = 1;
+          else val = Math.round(val);
+        } else {
+          if (isNaN(val) || val <= 0) val = 0.1;
+          else val = Math.round(val * 10) / 10;
+        }
         e.target.value = val;
         if (checkbox.checked) {
           window.selectedProducts[p.id] = val;
+          saveSelectedProducts(window.selectedProducts);
           updateCartUI();
         }
       });
@@ -829,36 +1249,24 @@ function setupSearch() {
   if (input) {
     input.addEventListener("input", () => filterAndRenderProducts());
   }
-  const inStockCheckbox = document.getElementById("inStockCheckbox");
-  if (inStockCheckbox) {
-    inStockCheckbox.addEventListener("change", () => filterAndRenderProducts());
-  }
-  const incomingCheckbox = document.getElementById("incomingCheckbox");
-  if (incomingCheckbox) {
-    incomingCheckbox.addEventListener("change", () => filterAndRenderProducts());
-  }
   const viewModeRadios = document.querySelectorAll('input[name="viewMode"]');
   viewModeRadios.forEach(radio => {
-    radio.addEventListener("change", () => renderProducts(allProducts));
+    radio.addEventListener("change", () => filterAndRenderProducts());
   });
+  const sortSelect = document.getElementById("sortSelect");
+  if (sortSelect) {
+    sortSelect.addEventListener("change", () => filterAndRenderProducts());
+  }
 }
 
+// Issue 8: Sắp xếp danh sách sản phẩm theo thứ tự: Tên (mặc định), Có sẵn/sắp về, hoặc Ưa thích (bán chạy)
 function filterAndRenderProducts() {
   const input = document.getElementById("searchInput");
-  const inStockCheckbox = document.getElementById("inStockCheckbox");
-  const incomingCheckbox = document.getElementById("incomingCheckbox");
   const keyword = input ? removeDiacritics(input.value.trim().toLowerCase()) : "";
-  const inStockOnly = inStockCheckbox ? inStockCheckbox.checked : true;
-  const includeIncoming = incomingCheckbox ? incomingCheckbox.checked : false;
+  const sortSelect = document.getElementById("sortSelect");
+  const sortMode = sortSelect ? sortSelect.value : "name";
   
-  const filtered = allProducts.filter(p => {
-    if (inStockOnly) {
-      const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
-      const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
-      if (!hasStock && !(includeIncoming && hasIncoming)) {
-        return false;
-      }
-    }
+  let filtered = allProducts.filter(p => {
     if (keyword) {
       const matchName = removeDiacritics((p.name || "").toLowerCase()).includes(keyword);
       const matchCategory = p.category && removeDiacritics(p.category.toLowerCase()).includes(keyword);
@@ -866,6 +1274,34 @@ function filterAndRenderProducts() {
     }
     return true;
   });
+
+  if (sortMode === "in_stock") {
+    // 1. Các sản phẩm có sẵn (bao gồm đang chờ nhập về)
+    filtered.sort((a, b) => {
+      const getPriority = (p) => {
+        const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+        const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
+        if (hasStock) return 1;
+        if (hasIncoming) return 2;
+        return 3;
+      };
+      const pA = getPriority(a);
+      const pB = getPriority(b);
+      if (pA !== pB) return pA - pB;
+      return (a.name || "").localeCompare(b.name || "", "vi", { sensitivity: "base" });
+    });
+  } else if (sortMode === "popular") {
+    // 2. Các sản phẩm ưa thích (được nhiều người mua)
+    filtered.sort((a, b) => {
+      const soldA = Number(a.sold_count || 0);
+      const soldB = Number(b.sold_count || 0);
+      if (soldB !== soldA) return soldB - soldA;
+      return (a.name || "").localeCompare(b.name || "", "vi", { sensitivity: "base" });
+    });
+  } else {
+    // 3. Theo tên các sản phẩm (chọn mặc định)
+    filtered.sort((a, b) => (a.name || "").localeCompare(b.name || "", "vi", { sensitivity: "base" }));
+  }
   
   renderProducts(filtered);
 }
