@@ -34,8 +34,8 @@
       "sha256": "0e9833d9b69417e66abeb4571aeaeed17a9b4b95ebdfe6adee0ae0c8517a8464"
     },
     "modules/controllers/products-controller.js": {
-      "counter": 2,
-      "sha256": "6d9faaf5464b624106e89aeaa2f6477df163cd49e12bdb4a8e41c4e93d0a2d9a"
+      "counter": 3,
+      "sha256": "1cc695b9f82b6c4ff42a7ae40ad9310d189586e6e62f805911faed8a6848876c"
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
@@ -122,16 +122,16 @@
       "sha256": "5d7d70a99338a593dd2ba9b778146dbbef8e8959f2c7eae39812d4397caabab2"
     },
     "public_products.css": {
-      "counter": 1,
-      "sha256": "9fcbe4420cfeb6dbbf7ec6afcbb02c10d0775f0b258a832298bfe00154302593"
+      "counter": 2,
+      "sha256": "9f0389aaa73efc78e34e22080b7a83a91f23900a219336db15e0f486664d1c48"
     },
     "public_products.js": {
       "counter": 2,
       "sha256": "c0a96b6ea4f7d9cd01d9bdece3dbfe5b6187d04fb2993f90acd1d2e0d2ff2272"
     },
     "styles.css": {
-      "counter": 1,
-      "sha256": "6714a6370181dc68c763e628df37c2226f6218509a5281da6341084bd69ce86a"
+      "counter": 2,
+      "sha256": "b8420f110762165c3a0674c53fe39015b8f1e7c17fbef5185b9ccc3fe82b4db7"
     },
     "vendor/quill/quill.min.js": {
       "counter": 1,

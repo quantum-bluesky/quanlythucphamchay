@@ -56,6 +56,291 @@ export function registerProductsControllerEvents(contract) {
     }
   };
 
+  function resizeImageToMax(fileOrBlobOrDataUrl, maxDim = 1024, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width >= height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const isPng = (typeof fileOrBlobOrDataUrl === 'string' && fileOrBlobOrDataUrl.startsWith('data:image/png')) || (fileOrBlobOrDataUrl.type === 'image/png');
+        const format = isPng ? 'image/png' : 'image/jpeg';
+        const dataUrl = canvas.toDataURL(format, isPng ? undefined : quality);
+        resolve(dataUrl);
+      };
+      img.onerror = (err) => reject(err);
+
+      if (typeof fileOrBlobOrDataUrl === 'string') {
+        img.src = fileOrBlobOrDataUrl;
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.src = e.target.result;
+        };
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(fileOrBlobOrDataUrl);
+      }
+    });
+  }
+
+  function setupQuillImageResizer(quill) {
+    if (!quill || quill.__resizerInitialized) return;
+    quill.__resizerInitialized = true;
+
+    const container = quill.container;
+    let currentImg = null;
+
+    const overlay = document.createElement("div");
+    overlay.className = "quill-image-resizer";
+    overlay.style.display = "none";
+    overlay.innerHTML = `
+      <div class="resizer-handle resizer-handle-nw" data-handle="nw"></div>
+      <div class="resizer-handle resizer-handle-ne" data-handle="ne"></div>
+      <div class="resizer-handle resizer-handle-se" data-handle="se"></div>
+      <div class="resizer-handle resizer-handle-sw" data-handle="sw"></div>
+      <div class="resizer-quick-actions">
+        <button type="button" data-preset="100%">100%</button>
+        <button type="button" data-preset="75%">75%</button>
+        <button type="button" data-preset="50%">50%</button>
+        <button type="button" data-preset="25%">25%</button>
+        <button type="button" class="btn-delete-img" data-action="delete" title="Xóa ảnh">✕</button>
+      </div>
+      <div class="resizer-size-badge">100%</div>
+    `;
+    container.appendChild(overlay);
+
+    const sizeBadge = overlay.querySelector(".resizer-size-badge");
+
+    const hideOverlay = () => {
+      overlay.style.display = "none";
+      currentImg = null;
+    };
+
+    const repositionOverlay = () => {
+      if (!currentImg || !currentImg.isConnected) {
+        hideOverlay();
+        return;
+      }
+      const imgRect = currentImg.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+
+      overlay.style.top = `${imgRect.top - containerRect.top}px`;
+      overlay.style.left = `${imgRect.left - containerRect.left}px`;
+      overlay.style.width = `${imgRect.width}px`;
+      overlay.style.height = `${imgRect.height}px`;
+      overlay.style.display = "block";
+
+      if (sizeBadge) {
+        sizeBadge.textContent = `${Math.round(imgRect.width)}px`;
+      }
+    };
+
+    quill.root.addEventListener("click", (e) => {
+      if (e.target && e.target.tagName === "IMG") {
+        currentImg = e.target;
+        repositionOverlay();
+      } else if (!e.target.closest(".quill-image-resizer")) {
+        hideOverlay();
+      }
+    });
+
+    overlay.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn || !currentImg) return;
+      e.stopPropagation();
+
+      if (btn.dataset.preset) {
+        currentImg.style.width = btn.dataset.preset;
+        currentImg.style.height = "auto";
+        repositionOverlay();
+        quill.update();
+        if (dom.productForm.details && quill === quillEditor) dom.productForm.details.value = quill.root.innerHTML;
+        if (dom.productForm.recipe && quill === recipeQuillEditor) dom.productForm.recipe.value = quill.root.innerHTML;
+      } else if (btn.dataset.action === "delete") {
+        const blot = window.Quill.find ? window.Quill.find(currentImg) : null;
+        if (blot) {
+          blot.deleteAt(0);
+        } else {
+          currentImg.remove();
+        }
+        hideOverlay();
+        quill.update();
+        if (dom.productForm.details && quill === quillEditor) dom.productForm.details.value = quill.root.innerHTML;
+        if (dom.productForm.recipe && quill === recipeQuillEditor) dom.productForm.recipe.value = quill.root.innerHTML;
+      }
+    });
+
+    overlay.querySelectorAll(".resizer-handle").forEach((handle) => {
+      const onStart = (e) => {
+        if (!currentImg) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const handleType = handle.dataset.handle;
+        const isTouch = e.type.startsWith("touch");
+        const startX = isTouch ? e.touches[0].clientX : e.clientX;
+        const startRect = currentImg.getBoundingClientRect();
+        const startWidth = startRect.width;
+        const containerWidth = container.clientWidth - 24;
+
+        const onMove = (moveEvt) => {
+          const moveX = isTouch ? moveEvt.touches[0].clientX : moveEvt.clientX;
+          const deltaX = (handleType === "se" || handleType === "ne") ? (moveX - startX) : (startX - moveX);
+          let newWidth = startWidth + deltaX;
+          newWidth = Math.max(40, Math.min(containerWidth, newWidth));
+
+          currentImg.style.width = `${Math.round(newWidth)}px`;
+          currentImg.style.height = "auto";
+          repositionOverlay();
+        };
+
+        const onEnd = () => {
+          document.removeEventListener(isTouch ? "touchmove" : "mousemove", onMove);
+          document.removeEventListener(isTouch ? "touchend" : "mouseup", onEnd);
+          quill.update();
+          if (dom.productForm.details && quill === quillEditor) dom.productForm.details.value = quill.root.innerHTML;
+          if (dom.productForm.recipe && quill === recipeQuillEditor) dom.productForm.recipe.value = quill.root.innerHTML;
+        };
+
+        document.addEventListener(isTouch ? "touchmove" : "mousemove", onMove, { passive: false });
+        document.addEventListener(isTouch ? "touchend" : "mouseup", onEnd);
+      };
+
+      handle.addEventListener("mousedown", onStart);
+      handle.addEventListener("touchstart", onStart, { passive: false });
+    });
+
+    quill.root.addEventListener("scroll", () => {
+      if (currentImg) repositionOverlay();
+    });
+    window.addEventListener("resize", () => {
+      if (currentImg) repositionOverlay();
+    });
+    quill.on("text-change", () => {
+      if (currentImg) {
+        if (!currentImg.isConnected) {
+          hideOverlay();
+        } else {
+          repositionOverlay();
+        }
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if ((e.key === "Delete" || e.key === "Backspace") && currentImg && overlay.style.display !== "none") {
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) return;
+        e.preventDefault();
+        const blot = window.Quill.find ? window.Quill.find(currentImg) : null;
+        if (blot) {
+          blot.deleteAt(0);
+        } else {
+          currentImg.remove();
+        }
+        hideOverlay();
+        quill.update();
+        if (dom.productForm.details && quill === quillEditor) dom.productForm.details.value = quill.root.innerHTML;
+        if (dom.productForm.recipe && quill === recipeQuillEditor) dom.productForm.recipe.value = quill.root.innerHTML;
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!container.contains(e.target) && overlay.style.display !== "none") {
+        hideOverlay();
+      }
+    });
+  }
+
+  function setupQuillImageHandlers(quill) {
+    if (!quill) return;
+
+    // Custom toolbar image handler
+    const toolbar = quill.getModule('toolbar');
+    if (toolbar) {
+      toolbar.addHandler('image', () => {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.onchange = async () => {
+          const file = input.files?.[0];
+          if (file) {
+            try {
+              const resizedDataUrl = await resizeImageToMax(file, 1024);
+              const range = quill.getSelection(true) || { index: quill.getLength() };
+              quill.insertEmbed(range.index, 'image', resizedDataUrl, 'user');
+              quill.setSelection(range.index + 1, 'silent');
+            } catch (err) {
+              console.error('[Quill] Error resizing uploaded image:', err);
+              utils.showToast("Không thể tải ảnh: " + err.message, true);
+            }
+          }
+        };
+        input.click();
+      });
+    }
+
+    // Paste handler for images
+    quill.root.addEventListener('paste', async (e) => {
+      const clipboardData = e.clipboardData || window.clipboardData;
+      if (!clipboardData) return;
+      const items = clipboardData.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            try {
+              const resizedDataUrl = await resizeImageToMax(file, 1024);
+              const range = quill.getSelection(true) || { index: quill.getLength() };
+              quill.insertEmbed(range.index, 'image', resizedDataUrl, 'user');
+              quill.setSelection(range.index + 1, 'silent');
+            } catch (err) {
+              console.error('[Quill] Error pasting resized image:', err);
+            }
+            return;
+          }
+        }
+      }
+    });
+
+    // Drop handler for images
+    quill.root.addEventListener('drop', async (e) => {
+      const dataTransfer = e.dataTransfer;
+      if (!dataTransfer || !dataTransfer.files || dataTransfer.files.length === 0) return;
+      for (let i = 0; i < dataTransfer.files.length; i++) {
+        const file = dataTransfer.files[i];
+        if (file.type.startsWith('image/')) {
+          e.preventDefault();
+          try {
+            const resizedDataUrl = await resizeImageToMax(file, 1024);
+            const range = quill.getSelection(true) || { index: quill.getLength() };
+            quill.insertEmbed(range.index, 'image', resizedDataUrl, 'user');
+            quill.setSelection(range.index + 1, 'silent');
+          } catch (err) {
+            console.error('[Quill] Error dropping resized image:', err);
+          }
+          return;
+        }
+      }
+    });
+
+    setupQuillImageResizer(quill);
+  }
+
   const ensureQuillInitialized = () => {
     if (!window.Quill) {
       console.error("[Quill] window.Quill is not defined. Script might not be loaded.");
@@ -85,6 +370,7 @@ export function registerProductsControllerEvents(contract) {
         quillEditor.on('text-change', () => {
           if (dom.productForm.details) dom.productForm.details.value = quillEditor.root.innerHTML;
         });
+        setupQuillImageHandlers(quillEditor);
       }
 
       if (dom.productRecipeEditor && !recipeQuillEditor) {
@@ -95,9 +381,10 @@ export function registerProductsControllerEvents(contract) {
         recipeQuillEditor.on('text-change', () => {
           if (dom.productForm.recipe) dom.productForm.recipe.value = recipeQuillEditor.root.innerHTML;
         });
+        setupQuillImageHandlers(recipeQuillEditor);
       }
 
-      console.log("[Quill] Initialized successfully");
+      console.log("[Quill] Initialized successfully with image resize tools");
     } catch (err) {
       console.error("[Quill] Init failed:", err);
       utils.showToast("Lỗi khởi tạo bộ soạn thảo: " + err.message, true);
