@@ -3,6 +3,32 @@ let searchTimer = null;
 let currentCategory = "";
 let globalSettings = {};
 
+// Issue 8: Lưu và khôi phục danh sách sản phẩm đã chọn vào localStorage để không bị mất khi khách hàng đăng nhập
+function getSavedSelectedProducts() {
+  try {
+    const raw = localStorage.getItem('public_selected_products');
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveSelectedProducts(products) {
+  try {
+    localStorage.setItem('public_selected_products', JSON.stringify(products || {}));
+  } catch (e) {}
+}
+
+function clearSavedSelectedProducts() {
+  try {
+    localStorage.removeItem('public_selected_products');
+  } catch (e) {}
+}
+
+window.selectedProducts = getSavedSelectedProducts();
+
 function formatVND(amount) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 }
@@ -17,7 +43,19 @@ document.addEventListener("DOMContentLoaded", () => {
   setupOrderSuccessModal();
   setupLogoutModal();
   setupSelectedItemsPanel();
+  setupZaloLoginHooks();
 });
+
+// Issue 8: Gắn hook cho các link đăng nhập Zalo để ghi nhớ trạng thái đang chốt đơn
+function setupZaloLoginHooks() {
+  document.querySelectorAll('a[href*="zalo-login"]').forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.selectedProducts && Object.keys(window.selectedProducts).length > 0) {
+        sessionStorage.setItem('public_auto_open_checkout', '1');
+      }
+    });
+  });
+}
 
 function setupZaloButton() {
   const zaloBtn = document.getElementById("zaloLoginBtn");
@@ -509,7 +547,10 @@ function setupCart() {
           }));
 
           showToast("Đã tách và gửi thành công 2 đơn hàng!");
+          // Issue 8: Xóa giỏ hàng đã lưu sau khi đặt hàng thành công
           window.selectedProducts = {};
+          clearSavedSelectedProducts();
+          sessionStorage.removeItem('public_auto_open_checkout');
           updateCartUI();
           renderProducts(allProducts);
           checkoutModal.classList.add("hidden");
@@ -556,7 +597,10 @@ function setupCart() {
             }));
             
             showToast(data.message || "Đã chốt đơn thành công!");
+            // Issue 8: Xóa giỏ hàng đã lưu sau khi đặt hàng thành công
             window.selectedProducts = {};
+            clearSavedSelectedProducts();
+            sessionStorage.removeItem('public_auto_open_checkout');
             updateCartUI();
             renderProducts(allProducts); // reset checked state
             checkoutModal.classList.add("hidden");
@@ -798,7 +842,34 @@ async function fetchProducts() {
       }
     }
     
+    // Issue 8: Dọn dẹp các sản phẩm không còn tồn tại trong danh mục nếu có
+    if (allProducts && allProducts.length > 0 && window.selectedProducts) {
+      let changed = false;
+      Object.keys(window.selectedProducts).forEach(id => {
+        if (!allProducts.some(p => String(p.id) === String(id))) {
+          delete window.selectedProducts[id];
+          changed = true;
+        }
+      });
+      if (changed) {
+        saveSelectedProducts(window.selectedProducts);
+      }
+    }
+    
     filterAndRenderProducts();
+    updateCartUI();
+    
+    // Issue 8: Tự động mở lại modal chốt đơn nếu khách vừa login Zalo trong lúc đang chốt đơn
+    if (sessionStorage.getItem('public_auto_open_checkout') === '1' && Object.keys(window.selectedProducts || {}).length > 0) {
+      sessionStorage.removeItem('public_auto_open_checkout');
+      const checkoutBtn = document.getElementById('checkoutBtn');
+      if (checkoutBtn) {
+        // Cho một khoảng delay nhỏ để UI ổn định rồi kích hoạt mở form chốt đơn
+        setTimeout(() => {
+          checkoutBtn.click();
+        }, 100);
+      }
+    }
     
     // Check if URL has a product ID to open modal
     const urlParams = new URLSearchParams(window.location.search);
@@ -816,8 +887,6 @@ async function fetchProducts() {
 function removeDiacritics(str) {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
 }
-
-window.selectedProducts = {};
 
 function renderProducts(products) {
   const grid = document.getElementById("productGrid");
@@ -968,9 +1037,11 @@ function renderProducts(products) {
           }
           inputQty.value = val;
           window.selectedProducts[p.id] = val;
+          saveSelectedProducts(window.selectedProducts);
           qtyControl.style.display = 'flex';
         } else {
           delete window.selectedProducts[p.id];
+          saveSelectedProducts(window.selectedProducts);
           qtyControl.style.display = 'none';
         }
         updateCartUI();
@@ -992,6 +1063,7 @@ function renderProducts(products) {
         e.target.value = val;
         if (checkbox.checked) {
           window.selectedProducts[p.id] = val;
+          saveSelectedProducts(window.selectedProducts);
           updateCartUI();
         }
       });
