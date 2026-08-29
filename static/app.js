@@ -106,6 +106,8 @@ import {
   productDetailEditor,
   productRecipeEditor,
   productFormCancelButton,
+  productUnitConversionsContainer,
+  productAddUnitConversionButton,
   productsSection,
   productFormSection,
   productFormWrap,
@@ -6871,6 +6873,8 @@ registerProductsControllerEvents({
     productManageList,
     productFormToggleButton,
     productHistoryToggleButton,
+    productUnitConversionsContainer,
+    productAddUnitConversionButton,
     mobileQuery,
   },
   actions: {

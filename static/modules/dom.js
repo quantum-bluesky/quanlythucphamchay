@@ -249,3 +249,5 @@ export const uploadProductImageButton = document.getElementById('uploadProductIm
 
 export const productLookupUnitSelect = document.getElementById("productLookupUnitSelect");
 export const productMovementUnitSelect = document.getElementById("productMovementUnitSelect");
+export const productUnitConversionsContainer = document.getElementById("productUnitConversionsContainer");
+export const productAddUnitConversionButton = document.getElementById("productAddUnitConversionButton");

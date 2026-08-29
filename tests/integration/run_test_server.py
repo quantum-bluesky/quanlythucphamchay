@@ -270,6 +270,7 @@ def main() -> int:
     build_fixture(store)
 
     system_config = load_system_config()
+    system_config["admin_path"] = "/admin"
     system_config["EnableMultiuserConflictCheck"] = True
     system_config["EnableAdminLockedEdit"] = True
     admin_sessions = AdminSessionManager(

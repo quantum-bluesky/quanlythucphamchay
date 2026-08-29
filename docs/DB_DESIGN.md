@@ -82,6 +82,28 @@ Nguồn: `CREATE TABLE IF NOT EXISTS products` trong `qltpchay/store.py`.
 - hỗ trợ ngừng bán bằng `is_deleted = 1` thay vì xóa cứng
 - `shelf_life_days` và `storage_life_days` là metadata fallback ở cấp sản phẩm khi lô chưa có HSD thật, không thay thế dữ liệu tồn theo lô
 
+## 4A. Bảng `product_unit_conversion`
+
+Nguồn: `CREATE TABLE IF NOT EXISTS product_unit_conversion` trong `qltpchay/store.py`.
+
+### Cột
+
+- `id`: INTEGER PK AUTOINCREMENT
+- `product_id`: INTEGER FK tới `products.id`
+- `from_unit`: TEXT NOT NULL, tên đơn vị quy đổi (vd: thùng, hộp, lốc)
+- `conversion_factor`: REAL NOT NULL, hệ số quy đổi ra đơn vị gốc (vd: 24)
+- `price`: REAL NOT NULL DEFAULT 0, giá nhập riêng theo đơn vị này
+- `sale_price`: REAL NOT NULL DEFAULT 0, giá bán riêng theo đơn vị này
+- `is_active`: INTEGER NOT NULL DEFAULT 1, cờ trạng thái kích hoạt
+- `created_at`: TEXT, timestamp ISO
+- `updated_at`: TEXT, timestamp ISO
+
+### Vai trò nghiệp vụ
+
+- lưu cấu hình đơn vị phụ/quy đổi cho từng sản phẩm
+- cung cấp giá nhập và giá bán tự động khi người dùng chọn đơn vị quy đổi lúc tạo đơn bán hoặc phiếu nhập hàng
+- tồn kho thực tế luôn được quy đổi và quản lý theo đơn vị gốc (`base_unit`)
+
 ## 5. Bảng `transactions`
 
 Nguồn: `CREATE TABLE IF NOT EXISTS transactions` trong `qltpchay/store.py`.

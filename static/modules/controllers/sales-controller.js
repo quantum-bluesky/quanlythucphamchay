@@ -335,9 +335,26 @@ export function registerSalesControllerEvents(contract) {
       const product = state.products.find(p => p.id === id);
       if (product) {
         select.innerHTML = `
-          <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}">${utils.escapeHtml(product.unit)} (gốc)</option>
-          ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}">${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
+          <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}" data-sale-price="${product.sale_price || 0}">${utils.escapeHtml(product.unit)} (gốc)</option>
+          ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}" data-sale-price="${conv.sale_price || ((product.sale_price || 0) * conv.conversion_factor)}">${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
         `;
+        const unitPriceInput = dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput");
+        if (unitPriceInput) {
+          unitPriceInput.value = product.sale_price || 0;
+          state.quickSaleDraft.unitPrice = unitPriceInput.value;
+          state.quickSaleDraft.conversionFactor = "1";
+        }
+      }
+    } else if (event.target.id === "quickSaleUnitSelect") {
+      const select = event.target;
+      const option = select.options[select.selectedIndex];
+      if (option && option.dataset.salePrice) {
+        const unitPriceInput = dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput");
+        if (unitPriceInput) {
+          unitPriceInput.value = option.dataset.salePrice;
+          state.quickSaleDraft.unitPrice = option.dataset.salePrice;
+          state.quickSaleDraft.conversionFactor = option.value;
+        }
       }
     }
   });

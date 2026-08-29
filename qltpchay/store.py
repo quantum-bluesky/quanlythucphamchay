@@ -591,6 +591,8 @@ class InventoryStore:
                     product_id INTEGER NOT NULL,
                     from_unit TEXT NOT NULL,
                     conversion_factor REAL NOT NULL,
+                    price REAL,
+                    sale_price REAL,
                     is_active INTEGER NOT NULL DEFAULT 1,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
@@ -955,27 +957,31 @@ class InventoryStore:
             )
 
 
-            try:
-                connection.execute("ALTER TABLE cart_items ADD COLUMN input_quantity REAL")
-                connection.execute("ALTER TABLE cart_items ADD COLUMN input_unit TEXT")
-                connection.execute("ALTER TABLE cart_items ADD COLUMN conversion_factor REAL")
-                connection.execute("UPDATE cart_items SET input_quantity = quantity, conversion_factor = 1.0 WHERE input_quantity IS NULL")
-            except sqlite3.OperationalError:
-                pass
+            for table in ["cart_items", "purchase_items", "inventory_receipt_items"]:
+                try:
+                    connection.execute(f"ALTER TABLE {table} ADD COLUMN input_quantity REAL")
+                except sqlite3.OperationalError:
+                    pass
+                try:
+                    connection.execute(f"ALTER TABLE {table} ADD COLUMN input_unit TEXT")
+                except sqlite3.OperationalError:
+                    pass
+                try:
+                    connection.execute(f"ALTER TABLE {table} ADD COLUMN conversion_factor REAL")
+                except sqlite3.OperationalError:
+                    pass
+                try:
+                    connection.execute(f"UPDATE {table} SET input_quantity = quantity, conversion_factor = 1.0 WHERE input_quantity IS NULL")
+                except sqlite3.OperationalError:
+                    pass
 
             try:
-                connection.execute("ALTER TABLE purchase_items ADD COLUMN input_quantity REAL")
-                connection.execute("ALTER TABLE purchase_items ADD COLUMN input_unit TEXT")
-                connection.execute("ALTER TABLE purchase_items ADD COLUMN conversion_factor REAL")
-                connection.execute("UPDATE purchase_items SET input_quantity = quantity, conversion_factor = 1.0 WHERE input_quantity IS NULL")
+                connection.execute("ALTER TABLE product_unit_conversion ADD COLUMN price REAL")
             except sqlite3.OperationalError:
                 pass
-
+                
             try:
-                connection.execute("ALTER TABLE inventory_receipt_items ADD COLUMN input_quantity REAL")
-                connection.execute("ALTER TABLE inventory_receipt_items ADD COLUMN input_unit TEXT")
-                connection.execute("ALTER TABLE inventory_receipt_items ADD COLUMN conversion_factor REAL")
-                connection.execute("UPDATE inventory_receipt_items SET input_quantity = quantity, conversion_factor = 1.0 WHERE input_quantity IS NULL")
+                connection.execute("ALTER TABLE product_unit_conversion ADD COLUMN sale_price REAL")
             except sqlite3.OperationalError:
                 pass
 
@@ -1576,7 +1582,7 @@ class InventoryStore:
             return {}
         placeholders = ",".join("?" for _ in product_ids)
         rows = connection.execute(
-            f"SELECT id, product_id, from_unit, conversion_factor, is_active FROM product_unit_conversion WHERE product_id IN ({placeholders}) AND is_active = 1",
+            f"SELECT id, product_id, from_unit, conversion_factor, price, sale_price, is_active FROM product_unit_conversion WHERE product_id IN ({placeholders}) AND is_active = 1",
             product_ids,
         ).fetchall()
         result = {}
@@ -1588,7 +1594,8 @@ class InventoryStore:
                 "id": int(row["id"]),
                 "from_unit": str(row["from_unit"]),
                 "conversion_factor": float(row["conversion_factor"]),
-                "is_active": bool(row["is_active"])
+                "price": float(row["price"] or 0),
+                "sale_price": float(row["sale_price"] or 0),
             })
         return result
 
@@ -3196,8 +3203,17 @@ class InventoryStore:
             if unit_conversions:
                 for conv in unit_conversions:
                     connection.execute(
-                        "INSERT INTO product_unit_conversion(product_id, from_unit, conversion_factor, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)",
-                        (product_id, str(conv.get("from_unit", "")).strip(), float(conv.get("conversion_factor", 1.0)), 1, now, now)
+                        "INSERT INTO product_unit_conversion(product_id, from_unit, conversion_factor, price, sale_price, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            product_id,
+                            str(conv.get("from_unit", conv.get("input_unit", ""))).strip(),
+                            float(conv.get("conversion_factor", 1.0)),
+                            float(conv.get("price", 0.0)),
+                            float(conv.get("sale_price", 0.0)),
+                            1,
+                            now,
+                            now,
+                        )
                     )
             self._record_audit(
                 connection,
@@ -3345,6 +3361,7 @@ class InventoryStore:
         actor: str = "",
         allow_deleted: bool = False,
         global_id: str | None = None,
+        unit_conversions: list[dict] | None = None,
     ) -> dict:
         (
             clean_name,
@@ -3430,6 +3447,24 @@ class InventoryStore:
                     "storage_life_days": parsed_storage_life_days,
                 },
             )
+            if unit_conversions is not None:
+                connection.execute("UPDATE product_unit_conversion SET is_active = 0, updated_at = ? WHERE product_id = ?", (now, int(product_id)))
+                for conv in unit_conversions:
+                    unit_name = str(conv.get("from_unit", conv.get("input_unit", ""))).strip()
+                    factor = float(conv.get("conversion_factor", 1.0))
+                    price = float(conv.get("price", 0.0))
+                    sale_price = float(conv.get("sale_price", 0.0))
+                    existing = connection.execute("SELECT id FROM product_unit_conversion WHERE product_id = ? AND from_unit = ?", (int(product_id), unit_name)).fetchone()
+                    if existing:
+                        connection.execute(
+                            "UPDATE product_unit_conversion SET conversion_factor = ?, price = ?, sale_price = ?, is_active = 1, updated_at = ? WHERE id = ?",
+                            (factor, price, sale_price, now, existing["id"])
+                        )
+                    else:
+                        connection.execute(
+                            "INSERT INTO product_unit_conversion(product_id, from_unit, conversion_factor, price, sale_price, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                            (int(product_id), unit_name, factor, price, sale_price, 1, now, now)
+                        )
             self._record_audit(
                 connection,
                 entity_type="product",
@@ -10266,6 +10301,7 @@ class InventoryStore:
             "images": images,
             "details": row["details"] if "details" in row.keys() else "",
             "recipe": row["recipe"] if "recipe" in row.keys() else "",
+            "unit_conversions": unit_conversions or [],
             "is_deleted": bool(row["is_deleted"]),
             "deleted_at": row["deleted_at"],
             "created_at": row["created_at"],
@@ -13288,9 +13324,9 @@ class InventoryStore:
                 """
                 INSERT INTO purchase_items(
                     id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
-                    expiry_input_mode, manufacture_date, expiry_date, sort_order
+                    expiry_input_mode, manufacture_date, expiry_date, sort_order, input_quantity, input_unit, conversion_factor
                 )
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),

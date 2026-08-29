@@ -24,6 +24,10 @@ export function registerProductsControllerEvents(contract) {
     if (dom.productForm.recipe) dom.productForm.recipe.value = "";
     if (dom.productForm.is_public) dom.productForm.is_public.checked = true;
     
+    if (dom.productUnitConversionsContainer) {
+      dom.productUnitConversionsContainer.innerHTML = "";
+    }
+    
     if (quillEditor) {
       quillEditor.setContents([]);
     } else if (dom.productDetailEditor) {
@@ -149,6 +153,31 @@ export function registerProductsControllerEvents(contract) {
 
   utils.syncPriceWarningGroups(dom.productForm);
 
+  if (dom.productAddUnitConversionButton && dom.productUnitConversionsContainer) {
+    dom.productAddUnitConversionButton.addEventListener("click", () => {
+      const row = document.createElement("div");
+      row.className = "unit-conversion-row";
+      row.style.display = "flex";
+      row.style.gap = "8px";
+      row.style.marginBottom = "8px";
+      row.style.alignItems = "center";
+      
+      row.innerHTML = `
+        <input type="text" placeholder="Tên ĐV (vd: thùng)" class="uc-unit" required style="flex:1; min-width: 80px;">
+        <input type="number" placeholder="Hệ số (vd: 24)" class="uc-factor" required min="1" step="0.01" style="flex:1; min-width: 80px;">
+        <input type="number" placeholder="Giá nhập" class="uc-price" required min="0" style="flex:1; min-width: 80px;">
+        <input type="number" placeholder="Giá bán" class="uc-saleprice" required min="0" style="flex:1; min-width: 80px;">
+        <button type="button" class="danger-button compact-button uc-remove" style="padding: 4px 8px;">X</button>
+      `;
+      
+      row.querySelector(".uc-remove").addEventListener("click", () => {
+        row.remove();
+      });
+      
+      dom.productUnitConversionsContainer.appendChild(row);
+    });
+  }
+
   if (dom.uploadProductImageButton && dom.productImageUpload) {
     dom.uploadProductImageButton.addEventListener("click", () => {
       dom.productImageUpload.click();
@@ -254,6 +283,26 @@ export function registerProductsControllerEvents(contract) {
       payload.images = [];
     }
     payload.is_public = payload.is_public === "on";
+
+    const unitConversions = [];
+    if (dom.productUnitConversionsContainer) {
+      const rows = dom.productUnitConversionsContainer.querySelectorAll(".unit-conversion-row");
+      rows.forEach(row => {
+        const inputUnit = row.querySelector(".uc-unit").value.trim();
+        const factor = parseFloat(row.querySelector(".uc-factor").value);
+        const price = parseFloat(row.querySelector(".uc-price").value);
+        const salePrice = parseFloat(row.querySelector(".uc-saleprice").value);
+        if (inputUnit && !isNaN(factor) && factor > 0) {
+          unitConversions.push({
+            input_unit: inputUnit,
+            conversion_factor: factor,
+            price: isNaN(price) ? 0 : price,
+            sale_price: isNaN(salePrice) ? 0 : salePrice
+          });
+        }
+      });
+    }
+    payload.unit_conversions = unitConversions;
     
     try {
       const isEditing = !!state.editingProductId;
@@ -383,9 +432,26 @@ export function registerProductsControllerEvents(contract) {
       if (dom.productForm.details) dom.productForm.details.value = product.details || "";
       if (dom.productForm.recipe) dom.productForm.recipe.value = product.recipe || "";
       if (dom.productForm.is_public) dom.productForm.is_public.checked = product.is_public !== 0 && product.is_public !== false;
-      
-      currentUnitConversions = Array.isArray(product.unit_conversions) ? JSON.parse(JSON.stringify(product.unit_conversions)) : [];
-      renderUnitConversions();
+
+      if (dom.productUnitConversionsContainer) {
+        dom.productUnitConversionsContainer.innerHTML = "";
+        if (product.unit_conversions && product.unit_conversions.length > 0) {
+          product.unit_conversions.forEach(uc => {
+            if (dom.productAddUnitConversionButton) {
+              dom.productAddUnitConversionButton.click();
+              const rows = dom.productUnitConversionsContainer.querySelectorAll(".unit-conversion-row");
+              if (rows.length > 0) {
+                const lastRow = rows[rows.length - 1];
+                lastRow.querySelector(".uc-unit").value = uc.input_unit;
+                lastRow.querySelector(".uc-factor").value = uc.conversion_factor;
+                lastRow.querySelector(".uc-price").value = uc.price || 0;
+                lastRow.querySelector(".uc-saleprice").value = uc.sale_price || 0;
+              }
+            }
+          });
+        }
+      }
+
       
         let detailsHtml = product.details || "";
         if (detailsHtml && !detailsHtml.includes("<") && detailsHtml.includes("\n")) {
