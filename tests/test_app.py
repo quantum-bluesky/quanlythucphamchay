@@ -111,6 +111,43 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(updated["recipe"], "<p>Công thức mới cập nhật</p>")
         self.assertEqual(updated["note"], "Chỉ bán từ 2 gói trở lên")
 
+    def test_ut_backend_image_resize_and_optimization(self) -> None:
+        # Issue: Backend auto-resize image to max 1024x1024
+        import io
+        import base64
+        from PIL import Image
+        from qltpchay.helpers import resize_image_bytes, optimize_html_embedded_images
+
+        # Create a test large image (2000 x 1000)
+        img = Image.new("RGB", (2000, 1000), color=(255, 100, 50))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        raw_bytes = buf.getvalue()
+
+        # Test resize_image_bytes
+        resized_bytes, ext = resize_image_bytes(raw_bytes, max_dim=1024)
+        resized_img = Image.open(io.BytesIO(resized_bytes))
+        self.assertEqual(resized_img.size[0], 1024)
+        self.assertEqual(resized_img.size[1], 512)
+
+        # Test embedded base64 in HTML
+        b64 = base64.b64encode(raw_bytes).decode("ascii")
+        html_input = f'<p>Hình món ăn: <img src="data:image/jpeg;base64,{b64}"></p>'
+        optimized_html = optimize_html_embedded_images(html_input, max_dim=1024)
+        self.assertIn("data:image/jpeg;base64,", optimized_html)
+        self.assertNotEqual(html_input, optimized_html)
+
+        # Test creating product with large base64 image in details & recipe
+        prod = self.store.create_product(
+            name="Sườn non chay sốt nấm",
+            category="Đồ chay đông lạnh",
+            unit="gói",
+            details=html_input,
+            recipe=html_input,
+        )
+        self.assertIn("data:image/jpeg;base64,", prod["details"])
+        self.assertNotEqual(prod["details"], html_input)
+
     def test_ut_db_02_stock_out_cannot_exceed_inventory(self) -> None:
         product = self.store.create_product(
             name="Xúc xích chay",

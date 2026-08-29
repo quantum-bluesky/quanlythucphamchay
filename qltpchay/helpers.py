@@ -92,3 +92,71 @@ def extract_cost_from_note(note: str) -> float | None:
 
 def normalize_key(value: str | None) -> str:
     return str(value or "").strip().lower()
+
+
+def resize_image_bytes(image_bytes: bytes, max_dim: int = 1024, quality: int = 85) -> tuple[bytes, str]:
+    """Resize image bytes so max(width, height) <= max_dim.
+    Returns (optimized_bytes, format_ext).
+    Fallback safely to original bytes if PIL is unavailable or if format is unsupported."""
+    if not image_bytes:
+        return image_bytes, ".jpg"
+    try:
+        import io
+        from PIL import Image, ImageOps
+        img = Image.open(io.BytesIO(image_bytes))
+        img = ImageOps.exif_transpose(img)
+
+        orig_format = (img.format or "JPEG").upper()
+        width, height = img.size
+
+        if width > max_dim or height > max_dim:
+            if width >= height:
+                new_height = max(1, int(round((height * max_dim) / width)))
+                new_width = max_dim
+            else:
+                new_width = max(1, int(round((width * max_dim) / height)))
+                new_height = max_dim
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        out_io = io.BytesIO()
+        if orig_format == "PNG":
+            img.save(out_io, format="PNG", optimize=True)
+            ext = ".png"
+        elif orig_format == "WEBP":
+            img.save(out_io, format="WEBP", quality=quality)
+            ext = ".webp"
+        else:
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            img.save(out_io, format="JPEG", quality=quality, optimize=True)
+            ext = ".jpg"
+
+        return out_io.getvalue(), ext
+    except Exception:
+        return image_bytes, ".jpg"
+
+
+def optimize_html_embedded_images(html_content: str, max_dim: int = 1024) -> str:
+    """Finds all base64 data URLs in img tags and resizes any that exceed max_dim."""
+    if not html_content or "data:image/" not in html_content:
+        return html_content
+
+    import base64
+
+    pattern = re.compile(r'data:image/([a-zA-Z0-9+]+);base64,([A-Za-z0-9+/=]+)')
+
+    def replacer(match: re.Match) -> str:
+        b64_str = match.group(2)
+        try:
+            raw_bytes = base64.b64decode(b64_str)
+            resized_bytes, ext = resize_image_bytes(raw_bytes, max_dim=max_dim)
+            if len(resized_bytes) != len(raw_bytes):
+                mime = "image/png" if ext == ".png" else ("image/webp" if ext == ".webp" else "image/jpeg")
+                new_b64 = base64.b64encode(resized_bytes).decode("ascii")
+                return f"data:{mime};base64,{new_b64}"
+        except Exception:
+            pass
+        return match.group(0)
+
+    return pattern.sub(replacer, html_content)
+

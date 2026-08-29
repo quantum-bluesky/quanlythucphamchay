@@ -19,6 +19,7 @@ from .helpers import (
     extract_price_from_note,
     month_key,
     normalize_key,
+    optimize_html_embedded_images,
     parse_date_key,
     parse_non_negative_decimal,
     parse_month_key,
@@ -3091,8 +3092,8 @@ class InventoryStore:
         )
         now = utc_now_iso()
         clean_images = json.dumps([str(img).strip() for img in (images or []) if str(img).strip()], ensure_ascii=False)
-        clean_details = str(details or "").strip()
-        clean_recipe = str(recipe or "").strip()
+        clean_details = optimize_html_embedded_images(str(details or "").strip(), max_dim=1024)
+        clean_recipe = optimize_html_embedded_images(str(recipe or "").strip(), max_dim=1024)
         clean_note = str(note or "").strip()
         gid = str(global_id).strip() if global_id and str(global_id).strip() else f"prd_{uuid.uuid4().hex}"
 
@@ -3319,9 +3320,9 @@ class InventoryStore:
         if images is not None:
             next_values["images"] = json.dumps([str(img).strip() for img in images if str(img).strip()], ensure_ascii=False)
         if details is not None:
-            next_values["details"] = str(details).strip()
+            next_values["details"] = optimize_html_embedded_images(str(details).strip(), max_dim=1024)
         if recipe is not None:
-            next_values["recipe"] = str(recipe).strip()
+            next_values["recipe"] = optimize_html_embedded_images(str(recipe).strip(), max_dim=1024)
         if note is not None:
             next_values["note"] = str(note).strip()
         if is_public is not None:

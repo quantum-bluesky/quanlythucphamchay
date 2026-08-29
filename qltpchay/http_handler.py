@@ -1237,6 +1237,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     ext = Path(filename).suffix
                     if ext.lower() not in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]:
                         ext = ".jpg"
+                    if ext.lower() != ".svg":
+                        payload, optimized_ext = helpers.resize_image_bytes(payload, max_dim=1024)
+                        if optimized_ext:
+                            ext = optimized_ext
                     import uuid
                     unique_name = f"{uuid.uuid4().hex}{ext}"
                     image_dir = constants.DATA_DIR / "images" / "products"
