@@ -70,6 +70,84 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(summary["product_count"], 1)
         self.assertEqual(summary["total_stock"], 6.0)
 
+    def test_ut_db_product_recipe_and_note_field_support(self) -> None:
+        # Issue recipe and note field serialization and persistence test
+        product = self.store.create_product(
+            name="Cá chay kho riềng",
+            category="Đồ chay đông lạnh",
+            unit="gói",
+            details="<p>Mô tả chi tiết sản phẩm</p>",
+            recipe="<p>Hướng dẫn cách nấu cá kho riềng</p>",
+            note="Đặt trước 1 ngày",
+        )
+        self.assertEqual(product["details"], "<p>Mô tả chi tiết sản phẩm</p>")
+        self.assertEqual(product["recipe"], "<p>Hướng dẫn cách nấu cá kho riềng</p>")
+        self.assertEqual(product["note"], "Đặt trước 1 ngày")
+
+        # Test get_product_by_id
+        fetched = self.store.get_product_by_id(product["id"])
+        self.assertEqual(fetched["details"], "<p>Mô tả chi tiết sản phẩm</p>")
+        self.assertEqual(fetched["recipe"], "<p>Hướng dẫn cách nấu cá kho riềng</p>")
+        self.assertEqual(fetched["note"], "Đặt trước 1 ngày")
+
+        # Test get_products
+        products = self.store.get_products()
+        found = next((p for p in products if p["id"] == product["id"]), None)
+        self.assertIsNotNone(found)
+        self.assertEqual(found["recipe"], "<p>Hướng dẫn cách nấu cá kho riềng</p>")
+        self.assertEqual(found["note"], "Đặt trước 1 ngày")
+
+        # Test update_product
+        self.store.update_product(
+            product["id"],
+            name=product["name"],
+            category=product["category"],
+            unit=product["unit"],
+            low_stock_threshold=product["low_stock_threshold"],
+            recipe="<p>Công thức mới cập nhật</p>",
+            note="Chỉ bán từ 2 gói trở lên",
+        )
+        updated = self.store.get_product_by_id(product["id"])
+        self.assertEqual(updated["recipe"], "<p>Công thức mới cập nhật</p>")
+        self.assertEqual(updated["note"], "Chỉ bán từ 2 gói trở lên")
+
+    def test_ut_backend_image_resize_and_optimization(self) -> None:
+        # Issue: Backend auto-resize image to max 1024x1024
+        import io
+        import base64
+        from PIL import Image
+        from qltpchay.helpers import resize_image_bytes, optimize_html_embedded_images
+
+        # Create a test large image (2000 x 1000)
+        img = Image.new("RGB", (2000, 1000), color=(255, 100, 50))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        raw_bytes = buf.getvalue()
+
+        # Test resize_image_bytes
+        resized_bytes, ext = resize_image_bytes(raw_bytes, max_dim=1024)
+        resized_img = Image.open(io.BytesIO(resized_bytes))
+        self.assertEqual(resized_img.size[0], 1024)
+        self.assertEqual(resized_img.size[1], 512)
+
+        # Test embedded base64 in HTML
+        b64 = base64.b64encode(raw_bytes).decode("ascii")
+        html_input = f'<p>Hình món ăn: <img src="data:image/jpeg;base64,{b64}"></p>'
+        optimized_html = optimize_html_embedded_images(html_input, max_dim=1024)
+        self.assertIn("data:image/jpeg;base64,", optimized_html)
+        self.assertNotEqual(html_input, optimized_html)
+
+        # Test creating product with large base64 image in details & recipe
+        prod = self.store.create_product(
+            name="Sườn non chay sốt nấm",
+            category="Đồ chay đông lạnh",
+            unit="gói",
+            details=html_input,
+            recipe=html_input,
+        )
+        self.assertIn("data:image/jpeg;base64,", prod["details"])
+        self.assertNotEqual(prod["details"], html_input)
+
     def test_ut_db_02_stock_out_cannot_exceed_inventory(self) -> None:
         product = self.store.create_product(
             name="Xúc xích chay",
@@ -123,6 +201,21 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertNotEqual(separate_result["cart"]["id"], result["cart"]["id"])
         self.assertEqual(len(separate_result["cart"]["items"]), 1)
         self.assertEqual(separate_result["cart"]["items"][0]["quantity"], 3.0)
+
+    def test_ut_online_02_product_sales_stats(self) -> None:
+        p1 = self.store.create_product(name="SP Bán Chạy 1", category="Chay", unit="gói", price=10000, sale_price=15000, low_stock_threshold=1)
+        p2 = self.store.create_product(name="SP Bán Chạy 2", category="Chay", unit="gói", price=10000, sale_price=15000, low_stock_threshold=1)
+        
+        self.store.create_online_order(
+            customer_name="Khách Mua Nhiều",
+            items=[
+                {"product_id": p1["id"], "quantity": 5},
+                {"product_id": p2["id"], "quantity": 2},
+            ],
+        )
+        stats = self.store.get_product_sales_stats()
+        self.assertEqual(stats.get(p1["id"]), 5.0)
+        self.assertEqual(stats.get(p2["id"]), 2.0)
 
     def test_ut_invsort_01_product_life_fields_and_priority_metrics_are_normalized(self) -> None:
         product = self.store.create_product(
