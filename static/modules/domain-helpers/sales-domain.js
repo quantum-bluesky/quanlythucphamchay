@@ -659,13 +659,26 @@ export function createSalesDomainHelpers(deps) {
       const exists = currentCart.items.some((item) => item.productId === product.id);
       let nextItems = currentCart.items;
       if (checked && !exists) {
+        const defaultSaleUnit = product.default_sale_unit || product.unit;
+        let factor = 1.0;
+        let salePrice = Number(product.sale_price ?? product.price ?? 0);
+        if (defaultSaleUnit && defaultSaleUnit !== product.unit && product.unit_conversions) {
+          const conv = product.unit_conversions.find(c => c.from_unit === defaultSaleUnit);
+          if (conv) {
+            factor = Number(conv.conversion_factor) || 1.0;
+            salePrice = Number(conv.sale_price) || (salePrice * factor);
+          }
+        }
         nextItems = [...currentCart.items, {
           id: createId("item"),
           productId: product.id,
           productName: product.name,
           unit: product.unit,
-          quantity: 1,
-          unitPrice: Number(product.sale_price ?? product.price ?? 0),
+          input_unit: defaultSaleUnit,
+          input_quantity: 1,
+          conversion_factor: factor,
+          quantity: factor,
+          unitPrice: salePrice,
           note: "",
         }];
       }

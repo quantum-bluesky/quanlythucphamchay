@@ -892,11 +892,20 @@ test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical
   const userCookie = await autoLoginUserRequest(request);
   const snapshot = await createBackupSnapshot(request);
   const originalState = await fetchSyncState(request, userCookie);
-  const products = await fetchProducts(request, userCookie);
-  const candidateProducts = products.filter((product) =>
+  let products = await fetchProducts(request, userCookie);
+  let candidateProducts = products.filter((product) =>
     !hasActualPurchaseHistory(originalState, product.id)
     && !hasAnyOpenPurchaseReference(originalState, product.id)
   );
+  if (candidateProducts.length === 0) {
+    const createRes = await request.post("./admin/api/products", {
+      headers: { Cookie: userCookie },
+      data: { name: `SP Auto Supplier ${timestamp}`, category: "Thực phẩm", unit: "gói", price: 20000, sale_price: 25000 },
+    });
+    const createdData = await createRes.json();
+    products = await fetchProducts(request, userCookie);
+    candidateProducts = [createdData.product || products[products.length - 1]];
+  }
   expect(candidateProducts.length).toBeGreaterThanOrEqual(1);
   const uniqueProduct = products.find((product) =>
     product.name === "Bò kho"

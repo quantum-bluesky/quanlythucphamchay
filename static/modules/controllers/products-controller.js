@@ -1,3 +1,5 @@
+import { escapeHtml } from "../utils.js";
+
 let quillEditor = null;
 let recipeQuillEditor = null;
 export function registerProductsControllerEvents(contract) {
@@ -9,6 +11,42 @@ export function registerProductsControllerEvents(contract) {
     queries,
     utils,
   } = contract;
+
+  const syncDefaultUnitDropdowns = (selectedPurchaseUnit = null, selectedSaleUnit = null) => {
+    if (!dom.productDefaultPurchaseUnitSelect || !dom.productDefaultSaleUnitSelect) return;
+    const baseUnit = (dom.productForm.unit?.value || "").trim() || "gói";
+    const currentPurchaseVal = selectedPurchaseUnit !== null ? selectedPurchaseUnit : dom.productDefaultPurchaseUnitSelect.value;
+    const currentSaleVal = selectedSaleUnit !== null ? selectedSaleUnit : dom.productDefaultSaleUnitSelect.value;
+
+    const conversionUnits = [];
+    if (dom.productUnitConversionsContainer) {
+      const rows = dom.productUnitConversionsContainer.querySelectorAll(".unit-conversion-row");
+      rows.forEach(row => {
+        const u = (row.querySelector(".uc-unit")?.value || "").trim();
+        if (u && !conversionUnits.includes(u) && u !== baseUnit) {
+          conversionUnits.push(u);
+        }
+      });
+    }
+
+    const buildOptions = (currentVal) => {
+      let html = `<option value="">(Theo đơn vị gốc: ${escapeHtml(baseUnit)})</option>`;
+      html += `<option value="${escapeHtml(baseUnit)}" ${currentVal === baseUnit ? "selected" : ""}>${escapeHtml(baseUnit)} (Đơn vị gốc)</option>`;
+      conversionUnits.forEach(u => {
+        html += `<option value="${escapeHtml(u)}" ${currentVal === u ? "selected" : ""}>${escapeHtml(u)}</option>`;
+      });
+      return html;
+    };
+
+    dom.productDefaultPurchaseUnitSelect.innerHTML = buildOptions(currentPurchaseVal);
+    dom.productDefaultSaleUnitSelect.innerHTML = buildOptions(currentSaleVal);
+    if (currentPurchaseVal) {
+      dom.productDefaultPurchaseUnitSelect.value = currentPurchaseVal;
+    }
+    if (currentSaleVal) {
+      dom.productDefaultSaleUnitSelect.value = currentSaleVal;
+    }
+  };
 
   const resetProductForm = () => {
     dom.productForm.reset();
@@ -28,6 +66,7 @@ export function registerProductsControllerEvents(contract) {
     if (dom.productUnitConversionsContainer) {
       dom.productUnitConversionsContainer.innerHTML = "";
     }
+    syncDefaultUnitDropdowns("", "");
     
     if (quillEditor) {
       quillEditor.setContents([]);
@@ -441,6 +480,11 @@ export function registerProductsControllerEvents(contract) {
 
   utils.syncPriceWarningGroups(dom.productForm);
 
+  if (dom.productForm?.unit) {
+    dom.productForm.unit.addEventListener("input", () => syncDefaultUnitDropdowns());
+    dom.productForm.unit.addEventListener("change", () => syncDefaultUnitDropdowns());
+  }
+
   if (dom.productAddUnitConversionButton && dom.productUnitConversionsContainer) {
     dom.productAddUnitConversionButton.addEventListener("click", () => {
       const row = document.createElement("div");
@@ -458,13 +502,34 @@ export function registerProductsControllerEvents(contract) {
         <button type="button" class="danger-button compact-button uc-remove" style="padding: 4px 8px;">X</button>
       `;
       
+      const unitInput = row.querySelector(".uc-unit");
+      if (unitInput) {
+        unitInput.addEventListener("input", () => syncDefaultUnitDropdowns());
+        unitInput.addEventListener("change", () => syncDefaultUnitDropdowns());
+      }
+
       row.querySelector(".uc-remove").addEventListener("click", () => {
         row.remove();
+        syncDefaultUnitDropdowns();
       });
       
       dom.productUnitConversionsContainer.appendChild(row);
+      syncDefaultUnitDropdowns();
+    });
+
+    dom.productUnitConversionsContainer.addEventListener("input", (event) => {
+      if (event.target.classList.contains("uc-unit")) {
+        syncDefaultUnitDropdowns();
+      }
+    });
+    dom.productUnitConversionsContainer.addEventListener("change", (event) => {
+      if (event.target.classList.contains("uc-unit")) {
+        syncDefaultUnitDropdowns();
+      }
     });
   }
+
+  syncDefaultUnitDropdowns();
 
   if (dom.uploadProductImageButton && dom.productImageUpload) {
     dom.uploadProductImageButton.addEventListener("click", () => {
@@ -571,6 +636,8 @@ export function registerProductsControllerEvents(contract) {
       payload.images = [];
     }
     payload.is_public = payload.is_public === "on";
+    payload.default_purchase_unit = (dom.productDefaultPurchaseUnitSelect?.value || payload.default_purchase_unit || "").trim();
+    payload.default_sale_unit = (dom.productDefaultSaleUnitSelect?.value || payload.default_sale_unit || "").trim();
 
     const unitConversions = [];
     if (dom.productUnitConversionsContainer) {
@@ -731,7 +798,8 @@ export function registerProductsControllerEvents(contract) {
               const rows = dom.productUnitConversionsContainer.querySelectorAll(".unit-conversion-row");
               if (rows.length > 0) {
                 const lastRow = rows[rows.length - 1];
-                lastRow.querySelector(".uc-unit").value = uc.input_unit;
+                const unitName = uc.from_unit || uc.input_unit || uc.unit || "";
+                lastRow.querySelector(".uc-unit").value = unitName;
                 lastRow.querySelector(".uc-factor").value = uc.conversion_factor;
                 lastRow.querySelector(".uc-price").value = uc.price || 0;
                 lastRow.querySelector(".uc-saleprice").value = uc.sale_price || 0;
@@ -740,6 +808,7 @@ export function registerProductsControllerEvents(contract) {
           });
         }
       }
+      syncDefaultUnitDropdowns(product.default_purchase_unit || product.unit, product.default_sale_unit || product.unit);
 
       
         let detailsHtml = product.details || "";

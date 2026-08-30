@@ -1216,21 +1216,34 @@ export function createPurchasesDomainHelpers(deps) {
     });
     const nextQuantity = Number(quantity || 0);
     const nextUnitCost = Number(unitCost || product.price || 0);
-    if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) throw new Error("Số lượng nhập phải lớn hơn 0.");
+    const defaultPurchaseUnit = product.default_purchase_unit || product.unit;
+    let factor = 1.0;
+    let effectiveUnitCost = nextUnitCost;
+    if (defaultPurchaseUnit && defaultPurchaseUnit !== product.unit && product.unit_conversions) {
+      const conv = product.unit_conversions.find(c => c.from_unit === defaultPurchaseUnit);
+      if (conv) {
+        factor = Number(conv.conversion_factor) || 1.0;
+        effectiveUnitCost = Number(conv.price) || (nextUnitCost * factor);
+      }
+    }
+    const baseQty = Number((nextQuantity * factor).toFixed(4));
     const updatedPurchase = updatePurchase(purchase.id, (currentPurchase) => {
       const existing = currentPurchase.items.find((item) => Number(item.productId) === Number(product.id));
       const items = existing
-        ? currentPurchase.items.map((item) => Number(item.productId) === Number(product.id) ? { ...item, quantity: Number((Number(item.quantity) + nextQuantity).toFixed(2)), unitCost: nextUnitCost, lineTotal: Number(((Number(item.quantity) + nextQuantity) * nextUnitCost).toFixed(2)) } : item)
+        ? currentPurchase.items.map((item) => Number(item.productId) === Number(product.id) ? { ...item, input_quantity: Number(((item.input_quantity || item.quantity) + nextQuantity).toFixed(2)), quantity: Number((Number(item.quantity) + baseQty).toFixed(4)), unitCost: effectiveUnitCost, lineTotal: Number(((Number(item.input_quantity || item.quantity) + nextQuantity) * effectiveUnitCost).toFixed(2)) } : item)
         : [...currentPurchase.items, {
           id: createId("purchase_item"),
           productId: product.id,
           productName: product.name,
           unit: product.unit,
-          quantity: nextQuantity,
-          unitCost: nextUnitCost,
+          input_unit: defaultPurchaseUnit,
+          input_quantity: nextQuantity,
+          conversion_factor: factor,
+          quantity: baseQty,
+          unitCost: effectiveUnitCost,
           batchCode: "",
           expiryDate: "",
-          lineTotal: Number((nextQuantity * nextUnitCost).toFixed(2)),
+          lineTotal: Number((nextQuantity * effectiveUnitCost).toFixed(2)),
         }];
       return { items, supplierName: currentPurchase.supplierName || "", note: currentPurchase.note || "" };
     });

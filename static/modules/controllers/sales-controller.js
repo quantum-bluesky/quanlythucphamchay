@@ -334,26 +334,80 @@ export function registerSalesControllerEvents(contract) {
       if (!id) return;
       const product = state.products.find(p => p.id === id);
       if (product) {
+        const defaultUnit = product.default_sale_unit || product.unit;
         select.innerHTML = `
-          <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}" data-sale-price="${product.sale_price || 0}">${utils.escapeHtml(product.unit)} (gốc)</option>
-          ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}" data-sale-price="${conv.sale_price || ((product.sale_price || 0) * conv.conversion_factor)}">${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
+          <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}" data-sale-price="${product.sale_price || 0}" ${defaultUnit === product.unit ? "selected" : ""}>${utils.escapeHtml(product.unit)} (gốc)</option>
+          ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}" data-sale-price="${conv.sale_price || ((product.sale_price || 0) * conv.conversion_factor)}" ${defaultUnit === conv.from_unit ? "selected" : ""}>${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
         `;
+        const selectedOption = select.options[select.selectedIndex] || select.options[0];
         const unitPriceInput = dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput");
-        if (unitPriceInput) {
-          unitPriceInput.value = product.sale_price || 0;
-          state.quickSaleDraft.unitPrice = unitPriceInput.value;
-          state.quickSaleDraft.conversionFactor = "1";
+        if (unitPriceInput && selectedOption) {
+          unitPriceInput.value = selectedOption.dataset.salePrice || product.sale_price || 0;
+          if (state.quickSaleDraft) {
+            state.quickSaleDraft.unitPrice = unitPriceInput.value;
+            state.quickSaleDraft.conversionFactor = selectedOption.value;
+            state.quickSaleDraft.unitName = selectedOption.dataset.unitName;
+          }
         }
       }
     } else if (event.target.id === "quickSaleUnitSelect") {
       const select = event.target;
       const option = select.options[select.selectedIndex];
-      if (option && option.dataset.salePrice) {
+      if (option) {
+        const oldFactor = parseFloat(state.quickSaleDraft?.conversionFactor || 1) || 1;
+        const newFactor = parseFloat(option.value) || 1;
+        const qtyInput = dom.quickSalePanel.querySelector("#quickSaleQuantityInput");
+        if (qtyInput) {
+          const curQty = parseFloat(qtyInput.value) || 0;
+          if (curQty > 0) {
+            const baseQty = curQty * oldFactor;
+            const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
+            qtyInput.value = newQty;
+            if (state.quickSaleDraft) {
+              state.quickSaleDraft.quantity = String(newQty);
+            }
+          }
+        }
         const unitPriceInput = dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput");
-        if (unitPriceInput) {
+        if (unitPriceInput && option.dataset.salePrice) {
           unitPriceInput.value = option.dataset.salePrice;
-          state.quickSaleDraft.unitPrice = option.dataset.salePrice;
-          state.quickSaleDraft.conversionFactor = option.value;
+          if (state.quickSaleDraft) {
+            state.quickSaleDraft.unitPrice = option.dataset.salePrice;
+            state.quickSaleDraft.conversionFactor = option.value;
+            state.quickSaleDraft.unitName = option.dataset.unitName;
+          }
+        }
+      }
+    }
+  });
+
+  dom.quickSalePanel?.addEventListener("change", (event) => {
+    if (event.target.id === "quickSaleUnitSelect") {
+      const select = event.target;
+      const option = select.options[select.selectedIndex];
+      if (option) {
+        const oldFactor = parseFloat(state.quickSaleDraft?.conversionFactor || 1) || 1;
+        const newFactor = parseFloat(option.value) || 1;
+        const qtyInput = dom.quickSalePanel.querySelector("#quickSaleQuantityInput");
+        if (qtyInput) {
+          const curQty = parseFloat(qtyInput.value) || 0;
+          if (curQty > 0) {
+            const baseQty = curQty * oldFactor;
+            const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
+            qtyInput.value = newQty;
+            if (state.quickSaleDraft) {
+              state.quickSaleDraft.quantity = String(newQty);
+            }
+          }
+        }
+        const unitPriceInput = dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput");
+        if (unitPriceInput && option.dataset.salePrice) {
+          unitPriceInput.value = option.dataset.salePrice;
+          if (state.quickSaleDraft) {
+            state.quickSaleDraft.unitPrice = option.dataset.salePrice;
+            state.quickSaleDraft.conversionFactor = option.value;
+            state.quickSaleDraft.unitName = option.dataset.unitName;
+          }
         }
       }
     }
@@ -902,6 +956,34 @@ export function registerSalesControllerEvents(contract) {
     syncPriceWarningFromInput(warningInput);
   });
 
+  dom.cartItemsList.addEventListener("change", (event) => {
+    const unitSelect = event.target.closest("[data-cart-unit-input]");
+    if (!unitSelect) return;
+    const itemId = unitSelect.dataset.cartUnitInput;
+    const cart = queries.getActiveCart();
+    const item = cart?.items.find(i => String(i.id) === String(itemId));
+    if (!item) return;
+    const option = unitSelect.options[unitSelect.selectedIndex];
+    if (!option) return;
+
+    const oldFactor = parseFloat(item.conversion_factor || 1) || 1;
+    const newFactor = parseFloat(option.value) || 1;
+    const qtyInput = dom.cartItemsList.querySelector(`[data-qty-input="${itemId}"]`);
+    const priceInput = dom.cartItemsList.querySelector(`[data-price-input="${itemId}"], [data-price-input-cart="${itemId}"]`);
+
+    if (qtyInput) {
+      const currentQty = parseFloat(qtyInput.value) || 0;
+      if (currentQty > 0) {
+        const baseQty = currentQty * oldFactor;
+        const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
+        qtyInput.value = newQty;
+      }
+    }
+    if (priceInput && option.dataset.salePrice) {
+      priceInput.value = option.dataset.salePrice;
+    }
+  });
+
   dom.cartItemsList.addEventListener("click", async (event) => {
     const lineButton = event.target.closest("[data-line-action], [data-cart-item-action]");
     if (!lineButton) return;
@@ -922,12 +1004,25 @@ export function registerSalesControllerEvents(contract) {
     if (lineAction === "save") {
       const qtyInput = dom.cartItemsList.querySelector(`[data-qty-input="${lineButton.dataset.itemId}"]`);
       const priceInput = dom.cartItemsList.querySelector(`[data-price-input-cart="${lineButton.dataset.itemId}"], [data-price-input="${lineButton.dataset.itemId}"]`);
+      const unitSelect = dom.cartItemsList.querySelector(`[data-cart-unit-input="${lineButton.dataset.itemId}"]`);
       try {
-        const quantity = Number(qtyInput?.value);
+        const inputQuantity = Number(qtyInput?.value);
         const unitPrice = Number(priceInput?.value);
-        if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
+        if (!Number.isFinite(inputQuantity) || inputQuantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
         if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new Error("Giá bán không hợp lệ.");
-        actions.updateCartItem(lineButton.dataset.itemId, { quantity: Number(quantity.toFixed(2)), unitPrice });
+
+        const selectedOption = unitSelect?.options[unitSelect?.selectedIndex];
+        const conversionFactor = selectedOption ? (parseFloat(selectedOption.value) || 1.0) : 1.0;
+        const inputUnit = selectedOption?.dataset.unitName || (selectedOption?.textContent || "").trim();
+        const baseQuantity = Number((inputQuantity * conversionFactor).toFixed(4));
+
+        actions.updateCartItem(lineButton.dataset.itemId, {
+          input_quantity: inputQuantity,
+          input_unit: inputUnit,
+          conversion_factor: conversionFactor,
+          quantity: baseQuantity,
+          unitPrice,
+        });
         renderers.renderCartItems();
         renderers.renderSalesProductList();
         renderers.renderActiveCartPanel();

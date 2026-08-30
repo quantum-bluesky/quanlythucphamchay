@@ -584,6 +584,21 @@
               <button type="button" id="productAddUnitConversionButton" class="ghost-button compact-button"
                 style="margin-bottom: 12px">+ Thêm đơn vị quy đổi</button>
 
+              <div class="product-default-units-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                <label>
+                  <span>Đơn vị nhập mặc định</span>
+                  <select name="default_purchase_unit" id="productDefaultPurchaseUnitSelect">
+                    <option value="">(Theo đơn vị gốc)</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Đơn vị xuất/bán mặc định</span>
+                  <select name="default_sale_unit" id="productDefaultSaleUnitSelect">
+                    <option value="">(Theo đơn vị gốc)</option>
+                  </select>
+                </label>
+              </div>
+
               <div data-price-warning-group data-price-warning-mode="edit">
                 <label data-price-warning-field="purchase">
                   <span>Giá nhập</span>

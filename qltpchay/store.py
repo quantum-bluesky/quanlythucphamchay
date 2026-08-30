@@ -213,6 +213,8 @@ class InventoryStore:
                     details TEXT NOT NULL DEFAULT '',
                     recipe TEXT NOT NULL DEFAULT '',
                     note TEXT NOT NULL DEFAULT '',
+                    default_purchase_unit TEXT,
+                    default_sale_unit TEXT,
                     is_deleted INTEGER NOT NULL DEFAULT 0,
                     is_public INTEGER NOT NULL DEFAULT 1,
                     deleted_at TEXT,
@@ -991,6 +993,16 @@ class InventoryStore:
             except sqlite3.OperationalError:
                 pass
 
+            try:
+                connection.execute("ALTER TABLE products ADD COLUMN default_purchase_unit TEXT")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                connection.execute("ALTER TABLE products ADD COLUMN default_sale_unit TEXT")
+            except sqlite3.OperationalError:
+                pass
+
     def _backfill_receipts_from_transactions_if_needed(self, connection: sqlite3.Connection) -> None:
         row = connection.execute(
             "SELECT COUNT(*) AS total FROM inventory_receipts"
@@ -1596,9 +1608,12 @@ class InventoryStore:
             pid = int(row["product_id"])
             if pid not in result:
                 result[pid] = []
+            unit_str = str(row["from_unit"])
             result[pid].append({
                 "id": int(row["id"]),
-                "from_unit": str(row["from_unit"]),
+                "from_unit": unit_str,
+                "input_unit": unit_str,
+                "unit": unit_str,
                 "conversion_factor": float(row["conversion_factor"]),
                 "price": float(row["price"] or 0),
                 "sale_price": float(row["sale_price"] or 0),
@@ -3000,6 +3015,8 @@ class InventoryStore:
                     p.details,
                     p.recipe,
                     p.note,
+                    p.default_purchase_unit,
+                    p.default_sale_unit,
                     COALESCE(
                         (SELECT SUM(pi.quantity)
                          FROM purchase_items pi
@@ -3157,6 +3174,8 @@ class InventoryStore:
         actor: str = "",
         global_id: str | None = None,
         unit_conversions: list[dict] | None = None,
+        default_purchase_unit: str | None = None,
+        default_sale_unit: str | None = None,
     ) -> dict:
         (
             clean_name,
@@ -3182,6 +3201,8 @@ class InventoryStore:
         clean_details = optimize_html_embedded_images(str(details or "").strip(), max_dim=1024)
         clean_recipe = optimize_html_embedded_images(str(recipe or "").strip(), max_dim=1024)
         clean_note = str(note or "").strip()
+        clean_default_purchase_unit = str(default_purchase_unit).strip() if default_purchase_unit and str(default_purchase_unit).strip() else clean_unit
+        clean_default_sale_unit = str(default_sale_unit).strip() if default_sale_unit and str(default_sale_unit).strip() else clean_unit
         gid = str(global_id).strip() if global_id and str(global_id).strip() else f"prd_{uuid.uuid4().hex}"
 
         with self._connect() as connection:
@@ -3191,10 +3212,10 @@ class InventoryStore:
                     INSERT INTO products (
                         global_id, name, category, unit, low_stock_threshold,
                         price, sale_price, shelf_life_days, storage_life_days,
-                        images, details, recipe, note, is_public,
+                        images, details, recipe, note, default_purchase_unit, default_sale_unit, is_public,
                         created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         gid,
@@ -3210,6 +3231,8 @@ class InventoryStore:
                         clean_details,
                         clean_recipe,
                         clean_note,
+                        clean_default_purchase_unit,
+                        clean_default_sale_unit,
                         1 if is_public else 0,
                         now,
                         now,
@@ -3388,6 +3411,8 @@ class InventoryStore:
         allow_deleted: bool = False,
         global_id: str | None = None,
         unit_conversions: list[dict] | None = None,
+        default_purchase_unit: str | None = None,
+        default_sale_unit: str | None = None,
     ) -> dict:
         (
             clean_name,
@@ -3428,6 +3453,10 @@ class InventoryStore:
             next_values["recipe"] = optimize_html_embedded_images(str(recipe).strip(), max_dim=1024)
         if note is not None:
             next_values["note"] = str(note).strip()
+        if default_purchase_unit is not None:
+            next_values["default_purchase_unit"] = str(default_purchase_unit).strip() or clean_unit
+        if default_sale_unit is not None:
+            next_values["default_sale_unit"] = str(default_sale_unit).strip() or clean_unit
         if is_public is not None:
             next_values["is_public"] = 1 if is_public else 0
         if global_id is not None:
@@ -10332,6 +10361,8 @@ class InventoryStore:
             "details": row["details"] if "details" in row.keys() else "",
             "recipe": row["recipe"] if "recipe" in row.keys() else "",
             "unit_conversions": unit_conversions or [],
+            "default_purchase_unit": str(row["default_purchase_unit"]).strip() if "default_purchase_unit" in row.keys() and row["default_purchase_unit"] else row["unit"],
+            "default_sale_unit": str(row["default_sale_unit"]).strip() if "default_sale_unit" in row.keys() and row["default_sale_unit"] else row["unit"],
             "note": row["note"] if "note" in row.keys() else "",
             "is_deleted": bool(row["is_deleted"]),
             "deleted_at": row["deleted_at"],

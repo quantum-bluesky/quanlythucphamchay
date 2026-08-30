@@ -54,9 +54,13 @@ async function ensureSelectedPurchaseItemsExpanded(page, itemId) {
   if (await costInput.isVisible().catch(() => false)) {
     return;
   }
-  const sectionToggleButton = page.locator('[data-purchase-selected-action="toggle"]');
-  if (await sectionToggleButton.isVisible().catch(() => false)) {
-    await sectionToggleButton.click();
+  const sectionBody = page.locator(".selected-items-body");
+  if (await sectionBody.isHidden().catch(() => false)) {
+    const sectionToggleButton = page.locator('[data-purchase-selected-action="toggle"]');
+    if (await sectionToggleButton.isVisible().catch(() => false)) {
+      await sectionToggleButton.click();
+      await page.waitForTimeout(300);
+    }
   }
   const itemToggleButton = page.locator(`[data-purchase-item-action="toggle-detail"][data-purchase-item-id="${itemId}"]`);
   if (await itemToggleButton.isVisible().catch(() => false)) {
@@ -335,8 +339,10 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
 
     await switchMenu(page, "purchases");
     await expectScreenTitle(page, "Nhập hàng");
+    await setFloatingSearch(page, supplierName);
 
     const draftPurchaseCard = page.locator(".cart-queue-item", { hasText: supplierName }).first();
+    await expect(draftPurchaseCard).toBeVisible();
     await draftPurchaseCard.locator('[data-purchase-list-action="open"]').click();
     await page.waitForTimeout(300);
     await expect(page.locator('[data-purchase-action="receive"]')).toHaveCount(0);
@@ -348,17 +354,22 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
     await expect(page.locator("#purchaseSupplierInput")).toBeDisabled();
     await expect(page.locator('.purchases-panel [data-go-menu="suppliers"]')).toBeDisabled();
 
-    await page.locator('[data-purchase-selected-action="toggle"]').click();
-    await page.waitForTimeout(300);
+    const sectionBody = page.locator(".selected-items-body");
+    if (await sectionBody.isHidden().catch(() => false)) {
+      await page.locator('[data-purchase-selected-action="toggle"]').click();
+      await page.waitForTimeout(300);
+    }
     await page.locator('[data-purchase-item-action="toggle-detail"]').first().click();
     await page.waitForTimeout(300);
     const qtyInput = page.locator('[data-purchase-qty-input]').first();
+    await expect(qtyInput).toBeVisible();
     await expect(qtyInput).toBeEnabled();
     await qtyInput.fill("2");
     await page.locator('[data-purchase-item-action="save"]').first().click();
     await page.evaluate(() => {
       window.confirm = () => false;
     });
+    await setFloatingSearch(page, extraProduct.name);
     await page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${extraProduct.id}"]`).first().click();
 
     await expect.poll(async () => {
@@ -531,8 +542,13 @@ test("IT-PUR-01 purchase suggestions allow overriding quantity before adding to 
   expect(toastText).toContain("Đã thêm vào phiếu nhập");
   await expect(page.locator("[data-purchase-conflict-review]")).toHaveCount(0);
 
-  const purchaseItemCard = page.locator(".cart-item").filter({ hasText: productName }).first();
+  const purchaseItemCard = page.locator("#purchasePanel .cart-item, .purchases-panel .cart-item").filter({ hasText: productName }).first();
   await expect(purchaseItemCard).toBeVisible();
+  const sectionBody = page.locator(".selected-items-body");
+  if (await sectionBody.isHidden().catch(() => false)) {
+    await page.locator('[data-purchase-selected-action="toggle"]').click();
+    await page.waitForTimeout(300);
+  }
   await purchaseItemCard.locator('[data-purchase-item-action="toggle-detail"]').click();
   await page.waitForTimeout(300);
   await expect(purchaseItemCard.locator("[data-purchase-qty-input]").first()).toHaveValue(overriddenQuantity);

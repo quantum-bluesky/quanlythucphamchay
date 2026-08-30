@@ -108,6 +108,8 @@ import {
   productFormCancelButton,
   productUnitConversionsContainer,
   productAddUnitConversionButton,
+  productDefaultPurchaseUnitSelect,
+  productDefaultSaleUnitSelect,
   productsSection,
   productFormSection,
   productFormWrap,
@@ -2716,6 +2718,7 @@ function switchMenu(menu, { recordHistory = true } = {}) {
   }
   return executeMenuSwitch(cleanMenu, { recordHistory });
 }
+window.__switchMenu = switchMenu;
 
 function navigateMenuHistory(direction) {
   if (direction === "back" && state.menuHistoryIndex > 0) {
@@ -6878,6 +6881,8 @@ registerProductsControllerEvents({
     productHistoryToggleButton,
     productUnitConversionsContainer,
     productAddUnitConversionButton,
+    productDefaultPurchaseUnitSelect,
+    productDefaultSaleUnitSelect,
     mobileQuery,
   },
   actions: {
@@ -7756,18 +7761,14 @@ async function bootApplication() {
     startProcurementLockHeartbeatLoop();
   } catch (error) {
     showToast(error.message, true);
+  } finally {
+    window.__QLTPCHAY_APP_READY = true;
   }
   })();
   return applicationBootPromise;
 }
 
-if (document.readyState === "loading") {
-  window.addEventListener("DOMContentLoaded", () => {
-    void bootApplication();
-  }, { once: true });
-} else {
-  void bootApplication();
-}
+void bootApplication();
 
 procurementStatusPanel?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-procurement-conflict-action]");

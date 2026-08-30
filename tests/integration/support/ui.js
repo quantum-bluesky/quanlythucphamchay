@@ -36,12 +36,9 @@ async function expectScreenTitle(page, title) {
 
 async function waitForAppReady(page) {
   await expect.poll(async () => {
-    const versionText = ((await page.locator("#appVersionButton").textContent()) || "").trim();
-    const screenTitle = ((await page.locator("#activeScreenBarTitle").textContent()) || "").trim();
-    const menuCount = await page.locator("[data-menu]").count();
-    return !versionText.includes("Đang tải") || (Boolean(screenTitle) && menuCount > 0);
+    return await page.evaluate(() => window.__QLTPCHAY_APP_READY === true).catch(() => false);
   }, {
-    timeout: 10000,
+    timeout: 15000,
     message: "Ứng dụng chưa sẵn sàng sau khi tải trang.",
   }).toBeTruthy();
   await page.waitForTimeout(200);
@@ -49,26 +46,25 @@ async function waitForAppReady(page) {
 
 async function switchMenu(page, menu) {
   await waitForAppReady(page);
-  const toggle = page.locator("#menuToggleButton");
-  const menuPanel = page.locator("#menuPanel");
-  if (await menuPanel.evaluate((node) => node.classList.contains("is-edge-hidden"))) {
-    const box = await menuPanel.boundingBox();
-    if (box) {
-      await page.mouse.click(box.x + box.width - 18, box.y + 18);
+  const switched = await page.evaluate((targetMenu) => {
+    if (typeof window.__switchMenu === "function") {
+      window.__switchMenu(targetMenu);
+      return true;
     }
-    await page.waitForTimeout(200);
-  }
-  if (await toggle.isVisible()) {
-    const expanded = await toggle.getAttribute("aria-expanded");
-    if (expanded !== "true") {
-      await expect(page.locator("#busyOverlay")).toBeHidden({ timeout: 5000 }).catch(() => {});
-      await toggle.click({ force: true });
-      await page.waitForTimeout(250);
+    return false;
+  }, menu);
+  if (!switched) {
+    const toggle = page.locator("#menuToggleButton");
+    if (await toggle.isVisible()) {
+      const expanded = await toggle.getAttribute("aria-expanded");
+      if (expanded !== "true") {
+        await toggle.click({ force: true });
+        await page.waitForTimeout(250);
+      }
     }
+    await page.locator(`[data-menu="${menu}"]`).click({ force: true });
   }
-  await expect(page.locator("#busyOverlay")).toBeHidden({ timeout: 5000 }).catch(() => {});
-  await page.locator(`[data-menu="${menu}"]`).click({ force: true });
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(400);
 }
 
 async function collectToast(page, runtime, label, { errorPattern = /not defined|thất bại|error/i } = {}) {

@@ -251,3 +251,5 @@ export const productLookupUnitSelect = document.getElementById("productLookupUni
 export const productMovementUnitSelect = document.getElementById("productMovementUnitSelect");
 export const productUnitConversionsContainer = document.getElementById("productUnitConversionsContainer");
 export const productAddUnitConversionButton = document.getElementById("productAddUnitConversionButton");
+export const productDefaultPurchaseUnitSelect = document.getElementById("productDefaultPurchaseUnitSelect");
+export const productDefaultSaleUnitSelect = document.getElementById("productDefaultSaleUnitSelect");

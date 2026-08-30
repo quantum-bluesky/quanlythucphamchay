@@ -270,7 +270,7 @@ export function createSalesUi(deps) {
                 <strong>${escapeHtml(formatCurrency(item.lineTotal))}</strong>
               </div>
               <div class="document-detail-item-meta">
-                <span>SL ${escapeHtml(formatQuantity(item.quantity))} ${escapeHtml(item.unit)}</span>
+                <span>SL ${escapeHtml(formatQuantity(item.input_quantity || item.quantity))} ${escapeHtml(item.input_unit || item.unit)}</span>
                 <span>Giá bán ${escapeHtml(formatCurrency(item.unitPrice))}</span>
                 ${renderPriceWarningMarkup(linePriceAlerts, "view")}
               </div>
@@ -747,17 +747,24 @@ export function createSalesUi(deps) {
             <div class="cart-item-header cart-item-header-compact">
               <div class="cart-item-primary">
                 <strong class="cart-item-name">${escapeHtml(item.productName)}</strong>
-                <div class="cart-line-note">SL ${formatQuantity(item.quantity)} ${escapeHtml(item.unit)} | Giá bán ${formatCurrency(item.unitPrice)} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
+                <div class="cart-line-note">SL ${formatQuantity(item.input_quantity || item.quantity)} ${escapeHtml(item.input_unit || item.unit)} | Giá bán ${formatCurrency(item.unitPrice)} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
               </div>
               <div class="cart-item-summary">
                 <strong>${escapeHtml(formatCurrency(item.lineTotal))}</strong>
                 <button type="button" class="ghost-button compact-button" data-cart-item-action="toggle-detail" data-item-id="${item.id}">...</button>
               </div>
             </div>
-            <div class="cart-line-note cart-item-collapsed-meta">Tồn kho hiện tại ${formatQuantity(product?.current_stock || 0)} ${escapeHtml(item.unit)}</div>
+            <div class="cart-line-note cart-item-collapsed-meta">Tồn kho hiện tại ${formatQuantity(product?.current_stock || 0)} ${escapeHtml(product?.unit || item.unit)}</div>
             ${expandedItem ? `<div class="cart-item-controls" data-price-warning-group data-price-warning-mode="edit" data-price-warning-purchase="${escapeHtml(product?.price ?? 0)}">
               <div class="cart-item-edit-grid">
-                <label class="price-field"><span>Số lượng</span><input class="qty-input" type="number" min="0.01" step="0.01" value="${item.quantity}" data-qty-input="${item.id}"></label>
+                <label class="price-field"><span>Số lượng</span><input class="qty-input" type="number" min="0.01" step="0.01" value="${item.input_quantity || item.quantity}" data-qty-input="${item.id}"></label>
+                <label class="price-field">
+                  <span>Đơn vị</span>
+                  <select class="unit-select" data-cart-unit-input="${item.id}">
+                    <option value="1" data-unit-name="${escapeHtml(product?.unit || item.unit)}" data-sale-price="${product?.sale_price || 0}" ${(!item.conversion_factor || item.conversion_factor == 1) && (!item.input_unit || item.input_unit === (product?.unit || item.unit)) ? "selected" : ""}>${escapeHtml(product?.unit || item.unit)} (gốc)</option>
+                    ${(product?.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${escapeHtml(conv.from_unit)}" data-sale-price="${conv.sale_price || ((product?.sale_price || 0) * conv.conversion_factor)}" ${item.conversion_factor == conv.conversion_factor && item.input_unit === conv.from_unit ? "selected" : ""}>${escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
+                  </select>
+                </label>
                 <label class="price-field" data-price-warning-field="sale"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${item.unitPrice}" data-price-input="${item.id}" data-price-warning-input="sale"></label>
               </div>
               <div data-price-warning-host>${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>

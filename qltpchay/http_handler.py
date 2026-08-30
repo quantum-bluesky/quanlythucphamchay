@@ -1288,6 +1288,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         note=payload.get("note", ""),
                         actor=self._get_current_actor_name(),
                         unit_conversions=payload.get("unit_conversions"),
+                        default_purchase_unit=payload.get("default_purchase_unit"),
+                        default_sale_unit=payload.get("default_sale_unit"),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -1974,6 +1976,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         note=payload.get("note"),
                         actor=payload.get("actor") or self._get_current_actor_name(),
                         unit_conversions=payload.get("unit_conversions"),
+                        default_purchase_unit=payload.get("default_purchase_unit"),
+                        default_sale_unit=payload.get("default_sale_unit"),
                     )
                     self._send_json(
                         HTTPStatus.OK,

@@ -445,26 +445,80 @@ export function registerPurchasesControllerEvents(contract) {
       if (!id) return;
       const product = state.products.find(p => p.id === id);
       if (product) {
+        const defaultUnit = product.default_purchase_unit || product.unit;
         select.innerHTML = `
-          <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}" data-price="${product.price || 0}">${utils.escapeHtml(product.unit)} (gốc)</option>
-          ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}" data-price="${conv.price || ((product.price || 0) * conv.conversion_factor)}">${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
+          <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}" data-price="${product.price || 0}" ${defaultUnit === product.unit ? "selected" : ""}>${utils.escapeHtml(product.unit)} (gốc)</option>
+          ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}" data-price="${conv.price || ((product.price || 0) * conv.conversion_factor)}" ${defaultUnit === conv.from_unit ? "selected" : ""}>${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
         `;
+        const selectedOption = select.options[select.selectedIndex] || select.options[0];
         const unitCostInput = dom.quickPurchasePanel.querySelector("#quickPurchaseUnitCostInput");
-        if (unitCostInput) {
-          unitCostInput.value = product.price || 0;
-          state.quickPurchaseDraft.unitCost = unitCostInput.value;
-          state.quickPurchaseDraft.conversionFactor = "1";
+        if (unitCostInput && selectedOption) {
+          unitCostInput.value = selectedOption.dataset.price || product.price || 0;
+          if (state.quickPurchaseDraft) {
+            state.quickPurchaseDraft.unitCost = unitCostInput.value;
+            state.quickPurchaseDraft.conversionFactor = selectedOption.value;
+            state.quickPurchaseDraft.unitName = selectedOption.dataset.unitName;
+          }
         }
       }
     } else if (event.target.id === "quickPurchaseUnitSelect") {
       const select = event.target;
       const option = select.options[select.selectedIndex];
-      if (option && option.dataset.price) {
+      if (option) {
+        const oldFactor = parseFloat(state.quickPurchaseDraft?.conversionFactor || 1) || 1;
+        const newFactor = parseFloat(option.value) || 1;
+        const qtyInput = dom.quickPurchasePanel.querySelector("#quickPurchaseQuantityInput");
+        if (qtyInput) {
+          const curQty = parseFloat(qtyInput.value) || 0;
+          if (curQty > 0) {
+            const baseQty = curQty * oldFactor;
+            const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
+            qtyInput.value = newQty;
+            if (state.quickPurchaseDraft) {
+              state.quickPurchaseDraft.quantity = String(newQty);
+            }
+          }
+        }
         const unitCostInput = dom.quickPurchasePanel.querySelector("#quickPurchaseUnitCostInput");
-        if (unitCostInput) {
+        if (unitCostInput && option.dataset.price) {
           unitCostInput.value = option.dataset.price;
-          state.quickPurchaseDraft.unitCost = option.dataset.price;
-          state.quickPurchaseDraft.conversionFactor = option.value;
+          if (state.quickPurchaseDraft) {
+            state.quickPurchaseDraft.unitCost = option.dataset.price;
+            state.quickPurchaseDraft.conversionFactor = option.value;
+            state.quickPurchaseDraft.unitName = option.dataset.unitName;
+          }
+        }
+      }
+    }
+  });
+
+  dom.quickPurchasePanel?.addEventListener("change", (event) => {
+    if (event.target.id === "quickPurchaseUnitSelect") {
+      const select = event.target;
+      const option = select.options[select.selectedIndex];
+      if (option) {
+        const oldFactor = parseFloat(state.quickPurchaseDraft?.conversionFactor || 1) || 1;
+        const newFactor = parseFloat(option.value) || 1;
+        const qtyInput = dom.quickPurchasePanel.querySelector("#quickPurchaseQuantityInput");
+        if (qtyInput) {
+          const curQty = parseFloat(qtyInput.value) || 0;
+          if (curQty > 0) {
+            const baseQty = curQty * oldFactor;
+            const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
+            qtyInput.value = newQty;
+            if (state.quickPurchaseDraft) {
+              state.quickPurchaseDraft.quantity = String(newQty);
+            }
+          }
+        }
+        const unitCostInput = dom.quickPurchasePanel.querySelector("#quickPurchaseUnitCostInput");
+        if (unitCostInput && option.dataset.price) {
+          unitCostInput.value = option.dataset.price;
+          if (state.quickPurchaseDraft) {
+            state.quickPurchaseDraft.unitCost = option.dataset.price;
+            state.quickPurchaseDraft.conversionFactor = option.value;
+            state.quickPurchaseDraft.unitName = option.dataset.unitName;
+          }
         }
       }
     }
@@ -805,6 +859,34 @@ export function registerPurchasesControllerEvents(contract) {
     }
   });
 
+  dom.purchasePanel?.addEventListener("change", (event) => {
+    const unitSelect = event.target.closest("[data-purchase-unit-input]");
+    if (!unitSelect) return;
+    const itemId = unitSelect.dataset.purchaseUnitInput;
+    const purchase = queries.getActivePurchase();
+    const item = purchase?.items.find(i => String(i.id) === String(itemId));
+    if (!item) return;
+    const option = unitSelect.options[unitSelect.selectedIndex];
+    if (!option) return;
+
+    const oldFactor = parseFloat(item.conversion_factor || 1) || 1;
+    const newFactor = parseFloat(option.value) || 1;
+    const qtyInput = dom.purchasePanel.querySelector(`[data-purchase-qty-input="${itemId}"]`);
+    const costInput = dom.purchasePanel.querySelector(`[data-purchase-cost-input="${itemId}"]`);
+
+    if (qtyInput) {
+      const currentQty = parseFloat(qtyInput.value) || 0;
+      if (currentQty > 0) {
+        const baseQty = currentQty * oldFactor;
+        const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
+        qtyInput.value = newQty;
+      }
+    }
+    if (costInput && option.dataset.price) {
+      costInput.value = option.dataset.price;
+    }
+  });
+
   dom.purchasePanel.addEventListener("click", async (event) => {
     const selectedToggleButton = event.target.closest("[data-purchase-selected-action]");
     if (selectedToggleButton?.dataset.purchaseSelectedAction === "toggle") {
@@ -852,13 +934,14 @@ export function registerPurchasesControllerEvents(contract) {
       }
       if (itemAction === "toggle-detail") {
         const itemId = itemButton.dataset.purchaseItemId;
-        state.expandedSelectedPurchaseItemId = state.expandedSelectedPurchaseItemId === itemId ? null : itemId;
+        state.expandedSelectedPurchaseItemId = String(state.expandedSelectedPurchaseItemId || "") === String(itemId || "") ? null : itemId;
         renderers.renderPurchasePanel();
         return;
       }
       if (itemAction === "save") {
         const qtyInput = dom.purchasePanel.querySelector(`[data-purchase-qty-input="${itemButton.dataset.purchaseItemId}"]`);
         const costInput = dom.purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
+        const unitSelect = dom.purchasePanel.querySelector(`[data-purchase-unit-input="${itemButton.dataset.purchaseItemId}"]`);
         const batchInput = dom.purchasePanel.querySelector(`[data-purchase-batch-input="${itemButton.dataset.purchaseItemId}"]`);
         const expiryModeInput = dom.purchasePanel.querySelector(`[data-purchase-expiry-mode-input="${itemButton.dataset.purchaseItemId}"]`);
         const expiryInput = dom.purchasePanel.querySelector(`[data-purchase-expiry-input="${itemButton.dataset.purchaseItemId}"]`);
@@ -900,9 +983,9 @@ export function registerPurchasesControllerEvents(contract) {
           }
           return;
         }
-        const quantity = Number(qtyInput?.value);
+        const inputQuantity = Number(qtyInput?.value);
         const unitCost = Number(costInput?.value);
-        if (!Number.isFinite(quantity) || quantity <= 0) {
+        if (!Number.isFinite(inputQuantity) || inputQuantity <= 0) {
           actions.showToast("Số lượng nhập phải lớn hơn 0.", true);
           return;
         }
@@ -910,10 +993,19 @@ export function registerPurchasesControllerEvents(contract) {
           actions.showToast("Giá nhập không hợp lệ.", true);
           return;
         }
+
+        const selectedOption = unitSelect?.options[unitSelect?.selectedIndex];
+        const conversionFactor = selectedOption ? (parseFloat(selectedOption.value) || 1.0) : 1.0;
+        const inputUnit = selectedOption?.dataset.unitName || (selectedOption?.textContent || "").trim();
+        const baseQuantity = Number((inputQuantity * conversionFactor).toFixed(4));
+
         actions.updatePurchase(purchase.id, (currentPurchase) => ({
           items: currentPurchase.items.map((item) => item.id === itemButton.dataset.purchaseItemId ? {
             ...item,
-            quantity: Number(quantity.toFixed(2)),
+            input_quantity: inputQuantity,
+            input_unit: inputUnit,
+            conversion_factor: conversionFactor,
+            quantity: baseQuantity,
             unitCost,
             batchCode: String(batchInput?.value || "").trim(),
             expiryInputMode,
