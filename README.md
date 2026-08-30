@@ -106,6 +106,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Màn tồn kho có nút `Lịch sử biến động` để mở màn đối chiếu nhập/xuất theo từng sản phẩm; trong detail từng mặt hàng có thêm nút `Xem lịch sử` để mở nhanh đúng sản phẩm đang kiểm tra
 - Màn `Lịch sử biến động sản phẩm` cho lọc theo `Sản phẩm / Từ ngày / Đến ngày / Loại biến động / Sắp xếp ngày / Từ khóa`, tính `Tồn đầu kỳ / Tổng nhập / Tổng xuất / Tồn cuối kỳ / Tồn hệ thống / Chênh lệch`, mặc định hiện giao dịch mới hơn trước nhưng vẫn giữ running balance ổn định theo `ngày -> created_at -> id`; nếu tài khoản có quyền điều chỉnh tồn thì có thêm CTA `Phiếu DC` cho đúng sản phẩm đang xem
 - Tồn kho liên kết trực tiếp với đơn chờ xuất và phiếu chờ nhập, thay cho nhập/xuất nhanh thủ công
+- Quản lý **đa đơn vị tính & quy đổi theo từng sản phẩm** (ví dụ: thùng, hộp, gói, lạng...): hỗ trợ đơn vị bán mặc định, đơn vị nhập mặc định, giá bán/giá nhập riêng theo đơn vị quy đổi, tự động quy đổi số lượng và đơn giá khi chọn mua/nhập hàng, bảo toàn số lượng tồn kho theo đơn vị cơ sở (`base_unit`)
 - Quản lý riêng `giá nhập` và `giá bán mặc định` của sản phẩm
 - Ở các màn đang sửa giá/mặt hàng, app sẽ hiện cảnh báo nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng; ở các màn chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
 - Khi bấm `Giá chung` để đẩy `giá nhập` hoặc `giá bán` hiện tại lên giá mặc định của mặt hàng, app luôn hiện hộp xác nhận trước để tránh cập nhật nhầm trên mobile

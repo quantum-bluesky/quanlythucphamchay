@@ -154,24 +154,28 @@ Các mặt hàng đã chọn sẽ được gom vào khối `Giỏ hiện hành` 
 
 Nếu đang cần thao tác ngay trên card sản phẩm ở danh sách phía dưới, bấm `...` trên đúng dòng đang sửa; app sẽ giữ lại card đó thay vì tự ẩn mất.
 
-### Bước 3: Sửa số lượng và giá bán
+### Bước 3: Sửa đơn vị, số lượng và giá bán
 
 Trong `Giỏ hiện hành`:
 
-1. Mỗi mặt hàng đã chọn hiển thị dưới dạng card gọn 2 dòng
-2. Bấm `...` trên card để mở detail chỉnh sửa
-3. Gõ trực tiếp số lượng
-4. Gõ giá bán cho khách
-5. Bấm `Lưu dòng`
-6. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung`; app sẽ mở popup confirm trước, chỉ khi chọn `Xác nhận` mới cập nhật
-7. Nếu không cần dòng hàng đó nữa, bấm `Bỏ khỏi giỏ`
-8. Nếu có khuyến mại cho cả đơn, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
-9. Nếu cần gửi trước cho khách, có thể bấm `In` ngay từ lúc đơn còn `Nháp`
+1. Mỗi mặt hàng đã chọn hiển thị dưới dạng card gọn 2 dòng kèm đơn vị tính đã chọn (mặc định ưu tiên `Đơn vị bán mặc định` của sản phẩm).
+2. Bấm `...` trên card để mở detail chỉnh sửa.
+3. **Chọn Đơn vị tính**: Bấm vào dropdown đơn vị để chuyển đổi giữa Đơn vị cơ sở và các Đơn vị quy đổi (vd: `hũ` $\leftrightarrow$ `thùng`).
+   - Khi đổi đơn vị: Hệ thống **tự động tính lại số lượng** để bảo toàn số lượng cơ sở thực tế ($\text{SL mới} = \text{SL cũ} \times \text{hệ số cũ} / \text{hệ số mới}$).
+   - Đồng thời hệ thống **tự động cập nhật đơn giá bán** theo bảng giá của đơn vị mới được chọn.
+4. Gõ trực tiếp số lượng nếu cần điều chỉnh.
+5. Gõ giá bán cho khách nếu muốn áp dụng giá tùy chỉnh riêng cho đơn này.
+6. Bấm `Lưu dòng`.
+7. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung`; app sẽ mở popup confirm trước, chỉ khi chọn `Xác nhận` mới cập nhật.
+8. Nếu không cần dòng hàng đó nữa, bấm `Bỏ khỏi giỏ`.
+9. Nếu có khuyến mại cho cả đơn, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`.
+10. Nếu cần gửi trước cho khách, có thể bấm `In` ngay từ lúc đơn còn `Nháp`.
 
 Lưu ý:
 
 - tại các chỗ đang sửa giá, app sẽ hiện cảnh báo ngay nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng
 - ở các màn chỉ xem, app chỉ gắn nhãn cảnh báo ngắn trên dòng hoặc mặt hàng liên quan
+- khi xuất hàng: Tồn kho được quy đổi và trừ chính xác theo đơn vị cơ sở (`base_unit`), bảo đảm số lượng tồn kho vật lý không bao giờ bị lệch.
 
 ### Bước 4: Chốt đơn
 
@@ -373,10 +377,23 @@ Vào menu:
 Màn này dùng để:
 
 - thêm mặt hàng mới
+- thiết lập **Đơn vị cơ sở** (Base Unit), **Đơn vị nhập mặc định**, **Đơn vị bán mặc định**
+- cấu hình bảng **Quy đổi đơn vị** cho từng sản phẩm (ví dụ: 1 thùng = 12 hũ, 1 hộp = 5 lạng, 1 gói = 6 chiếc...) kèm giá nhập và giá bán riêng theo từng đơn vị quy đổi
 - sửa tên / loại / đơn vị / giá nhập / giá bán mặc định / ngưỡng cảnh báo / hạn dùng / thời gian bảo quản
 - thêm nhiều ảnh sản phẩm và nhập thông tin chi tiết, hướng dẫn sử dụng, bảo quản, cách chế biến dưới dạng HTML
 - xóa mặt hàng chưa có giao dịch
 - xem lịch sử thay đổi giá/trạng thái liên quan và lọc theo người thao tác, khoảng ngày
+
+### Cách thiết lập đơn vị và quy đổi đơn vị
+
+1. **Đơn vị cơ sở (Base Unit)**: Là đơn vị chuẩn duy nhất dùng để quản lý số lượng tồn kho vật lý và tính toán biến động sổ kho của sản phẩm.
+2. **Đơn vị nhập mặc định & Đơn vị bán mặc định**: Khi lập đơn bán hoặc phiếu nhập, hệ thống sẽ tự động chọn trước đơn vị này để tiết kiệm thời gian thao tác.
+3. **Thêm quy đổi đơn vị**:
+   - Trong form chi tiết sản phẩm, tại khối `Quy đổi đơn vị`, bấm `+ Thêm quy đổi`.
+   - Nhập `Đơn vị quy đổi` (ví dụ: `thùng`, `hộp`, `gói`...).
+   - Nhập `Hệ số quy đổi`: Số lượng đơn vị cơ sở tương ứng trong 1 đơn vị quy đổi (ví dụ: `12` hũ / thùng).
+   - Nhập `Giá bán` và `Giá nhập` theo đơn vị quy đổi (nếu để trống, hệ thống sẽ tự quy đổi từ giá gốc theo hệ số).
+   - Bấm `Lưu sản phẩm` hoặc `Lưu chi tiết`.
 
 ### Cách sửa nhanh
 
@@ -395,8 +412,8 @@ Lưu ý:
 
 - khi sửa giá nhập hoặc giá bán mặc định, app sẽ hiện cảnh báo ngay nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng
 - ở danh sách chỉ xem, các mặt hàng có giá đáng chú ý sẽ được gắn nhãn cảnh báo ngắn để rà nhanh
-- nếu muốn nhập nhiều ảnh và thông tin chi tiết (hướng dẫn sử dụng, chế biến...), chọn `Sửa chi tiết` thay vì `Sửa nhanh`. Form chi tiết sẽ được mở ra để bạn nhập nhiều link ảnh và soạn thảo HTML.
-- ở các màn hình khác (Đơn hàng, Nhập hàng, Tồn kho...), có thể click trực tiếp vào tên sản phẩm (được gạch dưới) để mở popup hiển thị toàn bộ ảnh, thông tin chi tiết, và hướng dẫn sử dụng của sản phẩm đó.
+- nếu muốn nhập nhiều ảnh, cấu hình đơn vị quy đổi và thông tin chi tiết (hướng dẫn sử dụng, chế biến...), chọn `Sửa chi tiết` thay vì `Sửa nhanh`. Form chi tiết sẽ được mở ra để bạn thao tác trọn vẹn.
+- ở các màn hình khác (Đơn hàng, Nhập hàng, Tồn kho...), có thể click trực tiếp vào tên sản phẩm (được gạch dưới) để mở popup hiển thị toàn bộ ảnh, thông tin chi tiết, đơn vị quy đổi và hướng dẫn sử dụng của sản phẩm đó.
 
 ## 8. Luồng nhập hàng
 
@@ -423,7 +440,10 @@ Màn này có 2 phần:
 8. Chọn nhà cung cấp nếu app không tự chọn hoặc bạn muốn nhập NCC khác
 9. Ghi chú phiếu nếu cần
 10. Mỗi NCC sẽ giữ 1 phiếu nháp riêng: nếu bạn chọn lại đúng NCC đã có phiếu nháp thì app mở lại phiếu đó để nhập tiếp và báo đang tiếp tục trên phiếu nháp hiện có; nếu chọn NCC khác thì phiếu cũ được giữ nguyên và app mở một phiếu nháp riêng cho NCC mới
-11. Sửa trực tiếp số lượng, giá nhập, `Mã lô` và thông tin `Hạn dùng` của từng dòng
+11. Sửa trực tiếp **Đơn vị nhập**, **Số lượng**, **Giá nhập**, `Mã lô` và thông tin `Hạn dùng` của từng dòng:
+    - Mặc định ưu tiên `Đơn vị nhập mặc định` của sản phẩm.
+    - Khi đổi đơn vị nhập quy đổi (vd: `hũ` sang `thùng`), hệ thống **tự động tính lại số lượng** để bảo toàn số lượng cơ sở thực tế và **tự động cập nhật đơn giá nhập** tương ứng.
+    - Khi `Nhập kho`: Số lượng được tự động quy về đơn vị cơ sở (`base_unit`) để cộng chính xác vào tồn kho vật lý.
 12. Nếu `giá nhập < 1.000đ`, app sẽ hiện cảnh báo ngay dưới dòng đang sửa; ở các chỗ chỉ xem thì app chỉ gắn nhãn cảnh báo ngắn
 13. Với mỗi dòng, mặc định app để cách nhập HSD là nhập trực tiếp `Hạn dùng`; nếu muốn nhập gián tiếp thì đổi sang `Ngày sản xuất` để app tự tính `HSD = NSX + thời gian bảo quản`
 14. Nếu cùng một sản phẩm về nhiều lô khác nhau, bấm `+ Lô` để nhân dòng đó thành dòng mới rồi nhập lại `Mã lô` / `HSD` hoặc `NSX` riêng

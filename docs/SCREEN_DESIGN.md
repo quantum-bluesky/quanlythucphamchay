@@ -96,7 +96,7 @@ Liên kết detail hiện có:
 - mục tiêu:
   - chọn khách
   - thêm mặt hàng vào giỏ
-  - chỉnh số lượng/giá bán
+  - chọn đơn vị tính (cơ sở / quy đổi) và chỉnh số lượng/giá bán
   - chốt đơn
 - thành phần chính:
   - khu chọn khách
@@ -110,7 +110,8 @@ Liên kết detail hiện có:
   - nút `...` luôn hiện trên card sản phẩm để toggle detail
   - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
   - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
-  - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
+  - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp đơn vị tính, số lượng và giá bán
+  - **Dropdown chọn Đơn vị tính**: Trên từng dòng hàng trong giỏ, cho phép chọn giữa Đơn vị cơ sở và các Đơn vị quy đổi đã cấu hình cho sản phẩm đó (mặc định chọn `Đơn vị bán mặc định`). Khi người dùng đổi đơn vị, UI tự động quy đổi lại số lượng và tự động cập nhật đơn giá theo bảng giá của đơn vị mới.
   - card `Xử lý nhanh xuất hàng` phải nằm ngay trong màn `create-order`, mobile-first, cho nhập `khách / ngày xuất / ghi chú / mặt hàng`, chọn `Đã xuất hàng` hoặc `Chỉ chốt đơn`, có checkbox `Đã thanh toán luôn`; sau khi lưu phải khóa form ở trạng thái `Đã tạo phiếu` và hiện summary với CTA `Tiếp tục xuất nhanh / Xem phiếu / Về danh sách` để tránh tạo trùng
   - action `Giá chung` trong editor giá bán phải hiện message confirm trước khi cập nhật giá bán mặc định của mặt hàng để tránh bấm nhầm trên mobile
   - với mọi chỗ đang sửa giá bán theo mặt hàng, nếu `giá xuất < giá nhập` của 1 mặt hàng thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
@@ -215,11 +216,14 @@ Liên kết detail hiện có:
 - mục tiêu:
   - sửa nhanh danh mục và giá
   - thêm mới sản phẩm
+  - cấu hình Đơn vị cơ sở, Đơn vị mặc định (bán/nhập) và danh sách Quy đổi đơn vị
   - xem lịch sử sản phẩm
 - thành phần chính:
   - search sản phẩm
   - danh sách edit inline
-  - khối `Thêm sản phẩm`
+  - khối `Thêm sản phẩm` / `Sửa chi tiết`
+  - khối `Quy đổi đơn vị`: bảng cấu hình các đơn vị quy đổi (Đơn vị, Hệ số quy đổi ra đơn vị gốc, Giá bán, Giá nhập, Nút xóa/thêm)
+  - các trường chọn `Đơn vị bán mặc định` và `Đơn vị nhập mặc định`
   - khối `Lịch sử sản phẩm`
   - filter audit theo actor/date
   - card lịch sử ghi rõ field thay đổi, giá trị cũ/mới, actor và thời gian
@@ -235,7 +239,7 @@ Liên kết detail hiện có:
   - search phiếu nhập
   - card `Xử lý nhanh nhập hàng`
   - gợi ý nhập
-  - phiếu nhập hiện hành
+  - phiếu nhập hiện hành (chọn đơn vị nhập, tự động tính lại số lượng và đơn giá nhập khi đổi đơn vị)
   - danh sách phiếu
   - filter hiện phiếu đã hủy / đã thanh toán
   - nút `NCC`
@@ -246,6 +250,7 @@ Liên kết detail hiện có:
   - card `Xử lý nhanh nhập hàng` phải nằm ngay trong màn `purchases`, mobile-first, cho nhập `NCC / ngày nhập / ghi chú / mặt hàng`, chọn `Đã nhập hàng` hoặc `Chỉ đặt hàng`, có checkbox `Đã thanh toán luôn`; sau khi lưu phải khóa form ở trạng thái `Đã tạo phiếu` và hiện summary với CTA `Tiếp tục nhập nhanh / Xem phiếu / Về danh sách` để tránh tạo trùng
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
+  - **Dropdown chọn Đơn vị nhập**: Trên từng dòng nhập hàng, cho phép chuyển đổi giữa Đơn vị cơ sở và các Đơn vị quy đổi (mặc định chọn `Đơn vị nhập mặc định`). Khi đổi đơn vị, UI tự động tính lại số lượng để bảo toàn lượng hàng nhập cơ sở và tự động điền đơn giá nhập theo đơn vị đó.
   - action `Giá chung` trong editor giá nhập phải hiện message confirm trước khi cập nhật giá nhập mặc định của mặt hàng
   - với mọi chỗ đang sửa giá nhập theo mặt hàng, nếu `giá nhập < 1.000đ` thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
   - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu để đối chiếu số tiền thực trả NCC

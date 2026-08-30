@@ -349,10 +349,33 @@ ordered -> cancelled
 ### Sản phẩm
 
 - thêm mới
+- cấu hình Đơn vị cơ sở (`base_unit`), Đơn vị nhập mặc định (`default_purchase_unit`), Đơn vị bán mặc định (`default_sale_unit`)
+- cấu hình bảng Quy đổi đơn vị (`product_unit_conversion`) cho từng sản phẩm
 - sửa giá nhập / giá bán mặc định
 - soft delete khi ngừng bán
 - xem audit lịch sử sản phẩm
 - khai báo hạn dùng / thời gian bảo quản theo ngày để làm fallback khi lô chưa có HSD thật
+
+### 7A. Luồng quy đổi đa đơn vị tính (Multi-Unit Conversion)
+
+- **Nguyên tắc Base Unit**:
+  - Mỗi sản phẩm có một `Đơn vị cơ sở` (Base Unit) cố định (ví dụ: `hũ`, `gói`, `lạng`...).
+  - Mọi biến động kho, số lượng tồn kho vật lý và sổ kho (Ledger) luôn luôn được tính toán và lưu trữ theo Đơn vị cơ sở.
+- **Quy đổi linh hoạt theo từng sản phẩm**:
+  - Không dùng tỷ lệ quy đổi chung cho toàn hệ thống vì mỗi loại thực phẩm có quy cách đóng gói khác nhau (vd: 1 thùng = 12 hũ đối với Nấm kho, nhưng 1 thùng = 24 lon đối với Nước sâm).
+  - Từng sản phẩm có thể định nghĩa nhiều đơn vị quy đổi (`from_unit`) với hệ số quy đổi ra đơn vị cơ sở (`conversion_factor`) kèm giá bán và giá nhập riêng biệt.
+- **Bảo toàn số lượng khi đổi đơn vị trên giao diện**:
+  - Khi người dùng đổi đơn vị tính trong giỏ hàng hoặc phiếu nhập:
+    $$\text{base\_quantity} = \text{old\_quantity} \times \text{old\_factor}$$
+    $$\text{new\_quantity} = \text{round}\left(\frac{\text{base\_quantity}}{\text{new\_factor}}, 4\right)$$
+  - Đơn giá tự động được điền theo bảng giá của đơn vị mới được chọn.
+- **Bảo toàn lịch sử chứng từ (Snapshotting)**:
+  - Trên từng dòng chi tiết của đơn hàng (`cart_items`), phiếu nhập (`purchase_items`) và phiếu kho (`inventory_receipt_items`), hệ thống lưu snapshot:
+    - `input_quantity`: Số lượng theo đơn vị người dùng nhập.
+    - `input_unit`: Tên đơn vị người dùng đã chọn tại thời điểm thao tác.
+    - `conversion_factor`: Hệ số quy đổi tại thời điểm tạo/chốt dòng hàng.
+    - `unit_price` / `unit_cost`: Đơn giá tại thời điểm tạo dòng hàng.
+  - Khi danh mục sản phẩm sau này có thay đổi tỉ lệ quy đổi (ví dụ nhà sản xuất đổi quy cách 1 thùng từ 12 lên 14), các chứng từ đã phát sinh trong quá khứ vẫn giữ nguyên giá trị lịch sử và số lượng tồn kho đã trừ/cộng.
 
 ### Khách hàng
 

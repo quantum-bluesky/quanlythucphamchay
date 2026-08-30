@@ -74,8 +74,8 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 1,
-      "sha256": "046df99826bd4528b17e19cd4b0507b4fce26ac94ed29f93e53049a4e28b971c"
+      "counter": 2,
+      "sha256": "eda9512c22284ffbd1c62327105157f5d7b104f7d7bc8c2146a73fc69d2c59a9"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
