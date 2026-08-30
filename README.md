@@ -8,6 +8,7 @@ App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/ql
 
 - Deploy Windows: [docs/DEPLOY_WINDOWS.md](docs/DEPLOY_WINDOWS.md)
 - Hướng dẫn sử dụng: [docs/HUONG_DAN_SU_DUNG.md](docs/HUONG_DAN_SU_DUNG.md)
+- Tài liệu tham chiếu API: [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
 - Bảng thuật ngữ Anh - Việt: [docs/TERM_GLOSSARY.md](docs/TERM_GLOSSARY.md)
 - Design màn hình chung: [docs/SCREEN_DESIGN.md](docs/SCREEN_DESIGN.md)
 - Design database: [docs/DB_DESIGN.md](docs/DB_DESIGN.md)
