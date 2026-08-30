@@ -78,7 +78,10 @@ Trước khi bắt tay vào viết mới hoặc chỉnh sửa bất kỳ câu l�
    - Phải kiểm tra cấu trúc bảng thực tế bằng `PRAGMA table_info(table_name)` trên file database thật hoặc kiểm tra hàm `_initialize_schema()` trong `qltpchay/store.py` / `docs/DB_DESIGN.md`.
 2. **Đối chiếu & Xác nhận khi có sai lệch**:
    - Nếu phát hiện tài liệu thiết kế (`docs/DB_DESIGN.md`) và database thực tế có sự khác biệt về tên cột, kiểu dữ liệu hoặc quan hệ bảng, phải confirm rõ ràng và thống nhất để chỉnh sửa trước khi bắt tay vào code.
-3. **Mục đích**:
+3. **Quy trình Migration & Thử nghiệm trên bản sao DB local**:
+   - Mọi câu lệnh migration cột/bảng (`ALTER TABLE`, `CREATE TABLE`, backfill data) phải được tách thành hàm migration schema riêng biệt, không được lồng vào bên trong các vòng lặp kiểm tra sync state hoặc seed dữ liệu có lệnh `continue/break`.
+   - Bắt buộc kiểm tra chạy thử nghiệm hàm migration trên bản sao (backup copy) của file database local thật (`data/inventory.db`), kiểm tra lại danh sách cột qua `PRAGMA table_info` và dữ liệu mẫu đã backfill trước khi áp dụng vào DB chính và chốt code.
+4. **Mục đích**:
    - Tránh triệt để việc viết nhầm các thông số/tên cột của DB (để lấy đúng và đủ các field,...), ngăn ngừa các lỗi runtime `sqlite3.OperationalError: no such column` hoặc làm lệch/mất dữ liệu khi ghi vào DB.
 
 ## Quy ước nghiệp vụ hiện tại

@@ -917,6 +917,7 @@ class InventoryStore:
                     (key, now),
                 )
             self._migrate_legacy_sync_state_if_needed(connection)
+            self._migrate_schema_columns(connection)
             self._backfill_receipts_from_transactions_if_needed(connection)
             self._backfill_batches_from_transactions_if_needed(connection)
 
@@ -935,6 +936,68 @@ class InventoryStore:
             try:
                 connection.execute("ALTER TABLE customers ADD COLUMN zalo_group_id TEXT")
             except Exception:
+                pass
+
+    def _migrate_schema_columns(self, connection: sqlite3.Connection) -> None:
+        # 1. products default units
+        try:
+            connection.execute("ALTER TABLE products ADD COLUMN default_purchase_unit TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            connection.execute("ALTER TABLE products ADD COLUMN default_sale_unit TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            connection.execute(
+                """
+                UPDATE products
+                SET default_purchase_unit = unit
+                WHERE default_purchase_unit IS NULL OR TRIM(default_purchase_unit) = ''
+                """
+            )
+            connection.execute(
+                """
+                UPDATE products
+                SET default_sale_unit = unit
+                WHERE default_sale_unit IS NULL OR TRIM(default_sale_unit) = ''
+                """
+            )
+        except sqlite3.OperationalError:
+            pass
+
+        # 2. product_unit_conversion prices
+        try:
+            connection.execute("ALTER TABLE product_unit_conversion ADD COLUMN price REAL")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            connection.execute("ALTER TABLE product_unit_conversion ADD COLUMN sale_price REAL")
+        except sqlite3.OperationalError:
+            pass
+
+        # 3. cart_items, purchase_items, inventory_receipt_items conversion fields
+        for table in ["cart_items", "purchase_items", "inventory_receipt_items"]:
+            try:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN input_quantity REAL")
+            except sqlite3.OperationalError:
+                pass
+            try:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN input_unit TEXT")
+            except sqlite3.OperationalError:
+                pass
+            try:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN conversion_factor REAL")
+            except sqlite3.OperationalError:
+                pass
+            try:
+                connection.execute(
+                    f"UPDATE {table} SET input_quantity = quantity, conversion_factor = 1.0 WHERE input_quantity IS NULL"
+                )
+            except sqlite3.OperationalError:
                 pass
 
     def _migrate_legacy_sync_state_if_needed(self, connection: sqlite3.Connection) -> None:
@@ -963,45 +1026,6 @@ class InventoryStore:
                 "UPDATE app_state SET state_value = ?, updated_at = ? WHERE state_key = ?",
                 (json.dumps(canonical, ensure_ascii=False), row["updated_at"], state_key),
             )
-
-
-            for table in ["cart_items", "purchase_items", "inventory_receipt_items"]:
-                try:
-                    connection.execute(f"ALTER TABLE {table} ADD COLUMN input_quantity REAL")
-                except sqlite3.OperationalError:
-                    pass
-                try:
-                    connection.execute(f"ALTER TABLE {table} ADD COLUMN input_unit TEXT")
-                except sqlite3.OperationalError:
-                    pass
-                try:
-                    connection.execute(f"ALTER TABLE {table} ADD COLUMN conversion_factor REAL")
-                except sqlite3.OperationalError:
-                    pass
-                try:
-                    connection.execute(f"UPDATE {table} SET input_quantity = quantity, conversion_factor = 1.0 WHERE input_quantity IS NULL")
-                except sqlite3.OperationalError:
-                    pass
-
-            try:
-                connection.execute("ALTER TABLE product_unit_conversion ADD COLUMN price REAL")
-            except sqlite3.OperationalError:
-                pass
-                
-            try:
-                connection.execute("ALTER TABLE product_unit_conversion ADD COLUMN sale_price REAL")
-            except sqlite3.OperationalError:
-                pass
-
-            try:
-                connection.execute("ALTER TABLE products ADD COLUMN default_purchase_unit TEXT")
-            except sqlite3.OperationalError:
-                pass
-
-            try:
-                connection.execute("ALTER TABLE products ADD COLUMN default_sale_unit TEXT")
-            except sqlite3.OperationalError:
-                pass
 
     def _backfill_receipts_from_transactions_if_needed(self, connection: sqlite3.Connection) -> None:
         row = connection.execute(

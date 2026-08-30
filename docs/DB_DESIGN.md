@@ -72,6 +72,8 @@ Nguồn: `CREATE TABLE IF NOT EXISTS products` trong `qltpchay/store.py`.
 - `details`: TEXT nullable, chuỗi HTML hướng dẫn/thông tin chi tiết sản phẩm
 - `recipe`: TEXT nullable, chuỗi HTML hướng dẫn chế biến / công thức món ăn
 - `note`: TEXT nullable, chuỗi ghi chú sản phẩm hiển thị khi đặt hàng
+- `default_purchase_unit`: TEXT nullable, đơn vị nhập hàng mặc định (fallback về `unit`)
+- `default_sale_unit`: TEXT nullable, đơn vị bán hàng mặc định (fallback về `unit`)
 - `is_deleted`: INTEGER, soft delete flag
 - `deleted_at`: TEXT, thời điểm xóa mềm
 - `created_at`: TEXT, timestamp ISO
@@ -240,6 +242,9 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `id`, `cart_id`
   - `product_id`, `product_name`
   - `quantity`, `unit_price`, `note`, `sort_order`
+  - `input_quantity`: REAL, số lượng theo đơn vị người dùng nhập khi chọn mua
+  - `input_unit`: TEXT, đơn vị tính người dùng chọn khi đặt hàng
+  - `conversion_factor`: REAL, hệ số quy đổi ra đơn vị cơ bản
 
 ### `bulk_order_batches`
 
@@ -366,6 +371,9 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `source_kind`: `shortage` hoặc `extra`
   - `source_note`: ghi chú nhẹ cho dòng `extra`, mặc định có thể là `Ngoài nhu cầu đơn`
   - `quantity`, `unit_cost`
+  - `input_quantity`: REAL, số lượng theo đơn vị người dùng nhập khi lập phiếu nhập
+  - `input_unit`: TEXT, đơn vị tính người dùng chọn khi nhập hàng
+  - `conversion_factor`: REAL, hệ số quy đổi ra đơn vị cơ bản
   - `batch_code`
   - `expiry_input_mode`: `direct`, `manufacture`, hoặc `received_fallback`
   - `manufacture_date`
@@ -404,6 +412,9 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `product_id`, `product_name`, `unit`
   - `transaction_type`
   - `quantity`
+  - `input_quantity`: REAL, số lượng theo đơn vị người dùng nhập
+  - `input_unit`: TEXT, đơn vị tính người dùng chọn
+  - `conversion_factor`: REAL, hệ số quy đổi ra đơn vị cơ bản
   - `unit_amount`, `line_total`
   - `stock_after`
   - `transaction_id`, `purchase_item_id`
