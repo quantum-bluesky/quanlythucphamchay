@@ -1056,10 +1056,10 @@ function renderProducts(products) {
     `;
 
     const actionsHtml = `
-      <div class="product-card-actions">
+      <!-- <div class="product-card-actions">
         <button type="button" class="ghost-button compact-button btn-view-detail" data-id="${p.id}">Xem</button>
         <button type="button" class="ghost-button compact-button btn-copy-link" data-id="${p.id}">Copy link</button>
-      </div>
+      </div> -->
       ${selectHtml}
     `;
 
