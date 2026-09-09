@@ -23,6 +23,8 @@ Mục tiêu:
 
 | STT | Case code | File spec / test | Lệnh chạy nhanh |
 | --- | --- | --- | --- |
+| 162 | `IT-UNIT-01` | `tests/integration/unit-quantity-roundtrip.spec.js` | `npx playwright test --grep IT-UNIT-01` |
+| 163 | `IT-UNIT-02` | `tests/integration/unit-quantity-roundtrip.spec.js` | `npx playwright test --grep IT-UNIT-02` |
 | 1 | `ACC-ABOUT-01` | `tests/integration/acceptance-checklist.spec.js` | `npx playwright test tests/integration/acceptance-checklist.spec.js --grep "ACC-ABOUT-01"` |
 | 2 | `ACC-INV-01` | `tests/integration/acceptance-checklist.spec.js` | `npx playwright test tests/integration/acceptance-checklist.spec.js --grep "ACC-INV-01"` |
 | 3 | `ACC-INV-02` | `tests/integration/core-workflows.spec.js` | `npx playwright test tests/integration/core-workflows.spec.js --grep "ACC-INV-02"` |

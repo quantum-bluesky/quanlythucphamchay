@@ -1,3 +1,5 @@
+import { convertUnitQuantity, getUnitQuantityBase } from "../unit-quantity-editor.js";
+
 export function registerSalesControllerEvents(contract) {
   const {
     state,
@@ -966,19 +968,13 @@ export function registerSalesControllerEvents(contract) {
     const option = unitSelect.options[unitSelect.selectedIndex];
     if (!option) return;
 
-    const oldFactor = parseFloat(item.conversion_factor || 1) || 1;
+    const oldFactor = parseFloat((item.conversionFactor ?? item.conversion_factor) || 1) || 1;
     const newFactor = parseFloat(option.value) || 1;
     const qtyInput = dom.cartItemsList.querySelector(`[data-qty-input="${itemId}"]`);
     const priceInput = dom.cartItemsList.querySelector(`[data-price-input="${itemId}"], [data-price-input-cart="${itemId}"]`);
 
-    if (qtyInput) {
-      const currentQty = parseFloat(qtyInput.value) || 0;
-      if (currentQty > 0) {
-        const baseQty = currentQty * oldFactor;
-        const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
-        qtyInput.value = newQty;
-      }
-    }
+    // #Issue133: Subsequent changes use the current editor factor, not the saved line factor.
+    convertUnitQuantity(qtyInput, oldFactor, newFactor, item);
     if (priceInput && option.dataset.salePrice) {
       priceInput.value = option.dataset.salePrice;
     }
@@ -1014,12 +1010,12 @@ export function registerSalesControllerEvents(contract) {
         const selectedOption = unitSelect?.options[unitSelect?.selectedIndex];
         const conversionFactor = selectedOption ? (parseFloat(selectedOption.value) || 1.0) : 1.0;
         const inputUnit = selectedOption?.dataset.unitName || (selectedOption?.textContent || "").trim();
-        const baseQuantity = Number((inputQuantity * conversionFactor).toFixed(4));
+        const baseQuantity = Number(getUnitQuantityBase(qtyInput, conversionFactor, queries.getActiveCart()?.items.find((item) => item.id === lineButton.dataset.itemId)).toFixed(4));
 
         actions.updateCartItem(lineButton.dataset.itemId, {
-          input_quantity: inputQuantity,
-          input_unit: inputUnit,
-          conversion_factor: conversionFactor,
+          inputQuantity,
+          inputUnit,
+          conversionFactor,
           quantity: baseQuantity,
           unitPrice,
         });

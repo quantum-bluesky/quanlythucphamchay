@@ -1807,7 +1807,7 @@ class InventoryStore:
             "unitPrice": round(float(row["unit_price"] or 0), 2),
             "unit_price": round(float(row["unit_price"] or 0), 2),
             "note": row["note"] or "",
-            "inputQuantity": round(float(row["input_quantity"] or 0), 2) if "input_quantity" in row.keys() and row["input_quantity"] is not None else None,
+            "inputQuantity": round(float(row["input_quantity"] or 0), 4) if "input_quantity" in row.keys() and row["input_quantity"] is not None else None,
             "inputUnit": row["input_unit"] if "input_unit" in row.keys() else None,
             "conversionFactor": float(row["conversion_factor"]) if "conversion_factor" in row.keys() and row["conversion_factor"] is not None else 1.0,
         }
@@ -2089,7 +2089,7 @@ class InventoryStore:
             "manufacture_date": row["manufacture_date"] or "",
             "expiryDate": row["expiry_date"] or "",
             "expiry_date": row["expiry_date"] or "",
-            "inputQuantity": round(float(row["input_quantity"] or 0), 2) if "input_quantity" in row.keys() and row["input_quantity"] is not None else None,
+            "inputQuantity": round(float(row["input_quantity"] or 0), 4) if "input_quantity" in row.keys() and row["input_quantity"] is not None else None,
             "inputUnit": row["input_unit"] if "input_unit" in row.keys() else None,
             "conversionFactor": float(row["conversion_factor"]) if "conversion_factor" in row.keys() and row["conversion_factor"] is not None else 1.0,
         }
@@ -2303,7 +2303,8 @@ class InventoryStore:
             ).fetchall()
             item_rows = connection.execute(
                 """
-                SELECT id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order
+                SELECT id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order,
+                       input_quantity, input_unit, conversion_factor
                 FROM cart_items
                 ORDER BY cart_id, sort_order, id
                 """
@@ -2385,7 +2386,8 @@ class InventoryStore:
                 """
                 SELECT
                     id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
-                    expiry_input_mode, manufacture_date, expiry_date, sort_order
+                    expiry_input_mode, manufacture_date, expiry_date, sort_order,
+                    input_quantity, input_unit, conversion_factor
                 FROM purchase_items
                 ORDER BY purchase_id, sort_order, id
                 """
@@ -2666,9 +2668,10 @@ class InventoryStore:
                         """
                         INSERT INTO purchase_items(
                             id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
-                            expiry_input_mode, manufacture_date, expiry_date, sort_order
+                            expiry_input_mode, manufacture_date, expiry_date, sort_order,
+                            input_quantity, input_unit, conversion_factor
                         )
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),
@@ -2684,6 +2687,10 @@ class InventoryStore:
                             expiry_metadata["manufacture_date"],
                             expiry_metadata["expiry_date"],
                             index,
+                            # Issue133: Sync must retain the same unit snapshot as cart lines.
+                            float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
+                            str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
+                            float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
                         ),
                     )
             return
@@ -4627,7 +4634,8 @@ class InventoryStore:
             raise ValueError("Không tìm thấy đơn hàng.")
         item_rows = connection.execute(
             """
-            SELECT id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order
+            SELECT id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order,
+                       input_quantity, input_unit, conversion_factor
             FROM cart_items
             WHERE cart_id = ?
             ORDER BY sort_order, id
@@ -8589,7 +8597,8 @@ class InventoryStore:
                 """
                 SELECT
                     id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code,
-                    expiry_input_mode, manufacture_date, expiry_date, sort_order
+                    expiry_input_mode, manufacture_date, expiry_date, sort_order,
+                    input_quantity, input_unit, conversion_factor
                 FROM purchase_items
                 WHERE purchase_id = ?
                 ORDER BY sort_order, id

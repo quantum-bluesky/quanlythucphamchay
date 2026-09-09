@@ -181,6 +181,10 @@ export function createPurchasesDomainHelpers(deps) {
               productName: product?.name || item.productName || "Sản phẩm",
               unit: product?.unit || item.unit || "",
               quantity,
+              // #Issue133: Preserve the unit snapshot through decoration, saving and server sync.
+              inputQuantity: Number(item.inputQuantity ?? item.input_quantity ?? quantity),
+              inputUnit: item.inputUnit ?? item.input_unit ?? product?.unit ?? item.unit ?? "",
+              conversionFactor: Number(item.conversionFactor ?? item.conversion_factor ?? 1),
               unitCost,
               batchCode: String(item.batchCode || item.batch_code || "").trim(),
               expiryInputMode: String(item.expiryInputMode || item.expiry_input_mode || "direct").trim() || "direct",

@@ -111,6 +111,7 @@ Liên kết detail hiện có:
   - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
   - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
   - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp đơn vị tính, số lượng và giá bán
+  - Issue 133: đổi đơn vị liên tiếp sử dụng hệ số hiện hành của ô nhập và lượng cơ sở chưa làm tròn; lưu/mở lại dòng phải giữ snapshot đơn vị. Quy tắc này áp dụng cho cả giỏ xuất và phiếu nhập.
   - **Dropdown chọn Đơn vị tính**: Trên từng dòng hàng trong giỏ, cho phép chọn giữa Đơn vị cơ sở và các Đơn vị quy đổi đã cấu hình cho sản phẩm đó (mặc định chọn `Đơn vị bán mặc định`). Khi người dùng đổi đơn vị, UI tự động quy đổi lại số lượng và tự động cập nhật đơn giá theo bảng giá của đơn vị mới.
   - card `Xử lý nhanh xuất hàng` phải nằm ngay trong màn `create-order`, mobile-first, cho nhập `khách / ngày xuất / ghi chú / mặt hàng`, chọn `Đã xuất hàng` hoặc `Chỉ chốt đơn`, có checkbox `Đã thanh toán luôn`; sau khi lưu phải khóa form ở trạng thái `Đã tạo phiếu` và hiện summary với CTA `Tiếp tục xuất nhanh / Xem phiếu / Về danh sách` để tránh tạo trùng
   - action `Giá chung` trong editor giá bán phải hiện message confirm trước khi cập nhật giá bán mặc định của mặt hàng để tránh bấm nhầm trên mobile

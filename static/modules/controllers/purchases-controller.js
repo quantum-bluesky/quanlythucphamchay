@@ -1,3 +1,5 @@
+import { convertUnitQuantity, getUnitQuantityBase } from "../unit-quantity-editor.js";
+
 export function registerPurchasesControllerEvents(contract) {
   const {
     state,
@@ -869,19 +871,13 @@ export function registerPurchasesControllerEvents(contract) {
     const option = unitSelect.options[unitSelect.selectedIndex];
     if (!option) return;
 
-    const oldFactor = parseFloat(item.conversion_factor || 1) || 1;
+    const oldFactor = parseFloat((item.conversionFactor ?? item.conversion_factor) || 1) || 1;
     const newFactor = parseFloat(option.value) || 1;
     const qtyInput = dom.purchasePanel.querySelector(`[data-purchase-qty-input="${itemId}"]`);
     const costInput = dom.purchasePanel.querySelector(`[data-purchase-cost-input="${itemId}"]`);
 
-    if (qtyInput) {
-      const currentQty = parseFloat(qtyInput.value) || 0;
-      if (currentQty > 0) {
-        const baseQty = currentQty * oldFactor;
-        const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
-        qtyInput.value = newQty;
-      }
-    }
+    // #Issue133: Subsequent changes use the current editor factor, not the saved line factor.
+    convertUnitQuantity(qtyInput, oldFactor, newFactor, item);
     if (costInput && option.dataset.price) {
       costInput.value = option.dataset.price;
     }
@@ -997,14 +993,14 @@ export function registerPurchasesControllerEvents(contract) {
         const selectedOption = unitSelect?.options[unitSelect?.selectedIndex];
         const conversionFactor = selectedOption ? (parseFloat(selectedOption.value) || 1.0) : 1.0;
         const inputUnit = selectedOption?.dataset.unitName || (selectedOption?.textContent || "").trim();
-        const baseQuantity = Number((inputQuantity * conversionFactor).toFixed(4));
+        const baseQuantity = Number(getUnitQuantityBase(qtyInput, conversionFactor, sourceItem).toFixed(4));
 
         actions.updatePurchase(purchase.id, (currentPurchase) => ({
           items: currentPurchase.items.map((item) => item.id === itemButton.dataset.purchaseItemId ? {
             ...item,
-            input_quantity: inputQuantity,
-            input_unit: inputUnit,
-            conversion_factor: conversionFactor,
+            inputQuantity,
+            inputUnit,
+            conversionFactor,
             quantity: baseQuantity,
             unitCost,
             batchCode: String(batchInput?.value || "").trim(),

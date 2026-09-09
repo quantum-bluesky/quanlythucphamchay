@@ -406,3 +406,11 @@ Case mới cho Issue 153 (Tách cấu hình check multiuser conflict):
 - Nếu thêm/sửa/xóa mã test, hãy cập nhật đồng thời `docs/TEST_CASE_INDEX.md` và `docs/TEST_CASE_DESCRIPTIONS.md`
 - Việc bổ sung tài liệu test phải được ghi trực tiếp vào repo để dùng lại cho mọi máy và mọi session, không chỉ nhắc tạm trong một lần làm việc
 - Nếu cần điều tra lỗi sync nhiều máy, có thể bật `debug.sync_state=true` trong `data/system_config.json` để xem log `/api/state` ở console server và browser
+
+## Regression Issue 133: đổi đơn vị qua lại
+
+Chạy `npm run test:integration -- tests/integration/unit-quantity-roundtrip.spec.js`.
+
+- `IT-UNIT-01`: giỏ xuất; `IT-UNIT-02`: phiếu nhập.
+- Cả hai chạy trên viewport mobile và DB fixture tạm: đổi lặp giữa hệ số 1, 20, 3, 0.5; bảo toàn lượng cơ sở khi làm tròn; sửa số lượng rồi đổi tiếp; lưu, tải lại và đổi về đơn vị gốc.
+- Kiểm tra API state giữ lượng cơ sở và snapshot đơn vị, kể cả lưu khi số hiển thị là `0.3333`.

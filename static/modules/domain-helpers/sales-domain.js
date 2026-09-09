@@ -111,6 +111,10 @@ export function createSalesDomainHelpers(deps) {
               productName: product?.name || item.productName || "Sản phẩm",
               unit: product?.unit || item.unit || "",
               quantity,
+              // #Issue133: Preserve the unit snapshot through decoration, saving and server sync.
+              inputQuantity: Number(item.inputQuantity ?? item.input_quantity ?? quantity),
+              inputUnit: item.inputUnit ?? item.input_unit ?? product?.unit ?? item.unit ?? "",
+              conversionFactor: Number(item.conversionFactor ?? item.conversion_factor ?? 1),
               unitPrice,
               note: item.note || "",
               lineTotal: Number((quantity * unitPrice).toFixed(2)),

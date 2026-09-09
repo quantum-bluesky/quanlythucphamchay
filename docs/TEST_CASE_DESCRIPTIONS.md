@@ -17,6 +17,8 @@ Lưu ý:
 
 | STT | Mã test case | Mô tả Test Case |
 | --- | --- | --- |
+| 162 | `IT-UNIT-01` | Giỏ xuất giữ số lượng khi đổi đơn vị lặp, sửa số lượng, lưu số lẻ và tải lại; API giữ snapshot đơn vị. |
+| 163 | `IT-UNIT-02` | Phiếu nhập giữ số lượng khi đổi đơn vị lặp, sửa số lượng, lưu số lẻ và tải lại; API giữ snapshot đơn vị. |
 | 1 | `ACC-ABOUT-01` | Kiểm tra nút `Version` mở đúng màn `About` và hiển thị phiên bản app lấy từ backend. |
 | 2 | `ACC-INV-01` | Kiểm tra shortcut ở màn tồn kho mở đúng luồng nhập hàng và tạo đơn xuất. |
 | 3 | `ACC-INV-02` | Kiểm tra các màn tồn kho, nhập hàng, bán hàng và sản phẩm hoạt động ổn định khi điều hướng qua lại. |

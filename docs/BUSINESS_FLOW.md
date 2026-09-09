@@ -368,6 +368,8 @@ ordered -> cancelled
   - Khi người dùng đổi đơn vị tính trong giỏ hàng hoặc phiếu nhập:
     $$\text{base\_quantity} = \text{old\_quantity} \times \text{old\_factor}$$
     $$\text{new\_quantity} = \text{round}\left(\frac{\text{base\_quantity}}{\text{new\_factor}}, 4\right)$$
+  - Issue 133: `old_factor` là hệ số đang dùng trong editor, không lấy lại hệ số của lần lưu trước. Lượng cơ sở được giữ riêng trong suốt lượt đổi đơn vị; số hiển thị làm tròn 4 chữ số không được dùng để tính nối tiếp gây tích lũy sai số. Nếu làm tròn thành 0 thì giữ số dương chưa làm tròn. Khi sửa ô số lượng, lượng cơ sở được tính lại theo đơn vị hiện hành.
+  - Khi lưu dòng, giữ lượng cơ sở cùng snapshot đơn vị; tải lại trang vẫn chọn đúng đơn vị và đổi về đơn vị cũ được.
   - Đơn giá tự động được điền theo bảng giá của đơn vị mới được chọn.
 - **Bảo toàn lịch sử chứng từ (Snapshotting)**:
   - Trên từng dòng chi tiết của đơn hàng (`cart_items`), phiếu nhập (`purchase_items`) và phiếu kho (`inventory_receipt_items`), hệ thống lưu snapshot:

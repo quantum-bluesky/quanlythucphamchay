@@ -86,6 +86,12 @@ Nguồn: `CREATE TABLE IF NOT EXISTS products` trong `qltpchay/store.py`.
 - hỗ trợ ngừng bán bằng `is_deleted = 1` thay vì xóa cứng
 - `shelf_life_days` và `storage_life_days` là metadata fallback ở cấp sản phẩm khi lô chưa có HSD thật, không thay thế dữ liệu tồn theo lô
 
+### Bổ sung Issue 133: snapshot đơn vị khi đồng bộ
+
+- Không đổi schema. Luồng đọc `cart_items`/`purchase_items` phải SELECT đủ `input_quantity`, `input_unit`, `conversion_factor`; luồng ghi sync phiếu nhập cũng lưu đủ ba cột như giỏ xuất.
+- API state dùng `inputQuantity`, `inputUnit`, `conversionFactor`; frontend giữ các trường này khi chuẩn hóa dòng và vẫn đọc được tên snake_case của dữ liệu cũ.
+- `inputQuantity` trả về tối đa 4 chữ số thập phân để khớp editor. Lượng cơ sở `quantity` được giữ độc lập với số hiển thị làm tròn khi đổi đơn vị.
+
 ## 4A. Bảng `product_unit_conversion`
 
 Nguồn: `CREATE TABLE IF NOT EXISTS product_unit_conversion` trong `qltpchay/store.py`.

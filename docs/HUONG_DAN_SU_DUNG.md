@@ -162,6 +162,7 @@ Trong `Giỏ hiện hành`:
 2. Bấm `...` trên card để mở detail chỉnh sửa.
 3. **Chọn Đơn vị tính**: Bấm vào dropdown đơn vị để chuyển đổi giữa Đơn vị cơ sở và các Đơn vị quy đổi (vd: `hũ` $\leftrightarrow$ `thùng`).
    - Khi đổi đơn vị: Hệ thống **tự động tính lại số lượng** để bảo toàn số lượng cơ sở thực tế ($\text{SL mới} = \text{SL cũ} \times \text{hệ số cũ} / \text{hệ số mới}$).
+   - Có thể đổi đơn vị qua lại nhiều lần: ví dụ `10 cái → 0,5 hộp (20 cái) → 10 cái`. Số lẻ hiển thị được làm tròn nhưng app giữ lượng cơ sở để không cộng dồn sai số; nếu sửa số lượng thì lần đổi tiếp theo dùng lượng vừa sửa. Áp dụng cả cho dòng phiếu nhập; bấm `Lưu dòng` để giữ đơn vị khi tải lại trang.
    - Đồng thời hệ thống **tự động cập nhật đơn giá bán** theo bảng giá của đơn vị mới được chọn.
 4. Gõ trực tiếp số lượng nếu cần điều chỉnh.
 5. Gõ giá bán cho khách nếu muốn áp dụng giá tùy chỉnh riêng cho đơn này.

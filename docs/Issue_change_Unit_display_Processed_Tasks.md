@@ -1300,3 +1300,30 @@ Quá trình chạy Integration Tests sau khi fix lỗi khởi tạo database (`C
 Nguyên nhân chính là do thay đổi liên quan đến UI: việc tích hợp `<select>` chọn Đơn vị nhập hàng/xuất hàng vào các form thao tác (như Quick Panel của Nhập, Xuất) khiến cấu trúc các thẻ `<input>` thay đổi, làm lệch các Test Selector (chẳng hạn Playwright không tìm thấy ô nhập số lượng do DOM structure thay đổi).
 
 Theo yêu cầu dự án, tôi đã log lại nguyên nhân tests fail để cập nhật vào báo cáo cuối cùng. Về mặt code logic hệ thống và Database, luồng xử lý Backend/Frontend vẫn hoạt động ổn định và chính xác như yêu cầu của "Issue 133". Chúng ta chỉ cần sửa lại các UI selector trong file test của Playwright vào một branch Issue khác dành riêng cho Automation Test (nếu cần thiết).
+
+## Bổ sung ngày 08/09/2026 — Issue 133: bảo toàn số lượng khi đổi đơn vị
+
+- Sửa lỗi lấy hệ số của dòng đã lưu cho mọi lần đổi đơn vị: editor nay theo dõi hệ số hiện hành và lượng cơ sở độc lập với số hiển thị làm tròn.
+- Khi sửa số lượng, dùng hệ số hiện hành để tính lượng mới; khi lưu không lấy số hiển thị đã làm tròn nhân ngược làm lệch lượng cơ sở.
+- Giữ snapshot đơn vị trong các hàm decorate giỏ xuất/phiếu nhập; UI ưu tiên tên trường camelCase của API và tương thích snake_case cũ.
+- Bổ sung SELECT các trường snapshot khi đọc giỏ/phiếu nhập và INSERT snapshot khi sync phiếu nhập. Giữ 4 chữ số phần thập phân của inputQuantity khi trả API.
+- Đã đối chiếu PRAGMA table_info trên DB local thật: các cột cần dùng đã tồn tại; không thay đổi schema/migration và không ghi vào DB thật.
+- Thêm regression IT-UNIT-01/02 trên DB fixture tạm, cập nhật help và tài liệu nghiệp vụ/test.
+- Tiếp tục branch `codex/133_Doi_don_vi_hien_thi`; mức thay đổi trung bình vì cần sửa xuyên suốt frontend/server sync, version `3.32.0 → 3.33.0`.
+
+### Chốt kiểm tra ngày 09/09/2026
+
+- `node --check static/app.js` và các module JS đã sửa: đạt.
+- `python -m py_compile app.py qltpchay/store.py`: đạt.
+- `python -m unittest discover -s tests`: 112/112 đạt.
+- `npm run test:integration -- tests/integration/unit-quantity-roundtrip.spec.js`: 2/2 đạt.
+- `npm run test:integration`: 90 đạt, 2 lỗi, 4 bỏ qua (11,1 phút). Hai ca lỗi là `IT-PROC-02` và `ACC-PUR-03`.
+- Chạy riêng hai ca này trên cả code base `2e33b8a` và bản sửa: đều 2/2 đạt. Chưa xác định nguyên nhân chỉ lỗi khi chạy toàn suite; không coi full suite là đã xanh.
+
+### Các file thay đổi trong bản sửa bổ sung
+
+- Backend: `qltpchay/store.py`.
+- Frontend: `static/modules/unit-quantity-editor.js`, `static/modules/controllers/sales-controller.js`, `static/modules/controllers/purchases-controller.js`, `static/modules/domain-helpers/sales-domain.js`, `static/modules/domain-helpers/purchases-domain.js`, `static/modules/ui/sales-ui.js`, `static/modules/ui/purchases-ui.js`, `static/modules/screen-config.js`.
+- Version: `data/system_config.json`, `data/js_asset_versions.json`.
+- Test: `tests/integration/unit-quantity-roundtrip.spec.js`.
+- Tài liệu: `README.md`, `docs/HUONG_DAN_SU_DUNG.md`, `docs/SCREEN_DESIGN.md`, `docs/DB_DESIGN.md`, `docs/BUSINESS_FLOW.md`, `docs/TESTING.md`, `docs/TEST_CASE_INDEX.md`, `docs/TEST_CASE_DESCRIPTIONS.md`, tài liệu processed tasks này.
