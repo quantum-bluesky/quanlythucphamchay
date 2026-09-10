@@ -1327,3 +1327,16 @@ Theo yêu cầu dự án, tôi đã log lại nguyên nhân tests fail để c�
 - Version: `data/system_config.json`, `data/js_asset_versions.json`.
 - Test: `tests/integration/unit-quantity-roundtrip.spec.js`.
 - Tài liệu: `README.md`, `docs/HUONG_DAN_SU_DUNG.md`, `docs/SCREEN_DESIGN.md`, `docs/DB_DESIGN.md`, `docs/BUSINESS_FLOW.md`, `docs/TESTING.md`, `docs/TEST_CASE_INDEX.md`, `docs/TEST_CASE_DESCRIPTIONS.md`, tài liệu processed tasks này.
+
+
+## Bổ sung ngày 10/09/2026 — Lưu đúng một dòng và bố cục đơn
+
+Theo yêu cầu bổ sung, không dùng việc giữ nguyên giỏ đã hủy làm giải pháp duy nhất: nút Lưu dòng của đơn xuất `draft/committed` chuyển hẳn sang API riêng.
+
+- `POST /api/carts/item` chỉ nhận mã đơn/dòng, phiên bản đơn, số lượng cơ sở/nhập, đơn vị/hệ số, giá. Không nhận collection.
+- Backend khóa transaction, kiểm tra trạng thái, quyền session hiện hành, phiên bản theo đúng đơn, dòng thuộc đơn và quy đổi hợp lệ. UPDATE đúng dòng + timestamp đơn, ghi audit, refresh cache sync. Không ghi lại các đơn khác, không đổi trạng thái hay tác động ledger/tồn.
+- Client chỉ nhận thành công sau khi server lưu; refresh bằng GET để đồng bộ lại state/version. Editor phụ cũng lưu qua endpoint này, không autosave toàn collection khi blur ô SL. Luồng Admin bypass được giữ riêng.
+- Giữ nguyên dữ liệu lịch sử khi decorate các đơn đã khóa, tránh tự đổi tên khách trống hoặc bỏ dòng SL=0 trong dữ liệu cũ. Regression trên bản cũ f557f28 đã tái hiện lỗi lưu đơn nháp bị chặn bởi một đơn hủy khác.
+- Editor các dòng hàng được đặt trong panel đơn, sau metadata và trước toolbar Chốt/Xuất/Hủy; di chuyển DOM có sẵn để giữ listener/id khi rerender.
+- Bổ sung test IT-UNIT-03 và UT-UNIT-01..04, cập nhật spec API/business/UI/DB/help. Không đổi schema; đã đọc PRAGMA thực tế các bảng carts/cart_items/product_unit_conversion.
+- Mức thay đổi trung bình: thêm API và luồng lưu dòng xuyên backend/frontend, version `3.33.0 → 3.34.0`.

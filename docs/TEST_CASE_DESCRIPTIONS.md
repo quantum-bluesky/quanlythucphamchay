@@ -17,6 +17,11 @@ Lưu ý:
 
 | STT | Mã test case | Mô tả Test Case |
 | --- | --- | --- |
+| 164 | `IT-UNIT-03` | Lưu riêng dòng đơn nháp không gửi collection hoặc đổi đơn lịch sử; server vẫn chặn đơn đã khóa; editor nằm trước nút trạng thái. |
+| 165 | `UT-UNIT-01` | Ghi đúng dòng và audit, giữ nguyên đơn khác và tồn kho. |
+| 166 | `UT-UNIT-02` | Sửa dòng đơn đã chốt; xung đột theo phiên bản đúng đơn, tôn trọng cấu hình conflict. |
+| 167 | `UT-UNIT-03` | Chặn đơn khóa, sai dòng/đơn, đơn vị hoặc hệ số sai, giá/SL không hợp lệ, thiếu phiên bản và payload collection; rollback toàn bộ. |
+| 168 | `UT-UNIT-04` | Giữ lượng cơ sở và snapshot đơn vị khi lưu, trả đúng SL cơ sở 4 chữ số. |
 | 162 | `IT-UNIT-01` | Giỏ xuất giữ số lượng khi đổi đơn vị lặp, sửa số lượng, lưu số lẻ và tải lại; API giữ snapshot đơn vị. |
 | 163 | `IT-UNIT-02` | Phiếu nhập giữ số lượng khi đổi đơn vị lặp, sửa số lượng, lưu số lẻ và tải lại; API giữ snapshot đơn vị. |
 | 1 | `ACC-ABOUT-01` | Kiểm tra nút `Version` mở đúng màn `About` và hiển thị phiên bản app lấy từ backend. |

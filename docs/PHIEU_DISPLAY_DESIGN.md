@@ -47,6 +47,8 @@ Không nhồi nhiều mốc thời gian vào list để giữ UI gọn trên mob
 
 ### 3.2. Detail phiếu
 
+Issue 133: panel đơn xuất đang mở đặt editor các dòng hàng trong cùng khối đơn, sau metadata và trước nhóm nút `Chốt/Xuất/Hủy`. Nút `Lưu dòng` cập nhật riêng dòng của đúng đơn; bố cục DOM không quyết định phạm vi payload. Chỉ khi server xác nhận lưu thành công mới cập nhật dữ liệu hiển thị.
+
 Khi bấm button `Detail`, phải có khối metadata riêng hiển thị:
 
 - `Mã phiếu`

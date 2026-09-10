@@ -97,12 +97,21 @@ export function createSalesDomainHelpers(deps) {
   }
 
   function decorateCart(cart) {
+    // #Issue133: Decorating the full sync collection must not rewrite locked history.
+    const preserveHistory = ["cancelled", "completed"].includes(cart.status) && !cart._adminEditMode;
     const items = Array.isArray(cart.items)
       ? cart.items
           .map((item) => {
             const product = getProductById(item.productId);
             const quantity = Number(item.quantity);
             const unitPrice = Number(item.unitPrice);
+            if (preserveHistory) {
+              return {
+                ...item,
+                unit: item.unit || product?.unit || "",
+                lineTotal: Number.isFinite(quantity * unitPrice) ? Number((quantity * unitPrice).toFixed(2)) : 0,
+              };
+            }
             if (!Number.isFinite(quantity) || quantity <= 0) return null;
             if (!Number.isFinite(unitPrice) || unitPrice < 0) return null;
             return {
@@ -131,7 +140,7 @@ export function createSalesDomainHelpers(deps) {
       : 0;
     const totalAmount = Math.max(0, subtotalAmount - discountAmount);
 
-    return {
+    const decorated = {
       ...cart,
       id: cart.id || createId("cart"),
       customerId: cart.customerId || "",
@@ -157,6 +166,17 @@ export function createSalesDomainHelpers(deps) {
       cancelledAt: cart.cancelledAt || null,
       paidAt: cart.paidAt || null,
       orderCode: cart.orderCode || "",
+    };
+    if (!preserveHistory) return decorated;
+    // Keep original header/line values (including blank customer names and zero lines).
+    // Presentation totals can be recomputed without changing the server's lock snapshot.
+    return {
+      ...cart,
+      items,
+      itemCount: items.length,
+      totalQuantity: decorated.totalQuantity,
+      subtotalAmount: decorated.subtotalAmount,
+      totalAmount: Number(Math.max(0, subtotalAmount - (Number.isFinite(rawDiscountAmount) ? rawDiscountAmount : 0)).toFixed(2)),
     };
   }
 

@@ -90,7 +90,9 @@ Nguồn: `CREATE TABLE IF NOT EXISTS products` trong `qltpchay/store.py`.
 
 - Không đổi schema. Luồng đọc `cart_items`/`purchase_items` phải SELECT đủ `input_quantity`, `input_unit`, `conversion_factor`; luồng ghi sync phiếu nhập cũng lưu đủ ba cột như giỏ xuất.
 - API state dùng `inputQuantity`, `inputUnit`, `conversionFactor`; frontend giữ các trường này khi chuẩn hóa dòng và vẫn đọc được tên snake_case của dữ liệu cũ.
-- `inputQuantity` trả về tối đa 4 chữ số thập phân để khớp editor. Lượng cơ sở `quantity` được giữ độc lập với số hiển thị làm tròn khi đổi đơn vị.
+- `quantity` của dòng giỏ xuất và `inputQuantity` trả về tối đa 4 chữ số thập phân để khớp editor.
+- API `POST /api/carts/item` không đổi schema: dùng `BEGIN IMMEDIATE`, đọc đúng đơn và kiểm tra phiên bản `carts.updated_at`, cập nhật `cart_items WHERE cart_id = ? AND id = ?`, rồi cập nhật timestamp của đúng đơn với độ chính xác microsecond. Audit và cache `app_state.carts` cùng transaction; không DELETE/INSERT lại toàn bộ các đơn. Cache có thể đọc toàn collection, nhưng các bản ghi nghiệp vụ của đơn khác không bị ghi lại.
+- Server chỉ trả đơn đã cập nhật. Client tải lại state/version bằng GET sau khi lưu, không nâng version collection trên một bản sao dữ liệu chưa được refresh. Lượng cơ sở `quantity` được giữ độc lập với số hiển thị làm tròn khi đổi đơn vị.
 
 ## 4A. Bảng `product_unit_conversion`
 

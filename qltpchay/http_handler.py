@@ -1784,6 +1784,19 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
+                if route == "/api/carts/item":
+                    # #Issue133: Auth is checked above; only the specified cart line is written.
+                    try:
+                        result = store.update_cart_item(
+                            payload.get("cart_id", ""), payload.get("item_id", ""), payload,
+                            actor=self._get_current_actor_name(),
+                        )
+                    except SyncConflictError as exc:
+                        self._send_json(HTTPStatus.CONFLICT, {"error": str(exc), "conflict": True})
+                        return
+                    self._send_json(HTTPStatus.OK, result)
+                    return
+
                 if route == "/api/carts/payment":
                     result = store.update_cart_payment(
                         payload.get("cart_id", ""),

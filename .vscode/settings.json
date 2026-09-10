@@ -7,5 +7,13 @@
         "test*.py"
     ],
     "python.testing.pytestEnabled": false,
-    "python.testing.unittestEnabled": true
+    "python.testing.unittestEnabled": true,
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "database": "${workspaceFolder:quanlythucphamchay}/data/inventory.db",
+            "name": "local db qltp"
+        }
+    ]
 }

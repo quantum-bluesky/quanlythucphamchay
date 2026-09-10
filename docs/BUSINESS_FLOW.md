@@ -369,6 +369,10 @@ ordered -> cancelled
     $$\text{base\_quantity} = \text{old\_quantity} \times \text{old\_factor}$$
     $$\text{new\_quantity} = \text{round}\left(\frac{\text{base\_quantity}}{\text{new\_factor}}, 4\right)$$
   - Issue 133: `old_factor` là hệ số đang dùng trong editor, không lấy lại hệ số của lần lưu trước. Lượng cơ sở được giữ riêng trong suốt lượt đổi đơn vị; số hiển thị làm tròn 4 chữ số không được dùng để tính nối tiếp gây tích lũy sai số. Nếu làm tròn thành 0 thì giữ số dương chưa làm tròn. Khi sửa ô số lượng, lượng cơ sở được tính lại theo đơn vị hiện hành.
+  - Lưu dòng đơn xuất `draft/committed` dùng `POST /api/carts/item`, chỉ ghi dòng thuộc đúng đơn được chỉ định; không dùng thay thế toàn collection `carts`. Server kiểm tra số lượng/giá hữu hạn, hệ số thuộc cấu hình sản phẩm hoặc snapshot của dòng, lượng cơ sở khớp số hiển thị theo độ chính xác 4 chữ số.
+  - Một transaction khóa ghi, kiểm tra trạng thái/phiên bản đơn, UPDATE một dòng + thời điểm cập nhật đơn, ghi audit và làm mới cache sync. Không đổi trạng thái, khách hàng, các dòng khác hoặc tồn kho/ledger. Đơn đã chốt vẫn được sửa dòng theo rule hiện có; xuất hàng vẫn kiểm tra tồn qua API trạng thái.
+  - Xung đột dùng `updatedAt` của đúng đơn, tôn trọng `EnableMultiuserConflictCheck`; đơn khác thay đổi không làm vô hiệu phiên bản này. Đơn `completed/cancelled` bị từ chối ở API lưu dòng; quyền sửa Admin vẫn đi qua luồng bypass riêng.
+  - Khi chuẩn hóa collection phục vụ UI, giữ nguyên header và dòng của đơn đã khóa, kể cả tên khách trống hoặc dòng số lượng 0 trong dữ liệu cũ.
   - Khi lưu dòng, giữ lượng cơ sở cùng snapshot đơn vị; tải lại trang vẫn chọn đúng đơn vị và đổi về đơn vị cũ được.
   - Đơn giá tự động được điền theo bảng giá của đơn vị mới được chọn.
 - **Bảo toàn lịch sử chứng từ (Snapshotting)**:

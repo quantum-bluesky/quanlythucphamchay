@@ -1,5 +1,6 @@
 import hashlib
 import json
+import math
 from qltpchay.logger import log_info, log_error
 import re
 import secrets
@@ -1803,7 +1804,7 @@ class InventoryStore:
             "productId": int(row["product_id"] or 0),
             "product_id": int(row["product_id"] or 0),
             "productName": row["product_name"] or "",
-            "quantity": round(float(row["quantity"] or 0), 2),
+            "quantity": round(float(row["quantity"] or 0), 4),
             "unitPrice": round(float(row["unit_price"] or 0), 2),
             "unit_price": round(float(row["unit_price"] or 0), 2),
             "note": row["note"] or "",
@@ -7842,6 +7843,79 @@ class InventoryStore:
             "purchase": purchase,
             "purchases": canonical,
         }
+
+    def update_cart_item(self, cart_id: str, item_id: str, payload: dict, *, actor: str = "") -> dict:
+        """#Issue133: Save one existing line atomically; never replace the carts collection."""
+        allowed_fields = {"cart_id", "item_id", "expected_updated_at", "quantity", "input_quantity", "input_unit", "conversion_factor", "unit_price"}
+        if set(payload) - allowed_fields:
+            raise ValueError("API lưu dòng chỉ nhận dữ liệu của một dòng hàng.")
+        clean_cart_id = str(cart_id or "").strip()
+        clean_item_id = str(item_id or "").strip()
+        expected = str(payload.get("expected_updated_at") or "").strip()
+        if not clean_cart_id or not clean_item_id or not expected:
+            raise ValueError("Thiếu mã đơn, mã dòng hoặc phiên bản đơn cần lưu.")
+
+        def decimal_field(key, label, *, allow_zero=False):
+            try:
+                value = Decimal(str(payload.get(key)))
+            except Exception as exc:
+                raise ValueError(f"{label} không hợp lệ.") from exc
+            if not value.is_finite() or not math.isfinite(float(value)) or value < 0 or (not allow_zero and float(value) == 0):
+                raise ValueError(f"{label} không hợp lệ.")
+            return value
+
+        quantity = decimal_field("quantity", "Số lượng cơ sở")
+        input_quantity = decimal_field("input_quantity", "Số lượng nhập")
+        factor = decimal_field("conversion_factor", "Hệ số quy đổi")
+        price = decimal_field("unit_price", "Giá bán", allow_zero=True)
+        unit = str(payload.get("input_unit") or "").strip()
+        try:
+            quantities_match = round(quantity / factor, 4) == round(input_quantity, 4)
+        except ArithmeticError as exc:
+            raise ValueError("Số lượng hoặc hệ số quy đổi vượt phạm vi tính toán.") from exc
+        if not quantities_match:
+            raise ValueError("Số lượng nhập và số lượng cơ sở không khớp hệ số quy đổi.")
+
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            previous = self._get_cart_document(connection, clean_cart_id)
+            if previous["status"] not in {"draft", "committed"}:
+                raise ValueError("Chỉ được lưu dòng của đơn nháp hoặc đã chốt; đơn đã xuất/đã hủy đã khóa.")
+            if self.enable_multiuser_conflict_check and expected != previous["updatedAt"]:
+                raise SyncConflictError("carts", expected, previous["updatedAt"])
+            item = next((entry for entry in previous["items"] if entry["id"] == clean_item_id), None)
+            if item is None:
+                raise ValueError("Dòng hàng không thuộc đơn đang mở.")
+            product = self._get_product_or_raise(connection, item["productId"])
+            base_unit = str(product["unit"] or "")
+            # Accept the historical snapshot or a currently configured unit; never trust a client factor alone.
+            valid_units = {(base_unit, Decimal(1))}
+            valid_units.add((str(item.get("inputUnit") or base_unit), Decimal(str(item.get("conversionFactor") or 1))))
+            for row in connection.execute(
+                "SELECT from_unit, conversion_factor FROM product_unit_conversion WHERE product_id = ? AND is_active = 1",
+                (item["productId"],),
+            ):
+                valid_units.add((str(row["from_unit"]), Decimal(str(row["conversion_factor"]))))
+            if (unit, factor) not in valid_units:
+                raise ValueError("Đơn vị hoặc hệ số quy đổi không hợp lệ cho mặt hàng này.")
+            updated_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+            connection.execute(
+                """UPDATE cart_items SET quantity = ?, unit_price = ?, input_quantity = ?, input_unit = ?, conversion_factor = ?
+                   WHERE cart_id = ? AND id = ?""",
+                (float(quantity), float(price), float(input_quantity), unit, float(factor), clean_cart_id, clean_item_id),
+            )
+            connection.execute("UPDATE carts SET updated_at = ? WHERE id = ?", (updated_at, clean_cart_id))
+            current = self._get_cart_document(connection, clean_cart_id)
+            self._validate_cart_workflow_locks([previous], [current])
+            self._record_cart_change_history(connection, previous=previous, current=current, actor=actor, created_at=updated_at)
+            self._record_audit(
+                connection, entity_type="cart", entity_id=clean_cart_id,
+                entity_name=str(current.get("orderCode") or clean_cart_id), action="edit-item", actor=actor,
+                message=f"Lưu dòng {clean_item_id}: SL {input_quantity} {unit}, hệ số {factor}, SL cơ sở {quantity}, giá {price}.",
+            )
+            self._refresh_sync_collection_cache(connection, "carts", updated_at=updated_at)
+        log_info(f"Saved cart item: cart_id={clean_cart_id}, item_id={clean_item_id}, actor={actor}")
+        return {"message": "Đã lưu dòng.", "cart": current}
 
     def update_cart_payment(
         self,

@@ -23,6 +23,11 @@ Mục tiêu:
 
 | STT | Case code | File spec / test | Lệnh chạy nhanh |
 | --- | --- | --- | --- |
+| 164 | `IT-UNIT-03` | `tests/integration/unit-quantity-roundtrip.spec.js` | `npx playwright test --grep IT-UNIT-03` |
+| 165 | `UT-UNIT-01` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |
+| 166 | `UT-UNIT-02` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |
+| 167 | `UT-UNIT-03` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |
+| 168 | `UT-UNIT-04` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |
 | 162 | `IT-UNIT-01` | `tests/integration/unit-quantity-roundtrip.spec.js` | `npx playwright test --grep IT-UNIT-01` |
 | 163 | `IT-UNIT-02` | `tests/integration/unit-quantity-roundtrip.spec.js` | `npx playwright test --grep IT-UNIT-02` |
 | 1 | `ACC-ABOUT-01` | `tests/integration/acceptance-checklist.spec.js` | `npx playwright test tests/integration/acceptance-checklist.spec.js --grep "ACC-ABOUT-01"` |

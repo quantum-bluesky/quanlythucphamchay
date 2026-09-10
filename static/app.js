@@ -3039,6 +3039,29 @@ function updateCartItem(itemId, changes) {
   return getSalesDomainHelpers().updateCartItem(itemId, changes);
 }
 
+async function saveCartItem(itemId, changes) {
+  const cart = getActiveCart();
+  if (!cart) throw new Error("Không có đơn hàng đang mở.");
+  if (cart._adminEditMode) return updateCartItem(itemId, changes);
+  // #Issue133: A line save sends one row, not a replacement of the carts collection.
+  const result = await apiRequest("/api/carts/item", {
+    method: "POST",
+    body: JSON.stringify({
+      cart_id: cart.id,
+      item_id: itemId,
+      expected_updated_at: cart.updatedAt,
+      quantity: changes.quantity,
+      input_quantity: changes.inputQuantity,
+      input_unit: changes.inputUnit,
+      conversion_factor: changes.conversionFactor,
+      unit_price: changes.unitPrice,
+    }),
+  });
+  state.carts = state.carts.map((entry) => entry.id === result.cart.id ? decorateCart(result.cart) : entry);
+  // Refresh the collection version together with its data, so later sync cannot overwrite other clients.
+  await refreshData();
+}
+
 function changeItemQuantity(itemId, delta) {
   const cart = getActiveCart();
   if (!cart) {
@@ -7024,6 +7047,7 @@ registerSalesControllerEvents({
     updateCart,
     toggleProductInActiveCart,
     updateCartItem,
+    saveCartItem,
     removeCartItem,
     repeatCompletedCart,
     startCartMergePreview,

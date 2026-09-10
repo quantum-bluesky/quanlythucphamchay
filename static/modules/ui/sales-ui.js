@@ -573,6 +573,10 @@ export function createSalesUi(deps) {
   }
 
   function renderActiveCartPanel() {
+    // #Issue133: Move the existing line editor, preserving its references and event handlers on rerender.
+    if (dom.selectedCartSection && dom.activeCartPanel.contains(dom.selectedCartSection)) {
+      dom.activeCartPanel.after(dom.selectedCartSection);
+    }
     const compact = mobileQuery.matches;
     const cart = getActiveCart();
     if (!cart) {
@@ -641,6 +645,7 @@ export function createSalesUi(deps) {
           detailCollapsed: !state.activeCartDetailExpanded,
           detailToggleActionAttribute: 'data-cart-action="toggle-detail"',
         })}
+        <div data-cart-lines-host></div>
         <div class="cart-toolbar">
           <button type="button" class="ghost-button" data-cart-action="create-new">Tạo đơn mới</button>
           ${canPrint ? `<button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In phiếu"}</button><button type="button" class="ghost-button" data-cart-action="copy-text">${compact ? "Copy" : "Copy text"}</button>` : ""}
@@ -654,6 +659,7 @@ export function createSalesUi(deps) {
         </div>
       </article>
     `;
+    dom.activeCartPanel.querySelector("[data-cart-lines-host]")?.append(dom.selectedCartSection);
   }
 
   function renderSalesProductList() {

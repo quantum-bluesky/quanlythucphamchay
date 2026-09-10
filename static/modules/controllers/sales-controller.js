@@ -820,15 +820,13 @@ export function registerSalesControllerEvents(contract) {
   dom.salesProductList.addEventListener("change", (event) => {
     const checkbox = event.target.closest("[data-pick-product]");
     if (!checkbox) {
-      const qtyInput = event.target.closest("[data-sales-inline-qty]");
-      if (!qtyInput) return;
-      try {
-        const quantity = Number(qtyInput.value);
-        if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
-        actions.updateCartItem(qtyInput.dataset.salesInlineQty, { quantity: Number(quantity.toFixed(2)) });
-        renderers.renderSalesProductList();
-      } catch (error) {
-        actions.showToast(error.message, true);
+      // #Issue133: Editing stays local until Save; blur must not send all carts.
+      const unitSelect = event.target.closest("[data-sales-inline-unit]");
+      if (unitSelect) {
+        const item = queries.getActiveCart()?.items.find(entry => entry.id === unitSelect.dataset.salesInlineUnit);
+        if (!item) return;
+        const qtyInput = dom.salesProductList.querySelector(`[data-sales-inline-qty="${item.id}"]`);
+        convertUnitQuantity(qtyInput, Number(item.conversionFactor || 1), Number(unitSelect.value || 1), item);
       }
       return;
     }
@@ -905,12 +903,20 @@ export function registerSalesControllerEvents(contract) {
     if (actionButton.dataset.salesInlineAction === "save") {
       const qtyInput = dom.salesProductList.querySelector(`[data-sales-inline-qty="${actionButton.dataset.itemId}"]`);
       const priceInput = dom.salesProductList.querySelector(`[data-sales-inline-price="${actionButton.dataset.itemId}"]`);
+      const unitSelect = dom.salesProductList.querySelector(`[data-sales-inline-unit="${actionButton.dataset.itemId}"]`);
       try {
-        const quantity = Number(qtyInput?.value);
+        const inputQuantity = Number(qtyInput?.value);
         const unitPrice = Number(priceInput?.value);
-        if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
+        if (!Number.isFinite(inputQuantity) || inputQuantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
         if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new Error("Giá bán không hợp lệ.");
-        actions.updateCartItem(actionButton.dataset.itemId, { quantity: Number(quantity.toFixed(2)), unitPrice });
+        const item = activeCart.items.find(entry => entry.id === actionButton.dataset.itemId);
+        const option = unitSelect?.selectedOptions[0];
+        const conversionFactor = Number(option?.value || item?.conversionFactor || 1);
+        await actions.saveCartItem(actionButton.dataset.itemId, {
+          quantity: Number(getUnitQuantityBase(qtyInput, conversionFactor, item).toFixed(4)),
+          inputQuantity, inputUnit: option?.dataset.unitName || item?.inputUnit || item?.unit,
+          conversionFactor, unitPrice,
+        });
         renderers.renderSalesProductList();
         renderers.renderCartItems();
         renderers.renderActiveCartPanel();
@@ -1012,7 +1018,7 @@ export function registerSalesControllerEvents(contract) {
         const inputUnit = selectedOption?.dataset.unitName || (selectedOption?.textContent || "").trim();
         const baseQuantity = Number(getUnitQuantityBase(qtyInput, conversionFactor, queries.getActiveCart()?.items.find((item) => item.id === lineButton.dataset.itemId)).toFixed(4));
 
-        actions.updateCartItem(lineButton.dataset.itemId, {
+        await actions.saveCartItem(lineButton.dataset.itemId, {
           inputQuantity,
           inputUnit,
           conversionFactor,

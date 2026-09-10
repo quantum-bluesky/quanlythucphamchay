@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { autoLoginUser, autoLoginUserRequest, switchMenu } = require("./support/ui");
+const { autoLoginAdminRequest, autoLoginUser, autoLoginUserRequest, switchMenu } = require("./support/ui");
 
 // #Issue133: Exercise real line editors and persisted state on the temporary fixture DB.
 for (const kind of ["sales", "purchases"]) {
@@ -110,3 +110,87 @@ for (const kind of ["sales", "purchases"]) {
     }
   });
 }
+
+test("IT-UNIT-03 saving a sales line preserves unrelated cancelled and completed history", async ({ page, request }) => {
+  const adminCookie = await autoLoginAdminRequest(request);
+  const backupResponse = await request.get("./api/admin/backup", { headers: { Cookie: adminCookie } });
+  expect(backupResponse.ok()).toBeTruthy();
+  const backup = await backupResponse.body();
+  const cookie = await autoLoginUserRequest(request);
+  const headers = { Cookie: cookie };
+  async function readState() {
+    const response = await request.get("./api/state", { headers });
+    expect(response.ok()).toBeTruthy();
+    return response.json();
+  }
+  try {
+    const original = await readState();
+    const draft = original.carts.find(cart => cart.status === "draft" && cart.items.length);
+    expect(draft).toBeTruthy();
+    const timestamp = new Date().toISOString();
+    // Legacy history may contain a blank customer or zero-quantity line. Decoration is read-only.
+    const history = ["cancelled", "completed"].map(status => ({
+      id: `unit_history_${status}_${Date.now()}`, customerId: "", customerName: "", status,
+      paymentStatus: "unpaid", createdAt: timestamp, updatedAt: timestamp,
+      completedAt: status === "completed" ? timestamp : null,
+      cancelledAt: status === "cancelled" ? timestamp : null,
+      items: [
+        { ...draft.items[0], id: `unit_history_${status}_line`, quantity: 1 },
+        { ...draft.items[0], id: `unit_history_${status}_zero`, quantity: 0 },
+      ],
+    }));
+    const seed = await request.put("./api/state", { headers, data: { carts: [...original.carts, ...history] } });
+    expect(seed.ok()).toBeTruthy();
+    const historyIds = new Set(history.map(cart => cart.id));
+    const historyBefore = (await readState()).carts.filter(cart => historyIds.has(cart.id));
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
+    await autoLoginUser(page, request);
+    await page.reload({ waitUntil: "networkidle" });
+    await switchMenu(page, "orders");
+    await page.locator(`[data-queue-action="open"][data-cart-id="${draft.id}"]`).first().click();
+    if (!await page.locator("#activeCartPanel .cart-toolbar").isVisible()) {
+      await page.locator('#activeCartPanel [data-cart-action="toggle-panel"]').click();
+    }
+    const itemId = draft.items[0].id;
+    const toggle = page.locator(`[data-cart-item-action="toggle-detail"][data-item-id="${itemId}"]`);
+    if (!await toggle.isVisible()) await page.locator("#selectedCartToggleButton").click();
+    const qty = page.locator(`[data-qty-input="${itemId}"]`);
+    if (!await qty.isVisible()) await toggle.click();
+    await qty.fill("2");
+    const writes = [];
+    page.on("request", request => { if (["PUT", "POST", "DELETE"].includes(request.method())) writes.push(request.url()); });
+    const selectedLines = page.locator("#activeCartPanel #selectedCartSection");
+    await expect(selectedLines).toBeVisible();
+    const linesBox = await selectedLines.boundingBox();
+    const buttonsBox = await page.locator("#activeCartPanel .cart-toolbar").boundingBox();
+    expect(linesBox.y + linesBox.height).toBeLessThanOrEqual(buttonsBox.y);
+    await page.screenshot({ path: "test-results/issue133-order-lines-mobile.png", fullPage: true });
+    const savedResponse = page.waitForResponse(response => response.url().includes("/api/carts/item") && response.request().method() === "POST");
+    await page.locator(`[data-cart-item-action="save"][data-item-id="${itemId}"]`).click();
+    const saved = await savedResponse;
+    expect(await saved.json()).not.toHaveProperty("error");
+    expect(saved.ok()).toBeTruthy();
+    expect(saved.request().postDataJSON()).not.toHaveProperty("purchases");
+    expect(saved.request().postDataJSON()).not.toHaveProperty("carts");
+    expect(saved.request().postDataJSON()).toMatchObject({ cart_id: draft.id, item_id: itemId });
+    expect(writes.filter(url => url.includes("/api/state"))).toEqual([]);
+    const after = await readState();
+    expect(after.carts.find(cart => cart.id === draft.id).items[0].quantity).toBe(2);
+    expect(after.carts.filter(cart => historyIds.has(cart.id))).toEqual(historyBefore);
+    // The fix must not bypass the server's protection against actual history changes.
+    const rejected = await request.post("./api/carts/item", { headers, data: {
+      ...saved.request().postDataJSON(), cart_id: history[0].id, item_id: history[0].items[0].id,
+      expected_updated_at: historyBefore.find(cart => cart.id === history[0].id).updatedAt,
+    } });
+    expect(rejected.status()).toBe(400);
+    expect((await rejected.json()).error).toContain("đã hủy");
+    expect((await readState()).carts.filter(cart => historyIds.has(cart.id))).toEqual(historyBefore);
+  } finally {
+    await page.close();
+    const restoreCookie = await autoLoginAdminRequest(request);
+    const restored = await request.post("./api/admin/restore", {
+      headers: { Cookie: restoreCookie }, data: { content_base64: backup.toString("base64") },
+    });
+    expect(restored.ok()).toBeTruthy();
+  }
+});

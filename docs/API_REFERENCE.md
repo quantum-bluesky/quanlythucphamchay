@@ -86,6 +86,7 @@ Tài liệu này gom các API hiện có trong backend để tra cứu nhanh khi
 | `POST` | `/api/orders/bulk-requests/{id}/reject` | Từ chối request xuất nhanh | Body: `reason` | Permission `order_batch_manage`. |
 | `POST` | `/api/orders/bulk-requests/{id}/delete` | Xóa request chờ duyệt | - | Owner hoặc user quản lý. |
 | `POST` | `/api/orders/bulk-requests/{id}/process` | Xử lý request đã duyệt | - | Owner hoặc user quản lý. |
+| `POST` | `/api/carts/item` | Lưu một dòng đơn xuất nháp/đã chốt | Body bắt buộc: `cart_id`, `item_id`, `expected_updated_at` (phiên bản của đơn), `quantity` (cơ sở), `input_quantity`, `input_unit`, `conversion_factor`, `unit_price` | Trả `cart`; 400 nếu sai dữ liệu/khóa/khác đơn, 409 nếu xung đột; cần session khi bật đăng nhập. Không nhận collection `carts`/`purchases`. |
 | `POST` | `/api/carts/payment` | Cập nhật thanh toán cho đơn xuất | Body: `cart_id`, `payment_status`, `paid_at`, `payment_method`, `payment_note` | - |
 
 ## Nhập hàng / Mua hàng

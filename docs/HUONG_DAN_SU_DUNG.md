@@ -166,7 +166,8 @@ Trong `Giỏ hiện hành`:
    - Đồng thời hệ thống **tự động cập nhật đơn giá bán** theo bảng giá của đơn vị mới được chọn.
 4. Gõ trực tiếp số lượng nếu cần điều chỉnh.
 5. Gõ giá bán cho khách nếu muốn áp dụng giá tùy chỉnh riêng cho đơn này.
-6. Bấm `Lưu dòng`.
+6. Bấm `Lưu dòng`: app chỉ gửi dòng vừa sửa cùng mã đơn và phiên bản đơn. Khi lưu xong, số lượng/giá được cập nhật từ server; nếu đơn đã bị máy khác sửa thì app báo xung đột, cần tải lại đơn và kiểm tra trước khi lưu lại.
+7. Các dòng hàng nằm trong khối đơn, phía trên các nút `Chốt/Xuất/Hủy`, để kiểm tra từng dòng trước khi chuyển trạng thái.
 7. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung`; app sẽ mở popup confirm trước, chỉ khi chọn `Xác nhận` mới cập nhật.
 8. Nếu không cần dòng hàng đó nữa, bấm `Bỏ khỏi giỏ`.
 9. Nếu có khuyến mại cho cả đơn, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`.
