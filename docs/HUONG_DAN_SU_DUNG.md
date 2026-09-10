@@ -215,7 +215,7 @@ Nếu đủ hàng:
 
 - hệ thống mới trừ kho ở bước này
 - đơn chuyển sang trạng thái `Đã xuất hàng`
-- không tự in phiếu nữa; nếu cần in thì bấm `In`
+- không tự in phiếu nữa; nếu cần in thì bấm `In` hoặc bấm `Copy text` để lấy nội dung text theo đúng đơn vị đã chọn kèm số lượng cơ sở (nếu không phải đơn vị trọng lượng) và thành tiền = số lượng (theo đơn vị) × giá 1 đơn vị
 - nếu sau khi rà lại mà `Cần thanh toán` vẫn thấp hơn tổng `giá nhập mặc định`, app sẽ hỏi xác nhận thêm một lần trước khi xuất hàng
 
 Nếu thiếu hàng:
@@ -468,7 +468,7 @@ Màn này có 2 phần:
 28. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
 29. Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Giảm giá khuyến mại` và cập nhật lại `Hạn dùng` hoặc `Ngày sản xuất`; riêng `Ghi chú` có thể sửa ở mọi trạng thái; app không mở khóa lại số lượng, giá, mã lô hay NCC
 30. Nếu cần nhập lại gần giống một phiếu cũ đã `Đã nhập kho` hoặc `Đã thanh toán`, bấm `Nhập lại`; app sẽ tạo nhanh một phiếu nháp mới với cùng NCC, ghi chú, giảm giá và các dòng hàng. Nếu NCC đó đang có phiếu nháp sẵn thì app sẽ dồn thêm vào phiếu nháp hiện có để giữ đúng rule mỗi NCC tối đa một phiếu nháp
-31. Có thể bấm `In` để in phiếu gửi NCC từ lúc phiếu còn `Nháp` cho tới `Đã thanh toán`; ở list phiếu, nút `In` không hiện khi phiếu đã thanh toán nên nếu cần in lại thì mở detail của phiếu
+31. Có thể bấm `In` để in phiếu gửi NCC hoặc `Copy text` để sao chép nội dung dạng text từ lúc phiếu còn `Nháp` cho tới `Đã thanh toán`; nội dung lấy đúng theo đơn vị chọn trong phiếu kèm số lượng cơ sở (nếu không phải đơn vị trọng lượng) và thành tiền = số lượng (theo đơn vị) × giá 1 đơn vị. Khi copy phiếu nhập có thêm câu hỏi lựa chọn copy kèm giá nhập và thành tiền như phiếu xuất; ở list phiếu, nút `In` không hiện khi phiếu đã thanh toán nên nếu cần in lại thì mở detail của phiếu
 32. Khi `Nhập lại`, app chỉ sao chép các dòng hàng và thông tin mức phiếu; `Mã lô`, `HSD` và `Ngày sản xuất` sẽ để trống để bạn nhập lại theo lô hàng mới
 33. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
 34. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`

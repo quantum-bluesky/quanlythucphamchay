@@ -280,6 +280,7 @@ import {
   renderOverflowMenu,
   renderPriceWarningMarkup,
   normalizeText,
+  normalizeLookup,
   syncPriceWarningGroup,
   syncPriceWarningGroups,
 } from "./modules/utils.js";
@@ -3903,7 +3904,7 @@ function renderProcurementReviewPanel() {
     return;
   }
   procurementReviewPanel.hidden = false;
-  
+
   procurementReviewPanel.innerHTML = `
     <div class="subheading">
       <div>
@@ -3917,13 +3918,13 @@ function renderProcurementReviewPanel() {
     </div>
     <div class="procurement-review-list stack-block">
       ${reviewIds.map((purchaseId, index) => {
-        const purchase = state.purchases.find((entry) => entry.id === purchaseId);
-        if (!purchase) return "";
-        const purchaseTotal = (purchase.items || []).reduce(
-          (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitCost || item.unit_cost || 0),
-          0
-        );
-        return `
+    const purchase = state.purchases.find((entry) => entry.id === purchaseId);
+    if (!purchase) return "";
+    const purchaseTotal = (purchase.items || []).reduce(
+      (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitCost || item.unit_cost || 0),
+      0
+    );
+    return `
           <article class="report-card procurement-review-card" data-purchase-id="${escapeHtml(purchaseId)}">
             <div class="report-card-head">
               <strong>${escapeHtml(purchase.supplierName || "Phiếu nhập chưa có NCC")}</strong>
@@ -3936,8 +3937,8 @@ function renderProcurementReviewPanel() {
             </div>
             <div class="cart-items-list">
               ${(purchase.items || []).map((item) => {
-                const linePriceAlerts = getPriceWarningAlerts({ purchasePrice: item.unitCost || item.unit_cost || 0 });
-                return `
+      const linePriceAlerts = getPriceWarningAlerts({ purchasePrice: item.unitCost || item.unit_cost || 0 });
+      return `
                 <article class="cart-item">
                   <div class="cart-item-main">
                     <strong>${escapeHtml(item.productName)}</strong>
@@ -3952,7 +3953,7 @@ function renderProcurementReviewPanel() {
                   </div>
                 </article>
               `;
-              }).join("")}
+    }).join("")}
             </div>
             <div class="line-actions" style="margin-top: 12px; display: flex; gap: 8px;">
               <button type="button" class="ghost-button compact-button" data-procurement-review-action="open" data-purchase-id="${escapeHtml(purchaseId)}">Mở phiếu</button>
@@ -3960,7 +3961,7 @@ function renderProcurementReviewPanel() {
             </div>
           </article>
         `;
-      }).join("")}
+  }).join("")}
     </div>
   `;
 }
@@ -3997,17 +3998,17 @@ function renderProcurementExtraPanel(canEditBatch) {
         </div>
         <div class="cart-items-list">
           ${candidates.map((candidate) => {
-            const product = state.products.find((entry) => Number(entry.id) === Number(candidate.productId)) || null;
-            const selectedRow = getProcurementExtraRowByProductId(candidate.productId);
-            const signals = getProcurementExtraRowSignals(selectedRow || {
-              productId: candidate.productId,
-              productName: candidate.productName,
-            });
-            const isSelected = Boolean(selectedRow);
-            const metaText = candidate.sourceGroup === "zero-need"
-              ? `Tồn ${formatQuantity(candidate.currentStock)} ${candidate.unit} • Chờ nhập ${formatQuantity(candidate.incomingQuantity)} • Cần nhập ${formatQuantity(candidate.requiredPurchase)}`
-              : `Tồn hiện tại ${formatQuantity(candidate.currentStock)} ${candidate.unit}`;
-            const inputBlock = isSelected ? `
+      const product = state.products.find((entry) => Number(entry.id) === Number(candidate.productId)) || null;
+      const selectedRow = getProcurementExtraRowByProductId(candidate.productId);
+      const signals = getProcurementExtraRowSignals(selectedRow || {
+        productId: candidate.productId,
+        productName: candidate.productName,
+      });
+      const isSelected = Boolean(selectedRow);
+      const metaText = candidate.sourceGroup === "zero-need"
+        ? `Tồn ${formatQuantity(candidate.currentStock)} ${candidate.unit} • Chờ nhập ${formatQuantity(candidate.incomingQuantity)} • Cần nhập ${formatQuantity(candidate.requiredPurchase)}`
+        : `Tồn hiện tại ${formatQuantity(candidate.currentStock)} ${candidate.unit}`;
+      const inputBlock = isSelected ? `
               <div data-price-warning-group data-price-warning-mode="edit">
                 <div class="procurement-input-grid">
                   <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(selectedRow?.supplierName || "")}" data-procurement-extra-field="supplierName" data-product-id="${escapeHtml(candidate.productId)}"></label>
@@ -4019,7 +4020,7 @@ function renderProcurementExtraPanel(canEditBatch) {
                 <div data-price-warning-host>${renderPriceWarningMarkup(getPriceWarningAlerts({ purchasePrice: selectedRow?.unitCost || String(product?.price ?? 0) }), "edit")}</div>
               </div>
             ` : "";
-            return `
+      return `
               <article class="cart-item-card" data-procurement-extra-candidate data-procurement-extra-candidate-name="${escapeHtml(normalizeText(candidate.productName))}" data-product-id="${escapeHtml(candidate.productId)}">
                 <div class="cart-item-main">
                   <div>
@@ -4043,7 +4044,7 @@ function renderProcurementExtraPanel(canEditBatch) {
                 ` : ""}
               </article>
             `;
-          }).join("")}
+    }).join("")}
           <div class="empty-state" data-procurement-extra-empty hidden>Không có sản phẩm nào trong nhóm này khớp với từ khóa đang lọc.</div>
         </div>
       </section>
@@ -4070,15 +4071,15 @@ function renderProcurementExtraPanel(canEditBatch) {
       </div>
       <div class="cart-line-note">Các dòng dưới đây được đánh dấu là ngoài nhu cầu đơn, không tham gia tính Cần nhập của list shortage. Tick dòng nào thì dòng đó mới bung ô nhập nhanh.</div>
       ${renderCandidateSection(
-        "Đang có trên planner nhưng Cần nhập = 0",
-        "Nhóm này giúp xử lý nhanh các mặt hàng planner đang theo dõi nhưng hiện không còn nhu cầu nhập thực tế.",
-        candidateGroups.zeroNeedCandidates
-      )}
+    "Đang có trên planner nhưng Cần nhập = 0",
+    "Nhóm này giúp xử lý nhanh các mặt hàng planner đang theo dõi nhưng hiện không còn nhu cầu nhập thực tế.",
+    candidateGroups.zeroNeedCandidates
+  )}
       ${renderCandidateSection(
-        "Các sản phẩm còn lại ngoài planner",
-        "Nhóm này hiển thị toàn bộ sản phẩm active chưa nằm trên planner shortage hiện tại để bạn gom nhập cùng kỳ.",
-        candidateGroups.otherCandidates
-      )}
+    "Các sản phẩm còn lại ngoài planner",
+    "Nhóm này hiển thị toàn bộ sản phẩm active chưa nằm trên planner shortage hiện tại để bạn gom nhập cùng kỳ.",
+    candidateGroups.otherCandidates
+  )}
       ${!candidateGroups.zeroNeedCandidates.length && !candidateGroups.otherCandidates.length ? '<div class="empty-state">Không còn sản phẩm active nào khả dụng để thêm ngoài shortage ở kỳ gom hiện tại.</div>' : ""}
       <div class="empty-state" data-procurement-extra-empty-global hidden>Không có sản phẩm nào khớp với từ khóa đang lọc.</div>
     </div>
@@ -4267,9 +4268,9 @@ function getOpenIncomingQuantityForProduct(productId, excludePurchaseId = "") {
     }
     const incoming = Array.isArray(purchase.items)
       ? purchase.items.reduce(
-          (itemSum, item) => itemSum + (Number(item.productId) === Number(productId) ? Number(item.quantity || 0) : 0),
-          0
-        )
+        (itemSum, item) => itemSum + (Number(item.productId) === Number(productId) ? Number(item.quantity || 0) : 0),
+        0
+      )
       : 0;
     return sum + incoming;
   }, 0).toFixed(2));
@@ -4285,9 +4286,9 @@ function getOrderedIncomingQuantityForProduct(productId, excludePurchaseId = "")
     }
     const incoming = Array.isArray(purchase.items)
       ? purchase.items.reduce(
-          (itemSum, item) => itemSum + (Number(item.productId) === Number(productId) ? Number(item.quantity || 0) : 0),
-          0
-        )
+        (itemSum, item) => itemSum + (Number(item.productId) === Number(productId) ? Number(item.quantity || 0) : 0),
+        0
+      )
       : 0;
     return sum + incoming;
   }, 0).toFixed(2));
@@ -4647,9 +4648,9 @@ function getCommittedReservedQuantityForProduct(productId, excludeCartId = "") {
     }
     const reserved = Array.isArray(cart.items)
       ? cart.items.reduce(
-          (itemSum, item) => itemSum + (Number(item.productId) === Number(productId) ? Number(item.quantity || 0) : 0),
-          0
-        )
+        (itemSum, item) => itemSum + (Number(item.productId) === Number(productId) ? Number(item.quantity || 0) : 0),
+        0
+      )
       : 0;
     return sum + reserved;
   }, 0).toFixed(2));
@@ -5297,7 +5298,7 @@ async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "ac
     if (state.admin?.isAdmin && state.activeMenu === "admin") {
       try {
         await refreshAdminLegacyAudit({ sessionActivity });
-      } catch {}
+      } catch { }
     }
     renderAll();
     return payload;
@@ -5898,11 +5899,10 @@ function renderDeletedProducts() {
           </div>
           <div class="cart-line-note">Khi khôi phục, sản phẩm sẽ quay lại tồn kho, tạo đơn, nhập hàng và danh mục đang dùng.</div>
           <div class="row-actions">
-            ${
-              state.admin?.username === "masteradmin"
-                ? `<button type="button" class="btn btn-outline compact-button" style="color: var(--danger);" data-deleted-product-action="hard-delete" data-product-id="${product.id}">Xóa hẳn</button>`
-                : ""
-            }
+            ${state.admin?.username === "masteradmin"
+          ? `<button type="button" class="btn btn-outline compact-button" style="color: var(--danger);" data-deleted-product-action="hard-delete" data-product-id="${product.id}">Xóa hẳn</button>`
+          : ""
+        }
             <button type="button" class="ghost-button compact-button" data-deleted-product-action="restore" data-product-id="${product.id}">Khôi phục</button>
           </div>
         </article>
@@ -6169,6 +6169,26 @@ function getPurchasePrintStatusLabel(purchase) {
   return "Nháp";
 }
 
+// #Issue133: Helper format hiển thị số lượng theo đơn vị trong phiếu kèm số lượng cơ bản (nếu không phải đơn vị trọng lượng)
+function isWeightUnit(unit) {
+  const norm = normalizeLookup(unit);
+  return ["kg", "lang", "gr", "gram", "can"].includes(norm);
+}
+
+function formatDocumentItemQuantityLabel(item) {
+  const selectedUnit = (item.inputUnit ?? item.input_unit) || item.unit || "";
+  const selectedQty = Number((item.inputQuantity ?? item.input_quantity) ?? item.quantity ?? 0);
+  const baseQty = Number(item.quantity ?? 0);
+  const baseUnit = item.unit || "";
+
+  const selectedQtyStr = formatQuantity(selectedQty);
+  if (!baseUnit || baseUnit.toLowerCase() === selectedUnit.toLowerCase() || isWeightUnit(selectedUnit)) {
+    return `${selectedQtyStr} ${selectedUnit}`;
+  }
+  const baseQtyStr = formatQuantity(baseQty);
+  return `${selectedQtyStr} ${selectedUnit} (${baseQtyStr} ${baseUnit})`;
+}
+
 function buildCartPrintMarkup(cart) {
   const rows = cart.items
     .map(
@@ -6176,7 +6196,7 @@ function buildCartPrintMarkup(cart) {
         <tr>
           <td>${index + 1}</td>
           <td>${escapeHtml(item.productName)}</td>
-          <td>${formatQuantity(item.quantity)} ${escapeHtml(item.unit)}</td>
+          <td>${escapeHtml(formatDocumentItemQuantityLabel(item))}</td>
           <td>${formatCurrency(item.unitPrice)}</td>
           <td>${formatCurrency(item.lineTotal)}</td>
         </tr>
@@ -6214,7 +6234,7 @@ function buildPurchasePrintMarkup(purchase) {
             ${escapeHtml(item.productName)}
             ${detailHints.length ? `<span class="subtext">${escapeHtml(detailHints.join(" • "))}</span>` : ""}
           </td>
-          <td>${formatQuantity(item.quantity)} ${escapeHtml(item.unit)}</td>
+          <td>${escapeHtml(formatDocumentItemQuantityLabel(item))}</td>
           <td>${formatCurrency(item.unitCost)}</td>
           <td>${formatCurrency(item.lineTotal)}</td>
         </tr>
@@ -6280,10 +6300,14 @@ function copyCartText(cartId) {
   }
   const lines = [];
   cart.items.forEach((item, index) => {
-    const qtyStr = formatQuantity(item.quantity);
-    const unitPriceStr = formatTextNumber(item.unitPrice);
+    // #Issue133: Lấy đúng theo đơn vị trong phiếu và giá trị = SL (đơn vị) x giá 1 đơn vị
+    const qtyDisplay = formatDocumentItemQuantityLabel(item);
+    const selectedQty = Number((item.inputQuantity ?? item.input_quantity) ?? item.quantity ?? 0);
+    const selectedQtyStr = formatQuantity(selectedQty);
+    const unitPrice = Number(item.unitPrice || 0);
+    const unitPriceStr = formatTextNumber(unitPrice);
     const totalStr = formatTextNumber(item.lineTotal);
-    lines.push(`${index + 1}. ${item.productName} ${qtyStr} ${item.unit} : ${qtyStr}x${unitPriceStr} = ${totalStr}`);
+    lines.push(`${index + 1}. ${item.productName} ${qtyDisplay} : ${selectedQtyStr}x${unitPriceStr} = ${totalStr}`);
   });
   if (cart.discountAmount) {
     lines.push(`Khuyến mại: ${formatTextNumber(cart.discountAmount)}`);
@@ -6307,10 +6331,37 @@ function copyPurchaseText(purchaseId) {
     showToast("Không tìm thấy phiếu nhập để copy.", true);
     return;
   }
+  // #Issue133: Thêm câu hỏi lựa chọn có copy kèm giá nhập và thành tiền không
+  const includePrice = window.confirm("Bạn có muốn copy kèm giá nhập và thành tiền không?");
   const lines = [];
-  purchase.items.forEach((item, index) => {
-    lines.push(`${index + 1}. ${item.productName} ${formatQuantity(item.quantity)} ${item.unit}`);
-  });
+  if (includePrice) {
+    purchase.items.forEach((item, index) => {
+      const qtyDisplay = formatDocumentItemQuantityLabel(item);
+      const selectedQty = Number((item.inputQuantity ?? item.input_quantity) ?? item.quantity ?? 0);
+      const selectedQtyStr = formatQuantity(selectedQty);
+      const unitCost = Number(item.unitCost ?? item.unit_cost ?? 0);
+      const unitCostStr = formatTextNumber(unitCost);
+      const totalStr = formatTextNumber(item.lineTotal);
+      lines.push(`${index + 1}. ${item.productName} ${qtyDisplay} : ${selectedQtyStr}x${unitCostStr} = ${totalStr}`);
+    });
+    if (purchase.discountAmount) {
+      lines.push(`Khuyến mại: ${formatTextNumber(purchase.discountAmount)}`);
+    }
+    if (purchase.items.length > 0) {
+      let totalsExpr = purchase.items.map(item => formatTextNumber(item.lineTotal)).join('+');
+      if (purchase.discountAmount) {
+        totalsExpr += ` - ${formatTextNumber(purchase.discountAmount)}`;
+      }
+      lines.push(`Tổng cộng: ${totalsExpr} = ${formatTextNumber(purchase.totalAmount || 0)}`);
+    } else {
+      lines.push(`Tổng cộng: ${formatTextNumber(purchase.totalAmount || 0)}`);
+    }
+  } else {
+    purchase.items.forEach((item, index) => {
+      const qtyDisplay = formatDocumentItemQuantityLabel(item);
+      lines.push(`${index + 1}. ${item.productName} ${qtyDisplay}`);
+    });
+  }
   const text = lines.join("\n");
   copyTextToClipboard(text, "Đã copy nội dung phiếu nhập dạng text.");
 }
@@ -7753,41 +7804,41 @@ async function bootApplication() {
     return applicationBootPromise;
   }
   applicationBootPromise = (async () => {
-  window.__QLTPCHAY_APP_READY = false;
-  setupSearchClearButtons();
-  setupStickyLayoutMetricsObserver();
-  loadSalesState();
-  setHelpOpen(false);
-  applyMobileCollapsedDefaults();
-  setQuickPanelCollapsed(mobileQuery.matches);
+    window.__QLTPCHAY_APP_READY = false;
+    setupSearchClearButtons();
+    setupStickyLayoutMetricsObserver();
+    loadSalesState();
+    setHelpOpen(false);
+    applyMobileCollapsedDefaults();
+    setQuickPanelCollapsed(mobileQuery.matches);
 
-  try {
-    await refreshSessionStatus();
-    await loadZaloGroups();
-    if (state.admin?.enableLogin && !state.admin?.authenticated) {
-      state.activeMenu = "login";
-      state.menuHistory = ["login"];
-      state.menuHistoryIndex = 0;
-      renderAll();
+    try {
+      await refreshSessionStatus();
+      await loadZaloGroups();
+      if (state.admin?.enableLogin && !state.admin?.authenticated) {
+        state.activeMenu = "login";
+        state.menuHistory = ["login"];
+        state.menuHistoryIndex = 0;
+        renderAll();
+        startAutoRefreshLoop();
+        startProcurementLockHeartbeatLoop();
+        return;
+      }
+      const payload = await refreshData({ sessionAlreadyLoaded: true });
+      const migrated = await migrateLegacyCollectionsIfNeeded(payload);
+      if (!readStorage(STORAGE_KEYS.migratedSyncState, false) && hasAnySyncedData(payload)) {
+        writeStorage(STORAGE_KEYS.migratedSyncState, true);
+      }
+      if (migrated) {
+        await refreshData();
+      }
       startAutoRefreshLoop();
       startProcurementLockHeartbeatLoop();
-      return;
+    } catch (error) {
+      showToast(error.message, true);
+    } finally {
+      window.__QLTPCHAY_APP_READY = true;
     }
-    const payload = await refreshData({ sessionAlreadyLoaded: true });
-    const migrated = await migrateLegacyCollectionsIfNeeded(payload);
-    if (!readStorage(STORAGE_KEYS.migratedSyncState, false) && hasAnySyncedData(payload)) {
-      writeStorage(STORAGE_KEYS.migratedSyncState, true);
-    }
-    if (migrated) {
-      await refreshData();
-    }
-    startAutoRefreshLoop();
-    startProcurementLockHeartbeatLoop();
-  } catch (error) {
-    showToast(error.message, true);
-  } finally {
-    window.__QLTPCHAY_APP_READY = true;
-  }
   })();
   return applicationBootPromise;
 }
@@ -7867,15 +7918,15 @@ document.addEventListener("click", (event) => {
 function showProductDetailModal(productId) {
   const product = state.products.find(p => p.id === productId) || state.deletedProducts.find(p => p.id === productId);
   if (!product) return;
-  
+
   const modal = document.getElementById("productDetailModal");
   if (!modal) return;
-  
+
   const title = document.getElementById("productDetailModalTitle");
   const modalNote = document.getElementById("productDetailModalNote");
   const imgContainer = document.getElementById("productDetailImagesContainer");
   const content = document.getElementById("productDetailContent");
-  
+
   if (title) title.textContent = product.name;
   if (modalNote) {
     if (product.note && product.note.trim()) {
@@ -7886,7 +7937,7 @@ function showProductDetailModal(productId) {
       modalNote.hidden = true;
     }
   }
-  
+
   if (imgContainer) {
     imgContainer.innerHTML = "";
     if (product.images && product.images.length > 0) {
@@ -7901,7 +7952,7 @@ function showProductDetailModal(productId) {
       imgContainer.hidden = true;
     }
   }
-  
+
   if (content) {
     const rawDetails = (product.details || "").trim();
     const rawRecipe = (product.recipe || "").trim();
@@ -7935,7 +7986,7 @@ function showProductDetailModal(productId) {
     if (recipeEl) recipeEl.innerHTML = "";
     if (recipeContainer) recipeContainer.hidden = true;
   }
-  
+
   modal.hidden = false;
 }
 
@@ -7973,7 +8024,7 @@ function renderZaloGroupsOptions() {
   const select = document.getElementById("customerZaloGroupInput");
   if (!select) return;
   const currentVal = select.value;
-  select.innerHTML = '<option value="">-- Không thuộc nhóm nào --</option>' + 
+  select.innerHTML = '<option value="">-- Không thuộc nhóm nào --</option>' +
     state.zaloGroups.map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join("");
   select.value = currentVal;
 }
@@ -8013,35 +8064,35 @@ window.deleteZaloGroup = async (id) => {
   }
 };
 
-  const zgForm = document.getElementById("zaloGroupForm");
-  if (zgForm) {
-    zgForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const payload = {
-        id: document.getElementById("zaloGroupIdInput").value,
-        name: document.getElementById("zaloGroupNameInput").value,
-        zalo_url: document.getElementById("zaloGroupUrlInput").value
-      };
-      try {
-        await apiRequest("/api/admin/zalo-groups", { method: "POST", body: JSON.stringify(payload) });
-        showToast("Đã lưu nhóm Zalo.");
-        zgForm.reset();
-        document.getElementById("zaloGroupIdInput").value = "";
-        document.getElementById("zaloGroupCancelBtn").style.display = "none";
-        await loadZaloGroups();
-      } catch (err) {
-        showToast(err.message, true);
-      }
-    });
-  }
-  const zgCancel = document.getElementById("zaloGroupCancelBtn");
-  if (zgCancel) {
-    zgCancel.addEventListener("click", () => {
-      document.getElementById("zaloGroupForm").reset();
+const zgForm = document.getElementById("zaloGroupForm");
+if (zgForm) {
+  zgForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = {
+      id: document.getElementById("zaloGroupIdInput").value,
+      name: document.getElementById("zaloGroupNameInput").value,
+      zalo_url: document.getElementById("zaloGroupUrlInput").value
+    };
+    try {
+      await apiRequest("/api/admin/zalo-groups", { method: "POST", body: JSON.stringify(payload) });
+      showToast("Đã lưu nhóm Zalo.");
+      zgForm.reset();
       document.getElementById("zaloGroupIdInput").value = "";
-      zgCancel.style.display = "none";
-    });
-  }
+      document.getElementById("zaloGroupCancelBtn").style.display = "none";
+      await loadZaloGroups();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  });
+}
+const zgCancel = document.getElementById("zaloGroupCancelBtn");
+if (zgCancel) {
+  zgCancel.addEventListener("click", () => {
+    document.getElementById("zaloGroupForm").reset();
+    document.getElementById("zaloGroupIdInput").value = "";
+    zgCancel.style.display = "none";
+  });
+}
 
 document.getElementById('publicHomeBtn')?.addEventListener('click', (e) => {
   e.preventDefault();
