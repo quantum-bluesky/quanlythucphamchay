@@ -1,5 +1,7 @@
 import argparse
 import atexit
+import logging
+import os
 import shutil
 import signal
 import sys
@@ -17,6 +19,7 @@ import qltpchay.constants as constants
 from qltpchay.auth import AdminSessionManager
 from qltpchay.config import load_system_config
 from qltpchay.http_handler import create_handler
+from qltpchay.logger import get_logger
 from qltpchay.store import InventoryStore
 import qltpchay.store as store_module
 
@@ -273,6 +276,14 @@ def main() -> int:
     system_config["admin_path"] = "/admin"
     system_config["EnableMultiuserConflictCheck"] = True
     system_config["EnableAdminLockedEdit"] = True
+
+    # Giảm nhiễu log console cho Playwright runner khi chạy qua summary script
+    if os.environ.get("QLTP_QUIET_TEST_SERVER") == "1":
+        app_logger = get_logger()
+        for h in app_logger.handlers:
+            if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler):
+                h.setLevel(logging.WARNING)
+
     admin_sessions = AdminSessionManager(
         str(system_config["admin"]["username"]),
         str(system_config["admin"]["password"]),
