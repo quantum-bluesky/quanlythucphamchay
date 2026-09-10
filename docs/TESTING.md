@@ -2,10 +2,11 @@
 
 ## Mục tiêu
 
-Project có 2 lớp test:
+Project có các lớp test:
 
 - `unit test` cho logic backend nhỏ
-- `integration test` cho toàn bộ giao diện và API theo luồng nghiệp vụ thật
+- `integration test` cho toàn bộ giao diện và API theo luồng nghiệp vụ thật (chạy trên fixture DB tạm local)
+- `remote / staging test` cho kiểm thử trực tiếp trên server thật/môi trường staging/LAN (`smoke`, `readonly`, `full`)
 
 Ngoài ra có thêm `acceptance checklist` để kiểm soát case bàn giao:
 
@@ -13,6 +14,7 @@ Ngoài ra có thêm `acceptance checklist` để kiểm soát case bàn giao:
 - automation bundle: `npm run test:acceptance`
 - mapping mã test: `docs/TEST_CASE_INDEX.md`
 - mô tả ngắn test case: `docs/TEST_CASE_DESCRIPTIONS.md`
+- hướng dẫn test staging/remote: mục [2.3. Test trên môi trường Staging / Remote Server](#23-test-trên-môi-trường-staging--remote-server)
 
 ## 0. Setup tool trước khi test
 
@@ -198,6 +200,95 @@ npm run test:cases -- -Target unit -ExcludeCode UT-DB
 ```powershell
 npm run test:cases -- -Target all -ExcludeCode UT-DB
 ```
+
+## 2.3. Test trên môi trường Staging / Remote Server
+
+Ngoài việc chạy test trên server fixture tạm local (`127.0.0.1:8130`), hệ thống hỗ trợ chạy kiểm thử trực tiếp lên server thật: **Staging**, **Pre-production**, **Remote Server** (qua domain/reverse proxy như Nginx, SWAG, duckdns), hoặc **máy khác trong mạng LAN**.
+
+### Cơ chế hoạt động
+
+- Khi truyền URL từ xa, Playwright sẽ tự động tắt `webServer` local tạm (`webServer: undefined`) và dùng URL đó làm `PLAYWRIGHT_BASE_URL`.
+- Runner `scripts/run-remote-tests.js` tự động gửi request đến `<URL>/api/session/status` để lấy cấu hình `admin_path` thực tế của server đích (ví dụ: `admin`, `qlht`,...), sau đó truyền biến môi trường `TEST_ADMIN_PATH` vào Playwright test.
+- Hỗ trợ đầy đủ các môi trường triển khai dưới subpath (ví dụ: `https://qts-home.duckdns.org/qltp/` hoặc `https://domain.com/ttchay/`).
+
+### Các cấp độ test (Test Levels)
+
+| Cấp độ (Level) | Mục đích | Bộ test thực thi | Mức an toàn dữ liệu |
+| :--- | :--- | :--- | :--- |
+| **`smoke`** | Kiểm tra khói / Health-check giao diện nhanh sau khi deploy | `public-product-list.spec.js`, `login.spec.js` | **100% An toàn** (không ghi DB) |
+| **`readonly`** | Kiểm tra toàn bộ UI đọc dữ liệu, cuộn, overlay, phân trang, sort | `public-product-list.spec.js`, `login.spec.js`, `detail-scroll.spec.js`, `ui-feedback-layering.spec.js`, `inventory-sort.spec.js`, `pagination-settings.spec.js` | **100% An toàn** (chỉ đọc, không tạo/sửa chứng từ) |
+| **`full`** | Kiểm thử hồi quy toàn bộ nghiệp vụ (Phase A, B, C, gom đơn, duyệt hủy, thanh toán...) | Toàn bộ integration test suite (`tests/integration/*.spec.js`) | **Chỉ dùng cho server test/staging** (sẽ tạo/sửa dữ liệu nghiệp vụ) |
+
+### Cú pháp lệnh chạy
+
+Cú pháp tổng quát:
+```powershell
+npm run test:staging:<level> -- <URL> [playwright-options]
+# hoặc dùng alias
+npm run test:remote:<level> -- <URL> [playwright-options]
+```
+
+#### 1. Kiểm tra nhanh (Smoke test)
+Chạy kiểm tra trang public và luồng đăng nhập tài khoản:
+```powershell
+npm run test:staging:smoke -- https://qts-home.duckdns.org/qltp/
+# Hoặc alias
+npm run test:remote:smoke -- https://qts-home.duckdns.org/qltp/
+```
+
+#### 2. Kiểm tra chỉ đọc (Readonly test - Khuyến nghị cho Staging/Production)
+Kiểm tra chi tiết hiển thị, cuộn, sắp xếp, phân trang mà không lo làm bẩn hay sai lệch dữ liệu:
+```powershell
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/
+# Hoặc alias
+npm run test:remote:readonly -- https://qts-home.duckdns.org/qltp/
+```
+
+#### 3. Chạy có giao diện trình duyệt (Headed mode)
+Thêm cờ `--headed` vào cuối lệnh để quan sát trực tiếp browser thao tác trên màn hình:
+```powershell
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/ --headed
+```
+
+#### 4. Lọc chạy theo mã test case cụ thể (--grep)
+Ví dụ chỉ chạy các test kiểm tra đăng nhập (`IT-LOG`):
+```powershell
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/ --grep "IT-LOG"
+```
+Hoặc kiểm tra sắp xếp tồn kho:
+```powershell
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/ --grep "IT-INV-SORT"
+```
+
+#### 5. Kiểm thử máy trong mạng LAN (Máy B test vào Máy A)
+- **Trên máy A (chạy server)**: Cho phép lắng nghe từ mạng ngoài:
+  ```powershell
+  python app.py --host 0.0.0.0 --port 4000
+  ```
+- **Trên máy B (chạy test)**: Trỏ test vào IP của máy A:
+  ```powershell
+  npm run test:remote:smoke -- http://192.168.1.10:4000/
+  npm run test:remote:readonly -- http://192.168.1.10:4000/
+  ```
+
+### Lưu ý quan trọng khi test Remote / Staging
+
+1. **Dấu slash `/` ở cuối URL**:
+   - Khi server chạy với subpath (như `/qltp/` hay `/ttchay/`), **bắt buộc phải có dấu gạch chéo `/` ở cuối URL**.
+   - Đúng: `https://qts-home.duckdns.org/qltp/`
+   - Sai: `https://qts-home.duckdns.org/qltp` (có thể khiến trình duyệt phân giải sai đường dẫn API tương đối như `./api/...` về root domain).
+2. **Chứng chỉ SSL / HTTPS**:
+   - Runner đã cấu hình `rejectUnauthorized: false` khi gọi API detect `admin_path`, và Playwright tự động hỗ trợ chứng chỉ SSL tự ký hoặc domain DuckDNS mà không bị chặn lỗi chứng chỉ.
+3. **Xem kết quả & Báo cáo lỗi**:
+   - Kết quả từng test case (PASS / FAIL / TIMEOUT) hiển thị ngay trên màn hình dòng lệnh.
+   - Khi có case bị lỗi (FAIL), Playwright tự động lưu ảnh chụp màn hình (screenshot) và execution trace vào thư mục:
+     ```text
+     test-results/playwright/
+     ```
+   - Có thể mở file trace để xem chi tiết từng action:
+     ```powershell
+     npx playwright show-trace test-results/playwright/<tên_thư_mục_test>/trace.zip
+     ```
 
 ## Integration suite đang kiểm tra gì
 
