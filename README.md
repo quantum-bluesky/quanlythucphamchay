@@ -442,10 +442,23 @@ Acceptance automation theo checklist:
 npm run test:acceptance
 ```
 
+Kiểm thử trên môi trường Remote / Staging (an toàn cho dữ liệu thật):
+
+```powershell
+# Chạy smoke test nhanh (Public + Login)
+npm run test:staging:smoke -- https://qts-home.duckdns.org/qltp/
+
+# Chạy readonly test (toàn bộ UI hiển thị, cuộn, sort, phân trang)
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/
+```
+
+Chi tiết xem tại [docs/TESTING.md (Mục 2.3)](docs/TESTING.md#23-test-trên-môi-trường-staging--remote-server).
+
 Suite integration sẽ:
 
-- tự dựng server test riêng trên `fixture DB` tạm
-- không dùng `data\inventory.db` đang vận hành
+- tự dựng server test riêng trên `fixture DB` tạm khi chạy local
+- không dùng `data\inventory.db` đang vận hành khi chạy local
+- hỗ trợ trỏ trực tiếp vào remote server/staging an toàn qua runner chuyên dụng
 - kiểm tra các màn chính, điều hướng, refresh, và luồng `Master Admin`
 - có thêm bộ acceptance automation bám checklist ở `docs/ACCEPTANCE_CHECKLIST.md`
 
