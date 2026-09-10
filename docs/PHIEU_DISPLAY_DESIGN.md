@@ -49,7 +49,7 @@ Không nhồi nhiều mốc thời gian vào list để giữ UI gọn trên mob
 
 Issue 133: panel đơn xuất đang mở đặt editor các dòng hàng trong cùng khối đơn, sau metadata và trước nhóm nút `Chốt/Xuất/Hủy`. Nút `Lưu dòng` cập nhật riêng dòng của đúng đơn; bố cục DOM không quyết định phạm vi payload. Chỉ khi server xác nhận lưu thành công mới cập nhật dữ liệu hiển thị.
 
-Issue 133: dòng nhập/xuất hiển thị thành tiền theo `số lượng của đơn vị đang chọn × giá của đơn vị đang chọn`. Số lượng cơ sở chỉ dùng cho cộng/trừ tồn; phiếu nhập quy giá vốn lô về đơn vị cơ sở trước khi ghi ledger.
+Issue 133: dòng nhập/xuất hiển thị thành tiền theo `số lượng của đơn vị đang chọn × giá của đơn vị đang chọn`. Số lượng cơ sở chỉ dùng cho cộng/trừ tồn; phiếu nhập quy giá vốn lô về đơn vị cơ sở trước khi ghi ledger. Khi In hoặc Copy text phiếu, số lượng hiển thị theo đúng đơn vị đã chọn trong phiếu kèm số lượng cơ sở (nếu không phải đơn vị trọng lượng); thành tiền tính bằng `số lượng (theo đơn vị) × giá 1 đơn vị`. Khi copy text phiếu nhập, có thêm lựa chọn copy kèm giá nhập & tính tiền như phiếu xuất.
 
 Khi bấm button `Detail`, phải có khối metadata riêng hiển thị:
 

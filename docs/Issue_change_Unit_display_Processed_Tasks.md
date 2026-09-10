@@ -1349,3 +1349,18 @@ Theo yêu cầu bổ sung, không dùng việc giữ nguyên giỏ đã hủy l�
 - Bổ sung UT-UNIT-05..07 và mở rộng IT-UNIT-01/02 để kiểm tra `2 hộp × giá hộp`, đồng thời xác nhận tồn vẫn thay đổi theo số lượng cơ sở.
 - Kiểm tra: UT-UNIT-01..07 đạt; IT-UNIT-01..03 đạt; full integration 91 đạt, 2 lỗi, 4 bỏ qua. Hai ca full-suite `IT-PROC-02`/`ACC-PUR-03` chạy lại trong nhóm 14 ca đều đạt 14/14, cùng biểu hiện phụ thuộc thứ tự đã ghi nhận trước đó.
 - Full Python đạt 117/119; hai ca route asset `UT-AUTH-06/08` thất bại do test cấu hình server `admin_path=admin` nhưng gọi đường dẫn runtime `/qlht`, không liên quan công thức tiền.
+
+### Bổ sung in và copy text theo đúng đơn vị hiển thị trong phiếu
+
+- Cập nhật hàm `buildCartPrintMarkup`, `buildPurchasePrintMarkup`, `copyCartText` và `copyPurchaseText` trong `static/app.js`:
+  - Lấy đúng đơn vị chọn trong phiếu (`inputUnit` / `input_unit` / `unit`) và số lượng theo đơn vị đó (`inputQuantity` / `input_quantity` / `quantity`).
+  - Thành tiền dòng tính theo công thức `số lượng (theo đơn vị) × giá 1 đơn vị`.
+  - Hiển thị số lượng kèm số lượng cơ sở: nếu đơn vị chọn khác đơn vị cơ sở và không phải đơn vị trọng lượng (`kg`, `lang`, `gr`, `gram`, `can`), hiển thị dạng `{SL_đơn_vị} {Đơn_vị} ({SL_cơ_bản} {đơn_vị_cơ_bản})` (ví dụ: `2 Thùng (20 gói)`). Nếu là đơn vị trọng lượng hoặc trùng đơn vị cơ sở thì giữ nguyên (ví dụ: `2 kg`).
+  - Khi bấm `Copy text` / `Copy` ở phiếu nhập, mở hộp thoại hỏi xác nhận có copy kèm giá nhập và thành tiền không (`window.confirm`). Nếu có thì copy đầy đủ tính giá và tổng cộng như phiếu xuất; nếu không thì chỉ copy danh sách mặt hàng và số lượng theo đơn vị.
+- Cập nhật version `3.34.0 → 3.34.1` trong `data/system_config.json` và cập nhật hash manifest `data/js_asset_versions.json`.
+- Đã chạy kiểm tra:
+  - `node --check static/app.js`: đạt.
+  - `python -m py_compile app.py`: đạt.
+  - `python -m unittest tests/test_cart_item_update.py`: 7/7 đạt.
+  - `npx playwright test tests/integration/unit-quantity-roundtrip.spec.js`: 3/3 đạt.
+
