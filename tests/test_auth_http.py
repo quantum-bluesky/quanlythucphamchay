@@ -432,6 +432,7 @@ class AuthHttpTests(unittest.TestCase):
         app_version = str(runtime_config["version"])
         config = {
             **runtime_config,
+            "admin_path": "admin",
             "asset_versions_path": str(self.asset_versions_path),
         }
         self._start_server(config)
@@ -541,6 +542,7 @@ class AuthHttpTests(unittest.TestCase):
         runtime_config = load_system_config()
         config = {
             **runtime_config,
+            "admin_path": "admin",
             "EnableLogin": False,
             "asset_versions_path": str(self.asset_versions_path),
         }

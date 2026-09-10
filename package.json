@@ -15,6 +15,9 @@
     "test:staging:smoke": "node scripts/run-remote-tests.js smoke",
     "test:staging:readonly": "node scripts/run-remote-tests.js readonly",
     "test:staging:full": "node scripts/run-remote-tests.js full",
+    "test:remote:smoke": "node scripts/run-remote-tests.js smoke",
+    "test:remote:readonly": "node scripts/run-remote-tests.js readonly",
+    "test:remote:full": "node scripts/run-remote-tests.js full",
     "test:unit": "python -m unittest discover -s tests"
   },
   "devDependencies": {

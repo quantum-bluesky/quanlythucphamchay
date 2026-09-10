@@ -42,8 +42,12 @@ async function main() {
 
   if (!url) {
     console.error("\n[!] Thiếu URL mục tiêu.");
-    console.error("Cách sử dụng: npm run test:staging:<level> -- <URL>");
-    console.error("Ví dụ: npm run test:staging:smoke -- https://qts-home.duckdns.org/qltp/");
+    console.error("Cách sử dụng: npm run test:staging:<level> -- <URL> [playwright-options]");
+    console.error("       Hoặc:  npm run test:remote:<level> -- <URL> [playwright-options]");
+    console.error("Ví dụ:");
+    console.error("  npm run test:staging:smoke -- https://qts-home.duckdns.org/qltp/");
+    console.error("  npm run test:remote:readonly -- https://qts-home.duckdns.org/qltp/ --headed");
+    console.error("  npm run test:staging:readonly -- http://192.168.1.10:4000/ --grep \"IT-LOG-01\"");
     process.exit(1);
   }
 
@@ -70,7 +74,8 @@ async function main() {
 
   const adminPath = await fetchAdminPath(url);
 
-  const args = ["playwright", "test", ...levels[level]];
+  const extraArgs = process.argv.slice(4);
+  const args = ["playwright", "test", ...levels[level], ...extraArgs];
   console.log(`\n======================================================`);
   console.log(`BẮT ĐẦU CHẠY TEST INTEGRATE (${level.toUpperCase()})`);
   console.log(`Môi trường: ${url}`);

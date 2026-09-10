@@ -1,107 +1,63 @@
-**Chạy test từ máy B trỏ vào server đang chạy ở máy A**
-— Tách riêng 2 kiểu:
+# Hướng dẫn chạy test trỏ vào Remote Server / Môi trường Staging
 
-1.  **Kiểm thử “thực chiến” vào server thật** (máy A đang chạy `app.py`).
+Tài liệu chi tiết đầy đủ đã được hợp nhất và chuẩn hóa tại: **[docs/TESTING.md (Mục 2.3)](TESTING.md#23-test-trên-môi-trường-staging--remote-server)**.
 
-2.  **Integration chuẩn của repo** (dùng fixture DB riêng, do Playwright tự bật test server local).
+Tài liệu này tóm tắt nhanh các bước thực hiện khi muốn chạy test trỏ vào một server đang chạy từ xa (máy A chạy app, máy B chạy test; hoặc test lên server Staging/Production qua domain/reverse proxy).
 
-Hiện tại repo đang cấu hình integration theo kiểu (2): `baseURL` cố định
-`http://127.0.0.1:8130` và có `webServer` tự chạy
-`tests/integration/run_test_server.py`, tức là mặc định **không nhắm
-server từ máy
-khác**.
+---
 
-------------------------------------------------------------------------
+## 1. Cơ chế tự động của repo hiện tại
 
-## Cách làm khi muốn máy B test vào server đang chạy ở máy A
+Hiện tại repo đã tích hợp sẵn cơ chế tự động hoá:
+- Không cần tạo file config `playwright.remote.config.js` thủ công.
+- Runner `scripts/run-remote-tests.js` tự động nhận URL mục tiêu, tắt server tạm, gọi API `/api/session/status` để lấy `admin_path` thực tế, và truyền tham số trực tiếp cho Playwright.
 
-### Bước 1) Trên máy A, chạy app với host có thể truy cập từ LAN
+---
 
-Ví dụ:
+## 2. Các lệnh chạy nhanh theo nhu cầu
 
-``` overflow-visible!
-Bashpython app.py --host 0.0.0.0 --port 8000
+### Cú pháp:
+```powershell
+npm run test:staging:<level> -- <URL> [playwright-options]
+# hoặc dùng alias:
+npm run test:remote:<level> -- <URL> [playwright-options]
 ```
 
-Repo có hỗ trợ bind host/port tùy ý như
-trên.
+### Các cấp độ:
+- **`smoke`**: Kiểm tra khói nhanh (Public products + Login). An toàn 100% cho dữ liệu.
+- **`readonly`**: Kiểm tra toàn bộ UI đọc dữ liệu (cuộn, phân trang, sort tồn kho, feedback). An toàn 100% cho dữ liệu.
+- **`full`**: Chạy toàn bộ integration test suite (chỉ khuyến nghị cho staging test DB).
 
-------------------------------------------------------------------------
+### Ví dụ thực tế:
 
-### Bước 2) Trên máy B, kiểm tra truy cập được server máy A
+#### A. Test server qua domain / reverse proxy (subpath)
+```powershell
+# Chạy kiểm tra nhanh
+npm run test:staging:smoke -- https://qts-home.duckdns.org/qltp/
 
-Ví dụ máy A có IP `192.168.1.10`, thử mở:
+# Chạy kiểm tra chỉ đọc (an toàn dữ liệu)
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/
 
-- `http://192.168.1.10:8000`
-
-Nếu mở được UI thì mới chạy Playwright tiếp.
-
-------------------------------------------------------------------------
-
-### Bước 3) Tạo config Playwright riêng để “trỏ remote server”
-
-Vì config mặc định có `webServer` local và `baseURL`
-localhost, nên trên máy B bạn tạo file mới, ví dụ
-`playwright.remote.config.js`:
-
-``` overflow-visible!
-JavaScriptconst base = require("./playwright.config");
-module.exports = {
-  ...base,
-  use: {
-    ...base.use,
-    baseURL: "http://192.168.1.10:8000",
-  },
-  webServer: undefined, // không tự bật test server local
-};
+# Chạy có mở trình duyệt quan sát trực tiếp
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/ --headed
 ```
 
-------------------------------------------------------------------------
+#### B. Test giữa 2 máy trong mạng LAN (Máy A chạy app, Máy B chạy test)
+1. Trên **Máy A** (chạy server):
+   ```powershell
+   python app.py --host 0.0.0.0 --port 4000
+   ```
+2. Trên **Máy B** (chạy test):
+   ```powershell
+   npm run test:remote:smoke -- http://192.168.1.10:4000/
+   npm run test:remote:readonly -- http://192.168.1.10:4000/
+   ```
 
-### Bước 4) Chạy test với config remote
+---
 
-``` overflow-visible!
-Bashnpm install
-npx playwright install chromium
-npx playwright test --config=playwright.remote.config.js
-```
+## 3. Lưu ý quan trọng
 
-Lệnh cài/chạy integration theo docs hiện
-có.
-
-------------------------------------------------------------------------
-
-## Lưu ý quan trọng (rất nên đọc)
-
-- **Integration mặc định của repo dùng fixture DB tạm**, không đụng DB
-  thật. 
-  Khi bạn trỏ vào server thật, test có thể tạo/sửa dữ liệu thật.
-
-- `run_test_server.py` tạo DB tạm và seed dữ liệu cố định để test ổn
-  định.
-
-- Vì vậy:
-
-  - Nếu cần regression “chuẩn CI” → dùng `npm run test:integration` mặc
-    định.
-
-  - Nếu cần kiểm tra nhanh môi trường thật nhiều máy → dùng
-    `playwright.remote.config.js` như hướng dẫn trên.
-
-------------------------------------------------------------------------
-
-## Các lệnh đã dùng để kiểm tra repo
-
-- `rg --files | rg 'AGENTS.md|README.md|docs/HUONG_DAN_SU_DUNG.md|docs/TESTING.md|playwright.config.js|tests/integration|package.json'`
-
-- `sed -n '1,260p' docs/TESTING.md`
-
-- `sed -n '1,260p' playwright.config.js`
-
-- `sed -n '1,260p' tests/integration/run_test_server.py`
-
-- `sed -n '260,520p' tests/integration/run_test_server.py`
-
-- `sed -n '1,220p' README.md`
-
-- `nl -ba ...` để lấy line number trích dẫn.
+1. **Dấu gạch chéo `/` ở cuối URL**:
+   Luôn đảm bảo URL kết thúc bằng dấu `/` khi triển khai dưới subpath (ví dụ: `https://.../qltp/`).
+2. **Xem chi tiết**:
+   Vui lòng tham khảo [docs/TESTING.md](TESTING.md) để xem hướng dẫn đầy đủ về tất cả các lớp test (Unit, Local Integration, Acceptance, Staging/Remote).
