@@ -164,6 +164,7 @@ Trong `Giỏ hiện hành`:
    - Khi đổi đơn vị: Hệ thống **tự động tính lại số lượng** để bảo toàn số lượng cơ sở thực tế ($\text{SL mới} = \text{SL cũ} \times \text{hệ số cũ} / \text{hệ số mới}$).
    - Có thể đổi đơn vị qua lại nhiều lần: ví dụ `10 cái → 0,5 hộp (20 cái) → 10 cái`. Số lẻ hiển thị được làm tròn nhưng app giữ lượng cơ sở để không cộng dồn sai số; nếu sửa số lượng thì lần đổi tiếp theo dùng lượng vừa sửa. Áp dụng cả cho dòng phiếu nhập; bấm `Lưu dòng` để giữ đơn vị khi tải lại trang.
    - Đồng thời hệ thống **tự động cập nhật đơn giá bán** theo bảng giá của đơn vị mới được chọn.
+   - Thành tiền dòng được tính bằng **số lượng đang hiển thị × giá bán của đơn vị đang chọn**; lượng trừ kho vẫn là lượng đã quy đổi về đơn vị cơ sở.
 4. Gõ trực tiếp số lượng nếu cần điều chỉnh.
 5. Gõ giá bán cho khách nếu muốn áp dụng giá tùy chỉnh riêng cho đơn này.
 6. Bấm `Lưu dòng`: app chỉ gửi dòng vừa sửa cùng mã đơn và phiên bản đơn. Khi lưu xong, số lượng/giá được cập nhật từ server; nếu đơn đã bị máy khác sửa thì app báo xung đột, cần tải lại đơn và kiểm tra trước khi lưu lại.
@@ -445,6 +446,7 @@ Màn này có 2 phần:
 11. Sửa trực tiếp **Đơn vị nhập**, **Số lượng**, **Giá nhập**, `Mã lô` và thông tin `Hạn dùng` của từng dòng:
     - Mặc định ưu tiên `Đơn vị nhập mặc định` của sản phẩm.
     - Khi đổi đơn vị nhập quy đổi (vd: `hũ` sang `thùng`), hệ thống **tự động tính lại số lượng** để bảo toàn số lượng cơ sở thực tế và **tự động cập nhật đơn giá nhập** tương ứng.
+    - Thành tiền dòng bằng **số lượng theo đơn vị nhập đang chọn × giá nhập của đơn vị đó**; lượng cộng kho và giá vốn tồn được quy về đơn vị cơ sở.
     - Khi `Nhập kho`: Số lượng được tự động quy về đơn vị cơ sở (`base_unit`) để cộng chính xác vào tồn kho vật lý.
 12. Nếu `giá nhập < 1.000đ`, app sẽ hiện cảnh báo ngay dưới dòng đang sửa; ở các chỗ chỉ xem thì app chỉ gắn nhãn cảnh báo ngắn
 13. Với mỗi dòng, mặc định app để cách nhập HSD là nhập trực tiếp `Hạn dùng`; nếu muốn nhập gián tiếp thì đổi sang `Ngày sản xuất` để app tự tính `HSD = NSX + thời gian bảo quản`

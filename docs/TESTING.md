@@ -502,12 +502,12 @@ Case mới cho Issue 153 (Tách cấu hình check multiuser conflict):
 
 Chạy `npm run test:integration -- tests/integration/unit-quantity-roundtrip.spec.js`.
 
-- `IT-UNIT-01`: giỏ xuất; `IT-UNIT-02`: phiếu nhập.
+- `IT-UNIT-01`: giỏ xuất; `IT-UNIT-02`: phiếu nhập. Sau khi chọn 2 đơn vị quy đổi, mỗi ca còn xác nhận UI hiển thị thành tiền bằng 2 × giá của đơn vị quy đổi.
 - Cả hai chạy trên viewport mobile và DB fixture tạm: đổi lặp giữa hệ số 1, 20, 3, 0.5; bảo toàn lượng cơ sở khi làm tròn; sửa số lượng rồi đổi tiếp; lưu, tải lại và đổi về đơn vị gốc.
 - Kiểm tra API state giữ lượng cơ sở và snapshot đơn vị, kể cả lưu khi số hiển thị là `0.3333`.
 
 ### Issue 133: lưu riêng dòng đơn xuất và vị trí nút chuyển trạng thái
 
 - `IT-UNIT-03` trong `tests/integration/unit-quantity-roundtrip.spec.js`: seed đơn nháp và lịch sử đơn đã hủy/đã xuất có khách trống, dòng SL=0; lưu dòng nháp qua `POST /api/carts/item`, kiểm tra không gửi collection `carts`/`purchases` hoặc PUT state. Xác nhận các đơn lịch sử không đổi và API từ chối sửa đơn đã hủy. Kiểm tra editor nằm trong panel đơn, phía trên toolbar trạng thái trên viewport mobile.
-- `UT-UNIT-01..04` trong `tests/test_cart_item_update.py`: ghi đúng dòng và audit, không đổi tồn hoặc đơn khác; cho phép đơn đã chốt, xung đột phiên bản theo đúng đơn, tôn trọng config tắt conflict; chặn đơn khóa, dòng thuộc đơn khác, số không hữu hạn, đơn vị sai, thiếu phiên bản hoặc payload collection; giữ snapshot và số lượng cơ sở 4 chữ số.
+- `UT-UNIT-01..07` trong `tests/test_cart_item_update.py`: ngoài kiểm tra lưu riêng dòng và snapshot đơn vị, xác nhận tiền nhập/xuất dùng số lượng theo đơn vị được chọn; tồn kho dùng số lượng cơ sở; giá vốn lô nhập được quy về giá cơ sở.
 - Chạy backend tập trung: `python -m unittest discover -s tests -p test_cart_item_update.py`.

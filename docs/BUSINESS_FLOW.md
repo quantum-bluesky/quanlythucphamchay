@@ -375,6 +375,7 @@ ordered -> cancelled
   - Khi chuẩn hóa collection phục vụ UI, giữ nguyên header và dòng của đơn đã khóa, kể cả tên khách trống hoặc dòng số lượng 0 trong dữ liệu cũ.
   - Khi lưu dòng, giữ lượng cơ sở cùng snapshot đơn vị; tải lại trang vẫn chọn đúng đơn vị và đổi về đơn vị cũ được.
   - Đơn giá tự động được điền theo bảng giá của đơn vị mới được chọn.
+  - `line_total = input_quantity × unit_price/unit_cost`: tiền dùng số lượng và giá của đơn vị đang chọn; nhập/xuất tồn dùng `quantity = input_quantity × conversion_factor` theo đơn vị cơ sở.
 - **Bảo toàn lịch sử chứng từ (Snapshotting)**:
   - Trên từng dòng chi tiết của đơn hàng (`cart_items`), phiếu nhập (`purchase_items`) và phiếu kho (`inventory_receipt_items`), hệ thống lưu snapshot:
     - `input_quantity`: Số lượng theo đơn vị người dùng nhập.

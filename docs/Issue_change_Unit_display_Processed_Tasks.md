@@ -1340,3 +1340,12 @@ Theo yêu cầu bổ sung, không dùng việc giữ nguyên giỏ đã hủy l�
 - Editor các dòng hàng được đặt trong panel đơn, sau metadata và trước toolbar Chốt/Xuất/Hủy; di chuyển DOM có sẵn để giữ listener/id khi rerender.
 - Bổ sung test IT-UNIT-03 và UT-UNIT-01..04, cập nhật spec API/business/UI/DB/help. Không đổi schema; đã đọc PRAGMA thực tế các bảng carts/cart_items/product_unit_conversion.
 - Mức thay đổi trung bình: thêm API và luồng lưu dòng xuyên backend/frontend, version `3.33.0 → 3.34.0`.
+
+### Bổ sung công thức thành tiền nhập/xuất
+
+- Sửa công thức dòng chứng từ thành `input_quantity × unit_price/unit_cost`, đúng với số lượng và giá của đơn vị đang chọn; không dùng số lượng cơ sở nhân giá đơn vị quy đổi.
+- Số lượng cơ sở tiếp tục dùng để giữ/chốt/trừ/cộng tồn. Phiếu nhập quy giá của đơn vị nhập về giá vốn cơ sở trước khi ghi lô và cập nhật `products.price`.
+- Giao dịch xuất lưu thêm thành tiền dòng trong dấu vết để báo cáo, hủy đơn và Admin Edit dùng đúng doanh thu; dữ liệu cũ tiếp tục dùng công thức cũ khi chưa có dấu vết này.
+- Bổ sung UT-UNIT-05..07 và mở rộng IT-UNIT-01/02 để kiểm tra `2 hộp × giá hộp`, đồng thời xác nhận tồn vẫn thay đổi theo số lượng cơ sở.
+- Kiểm tra: UT-UNIT-01..07 đạt; IT-UNIT-01..03 đạt; full integration 91 đạt, 2 lỗi, 4 bỏ qua. Hai ca full-suite `IT-PROC-02`/`ACC-PUR-03` chạy lại trong nhóm 14 ca đều đạt 14/14, cùng biểu hiện phụ thuộc thứ tự đã ghi nhận trước đó.
+- Full Python đạt 117/119; hai ca route asset `UT-AUTH-06/08` thất bại do test cấu hình server `admin_path=admin` nhưng gọi đường dẫn runtime `/qlht`, không liên quan công thức tiền.

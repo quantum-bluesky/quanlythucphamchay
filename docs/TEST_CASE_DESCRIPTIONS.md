@@ -22,8 +22,11 @@ Lưu ý:
 | 166 | `UT-UNIT-02` | Sửa dòng đơn đã chốt; xung đột theo phiên bản đúng đơn, tôn trọng cấu hình conflict. |
 | 167 | `UT-UNIT-03` | Chặn đơn khóa, sai dòng/đơn, đơn vị hoặc hệ số sai, giá/SL không hợp lệ, thiếu phiên bản và payload collection; rollback toàn bộ. |
 | 168 | `UT-UNIT-04` | Giữ lượng cơ sở và snapshot đơn vị khi lưu, trả đúng SL cơ sở 4 chữ số. |
-| 162 | `IT-UNIT-01` | Giỏ xuất giữ số lượng khi đổi đơn vị lặp, sửa số lượng, lưu số lẻ và tải lại; API giữ snapshot đơn vị. |
-| 163 | `IT-UNIT-02` | Phiếu nhập giữ số lượng khi đổi đơn vị lặp, sửa số lượng, lưu số lẻ và tải lại; API giữ snapshot đơn vị. |
+| 169 | `UT-UNIT-05` | Tổng tiền đơn bán dùng số lượng theo đơn vị đang chọn; lượng cơ sở vẫn giữ riêng. |
+| 170 | `UT-UNIT-06` | Phiếu nhập tính tiền theo đơn vị chọn, cộng kho theo lượng cơ sở và quy giá vốn lô về cơ sở. |
+| 171 | `UT-UNIT-07` | Xuất đơn tính tiền theo đơn vị chọn, trừ kho theo lượng cơ sở và lưu thành tiền giao dịch. |
+| 162 | `IT-UNIT-01` | Giỏ xuất giữ số lượng khi đổi đơn vị lặp, tải lại, và tính thành tiền theo số lượng/giá đơn vị bán đang chọn. |
+| 163 | `IT-UNIT-02` | Phiếu nhập giữ số lượng khi đổi đơn vị lặp, tải lại, và tính thành tiền theo số lượng/giá đơn vị nhập đang chọn. |
 | 1 | `ACC-ABOUT-01` | Kiểm tra nút `Version` mở đúng màn `About` và hiển thị phiên bản app lấy từ backend. |
 | 2 | `ACC-INV-01` | Kiểm tra shortcut ở màn tồn kho mở đúng luồng nhập hàng và tạo đơn xuất. |
 | 3 | `ACC-INV-02` | Kiểm tra các màn tồn kho, nhập hàng, bán hàng và sản phẩm hoạt động ổn định khi điều hướng qua lại. |

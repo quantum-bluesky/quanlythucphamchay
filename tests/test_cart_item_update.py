@@ -86,6 +86,54 @@ class CartItemUpdateTests(unittest.TestCase):
         ))
         self.assertEqual(result["cart"]["items"][0]["quantity"], 0.1234)
 
+    def test_ut_unit_05_selected_unit_quantity_drives_document_amount(self):
+        result = self.store.update_cart_item("draft", "draft-line", self.payload(
+            quantity=40, input_quantity=2, conversion_factor=20, unit_price=140000,
+        ))
+        self.assertEqual(float(self.store._get_cart_subtotal_amount(result["cart"])), 280000)
+        grouped = self.store._group_sale_items(result["cart"]["items"])
+        self.assertEqual(float(next(iter(grouped.values()))["quantity"]), 40)
+        self.assertEqual(float(next(iter(grouped.values()))["input_quantity"]), 2)
+
+    def test_ut_unit_06_purchase_amount_uses_selected_unit_but_batch_cost_uses_base_unit(self):
+        receipt = self.store.create_purchase_receipt(items=[{
+            "product_id": self.product["id"], "quantity": 40,
+            "input_quantity": 2, "conversion_factor": 20, "unit_cost": 70000,
+        }])
+        self.assertEqual(receipt["subtotal_amount"], 140000)
+        self.assertEqual(receipt["transactions"][0]["quantity"], 40)
+        self.assertEqual(receipt["transactions"][0]["unit_cost"], 70000)
+        self.assertEqual(receipt["transactions"][0]["base_unit_cost"], 3500)
+        with self.store._connect() as connection:
+            batch = connection.execute(
+                "SELECT initial_quantity, unit_cost FROM inventory_batches WHERE product_id = ?",
+                (self.product["id"],),
+            ).fetchone()
+            product = connection.execute("SELECT price FROM products WHERE id = ?", (self.product["id"],)).fetchone()
+        self.assertEqual(float(batch["initial_quantity"]), 40)
+        self.assertEqual(float(batch["unit_cost"]), 3500)
+        self.assertEqual(float(product["price"]), 3500)
+
+    def test_ut_unit_07_sale_amount_uses_selected_unit_but_stock_uses_base_quantity(self):
+        self.store.create_purchase_receipt(items=[{
+            "product_id": self.product["id"], "quantity": 100,
+            "input_quantity": 100, "conversion_factor": 1, "unit_cost": 5000,
+        }])
+        self.store.update_cart_item("draft", "draft-line", self.payload(
+            quantity=40, input_quantity=2, conversion_factor=20, unit_price=140000,
+        ))
+        self.store.commit_cart_order("draft", actor="tester")
+        shipped = self.store.ship_cart_order("draft", actor="tester")
+        self.assertEqual(shipped["order"]["subtotal_amount"], 280000)
+        self.assertEqual(shipped["order"]["transactions"][0]["line_total"], 280000)
+        self.assertEqual(shipped["order"]["transactions"][0]["quantity"], 40)
+        self.assertEqual(self.store.get_summary()["total_stock"], 60)
+        with self.store._connect() as connection:
+            note = connection.execute(
+                "SELECT note FROM transactions WHERE transaction_type = 'out' ORDER BY id DESC LIMIT 1"
+            ).fetchone()["note"]
+        self.assertIn("Thành tiền: 280000.00", note)
+
 
 if __name__ == "__main__":
     unittest.main()

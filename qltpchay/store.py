@@ -2011,6 +2011,9 @@ class InventoryStore:
                     "productName": str(product["name"] or "").strip(),
                     "product_name": str(product["name"] or "").strip(),
                     "quantity": round(float(grouped_item["quantity"]), 2),
+                    "inputQuantity": round(float(grouped_item.get("input_quantity", grouped_item["quantity"])), 4),
+                    "inputUnit": str(grouped_item.get("input_unit") or product["unit"] or "").strip(),
+                    "conversionFactor": float(grouped_item.get("conversion_factor") or 1),
                     "unitPrice": round(unit_price, 2),
                     "unit_price": round(unit_price, 2),
                     "note": str(grouped_item.get("note") or "").strip(),
@@ -2057,6 +2060,7 @@ class InventoryStore:
             existing_item = merged_items.get(product_id)
             if existing_item:
                 existing_item["quantity"] += incoming_item["quantity"]
+                existing_item["input_quantity"] += incoming_item["input_quantity"]
                 existing_item["unit_price"] = incoming_item["unit_price"]
                 if incoming_item.get("note"):
                     existing_item["note"] = incoming_item["note"]
@@ -2103,14 +2107,24 @@ class InventoryStore:
     def _get_cart_subtotal_amount(cls, cart: dict) -> Decimal:
         subtotal = Decimal("0")
         for item in cart.get("items") or []:
-            subtotal += Decimal(str(item.get("quantity") or 0)) * Decimal(str(item.get("unitPrice") or item.get("unit_price") or 0))
+            pricing_quantity = item.get("inputQuantity")
+            if pricing_quantity is None:
+                pricing_quantity = item.get("input_quantity")
+            if pricing_quantity is None:
+                pricing_quantity = item.get("quantity") or 0
+            subtotal += Decimal(str(pricing_quantity)) * Decimal(str(item.get("unitPrice") or item.get("unit_price") or 0))
         return subtotal
 
     @classmethod
     def _get_purchase_subtotal_amount(cls, purchase: dict) -> Decimal:
         subtotal = Decimal("0")
         for item in purchase.get("items") or []:
-            subtotal += Decimal(str(item.get("quantity") or 0)) * Decimal(str(item.get("unitCost") or item.get("unit_cost") or 0))
+            pricing_quantity = item.get("inputQuantity")
+            if pricing_quantity is None:
+                pricing_quantity = item.get("input_quantity")
+            if pricing_quantity is None:
+                pricing_quantity = item.get("quantity") or 0
+            subtotal += Decimal(str(pricing_quantity)) * Decimal(str(item.get("unitCost") or item.get("unit_cost") or 0))
         return subtotal
 
     @classmethod
@@ -4378,6 +4392,17 @@ class InventoryStore:
         for raw_item in raw_items:
             product_id = int(raw_item.get("product_id") or raw_item.get("productId") or 0)
             quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
+            input_quantity = parse_positive_decimal(
+                raw_item.get("inputQuantity") or raw_item.get("input_quantity") or raw_item.get("quantity"),
+                "Số lượng theo đơn vị bán",
+            )
+            conversion_factor = parse_positive_decimal(
+                raw_item.get("conversionFactor") or raw_item.get("conversion_factor") or 1,
+                "Hệ số quy đổi",
+            )
+            input_unit = str(raw_item.get("inputUnit") or raw_item.get("input_unit") or raw_item.get("unit") or "").strip()
+            if round(input_quantity * conversion_factor, 4) != round(quantity, 4):
+                raise ValueError("Số lượng bán và số lượng cơ sở không khớp hệ số quy đổi.")
             unit_price = parse_non_negative_decimal(
                 raw_item.get("unit_price") or raw_item.get("unitPrice") or 0,
                 "Giá bán",
@@ -4386,13 +4411,19 @@ class InventoryStore:
             existing = grouped_items.get(product_id)
             if existing:
                 existing["quantity"] += quantity
+                existing["input_quantity"] += input_quantity
                 existing["unit_price"] = unit_price
+                existing["conversion_factor"] = conversion_factor
+                existing["input_unit"] = input_unit
                 if item_note:
                     existing["note"] = item_note
                 continue
             grouped_items[product_id] = {
                 "product_id": product_id,
                 "quantity": quantity,
+                "input_quantity": input_quantity,
+                "conversion_factor": conversion_factor,
+                "input_unit": input_unit,
                 "unit_price": unit_price,
                 "note": item_note,
             }
@@ -4509,7 +4540,7 @@ class InventoryStore:
         subtotal_amount = Decimal("0")
         total_quantity = Decimal("0")
         for item in grouped_items.values():
-            subtotal_amount += item["quantity"] * item["unit_price"]
+            subtotal_amount += item["input_quantity"] * item["unit_price"]
         validated_discount_amount = self._validate_discount_amount(
             discount_amount,
             subtotal_amount,
@@ -4519,10 +4550,11 @@ class InventoryStore:
         transactions = []
         for product_id, item in grouped_items.items():
             product = products_by_id[product_id]
-            line_total = item["quantity"] * item["unit_price"]
+            line_total = item["input_quantity"] * item["unit_price"]
             total_quantity += item["quantity"]
             base_transaction_note = (
-                f"Đơn {order_code} | Khách: {clean_customer_name} | Giá bán: {float(item['unit_price']):.0f}"
+                f"Đơn {order_code} | Khách: {clean_customer_name} | Giá bán: {float(item['unit_price']):.0f} "
+                f"| Thành tiền: {float(line_total):.2f}"
             )
             if validated_discount_amount > 0:
                 base_transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
@@ -5117,7 +5149,7 @@ class InventoryStore:
             grouped_items = self._group_sale_items(order_payload.get("items") or [])
             if not grouped_items:
                 raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
-            subtotal = sum(item["quantity"] * item["unit_price"] for item in grouped_items.values())
+            subtotal = sum(item["input_quantity"] * item["unit_price"] for item in grouped_items.values())
             discount_amount = self._validate_discount_amount(
                 order_payload.get("discount_amount", order_payload.get("discountAmount", 0)),
                 subtotal,
@@ -5192,12 +5224,23 @@ class InventoryStore:
                     unit_price = round(float(raw_item.get("unit_price") or raw_item.get("unitPrice") or 0), 2)
                 except (TypeError, ValueError):
                     unit_price = 0.0
+                try:
+                    input_quantity = round(float(raw_item.get("input_quantity") or raw_item.get("inputQuantity") or quantity), 4)
+                except (TypeError, ValueError):
+                    input_quantity = quantity
+                try:
+                    conversion_factor = round(float(raw_item.get("conversion_factor", raw_item.get("conversionFactor", 1)) or 1), 6)
+                except (TypeError, ValueError):
+                    conversion_factor = 1.0
                 prepared_items.append(
                     {
                         "product_id": product_id,
                         "product_name": str(raw_item.get("product_name") or raw_item.get("productName") or "").strip(),
                         "unit": str(raw_item.get("unit") or "").strip(),
                         "quantity": quantity,
+                        "input_quantity": input_quantity,
+                        "input_unit": str(raw_item.get("input_unit") or raw_item.get("inputUnit") or raw_item.get("unit") or "").strip(),
+                        "conversion_factor": conversion_factor,
                         "unit_price": unit_price,
                         "note": str(raw_item.get("note") or "").strip(),
                     }
@@ -5211,7 +5254,7 @@ class InventoryStore:
             try:
                 subtotal_amount = round(float(order_payload.get("subtotal_amount", order_payload.get("subtotalAmount", 0)) or 0), 2)
             except (TypeError, ValueError):
-                subtotal_amount = round(sum(item["quantity"] * item["unit_price"] for item in prepared_items), 2)
+                subtotal_amount = round(sum(item["input_quantity"] * item["unit_price"] for item in prepared_items), 2)
             prepared_order = {
                 "client_order_id": str(
                     order_payload.get("client_order_id")
@@ -5275,7 +5318,7 @@ class InventoryStore:
             or self._get_cart_ship_address(existing_cart)
         )
         clean_note = str(raw_order.get("note") or "").strip() or str(existing_cart.get("note") or "").strip()
-        subtotal = sum(item["quantity"] * item["unit_price"] for item in grouped_items.values())
+        subtotal = sum(item["input_quantity"] * item["unit_price"] for item in grouped_items.values())
         validated_discount_amount = self._validate_discount_amount(
             raw_order.get("discount_amount", raw_order.get("discountAmount", 0)),
             subtotal,
@@ -6209,7 +6252,8 @@ class InventoryStore:
                 (
                     entry["transaction_id"],
                     round(
-                        entry["quantity"] * float(extract_price_from_note(entry["note"], "out") or 0),
+                        float(extract_labeled_price(entry["note"], "Thành tiền") or 0)
+                        or entry["quantity"] * float(extract_price_from_note(entry["note"], "out") or 0),
                         2,
                     ),
                 )
@@ -6239,7 +6283,8 @@ class InventoryStore:
             quantity = round(float(entry["quantity"] or 0), 2)
             unit_price = round(float(extract_price_from_note(entry["note"], "out") or product["sale_price"] or 0), 2)
             unit_cost = round(float(extract_cost_from_note(entry["note"]) or product["price"] or 0), 2)
-            revenue_line_total = round(max(0.0, quantity * unit_price - transaction_revenue_allocations.get(entry["transaction_id"], 0.0)), 2)
+            gross_line_total = float(extract_labeled_price(entry["note"], "Thành tiền") or quantity * unit_price)
+            revenue_line_total = round(max(0.0, gross_line_total - transaction_revenue_allocations.get(entry["transaction_id"], 0.0)), 2)
             original_allocations = self._load_transaction_batch_allocations(
                 connection,
                 int(entry["transaction_id"]),
@@ -6688,7 +6733,7 @@ class InventoryStore:
         clean_ship_address = str(raw_order.get("ship_address") or raw_order.get("shipAddress") or "").strip() or str(resolved_customer.get("address") or "").strip()
         clean_note = str(raw_order.get("note") or "").strip()
         subtotal = sum(
-            item["quantity"] * item["unit_price"]
+            item["input_quantity"] * item["unit_price"]
             for item in grouped_items.values()
         )
         validated_discount_amount = self._validate_discount_amount(
@@ -7474,12 +7519,24 @@ class InventoryStore:
         for raw_item in items:
             product_id = int(raw_item.get("product_id", 0))
             quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
+            input_quantity = parse_positive_decimal(
+                raw_item.get("input_quantity") or raw_item.get("inputQuantity") or raw_item.get("quantity"),
+                "Số lượng theo đơn vị nhập",
+            )
+            conversion_factor = parse_positive_decimal(
+                raw_item.get("conversion_factor") or raw_item.get("conversionFactor") or 1,
+                "Hệ số quy đổi",
+            )
+            if round(input_quantity * conversion_factor, 4) != round(quantity, 4):
+                raise ValueError("Số lượng nhập và số lượng cơ sở không khớp hệ số quy đổi.")
             unit_cost = parse_non_negative_decimal(raw_item.get("unit_cost", 0), "Giá nhập")
             parsed_items.append(
                 {
                     "purchase_item_id": str(raw_item.get("purchase_item_id") or raw_item.get("purchaseItemId") or raw_item.get("id") or "").strip(),
                     "product_id": product_id,
                     "quantity": quantity,
+                    "input_quantity": input_quantity,
+                    "conversion_factor": conversion_factor,
                     "unit_cost": unit_cost,
                     "product_name": str(raw_item.get("product_name") or raw_item.get("productName") or "").strip(),
                     "batch_code": str(raw_item.get("batch_code") or raw_item.get("batchCode") or "").strip(),
@@ -7493,7 +7550,7 @@ class InventoryStore:
         receipt_suffix = hashlib.sha1(f"{clean_supplier_name}-{clean_note}-{now}".encode("utf-8")).hexdigest()[:6]
         receipt_code = f"PN-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{receipt_suffix}"
         normalized_items: list[dict] = []
-        grouped_items: dict[tuple[int, str, str, str, str], dict] = {}
+        grouped_items: dict[tuple[int, str, str, str, str, Decimal, Decimal], dict] = {}
         for raw_item in parsed_items:
             product_id = int(raw_item["product_id"])
             product = self._get_product_or_raise(connection, product_id)
@@ -7508,6 +7565,8 @@ class InventoryStore:
                 "product_id": product_id,
                 "product_name": str(raw_item.get("product_name") or product["name"]).strip() or str(product["name"]),
                 "quantity": raw_item["quantity"],
+                "input_quantity": raw_item["input_quantity"],
+                "conversion_factor": raw_item["conversion_factor"],
                 "unit_cost": raw_item["unit_cost"],
                 "batch_code": str(raw_item.get("batch_code") or "").strip(),
                 "expiry_input_mode": expiry_metadata["expiry_input_mode"],
@@ -7523,11 +7582,13 @@ class InventoryStore:
                 normalized_item["expiry_input_mode"],
                 normalized_item["manufacture_date"] or "",
                 normalized_item["expiry_date"] or "",
+                normalized_item["conversion_factor"],
+                normalized_item["unit_cost"],
             )
             existing = grouped_items.get(item_key)
             if existing:
                 existing["quantity"] += normalized_item["quantity"]
-                existing["unit_cost"] = normalized_item["unit_cost"]
+                existing["input_quantity"] += normalized_item["input_quantity"]
             else:
                 grouped_items[item_key] = normalized_item
         normalized_items.extend(grouped_items.values())
@@ -7538,7 +7599,7 @@ class InventoryStore:
         validated_discount_amount = self._validate_discount_amount(
             discount_amount,
             sum(
-                item["quantity"] * item["unit_cost"]
+                item["input_quantity"] * item["unit_cost"]
                 for item in normalized_items
             ),
             "Giảm giá khuyến mại phiếu nhập",
@@ -7556,7 +7617,8 @@ class InventoryStore:
         for line_index, item in enumerate(normalized_items, start=1):
             product_id = int(item["product_id"])
             product = self._get_product_or_raise(connection, product_id)
-            line_total = item["quantity"] * item["unit_cost"]
+            line_total = item["input_quantity"] * item["unit_cost"]
+            base_unit_cost = item["unit_cost"] / item["conversion_factor"]
             subtotal_amount += line_total
             total_quantity += item["quantity"]
             resolved_batch_code = self._resolve_batch_code(
@@ -7590,7 +7652,7 @@ class InventoryStore:
                 connection,
                 product=product,
                 quantity=item["quantity"],
-                unit_cost=item["unit_cost"],
+                unit_cost=base_unit_cost,
                 received_at=now,
                 source_receipt_code=receipt_code,
                 source_receipt_type="purchase",
@@ -7604,7 +7666,7 @@ class InventoryStore:
 
             connection.execute(
                 "UPDATE products SET price = ?, updated_at = ? WHERE id = ?",
-                (float(item["unit_cost"]), now, product_id),
+                (float(base_unit_cost), now, product_id),
             )
 
             current_stock = self._get_stock_for_product(connection, product_id)
@@ -7616,6 +7678,7 @@ class InventoryStore:
                     "unit": product["unit"],
                     "quantity": float(item["quantity"]),
                     "unit_cost": float(item["unit_cost"]),
+                    "base_unit_cost": round(float(base_unit_cost), 2),
                     "line_total": round(float(line_total), 2),
                     "current_stock": round(float(current_stock), 2),
                     "batch_code": created_batch["batch_code"],
@@ -7632,7 +7695,7 @@ class InventoryStore:
                 unit=product["unit"],
                 transaction_type="in",
                 quantity=round(float(item["quantity"]), 2),
-                unit_amount=round(float(item["unit_cost"]), 2),
+                unit_amount=round(float(base_unit_cost), 2),
                 line_total=round(float(line_total), 2),
                 stock_after=round(float(current_stock), 2),
                 transaction_id=cursor.lastrowid,
@@ -7743,6 +7806,8 @@ class InventoryStore:
                     "product_id": item.get("productId") or item.get("product_id"),
                     "product_name": item.get("productName") or item.get("product_name") or "",
                     "quantity": item.get("quantity"),
+                    "input_quantity": item.get("inputQuantity", item.get("input_quantity", item.get("quantity"))),
+                    "conversion_factor": item.get("conversionFactor", item.get("conversion_factor", 1)),
                     "unit_cost": item.get("unitCost", item.get("unit_cost", 0)),
                     "batch_code": item.get("batchCode") or item.get("batch_code") or "",
                     "expiry_input_mode": item.get("expiryInputMode") or item.get("expiry_input_mode") or "direct",
@@ -11142,7 +11207,7 @@ class InventoryStore:
                 next_discount = Decimal(str(current_purchase["discount_amount"] or 0)) + line_discount
                 next_subtotal = connection.execute(
                     """
-                    SELECT COALESCE(SUM(quantity * unit_cost), 0) AS subtotal
+                    SELECT COALESCE(SUM(COALESCE(input_quantity, quantity) * unit_cost), 0) AS subtotal
                     FROM purchase_items
                     WHERE purchase_id = ?
                     """,
@@ -12649,7 +12714,7 @@ class InventoryStore:
                 SELECT
                     c.order_code,
                     c.discount_amount,
-                    COALESCE(SUM(ci.quantity * ci.unit_price), 0) AS subtotal_amount
+                    COALESCE(SUM(COALESCE(ci.input_quantity, ci.quantity) * ci.unit_price), 0) AS subtotal_amount
                 FROM carts c
                 LEFT JOIN cart_items ci ON ci.cart_id = c.id
                 WHERE c.order_code != ''
@@ -12734,7 +12799,7 @@ class InventoryStore:
                     sale_rows_by_order_code.setdefault(order_code, []).append(
                         (
                             row_index,
-                            round(quantity * float(extract_price_from_note(note, "out") or row["sale_price"] or 0), 2),
+                            round(float(extract_labeled_price(note, "Thành tiền") or quantity * float(extract_price_from_note(note, "out") or row["sale_price"] or 0)), 2),
                         )
                     )
             elif transaction_kind == "purchase":
@@ -13228,7 +13293,8 @@ class InventoryStore:
                 (
                     entry["transaction_id"],
                     round(
-                        entry["quantity"] * float(extract_price_from_note(entry["note"], "out") or 0),
+                        float(extract_labeled_price(entry["note"], "Thành tiền") or 0)
+                        or entry["quantity"] * float(extract_price_from_note(entry["note"], "out") or 0),
                         2,
                     ),
                 )
@@ -13256,7 +13322,8 @@ class InventoryStore:
             product = self._get_product_or_raise(connection, int(entry["product_id"]), allow_deleted=True)
             quantity = round(float(entry["quantity"] or 0), 2)
             unit_price = round(float(extract_price_from_note(entry["note"], "out") or product["sale_price"] or 0), 2)
-            revenue_line_total = round(max(0.0, quantity * unit_price - transaction_revenue_allocations.get(entry["transaction_id"], 0.0)), 2)
+            gross_line_total = float(extract_labeled_price(entry["note"], "Thành tiền") or quantity * unit_price)
+            revenue_line_total = round(max(0.0, gross_line_total - transaction_revenue_allocations.get(entry["transaction_id"], 0.0)), 2)
             original_allocations = self._load_transaction_batch_allocations(
                 connection,
                 int(entry["transaction_id"]),

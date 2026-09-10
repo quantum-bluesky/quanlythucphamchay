@@ -253,7 +253,7 @@ export function createPurchasesUi(deps) {
     const isSubmitting = Boolean(draft.submitting);
     const disableEditAttr = isLockedAfterSave || isSubmitting ? "disabled" : "";
     const totalAmount = items.reduce(
-      (sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitCost || 0)),
+      (sum, item) => sum + (Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitCost || 0)),
       0,
     ) - Number(draft.discountAmount || 0);
     const lastResult = draft.lastResult || null;
@@ -331,10 +331,10 @@ export function createPurchasesUi(deps) {
             <article class="quick-doc-item">
               <div>
                 <strong>${escapeHtml(item.productName || product?.name || `SP #${item.productId}`)}</strong>
-                <div class="cart-line-note">SL ${escapeHtml(formatQuantity(item.quantity || 0))} • Giá nhập ${escapeHtml(formatCurrency(item.unitCost || 0))}</div>
+                <div class="cart-line-note">SL ${escapeHtml(formatQuantity(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0))} • Giá nhập ${escapeHtml(formatCurrency(item.unitCost || 0))}</div>
               </div>
               <div class="quick-doc-item-actions">
-                <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitCost || 0)))}</strong>
+                <strong>${escapeHtml(formatCurrency(Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitCost || 0)))}</strong>
                 <button type="button" class="ghost-button compact-button" data-quick-purchase-action="remove-item" data-item-index="${index}" ${disableEditAttr}>Bỏ</button>
               </div>
             </article>

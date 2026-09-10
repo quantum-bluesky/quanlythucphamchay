@@ -114,6 +114,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS product_unit_conversion` trong `qltpchay/st
 
 - lưu cấu hình đơn vị phụ/quy đổi cho từng sản phẩm
 - cung cấp giá nhập và giá bán tự động khi người dùng chọn đơn vị quy đổi lúc tạo đơn bán hoặc phiếu nhập hàng
+- `cart_items`/`purchase_items` giữ `quantity` theo đơn vị cơ sở và `input_quantity` theo đơn vị được chọn. Thành tiền chứng từ dùng `input_quantity × unit_price/unit_cost`; giá vốn lô nhập được quy về cơ sở bằng `unit_cost / conversion_factor`.
 - tồn kho thực tế luôn được quy đổi và quản lý theo đơn vị gốc (`base_unit`)
 
 ## 5. Bảng `transactions`

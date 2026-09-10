@@ -448,7 +448,7 @@ export function createSalesUi(deps) {
     const isSubmitting = Boolean(draft.submitting);
     const disableEditAttr = isLockedAfterSave || isSubmitting ? "disabled" : "";
     const totalAmount = items.reduce(
-      (sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)),
+      (sum, item) => sum + (Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitPrice || 0)),
       0,
     ) - Number(draft.discountAmount || 0);
     const lastResult = draft.lastResult || null;
@@ -523,7 +523,7 @@ export function createSalesUi(deps) {
         ${items.length ? items.map((item, index) => {
           const product = getProductById(item.productId);
           const currentStock = Number(product?.current_stock || 0);
-          const quantity = Number(item.quantity || 0);
+          const quantity = Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0);
           const isOver = quantity > currentStock;
           return `
             <article class="quick-doc-item ${isOver ? "is-warning" : ""}">

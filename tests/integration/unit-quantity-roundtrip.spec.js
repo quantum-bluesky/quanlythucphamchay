@@ -86,6 +86,11 @@ for (const kind of ["sales", "purchases"]) {
       await expect.poll(async () => (await storedItem()).conversionFactor).toBe(20);
       expect((await storedItem()).quantity).toBe(40);
       expect((await storedItem()).inputQuantity).toBe(2);
+      const expectedLineAmount = kind === "sales" ? "280.000" : "140.000";
+      const lineCard = page.locator(kind === "sales"
+        ? `.cart-item:has([data-cart-item-action="toggle-detail"][data-item-id="${item.id}"])`
+        : `.cart-item:has([data-purchase-item-action="toggle-detail"][data-purchase-item-id="${item.id}"])`);
+      await expect(lineCard).toContainText(expectedLineAmount);
       await page.reload({ waitUntil: "networkidle" });
       await openEditor();
       await expect(unit).toHaveValue("20");

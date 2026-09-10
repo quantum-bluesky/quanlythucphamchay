@@ -172,6 +172,7 @@ export function createPurchasesDomainHelpers(deps) {
           .map((item) => {
             const product = getProductById(item.productId);
             const quantity = Number(item.quantity);
+            const inputQuantity = Number(item.inputQuantity ?? item.input_quantity ?? quantity);
             const unitCost = Number(item.unitCost ?? item.unit_cost);
             if (!Number.isFinite(quantity) || quantity <= 0) return null;
             if (!Number.isFinite(unitCost) || unitCost < 0) return null;
@@ -182,7 +183,7 @@ export function createPurchasesDomainHelpers(deps) {
               unit: product?.unit || item.unit || "",
               quantity,
               // #Issue133: Preserve the unit snapshot through decoration, saving and server sync.
-              inputQuantity: Number(item.inputQuantity ?? item.input_quantity ?? quantity),
+              inputQuantity,
               inputUnit: item.inputUnit ?? item.input_unit ?? product?.unit ?? item.unit ?? "",
               conversionFactor: Number(item.conversionFactor ?? item.conversion_factor ?? 1),
               unitCost,
@@ -190,7 +191,8 @@ export function createPurchasesDomainHelpers(deps) {
               expiryInputMode: String(item.expiryInputMode || item.expiry_input_mode || "direct").trim() || "direct",
               manufactureDate: String(item.manufactureDate || item.manufacture_date || "").trim(),
               expiryDate: String(item.expiryDate || item.expiry_date || "").trim(),
-              lineTotal: Number((quantity * unitCost).toFixed(2)),
+              // #Issue133: Purchase price belongs to the selected input unit.
+              lineTotal: Number((inputQuantity * unitCost).toFixed(2)),
             };
           })
           .filter(Boolean)
@@ -700,6 +702,8 @@ export function createPurchasesDomainHelpers(deps) {
     return [
       Number(item.productId || 0),
       Number(item.unitCost || item.unit_cost || 0),
+      Number(item.conversionFactor ?? item.conversion_factor ?? 1),
+      String(item.inputUnit || item.input_unit || item.unit || "").trim(),
       String(item.batchCode || item.batch_code || "").trim(),
       String(item.expiryInputMode || item.expiry_input_mode || "direct").trim() || "direct",
       String(item.manufactureDate || item.manufacture_date || "").trim(),
@@ -728,22 +732,27 @@ export function createPurchasesDomainHelpers(deps) {
         expiryDate: String(item.expiryDate || item.expiry_date || "").trim(),
       };
       const mergeKey = buildPurchaseItemMergeKey(normalizedItem);
+      const normalizedInputQuantity = Number(normalizedItem.inputQuantity ?? normalizedItem.input_quantity ?? normalizedItem.quantity ?? 0);
       const existingIndex = mergedIndexByKey.get(mergeKey);
       if (existingIndex === undefined) {
         mergedIndexByKey.set(mergeKey, mergedItems.length);
         mergedItems.push({
           ...normalizedItem,
           id: createId("purchase_item"),
-          lineTotal: Number((Number(normalizedItem.quantity || 0) * Number(normalizedItem.unitCost || 0)).toFixed(2)),
+          lineTotal: Number((normalizedInputQuantity * Number(normalizedItem.unitCost || 0)).toFixed(2)),
         });
         return;
       }
       const existingItem = mergedItems[existingIndex];
       const nextQuantity = Number((Number(existingItem.quantity || 0) + Number(normalizedItem.quantity || 0)).toFixed(2));
+      const nextInputQuantity = Number((Number(existingItem.inputQuantity ?? existingItem.input_quantity ?? existingItem.quantity ?? 0) + normalizedInputQuantity).toFixed(4));
       mergedItems[existingIndex] = {
         ...existingItem,
         quantity: nextQuantity,
-        lineTotal: Number((nextQuantity * Number(existingItem.unitCost || 0)).toFixed(2)),
+        inputQuantity: nextInputQuantity,
+        input_quantity: nextInputQuantity,
+        // #Issue133: The merged document amount follows the selected-unit quantity.
+        lineTotal: Number((nextInputQuantity * Number(existingItem.unitCost || 0)).toFixed(2)),
       };
     });
     return mergedItems;

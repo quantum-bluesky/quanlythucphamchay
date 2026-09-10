@@ -104,12 +104,13 @@ export function createSalesDomainHelpers(deps) {
           .map((item) => {
             const product = getProductById(item.productId);
             const quantity = Number(item.quantity);
+            const inputQuantity = Number(item.inputQuantity ?? item.input_quantity ?? quantity);
             const unitPrice = Number(item.unitPrice);
             if (preserveHistory) {
               return {
                 ...item,
                 unit: item.unit || product?.unit || "",
-                lineTotal: Number.isFinite(quantity * unitPrice) ? Number((quantity * unitPrice).toFixed(2)) : 0,
+                lineTotal: Number.isFinite(inputQuantity * unitPrice) ? Number((inputQuantity * unitPrice).toFixed(2)) : 0,
               };
             }
             if (!Number.isFinite(quantity) || quantity <= 0) return null;
@@ -121,12 +122,13 @@ export function createSalesDomainHelpers(deps) {
               unit: product?.unit || item.unit || "",
               quantity,
               // #Issue133: Preserve the unit snapshot through decoration, saving and server sync.
-              inputQuantity: Number(item.inputQuantity ?? item.input_quantity ?? quantity),
+              inputQuantity,
               inputUnit: item.inputUnit ?? item.input_unit ?? product?.unit ?? item.unit ?? "",
               conversionFactor: Number(item.conversionFactor ?? item.conversion_factor ?? 1),
               unitPrice,
               note: item.note || "",
-              lineTotal: Number((quantity * unitPrice).toFixed(2)),
+              // #Issue133: Price belongs to the selected unit; stock quantity remains in base units.
+              lineTotal: Number((inputQuantity * unitPrice).toFixed(2)),
             };
           })
           .filter(Boolean)
