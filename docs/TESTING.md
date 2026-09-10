@@ -41,7 +41,24 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 
 
 ## 1. Unit test
 
-Chạy:
+### Cách chạy nhanh gọn (Khuyến nghị để tiết kiệm token và giữ console sạch)
+
+Chạy qua wrapper summary (toàn bộ log chi tiết được tự động lưu vào `logs/test-unit-<timestamp>.log`, chỉ in kết quả tóm tắt và lỗi cốt lõi ra console):
+
+```powershell
+python scripts/run_tests_summary.py unit
+# hoặc qua npm:
+npm run test:unit:summary
+```
+
+Khi cần chạy 1 file hoặc case cụ thể qua summary runner:
+
+```powershell
+python scripts/run_tests_summary.py unit tests/test_global_id.py
+python scripts/run_tests_summary.py unit tests.test_app.InventoryStoreTests.test_ut_db_01_create_product_and_stock_summary
+```
+
+### Cách chạy truyền thống (in toàn bộ log ra console)
 
 ```powershell
 python -m unittest discover -s tests
@@ -95,6 +112,32 @@ npx playwright install chromium
 ```
 
 ### Chạy toàn bộ suite
+
+#### Cách chạy nhanh gọn (Khuyến nghị để tiết kiệm token context cho Agent và giữ console sạch)
+
+Toàn bộ raw log tiến trình browser và server được tự động chuyển vào `logs/test-integration-<timestamp>.log`:
+
+```powershell
+python scripts/run_tests_summary.py integration
+# hoặc qua npm:
+npm run test:integration:summary
+```
+
+Chạy với bộ lọc grep qua summary runner:
+
+```powershell
+python scripts/run_tests_summary.py integration --grep "ACC-SALE"
+```
+
+Chạy toàn bộ cả Unit test lẫn Integration test tuần tự:
+
+```powershell
+python scripts/run_tests_summary.py all
+# hoặc qua npm:
+npm run test:summary
+```
+
+#### Cách chạy truyền thống (in chi tiết từng case ra console)
 
 Trên Linux/dev server đã có virtualenv `.venv`, activate trước để `playwright.config.js` tìm được lệnh `python` đúng:
 

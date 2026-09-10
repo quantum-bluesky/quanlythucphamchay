@@ -143,23 +143,27 @@ node --check static/app.js
 python -m py_compile app.py
 ```
 
-Nếu thay logic backend hoặc schema, ưu tiên chạy thêm:
+Nếu thay logic backend hoặc schema, ưu tiên chạy test qua summary wrapper để tiết kiệm token context:
 
 ```powershell
-python -m unittest discover -s tests
+python scripts/run_tests_summary.py unit
+# hoặc: npm run test:unit:summary
+# Cách chạy truyền thống (in full console): python -m unittest discover -s tests
 ```
 
-Nếu thay workflow UI, menu, selector, sync state hoặc điều hướng, ưu tiên chạy thêm:
+Nếu thay workflow UI, menu, selector, sync state hoặc điều hướng, ưu tiên chạy thêm qua summary wrapper:
 
 ```powershell
-npm run test:integration
+python scripts/run_tests_summary.py integration
+# hoặc: npm run test:integration:summary
+# Cách chạy truyền thống (in full console): npm run test:integration
 ```
 
 Trên môi trường Linux hiện tại đã có virtualenv `.venv` với `python3-venv`; trước khi chạy full integration suite cần activate:
 
 ```bash
 source .venv/bin/activate
-npm run test:integration
+npm run test:integration:summary
 ```
 
 Không cần tạo symlink tạm `python -> python3` nếu đã activate `.venv`.

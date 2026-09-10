@@ -18,7 +18,10 @@
     "test:remote:smoke": "node scripts/run-remote-tests.js smoke",
     "test:remote:readonly": "node scripts/run-remote-tests.js readonly",
     "test:remote:full": "node scripts/run-remote-tests.js full",
-    "test:unit": "python -m unittest discover -s tests"
+    "test:unit": "python -m unittest discover -s tests",
+    "test:unit:summary": "python scripts/run_tests_summary.py unit",
+    "test:integration:summary": "python scripts/run_tests_summary.py integration",
+    "test:summary": "python scripts/run_tests_summary.py all"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
