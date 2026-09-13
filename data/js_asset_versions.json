@@ -34,8 +34,8 @@
       "sha256": "0e9833d9b69417e66abeb4571aeaeed17a9b4b95ebdfe6adee0ae0c8517a8464"
     },
     "modules/controllers/products-controller.js": {
-      "counter": 1,
-      "sha256": "878e7514b33b6714495656a8e1193f3092c4a63f9644a04db0e7ea65be2bff7f"
+      "counter": 2,
+      "sha256": "278b4b2e635fd37b905b72b6f47cae61b0aa8ca6e1cefd021e03f7bd3c449799"
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,

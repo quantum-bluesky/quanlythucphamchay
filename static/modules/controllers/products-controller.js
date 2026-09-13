@@ -496,7 +496,7 @@ export function registerProductsControllerEvents(contract) {
       
       row.innerHTML = `
         <input type="text" placeholder="Tên ĐV (vd: thùng)" class="uc-unit" required style="flex:1; min-width: 80px;">
-        <input type="number" placeholder="Hệ số (vd: 24)" class="uc-factor" required min="1" step="0.01" style="flex:1; min-width: 80px;">
+        <input type="number" placeholder="Hệ số (vd: 24)" class="uc-factor" required min="0.2" step="0.01" style="flex:1; min-width: 80px;">
         <input type="number" placeholder="Giá nhập" class="uc-price" required min="0" style="flex:1; min-width: 80px;">
         <input type="number" placeholder="Giá bán" class="uc-saleprice" required min="0" style="flex:1; min-width: 80px;">
         <button type="button" class="danger-button compact-button uc-remove" style="padding: 4px 8px;">X</button>
