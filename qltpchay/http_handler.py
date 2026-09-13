@@ -1259,8 +1259,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         scheme = scheme.split(",")[0].strip()
                     host = self.headers.get("Host", "127.0.0.1:4000")
                     
-                    full_url = f"{scheme}://{host}{base_path}/images/products/{unique_name}"
-                    self._send_json(HTTPStatus.OK, {"url": full_url})
+                    relative_url = f"/images/products/{unique_name}"
+                    self._send_json(HTTPStatus.OK, {"url": relative_url})
                 except Exception as exc:
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
