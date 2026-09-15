@@ -39,6 +39,13 @@ Liên kết detail hiện có:
 
 ## 2. Danh sách màn hình
 
+### `public-products` - Danh mục thực phẩm công khai
+
+- card sản phẩm hiển thị đúng một badge trong `Có sẵn / Sắp hết / Sắp về / Hết hàng`
+- `Sắp hết` chỉ áp dụng khi `tồn > 0` và backend xác định tồn đã bằng hoặc thấp hơn `ngưỡng sắp hết` của mặt hàng
+- khi tồn bằng `0`, ưu tiên `Sắp về` nếu có lượng nhập đang mở; nếu không thì hiển thị `Hết hàng`
+- client dùng cờ `is_low_stock` từ API để đồng nhất với rule tại màn `Sản phẩm`, không tự tính một ngưỡng riêng
+
 ### `inventory` - Kiểm tra tồn kho
 
 - mục tiêu:

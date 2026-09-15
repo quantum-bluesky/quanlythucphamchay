@@ -14,8 +14,8 @@ BARE_IMPORT_SPECIFIER_RE = re.compile(
 DYNAMIC_IMPORT_SPECIFIER_RE = re.compile(
     r'(?P<prefix>\bimport\s*\(\s*)(?P<quote>["\'])(?P<specifier>(?:\./|\.\./|/static/)[^"\']+?\.js)(?P=quote)'
 )
-INDEX_MODULE_SCRIPT_RE = re.compile(
-    r'(?P<prefix><script[^>]*\btype=["\']module["\'][^>]*\bsrc=["\'])'
+INDEX_SCRIPT_RE = re.compile(
+    r'(?P<prefix><script[^>]*\bsrc=["\'])'
     r'(?P<specifier>(?:\./)?static/(?P<relative>[^"\']+?\.js)|/static/(?P<absolute>[^"\']+?\.js))'
     r'(?P<suffix>["\'][^>]*></script>)',
     re.IGNORECASE,
@@ -78,7 +78,8 @@ class JavaScriptAssetVersionManager:
         return f"./static/{normalized}?v={self.build_version_label(normalized)}"
 
     def inject_index_versions(self, html_text: str) -> str:
-        versioned_html = INDEX_MODULE_SCRIPT_RE.sub(
+        # Version both module and classic entry scripts, including public_products.js.
+        versioned_html = INDEX_SCRIPT_RE.sub(
             lambda match: (
                 f"{match.group('prefix')}"
                 f"{self._append_version_query(
@@ -88,7 +89,6 @@ class JavaScriptAssetVersionManager:
                 f"{match.group('suffix')}"
             ),
             html_text,
-            count=1,
         )
         return INDEX_STYLESHEET_RE.sub(
             lambda match: (

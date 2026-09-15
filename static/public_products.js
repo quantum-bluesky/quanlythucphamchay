@@ -1031,12 +1031,15 @@ function renderProducts(products) {
     const isOutOfStock = !hasStock && !hasIncoming;
 
     let badgeHtml = '';
-    if (hasStock) {
-      badgeHtml = `<span style="display: inline-block; padding: 2px 6px; background: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Có sẵn</span>`;
+    // Public status uses the backend threshold result so it stays aligned with the Product screen.
+    if (hasStock && p.is_low_stock) {
+      badgeHtml = `<span data-availability-status="low-stock" style="display: inline-block; padding: 2px 6px; background: #fff8e1; color: #f57f17; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Sắp hết</span>`;
+    } else if (hasStock) {
+      badgeHtml = `<span data-availability-status="in-stock" style="display: inline-block; padding: 2px 6px; background: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Có sẵn</span>`;
     } else if (hasIncoming) {
-      badgeHtml = `<span style="display: inline-block; padding: 2px 6px; background: #fff3e0; color: #ef6c00; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Sắp về</span>`;
+      badgeHtml = `<span data-availability-status="incoming" style="display: inline-block; padding: 2px 6px; background: #fff3e0; color: #ef6c00; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Sắp về</span>`;
     } else {
-      badgeHtml = `<span style="display: inline-block; padding: 2px 6px; background: #eeeeee; color: #757575; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Hết hàng</span>`;
+      badgeHtml = `<span data-availability-status="out-of-stock" style="display: inline-block; padding: 2px 6px; background: #eeeeee; color: #757575; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; vertical-align: middle;">Hết hàng</span>`;
     }
 
     const selectListStyle = viewMode === 'list' ? 'margin: 0; padding: 0; border: none; display: flex; flex-direction: row;' : 'display: flex; flex-direction: row;';

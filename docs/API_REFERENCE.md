@@ -15,7 +15,7 @@ Tài liệu này gom các API hiện có trong backend để tra cứu nhanh khi
 
 | Method | Endpoint | Mục đích | Query / Body | Ghi chú |
 |---|---|---|---|---|
-| `GET` | `/api/public/products` | Lấy danh sách sản phẩm public | - | Chỉ lấy `is_public=1` và chưa xóa. |
+| `GET` | `/api/public/products` | Lấy danh sách sản phẩm public | - | Chỉ lấy `is_public=1` và chưa xóa; `is_low_stock` dùng cùng ngưỡng tồn với màn Sản phẩm. |
 | `GET` | `/api/public/orders` | Tra cứu đơn hàng public | Query: `phone` hoặc `zalo_id` | Phải có ít nhất một giá trị. |
 | `POST` | `/api/public/orders` | Tạo đơn hàng public | Body: `customer_name`, `customer_phone`, `customer_address`, `zalo_id`, `avatar_url`, `note`, `items`, `force_new_order` | Từ chối nếu config yêu cầu Zalo login mà thiếu `zalo_id`. |
 | `GET` | `/api/public/zalo-login` | Khởi tạo luồng đăng nhập Zalo | - | Redirect đến Zalo OAuth hoặc mock callback khi test. |

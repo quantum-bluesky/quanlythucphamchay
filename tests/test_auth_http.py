@@ -481,6 +481,32 @@ class AuthHttpTests(unittest.TestCase):
         self.assertIn("app.js", manifest["files"])
         self.assertIn("styles.css", manifest["files"])
 
+    def test_ut_auth_16_public_products_expose_internal_low_stock_status(self) -> None:
+        product = self.store.create_product(
+            name="Mặt hàng public sắp hết",
+            category="Đồ chay",
+            unit="gói",
+            low_stock_threshold=5,
+        )
+        self.store.create_transaction(product["id"], "in", 3, "Seed tồn dưới ngưỡng")
+        self._start_server(
+            {
+                "EnableLogin": True,
+                "session_timeout_minutes": 360,
+                "admin_session_timeout_minutes": 30,
+                "admin": {"username": "masteradmin", "password": "admin12345"},
+                "users": [],
+                "debug": {"sync_state": False},
+            }
+        )
+
+        status, payload, _ = self._request_json("GET", "/api/public/products")
+
+        self.assertEqual(status, 200)
+        public_product = next(item for item in payload["products"] if item["id"] == product["id"])
+        self.assertEqual(public_product["current_stock"], 3.0)
+        self.assertTrue(public_product["is_low_stock"])
+
     def test_ut_auth_07_session_cookie_is_scoped_per_request_port(self) -> None:
         config = {
             "EnableLogin": True,

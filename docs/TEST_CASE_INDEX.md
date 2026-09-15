@@ -23,6 +23,8 @@ Mục tiêu:
 
 | STT | Case code | File spec / test | Lệnh chạy nhanh |
 | --- | --- | --- | --- |
+| 172 | `UT-AUTH-16` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_16_public_products_expose_internal_low_stock_status` |
+| 173 | `IT-PUB-01` | `tests/integration/public-product-list.spec.js` | `npx playwright test tests/integration/public-product-list.spec.js --grep IT-PUB-01` |
 | 164 | `IT-UNIT-03` | `tests/integration/unit-quantity-roundtrip.spec.js` | `npx playwright test --grep IT-UNIT-03` |
 | 165 | `UT-UNIT-01` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |
 | 166 | `UT-UNIT-02` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |

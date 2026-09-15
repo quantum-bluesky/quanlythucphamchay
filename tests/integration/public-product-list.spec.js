@@ -1,6 +1,30 @@
 const { test, expect } = require("@playwright/test");
 const { attachRuntimeTracking, expectNoRuntimeErrors } = require("./support/ui");
 
+test("IT-PUB-01 Public ProductList shows low-stock status from the product threshold", async ({ page }) => {
+  const runtime = attachRuntimeTracking(page);
+  const products = [
+    { id: 901, name: "Hàng còn nhiều", category: "Đồ chay", unit: "gói", sale_price: 20000, current_stock: 8, is_low_stock: false, incoming_open_purchases: 0, sold_count: 0, images: [], details: "", recipe: "", note: "" },
+    { id: 902, name: "Hàng chạm ngưỡng", category: "Đồ chay", unit: "gói", sale_price: 20000, current_stock: 3, is_low_stock: true, incoming_open_purchases: 0, sold_count: 0, images: [], details: "", recipe: "", note: "" },
+    { id: 903, name: "Hàng sắp về", category: "Đồ chay", unit: "gói", sale_price: 20000, current_stock: 0, is_low_stock: true, incoming_open_purchases: 4, sold_count: 0, images: [], details: "", recipe: "", note: "" },
+    { id: 904, name: "Hàng đã hết", category: "Đồ chay", unit: "gói", sale_price: 20000, current_stock: 0, is_low_stock: true, incoming_open_purchases: 0, sold_count: 0, images: [], details: "", recipe: "", note: "" },
+  ];
+  await page.route("**/api/public/products", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ products, settings: {} }),
+  }));
+
+  await page.goto("./");
+
+  await expect(page.locator('script[src*="public_products.js?v="]')).toHaveCount(1);
+  await expect(page.locator('[data-availability-status="in-stock"]')).toHaveText("Có sẵn");
+  await expect(page.locator('[data-availability-status="low-stock"]')).toHaveText("Sắp hết");
+  await expect(page.locator('[data-availability-status="incoming"]')).toHaveText("Sắp về");
+  await expect(page.locator('[data-availability-status="out-of-stock"]')).toHaveText("Hết hàng");
+  expectNoRuntimeErrors(runtime);
+});
+
 test("Public ProductList preserves cart, supports review quantity edits and sorting", async ({ page }) => {
   const runtime = attachRuntimeTracking(page);
 

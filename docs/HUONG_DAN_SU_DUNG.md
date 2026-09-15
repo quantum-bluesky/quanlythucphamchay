@@ -43,6 +43,15 @@ Nếu gặp các trạng thái hoặc thuật ngữ tiếng Anh như `draft`, `o
 - `NCC`: Nhà cung cấp
 - `KH`: Khách hàng
 
+## 2.2. Trạng thái hàng trên trang danh mục công khai
+
+Trang danh mục thực phẩm công khai hiển thị bốn trạng thái:
+
+- `Có sẵn`: tồn kho đang cao hơn ngưỡng của mặt hàng.
+- `Sắp hết`: tồn kho vẫn còn nhưng đã bằng hoặc thấp hơn ngưỡng cấu hình tại màn `Sản phẩm`.
+- `Sắp về`: hiện đã hết nhưng có phiếu nhập đang chờ về.
+- `Hết hàng`: hiện đã hết và chưa có lượng hàng chờ nhập.
+
 ## 3. Luồng làm việc hằng ngày
 
 ### Luồng A: Kiểm tra tồn kho đầu ngày

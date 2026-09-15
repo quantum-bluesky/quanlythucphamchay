@@ -238,6 +238,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "unit": p["unit"],
                         "sale_price": p["sale_price"],
                         "current_stock": p.get("current_stock", 0),
+                        # Public stock badges must use the same threshold rule as internal product screens.
+                        "is_low_stock": bool(p.get("is_low_stock", False)),
                         "incoming_open_purchases": p.get("incoming_open_purchases", 0),
                         "sold_count": sales_stats.get(p["id"], 0),
                         "images": p["images"],
