@@ -21,6 +21,8 @@ Tài liệu này gom các API hiện có trong backend để tra cứu nhanh khi
 | `GET` | `/api/public/zalo-login` | Khởi tạo luồng đăng nhập Zalo | - | Redirect đến Zalo OAuth hoặc mock callback khi test. |
 | `GET` | `/api/public/zalo-callback` | Nhận callback từ Zalo OAuth | Query: `code` | - |
 
+`PUT /api/products/{id}` nhận `is_public` dạng boolean; gửi `false` để lưu trạng thái ẩn và loại sản phẩm khỏi `GET /api/public/products`.
+
 ## Session
 
 | Method | Endpoint | Mục đích | Query / Body | Ghi chú |

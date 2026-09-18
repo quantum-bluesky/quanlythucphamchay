@@ -1990,6 +1990,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         details=payload.get("details"),
                         recipe=payload.get("recipe"),
                         note=payload.get("note"),
+                        # Preserve an explicit false value so a product can be hidden from the public catalog.
+                        is_public=payload.get("is_public"),
                         actor=payload.get("actor") or self._get_current_actor_name(),
                         unit_conversions=payload.get("unit_conversions"),
                         default_purchase_unit=payload.get("default_purchase_unit"),

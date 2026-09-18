@@ -52,6 +52,8 @@ Trang danh mục thực phẩm công khai hiển thị bốn trạng thái:
 - `Sắp về`: hiện đã hết nhưng có phiếu nhập đang chờ về.
 - `Hết hàng`: hiện đã hết và chưa có lượng hàng chờ nhập.
 
+Muốn ẩn riêng một mặt hàng khỏi trang công khai, vào màn `Sản phẩm`, mở sửa chi tiết, bỏ chọn `Hiển thị trên Web (Public)` rồi lưu. Bật lại tùy chọn này để mặt hàng xuất hiện trở lại.
+
 ## 3. Luồng làm việc hằng ngày
 
 ### Luồng A: Kiểm tra tồn kho đầu ngày

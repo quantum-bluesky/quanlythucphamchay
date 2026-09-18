@@ -19,6 +19,8 @@ Lưu ý:
 | --- | --- | --- |
 | 172 | `UT-AUTH-16` | API danh mục công khai trả `is_low_stock` đúng theo cùng ngưỡng tồn mà backend dùng cho màn Sản phẩm. |
 | 173 | `IT-PUB-01` | Public ProductList nạp JS kèm cache-busting và hiển thị đúng bốn badge `Có sẵn / Sắp hết / Sắp về / Hết hàng`, trong đó hàng tồn bằng 0 vẫn ưu tiên trạng thái chờ nhập hoặc hết hàng. |
+| 174 | `UT-AUTH-17` | API cập nhật sản phẩm lưu được `is_public=false`, trả lại đúng trạng thái và loại mặt hàng đó khỏi danh mục công khai. |
+| 175 | `IT-PUB-02` | Form sửa chi tiết sản phẩm bỏ chọn và lưu được `Hiển thị trên Web (Public)`, sản phẩm biến mất khỏi API public, mở lại vẫn thấy checkbox tắt, sau đó bật lại thành công. |
 | 164 | `IT-UNIT-03` | Lưu riêng dòng đơn nháp không gửi collection hoặc đổi đơn lịch sử; server vẫn chặn đơn đã khóa; editor nằm trước nút trạng thái. |
 | 165 | `UT-UNIT-01` | Ghi đúng dòng và audit, giữ nguyên đơn khác và tồn kho. |
 | 166 | `UT-UNIT-02` | Sửa dòng đơn đã chốt; xung đột theo phiên bản đúng đơn, tôn trọng cấu hình conflict. |

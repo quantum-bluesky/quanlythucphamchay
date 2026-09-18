@@ -2818,7 +2818,7 @@ class InventoryStore:
             """
             SELECT
                 id, name, category, unit, price, sale_price, low_stock_threshold,
-                shelf_life_days, storage_life_days, is_deleted, deleted_at
+                shelf_life_days, storage_life_days, is_public, is_deleted, deleted_at
             FROM products
             WHERE id = ?
             """,
@@ -3052,8 +3052,8 @@ class InventoryStore:
                     p.low_stock_threshold,
                     p.shelf_life_days,
                     p.storage_life_days,
-                    p.is_deleted,
                     p.is_public,
+                    p.is_deleted,
                     p.deleted_at,
                     p.created_at,
                     p.updated_at,
@@ -3170,6 +3170,8 @@ class InventoryStore:
     def _format_product_audit_value(value) -> str:
         if value is None:
             return "(trống)"
+        if isinstance(value, bool):
+            return "Bật" if value else "Tắt"
         if isinstance(value, (int, float)) and not isinstance(value, bool):
             return f"{float(value):g}"
         clean_text = str(value).strip()
@@ -3187,11 +3189,15 @@ class InventoryStore:
             ("low_stock_threshold", "Ngưỡng cảnh báo"),
             ("shelf_life_days", "Hạn dùng (ngày)"),
             ("storage_life_days", "Bảo quản (ngày)"),
+            ("is_public", "Hiển thị trên Web (Public)"),
         )
         changes: list[str] = []
         for field_name, label in field_specs:
             previous_value = current_product[field_name]
             next_value = next_values[field_name]
+            if field_name == "is_public":
+                previous_value = bool(previous_value)
+                next_value = bool(next_value)
             if previous_value == next_value:
                 continue
             changes.append(
@@ -3548,6 +3554,8 @@ class InventoryStore:
                     "low_stock_threshold": threshold,
                     "shelf_life_days": parsed_shelf_life_days,
                     "storage_life_days": parsed_storage_life_days,
+                    # Audit the public visibility change even when it is the only edited field.
+                    "is_public": bool(next_values.get("is_public", current_product["is_public"])),
                 },
             )
             if unit_conversions is not None:
@@ -3894,6 +3902,7 @@ class InventoryStore:
                     p.low_stock_threshold,
                     p.shelf_life_days,
                     p.storage_life_days,
+                    p.is_public,
                     p.is_deleted,
                     p.deleted_at,
                     p.created_at,
@@ -10536,6 +10545,8 @@ class InventoryStore:
             "default_purchase_unit": str(row["default_purchase_unit"]).strip() if "default_purchase_unit" in row.keys() and row["default_purchase_unit"] else row["unit"],
             "default_sale_unit": str(row["default_sale_unit"]).strip() if "default_sale_unit" in row.keys() and row["default_sale_unit"] else row["unit"],
             "note": row["note"] if "note" in row.keys() else "",
+            # Consumers need the persisted flag both to restore the edit checkbox and to filter public products.
+            "is_public": bool(row["is_public"]) if "is_public" in row.keys() else True,
             "is_deleted": bool(row["is_deleted"]),
             "deleted_at": row["deleted_at"],
             "created_at": row["created_at"],
@@ -10797,7 +10808,7 @@ class InventoryStore:
             SELECT
                 p.id, p.name, p.category, p.unit, p.price, p.sale_price,
                 p.low_stock_threshold, p.shelf_life_days, p.storage_life_days,
-                p.is_deleted, p.deleted_at, p.created_at, p.updated_at,
+                p.is_public, p.is_deleted, p.deleted_at, p.created_at, p.updated_at,
                 COALESCE((SELECT SUM(pi.quantity) FROM purchase_items pi JOIN purchases pur ON pi.purchase_id = pur.id WHERE pi.product_id = p.id AND pur.status = 'ordered'), 0) AS incoming_open_purchases,
                 COALESCE(SUM(CASE WHEN t.transaction_type = 'in' THEN t.quantity ELSE -t.quantity END), 0) AS current_stock
             FROM products p

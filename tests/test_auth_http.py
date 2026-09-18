@@ -507,6 +507,48 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(public_product["current_stock"], 3.0)
         self.assertTrue(public_product["is_low_stock"])
 
+    def test_ut_auth_17_product_update_can_hide_item_from_public_catalog(self) -> None:
+        product = self.store.create_product(
+            name="Mặt hàng cần ẩn khỏi web",
+            category="Đồ chay",
+            unit="gói",
+            price=12000,
+            sale_price=15000,
+            low_stock_threshold=5,
+        )
+        self._start_server(
+            {
+                "EnableLogin": False,
+                "session_timeout_minutes": 360,
+                "admin_session_timeout_minutes": 30,
+                "admin": {"username": "masteradmin", "password": "admin12345"},
+                "users": [],
+                "debug": {"sync_state": False},
+            }
+        )
+
+        update_status, update_payload, _ = self._request_json(
+            "PUT",
+            f"/api/products/{product['id']}",
+            payload={
+                "name": product["name"],
+                "category": product["category"],
+                "unit": product["unit"],
+                "price": product["price"],
+                "sale_price": product["sale_price"],
+                "low_stock_threshold": product["low_stock_threshold"],
+                "is_public": False,
+            },
+        )
+
+        self.assertEqual(update_status, 200)
+        self.assertFalse(update_payload["product"]["is_public"])
+        self.assertFalse(self.store.get_product_by_id(product["id"])["is_public"])
+
+        public_status, public_payload, _ = self._request_json("GET", "/api/public/products")
+        self.assertEqual(public_status, 200)
+        self.assertNotIn(product["id"], [item["id"] for item in public_payload["products"]])
+
     def test_ut_auth_07_session_cookie_is_scoped_per_request_port(self) -> None:
         config = {
             "EnableLogin": True,
