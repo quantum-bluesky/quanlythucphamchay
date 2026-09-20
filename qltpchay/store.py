@@ -186,6 +186,16 @@ class InventoryStore:
         connection = sqlite3.connect(str(self.db_path))
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
+        # 1. Bật WAL mode
+        connection.execute("PRAGMA journal_mode = WAL;")
+        # 2. Giảm sync cưỡng bức xuống đĩa
+        connection.execute("PRAGMA synchronous = NORMAL;")
+        # 3. Bảng tạm và file tạm chạy trên RAM
+        connection.execute("PRAGMA temp_store = MEMORY;")
+        # 4. Tăng cache bộ nhớ (khoảng 16MB đến 32MB trên RAM)
+        connection.execute("PRAGMA cache_size = -32000;")
+        # 5. Tự động checkpoint dồn log WAL khi đạt 1000 trang
+        connection.execute("PRAGMA wal_autocheckpoint = 1000;")
         try:
             yield connection
             connection.commit()
