@@ -7463,12 +7463,23 @@ class InventoryStore:
                 "committed_at": committed_cart.get("committedAt") or now,
             }
 
-    def ship_cart_order(self, cart_id: str, *, actor: str = "") -> dict:
+    # Issue 169: Cho phép chọn ngày xuất khi chuyển trạng thái sang đã xuất hàng
+    def ship_cart_order(
+        self,
+        cart_id: str,
+        *,
+        actor: str = "",
+        shipped_at: str = "",
+        ship_date: str = "",
+    ) -> dict:
         clean_cart_id = str(cart_id or "").strip()
         if not clean_cart_id:
             raise ValueError("Thiếu cart_id.")
 
-        now = utc_now_iso()
+        effective_at = (
+            self._normalize_document_event_at(shipped_at or ship_date, "Ngày xuất")
+            or utc_now_iso()
+        )
         with self._connect() as connection:
             cart = self._get_cart_document(connection, clean_cart_id)
             if str(cart.get("status") or "") != "committed":
@@ -7495,7 +7506,7 @@ class InventoryStore:
                 grouped_items=grouped_items,
                 products_by_id=products_by_id,
                 current_stock_by_id=current_stock_by_id,
-                created_at=now,
+                created_at=effective_at,
                 note=str(cart.get("note") or "").strip(),
                 discount_amount=cart.get("discountAmount") or cart.get("discount_amount") or 0,
             )
@@ -7508,7 +7519,7 @@ class InventoryStore:
                     completed_at = ?
                 WHERE id = ?
                 """,
-                (now, now, clean_cart_id),
+                (effective_at, effective_at, clean_cart_id),
             )
             self._record_audit(
                 connection,
@@ -7529,9 +7540,9 @@ class InventoryStore:
                 before_status="committed",
                 after_status="completed",
                 note="Xuất hàng hoàn tất.",
-                created_at=now,
+                created_at=effective_at,
             )
-            carts = self._refresh_sync_collection_cache(connection, "carts", updated_at=now)
+            carts = self._refresh_sync_collection_cache(connection, "carts", updated_at=effective_at)
             completed_cart = next((entry for entry in carts if str(entry.get("id")) == clean_cart_id), None)
             if not completed_cart:
                 raise ValueError("Không tìm thấy đơn vừa xuất hàng.")
@@ -7540,7 +7551,7 @@ class InventoryStore:
                 "order": {
                     "order_code": order_code,
                     "customer_name": clean_customer_name,
-                    "created_at": now,
+                    "created_at": effective_at,
                     "transactions": sale_result["transactions"],
                     "total_quantity": sale_result["total_quantity"],
                     "subtotal_amount": sale_result["subtotal_amount"],
@@ -7929,6 +7940,7 @@ class InventoryStore:
             "purchase": self._get_purchase_document(connection, clean_purchase_id),
         }
 
+    # Issue 169: Cho phép chọn ngày nhập khi chuyển trạng thái sang đã nhập hàng
     def receive_purchase(
         self,
         purchase_id: str,
@@ -7936,11 +7948,17 @@ class InventoryStore:
         discount_amount=None,
         actor_username: str = "",
         actor_role: str = "",
+        received_at: str = "",
+        received_date: str = "",
     ) -> dict:
         clean_purchase_id = str(purchase_id or "").strip()
         if not clean_purchase_id:
             raise ValueError("Thiếu mã phiếu nhập cần nhập kho.")
 
+        effective_at = (
+            self._normalize_document_event_at(received_at or received_date, "Ngày nhập")
+            or utc_now_iso()
+        )
         actor = str(actor_username or "").strip()
         with self._connect() as connection:
             result = self._receive_purchase_in_connection(
@@ -7950,7 +7968,7 @@ class InventoryStore:
                 actor=actor,
                 actor_username=actor_username,
                 actor_role=actor_role,
-                received_at=utc_now_iso(),
+                received_at=effective_at,
             )
             canonical = self._refresh_sync_collection_cache(
                 connection,

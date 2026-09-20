@@ -1235,16 +1235,31 @@ export function registerSalesControllerEvents(contract) {
       if (!saveCartEditorsBeforeStatusChange(cart.id, dom.activeCartPanel)) {
         return;
       }
-      if (!confirmCartStatusAction(cart, "ship")) {
-        return;
-      }
       const latestCart = queries.getActiveCart() || cart;
       if (!confirmCartCostWarning(latestCart, "Xuất hàng")) {
         return;
       }
+      // Issue 169: Cho phép chọn ngày xuất khi chuyển sang Đã xuất hàng
+      let shipDate = "";
+      if (typeof actions.promptDocumentActionDate === "function") {
+        const label = getCartDisplayName(cart);
+        const chosenDate = await actions.promptDocumentActionDate({
+          kicker: "Xác nhận xuất hàng",
+          title: `Xuất hàng: ${label}`,
+          message: `Đơn sẽ chuyển sang Đã xuất hàng và tồn kho sẽ bị trừ ngay theo các dòng hiện tại.`,
+          dateLabel: "Ngày xuất hàng:",
+          confirmText: "Xác nhận xuất hàng",
+        });
+        if (!chosenDate) {
+          return;
+        }
+        shipDate = chosenDate;
+      } else if (!confirmCartStatusAction(cart, "ship")) {
+        return;
+      }
       try {
         await actions.flushPendingPersistCollections();
-        await actions.shipActiveCart();
+        await actions.shipActiveCart({ shipDate });
       } catch (error) {
         actions.showToast(error.message, true);
       }
@@ -1439,16 +1454,31 @@ export function registerSalesControllerEvents(contract) {
       if (!saveCartEditorsBeforeStatusChange(cart.id, dom.cartQueueList)) {
         return;
       }
-      if (!confirmCartStatusAction(cart, "ship")) {
-        return;
-      }
       const latestCart = queries.getCartById(button.dataset.cartId) || cart;
       if (!confirmCartCostWarning(latestCart, "Xuất hàng")) {
         return;
       }
+      // Issue 169: Cho phép chọn ngày xuất khi chuyển sang Đã xuất hàng
+      let shipDate = "";
+      if (typeof actions.promptDocumentActionDate === "function") {
+        const label = getCartDisplayName(cart);
+        const chosenDate = await actions.promptDocumentActionDate({
+          kicker: "Xác nhận xuất hàng",
+          title: `Xuất hàng: ${label}`,
+          message: `Đơn sẽ chuyển sang Đã xuất hàng và tồn kho sẽ bị trừ ngay theo các dòng hiện tại.`,
+          dateLabel: "Ngày xuất hàng:",
+          confirmText: "Xác nhận xuất hàng",
+        });
+        if (!chosenDate) {
+          return;
+        }
+        shipDate = chosenDate;
+      } else if (!confirmCartStatusAction(cart, "ship")) {
+        return;
+      }
       try {
         await actions.flushPendingPersistCollections();
-        await actions.shipCart(cart.id);
+        await actions.shipCart(cart.id, { shipDate });
       } catch (error) {
         actions.showToast(error.message, true);
       }
@@ -1679,12 +1709,29 @@ export function registerSalesControllerEvents(contract) {
     }
     if (action === "ship") {
       if (!saveCartEditorsBeforeStatusChange(cart.id, dom.orderDetailPanel)) return;
-      if (!confirmCartStatusAction(cart, "ship")) return;
       const latestCart = queries.getCartById(cart.id) || cart;
       if (!confirmCartCostWarning(latestCart, "Xuất hàng")) return;
+      // Issue 169: Cho phép chọn ngày xuất khi chuyển sang Đã xuất hàng
+      let shipDate = "";
+      if (typeof actions.promptDocumentActionDate === "function") {
+        const label = getCartDisplayName(cart);
+        const chosenDate = await actions.promptDocumentActionDate({
+          kicker: "Xác nhận xuất hàng",
+          title: `Xuất hàng: ${label}`,
+          message: `Đơn sẽ chuyển sang Đã xuất hàng và tồn kho sẽ bị trừ ngay theo các dòng hiện tại.`,
+          dateLabel: "Ngày xuất hàng:",
+          confirmText: "Xác nhận xuất hàng",
+        });
+        if (!chosenDate) {
+          return;
+        }
+        shipDate = chosenDate;
+      } else if (!confirmCartStatusAction(cart, "ship")) {
+        return;
+      }
       try {
         await actions.flushPendingPersistCollections();
-        await actions.shipCart(cart.id);
+        await actions.shipCart(cart.id, { shipDate });
       } catch (error) {
         actions.showToast(error.message, true);
       }

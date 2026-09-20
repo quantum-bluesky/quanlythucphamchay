@@ -224,7 +224,8 @@ Xuất hàng
 
 Nếu đủ hàng:
 
-- hệ thống mới trừ kho ở bước này
+- khi bấm `Xuất hàng`, app mở hộp thoại xác nhận cho phép chọn `Ngày xuất hàng` (mặc định là ngày hôm nay `YYYY-MM-DD` theo giờ máy); bạn có thể giữ nguyên hôm nay hoặc chọn lùi ngày xuất thực tế
+- hệ thống mới trừ kho ở bước này và ghi nhận ngày xuất theo mốc thời gian bạn chọn
 - đơn chuyển sang trạng thái `Đã xuất hàng`
 - không tự in phiếu nữa; nếu cần in thì bấm `In` hoặc bấm `Copy text` để lấy nội dung text theo đúng đơn vị đã chọn kèm số lượng cơ sở (nếu không phải đơn vị trọng lượng) và thành tiền = số lượng (theo đơn vị) × giá 1 đơn vị
 - nếu sau khi rà lại mà `Cần thanh toán` vẫn thấp hơn tổng `giá nhập mặc định`, app sẽ hỏi xác nhận thêm một lần trước khi xuất hàng
@@ -473,7 +474,7 @@ Màn này có 2 phần:
 23. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`; từ lúc này phiếu vẫn còn chỉnh được nếu nhà cung cấp yêu cầu đổi số lượng hoặc giá, nhưng không còn được đổi NCC
 24. Ngay trong danh sách phiếu nhập, có thể tick nhiều phiếu rồi bấm `Đặt hàng` để chuyển nhanh các phiếu nháp hợp lệ sang `Đã đặt hàng`; phiếu thiếu NCC hoặc không còn sửa được sẽ được giữ nguyên và app báo lại theo từng phiếu
 25. Cũng trong danh sách đó, có thể tick nhiều phiếu `Nháp/Đã đặt` cùng NCC rồi bấm `Gộp đơn`; nếu khác NCC, app sẽ báo lỗi và giữ nguyên màn hiện tại
-25. Khi hàng về thực tế và phiếu đã là `Đã đặt`, bấm `Nhập kho`
+25. Khi hàng về thực tế và phiếu đã là `Đã đặt`, bấm `Nhập kho`. App sẽ mở hộp thoại xác nhận cho phép chọn `Ngày nhập hàng` (mặc định hôm nay `YYYY-MM-DD` theo giờ máy); bạn có thể giữ nguyên hôm nay hoặc chọn lùi ngày nhập kho thực tế
 26. Nếu chưa có `Nhà cung cấp`, app cũng sẽ chặn luôn bước `Nhập kho`
 27. Nếu bỏ trống `Mã lô`, app sẽ tự sinh mã lô lúc nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang giá trị tự tính `ngày nhập kho + thời gian bảo quản`
 28. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`

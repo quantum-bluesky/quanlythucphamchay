@@ -253,3 +253,15 @@ export const productUnitConversionsContainer = document.getElementById("productU
 export const productAddUnitConversionButton = document.getElementById("productAddUnitConversionButton");
 export const productDefaultPurchaseUnitSelect = document.getElementById("productDefaultPurchaseUnitSelect");
 export const productDefaultSaleUnitSelect = document.getElementById("productDefaultSaleUnitSelect");
+
+// Issue 169: Modal chọn ngày khi xuất hàng / nhập kho
+export const documentActionDateModal = document.getElementById("documentActionDateModal");
+export const documentActionDateKicker = document.getElementById("documentActionDateKicker");
+export const documentActionDateTitle = document.getElementById("documentActionDateTitle");
+export const documentActionDateMessage = document.getElementById("documentActionDateMessage");
+export const documentActionDateLabel = document.getElementById("documentActionDateLabel");
+export const documentActionDateInput = document.getElementById("documentActionDateInput");
+export const documentActionDateForm = document.getElementById("documentActionDateForm");
+export const documentActionDateCancelButton = document.getElementById("documentActionDateCancelButton");
+export const documentActionDateConfirmButton = document.getElementById("documentActionDateConfirmButton");
+export const documentActionDateCloseButton = document.getElementById("documentActionDateCloseButton");
