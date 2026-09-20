@@ -73,7 +73,7 @@ Nếu cần can thiệp đặc biệt
 - sửa giá bán riêng cho đơn
 - nhập hoặc sửa `ghi chú phiếu xuất` ở cấp toàn đơn
 - sửa địa chỉ giao riêng của đơn
-- có thể nhập thêm `giảm giá khuyến mại` cho toàn đơn; app tự tính lại số tiền cần thu
+- có thể nhập thêm `giảm giá khuyến mại` cho toàn đơn hoặc giảm giá riêng theo từng dòng sản phẩm; app tự tính lại thành tiền dòng, tạm tính, khuyến mại và số tiền cần thu
 - nếu cần, cập nhật luôn giá bán mặc định nhưng UI phải hỏi confirm trước khi áp dụng
 - trong lúc đơn còn `draft` hoặc `committed`, vẫn có thể thêm bớt dòng và chỉnh số lượng/giá; chỉ sau `completed` mới khóa nội dung
 - từ `committed` trở đi, khách hàng của đơn bị khóa và không được đổi nữa
@@ -196,7 +196,7 @@ Nếu cần can thiệp đặc biệt
 - sửa số lượng, giá nhập, mã lô và HSD của từng dòng; mặc định nhập trực tiếp HSD, hoặc có thể chuyển sang nhập gián tiếp bằng `Ngày sản xuất` để app tự tính HSD theo thời gian bảo quản
 - nếu cùng một sản phẩm về nhiều lô khác nhau thì tách thành nhiều dòng riêng
 - bắt buộc có nhà cung cấp trước khi chuyển phiếu sang `ordered`
-- có thể nhập thêm `giảm giá khuyến mại` cho toàn phiếu để phản ánh số tiền thực trả NCC
+- có thể nhập thêm `giảm giá khuyến mại` cho toàn phiếu hoặc giảm giá riêng cho từng dòng sản phẩm để phản ánh số tiền thực trả NCC
 - phiếu nhập có thể được in từ lúc còn `draft` cho tới khi `paid`; ở list phiếu, nút `In` được ẩn khi phiếu đã thanh toán để giao diện gọn hơn
 - có thể đổi giá nhập mặc định nhưng UI phải hỏi confirm trước khi áp dụng
 - nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB; nếu phiếu đang là `draft` và đã có NCC thì bấm nút `NCC` vẫn phải cho chọn NCC khác

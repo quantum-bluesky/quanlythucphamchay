@@ -106,11 +106,17 @@ export function createSalesDomainHelpers(deps) {
             const quantity = Number(item.quantity);
             const inputQuantity = Number(item.inputQuantity ?? item.input_quantity ?? quantity);
             const unitPrice = Number(item.unitPrice);
+            const itemGross = Number.isFinite(inputQuantity * unitPrice) ? Number((inputQuantity * unitPrice).toFixed(2)) : 0;
+            const rawItemDiscount = Number(item.discountAmount ?? item.discount_amount ?? 0);
+            const itemDiscount = Number.isFinite(rawItemDiscount) ? Math.max(0, Math.min(rawItemDiscount, itemGross)) : 0;
+            const lineTotal = Number(Math.max(0, itemGross - itemDiscount).toFixed(2));
             if (preserveHistory) {
               return {
                 ...item,
                 unit: item.unit || product?.unit || "",
-                lineTotal: Number.isFinite(inputQuantity * unitPrice) ? Number((inputQuantity * unitPrice).toFixed(2)) : 0,
+                discountAmount: itemDiscount,
+                discount_amount: itemDiscount,
+                lineTotal,
               };
             }
             if (!Number.isFinite(quantity) || quantity <= 0) return null;
@@ -127,8 +133,10 @@ export function createSalesDomainHelpers(deps) {
               conversionFactor: Number(item.conversionFactor ?? item.conversion_factor ?? 1),
               unitPrice,
               note: item.note || "",
-              // #Issue133: Price belongs to the selected unit; stock quantity remains in base units.
-              lineTotal: Number((inputQuantity * unitPrice).toFixed(2)),
+              // #Issue167: Line item discount and net line total
+              discountAmount: itemDiscount,
+              discount_amount: itemDiscount,
+              lineTotal,
             };
           })
           .filter(Boolean)
