@@ -1,5 +1,5 @@
 {
-  "app_version": "3.36.0",
+  "app_version": "3.36.1",
   "files": {
     "app.js": {
       "counter": 1,
@@ -115,7 +115,7 @@
     },
     "modules/ui/sales-ui.js": {
       "counter": 1,
-      "sha256": "1caf5538f1103c9c199227d04be30c48d012f6bf840d1c88c3d3acb801e69a60"
+      "sha256": "58bf68c088a8bc5867a7d8618eb677503c159e161e91fbcecf3299dcdd1209ff"
     },
     "modules/unit-quantity-editor.js": {
       "counter": 1,

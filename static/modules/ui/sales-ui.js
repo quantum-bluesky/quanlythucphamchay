@@ -271,7 +271,7 @@ export function createSalesUi(deps) {
               </div>
               <div class="document-detail-item-meta">
                 <span>SL ${escapeHtml(formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity))} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)}</span>
-                <span>Giá bán ${escapeHtml(formatCurrency(item.unitPrice))}</span>
+                <span>Giá bán ${escapeHtml(formatCurrency(item.unitPrice))}${product ? ` | Nhập ${escapeHtml(formatCurrency(product.price))}` : ""}</span>
                 ${Number(item.discountAmount || item.discount_amount || 0) > 0 ? `<span>| Giảm: -${escapeHtml(formatCurrency(item.discountAmount || item.discount_amount || 0))}</span>` : ""}
                 ${renderPriceWarningMarkup(linePriceAlerts, "view")}
               </div>
