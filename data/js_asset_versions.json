@@ -114,8 +114,8 @@
       "sha256": "0b1bb53d5dc7bb1b9272971efbf73d0111787ba38813b9ec349628708eb2d4c7"
     },
     "modules/ui/sales-ui.js": {
-      "counter": 1,
-      "sha256": "58bf68c088a8bc5867a7d8618eb677503c159e161e91fbcecf3299dcdd1209ff"
+      "counter": 2,
+      "sha256": "f83e8b105629c832f4974ff01d2869998c1951229f5d2c90d16b5cf7c0a7967e"
     },
     "modules/unit-quantity-editor.js": {
       "counter": 1,

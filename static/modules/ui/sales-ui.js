@@ -259,6 +259,8 @@ export function createSalesUi(deps) {
             ${itemToggleActionAttribute ? `<div class="detail-toggle-row"><strong>Mặt hàng trong đơn</strong><button type="button" class="ghost-button compact-button" ${itemToggleActionAttribute}>${itemsCollapsed ? "Mở mặt hàng" : "Thu gọn mặt hàng"}</button></div>` : ""}
             <div class="document-detail-items">${cart.items.map((item) => {
               const product = getProductById(item.productId);
+              const factor = Number(item.conversionFactor ?? item.conversion_factor ?? 1) || 1;
+              const convertedPurchasePrice = (product?.price ?? 0) * factor;
               const linePriceAlerts = getPriceWarningAlerts({
                 purchasePrice: product?.price ?? 0,
                 salePrice: item.unitPrice,
@@ -271,7 +273,7 @@ export function createSalesUi(deps) {
               </div>
               <div class="document-detail-item-meta">
                 <span>SL ${escapeHtml(formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity))} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)}</span>
-                <span>Giá bán ${escapeHtml(formatCurrency(item.unitPrice))}${product ? ` | Nhập ${escapeHtml(formatCurrency(product.price))}` : ""}</span>
+                <span>Giá bán ${escapeHtml(formatCurrency(item.unitPrice))}${product ? ` | Nhập ${escapeHtml(formatCurrency(convertedPurchasePrice))}` : ""}</span>
                 ${Number(item.discountAmount || item.discount_amount || 0) > 0 ? `<span>| Giảm: -${escapeHtml(formatCurrency(item.discountAmount || item.discount_amount || 0))}</span>` : ""}
                 ${renderPriceWarningMarkup(linePriceAlerts, "view")}
               </div>
@@ -749,6 +751,8 @@ export function createSalesUi(deps) {
     dom.cartItemsList.innerHTML = cart.items
       .map((item) => {
         const product = getProductById(item.productId);
+        const factor = Number(item.conversionFactor ?? item.conversion_factor ?? 1) || 1;
+        const convertedPurchasePrice = (product?.price ?? 0) * factor;
         const linePriceAlerts = getPriceWarningAlerts({
           purchasePrice: product?.price ?? 0,
           salePrice: item.unitPrice,
@@ -759,7 +763,7 @@ export function createSalesUi(deps) {
             <div class="cart-item-header cart-item-header-compact">
               <div class="cart-item-primary">
                 <strong class="cart-item-name">${escapeHtml(item.productName)}</strong>
-                <div class="cart-line-note">SL ${formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity)} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)} | Giá bán ${formatCurrency(item.unitPrice)}${Number(item.discountAmount || item.discount_amount || 0) > 0 ? ` | Giảm: -${formatCurrency(item.discountAmount || item.discount_amount || 0)}` : ""} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
+                <div class="cart-line-note">SL ${formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity)} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)} | Giá bán ${formatCurrency(item.unitPrice)}${product ? ` | Nhập ${formatCurrency(convertedPurchasePrice)}` : ""}${Number(item.discountAmount || item.discount_amount || 0) > 0 ? ` | Giảm: -${formatCurrency(item.discountAmount || item.discount_amount || 0)}` : ""} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
               </div>
               <div class="cart-item-summary">
                 <strong>${escapeHtml(formatCurrency(item.lineTotal))}</strong>
