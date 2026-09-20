@@ -136,7 +136,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Khối `Giỏ hiện hành` ở màn xuất hàng hiển thị từng dòng đã chọn dưới dạng card gọn 2 dòng; bấm `...` trên từng card để mở detail sửa số lượng, giá bán hoặc bỏ khỏi giỏ
 - Màn `Tạo đơn xuất hàng` có thêm nút `Tạo đơn mới` ngay cạnh ô khách hàng và trong khối `Giỏ hiện hành`; nếu đang mở đơn cũ hoặc đang ở khối chọn/gộp đơn thì app sẽ hỏi confirm rồi reset form sang một đơn nháp trắng, không tự dồn vào draft cũ
 - Phiếu xuất có thêm `ghi chú phiếu xuất` ở cấp toàn phiếu; ghi chú này được lưu trong DB, hiện ở detail/bản in và còn sửa được tới trước khi đơn đã thanh toán
-- Phiếu xuất và phiếu nhập có thêm `giảm giá khuyến mại` ở cấp toàn phiếu; app tự tính `Tạm tính / Giảm KM / Cần thanh toán` ngay trên panel, detail và bản in
+- Phiếu xuất và phiếu nhập hỗ trợ `giảm giá khuyến mại` cấp toàn phiếu lẫn giảm giá riêng theo từng dòng sản phẩm; app tự tính thành tiền từng dòng, `Tạm tính / Giảm KM / Cần thanh toán` ngay trên panel, detail, bản in và copy text
 - Nếu `Cần thanh toán` của phiếu xuất đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app sẽ hiện cảnh báo trước khi `Chốt đơn` hoặc `Xuất hàng`
 - Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm
 - Ở màn `Nhập hàng`, có thể tick nhiều phiếu rồi bấm `Đặt hàng` để chuyển nhanh các phiếu nháp hợp lệ sang `Đã đặt hàng`; phiếu thiếu NCC hoặc không còn sửa được sẽ được giữ nguyên và app báo lại theo từng phiếu

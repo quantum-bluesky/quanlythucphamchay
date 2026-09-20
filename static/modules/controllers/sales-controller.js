@@ -146,6 +146,7 @@ export function registerSalesControllerEvents(contract) {
     state.quickSaleDraft.productText = String(dom.quickSalePanel.querySelector("#quickSaleProductInput")?.value || "").trim();
     state.quickSaleDraft.quantity = String(dom.quickSalePanel.querySelector("#quickSaleQuantityInput")?.value || "").trim() || "1";
     state.quickSaleDraft.unitPrice = String(dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput")?.value || "").trim();
+    state.quickSaleDraft.lineDiscount = String(dom.quickSalePanel.querySelector("#quickSaleLineDiscountInput")?.value || "").trim();
     state.quickSaleDraft.conversionFactor = String(dom.quickSalePanel.querySelector("#quickSaleUnitSelect")?.value || "1").trim();
     state.quickSaleDraft.unitName = dom.quickSalePanel.querySelector("#quickSaleUnitSelect")?.options?.[dom.quickSalePanel.querySelector("#quickSaleUnitSelect").selectedIndex]?.dataset?.unitName || "";
     const selectedStatus = dom.quickSalePanel.querySelector('input[name="quickSaleFinalStatus"]:checked');
@@ -187,10 +188,22 @@ export function registerSalesControllerEvents(contract) {
       actions.showToast("Giá bán không hợp lệ.", true);
       return;
     }
+    const lineDiscount = Math.max(0, Number(draft.lineDiscount || 0));
+    if (!Number.isFinite(lineDiscount) || lineDiscount < 0) {
+      actions.showToast("Giảm giá dòng không hợp lệ.", true);
+      return;
+    }
+    const grossTotal = inputQuantity * unitPrice;
+    if (lineDiscount > grossTotal) {
+      actions.showToast("Giảm giá dòng không được vượt quá thành tiền.", true);
+      return;
+    }
     const existing = (draft.items || []).find((item) => Number(item.productId) === Number(product.id));
     if (existing) {
       existing.quantity = Number((Number(existing.quantity || 0) + quantity).toFixed(2));
+      existing.inputQuantity = Number((Number(existing.inputQuantity || 0) + inputQuantity).toFixed(2));
       existing.unitPrice = Number(unitPrice.toFixed(2));
+      existing.discountAmount = Number(((existing.discountAmount || 0) + lineDiscount).toFixed(2));
       existing.productName = product.name;
     } else {
       draft.items.push({
@@ -198,6 +211,7 @@ export function registerSalesControllerEvents(contract) {
         productName: product.name,
         quantity: Number(quantity.toFixed(2)),
         unitPrice: Number(unitPrice.toFixed(2)),
+        discountAmount: lineDiscount,
         inputQuantity: inputQuantity,
         inputUnit: draft.unitName || product.unit,
         conversionFactor: conversionFactor,
@@ -206,6 +220,7 @@ export function registerSalesControllerEvents(contract) {
     draft.productText = "";
     draft.quantity = "1";
     draft.unitPrice = "";
+    draft.lineDiscount = "";
     draft.lastResult = null;
     renderers.renderQuickSalePanel();
     utils.syncPriceWarningGroup(dom.quickSalePanel?.querySelector("[data-price-warning-group]"));
@@ -253,6 +268,10 @@ export function registerSalesControllerEvents(contract) {
           product_id: item.productId,
           quantity: item.quantity,
           unit_price: item.unitPrice,
+          discount_amount: Number(item.discountAmount || item.discount_amount || 0),
+          input_quantity: item.inputQuantity,
+          input_unit: item.inputUnit,
+          conversion_factor: item.conversionFactor,
         })),
         final_status: draft.finalStatus,
         mark_paid: Boolean(draft.markPaid && draft.finalStatus === "completed"),
@@ -1006,12 +1025,15 @@ export function registerSalesControllerEvents(contract) {
     if (lineAction === "save") {
       const qtyInput = dom.cartItemsList.querySelector(`[data-qty-input="${lineButton.dataset.itemId}"]`);
       const priceInput = dom.cartItemsList.querySelector(`[data-price-input-cart="${lineButton.dataset.itemId}"], [data-price-input="${lineButton.dataset.itemId}"]`);
+      const discountInput = dom.cartItemsList.querySelector(`[data-discount-input="${lineButton.dataset.itemId}"], [data-item-discount-input="${lineButton.dataset.itemId}"]`);
       const unitSelect = dom.cartItemsList.querySelector(`[data-cart-unit-input="${lineButton.dataset.itemId}"]`);
       try {
         const inputQuantity = Number(qtyInput?.value);
         const unitPrice = Number(priceInput?.value);
+        const discountAmount = Math.max(0, Number(discountInput?.value || 0));
         if (!Number.isFinite(inputQuantity) || inputQuantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
         if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new Error("Giá bán không hợp lệ.");
+        if (!Number.isFinite(discountAmount) || discountAmount < 0) throw new Error("Khuyến mại không hợp lệ.");
 
         const selectedOption = unitSelect?.options[unitSelect?.selectedIndex];
         const conversionFactor = selectedOption ? (parseFloat(selectedOption.value) || 1.0) : 1.0;
@@ -1024,6 +1046,7 @@ export function registerSalesControllerEvents(contract) {
           conversionFactor,
           quantity: baseQuantity,
           unitPrice,
+          discountAmount,
         });
         renderers.renderCartItems();
         renderers.renderSalesProductList();
@@ -1061,9 +1084,10 @@ export function registerSalesControllerEvents(contract) {
     if (event.key !== "Enter") return;
     const qtyInput = event.target.closest("[data-qty-input]");
     const priceInput = event.target.closest("[data-price-input-cart], [data-price-input]");
-    if (!qtyInput && !priceInput) return;
+    const discountInput = event.target.closest("[data-discount-input], [data-item-discount-input]");
+    if (!qtyInput && !priceInput && !discountInput) return;
     event.preventDefault();
-    const itemId = qtyInput?.dataset.qtyInput || priceInput?.dataset.priceInputCart || priceInput?.dataset.priceInput;
+    const itemId = qtyInput?.dataset.qtyInput || priceInput?.dataset.priceInputCart || priceInput?.dataset.priceInput || discountInput?.dataset.discountInput || discountInput?.dataset.itemDiscountInput;
     const saveButton = dom.cartItemsList.querySelector(`[data-line-action="save"][data-item-id="${itemId}"], [data-cart-item-action="save"][data-item-id="${itemId}"]`);
     saveButton?.click();
   });

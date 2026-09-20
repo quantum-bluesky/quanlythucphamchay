@@ -176,6 +176,10 @@ export function createPurchasesDomainHelpers(deps) {
             const unitCost = Number(item.unitCost ?? item.unit_cost);
             if (!Number.isFinite(quantity) || quantity <= 0) return null;
             if (!Number.isFinite(unitCost) || unitCost < 0) return null;
+            const itemGross = Number((inputQuantity * unitCost).toFixed(2));
+            const rawItemDiscount = Number(item.discountAmount ?? item.discount_amount ?? 0);
+            const itemDiscount = Number.isFinite(rawItemDiscount) ? Math.max(0, Math.min(rawItemDiscount, itemGross)) : 0;
+            const lineTotal = Number(Math.max(0, itemGross - itemDiscount).toFixed(2));
             return {
               id: item.id || createId("purchase_item"),
               productId: Number(item.productId),
@@ -191,8 +195,10 @@ export function createPurchasesDomainHelpers(deps) {
               expiryInputMode: String(item.expiryInputMode || item.expiry_input_mode || "direct").trim() || "direct",
               manufactureDate: String(item.manufactureDate || item.manufacture_date || "").trim(),
               expiryDate: String(item.expiryDate || item.expiry_date || "").trim(),
-              // #Issue133: Purchase price belongs to the selected input unit.
-              lineTotal: Number((inputQuantity * unitCost).toFixed(2)),
+              // #Issue167: Purchase line item discount and line total
+              discountAmount: itemDiscount,
+              discount_amount: itemDiscount,
+              lineTotal,
             };
           })
           .filter(Boolean)

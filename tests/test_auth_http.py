@@ -437,7 +437,7 @@ class AuthHttpTests(unittest.TestCase):
         }
         self._start_server(config)
 
-        admin_path = str(runtime_config.get("admin_path", "/admin")).lower()
+        admin_path = str(config.get("admin_path", "/admin")).lower()
         if not admin_path.startswith("/"):
             admin_path = "/" + admin_path
         html_status, html_body, html_headers = self._request_text("GET", admin_path)
@@ -616,7 +616,7 @@ class AuthHttpTests(unittest.TestCase):
         }
         self._start_server(config)
 
-        admin_path = str(runtime_config.get("admin_path", "/admin")).lower()
+        admin_path = str(config.get("admin_path", "/admin")).lower()
         if not admin_path.startswith("/"):
             admin_path = "/" + admin_path
         stripped_proxy_html_status, stripped_proxy_html_body, _ = self._request_text("GET", admin_path)

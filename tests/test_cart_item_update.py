@@ -134,6 +134,25 @@ class CartItemUpdateTests(unittest.TestCase):
             ).fetchone()["note"]
         self.assertIn("Thành tiền: 280000.00", note)
 
+    def test_ut_unit_08_item_discount_persisted_and_reduces_subtotal_and_total(self):
+        # Issue 167: Test item-level discount update and calculation
+        result = self.store.update_cart_item(
+            "draft", "draft-line",
+            self.payload(quantity=20, input_quantity=1, conversion_factor=20, unit_price=140000, discount_amount=15000),
+            actor="tester",
+        )
+        item = result["cart"]["items"][0]
+        self.assertEqual(item["discountAmount"], 15000)
+        self.assertEqual(item["discount_amount"], 15000)
+
+        # Verify discount > gross error
+        with self.assertRaises(ValueError):
+            self.store.update_cart_item(
+                "draft", "draft-line",
+                self.payload(quantity=20, input_quantity=1, conversion_factor=20, unit_price=140000, discount_amount=200000),
+                actor="tester",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

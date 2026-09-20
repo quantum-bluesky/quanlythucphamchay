@@ -421,6 +421,7 @@ class InventoryStore:
                     input_quantity REAL,
                     input_unit TEXT,
                     conversion_factor REAL,
+                    discount_amount REAL NOT NULL DEFAULT 0,
                     FOREIGN KEY (cart_id) REFERENCES carts(id) ON DELETE CASCADE
                 );
 
@@ -469,6 +470,7 @@ class InventoryStore:
                     input_quantity REAL,
                     input_unit TEXT,
                     conversion_factor REAL,
+                    discount_amount REAL NOT NULL DEFAULT 0,
                     FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE
                 );
 
@@ -998,6 +1000,13 @@ class InventoryStore:
                 connection.execute(
                     f"UPDATE {table} SET input_quantity = quantity, conversion_factor = 1.0 WHERE input_quantity IS NULL"
                 )
+            except sqlite3.OperationalError:
+                pass
+
+        # 4. Issue 167: cart_items, purchase_items discount_amount
+        for table in ["cart_items", "purchase_items"]:
+            try:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0")
             except sqlite3.OperationalError:
                 pass
 
@@ -1811,6 +1820,8 @@ class InventoryStore:
             "inputQuantity": round(float(row["input_quantity"] or 0), 4) if "input_quantity" in row.keys() and row["input_quantity"] is not None else None,
             "inputUnit": row["input_unit"] if "input_unit" in row.keys() else None,
             "conversionFactor": float(row["conversion_factor"]) if "conversion_factor" in row.keys() and row["conversion_factor"] is not None else 1.0,
+            "discountAmount": round(float(row["discount_amount"] or 0), 2) if "discount_amount" in row.keys() and row["discount_amount"] is not None else 0.0,
+            "discount_amount": round(float(row["discount_amount"] or 0), 2) if "discount_amount" in row.keys() and row["discount_amount"] is not None else 0.0,
         }
 
     def _find_active_customer_by_name(
@@ -2016,6 +2027,8 @@ class InventoryStore:
                     "conversionFactor": float(grouped_item.get("conversion_factor") or 1),
                     "unitPrice": round(unit_price, 2),
                     "unit_price": round(unit_price, 2),
+                    "discountAmount": round(float(grouped_item.get("discount_amount") or grouped_item.get("discountAmount") or 0), 2),
+                    "discount_amount": round(float(grouped_item.get("discount_amount") or grouped_item.get("discountAmount") or 0), 2),
                     "note": str(grouped_item.get("note") or "").strip(),
                 }
             )
@@ -2032,8 +2045,8 @@ class InventoryStore:
         for index, item in enumerate(items):
             connection.execute(
                 """
-                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor)
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor, discount_amount)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
@@ -2047,6 +2060,7 @@ class InventoryStore:
                     float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
                     str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
                     float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
+                    float(item.get("discountAmount") or item.get("discount_amount") or 0),
                 ),
             )
 
@@ -2097,6 +2111,8 @@ class InventoryStore:
             "inputQuantity": round(float(row["input_quantity"] or 0), 4) if "input_quantity" in row.keys() and row["input_quantity"] is not None else None,
             "inputUnit": row["input_unit"] if "input_unit" in row.keys() else None,
             "conversionFactor": float(row["conversion_factor"]) if "conversion_factor" in row.keys() and row["conversion_factor"] is not None else 1.0,
+            "discountAmount": round(float(row["discount_amount"] or 0), 2) if "discount_amount" in row.keys() and row["discount_amount"] is not None else 0.0,
+            "discount_amount": round(float(row["discount_amount"] or 0), 2) if "discount_amount" in row.keys() and row["discount_amount"] is not None else 0.0,
         }
 
     @staticmethod
@@ -2112,7 +2128,9 @@ class InventoryStore:
                 pricing_quantity = item.get("input_quantity")
             if pricing_quantity is None:
                 pricing_quantity = item.get("quantity") or 0
-            subtotal += Decimal(str(pricing_quantity)) * Decimal(str(item.get("unitPrice") or item.get("unit_price") or 0))
+            line_gross = Decimal(str(pricing_quantity)) * Decimal(str(item.get("unitPrice") or item.get("unit_price") or 0))
+            line_discount = Decimal(str(item.get("discountAmount", item.get("discount_amount", 0)) or 0))
+            subtotal += max(Decimal("0"), line_gross - line_discount)
         return subtotal
 
     @classmethod
@@ -2124,7 +2142,9 @@ class InventoryStore:
                 pricing_quantity = item.get("input_quantity")
             if pricing_quantity is None:
                 pricing_quantity = item.get("quantity") or 0
-            subtotal += Decimal(str(pricing_quantity)) * Decimal(str(item.get("unitCost") or item.get("unit_cost") or 0))
+            line_gross = Decimal(str(pricing_quantity)) * Decimal(str(item.get("unitCost") or item.get("unit_cost") or 0))
+            line_discount = Decimal(str(item.get("discountAmount", item.get("discount_amount", 0)) or 0))
+            subtotal += max(Decimal("0"), line_gross - line_discount)
         return subtotal
 
     @classmethod
@@ -2319,7 +2339,7 @@ class InventoryStore:
             item_rows = connection.execute(
                 """
                 SELECT id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order,
-                       input_quantity, input_unit, conversion_factor
+                       input_quantity, input_unit, conversion_factor, discount_amount
                 FROM cart_items
                 ORDER BY cart_id, sort_order, id
                 """
@@ -2402,7 +2422,7 @@ class InventoryStore:
                 SELECT
                     id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
                     expiry_input_mode, manufacture_date, expiry_date, sort_order,
-                    input_quantity, input_unit, conversion_factor
+                    input_quantity, input_unit, conversion_factor, discount_amount
                 FROM purchase_items
                 ORDER BY purchase_id, sort_order, id
                 """
@@ -2598,8 +2618,8 @@ class InventoryStore:
                 for index, item in enumerate(record.get("items") or []):
                     connection.execute(
                         """
-                        INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor)
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor, discount_amount)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
@@ -2613,6 +2633,7 @@ class InventoryStore:
                             float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
                             str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
                             float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
+                            float(item.get("discountAmount") or item.get("discount_amount") or 0),
                         ),
                     )
             return
@@ -2684,9 +2705,9 @@ class InventoryStore:
                         INSERT INTO purchase_items(
                             id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
                             expiry_input_mode, manufacture_date, expiry_date, sort_order,
-                            input_quantity, input_unit, conversion_factor
+                            input_quantity, input_unit, conversion_factor, discount_amount
                         )
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),
@@ -2706,6 +2727,7 @@ class InventoryStore:
                             float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
                             str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
                             float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
+                            float(item.get("discountAmount") or item.get("discount_amount") or 0),
                         ),
                     )
             return
@@ -4416,11 +4438,16 @@ class InventoryStore:
                 raw_item.get("unit_price") or raw_item.get("unitPrice") or 0,
                 "Giá bán",
             )
+            discount_amount = parse_non_negative_decimal(
+                raw_item.get("discount_amount") or raw_item.get("discountAmount") or 0,
+                "Khuyến mại dòng",
+            )
             item_note = str(raw_item.get("note") or "").strip()
             existing = grouped_items.get(product_id)
             if existing:
                 existing["quantity"] += quantity
                 existing["input_quantity"] += input_quantity
+                existing["discount_amount"] = existing.get("discount_amount", Decimal("0")) + discount_amount
                 existing["unit_price"] = unit_price
                 existing["conversion_factor"] = conversion_factor
                 existing["input_unit"] = input_unit
@@ -4434,6 +4461,7 @@ class InventoryStore:
                 "conversion_factor": conversion_factor,
                 "input_unit": input_unit,
                 "unit_price": unit_price,
+                "discount_amount": discount_amount,
                 "note": item_note,
             }
         return grouped_items
@@ -4549,7 +4577,8 @@ class InventoryStore:
         subtotal_amount = Decimal("0")
         total_quantity = Decimal("0")
         for item in grouped_items.values():
-            subtotal_amount += item["input_quantity"] * item["unit_price"]
+            item_discount = item.get("discount_amount", Decimal("0"))
+            subtotal_amount += max(Decimal("0"), item["input_quantity"] * item["unit_price"] - item_discount)
         validated_discount_amount = self._validate_discount_amount(
             discount_amount,
             subtotal_amount,
@@ -4559,12 +4588,15 @@ class InventoryStore:
         transactions = []
         for product_id, item in grouped_items.items():
             product = products_by_id[product_id]
-            line_total = item["input_quantity"] * item["unit_price"]
+            line_item_discount = item.get("discount_amount", Decimal("0"))
+            line_total = max(Decimal("0"), item["input_quantity"] * item["unit_price"] - line_item_discount)
             total_quantity += item["quantity"]
             base_transaction_note = (
                 f"Đơn {order_code} | Khách: {clean_customer_name} | Giá bán: {float(item['unit_price']):.0f} "
                 f"| Thành tiền: {float(line_total):.2f}"
             )
+            if line_item_discount > 0:
+                base_transaction_note += f" | Giảm KM dòng: {float(line_item_discount):.0f}"
             if validated_discount_amount > 0:
                 base_transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
             if clean_note:
@@ -4677,7 +4709,7 @@ class InventoryStore:
         item_rows = connection.execute(
             """
             SELECT id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order,
-                       input_quantity, input_unit, conversion_factor
+                       input_quantity, input_unit, conversion_factor, discount_amount
             FROM cart_items
             WHERE cart_id = ?
             ORDER BY sort_order, id
@@ -7547,6 +7579,7 @@ class InventoryStore:
                     "input_quantity": input_quantity,
                     "conversion_factor": conversion_factor,
                     "unit_cost": unit_cost,
+                    "discount_amount": parse_non_negative_decimal(raw_item.get("discount_amount") or raw_item.get("discountAmount") or 0, "Khuyến mại dòng"),
                     "product_name": str(raw_item.get("product_name") or raw_item.get("productName") or "").strip(),
                     "batch_code": str(raw_item.get("batch_code") or raw_item.get("batchCode") or "").strip(),
                     "expiry_input_mode": raw_item.get("expiry_input_mode") or raw_item.get("expiryInputMode") or "direct",
@@ -7577,6 +7610,7 @@ class InventoryStore:
                 "input_quantity": raw_item["input_quantity"],
                 "conversion_factor": raw_item["conversion_factor"],
                 "unit_cost": raw_item["unit_cost"],
+                "discount_amount": raw_item["discount_amount"],
                 "batch_code": str(raw_item.get("batch_code") or "").strip(),
                 "expiry_input_mode": expiry_metadata["expiry_input_mode"],
                 "manufacture_date": expiry_metadata["manufacture_date"],
@@ -7598,6 +7632,7 @@ class InventoryStore:
             if existing:
                 existing["quantity"] += normalized_item["quantity"]
                 existing["input_quantity"] += normalized_item["input_quantity"]
+                existing["discount_amount"] += normalized_item["discount_amount"]
             else:
                 grouped_items[item_key] = normalized_item
         normalized_items.extend(grouped_items.values())
@@ -7605,12 +7640,13 @@ class InventoryStore:
         transactions = []
         subtotal_amount = Decimal("0")
         total_quantity = Decimal("0")
+        subtotal_amount = sum(
+            max(Decimal("0"), item["input_quantity"] * item["unit_cost"] - item.get("discount_amount", Decimal("0")))
+            for item in normalized_items
+        )
         validated_discount_amount = self._validate_discount_amount(
             discount_amount,
-            sum(
-                item["input_quantity"] * item["unit_cost"]
-                for item in normalized_items
-            ),
+            subtotal_amount,
             "Giảm giá khuyến mại phiếu nhập",
         )
         receipt_id = self._insert_inventory_receipt(
@@ -7626,9 +7662,9 @@ class InventoryStore:
         for line_index, item in enumerate(normalized_items, start=1):
             product_id = int(item["product_id"])
             product = self._get_product_or_raise(connection, product_id)
-            line_total = item["input_quantity"] * item["unit_cost"]
+            item_discount = item.get("discount_amount", Decimal("0"))
+            line_total = max(Decimal("0"), item["input_quantity"] * item["unit_cost"] - item_discount)
             base_unit_cost = item["unit_cost"] / item["conversion_factor"]
-            subtotal_amount += line_total
             total_quantity += item["quantity"]
             resolved_batch_code = self._resolve_batch_code(
                 item.get("batch_code", ""),
@@ -7639,6 +7675,8 @@ class InventoryStore:
             transaction_note = f"Phiếu nhập {receipt_code}"
             if clean_supplier_name:
                 transaction_note += f" | NCC: {clean_supplier_name}"
+            if item_discount > 0:
+                transaction_note += f" | Giảm KM dòng: {float(item_discount):.0f}"
             if validated_discount_amount > 0:
                 transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
             if clean_note:
@@ -7920,7 +7958,7 @@ class InventoryStore:
 
     def update_cart_item(self, cart_id: str, item_id: str, payload: dict, *, actor: str = "") -> dict:
         """#Issue133: Save one existing line atomically; never replace the carts collection."""
-        allowed_fields = {"cart_id", "item_id", "expected_updated_at", "quantity", "input_quantity", "input_unit", "conversion_factor", "unit_price"}
+        allowed_fields = {"cart_id", "item_id", "expected_updated_at", "quantity", "input_quantity", "input_unit", "conversion_factor", "unit_price", "discount_amount", "discountAmount"}
         if set(payload) - allowed_fields:
             raise ValueError("API lưu dòng chỉ nhận dữ liệu của một dòng hàng.")
         clean_cart_id = str(cart_id or "").strip()
@@ -7942,6 +7980,12 @@ class InventoryStore:
         input_quantity = decimal_field("input_quantity", "Số lượng nhập")
         factor = decimal_field("conversion_factor", "Hệ số quy đổi")
         price = decimal_field("unit_price", "Giá bán", allow_zero=True)
+        discount_amount = parse_non_negative_decimal(
+            payload.get("discount_amount", payload.get("discountAmount", 0)) or 0,
+            "Khuyến mại dòng",
+        )
+        if discount_amount > input_quantity * price:
+            raise ValueError("Khuyến mại dòng không được lớn hơn thành tiền của sản phẩm.")
         unit = str(payload.get("input_unit") or "").strip()
         try:
             quantities_match = round(quantity / factor, 4) == round(input_quantity, 4)
@@ -7974,9 +8018,9 @@ class InventoryStore:
                 raise ValueError("Đơn vị hoặc hệ số quy đổi không hợp lệ cho mặt hàng này.")
             updated_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
             connection.execute(
-                """UPDATE cart_items SET quantity = ?, unit_price = ?, input_quantity = ?, input_unit = ?, conversion_factor = ?
+                """UPDATE cart_items SET quantity = ?, unit_price = ?, discount_amount = ?, input_quantity = ?, input_unit = ?, conversion_factor = ?
                    WHERE cart_id = ? AND id = ?""",
-                (float(quantity), float(price), float(input_quantity), unit, float(factor), clean_cart_id, clean_item_id),
+                (float(quantity), float(price), float(discount_amount), float(input_quantity), unit, float(factor), clean_cart_id, clean_item_id),
             )
             connection.execute("UPDATE carts SET updated_at = ? WHERE id = ?", (updated_at, clean_cart_id))
             current = self._get_cart_document(connection, clean_cart_id)
@@ -7985,7 +8029,7 @@ class InventoryStore:
             self._record_audit(
                 connection, entity_type="cart", entity_id=clean_cart_id,
                 entity_name=str(current.get("orderCode") or clean_cart_id), action="edit-item", actor=actor,
-                message=f"Lưu dòng {clean_item_id}: SL {input_quantity} {unit}, hệ số {factor}, SL cơ sở {quantity}, giá {price}.",
+                message=f"Lưu dòng {clean_item_id}: SL {input_quantity} {unit}, hệ số {factor}, SL cơ sở {quantity}, giá {price}, giảm KM {discount_amount}.",
             )
             self._refresh_sync_collection_cache(connection, "carts", updated_at=updated_at)
         log_info(f"Saved cart item: cart_id={clean_cart_id}, item_id={clean_item_id}, actor={actor}")
@@ -8519,6 +8563,10 @@ class InventoryStore:
                     raw_item.get("unitCost", raw_item.get("unit_cost", 0)),
                     "Giá nhập",
                 )
+                item_discount = parse_non_negative_decimal(
+                    raw_item.get("discountAmount", raw_item.get("discount_amount", 0)),
+                    "Khuyến mại dòng",
+                )
                 normalized_items.append(
                     {
                         "id": str(raw_item.get("id") or f"purchase_item_{secrets.token_urlsafe(8)}"),
@@ -8528,6 +8576,7 @@ class InventoryStore:
                         "sourceNote": "Tạo bằng Xử lý nhanh nhập hàng",
                         "quantity": round(float(quantity), 2),
                         "unitCost": round(float(unit_cost), 2),
+                        "discountAmount": round(float(item_discount), 2),
                         "batchCode": str(raw_item.get("batchCode") or raw_item.get("batch_code") or "").strip(),
                         "expiryInputMode": raw_item.get("expiryInputMode") or raw_item.get("expiry_input_mode") or "direct",
                         "manufactureDate": raw_item.get("manufactureDate") or raw_item.get("manufacture_date") or "",
@@ -8540,9 +8589,9 @@ class InventoryStore:
                     """
                     INSERT INTO purchase_items(
                         id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
-                        expiry_input_mode, manufacture_date, expiry_date, sort_order
+                        expiry_input_mode, manufacture_date, expiry_date, sort_order, discount_amount
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         item["id"],
@@ -8558,6 +8607,7 @@ class InventoryStore:
                         item["manufactureDate"] or None,
                         item["expiryDate"] or None,
                         index,
+                        item["discountAmount"],
                     ),
                 )
             created_purchase = self._get_purchase_document(connection, purchase_id)
@@ -11191,9 +11241,9 @@ class InventoryStore:
                     """
                     INSERT INTO purchase_items(
                         id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
-                        expiry_input_mode, manufacture_date, expiry_date, sort_order
+                        expiry_input_mode, manufacture_date, expiry_date, sort_order, discount_amount
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, '', 'direct', NULL, NULL, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, '', 'direct', NULL, NULL, ?, 0)
                     """,
                     (
                         f"purchase_item_{secrets.token_urlsafe(8)}",
@@ -13413,8 +13463,8 @@ class InventoryStore:
         for index, item in enumerate(new_items):
             connection.execute(
                 """
-                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor)
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor, discount_amount)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
@@ -13428,6 +13478,7 @@ class InventoryStore:
                     float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
                     str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
                     float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
+                    float(item.get("discountAmount") or item.get("discount_amount") or 0),
                 ),
             )
 
@@ -13577,9 +13628,9 @@ class InventoryStore:
                 """
                 INSERT INTO purchase_items(
                     id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
-                    expiry_input_mode, manufacture_date, expiry_date, sort_order, input_quantity, input_unit, conversion_factor
+                    expiry_input_mode, manufacture_date, expiry_date, sort_order, input_quantity, input_unit, conversion_factor, discount_amount
                 )
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),
@@ -13598,6 +13649,7 @@ class InventoryStore:
                     float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
                     str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
                     float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
+                    float(item.get("discountAmount") or item.get("discount_amount") or 0),
                 ),
             )
 
