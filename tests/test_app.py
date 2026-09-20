@@ -5237,6 +5237,106 @@ class InventoryStoreTests(unittest.TestCase):
             )
         self.assertIn("không được thêm hoặc xóa sản phẩm", str(ctx.exception))
 
+    # Issue 169: Unit tests cho việc chọn ngày xuất và ngày nhập
+    def test_ut_ord_custom_ship_date(self) -> None:
+        product = self.store.create_product(
+            name="Sản phẩm test ngày xuất",
+            category="Chung",
+            price=10000,
+            sale_price=15000,
+            unit="gói",
+        )
+        self.store.create_transaction(product["id"], "in", 10, "Tồn đầu test xuất ngày")
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-custom-ship-01",
+                        "orderCode": "",
+                        "customerName": "Khách Test Ngày Xuất",
+                        "customerPhone": "",
+                        "note": "Xuất ngày cũ",
+                        "status": "draft",
+                        "createdAt": "2026-09-01T08:00:00+07:00",
+                        "updatedAt": "2026-09-01T08:00:00+07:00",
+                        "items": [
+                            {
+                                "id": "cart-item-custom-ship-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitPrice": 15000,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        self.store.commit_cart_order("cart-custom-ship-01", actor="tester")
+        shipped = self.store.ship_cart_order(
+            "cart-custom-ship-01",
+            actor="tester",
+            ship_date="2026-09-10",
+        )
+        self.assertEqual(shipped["cart"]["status"], "completed")
+        self.assertIn("2026-09-10", shipped["cart"]["completedAt"])
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 8.0)
+        with self.store._connect() as connection:
+            tx = connection.execute(
+                "SELECT created_at FROM transactions WHERE note LIKE ? LIMIT 1",
+                (f"%{shipped['order']['order_code']}%",),
+            ).fetchone()
+            self.assertIsNotNone(tx)
+            self.assertIn("2026-09-10", tx["created_at"])
+
+    def test_ut_pur_custom_receive_date(self) -> None:
+        product = self.store.create_product(
+            name="Sản phẩm test ngày nhập",
+            category="Chung",
+            price=20000,
+            sale_price=30000,
+            unit="hộp",
+        )
+        self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-custom-receive-01",
+                        "purchaseCode": "PO-CUSTOM-01",
+                        "supplierName": "NCC Test Ngày Nhập",
+                        "status": "ordered",
+                        "createdAt": "2026-09-01T08:00:00+07:00",
+                        "updatedAt": "2026-09-01T08:00:00+07:00",
+                        "items": [
+                            {
+                                "id": "purchase-item-custom-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 5,
+                                "unitCost": 20000,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        received = self.store.receive_purchase(
+            "purchase-custom-receive-01",
+            actor_username="warehouse",
+            actor_role="user",
+            received_date="2026-09-08",
+        )
+        self.assertEqual(received["purchase"]["status"], "received")
+        self.assertIn("2026-09-08", received["purchase"]["receivedAt"])
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 5.0)
+        with self.store._connect() as connection:
+            batch = connection.execute(
+                "SELECT received_at FROM inventory_batches WHERE product_id = ? LIMIT 1",
+                (product["id"],),
+            ).fetchone()
+            self.assertIsNotNone(batch)
+            self.assertIn("2026-09-08", batch["received_at"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -209,4 +209,6 @@ Lưu ý:
 | 159 | `IT-UI-01` | Kiểm tra toast/thông báo lỗi không phải confirm vẫn nổi trên `loading overlay`, không bị lớp chờ lưu che mất khi app đang bận. |
 | 160 | `IT-INV-02` | Kiểm tra shortcut `Tồn kho -> Nhập` khi đang mở sẵn một phiếu `Đã đặt` vẫn phải mở/tạo phiếu nháp phù hợp, không được chèn thêm mặt hàng vào phiếu `ordered` đang active. |
 | 161 | `UT-SYNC-02B` | Kiểm tra backend bỏ qua kiểm tra xung đột đồng thời sửa đổi dữ liệu (Multiuser Sync Conflict) nếu tùy chọn cấu hình `EnableMultiuserConflictCheck` bị tắt. |
+| 162 | `UT-ORD-19` | Kiểm tra backend `ship_cart_order()` nhận và lưu chính xác mốc thời gian ngày xuất tùy chỉnh vào `completed_at` của đơn và `created_at` của giao dịch xuất kho. |
+| 163 | `UT-PUR-02` | Kiểm tra backend `receive_purchase()` nhận và lưu chính xác mốc thời gian ngày nhập tùy chỉnh vào `received_at` của phiếu nhập và lô hàng `inventory_batches`. |
 

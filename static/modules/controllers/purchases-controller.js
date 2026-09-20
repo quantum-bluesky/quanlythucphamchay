@@ -1392,7 +1392,22 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       const latestPurchase = queries.getActivePurchase() || purchase;
-      if (!confirmPurchaseStatusAction(purchase, "receive")) {
+      // Issue 169: Cho phép chọn ngày nhập khi chuyển trạng thái sang đã nhập hàng
+      let receivedDate = "";
+      if (typeof actions.promptDocumentActionDate === "function") {
+        const label = getPurchaseDisplayName(purchase);
+        const chosenDate = await actions.promptDocumentActionDate({
+          kicker: "Xác nhận nhập kho",
+          title: `Nhập kho: ${label}`,
+          message: `App sẽ cộng tồn kho ngay theo các dòng hiện tại và chuyển phiếu sang Đã nhập kho.`,
+          dateLabel: "Ngày nhập hàng:",
+          confirmText: "Xác nhận nhập kho",
+        });
+        if (!chosenDate) {
+          return;
+        }
+        receivedDate = chosenDate;
+      } else if (!confirmPurchaseStatusAction(purchase, "receive")) {
         return;
       }
       try {
@@ -1402,6 +1417,7 @@ export function registerPurchasesControllerEvents(contract) {
           body: JSON.stringify({
             purchase_id: latestPurchase.id,
             discount_amount: latestPurchase.discountAmount || 0,
+            received_date: receivedDate,
           }),
         });
         await actions.refreshData();

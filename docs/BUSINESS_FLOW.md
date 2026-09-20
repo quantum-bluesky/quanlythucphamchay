@@ -100,6 +100,7 @@ Nếu cần can thiệp đặc biệt
 ### Bước 5: Xuất hàng
 
 - chỉ nhận đơn `committed`
+- khi bấm `Xuất hàng`, app mở modal xác nhận cho phép chọn `Ngày xuất hàng` (mặc định hôm nay YYYY-MM-DD); hệ thống gán mốc thời gian xuất này vào `completed_at` của đơn và ngày giao dịch `created_at` trong sổ kho
 - nếu đủ tồn thực tế:
   - tạo xuất kho
   - trừ kho theo FEFO từ lô có HSD sớm nhất trước
@@ -231,7 +232,7 @@ ordered -> cancelled
 - khi `Nhập lại`, app chỉ sao chép nội dung đặt hàng; metadata lô như `batchCode`, `expiryDate`, `manufactureDate` phải reset về trống để nhập lại theo lô mới
 - flow `gộp đơn` phiếu nhập giữ lại một phiếu đích, dồn tất cả dòng hàng và giảm giá vào phiếu đó, hợp nhất `ghi chú` theo danh sách duy nhất ngăn bằng ` | `, rồi chuyển các phiếu nguồn sang `cancelled`
 - khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `draft/ordered`; user khác chỉ được đi tiếp `ordered -> received` nếu phiếu không phải batch và đã `ordered` trước lúc lock hiện tại được acquire, rồi mới đi tiếp `received -> paid`
-- trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
+- trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận; riêng thao tác `ordered -> received` (Nhập kho) và `committed -> completed` (Xuất hàng) sẽ mở modal xác nhận kèm input chọn ngày (mặc định hôm nay YYYY-MM-DD) để lưu chính xác ngày nhập/xuất kho thực tế
 
 ### Luồng xử lý nhanh nhập hàng
 

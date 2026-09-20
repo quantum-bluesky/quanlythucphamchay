@@ -1398,6 +1398,33 @@
     </section>
   </div>
 
+  <!-- Issue 169: Modal chọn ngày khi chuyển trạng thái Đã xuất hàng / Đã nhập kho -->
+  <div id="documentActionDateModal" class="help-modal" hidden>
+    <div class="help-backdrop" data-action-date-close="backdrop"></div>
+    <section class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="documentActionDateTitle"
+      style="max-width: 440px;">
+      <div class="help-dialog-head">
+        <div>
+          <p id="documentActionDateKicker" class="panel-kicker">Xác nhận chứng từ</p>
+          <h2 id="documentActionDateTitle">Chọn ngày</h2>
+        </div>
+        <button type="button" id="documentActionDateCloseButton" class="ghost-button compact-button"
+          aria-label="Đóng">Đóng</button>
+      </div>
+      <form id="documentActionDateForm" class="help-dialog-body">
+        <p id="documentActionDateMessage" class="panel-note" style="margin: 0; white-space: pre-line;"></p>
+        <label class="field-label" style="display: grid; gap: 6px; font-weight: 600;">
+          <span id="documentActionDateLabel">Ngày thực hiện:</span>
+          <input id="documentActionDateInput" type="date" required style="padding: 10px 12px; font-size: 1rem; border-radius: 8px; border: 1px solid var(--line);">
+        </label>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
+          <button type="button" id="documentActionDateCancelButton" class="ghost-button">Hủy</button>
+          <button type="submit" id="documentActionDateConfirmButton" class="primary-button">Xác nhận</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="globalBusyOverlay" class="global-busy-overlay" hidden aria-live="assertive" aria-atomic="true">
     <section id="globalBusyCard" class="global-busy-card" role="status" tabindex="-1">
       <div class="global-busy-spinner" aria-hidden="true"></div>

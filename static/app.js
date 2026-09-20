@@ -243,6 +243,16 @@ import {
   createOrderCustomerCard,
   salesSearchToolbar,
   searchClearRefreshers,
+  documentActionDateModal,
+  documentActionDateKicker,
+  documentActionDateTitle,
+  documentActionDateMessage,
+  documentActionDateLabel,
+  documentActionDateInput,
+  documentActionDateForm,
+  documentActionDateCancelButton,
+  documentActionDateConfirmButton,
+  documentActionDateCloseButton,
 } from "./modules/dom.js";
 import { SCREEN_HELP, SCREEN_META, FLOATING_SEARCH_CONFIG } from "./modules/screen-config.js";
 import { createCoreUi } from "./modules/ui/core-ui.js";
@@ -3143,11 +3153,11 @@ async function commitCart(cartId) {
   }
 }
 
-async function shipCart(cartId) {
+async function shipCart(cartId, { shipDate = "" } = {}) {
   const previousActiveCartId = state.activeCartId;
   state.activeCartId = cartId;
   try {
-    return await shipActiveCart();
+    return await shipActiveCart({ shipDate });
   } catch (error) {
     state.activeCartId = previousActiveCartId;
     throw error;
@@ -6105,6 +6115,81 @@ async function openBulkOrderRequestAuditHistory(requestId) {
   renderAuditHistoryModal();
 }
 
+// Issue 169: Helper mở modal chọn ngày cho các thao tác chuyển trạng thái (Xuất hàng / Nhập kho)
+function promptDocumentActionDate({
+  kicker = "Xác nhận chứng từ",
+  title = "Chọn ngày",
+  message = "",
+  dateLabel = "Ngày thực hiện:",
+  confirmText = "Xác nhận",
+  defaultDate = "",
+} = {}) {
+  return new Promise((resolve) => {
+    if (!documentActionDateModal) {
+      resolve(null);
+      return;
+    }
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const initialDate = defaultDate || todayStr;
+
+    if (documentActionDateKicker) documentActionDateKicker.textContent = kicker;
+    if (documentActionDateTitle) documentActionDateTitle.textContent = title;
+    if (documentActionDateMessage) {
+      documentActionDateMessage.textContent = message;
+      documentActionDateMessage.hidden = !message;
+    }
+    if (documentActionDateLabel) documentActionDateLabel.textContent = dateLabel;
+    if (documentActionDateConfirmButton) documentActionDateConfirmButton.textContent = confirmText;
+    if (documentActionDateInput) {
+      documentActionDateInput.value = initialDate;
+    }
+
+    let settled = false;
+
+    function cleanup() {
+      documentActionDateModal.hidden = true;
+      documentActionDateForm?.removeEventListener("submit", handleSubmit);
+      documentActionDateCancelButton?.removeEventListener("click", handleCancel);
+      documentActionDateCloseButton?.removeEventListener("click", handleCancel);
+      documentActionDateModal?.removeEventListener("click", handleBackdropClick);
+    }
+
+    function handleSubmit(e) {
+      e.preventDefault();
+      if (settled) return;
+      settled = true;
+      const val = documentActionDateInput?.value || initialDate;
+      cleanup();
+      resolve(val);
+    }
+
+    function handleCancel() {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(null);
+    }
+
+    function handleBackdropClick(e) {
+      if (e.target.closest("[data-action-date-close='backdrop']")) {
+        handleCancel();
+      }
+    }
+
+    documentActionDateForm?.addEventListener("submit", handleSubmit);
+    documentActionDateCancelButton?.addEventListener("click", handleCancel);
+    documentActionDateCloseButton?.addEventListener("click", handleCancel);
+    documentActionDateModal?.addEventListener("click", handleBackdropClick);
+
+    documentActionDateModal.hidden = false;
+    setTimeout(() => {
+      documentActionDateInput?.focus();
+    }, 50);
+  });
+}
+
 function buildDocumentPrintMarkup({ title, metadata = [], rows = "", headers = [], subtotalAmount = 0, discountAmount = 0, totalAmount = 0 }) {
   const metadataMarkup = metadata
     .filter((entry) => String(entry?.value || "").trim())
@@ -6830,7 +6915,8 @@ async function commitActiveCart() {
   showToast(data.message || "Đã chốt đơn.");
 }
 
-async function shipActiveCart() {
+// Issue 169: Cho phép nhận ngày xuất khi chuyển sang đã xuất hàng
+async function shipActiveCart({ shipDate = "" } = {}) {
   const cart = getActiveCart();
   if (!cart) {
     throw new Error("Chưa có đơn hàng nào đang mở.");
@@ -6882,6 +6968,7 @@ async function shipActiveCart() {
     method: "POST",
     body: JSON.stringify({
       cart_id: cart.id,
+      ship_date: shipDate || "",
     }),
   });
 
@@ -7135,6 +7222,7 @@ registerSalesControllerEvents({
     commitActiveCart,
     shipCart,
     shipActiveCart,
+    promptDocumentActionDate,
     checkoutCart,
     checkoutActiveCart,
     printCart,
@@ -7375,6 +7463,7 @@ registerPurchasesControllerEvents({
     setPaginationPageForItem,
     beginAdminEditPurchase,
     saveAdminBypassPurchase,
+    promptDocumentActionDate,
   },
   renderers: {
     renderQuickPurchasePanel,

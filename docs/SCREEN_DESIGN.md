@@ -203,7 +203,7 @@ Liên kết detail hiện có:
   - card/detail của đơn `completed/paid` có thêm action `Yêu cầu hủy`; UI bắt buộc nhập lý do, hiển thị trạng thái `chờ duyệt / bị từ chối / đã xử lý`, và nếu user có quyền `document_cancel_approve` thì phải có CTA `Duyệt / Từ chối` ngay trong detail
   - action `Trả hàng` chỉ hiện trong detail của đơn `completed`; không đặt form hay button trả hàng độc lập ở ngoài list để tránh bấm nhầm
   - trên mobile, `Chốt đơn`, `Xuất hàng` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
-  - các nút đổi trạng thái hoặc xóa phiếu như `Chốt đơn`, `Xuất hàng`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
+  - các nút đổi trạng thái hoặc xóa phiếu như `Chốt đơn`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật; riêng thao tác `Xuất hàng` sẽ mở modal xác nhận kèm input chọn ngày xuất hàng (mặc định hôm nay YYYY-MM-DD) để lưu chính xác ngày xuất kho thực tế
   - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết các case thiếu hàng sẽ được xử lý tập trung ở planner batch
 
 ### `customers` - Quản lý khách hàng
@@ -290,7 +290,7 @@ Liên kết detail hiện có:
   - khi `Nhập lại`, metadata theo lô như `Mã lô`, `Hạn dùng`, `Ngày sản xuất` phải được reset về trống để user nhập lại theo lô hàng mới
   - ngoài action nhanh `Đã thanh toán` ở màn nhập hàng, các phiếu `received/paid` còn phải xuất hiện đúng ở màn `payments` để user mới rà nhóm phiếu cần trả tiền riêng
   - action `Trả NCC` chỉ hiện trong detail của phiếu `received/paid`; không đặt form hay button trả NCC độc lập ở ngoài list để tránh nhầm với thao tác mở phiếu nhập
-  - các nút đổi trạng thái hoặc xóa phiếu như `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu`, `Xóa phiếu` phải hiện message confirm trước khi app cập nhật
+  - các nút đổi trạng thái hoặc xóa phiếu như `Đã đặt hàng`, `Đã thanh toán`, `Hủy phiếu`, `Xóa phiếu` phải hiện message confirm trước khi app cập nhật; riêng thao tác `Nhập kho` sẽ mở modal xác nhận kèm input chọn ngày nhập hàng (mặc định hôm nay YYYY-MM-DD) để lưu chính xác ngày nhập kho thực tế
 - tài liệu detail:
   - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 

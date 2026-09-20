@@ -138,7 +138,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Phiếu xuất có thêm `ghi chú phiếu xuất` ở cấp toàn phiếu; ghi chú này được lưu trong DB, hiện ở detail/bản in và còn sửa được tới trước khi đơn đã thanh toán
 - Phiếu xuất và phiếu nhập hỗ trợ `giảm giá khuyến mại` cấp toàn phiếu lẫn giảm giá riêng theo từng dòng sản phẩm; app tự tính thành tiền từng dòng, `Tạm tính / Giảm KM / Cần thanh toán` ngay trên panel, detail, bản in và copy text
 - Nếu `Cần thanh toán` của phiếu xuất đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app sẽ hiện cảnh báo trước khi `Chốt đơn` hoặc `Xuất hàng`
-- Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm
+- Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Đã thanh toán`, `Đã đặt hàng`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm; riêng thao tác `Xuất hàng` và `Nhập kho` sẽ mở modal xác nhận kèm ô chọn ngày (mặc định hôm nay YYYY-MM-DD) để lưu chính xác ngày xuất/nhập thực tế
 - Ở màn `Nhập hàng`, có thể tick nhiều phiếu rồi bấm `Đặt hàng` để chuyển nhanh các phiếu nháp hợp lệ sang `Đã đặt hàng`; phiếu thiếu NCC hoặc không còn sửa được sẽ được giữ nguyên và app báo lại theo từng phiếu
 - Ở màn `Đơn hàng`, có thể tick nhiều phiếu `Nháp/Chốt đơn` cùng khách để mở flow `Gộp đơn`; hệ thống sẽ chặn nếu chọn khác khách
 - Ở màn `Đơn hàng`, có thể tick nhiều phiếu rồi bấm `Chốt đơn` để xử lý hàng loạt các đơn nháp hợp lệ; đơn thiếu hàng hoặc không còn ở trạng thái nháp sẽ được giữ nguyên và app báo lại theo từng phiếu

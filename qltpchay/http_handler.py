@@ -1680,9 +1680,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     return
 
                 if route == "/api/orders/ship":
+                    # Issue 169: Chuyển ngày xuất hàng được chọn xuống store
                     result = store.ship_cart_order(
                         payload.get("cart_id", ""),
                         actor=self._get_current_username() or "",
+                        shipped_at=payload.get("shipped_at", ""),
+                        ship_date=payload.get("ship_date", ""),
                     )
                     self._send_json(
                         HTTPStatus.OK,
@@ -1696,11 +1699,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     return
 
                 if route == "/api/purchases/receive":
+                    # Issue 169: Chuyển ngày nhập kho được chọn xuống store
                     result = store.receive_purchase(
                         payload.get("purchase_id", ""),
                         discount_amount=payload.get("discount_amount"),
                         actor_username=self._get_current_username() or "",
                         actor_role=self._get_current_role(),
+                        received_at=payload.get("received_at", ""),
+                        received_date=payload.get("received_date", ""),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,

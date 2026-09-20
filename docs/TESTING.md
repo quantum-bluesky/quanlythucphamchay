@@ -462,6 +462,8 @@ Case mới cho Phase A:
 - `UT-SYNC-04`: backend chặn `draft -> paid` ở đơn hàng, cho `draft -> cancelled`, cho `completed -> paid`, rồi khóa hẳn nhánh mở lại/hạ trạng thái sau khi đã `cancelled/paid`
 - `UT-SYNC-05`: backend khóa `customerId/customerName` từ lúc đơn ở `committed`, vẫn cho sửa `ship_address` và thêm dòng hàng trước khi xuất, đồng thời chặn đổi `committed -> completed` qua sync thẳng
 - `UT-ORD-15`: backend `commit_cart_order()` không trừ kho, còn `ship_cart_order()` mới trừ kho và chuyển đơn sang `completed`
+- `UT-ORD-19`: backend `ship_cart_order()` nhận và lưu chính xác mốc thời gian ngày xuất tùy chỉnh vào `completed_at` của đơn và `created_at` của giao dịch xuất kho
+- `UT-PUR-02`: backend `receive_purchase()` nhận và lưu chính xác mốc thời gian ngày nhập tùy chỉnh vào `received_at` của phiếu nhập và lô hàng `inventory_batches`
 - `UT-ORD-17`: backend bulk order chỉ commit các đơn hợp lệ, giữ đơn lỗi ở `draft`, lưu audit batch và replay an toàn theo `request_id`
 - `UT-AUTH-09`: phân quyền route bulk order phải tách rõ giữa quyền `tạo nhiều đơn` và quyền `chốt nhiều đơn`
 - `UT-DB-18`: backend nhận diện phiếu nhập `ordered` nhưng thiếu NCC là dữ liệu lỗi có thể repair để không khóa chết UI trên DB cũ
