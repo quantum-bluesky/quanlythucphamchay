@@ -252,10 +252,11 @@ export function createPurchasesUi(deps) {
     const isLockedAfterSave = Boolean(draft.lastResult);
     const isSubmitting = Boolean(draft.submitting);
     const disableEditAttr = isLockedAfterSave || isSubmitting ? "disabled" : "";
-    const totalAmount = items.reduce(
-      (sum, item) => sum + (Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitCost || 0)),
+    const subtotal = items.reduce(
+      (sum, item) => sum + Math.max(0, (Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitCost || 0)) - Number(item.discountAmount ?? item.discount_amount ?? 0)),
       0,
-    ) - Number(draft.discountAmount || 0);
+    );
+    const totalAmount = Math.max(0, subtotal - Number(draft.discountAmount || 0));
     const lastResult = draft.lastResult || null;
     const isCollapsed = Boolean(draft.panelCollapsed);
     dom.quickPurchasePanel.innerHTML = `
@@ -320,6 +321,10 @@ export function createPurchasesUi(deps) {
           <span>Giá nhập</span>
           <input id="quickPurchaseUnitCostInput" type="number" min="0" step="1000" value="${escapeHtml(String(draft.unitCost || ""))}" data-price-warning-input="purchase" ${disableEditAttr}>
         </label>
+        <label>
+          <span>Giảm dòng</span>
+          <input id="quickPurchaseLineDiscountInput" type="number" min="0" step="1000" placeholder="0" value="${escapeHtml(String(draft.lineDiscount || ""))}" ${disableEditAttr}>
+        </label>
         <div class="quick-doc-line-actions">
           <button type="button" class="primary-button" data-quick-purchase-action="add-item" ${disableEditAttr}>+ Thêm hàng</button>
         </div>
@@ -331,10 +336,10 @@ export function createPurchasesUi(deps) {
             <article class="quick-doc-item">
               <div>
                 <strong>${escapeHtml(item.productName || product?.name || `SP #${item.productId}`)}</strong>
-                <div class="cart-line-note">SL ${escapeHtml(formatQuantity(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0))} • Giá nhập ${escapeHtml(formatCurrency(item.unitCost || 0))}</div>
+                <div class="cart-line-note">SL ${escapeHtml(formatQuantity(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0))} • Giá nhập ${escapeHtml(formatCurrency(item.unitCost || 0))}${Number(item.discountAmount || item.discount_amount || 0) > 0 ? ` • Giảm: -${escapeHtml(formatCurrency(item.discountAmount || item.discount_amount || 0))}` : ""}</div>
               </div>
               <div class="quick-doc-item-actions">
-                <strong>${escapeHtml(formatCurrency(Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitCost || 0)))}</strong>
+                <strong>${escapeHtml(formatCurrency(Math.max(0, Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitCost || 0) - Number(item.discountAmount || item.discount_amount || 0))))}</strong>
                 <button type="button" class="ghost-button compact-button" data-quick-purchase-action="remove-item" data-item-index="${index}" ${disableEditAttr}>Bỏ</button>
               </div>
             </article>
@@ -528,7 +533,7 @@ export function createPurchasesUi(deps) {
           <div class="cart-item-header cart-item-header-compact">
             <div class="cart-item-primary">
               <strong class="cart-item-name">${escapeHtml(item.productName)}</strong>
-              <div class="cart-line-note">SL ${formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity)} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)} | Giá nhập ${formatCurrency(item.unitCost)} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
+              <div class="cart-line-note">SL ${formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity)} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)} | Giá nhập ${formatCurrency(item.unitCost)}${Number(item.discountAmount || item.discount_amount || 0) > 0 ? ` | Giảm: -${formatCurrency(item.discountAmount || item.discount_amount || 0)}` : ""} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
               ${(item.batchCode || expiryMeta.effectiveExpiryDate) ? `<div class="cart-line-note">${item.batchCode ? `Lô ${escapeHtml(item.batchCode)}` : "Lô tự sinh"}${expiryMeta.effectiveExpiryDate ? ` • HSD ${escapeHtml(expiryMeta.effectiveExpiryDate)}` : ""}${expiryMeta.usesReceivedFallback ? " • tự tính" : ""}${isManufactureMode ? " • từ NSX" : ""}</div>` : ""}
             </div>
             <div class="cart-item-summary">
@@ -547,6 +552,7 @@ export function createPurchasesUi(deps) {
                 </select>
               </label>
               <label class="price-field" data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${item.unitCost}" data-purchase-cost-input="${item.id}" data-price-warning-input="purchase" ${purchaseEditable ? "" : "disabled"}></label>
+              <label class="price-field"><span>Giảm giá</span><input type="number" min="0" step="1000" value="${item.discountAmount || item.discount_amount || 0}" data-purchase-discount-item-input="${item.id}" ${purchaseEditable ? "" : "disabled"} placeholder="0"></label>
               <label class="price-field"><span>Mã lô</span><input type="text" maxlength="80" value="${escapeHtml(item.batchCode || "")}" data-purchase-batch-input="${item.id}" ${purchaseEditable ? "" : "disabled"} placeholder="Tùy chọn"></label>
               <label class="price-field">
                 <span>Cách nhập HSD</span>

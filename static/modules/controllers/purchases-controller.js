@@ -110,6 +110,7 @@ export function registerPurchasesControllerEvents(contract) {
     state.quickPurchaseDraft.productText = String(dom.quickPurchasePanel.querySelector("#quickPurchaseProductInput")?.value || "").trim();
     state.quickPurchaseDraft.quantity = String(dom.quickPurchasePanel.querySelector("#quickPurchaseQuantityInput")?.value || "").trim() || "1";
     state.quickPurchaseDraft.unitCost = String(dom.quickPurchasePanel.querySelector("#quickPurchaseUnitCostInput")?.value || "").trim();
+    state.quickPurchaseDraft.lineDiscount = String(dom.quickPurchasePanel.querySelector("#quickPurchaseLineDiscountInput")?.value || "").trim();
     state.quickPurchaseDraft.conversionFactor = String(dom.quickPurchasePanel.querySelector("#quickPurchaseUnitSelect")?.value || "1").trim();
     state.quickPurchaseDraft.unitName = dom.quickPurchasePanel.querySelector("#quickPurchaseUnitSelect")?.options?.[dom.quickPurchasePanel.querySelector("#quickPurchaseUnitSelect").selectedIndex]?.dataset?.unitName || "";
     const selectedStatus = dom.quickPurchasePanel.querySelector('input[name="quickPurchaseFinalStatus"]:checked');
@@ -151,10 +152,22 @@ export function registerPurchasesControllerEvents(contract) {
       actions.showToast("Giá nhập không hợp lệ.", true);
       return;
     }
+    const lineDiscount = Math.max(0, Number(draft.lineDiscount || 0));
+    if (!Number.isFinite(lineDiscount) || lineDiscount < 0) {
+      actions.showToast("Giảm giá dòng không hợp lệ.", true);
+      return;
+    }
+    const grossTotal = inputQuantity * unitCost;
+    if (lineDiscount > grossTotal) {
+      actions.showToast("Giảm giá dòng không được vượt quá thành tiền.", true);
+      return;
+    }
     const existing = (draft.items || []).find((item) => Number(item.productId) === Number(product.id));
     if (existing) {
       existing.quantity = Number((Number(existing.quantity || 0) + quantity).toFixed(2));
+      existing.inputQuantity = Number((Number(existing.inputQuantity || 0) + inputQuantity).toFixed(2));
       existing.unitCost = Number(unitCost.toFixed(2));
+      existing.discountAmount = Number(((existing.discountAmount || 0) + lineDiscount).toFixed(2));
       existing.productName = product.name;
     } else {
       draft.items.push({
@@ -162,6 +175,7 @@ export function registerPurchasesControllerEvents(contract) {
         productName: product.name,
         quantity: Number(quantity.toFixed(2)),
         unitCost: Number(unitCost.toFixed(2)),
+        discountAmount: lineDiscount,
         inputQuantity: inputQuantity,
         inputUnit: draft.unitName || product.unit,
         conversionFactor: conversionFactor,
@@ -170,6 +184,7 @@ export function registerPurchasesControllerEvents(contract) {
     draft.productText = "";
     draft.quantity = "1";
     draft.unitCost = "";
+    draft.lineDiscount = "";
     draft.lastResult = null;
     renderers.renderQuickPurchasePanel();
     utils.syncPriceWarningGroup(dom.quickPurchasePanel?.querySelector("[data-price-warning-group]"));
@@ -210,6 +225,10 @@ export function registerPurchasesControllerEvents(contract) {
           product_id: item.productId,
           quantity: item.quantity,
           unit_cost: item.unitCost,
+          discount_amount: Number(item.discountAmount || item.discount_amount || 0),
+          input_quantity: item.inputQuantity,
+          input_unit: item.inputUnit,
+          conversion_factor: item.conversionFactor,
         })),
         final_status: draft.finalStatus,
         mark_paid: Boolean(draft.markPaid && draft.finalStatus === "received"),
@@ -937,6 +956,7 @@ export function registerPurchasesControllerEvents(contract) {
       if (itemAction === "save") {
         const qtyInput = dom.purchasePanel.querySelector(`[data-purchase-qty-input="${itemButton.dataset.purchaseItemId}"]`);
         const costInput = dom.purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
+        const discountItemInput = dom.purchasePanel.querySelector(`[data-purchase-discount-item-input="${itemButton.dataset.purchaseItemId}"]`);
         const unitSelect = dom.purchasePanel.querySelector(`[data-purchase-unit-input="${itemButton.dataset.purchaseItemId}"]`);
         const batchInput = dom.purchasePanel.querySelector(`[data-purchase-batch-input="${itemButton.dataset.purchaseItemId}"]`);
         const expiryModeInput = dom.purchasePanel.querySelector(`[data-purchase-expiry-mode-input="${itemButton.dataset.purchaseItemId}"]`);
@@ -981,12 +1001,17 @@ export function registerPurchasesControllerEvents(contract) {
         }
         const inputQuantity = Number(qtyInput?.value);
         const unitCost = Number(costInput?.value);
+        const discountAmount = Math.max(0, Number(discountItemInput?.value || 0));
         if (!Number.isFinite(inputQuantity) || inputQuantity <= 0) {
           actions.showToast("Số lượng nhập phải lớn hơn 0.", true);
           return;
         }
         if (!Number.isFinite(unitCost) || unitCost < 0) {
           actions.showToast("Giá nhập không hợp lệ.", true);
+          return;
+        }
+        if (!Number.isFinite(discountAmount) || discountAmount < 0) {
+          actions.showToast("Khuyến mại không hợp lệ.", true);
           return;
         }
 
@@ -1003,6 +1028,8 @@ export function registerPurchasesControllerEvents(contract) {
             conversionFactor,
             quantity: baseQuantity,
             unitCost,
+            discountAmount,
+            discount_amount: discountAmount,
             batchCode: String(batchInput?.value || "").trim(),
             expiryInputMode,
             manufactureDate: expiryInputMode === "manufacture" ? manufactureDate : "",
@@ -1410,6 +1437,7 @@ export function registerPurchasesControllerEvents(contract) {
     }
     const itemId = qtyInput?.dataset.purchaseQtyInput
       || costInput?.dataset.purchaseCostInput
+      || event.target.closest("[data-purchase-discount-item-input]")?.dataset.purchaseDiscountItemInput
       || expiryInput?.dataset.purchaseExpiryInput
       || manufactureInput?.dataset.purchaseManufactureInput;
     const saveButton = dom.purchasePanel.querySelector(`[data-purchase-item-action="save"][data-purchase-item-id="${itemId}"]`);

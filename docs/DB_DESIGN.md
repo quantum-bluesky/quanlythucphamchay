@@ -254,6 +254,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `input_quantity`: REAL, số lượng theo đơn vị người dùng nhập khi chọn mua
   - `input_unit`: TEXT, đơn vị tính người dùng chọn khi đặt hàng
   - `conversion_factor`: REAL, hệ số quy đổi ra đơn vị cơ bản
+  - `discount_amount`: REAL NOT NULL DEFAULT 0, tiền khuyến mại / giảm giá riêng cho từng dòng sản phẩm
 
 ### `bulk_order_batches`
 
@@ -383,6 +384,7 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `input_quantity`: REAL, số lượng theo đơn vị người dùng nhập khi lập phiếu nhập
   - `input_unit`: TEXT, đơn vị tính người dùng chọn khi nhập hàng
   - `conversion_factor`: REAL, hệ số quy đổi ra đơn vị cơ bản
+  - `discount_amount`: REAL NOT NULL DEFAULT 0, tiền khuyến mại / giảm giá riêng cho từng dòng sản phẩm
   - `batch_code`
   - `expiry_input_mode`: `direct`, `manufacture`, hoặc `received_fallback`
   - `manufacture_date`

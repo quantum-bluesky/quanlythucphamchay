@@ -182,7 +182,7 @@ Trong `Giỏ hiện hành`:
 7. Các dòng hàng nằm trong khối đơn, phía trên các nút `Chốt/Xuất/Hủy`, để kiểm tra từng dòng trước khi chuyển trạng thái.
 7. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung`; app sẽ mở popup confirm trước, chỉ khi chọn `Xác nhận` mới cập nhật.
 8. Nếu không cần dòng hàng đó nữa, bấm `Bỏ khỏi giỏ`.
-9. Nếu có khuyến mại cho cả đơn, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`.
+9. Nếu có khuyến mại, có thể nhập giảm giá riêng cho từng dòng sản phẩm hoặc nhập `Giảm giá khuyến mại` chung cho cả đơn; app sẽ tự tính lại thành tiền từng dòng, `Tạm tính / Giảm KM / Cần thanh toán`.
 10. Nếu cần gửi trước cho khách, có thể bấm `In` ngay từ lúc đơn còn `Nháp`.
 
 Lưu ý:
@@ -464,7 +464,7 @@ Màn này có 2 phần:
 14. Nếu cùng một sản phẩm về nhiều lô khác nhau, bấm `+ Lô` để nhân dòng đó thành dòng mới rồi nhập lại `Mã lô` / `HSD` hoặc `NSX` riêng
 15. Bấm `Lưu dòng` nếu có chỉnh
 16. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung`; app sẽ mở popup confirm trước, chỉ khi chọn `Xác nhận` mới cập nhật
-17. Nếu có khuyến mại cho cả phiếu, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
+17. Nếu có khuyến mại, có thể nhập giảm giá riêng cho từng dòng sản phẩm hoặc nhập `Giảm giá khuyến mại` chung cho cả phiếu; app sẽ tự tính lại thành tiền từng dòng, `Tạm tính / Giảm KM / Cần thanh toán` để đối chiếu tiền thực trả NCC.
 18. Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; nếu phiếu đang trống thì app chỉ giữ trạng thái mở tạm trên màn hình
 19. Nếu đổi ý ngay lúc phiếu nháp còn trống, có thể bấm `Xóa phiếu` để đóng phiếu nháp tạm mà không cần lưu xuống DB
 20. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, chỉ khi phiếu còn `Nháp` mới bấm được `NCC` để mở form nhà cung cấp với tên đang nhập; nếu muốn đổi sang NCC khác đã có sẵn thì cũng dùng chính nút này để sang danh sách NCC và chọn lại

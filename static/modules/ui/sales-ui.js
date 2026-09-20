@@ -272,6 +272,7 @@ export function createSalesUi(deps) {
               <div class="document-detail-item-meta">
                 <span>SL ${escapeHtml(formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity))} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)}</span>
                 <span>Giá bán ${escapeHtml(formatCurrency(item.unitPrice))}</span>
+                ${Number(item.discountAmount || item.discount_amount || 0) > 0 ? `<span>| Giảm: -${escapeHtml(formatCurrency(item.discountAmount || item.discount_amount || 0))}</span>` : ""}
                 ${renderPriceWarningMarkup(linePriceAlerts, "view")}
               </div>
             </article>
@@ -447,10 +448,11 @@ export function createSalesUi(deps) {
     const isLockedAfterSave = Boolean(draft.lastResult);
     const isSubmitting = Boolean(draft.submitting);
     const disableEditAttr = isLockedAfterSave || isSubmitting ? "disabled" : "";
-    const totalAmount = items.reduce(
-      (sum, item) => sum + (Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitPrice || 0)),
+    const subtotal = items.reduce(
+      (sum, item) => sum + Math.max(0, (Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitPrice || 0)) - Number(item.discountAmount ?? item.discount_amount ?? 0)),
       0,
-    ) - Number(draft.discountAmount || 0);
+    );
+    const totalAmount = Math.max(0, subtotal - Number(draft.discountAmount || 0));
     const lastResult = draft.lastResult || null;
     const isCollapsed = Boolean(draft.panelCollapsed);
     dom.quickSalePanel.innerHTML = `
@@ -515,6 +517,10 @@ export function createSalesUi(deps) {
           <span>Giá bán</span>
           <input id="quickSaleUnitPriceInput" type="number" min="0" step="1000" value="${escapeHtml(String(draft.unitPrice || ""))}" data-price-warning-input="sale" ${disableEditAttr}>
         </label>
+        <label>
+          <span>Giảm dòng</span>
+          <input id="quickSaleLineDiscountInput" type="number" min="0" step="1000" placeholder="0" value="${escapeHtml(String(draft.lineDiscount || ""))}" ${disableEditAttr}>
+        </label>
         <div class="quick-doc-line-actions">
           <button type="button" class="primary-button" data-quick-sale-action="add-item" ${disableEditAttr}>+ Thêm hàng</button>
         </div>
@@ -529,10 +535,10 @@ export function createSalesUi(deps) {
             <article class="quick-doc-item ${isOver ? "is-warning" : ""}">
               <div>
                 <strong>${escapeHtml(item.productName || product?.name || `SP #${item.productId}`)}</strong>
-                <div class="cart-line-note">SL ${escapeHtml(formatQuantity(quantity))} • Giá ${escapeHtml(formatCurrency(item.unitPrice || 0))} • Tồn hiện tại ${escapeHtml(formatQuantity(currentStock))}</div>
+                <div class="cart-line-note">SL ${escapeHtml(formatQuantity(quantity))} • Giá ${escapeHtml(formatCurrency(item.unitPrice || 0))}${Number(item.discountAmount || item.discount_amount || 0) > 0 ? ` • Giảm: -${escapeHtml(formatCurrency(item.discountAmount || item.discount_amount || 0))}` : ""} • Tồn hiện tại ${escapeHtml(formatQuantity(currentStock))}</div>
               </div>
               <div class="quick-doc-item-actions">
-                <strong>${escapeHtml(formatCurrency(quantity * Number(item.unitPrice || 0)))}</strong>
+                <strong>${escapeHtml(formatCurrency(Math.max(0, quantity * Number(item.unitPrice || 0) - Number(item.discountAmount || item.discount_amount || 0))))}</strong>
                 <button type="button" class="ghost-button compact-button" data-quick-sale-action="remove-item" data-item-index="${index}" ${disableEditAttr}>Bỏ</button>
               </div>
             </article>
@@ -753,7 +759,7 @@ export function createSalesUi(deps) {
             <div class="cart-item-header cart-item-header-compact">
               <div class="cart-item-primary">
                 <strong class="cart-item-name">${escapeHtml(item.productName)}</strong>
-                <div class="cart-line-note">SL ${formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity)} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)} | Giá bán ${formatCurrency(item.unitPrice)} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
+                <div class="cart-line-note">SL ${formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity)} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)} | Giá bán ${formatCurrency(item.unitPrice)}${Number(item.discountAmount || item.discount_amount || 0) > 0 ? ` | Giảm: -${formatCurrency(item.discountAmount || item.discount_amount || 0)}` : ""} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
               </div>
               <div class="cart-item-summary">
                 <strong>${escapeHtml(formatCurrency(item.lineTotal))}</strong>
@@ -772,6 +778,7 @@ export function createSalesUi(deps) {
                   </select>
                 </label>
                 <label class="price-field" data-price-warning-field="sale"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${item.unitPrice}" data-price-input="${item.id}" data-price-warning-input="sale"></label>
+                <label class="price-field"><span>Giảm giá</span><input class="price-input-small" type="number" min="0" step="1000" value="${item.discountAmount || item.discount_amount || 0}" data-discount-input="${item.id}" data-item-discount-input="${item.id}" placeholder="0"></label>
               </div>
               <div data-price-warning-host>${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>
               <div class="cart-line-pricing">

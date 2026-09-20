@@ -3045,6 +3045,7 @@ async function saveCartItem(itemId, changes) {
   if (!cart) throw new Error("Không có đơn hàng đang mở.");
   if (cart._adminEditMode) return updateCartItem(itemId, changes);
   // #Issue133: A line save sends one row, not a replacement of the carts collection.
+  // #Issue167: Hỗ trợ discount_amount theo từng sản phẩm
   const result = await apiRequest("/api/carts/item", {
     method: "POST",
     body: JSON.stringify({
@@ -3056,6 +3057,7 @@ async function saveCartItem(itemId, changes) {
       input_unit: changes.inputUnit,
       conversion_factor: changes.conversionFactor,
       unit_price: changes.unitPrice,
+      discount_amount: changes.discountAmount ?? changes.discount_amount ?? 0,
     }),
   });
   state.carts = state.carts.map((entry) => entry.id === result.cart.id ? decorateCart(result.cart) : entry);
@@ -6192,15 +6194,21 @@ function formatDocumentItemQuantityLabel(item) {
 function buildCartPrintMarkup(cart) {
   const rows = cart.items
     .map(
-      (item, index) => `
+      (item, index) => {
+        const itemDiscount = Number(item.discountAmount ?? item.discount_amount ?? 0);
+        return `
         <tr>
           <td>${index + 1}</td>
           <td>${escapeHtml(item.productName)}</td>
           <td>${escapeHtml(formatDocumentItemQuantityLabel(item))}</td>
           <td>${formatCurrency(item.unitPrice)}</td>
-          <td>${formatCurrency(item.lineTotal)}</td>
+          <td>
+            ${formatCurrency(item.lineTotal)}
+            ${itemDiscount > 0 ? `<span class="subtext">Giảm KM: -${formatCurrency(itemDiscount)}</span>` : ""}
+          </td>
         </tr>
-      `
+      `;
+      }
     )
     .join("");
   return buildDocumentPrintMarkup({
@@ -6227,6 +6235,7 @@ function buildPurchasePrintMarkup(purchase) {
         item.batchCode ? `Lô ${item.batchCode}` : "",
         item.expiryDate ? `HSD ${item.expiryDate}` : "",
       ].filter(Boolean);
+      const itemDiscount = Number(item.discountAmount ?? item.discount_amount ?? 0);
       return `
         <tr>
           <td>${index + 1}</td>
@@ -6236,7 +6245,10 @@ function buildPurchasePrintMarkup(purchase) {
           </td>
           <td>${escapeHtml(formatDocumentItemQuantityLabel(item))}</td>
           <td>${formatCurrency(item.unitCost)}</td>
-          <td>${formatCurrency(item.lineTotal)}</td>
+          <td>
+            ${formatCurrency(item.lineTotal)}
+            ${itemDiscount > 0 ? `<span class="subtext">Giảm KM: -${formatCurrency(itemDiscount)}</span>` : ""}
+          </td>
         </tr>
       `;
     })
@@ -6301,13 +6313,16 @@ function copyCartText(cartId) {
   const lines = [];
   cart.items.forEach((item, index) => {
     // #Issue133: Lấy đúng theo đơn vị trong phiếu và giá trị = SL (đơn vị) x giá 1 đơn vị
+    // #Issue167: Hỗ trợ giảm giá theo từng sản phẩm
     const qtyDisplay = formatDocumentItemQuantityLabel(item);
     const selectedQty = Number((item.inputQuantity ?? item.input_quantity) ?? item.quantity ?? 0);
     const selectedQtyStr = formatQuantity(selectedQty);
     const unitPrice = Number(item.unitPrice || 0);
     const unitPriceStr = formatTextNumber(unitPrice);
     const totalStr = formatTextNumber(item.lineTotal);
-    lines.push(`${index + 1}. ${item.productName} ${qtyDisplay} : ${selectedQtyStr}x${unitPriceStr} = ${totalStr}`);
+    const itemDiscount = Number(item.discountAmount ?? item.discount_amount ?? 0);
+    const discountPart = itemDiscount > 0 ? ` (-${formatTextNumber(itemDiscount)})` : "";
+    lines.push(`${index + 1}. ${item.productName} ${qtyDisplay} : ${selectedQtyStr}x${unitPriceStr}${discountPart} = ${totalStr}`);
   });
   if (cart.discountAmount) {
     lines.push(`Khuyến mại: ${formatTextNumber(cart.discountAmount)}`);
@@ -6336,13 +6351,16 @@ function copyPurchaseText(purchaseId) {
   const lines = [];
   if (includePrice) {
     purchase.items.forEach((item, index) => {
+      // #Issue167: Hỗ trợ giảm giá theo từng sản phẩm
       const qtyDisplay = formatDocumentItemQuantityLabel(item);
       const selectedQty = Number((item.inputQuantity ?? item.input_quantity) ?? item.quantity ?? 0);
       const selectedQtyStr = formatQuantity(selectedQty);
       const unitCost = Number(item.unitCost ?? item.unit_cost ?? 0);
       const unitCostStr = formatTextNumber(unitCost);
       const totalStr = formatTextNumber(item.lineTotal);
-      lines.push(`${index + 1}. ${item.productName} ${qtyDisplay} : ${selectedQtyStr}x${unitCostStr} = ${totalStr}`);
+      const itemDiscount = Number(item.discountAmount ?? item.discount_amount ?? 0);
+      const discountPart = itemDiscount > 0 ? ` (-${formatTextNumber(itemDiscount)})` : "";
+      lines.push(`${index + 1}. ${item.productName} ${qtyDisplay} : ${selectedQtyStr}x${unitCostStr}${discountPart} = ${totalStr}`);
     });
     if (purchase.discountAmount) {
       lines.push(`Khuyến mại: ${formatTextNumber(purchase.discountAmount)}`);

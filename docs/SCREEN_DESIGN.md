@@ -125,7 +125,7 @@ Liên kết detail hiện có:
   - card `Xử lý nhanh xuất hàng` phải nằm ngay trong màn `create-order`, mobile-first, cho nhập `khách / ngày xuất / ghi chú / mặt hàng`, chọn `Đã xuất hàng` hoặc `Chỉ chốt đơn`, có checkbox `Đã thanh toán luôn`; sau khi lưu phải khóa form ở trạng thái `Đã tạo phiếu` và hiện summary với CTA `Tiếp tục xuất nhanh / Xem phiếu / Về danh sách` để tránh tạo trùng
   - action `Giá chung` trong editor giá bán phải hiện message confirm trước khi cập nhật giá bán mặc định của mặt hàng để tránh bấm nhầm trên mobile
   - với mọi chỗ đang sửa giá bán theo mặt hàng, nếu `giá xuất < giá nhập` của 1 mặt hàng thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
-  - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu, không phải per-line
+  - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; hỗ trợ giảm giá khuyến mại cấp toàn phiếu lẫn giảm giá riêng theo từng dòng sản phẩm
   - `Detail` của phiếu xuất phải hiện thêm `Ghi chú` trong metadata; detail luôn cho phép sửa và lưu lại ghi chú này ở mọi trạng thái
   - nếu `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` của các dòng hàng, panel phải hiện cảnh báo ngắn và trước `Chốt đơn`/`Xuất hàng` phải hỏi xác nhận thêm
   - từ màn `orders`, user có thể tick nhiều phiếu `draft/committed` cùng khách để mở preview `gộp đơn`; nếu khác khách thì giữ nguyên list và báo lỗi thân thiện
@@ -263,7 +263,7 @@ Liên kết detail hiện có:
   - **Dropdown chọn Đơn vị nhập**: Trên từng dòng nhập hàng, cho phép chuyển đổi giữa Đơn vị cơ sở và các Đơn vị quy đổi (mặc định chọn `Đơn vị nhập mặc định`). Khi đổi đơn vị, UI tự động tính lại số lượng để bảo toàn lượng hàng nhập cơ sở và tự động điền đơn giá nhập theo đơn vị đó. Thành tiền = số lượng theo đơn vị nhập đang chọn × giá nhập của đơn vị đó; tồn kho và giá vốn lô được quy về đơn vị cơ sở. Khi In hoặc Copy text phiếu, số lượng hiển thị theo đơn vị nhập đã chọn kèm số lượng cơ sở nếu khác đơn vị cơ sở và không phải đơn vị trọng lượng; khi copy text có lựa chọn kèm giá nhập & tính tiền như phiếu xuất.
   - action `Giá chung` trong editor giá nhập phải hiện message confirm trước khi cập nhật giá nhập mặc định của mặt hàng
   - với mọi chỗ đang sửa giá nhập theo mặt hàng, nếu `giá nhập < 1.000đ` thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
-  - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu để đối chiếu số tiền thực trả NCC
+  - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; hỗ trợ giảm giá khuyến mại cấp toàn phiếu lẫn giảm giá riêng theo từng dòng sản phẩm để đối chiếu số tiền thực trả NCC
   - mỗi dòng nhập cần có input `Mã lô` và phần nhập HSD hỗ trợ 2 mode: nhập trực tiếp `Hạn dùng` hoặc nhập gián tiếp `Ngày sản xuất`; mode mặc định là nhập trực tiếp HSD, còn mode gián tiếp sẽ tự tính `HSD = NSX + thời gian bảo quản`
   - metadata phiếu nhập được bung/thu gọn bằng button `Detail` thay vì badge tĩnh để phần đầu phiếu gọn hơn
   - phiếu nhập được phép `In` từ lúc còn `Nháp` cho tới `Đã thanh toán`; ở list chỉ hiện nút `In` tới trước khi phiếu đã thanh toán, còn phiếu đã thanh toán thì in lại từ detail
