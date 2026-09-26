@@ -62,12 +62,12 @@ export function registerProductsControllerEvents(contract) {
     if (dom.productForm.recipe) dom.productForm.recipe.value = "";
     if (dom.productForm.note) dom.productForm.note.value = "";
     if (dom.productForm.is_public) dom.productForm.is_public.checked = true;
-    
+
     if (dom.productUnitConversionsContainer) {
       dom.productUnitConversionsContainer.innerHTML = "";
     }
     syncDefaultUnitDropdowns("", "");
-    
+
     if (quillEditor) {
       quillEditor.setContents([]);
     } else if (dom.productDetailEditor) {
@@ -399,7 +399,7 @@ export function registerProductsControllerEvents(contract) {
             [{ 'header': [3, 4, false] }],
             ['bold', 'italic', 'underline'],
             ['link', 'blockquote', 'code-block', 'image'],
-            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
             ['clean']
           ]
         }
@@ -493,15 +493,15 @@ export function registerProductsControllerEvents(contract) {
       row.style.gap = "8px";
       row.style.marginBottom = "8px";
       row.style.alignItems = "center";
-      
+
       row.innerHTML = `
         <input type="text" placeholder="Tên ĐV (vd: thùng)" class="uc-unit" required style="flex:1; min-width: 80px;">
-        <input type="number" placeholder="Hệ số (vd: 24)" class="uc-factor" required min="0.2" step="0.01" style="flex:1; min-width: 80px;">
+        <input type="number" placeholder="Hệ số (vd: 24)" class="uc-factor" required min="0.1" step="0.01" style="flex:1; min-width: 80px;">
         <input type="number" placeholder="Giá nhập" class="uc-price" required min="0" style="flex:1; min-width: 80px;">
         <input type="number" placeholder="Giá bán" class="uc-saleprice" required min="0" style="flex:1; min-width: 80px;">
         <button type="button" class="danger-button compact-button uc-remove" style="padding: 4px 8px;">X</button>
       `;
-      
+
       const unitInput = row.querySelector(".uc-unit");
       if (unitInput) {
         unitInput.addEventListener("input", () => syncDefaultUnitDropdowns());
@@ -512,7 +512,7 @@ export function registerProductsControllerEvents(contract) {
         row.remove();
         syncDefaultUnitDropdowns();
       });
-      
+
       dom.productUnitConversionsContainer.appendChild(row);
       syncDefaultUnitDropdowns();
     });
@@ -576,7 +576,7 @@ export function registerProductsControllerEvents(contract) {
     dom.productImageUpload.addEventListener("change", async (event) => {
       const files = event.target.files;
       if (!files || files.length === 0) return;
-      
+
       const originalText = dom.uploadProductImageButton.textContent;
       dom.uploadProductImageButton.textContent = "Đang tải...";
       dom.uploadProductImageButton.disabled = true;
@@ -597,7 +597,7 @@ export function registerProductsControllerEvents(contract) {
           });
           if (data.url) urls.push(data.url);
         }
-        
+
         if (urls.length > 0) {
           const existing = dom.productForm.images.value.trim();
           dom.productForm.images.value = existing ? existing + "\n" + urls.join("\n") : urls.join("\n");
@@ -626,10 +626,10 @@ export function registerProductsControllerEvents(contract) {
     } else if (dom.productRecipeEditor) {
       dom.productForm.recipe.value = dom.productRecipeEditor.innerHTML;
     }
-    
+
     const formData = new FormData(dom.productForm);
     const payload = Object.fromEntries(formData.entries());
-    
+
     if (payload.images) {
       payload.images = payload.images.split("\n").map(s => s.trim()).filter(Boolean);
     } else {
@@ -658,33 +658,33 @@ export function registerProductsControllerEvents(contract) {
       });
     }
     payload.unit_conversions = unitConversions;
-    
+
     try {
       const isEditing = !!state.editingProductId;
-      
+
       const data = state.editingProductId
         ? await actions.apiRequest(`/api/products/${state.editingProductId}`, {
-            method: "PUT",
-            body: JSON.stringify(payload),
-          })
+          method: "PUT",
+          body: JSON.stringify(payload),
+        })
         : await actions.apiRequest("/api/products", {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
       resetProductForm();
       state.editingProductId = null;
       if (dom.mobileQuery.matches) {
         state.productFormCollapsed = true;
       }
       await actions.refreshData();
-      
+
       if (isEditing) {
         renderers.renderProductSections();
       } else {
         actions.switchMenu("inventory");
         actions.prefillProduct(data.product.id);
       }
-      
+
       actions.showToast(data.message);
     } catch (error) {
       actions.showToast(error.message, true);
@@ -810,45 +810,45 @@ export function registerProductsControllerEvents(contract) {
       }
       syncDefaultUnitDropdowns(product.default_purchase_unit || product.unit, product.default_sale_unit || product.unit);
 
-      
-        let detailsHtml = product.details || "";
-        if (detailsHtml && !detailsHtml.includes("<") && detailsHtml.includes("\n")) {
-          detailsHtml = detailsHtml.replace(/\n/g, "<br>");
-        }
-        let recipeHtml = product.recipe || "";
-        if (recipeHtml && !recipeHtml.includes("<") && recipeHtml.includes("\n")) {
-          recipeHtml = recipeHtml.replace(/\n/g, "<br>");
-        }
-        
-        actions.openProductFormSection();
-        ensureQuillInitialized();
 
-        const setEditorContent = () => {
-          if (quillEditor) {
-            try {
-              const delta = quillEditor.clipboard.convert({ html: detailsHtml });
-              quillEditor.setContents(delta, 'silent');
-            } catch (e) {
-              quillEditor.root.innerHTML = detailsHtml;
-            }
-          } else if (dom.productDetailEditor) {
-            dom.productDetailEditor.innerHTML = detailsHtml;
-          }
-          if (recipeQuillEditor) {
-            try {
-              const delta = recipeQuillEditor.clipboard.convert({ html: recipeHtml });
-              recipeQuillEditor.setContents(delta, 'silent');
-            } catch (e) {
-              recipeQuillEditor.root.innerHTML = recipeHtml;
-            }
-          } else if (dom.productRecipeEditor) {
-            dom.productRecipeEditor.innerHTML = recipeHtml;
-          }
-        };
+      let detailsHtml = product.details || "";
+      if (detailsHtml && !detailsHtml.includes("<") && detailsHtml.includes("\n")) {
+        detailsHtml = detailsHtml.replace(/\n/g, "<br>");
+      }
+      let recipeHtml = product.recipe || "";
+      if (recipeHtml && !recipeHtml.includes("<") && recipeHtml.includes("\n")) {
+        recipeHtml = recipeHtml.replace(/\n/g, "<br>");
+      }
 
-        setEditorContent();
-        window.setTimeout(setEditorContent, 50);
-      
+      actions.openProductFormSection();
+      ensureQuillInitialized();
+
+      const setEditorContent = () => {
+        if (quillEditor) {
+          try {
+            const delta = quillEditor.clipboard.convert({ html: detailsHtml });
+            quillEditor.setContents(delta, 'silent');
+          } catch (e) {
+            quillEditor.root.innerHTML = detailsHtml;
+          }
+        } else if (dom.productDetailEditor) {
+          dom.productDetailEditor.innerHTML = detailsHtml;
+        }
+        if (recipeQuillEditor) {
+          try {
+            const delta = recipeQuillEditor.clipboard.convert({ html: recipeHtml });
+            recipeQuillEditor.setContents(delta, 'silent');
+          } catch (e) {
+            recipeQuillEditor.root.innerHTML = recipeHtml;
+          }
+        } else if (dom.productRecipeEditor) {
+          dom.productRecipeEditor.innerHTML = recipeHtml;
+        }
+      };
+
+      setEditorContent();
+      window.setTimeout(setEditorContent, 50);
+
       scheduleQuillInitialization();
       utils.syncPriceWarningGroups(dom.productForm);
       return;
