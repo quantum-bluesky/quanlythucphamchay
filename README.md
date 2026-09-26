@@ -100,7 +100,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 
 ## Tính năng chính
 
-- Trang danh mục thực phẩm công khai chỉ lấy các mặt hàng đang bật `Hiển thị trên Web (Public)` và hiển thị `Có sẵn / Sắp hết / Sắp về / Hết hàng`; `Sắp hết` dùng đúng ngưỡng tồn của từng mặt hàng đã cấu hình trong màn `Sản phẩm`.
+- Trang danh mục thực phẩm công khai chỉ lấy các mặt hàng đang bật `Hiển thị trên Web (Public)` và hiển thị `Có sẵn / Sắp hết / Sắp về / Hết hàng`; `Sắp hết` dùng đúng ngưỡng tồn của từng mặt hàng đã cấu hình trong màn `Sản phẩm`, nếu số lượng tồn kho nhỏ hơn đơn vị nhỏ nhất của mặt hàng thì trên trang web public được xem là hết hàng.
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
 - Màn tồn kho có dropdown sắp xếp trong khu vực phân trang để xem theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít
 - Quản lý tồn kho theo lô còn hàng; card tồn kho có thể hiện các lô active, mã lô, HSD gần nhất và số lượng còn lại theo từng lô

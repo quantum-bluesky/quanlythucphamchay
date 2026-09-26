@@ -47,10 +47,10 @@ Nếu gặp các trạng thái hoặc thuật ngữ tiếng Anh như `draft`, `o
 
 Trang danh mục thực phẩm công khai hiển thị bốn trạng thái:
 
-- `Có sẵn`: tồn kho đang cao hơn ngưỡng của mặt hàng.
-- `Sắp hết`: tồn kho vẫn còn nhưng đã bằng hoặc thấp hơn ngưỡng cấu hình tại màn `Sản phẩm`.
-- `Sắp về`: hiện đã hết nhưng có phiếu nhập đang chờ về.
-- `Hết hàng`: hiện đã hết và chưa có lượng hàng chờ nhập.
+- `Có sẵn`: tồn kho đang cao hơn ngưỡng của mặt hàng và đạt từ đơn vị nhỏ nhất trở lên.
+- `Sắp hết`: tồn kho vẫn còn (đạt từ đơn vị nhỏ nhất trở lên) nhưng đã bằng hoặc thấp hơn ngưỡng cấu hình tại màn `Sản phẩm`.
+- `Sắp về`: hiện đã hết (tồn bằng 0 hoặc nhỏ hơn đơn vị nhỏ nhất) nhưng có phiếu nhập đang chờ về.
+- `Hết hàng`: hiện đã hết (tồn bằng 0 hoặc nhỏ hơn đơn vị nhỏ nhất của mặt hàng) và chưa có lượng hàng chờ nhập.
 
 Muốn ẩn riêng một mặt hàng khỏi trang công khai, vào màn `Sản phẩm`, mở sửa chi tiết, bỏ chọn `Hiển thị trên Web (Public)` rồi lưu. Bật lại tùy chọn này để mặt hàng xuất hiện trở lại.
 

@@ -27,6 +27,7 @@ Mục tiêu:
 | 173 | `IT-PUB-01` | `tests/integration/public-product-list.spec.js` | `npx playwright test tests/integration/public-product-list.spec.js --grep IT-PUB-01` |
 | 174 | `UT-AUTH-17` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_17_product_update_can_hide_item_from_public_catalog` |
 | 175 | `IT-PUB-02` | `tests/integration/product-metadata.spec.js` | `npx playwright test tests/integration/product-metadata.spec.js --grep IT-PUB-02` |
+| 176 | `IT-PUB-03` | `tests/integration/public-product-list.spec.js` | `npx playwright test tests/integration/public-product-list.spec.js --grep IT-PUB-03` |
 | 164 | `IT-UNIT-03` | `tests/integration/unit-quantity-roundtrip.spec.js` | `npx playwright test --grep IT-UNIT-03` |
 | 165 | `UT-UNIT-01` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |
 | 166 | `UT-UNIT-02` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |

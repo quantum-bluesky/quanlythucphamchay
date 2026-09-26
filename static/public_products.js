@@ -174,6 +174,34 @@ function syncProductCardSelection(productId) {
   }
 }
 
+// Issue 169: Lấy giá trị đơn vị nhỏ nhất của sản phẩm
+function getMinUnit(product) {
+  if (product.min_unit !== undefined && typeof product.min_unit === 'number' && product.min_unit > 0) {
+    return product.min_unit;
+  }
+  const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(product.unit ? product.unit.toLowerCase() : '');
+  const factors = [1.0];
+  if (product.unit_conversions && Array.isArray(product.unit_conversions) && product.unit_conversions.length > 0) {
+    product.unit_conversions.forEach(c => {
+      const f = parseFloat(c.conversion_factor);
+      if (!isNaN(f) && f > 0) {
+        factors.push(f);
+      }
+    });
+    return Math.min(...factors);
+  }
+  return isIndivisible ? 1.0 : 0.1;
+}
+
+// Issue 169: Điều chỉnh ngưỡng hết hàng khi tồn kho còn quá nhỏ (< đơn vị nhỏ nhất)
+function checkProductHasStock(product) {
+  if (!product || product.current_stock === undefined || product.current_stock === null) return false;
+  const stock = Number(product.current_stock);
+  if (isNaN(stock) || stock <= 0) return false;
+  const minUnit = getMinUnit(product);
+  return stock >= (minUnit - 0.00001);
+}
+
 // Issue 8: Cập nhật phần chia tách đơn trong modal chốt đơn
 function updateCheckoutSplitSection() {
   const splitOptionSection = document.getElementById('checkoutSplitOptionSection');
@@ -188,7 +216,7 @@ function updateCheckoutSplitSection() {
     if (qty > 0) {
       const p = allProducts.find(x => String(x.id) === String(id));
       if (p) {
-        const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+        const hasStock = checkProductHasStock(p);
         const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
         if (!hasStock && !hasIncoming) {
           outOfStockCount++;
@@ -547,7 +575,7 @@ function setupCart() {
           const qty = window.selectedProducts[id];
           const price = p.sale_price || p.price || 0;
           const lineTotal = price * qty;
-          const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+          const hasStock = checkProductHasStock(p);
           const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
           const isOutOfStock = !hasStock && !hasIncoming;
 
@@ -1026,7 +1054,7 @@ function renderProducts(products) {
     const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
     const stepVal = isIndivisible ? "1" : "0.1";
 
-    const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+    const hasStock = checkProductHasStock(p);
     const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
     const isOutOfStock = !hasStock && !hasIncoming;
 
@@ -1297,7 +1325,7 @@ function filterAndRenderProducts() {
     // 1. Các sản phẩm có sẵn (bao gồm đang chờ nhập về)
     filtered.sort((a, b) => {
       const getPriority = (p) => {
-        const hasStock = (p.current_stock !== undefined && p.current_stock > 0);
+        const hasStock = checkProductHasStock(p);
         const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
         if (hasStock) return 1;
         if (hasIncoming) return 2;
