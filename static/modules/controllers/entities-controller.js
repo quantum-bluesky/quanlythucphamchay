@@ -292,17 +292,14 @@ export function registerEntitiesControllerEvents(contract) {
       const isPurchaseSupplierFlow = state.pendingPurchaseSupplierFlow;
       const isProcurementSupplierFlow = state.pendingProcurementSupplierFlow;
       const savedSupplierName = dom.supplierNameInput.value.trim();
-      const activePurchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
-      const canApplySupplierToActiveDraft = Boolean(activePurchase && activePurchase.status === "draft");
       let purchaseDraftApplyResult = null;
       if (isPurchaseSupplierFlow) {
         dom.purchaseSupplierInput.value = savedSupplierName;
         state.pendingPurchaseSupplierName = savedSupplierName;
-        if (canApplySupplierToActiveDraft) {
-          purchaseDraftApplyResult = actions.applySupplierToActiveDraft(savedSupplierName, {
-            note: dom.purchaseNoteInput.value.trim(),
-          });
-        }
+        // #Issue 172: Luôn mở hoặc áp dụng phiếu nháp cho NCC mới tạo kể cả khi phiếu hiện tại không phải nháp
+        purchaseDraftApplyResult = actions.applySupplierToActiveDraft(savedSupplierName, {
+          note: dom.purchaseNoteInput.value.trim(),
+        });
       }
       actions.upsertSupplier({
         name: dom.supplierNameInput.value,
@@ -310,7 +307,7 @@ export function registerEntitiesControllerEvents(contract) {
         address: dom.supplierAddressInput.value,
         note: dom.supplierNoteInput.value,
       }, editingSupplierId, {
-        extraCollections: isPurchaseSupplierFlow && canApplySupplierToActiveDraft && purchaseDraftApplyResult?.shouldPersist ? ["purchases"] : [],
+        extraCollections: isPurchaseSupplierFlow && purchaseDraftApplyResult?.shouldPersist ? ["purchases"] : [],
       });
       dom.supplierForm.reset();
       state.editingSupplierFormId = null;
@@ -397,17 +394,12 @@ export function registerEntitiesControllerEvents(contract) {
       state.pendingPurchaseSupplierFlow = false;
       state.pendingPurchaseSupplierName = supplier.name;
       actions.switchMenu("purchases");
-      const purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
-      const canApplySupplierToActiveDraft = Boolean(purchase && purchase.status === "draft");
-      if (canApplySupplierToActiveDraft) {
-        const result = actions.applySupplierToActiveDraft(supplier.name, {
-          note: dom.purchaseNoteInput.value.trim(),
-        });
-        actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
-        actions.focusPurchasePanel();
-      } else {
-        actions.saveAndRenderAll();
-      }
+      // #Issue 172: Tự động mở hoặc tạo phiếu nhập nháp cho NCC đã chọn
+      const result = actions.applySupplierToActiveDraft(supplier.name, {
+        note: dom.purchaseNoteInput.value.trim(),
+      });
+      actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
+      actions.focusPurchasePanel();
       actions.showToast("Đã chọn nhà cung cấp cho phiếu nhập.");
       return;
     }
@@ -493,17 +485,12 @@ export function registerEntitiesControllerEvents(contract) {
       state.pendingPurchaseSupplierFlow = false;
       state.pendingPurchaseSupplierName = supplier.name;
       actions.switchMenu("purchases");
-      const purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
-      const canApplySupplierToActiveDraft = Boolean(purchase && purchase.status === "draft");
-      if (canApplySupplierToActiveDraft) {
-        const result = actions.applySupplierToActiveDraft(supplier.name, {
-          note: dom.purchaseNoteInput.value.trim(),
-        });
-        actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
-        actions.focusPurchasePanel();
-      } else {
-        actions.saveAndRenderAll();
-      }
+      // #Issue 172: Tự động mở hoặc tạo phiếu nhập nháp cho NCC đã chọn
+      const result = actions.applySupplierToActiveDraft(supplier.name, {
+        note: dom.purchaseNoteInput.value.trim(),
+      });
+      actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
+      actions.focusPurchasePanel();
       actions.showToast("Đã chọn nhà cung cấp cho phiếu nhập.");
       return;
     }

@@ -214,4 +214,5 @@ Lưu ý:
 | 163 | `UT-PUR-02` | Kiểm tra backend `receive_purchase()` nhận và lưu chính xác mốc thời gian ngày nhập tùy chỉnh vào `received_at` của phiếu nhập và lô hàng `inventory_batches`. |
 | 164 | `UT-QUICK-06` | Kiểm tra backend `create_quick_purchase()` xử lý đúng khi truyền `target_purchase_id` (kể cả ID nháp client chưa lưu vào DB), lưu đầy đủ các trường quy đổi đơn vị (`input_quantity`, `input_unit`, `conversion_factor`) và giảm giá vào `purchase_items`. |
 | 165 | `ACC-QUICK-07` | Kiểm tra UI `Xử lý nhanh nhập hàng` thao tác nút `Lấy từ phiếu đang mở`, hiển thị banner liên kết phiếu, lưu cập nhật thành công vào phiếu đang mở và đổi trạng thái nút thành `Đã cập nhật`. |
+| 166 | `IT-PURSUP-08` | Kiểm tra chọn và nhập nhà cung cấp khi tạo mới đơn nhập hàng: ô nhập NCC và nút danh bạ NCC không bị khóa khi xem phiếu đã nhận/đã thanh toán/đã hủy, hỗ trợ Enter/chọn NCC tự tạo/mở phiếu nháp mới và nút tạo phiếu tạo phiếu nháp trắng để chọn NCC. |
 

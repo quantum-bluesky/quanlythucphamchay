@@ -10,6 +10,11 @@ export function registerPurchasesControllerEvents(contract) {
     utils,
   } = contract;
 
+  // #Issue 172: Helper chuẩn hóa tên nhà cung cấp để đối chiếu
+  const normalizeSupplierName = (value) =>
+    (utils?.normalizeLookup ? utils.normalizeLookup(value) : String(value || "").trim().toLowerCase());
+  const isDraftPurchase = queries.isDraftPurchase || ((purchase) => Boolean(purchase && (purchase.status || "draft") === "draft"));
+
   function selectPurchaseDocument(purchaseId, { focus = true, expandDetail = false } = {}) {
     const visiblePurchases = queries.getVisiblePurchases();
     const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
@@ -454,9 +459,12 @@ export function registerPurchasesControllerEvents(contract) {
       actions.showToast("Đã lưu phiếu nhập nháp.");
     } else {
       actions.saveAndRenderAll();
-      actions.showToast("Đã mở phiếu nhập nháp tạm. Thêm mặt hàng để lưu.");
+      actions.showToast("Đã mở phiếu nhập nháp tạm. Nhập nhà cung cấp hoặc thêm mặt hàng để lưu.");
     }
-    actions.focusPurchaseSuggestions();
+    // #Issue 172: Focus vào ô NCC sau khi tạo phiếu mới để người dùng chọn NCC
+    if (dom.purchaseSupplierInput) {
+      dom.purchaseSupplierInput.focus();
+    }
   });
 
   dom.togglePurchasePanelButton.addEventListener("click", () => {
@@ -672,16 +680,40 @@ export function registerPurchasesControllerEvents(contract) {
       return;
     }
     const purchase = queries.getActivePurchase();
-    if (!purchase) return;
-    if (!queries.canEditPurchaseSupplier(purchase)) {
-      actions.showToast("Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp.", true);
-      renderers.renderPurchasePanel();
+    const supplierValue = dom.purchaseSupplierInput.value.trim();
+
+    // #Issue 172: Khi chưa có phiếu hoặc phiếu hiện tại không phải draft (ví dụ received, paid, cancelled, ordered):
+    // nếu người dùng nhập/chọn NCC mới khác phiếu cũ -> tự động mở/tạo phiếu nháp mới cho NCC đó
+    if (!purchase || !queries.canEditPurchaseSupplier(purchase)) {
+      if (supplierValue && (!purchase || normalizeSupplierName(purchase.supplierName) !== normalizeSupplierName(supplierValue))) {
+        const result = actions.applySupplierToActiveDraft(supplierValue, {
+          note: dom.purchaseNoteInput.value.trim(),
+        });
+        actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
+        actions.showToast(`Đã mở phiếu nhập nháp cho nhà cung cấp: ${supplierValue}.`);
+        actions.focusPurchaseSuggestions();
+        return;
+      }
+      if (purchase && !queries.canEditPurchaseSupplier(purchase)) {
+        actions.showToast("Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp.", true);
+        renderers.renderPurchasePanel();
+        return;
+      }
       return;
     }
-    const result = actions.applySupplierToActiveDraft(dom.purchaseSupplierInput.value.trim(), {
+
+    const result = actions.applySupplierToActiveDraft(supplierValue, {
       note: dom.purchaseNoteInput.value.trim(),
     });
     actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
+  });
+
+  // #Issue 172: Bổ sung xử lý phím Enter trên ô nhập nhà cung cấp
+  dom.purchaseSupplierInput.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    dom.purchaseSupplierInput.blur();
+    actions.focusPurchaseSuggestions();
   });
 
   dom.purchaseNoteInput.addEventListener("change", () => {
@@ -707,12 +739,6 @@ export function registerPurchasesControllerEvents(contract) {
     event.preventDefault();
     event.stopPropagation();
     actions.setSkipNextPurchaseSupplierChangePersist(false);
-    const purchase = queries.getActivePurchase();
-    if (purchase && !queries.canEditPurchaseSupplier(purchase)) {
-      actions.showToast("Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp.", true);
-      renderers.renderPurchasePanel();
-      return;
-    }
     actions.beginSupplierCreateFromPurchase();
   });
 
@@ -847,6 +873,16 @@ export function registerPurchasesControllerEvents(contract) {
           return;
         }
       }
+
+      // #Issue 172: Đảm bảo nếu ô NCC đang có giá trị mà phiếu nháp chưa có NCC thì đồng bộ trước khi thêm hàng
+      const pendingInputSupplier = String(dom.purchaseSupplierInput?.value || "").trim();
+      const currentActivePurchase = queries.getActivePurchase();
+      if (pendingInputSupplier && currentActivePurchase && isDraftPurchase(currentActivePurchase) && !queries.hasPurchaseSupplier(currentActivePurchase)) {
+        actions.applySupplierToActiveDraft(pendingInputSupplier, {
+          note: dom.purchaseNoteInput?.value?.trim() || "",
+        });
+      }
+
       const result = actions.addSuggestionToPurchase(button.dataset.productId, quantity, product?.price || 0);
       state.purchasePanelCollapsed = false;
       renderers.renderPurchasePanel();
@@ -946,15 +982,21 @@ export function registerPurchasesControllerEvents(contract) {
       }
       if (panelButton.dataset.purchasePanelAction === "create") {
         state.purchaseDetailExpanded = false;
-        const purchase = actions.createPurchaseDraftIfMissing();
+        const purchase = actions.createPurchaseDraftIfMissing({
+          preferredSupplierName: "",
+          preferBlankWhenActiveHasSupplier: true,
+        });
         if (purchase.items.length > 0) {
           actions.saveAndRenderAll(["purchases"]);
           actions.showToast("Đã lưu phiếu nhập nháp.");
         } else {
           actions.saveAndRenderAll();
-          actions.showToast("Đã mở phiếu nhập nháp tạm. Thêm mặt hàng để lưu.");
+          actions.showToast("Đã mở phiếu nhập nháp tạm. Nhập nhà cung cấp hoặc thêm mặt hàng để lưu.");
         }
-        actions.focusPurchaseSuggestions();
+        if (dom.purchaseSupplierInput) {
+          dom.purchaseSupplierInput.focus();
+        }
+        return;
       }
       return;
     }
