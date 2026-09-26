@@ -243,12 +243,21 @@ export function registerCoreControllerEvents(contract) {
   });
 
   window.addEventListener("scroll", renderers.renderScreenToolbox, { passive: true });
-  window.addEventListener("focus", () => {
+  // #Issue173: Throttle window focus và visibilitychange tránh gửi dồn dập request khi chuyển tab
+  let lastFocusOrVisibilityCheckAt = 0;
+  const handleWindowActive = () => {
+    const now = Date.now();
+    if (now - lastFocusOrVisibilityCheckAt < 3500) {
+      return;
+    }
+    lastFocusOrVisibilityCheckAt = now;
     void actions.checkForRemoteUpdates();
-  });
+  };
+
+  window.addEventListener("focus", handleWindowActive);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
-      void actions.checkForRemoteUpdates();
+      handleWindowActive();
     }
   });
 }
