@@ -191,6 +191,7 @@ export function registerPurchasesControllerEvents(contract) {
     dom.quickPurchasePanel?.querySelector("#quickPurchaseProductInput")?.focus();
   }
 
+  // #Issue 171: Sửa lỗi nhập hàng xử lý nhanh ko nhập được đơn đang mở
   async function submitQuickPurchase() {
     syncQuickPurchaseDraftFromInputs();
     const draft = state.quickPurchaseDraft || {};
@@ -216,6 +217,16 @@ export function registerPurchasesControllerEvents(contract) {
     draft.submitting = true;
     renderers.renderQuickPurchasePanel();
     try {
+      if (typeof actions.flushPendingPersistCollections === "function") {
+        await actions.flushPendingPersistCollections();
+      }
+      let targetPurchaseId = String(draft.targetPurchaseId || "").trim();
+      if (targetPurchaseId) {
+        const targetPurchase = (state.purchases || []).find((p) => String(p.id) === targetPurchaseId);
+        if (targetPurchase && typeof queries.isUnsavedEmptyDraftPurchase === "function" && queries.isUnsavedEmptyDraftPurchase(targetPurchase)) {
+          targetPurchaseId = "";
+        }
+      }
       const data = await actions.createQuickPurchaseDocument({
         supplier_name: draft.supplierText,
         document_date: draft.documentDate,
@@ -226,16 +237,22 @@ export function registerPurchasesControllerEvents(contract) {
           quantity: item.quantity,
           unit_cost: item.unitCost,
           discount_amount: Number(item.discountAmount || item.discount_amount || 0),
-          input_quantity: item.inputQuantity,
-          input_unit: item.inputUnit,
-          conversion_factor: item.conversionFactor,
+          input_quantity: item.inputQuantity ?? item.quantity,
+          input_unit: item.inputUnit ?? "",
+          conversion_factor: Number(item.conversionFactor || 1),
+          batch_code: String(item.batchCode || item.batch_code || "").trim(),
+          expiry_input_mode: item.expiryInputMode || item.expiry_input_mode || "direct",
+          manufacture_date: item.manufactureDate || item.manufacture_date || "",
+          expiry_date: item.expiryDate || item.expiry_date || "",
         })),
         final_status: draft.finalStatus,
         mark_paid: Boolean(draft.markPaid && draft.finalStatus === "received"),
-        target_purchase_id: draft.targetPurchaseId || "",
+        target_purchase_id: targetPurchaseId,
       });
       state.quickPurchaseDraft.lastResult = data.quick_summary || null;
       actions.showToast(data.message || "Đã lưu nhập nhanh.");
+    } catch (error) {
+      actions.showToast(error.message || "Lỗi lưu phiếu nhập nhanh.", true);
     } finally {
       state.quickPurchaseDraft.submitting = false;
       renderers.renderQuickPurchasePanel();
@@ -596,27 +613,37 @@ export function registerPurchasesControllerEvents(contract) {
         actions.focusPurchaseOrders();
         return;
       }
+      // #Issue 171: Sửa lỗi nhập hàng xử lý nhanh ko nhập được đơn đang mở
+      if (action === "clear-target" || action === "detach-target") {
+        if (state.quickPurchaseDraft) {
+          state.quickPurchaseDraft.targetPurchaseId = null;
+          renderers.renderQuickPurchasePanel();
+          actions.showToast("Đã chuyển sang chế độ tạo phiếu nhập mới độc lập.");
+        }
+        return;
+      }
       if (action === "use-active-purchase") {
         const purchase = queries.getActivePurchase();
-        if (!purchase) return;
-
-        if (purchase.status === "paid") {
-          actions.showToast("Phiếu đã thanh toán không thể chọn để xử lý nhập nhanh.", true);
-          return;
-        }
-        if (purchase.status === "cancelled") {
-          actions.showToast("Phiếu đã hủy không thể chọn để xử lý nhập nhanh.", true);
+        if (!purchase) {
+          actions.showToast("Chưa có phiếu nhập nào đang mở để lấy nhanh.", true);
           return;
         }
 
         let editTarget = false;
-        if (purchase.status === "received") {
-          const shouldClone = window.confirm("Phiếu đã nhập kho không thể sửa trực tiếp. Bạn có muốn TẠO MỚI một bản sao để tiếp tục nhập nhanh không?");
+        if (purchase.status === "cancelled") {
+          const shouldClone = window.confirm("Phiếu đã hủy không thể sửa trực tiếp. Bạn có muốn TẠO MỚI một bản sao để tiếp tục nhập nhanh không?");
+          if (!shouldClone) return;
+          editTarget = false;
+          actions.showToast("Đang TẠO MỚI một phiếu nhập dựa trên phiếu đang mở.");
+        } else if (purchase.status === "received" || purchase.status === "paid") {
+          const shouldClone = window.confirm("Phiếu đã hoàn tất nhập kho không thể sửa trực tiếp. Bạn có muốn TẠO MỚI một bản sao để tiếp tục nhập nhanh không?");
           if (!shouldClone) return;
           editTarget = false;
           actions.showToast("Đang TẠO MỚI một phiếu nhập dựa trên phiếu đang mở.");
         } else {
           editTarget = true;
+          const displayLabel = purchase.receiptCode || purchase.id;
+          actions.showToast(`Đã lấy thông tin từ phiếu đang mở (${displayLabel}) để xử lý nhanh.`);
         }
 
         actions.cloneActivePurchaseIntoQuickPurchaseDraft({ editTarget });

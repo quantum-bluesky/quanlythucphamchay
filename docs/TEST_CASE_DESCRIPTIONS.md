@@ -212,4 +212,6 @@ Lưu ý:
 | 161 | `UT-SYNC-02B` | Kiểm tra backend bỏ qua kiểm tra xung đột đồng thời sửa đổi dữ liệu (Multiuser Sync Conflict) nếu tùy chọn cấu hình `EnableMultiuserConflictCheck` bị tắt. |
 | 162 | `UT-ORD-19` | Kiểm tra backend `ship_cart_order()` nhận và lưu chính xác mốc thời gian ngày xuất tùy chỉnh vào `completed_at` của đơn và `created_at` của giao dịch xuất kho. |
 | 163 | `UT-PUR-02` | Kiểm tra backend `receive_purchase()` nhận và lưu chính xác mốc thời gian ngày nhập tùy chỉnh vào `received_at` của phiếu nhập và lô hàng `inventory_batches`. |
+| 164 | `UT-QUICK-06` | Kiểm tra backend `create_quick_purchase()` xử lý đúng khi truyền `target_purchase_id` (kể cả ID nháp client chưa lưu vào DB), lưu đầy đủ các trường quy đổi đơn vị (`input_quantity`, `input_unit`, `conversion_factor`) và giảm giá vào `purchase_items`. |
+| 165 | `ACC-QUICK-07` | Kiểm tra UI `Xử lý nhanh nhập hàng` thao tác nút `Lấy từ phiếu đang mở`, hiển thị banner liên kết phiếu, lưu cập nhật thành công vào phiếu đang mở và đổi trạng thái nút thành `Đã cập nhật`. |
 

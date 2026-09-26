@@ -2890,6 +2890,81 @@ class InventoryStoreTests(unittest.TestCase):
                 final_status="completed",
             )
 
+    def test_ut_quick_06_quick_purchase_target_purchase_with_conversion_unit_and_unsaved_id(self) -> None:
+        # Issue 171: Kiểm tra tạo quick purchase với target_purchase_id chưa lưu DB hoặc đang mở
+        product = self.store.create_product(
+            name="Nấm đùi gà thùng",
+            category="Nấm",
+            unit="kg",
+            price=50000,
+            sale_price=80000,
+            low_stock_threshold=2,
+            unit_conversions=[{"from_unit": "thùng", "to_unit": "kg", "conversion_factor": 10}],
+        )
+
+        # 1. Target ID chưa có trong DB (unsaved draft do client sinh)
+        unsaved_draft_id = "purchase-client-draft-999"
+        result1 = self.store.create_quick_purchase(
+            supplier_name="NCC Nấm Tươi",
+            document_date="2026-09-26",
+            items=[{
+                "product_id": product["id"],
+                "quantity": 20, # 2 thùng = 20 kg
+                "input_quantity": 2,
+                "input_unit": "thùng",
+                "conversion_factor": 10,
+                "unit_cost": 500000, # 500k/thùng
+                "discount_amount": 50000,
+            }],
+            final_status="received",
+            mark_paid=True,
+            target_purchase_id=unsaved_draft_id,
+            actor_username="tester",
+        )
+        self.assertEqual(result1["purchase"]["id"], unsaved_draft_id)
+        self.assertEqual(result1["purchase"]["status"], "paid")
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 20.0)
+
+        # Kiểm tra purchase_items có đủ thông tin đơn vị quy đổi
+        with self.store._connect() as connection:
+            item_row = connection.execute(
+                "SELECT * FROM purchase_items WHERE purchase_id = ?",
+                (unsaved_draft_id,),
+            ).fetchone()
+        self.assertIsNotNone(item_row)
+        self.assertEqual(item_row["quantity"], 20.0)
+        self.assertEqual(item_row["input_quantity"], 2.0)
+        self.assertEqual(item_row["input_unit"], "thùng")
+        self.assertEqual(item_row["conversion_factor"], 10.0)
+        self.assertEqual(item_row["discount_amount"], 50000.0)
+
+        # 2. Target ID đã có trong DB (phiếu draft có sẵn)
+        existing_draft_res = self.store.create_quick_purchase(
+            supplier_name="NCC Nấm Tươi 2",
+            items=[{"product_id": product["id"], "quantity": 10, "unit_cost": 50000}],
+            final_status="ordered",
+        )
+        existing_draft = existing_draft_res["purchase"]
+        result2 = self.store.create_quick_purchase(
+            supplier_name="NCC Nấm Tươi 2 Đổi Tên",
+            document_date="2026-09-27",
+            items=[{
+                "product_id": product["id"],
+                "quantity": 30,
+                "input_quantity": 3,
+                "input_unit": "thùng",
+                "conversion_factor": 10,
+                "unit_cost": 490000,
+            }],
+            final_status="received",
+            target_purchase_id=existing_draft["id"],
+            actor_username="tester",
+        )
+        self.assertEqual(result2["purchase"]["id"], existing_draft["id"])
+        self.assertEqual(result2["purchase"]["supplierName"], "NCC Nấm Tươi 2 Đổi Tên")
+        self.assertEqual(result2["purchase"]["status"], "received")
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 50.0) # 20 + 30
+
     def test_ut_ord_17_bulk_create_orders_commit_valid_is_partial_and_idempotent(self) -> None:
         ok_product = self.store.create_product(
             name="Chả quế bulk",

@@ -218,6 +218,8 @@ Mục tiêu:
 | 161 | `UT-SYNC-02B` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_sync_02b_save_sync_state_ignores_conflict_if_disabled` |
 | 162 | `UT-ORD-19` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_ord_custom_ship_date` |
 | 163 | `UT-PUR-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_pur_custom_receive_date` |
+| 164 | `UT-QUICK-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_quick_06_quick_purchase_target_purchase_with_conversion_unit_and_unsaved_id` |
+| 165 | `ACC-QUICK-07` | `tests/integration/quick-purchase-active-order.spec.js` | `npx playwright test tests/integration/quick-purchase-active-order.spec.js` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 
