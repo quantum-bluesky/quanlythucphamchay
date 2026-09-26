@@ -148,6 +148,36 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertIn("data:image/jpeg;base64,", prod["details"])
         self.assertNotEqual(prod["details"], html_input)
 
+    def test_ut_helpers_get_product_min_unit(self) -> None:
+        # Issue 169: Test lấy đơn vị nhỏ nhất của sản phẩm
+        from qltpchay.helpers import get_product_min_unit
+
+        # Đơn vị không chia nhỏ được (gói, cái, hộp, chiếc, khoanh), không có quy đổi
+        self.assertEqual(get_product_min_unit({"unit": "gói"}), 1.0)
+        self.assertEqual(get_product_min_unit({"unit": "cái"}), 1.0)
+        self.assertEqual(get_product_min_unit({"unit": "hộp"}), 1.0)
+        self.assertEqual(get_product_min_unit({"unit": "chiếc"}), 1.0)
+
+        # Đơn vị chia nhỏ được (kg, lạng...), không có quy đổi
+        self.assertEqual(get_product_min_unit({"unit": "kg"}), 0.1)
+
+        # Có bảng quy đổi với đơn vị lớn hơn (thùng = 24)
+        p_box = {
+            "unit": "gói",
+            "unit_conversions": [{"from_unit": "thùng", "conversion_factor": 24.0}],
+        }
+        self.assertEqual(get_product_min_unit(p_box), 1.0)
+
+        # Có bảng quy đổi với đơn vị nhỏ hơn (gói 200g = 0.2 kg)
+        p_sub = {
+            "unit": "kg",
+            "unit_conversions": [
+                {"from_unit": "thùng", "conversion_factor": 10.0},
+                {"from_unit": "gói 200g", "conversion_factor": 0.2},
+            ],
+        }
+        self.assertEqual(get_product_min_unit(p_sub), 0.2)
+
     def test_ut_db_02_stock_out_cannot_exceed_inventory(self) -> None:
         product = self.store.create_product(
             name="Xúc xích chay",

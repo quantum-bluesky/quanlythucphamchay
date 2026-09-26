@@ -526,6 +526,7 @@ Case regression danh mục công khai:
 - `UT-AUTH-17`: bỏ bật `is_public` qua API cập nhật phải lưu được trạng thái và loại sản phẩm khỏi danh mục công khai.
 - `IT-PUB-01`: Public ProductList phải nạp JS kèm version cache-busting và phân biệt đúng `Có sẵn / Sắp hết / Sắp về / Hết hàng`.
 - `IT-PUB-02`: sửa chi tiết sản phẩm phải bỏ chọn/lưu được `Hiển thị trên Web (Public)`, ẩn khỏi danh mục public và đọc lại đúng checkbox.
+- `IT-PUB-03`: Public ProductList phải xác định đúng trạng thái hết hàng khi tồn kho nhỏ hơn đơn vị nhỏ nhất (theo quy đổi hoặc cơ sở).
 
 Case mới cho Issue 70:
 

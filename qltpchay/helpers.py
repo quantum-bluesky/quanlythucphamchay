@@ -160,3 +160,21 @@ def optimize_html_embedded_images(html_content: str, max_dim: int = 1024) -> str
 
     return pattern.sub(replacer, html_content)
 
+
+# Issue 169: Lấy giá trị đơn vị nhỏ nhất của sản phẩm (theo bảng quy đổi đơn vị hoặc đơn vị cơ sở)
+def get_product_min_unit(product: dict) -> float:
+    conversions = product.get("unit_conversions") or []
+    factors = [1.0]
+    for c in conversions:
+        try:
+            f = float(c.get("conversion_factor") or 0)
+            if f > 0:
+                factors.append(f)
+        except (ValueError, TypeError):
+            pass
+    if len(factors) > 1:
+        return min(factors)
+    unit = str(product.get("unit") or "").lower()
+    is_indivisible = unit in ["gói", "cái", "hộp", "chiếc", "khoanh"]
+    return 1.0 if is_indivisible else 0.1
+

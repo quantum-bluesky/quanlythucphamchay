@@ -246,6 +246,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "details": p["details"],
                         "recipe": p.get("recipe", ""),
                         "note": p.get("note", ""),
+                        # Issue 169: Cung cấp đơn vị quy đổi và đơn vị nhỏ nhất để so sánh hết hàng
+                        "unit_conversions": p.get("unit_conversions", []),
+                        "min_unit": helpers.get_product_min_unit(p),
                     }
                     for p in all_products
                     if p.get("is_public", 1) and not p.get("is_deleted", 0)
