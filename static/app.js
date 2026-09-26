@@ -2477,7 +2477,8 @@ function saveAndRenderAll(changedCollections = []) {
   return getSyncRuntimeHelpers().saveAndRenderAll(changedCollections, renderAll);
 }
 
-const BUSINESS_FRESHNESS_MENUS = new Set(["inventory", "product-movements", "create-order", "orders", "purchases", "procurement-planner"]);
+// #Issue173: Loại bỏ procurement-planner khỏi danh sách vì màn này đã có refreshProcurementPlanner riêng
+const BUSINESS_FRESHNESS_MENUS = new Set(["inventory", "product-movements", "create-order", "orders", "purchases"]);
 const PROCUREMENT_FLOW_RELATED_MENUS = new Set(["procurement-planner", "purchases", "suppliers"]);
 
 function scheduleBusinessScreenRefresh(menu) {
@@ -2497,13 +2498,9 @@ function scheduleBusinessScreenRefresh(menu) {
     ) {
       return;
     }
+    // #Issue173: Sử dụng checkForRemoteUpdates() có throttle và tự động dời chu kỳ timer 8s tiếp theo
     try {
-      const runtimePayload = await apiRequest("/api/runtime-version");
-      if (hasRuntimeVersionChanged(runtimePayload)) {
-        await refreshData();
-      } else {
-        updateRuntimeVersion(runtimePayload);
-      }
+      await checkForRemoteUpdates();
     } catch (error) {
       showToast(`Không tải lại được dữ liệu mới: ${error.message}`, true);
     }
@@ -4929,8 +4926,15 @@ async function apiRequest(path, options = {}) {
   }
 }
 
-async function refreshSessionStatus({ sessionActivity = "passive" } = {}) {
-  const payload = await apiRequest("/api/session/status", { sessionActivity });
+async function refreshSessionStatus({ sessionActivity = "passive", initialBootstrap = false } = {}) {
+  // #Issue173: Tái sử dụng session đã lấy từ bootstrap.js lúc khởi động để tránh gọi 2 lần liên tiếp
+  let payload = null;
+  if (initialBootstrap && window.__QLTPCHAY_BOOTSTRAP_SESSION) {
+    payload = window.__QLTPCHAY_BOOTSTRAP_SESSION;
+    window.__QLTPCHAY_BOOTSTRAP_SESSION = null;
+  } else {
+    payload = await apiRequest("/api/session/status", { sessionActivity });
+  }
   updateAppInfo(payload);
   updateDebugConfig(payload);
   updatePaginationConfig(payload);
@@ -7920,7 +7924,7 @@ async function bootApplication() {
     setQuickPanelCollapsed(mobileQuery.matches);
 
     try {
-      await refreshSessionStatus();
+      await refreshSessionStatus({ initialBootstrap: true });
       await loadZaloGroups();
       if (state.admin?.enableLogin && !state.admin?.authenticated) {
         state.activeMenu = "login";

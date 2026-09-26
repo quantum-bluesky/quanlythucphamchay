@@ -1,13 +1,13 @@
 {
-  "app_version": "3.36.1",
+  "app_version": "3.36.2",
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "f05770b77a22c00673443bd99a1b9b421900ca8bd716d892cd03c9ff818c238c"
+      "sha256": "6311fedf75aec34e587beeb034941640673a0a19adb2020ece82629058314c60"
     },
     "bootstrap.js": {
       "counter": 1,
-      "sha256": "d8a09c52cd4b8b979d19015aeede88024ebd9ff44590860ef6d1b6d3bb60048c"
+      "sha256": "eb510508c7c193f9bd368341ef83411898c3cddbbf04a3377fd120445b26e435"
     },
     "modules/app-state.js": {
       "counter": 1,
@@ -19,7 +19,7 @@
     },
     "modules/controllers/core-controller.js": {
       "counter": 1,
-      "sha256": "a3412cb7536866596fbcaa798933e8afd45db69bf6adb4f22978da3d0a21c71d"
+      "sha256": "e0041ba27ab3bfb562e05013924032363041098c2917c7f4401f0c7ff1dd6420"
     },
     "modules/controllers/entities-controller.js": {
       "counter": 1,
@@ -35,7 +35,7 @@
     },
     "modules/controllers/products-controller.js": {
       "counter": 1,
-      "sha256": "278b4b2e635fd37b905b72b6f47cae61b0aa8ca6e1cefd021e03f7bd3c449799"
+      "sha256": "d1ddbe95181b050b2127db25896b0553a0429bdaa9e9014a12cf8f2c01dc684d"
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
@@ -79,7 +79,7 @@
     },
     "modules/sync-runtime.js": {
       "counter": 1,
-      "sha256": "0239f7593720a10a90d60e743610fde8caddeb9f7ee3264ba1bc955286a62931"
+      "sha256": "e97c3622376c905971a892074d9d25137c8c8a78030c5a65444a8ac926cf550a"
     },
     "modules/ui/bulk-orders-ui.js": {
       "counter": 1,
@@ -114,7 +114,7 @@
       "sha256": "0b1bb53d5dc7bb1b9272971efbf73d0111787ba38813b9ec349628708eb2d4c7"
     },
     "modules/ui/sales-ui.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "f83e8b105629c832f4974ff01d2869998c1951229f5d2c90d16b5cf7c0a7967e"
     },
     "modules/unit-quantity-editor.js": {
