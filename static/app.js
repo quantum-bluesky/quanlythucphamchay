@@ -2014,6 +2014,7 @@ function cloneActiveCartIntoQuickSaleDraft(options = {}) {
   state.quickSaleDraft.submitting = false;
 }
 
+// #Issue 171: Sửa lỗi nhập hàng xử lý nhanh ko nhập được đơn đang mở
 function cloneActivePurchaseIntoQuickPurchaseDraft(options = {}) {
   const purchase = getActivePurchase();
   if (!purchase) {
@@ -2029,6 +2030,14 @@ function cloneActivePurchaseIntoQuickPurchaseDraft(options = {}) {
     productName: String(item.productName || "").trim(),
     quantity: Number(item.quantity || 0),
     unitCost: Number(item.unitCost || item.unit_cost || 0),
+    discountAmount: Number(item.discountAmount || item.discount_amount || 0),
+    inputQuantity: item.inputQuantity ?? item.input_quantity ?? item.quantity,
+    inputUnit: item.inputUnit ?? item.input_unit ?? "",
+    conversionFactor: Number(item.conversionFactor ?? item.conversion_factor ?? 1),
+    batchCode: String(item.batchCode || item.batch_code || "").trim(),
+    expiryInputMode: item.expiryInputMode || item.expiry_input_mode || "direct",
+    manufactureDate: item.manufactureDate || item.manufacture_date || "",
+    expiryDate: item.expiryDate || item.expiry_date || "",
   })).filter((item) => item.productId > 0 && item.quantity > 0);
   state.quickPurchaseDraft.lastResult = null;
   state.quickPurchaseDraft.submitting = false;

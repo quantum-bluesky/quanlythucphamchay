@@ -253,7 +253,9 @@ ordered -> cancelled
 - audit/history phải ghi rõ `Tạo bằng Xử lý nhanh nhập hàng`, người thực hiện, thời gian thực hiện và các bước tự động đã chạy
 - sau khi lưu thành công, card hiển thị summary `mã phiếu / số mặt hàng / tổng tiền / trạng thái / thanh toán` cùng CTA `Tiếp tục nhập nhanh / Xem phiếu / Về danh sách`
 - shortcut hiện có trong card:
-  - `Lấy từ phiếu đang mở`
+  - `Lấy từ phiếu đang mở`:
+    - Nếu phiếu đang mở là `draft` hoặc `ordered`: tải toàn bộ thông tin (NCC, ngày, giảm giá, các dòng hàng kèm đơn vị quy đổi, lô/HSD) vào xử lý nhanh và liên kết để cập nhật vào phiếu này. Trên giao diện hiển thị banner thông tin phiếu kèm nút `Nhập thành phiếu mới` để người dùng có thể tách độc lập nếu muốn.
+    - Nếu phiếu đang mở đã là `received`, `paid` hoặc `cancelled`: hỏi xác nhận người dùng để tạo bản sao mới độc lập (clone) nhằm nhập tiếp đợt hàng mới mà không làm thay đổi phiếu cũ.
   - `Thêm hàng mới`
 
 ## 4A. Luồng quản lý thanh toán đơn giản

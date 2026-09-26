@@ -271,6 +271,20 @@ export function createPurchasesUi(deps) {
         </button>
       </div>
       ${isCollapsed ? "" : `
+      ${draft.targetPurchaseId ? (() => {
+        const targetPurchase = (state.purchases || []).find((p) => String(p.id) === String(draft.targetPurchaseId));
+        const targetCode = targetPurchase?.receiptCode || targetPurchase?.id || draft.targetPurchaseId;
+        const targetStatus = targetPurchase?.status === "ordered" ? "Đã đặt" : "Nháp";
+        return `
+          <div class="inline-alert info quick-doc-target-banner" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem;">
+            <div>
+              <span>Đang xử lý cho phiếu: <strong>${escapeHtml(targetCode)}</strong></span>
+              <span class="status-pill ${targetPurchase?.status === "ordered" ? "draft" : "warning"}" style="margin-left: 0.5rem;">${escapeHtml(targetStatus)}</span>
+            </div>
+            <button type="button" class="ghost-button compact-button" data-quick-purchase-action="clear-target" title="Tách thành phiếu mới" ${disableEditAttr}>Nhập thành phiếu mới</button>
+          </div>
+        `;
+      })() : ""}
       <div class="quick-doc-grid">
         <label>
           <span>Nhà cung cấp</span>
@@ -355,7 +369,7 @@ export function createPurchasesUi(deps) {
         <div class="quick-doc-footer-actions">
           <div class="stat-chip"><span>Số dòng</span><strong>${escapeHtml(String(items.length))}</strong></div>
           <div class="stat-chip"><span>Tổng tiền</span><strong>${escapeHtml(formatCurrency(totalAmount))}</strong></div>
-          <button type="button" class="primary-button" data-quick-purchase-action="submit" ${isLockedAfterSave || isSubmitting ? "disabled" : ""}>${isSubmitting ? "Đang lưu..." : isLockedAfterSave ? "Đã tạo phiếu" : "Lưu nhập nhanh"}</button>
+          <button type="button" class="primary-button" data-quick-purchase-action="submit" ${isLockedAfterSave || isSubmitting ? "disabled" : ""}>${isSubmitting ? "Đang lưu..." : isLockedAfterSave ? (draft.targetPurchaseId ? "Đã cập nhật" : "Đã tạo phiếu") : (draft.targetPurchaseId ? "Lưu vào phiếu đang mở" : "Lưu nhập nhanh")}</button>
         </div>
       </div>
       ${lastResult ? `

@@ -8532,9 +8532,16 @@ class InventoryStore:
             if not raw_items:
                 raise ValueError("Phiếu nhập phải có ít nhất một mặt hàng.")
             
+            # #Issue 171: Sửa lỗi nhập hàng xử lý nhanh ko nhập được đơn đang mở
+            existing_purchase = None
+            existing_status = ""
             if clean_target_purchase_id:
                 try:
                     existing_purchase = self._get_purchase_document(connection, clean_target_purchase_id)
+                except Exception:
+                    existing_purchase = None
+
+                if existing_purchase:
                     existing_status = str(existing_purchase.get("status") or "").strip()
                     if existing_status in {"received", "cancelled"}:
                         raise ValueError("Không thể ghi đè lên phiếu đã nhập kho hoặc đã hủy.")
@@ -8555,10 +8562,28 @@ class InventoryStore:
                         )
                     )
                     connection.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
-                except Exception as ex:
-                    if isinstance(ex, ValueError):
-                        raise
-                    raise ValueError("Không tìm thấy phiếu nhập đang mở hoặc có lỗi truy xuất.")
+                else:
+                    # #Issue 171: Nếu đơn nháp client-side chưa được đồng bộ xuống DB, tạo mới bản ghi với ID này
+                    purchase_id = clean_target_purchase_id
+                    connection.execute(
+                        """
+                        INSERT INTO purchases(
+                            id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note,
+                            source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
+                            ordered_at, received_at, cancelled_at, paid_at, receipt_code
+                        )
+                        VALUES(?, ?, ?, 'quick_import', ?, '', '', '', '', '', 'draft', ?, ?, ?, '', NULL, NULL, NULL, '')
+                        """,
+                        (
+                            purchase_id,
+                            str(resolved_supplier.get("id") or "").strip(),
+                            str(resolved_supplier.get("name") or "").strip(),
+                            clean_note,
+                            float(discount_amount or 0),
+                            effective_at,
+                            effective_at,
+                        ),
+                    )
             else:
                 purchase_id = f"purchase_{secrets.token_urlsafe(8)}"
                 existing_purchase = None
@@ -8595,6 +8620,9 @@ class InventoryStore:
                     raw_item.get("discountAmount", raw_item.get("discount_amount", 0)),
                     "Khuyến mại dòng",
                 )
+                raw_input_qty = raw_item.get("inputQuantity", raw_item.get("input_quantity"))
+                raw_input_unit = raw_item.get("inputUnit", raw_item.get("input_unit"))
+                raw_conv_factor = raw_item.get("conversionFactor", raw_item.get("conversion_factor"))
                 normalized_items.append(
                     {
                         "id": str(raw_item.get("id") or f"purchase_item_{secrets.token_urlsafe(8)}"),
@@ -8610,6 +8638,9 @@ class InventoryStore:
                         "manufactureDate": raw_item.get("manufactureDate") or raw_item.get("manufacture_date") or "",
                         "expiryDate": raw_item.get("expiryDate") or raw_item.get("expiry_date") or "",
                         "sortOrder": index,
+                        "inputQuantity": round(float(raw_input_qty), 4) if raw_input_qty is not None else round(float(quantity), 4),
+                        "inputUnit": str(raw_input_unit or product["unit"] or "").strip() or None,
+                        "conversionFactor": float(raw_conv_factor) if raw_conv_factor is not None else 1.0,
                     }
                 )
             for index, item in enumerate(normalized_items):
@@ -8617,9 +8648,10 @@ class InventoryStore:
                     """
                     INSERT INTO purchase_items(
                         id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
-                        expiry_input_mode, manufacture_date, expiry_date, sort_order, discount_amount
+                        expiry_input_mode, manufacture_date, expiry_date, sort_order, discount_amount,
+                        input_quantity, input_unit, conversion_factor
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         item["id"],
@@ -8636,6 +8668,9 @@ class InventoryStore:
                         item["expiryDate"] or None,
                         index,
                         item["discountAmount"],
+                        item["inputQuantity"],
+                        item["inputUnit"],
+                        item["conversionFactor"],
                     ),
                 )
             created_purchase = self._get_purchase_document(connection, purchase_id)
