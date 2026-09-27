@@ -33,6 +33,7 @@ export function createProductsUi(deps) {
 
   function renderProductManageList() {
     const compact = dom.mobileQuery.matches;
+    const isAdmin = Boolean(state.admin?.isAdmin);
     const filtered = state.products.filter((product) => {
       const text = utils.normalizeText(`${product.name} ${product.category} ${product.unit}`);
       return text.includes(utils.normalizeText(state.productManageSearchTerm));
@@ -75,6 +76,7 @@ export function createProductsUi(deps) {
                 <div class="row-actions product-manage-actions">
                   <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy" : "Sửa nhanh"}</button>
                   <button type="button" class="primary-button compact-button" data-product-manage-action="edit-full" data-product-id="${product.id}">Sửa chi tiết</button>
+                  ${isAdmin ? `<button type="button" class="ghost-button compact-button" data-product-manage-action="change-base-unit" data-product-id="${product.id}" title="Đổi đơn vị chính (quy đổi tồn kho & giá)">Đổi ĐV chính</button>` : ""}
                   <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>Xóa</button>
                 </div>
               </div>
@@ -120,6 +122,7 @@ export function createProductsUi(deps) {
                 <div class="row-actions">
                   <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy" : "Sửa nhanh"}</button>
                   <button type="button" class="primary-button compact-button" data-product-manage-action="edit-full" data-product-id="${product.id}">Sửa chi tiết</button>
+                  ${isAdmin ? `<button type="button" class="ghost-button compact-button" data-product-manage-action="change-base-unit" data-product-id="${product.id}" title="Đổi đơn vị chính (quy đổi tồn kho & giá)">Đổi ĐV chính</button>` : ""}
                   <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>Ngừng bán / Xóa</button>
                 </div>
               `}

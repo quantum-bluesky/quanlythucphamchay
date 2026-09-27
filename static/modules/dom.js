@@ -254,6 +254,7 @@ export const productUnitConversionsContainer = document.getElementById("productU
 export const productAddUnitConversionButton = document.getElementById("productAddUnitConversionButton");
 export const productDefaultPurchaseUnitSelect = document.getElementById("productDefaultPurchaseUnitSelect");
 export const productDefaultSaleUnitSelect = document.getElementById("productDefaultSaleUnitSelect");
+export const btnProductFormChangeBaseUnit = document.getElementById("btnProductFormChangeBaseUnit");
 
 // Issue 169: Modal chọn ngày khi xuất hàng / nhập kho
 export const documentActionDateModal = document.getElementById("documentActionDateModal");
@@ -266,3 +267,25 @@ export const documentActionDateForm = document.getElementById("documentActionDat
 export const documentActionDateCancelButton = document.getElementById("documentActionDateCancelButton");
 export const documentActionDateConfirmButton = document.getElementById("documentActionDateConfirmButton");
 export const documentActionDateCloseButton = document.getElementById("documentActionDateCloseButton");
+
+// Issue 177: Modal chuyển đổi đơn vị chính sản phẩm
+export const changeBaseUnitModal = document.getElementById("changeBaseUnitModal");
+export const changeBaseUnitForm = document.getElementById("changeBaseUnitForm");
+export const changeBaseUnitProductId = document.getElementById("changeBaseUnitProductId");
+export const changeBaseUnitProductName = document.getElementById("changeBaseUnitProductName");
+export const changeBaseUnitOldUnit = document.getElementById("changeBaseUnitOldUnit");
+export const changeBaseUnitCurrentStock = document.getElementById("changeBaseUnitCurrentStock");
+export const changeBaseUnitCurrentPrice = document.getElementById("changeBaseUnitCurrentPrice");
+export const changeBaseUnitCurrentSalePrice = document.getElementById("changeBaseUnitCurrentSalePrice");
+export const changeBaseUnitNewUnitInput = document.getElementById("changeBaseUnitNewUnitInput");
+export const changeBaseUnitSuggestedList = document.getElementById("changeBaseUnitSuggestedList");
+export const changeBaseUnitRateOldToNew = document.getElementById("changeBaseUnitRateOldToNew");
+export const changeBaseUnitRateNewToOld = document.getElementById("changeBaseUnitRateNewToOld");
+export const changeBaseUnitKeepOldCheck = document.getElementById("changeBaseUnitKeepOldCheck");
+export const changeBaseUnitCancelButton = document.getElementById("changeBaseUnitCancelButton");
+export const changeBaseUnitConfirmButton = document.getElementById("changeBaseUnitConfirmButton");
+export const changeBaseUnitCloseButton = document.getElementById("changeBaseUnitCloseButton");
+export const previewNewStock = document.getElementById("previewNewStock");
+export const previewNewThreshold = document.getElementById("previewNewThreshold");
+export const previewNewPrice = document.getElementById("previewNewPrice");
+export const previewNewSalePrice = document.getElementById("previewNewSalePrice");

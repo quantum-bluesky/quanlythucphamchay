@@ -572,3 +572,9 @@ Chạy `npm run test:integration -- tests/integration/unit-quantity-roundtrip.sp
 - `IT-UNIT-03` trong `tests/integration/unit-quantity-roundtrip.spec.js`: seed đơn nháp và lịch sử đơn đã hủy/đã xuất có khách trống, dòng SL=0; lưu dòng nháp qua `POST /api/carts/item`, kiểm tra không gửi collection `carts`/`purchases` hoặc PUT state. Xác nhận các đơn lịch sử không đổi và API từ chối sửa đơn đã hủy. Kiểm tra editor nằm trong panel đơn, phía trên toolbar trạng thái trên viewport mobile.
 - `UT-UNIT-01..07` trong `tests/test_cart_item_update.py`: ngoài kiểm tra lưu riêng dòng và snapshot đơn vị, xác nhận tiền nhập/xuất dùng số lượng theo đơn vị được chọn; tồn kho dùng số lượng cơ sở; giá vốn lô nhập được quy về giá cơ sở.
 - Chạy backend tập trung: `python -m unittest discover -s tests -p test_cart_item_update.py`.
+
+### Issue 177: Chuyển đổi đơn vị chính của sản phẩm dành cho Admin
+
+- `UT-BASEUNIT-01..07` trong `tests/test_change_base_unit.py`: kiểm tra chuyển đổi đơn vị cơ sở (Base Unit) của sản phẩm, bao gồm tính toán lại tỷ lệ giá nhập/giá bán, ngưỡng tồn, biến động sổ kho (`transactions`), lô hàng (`inventory_batches`), phân bổ lô (`inventory_batch_allocations`), chi tiết phiếu kho (`inventory_receipt_items`), giỏ hàng chờ xuất (`cart_items`), phiếu nhập chờ (`purchase_items`), thang quy đổi đơn vị phụ (`product_unit_conversion`), bảo toàn tính hai chiều (reversibility), kiểm tra validation và quyền Admin ở API `POST /api/products/<id>/change-base-unit`.
+- Chạy backend tập trung: `python -m unittest tests/test_change_base_unit.py`.
+

@@ -3666,6 +3666,228 @@ class InventoryStore:
                 "impacts": impacts,
             }
 
+    def change_product_base_unit(
+        self,
+        product_id: int | str,
+        new_unit: str,
+        conversion_rate: float | int | str,
+        *,
+        add_old_unit_to_conversions: bool = True,
+        default_purchase_unit: str | None = None,
+        default_sale_unit: str | None = None,
+        actor: str = "",
+    ) -> dict:
+        """
+        #Issue 177: Chuyển đổi đơn vị chính (Base Unit) của sản phẩm.
+        conversion_rate: Tỷ lệ K sao cho 1 đơn vị cũ = K đơn vị mới.
+        Ví dụ: 1 gói = 2 lạng => K = 2.0.
+        Toàn bộ transactions, batches, allocations, open carts/purchases, receipt items
+        và bảng quy đổi đơn vị phụ sẽ được cập nhật đồng thời trong 1 transaction an toàn.
+        """
+        clean_new_unit = str(new_unit or "").strip()
+        if not clean_new_unit:
+            raise ValueError("Đơn vị chính mới không được để trống.")
+
+        try:
+            k_factor = float(conversion_rate)
+        except (ValueError, TypeError):
+            raise ValueError("Tỷ lệ quy đổi không hợp lệ.")
+
+        if k_factor <= 0:
+            raise ValueError("Tỷ lệ quy đổi phải lớn hơn 0.")
+
+        with self._connect() as connection:
+            product = dict(self._get_product_or_raise(connection, int(product_id), allow_deleted=True))
+            old_unit = str(product["unit"] or "").strip()
+            if old_unit.lower() == clean_new_unit.lower():
+                raise ValueError(f"Đơn vị chính mới '{clean_new_unit}' trùng với đơn vị hiện tại.")
+
+            now = utc_now_iso()
+            old_price = float(product.get("price") or 0.0)
+            old_sale_price = float(product.get("sale_price") or 0.0)
+            old_threshold = float(product.get("low_stock_threshold") or 0.0)
+            old_stock = float(self._get_stock_for_product(connection, int(product_id)))
+
+            new_price = round(old_price / k_factor, 4)
+            new_sale_price = round(old_sale_price / k_factor, 4)
+            new_threshold = round(old_threshold * k_factor, 4)
+            new_stock = round(old_stock * k_factor, 4)
+
+            # Xác định đơn vị mua/bán mặc định mới
+            target_purchase_unit = str(default_purchase_unit or "").strip()
+            if not target_purchase_unit or target_purchase_unit.lower() == old_unit.lower():
+                target_purchase_unit = clean_new_unit
+            target_sale_unit = str(default_sale_unit or "").strip()
+            if not target_sale_unit or target_sale_unit.lower() == old_unit.lower():
+                target_sale_unit = clean_new_unit
+
+            # 1. Cập nhật products
+            connection.execute(
+                """
+                UPDATE products
+                SET unit = ?, price = ?, sale_price = ?, low_stock_threshold = ?,
+                    default_purchase_unit = ?, default_sale_unit = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (clean_new_unit, new_price, new_sale_price, new_threshold,
+                 target_purchase_unit, target_sale_unit, now, int(product_id)),
+            )
+
+            # 2. Cập nhật transactions (lịch sử xuất nhập kho)
+            connection.execute(
+                """
+                UPDATE transactions
+                SET quantity = ROUND(quantity * ?, 4)
+                WHERE product_id = ?
+                """,
+                (k_factor, int(product_id)),
+            )
+
+            # 3. Cập nhật inventory_batches (lô hàng & giá vốn lô)
+            connection.execute(
+                """
+                UPDATE inventory_batches
+                SET initial_quantity = ROUND(initial_quantity * ?, 4),
+                    remaining_quantity = ROUND(remaining_quantity * ?, 4),
+                    unit_cost = ROUND(unit_cost / ?, 4),
+                    updated_at = ?
+                WHERE product_id = ?
+                """,
+                (k_factor, k_factor, k_factor, now, int(product_id)),
+            )
+
+            # 4. Cập nhật phân bổ lô inventory_batch_allocations
+            connection.execute(
+                """
+                UPDATE inventory_batch_allocations
+                SET quantity = ROUND(quantity * ?, 4)
+                WHERE product_id = ?
+                """,
+                (k_factor, int(product_id)),
+            )
+
+            # 5. Cập nhật inventory_receipt_items
+            connection.execute(
+                """
+                UPDATE inventory_receipt_items
+                SET quantity = ROUND(quantity * ?, 4),
+                    unit_amount = ROUND(unit_amount / ?, 4),
+                    stock_after = ROUND(stock_after * ?, 4),
+                    conversion_factor = CASE
+                        WHEN conversion_factor IS NOT NULL THEN ROUND(conversion_factor * ?, 6)
+                        ELSE conversion_factor
+                    END
+                WHERE product_id = ?
+                """,
+                (k_factor, k_factor, k_factor, k_factor, int(product_id)),
+            )
+
+            # 6. Cập nhật cart_items (giỏ hàng xuất)
+            connection.execute(
+                """
+                UPDATE cart_items
+                SET quantity = ROUND(quantity * ?, 4),
+                    conversion_factor = ROUND(COALESCE(conversion_factor, 1.0) * ?, 6),
+                    input_unit = CASE
+                        WHEN input_unit IS NULL OR TRIM(input_unit) = '' THEN ?
+                        ELSE input_unit
+                    END
+                WHERE product_id = ?
+                """,
+                (k_factor, k_factor, old_unit, int(product_id)),
+            )
+
+            # 7. Cập nhật purchase_items (phiếu nhập hàng)
+            connection.execute(
+                """
+                UPDATE purchase_items
+                SET quantity = ROUND(quantity * ?, 4),
+                    conversion_factor = ROUND(COALESCE(conversion_factor, 1.0) * ?, 6),
+                    input_unit = CASE
+                        WHEN input_unit IS NULL OR TRIM(input_unit) = '' THEN ?
+                        ELSE input_unit
+                    END
+                WHERE product_id = ?
+                """,
+                (k_factor, k_factor, old_unit, int(product_id)),
+            )
+
+            # 8. Cập nhật procurement_assignments
+            connection.execute(
+                """
+                UPDATE procurement_assignments
+                SET assigned_quantity = ROUND(assigned_quantity * ?, 4)
+                WHERE product_id = ?
+                """,
+                (k_factor, int(product_id)),
+            )
+
+            # 9. Cập nhật bảng product_unit_conversion
+            connection.execute(
+                """
+                UPDATE product_unit_conversion
+                SET conversion_factor = ROUND(conversion_factor * ?, 6),
+                    updated_at = ?
+                WHERE product_id = ? AND LOWER(from_unit) != LOWER(?)
+                """,
+                (k_factor, now, int(product_id), clean_new_unit),
+            )
+            connection.execute(
+                """
+                UPDATE product_unit_conversion
+                SET is_active = 0, updated_at = ?
+                WHERE product_id = ? AND LOWER(from_unit) = LOWER(?)
+                """,
+                (now, int(product_id), clean_new_unit),
+            )
+
+            # Nếu add_old_unit_to_conversions: thêm/bật đơn vị cũ làm đơn vị quy đổi phụ
+            if add_old_unit_to_conversions:
+                existing_old = connection.execute(
+                    "SELECT id FROM product_unit_conversion WHERE product_id = ? AND LOWER(from_unit) = LOWER(?)",
+                    (int(product_id), old_unit),
+                ).fetchone()
+                if existing_old:
+                    connection.execute(
+                        """
+                        UPDATE product_unit_conversion
+                        SET conversion_factor = ?, price = ?, sale_price = ?, is_active = 1, updated_at = ?
+                        WHERE id = ?
+                        """,
+                        (round(k_factor, 6), old_price, old_sale_price, now, existing_old["id"]),
+                    )
+                else:
+                    connection.execute(
+                        """
+                        INSERT INTO product_unit_conversion(product_id, from_unit, conversion_factor, price, sale_price, is_active, created_at, updated_at)
+                        VALUES(?, ?, ?, ?, ?, 1, ?, ?)
+                        """,
+                        (int(product_id), old_unit, round(k_factor, 6), old_price, old_sale_price, now, now),
+                    )
+
+            # 10. Refresh sync cache cho carts & purchases
+            self._refresh_sync_collection_cache(connection, "carts", updated_at=now)
+            self._refresh_sync_collection_cache(connection, "purchases", updated_at=now)
+
+            # 11. Ghi audit log
+            audit_message = (
+                f"#Issue 177: Chuyển đổi đơn vị chính từ '{old_unit}' sang '{clean_new_unit}' "
+                f"(tỷ lệ 1 {old_unit} = {k_factor} {clean_new_unit}). "
+                f"Tồn kho: {old_stock} {old_unit} -> {new_stock} {clean_new_unit}. "
+                f"Giá nhập: {old_price} -> {new_price}. Giá bán: {old_sale_price} -> {new_sale_price}."
+            )
+            self._record_audit(
+                connection,
+                entity_type="product",
+                entity_id=product_id,
+                entity_name=product["name"],
+                action="change_base_unit",
+                actor=actor,
+                message=audit_message,
+            )
+
+        return self.get_product_by_id(int(product_id), allow_deleted=True)
+
     def restore_product(self, product_id: int, actor: str = "") -> dict:
         with self._connect() as connection:
             product = self._get_product_or_raise(connection, int(product_id), allow_deleted=True)
