@@ -245,6 +245,7 @@ export const searchClearRefreshers = [];
 
 export const productDetailModal = document.getElementById('productDetailModal');
 export const productDetailImagesContainer = document.getElementById('productDetailImagesContainer');
+export const productDetailChangeBaseUnitButton = document.getElementById('productDetailChangeBaseUnitButton');
 export const productImageUpload = document.getElementById('productImageUpload');
 export const uploadProductImageButton = document.getElementById('uploadProductImageButton');
 

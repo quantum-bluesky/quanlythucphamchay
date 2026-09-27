@@ -150,7 +150,8 @@
             <div class="action-row">
               <button type="button" class="primary-button" data-transaction="in">Nhập kho</button>
               <button type="button" class="secondary-button" data-transaction="out">Xuất kho</button>
-              <button type="button" class="danger-button" data-transaction="clear-all" id="quickClearAllStockButton">Xuất tất cả</button>
+              <button type="button" class="danger-button" data-transaction="clear-all"
+                id="quickClearAllStockButton">Xuất tất cả</button>
             </div>
           </form>
         </div>
@@ -258,8 +259,8 @@
             <label class="product-movement-product-field">
               <span>Sản phẩm</span>
               <div class="input-clear-wrap">
-                <input id="productMovementProductInput" type="text" list="productOptions" placeholder="Gõ tên sản phẩm..."
-                  required>
+                <input id="productMovementProductInput" type="text" list="productOptions"
+                  placeholder="Gõ tên sản phẩm..." required>
               </div>
             </label>
             <label>
@@ -587,13 +588,15 @@
                 <input name="category" type="text" maxlength="50" value="Đồ chay đông lạnh" required>
               </label>
               <label>
-                <span style="display: flex; justify-content: space-between; align-items: center;">
-                  <span>Đơn vị tính (Gốc)</span>
-                  <button type="button" id="btnProductFormChangeBaseUnit" class="ghost-button compact-button" style="padding: 2px 8px; font-size: 0.8rem; font-weight: normal;" hidden>🔄 Đổi đơn vị chính</button>
-                </span>
+                <span>Đơn vị tính (Gốc)</span>
                 <input name="unit" type="text" maxlength="30" value="gói" required>
               </label>
-              <div class="form-section-title">Quy đổi đơn vị (tùy chọn)</div>
+              <div class="form-section-title" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; margin-bottom: 6px;">
+                <span>Quy đổi đơn vị (tùy chọn)</span>
+                <button type="button" id="btnProductFormChangeBaseUnit" class="ghost-button compact-button"
+                  style="padding: 2px 8px; font-size: 0.8rem; font-weight: 600; color: var(--primary, #2e7d32); border-color: var(--primary, #2e7d32);"
+                  title="Chuyển đổi đơn vị chính của sản phẩm (Admin)">🔄 Đổi đơn vị chính</button>
+              </div>
               <div id="productUnitConversionsContainer"></div>
               <button type="button" id="productAddUnitConversionButton" class="ghost-button compact-button"
                 style="margin-bottom: 12px">+ Thêm đơn vị quy đổi</button>
@@ -1457,12 +1460,15 @@
       </div>
       <form id="changeBaseUnitForm" class="help-dialog-body" style="display: flex; flex-direction: column; gap: 14px;">
         <input type="hidden" id="changeBaseUnitProductId" value="">
-        
+
         <!-- Thông tin sản phẩm hiện tại -->
-        <div style="background: var(--surface-variant, #f5f5f5); padding: 12px 14px; border-radius: 8px; border-left: 4px solid var(--primary, #2e7d32);">
+        <div
+          style="background: var(--surface-variant, #f5f5f5); padding: 12px 14px; border-radius: 8px; border-left: 4px solid var(--primary, #2e7d32);">
           <div style="font-weight: 700; font-size: 1.05rem;" id="changeBaseUnitProductName">-</div>
-          <div style="margin-top: 4px; font-size: 0.9rem; color: var(--muted, #666); display: flex; flex-wrap: wrap; gap: 12px;">
-            <span>Đơn vị hiện tại: <strong id="changeBaseUnitOldUnit" style="color: var(--primary, #2e7d32);">-</strong></span>
+          <div
+            style="margin-top: 4px; font-size: 0.9rem; color: var(--muted, #666); display: flex; flex-wrap: wrap; gap: 12px;">
+            <span>Đơn vị hiện tại: <strong id="changeBaseUnitOldUnit"
+                style="color: var(--primary, #2e7d32);">-</strong></span>
             <span>Tồn kho: <strong id="changeBaseUnitCurrentStock">-</strong></span>
             <span>Giá nhập: <strong id="changeBaseUnitCurrentPrice">-</strong></span>
             <span>Giá bán: <strong id="changeBaseUnitCurrentSalePrice">-</strong></span>
@@ -1471,7 +1477,8 @@
 
         <!-- Chọn / Nhập đơn vị mới -->
         <div>
-          <label for="changeBaseUnitNewUnitInput" class="field-label" style="font-weight: 600; display: block; margin-bottom: 6px;">
+          <label for="changeBaseUnitNewUnitInput" class="field-label"
+            style="font-weight: 600; display: block; margin-bottom: 6px;">
             Đơn vị chính mới:
           </label>
           <div style="display: flex; gap: 8px;">
@@ -1487,7 +1494,8 @@
           <label class="field-label" style="font-weight: 600; display: block; margin-bottom: 6px;">
             Tỷ lệ quy đổi:
           </label>
-          <div style="display: flex; flex-direction: column; gap: 8px; background: var(--surface, #fff); padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;">
+          <div
+            style="display: flex; flex-direction: column; gap: 8px; background: var(--surface, #fff); padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;">
             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.95rem;">
               <input type="radio" name="changeBaseUnitDirection" value="old_to_new" checked>
               <span>1 <span class="lbl-old-unit">đơn vị cũ</span> =</span>
@@ -1504,14 +1512,16 @@
             </label>
           </div>
           <div style="font-size: 0.82rem; color: var(--muted, #666); margin-top: 4px;">
-            💡 <em>Ví dụ: 1 gói = 2 lạng thì chọn dòng 1 và nhập số 2. Nếu 1 kg = 10 lạng thì chọn dòng 2 và nhập số 10.</em>
+            💡 <em>Ví dụ: 1 gói = 2 lạng thì chọn dòng 1 và nhập số 2. Nếu 1 kg = 10 lạng thì chọn dòng 2 và nhập số
+              10.</em>
           </div>
         </div>
 
         <!-- Tùy chọn giữ đơn vị cũ -->
         <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 0.92rem;">
           <input type="checkbox" id="changeBaseUnitKeepOldCheck" checked style="margin-top: 3px;">
-          <span>Chuyển đơn vị cũ (<strong class="lbl-old-unit">-</strong>) vào bảng quy đổi phụ để vẫn có thể nhập/bán theo đơn vị cũ.</span>
+          <span>Chuyển đơn vị cũ (<strong class="lbl-old-unit">-</strong>) vào bảng quy đổi phụ để vẫn có thể nhập/bán
+            theo đơn vị cũ.</span>
         </label>
 
         <!-- Preview Box -->

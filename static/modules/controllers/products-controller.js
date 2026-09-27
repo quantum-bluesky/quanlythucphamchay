@@ -81,7 +81,6 @@ export function registerProductsControllerEvents(contract) {
     }
     if (dom.btnProductFormChangeBaseUnit) {
       dom.btnProductFormChangeBaseUnit.hidden = true;
-      dom.btnProductFormChangeBaseUnit.onclick = null;
     }
     utils.syncPriceWarningGroups(dom.productForm);
   };
@@ -716,6 +715,19 @@ export function registerProductsControllerEvents(contract) {
     utils.syncPriceWarningGroups(dom.productForm);
   });
 
+  if (dom.btnProductFormChangeBaseUnit) {
+    dom.btnProductFormChangeBaseUnit.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const targetProduct = queries.getProductById(state.editingProductId) || (state.products || []).find(p => p.id === state.editingProductId);
+      if (!targetProduct) {
+        actions.showToast("Vui lòng chọn sản phẩm cần đổi đơn vị chính.", true);
+        return;
+      }
+      openChangeBaseUnitModal(targetProduct);
+    });
+  }
+
   dom.productManageList.addEventListener("input", (event) => {
     if (!event.target.closest("[data-price-warning-input]")) return;
     const group = event.target.closest("[data-price-warning-group]");
@@ -752,8 +764,14 @@ export function registerProductsControllerEvents(contract) {
     }
   });
 
-  function openChangeBaseUnitModal(product) {
-    if (!product || !dom.changeBaseUnitModal) return;
+  function openChangeBaseUnitModal(productOrId) {
+    const product = typeof productOrId === "object" && productOrId
+      ? productOrId
+      : (state.products || []).find(p => p.id == productOrId) || (state.deletedProducts || []).find(p => p.id == productOrId) || (state.editingProductId ? (state.products || []).find(p => p.id == state.editingProductId) : null);
+    if (!product || !dom.changeBaseUnitModal) {
+      actions.showToast("Không tìm thấy sản phẩm để đổi đơn vị.", true);
+      return;
+    }
 
     dom.changeBaseUnitProductId.value = product.id;
     dom.changeBaseUnitProductName.textContent = product.name;
@@ -866,6 +884,8 @@ export function registerProductsControllerEvents(contract) {
 
     function closeChangeBaseUnitModal() {
       dom.changeBaseUnitModal.hidden = true;
+      dom.changeBaseUnitModal.setAttribute("hidden", "");
+      dom.changeBaseUnitModal.style.display = "none";
       dom.changeBaseUnitForm.onsubmit = null;
     }
 
@@ -918,6 +938,17 @@ export function registerProductsControllerEvents(contract) {
 
         await actions.refreshData();
         closeChangeBaseUnitModal();
+
+        const updated = (state.products || []).find(p => p.id === product.id);
+        if (updated && dom.productForm?.unit && state.editingProductId === product.id) {
+          dom.productForm.unit.value = updated.unit;
+          if (dom.productForm.price) dom.productForm.price.value = updated.price;
+          if (dom.productForm.sale_price) dom.productForm.sale_price.value = updated.sale_price ?? 0;
+          if (dom.productForm.low_stock_threshold) dom.productForm.low_stock_threshold.value = updated.low_stock_threshold;
+          syncDefaultUnitDropdowns();
+          utils.syncPriceWarningGroups(dom.productForm);
+        }
+
         actions.showToast(data.message || "Đã chuyển đổi đơn vị chính thành công.");
       } catch (err) {
         actions.showToast(err.message || "Lỗi chuyển đổi đơn vị chính.", true);
@@ -928,7 +959,12 @@ export function registerProductsControllerEvents(contract) {
     };
 
     dom.changeBaseUnitModal.hidden = false;
+    dom.changeBaseUnitModal.removeAttribute("hidden");
+    dom.changeBaseUnitModal.style.display = "grid";
   }
+
+  window.openChangeBaseUnitModal = openChangeBaseUnitModal;
+  actions.openChangeBaseUnitModal = openChangeBaseUnitModal;
 
   dom.productManageList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-product-manage-action]");
@@ -1034,8 +1070,12 @@ export function registerProductsControllerEvents(contract) {
       scheduleQuillInitialization();
       utils.syncPriceWarningGroups(dom.productForm);
       if (dom.btnProductFormChangeBaseUnit) {
-        dom.btnProductFormChangeBaseUnit.hidden = !Boolean(state.admin?.isAdmin);
-        dom.btnProductFormChangeBaseUnit.onclick = () => openChangeBaseUnitModal(product);
+        dom.btnProductFormChangeBaseUnit.hidden = false;
+        dom.btnProductFormChangeBaseUnit.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openChangeBaseUnitModal(product);
+        };
       }
       return;
     }

@@ -8171,6 +8171,17 @@ function showProductDetailModal(productId) {
     if (recipeContainer) recipeContainer.hidden = true;
   }
 
+  const changeBaseUnitBtn = document.getElementById("productDetailChangeBaseUnitButton");
+  if (changeBaseUnitBtn) {
+    changeBaseUnitBtn.hidden = false;
+    changeBaseUnitBtn.onclick = () => {
+      modal.hidden = true;
+      if (typeof window.openChangeBaseUnitModal === "function") {
+        window.openChangeBaseUnitModal(product);
+      }
+    };
+  }
+
   modal.hidden = false;
 }
 
