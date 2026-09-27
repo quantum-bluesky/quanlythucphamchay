@@ -1,9 +1,9 @@
 {
-  "app_version": "3.37.1",
+  "app_version": "3.37.2",
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "9f3ab891d51e19ded6b2c48d50613d2d63cb5d7ef13809ef68a0104d1cd6d90f"
+      "sha256": "75fc59f530af3a081b4836f31060af978488f8b8fc4a3e3992d84b1a19d4df30"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -135,7 +135,7 @@
     },
     "styles.css": {
       "counter": 1,
-      "sha256": "b8420f110762165c3a0674c53fe39015b8f1e7c17fbef5185b9ccc3fe82b4db7"
+      "sha256": "a911b7cd34b01a5b4c84cb1a87a2f2c398ccdcd9c6b9d2846fc8cd17da019b88"
     },
     "vendor/quill/quill.min.js": {
       "counter": 1,

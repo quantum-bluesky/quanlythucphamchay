@@ -540,6 +540,10 @@ Case mới cho Issue 153 (Tách cấu hình check multiuser conflict):
 
 - `UT-SYNC-02B`: bỏ qua kiểm tra xung đột đồng thời khi `EnableMultiuserConflictCheck` cấu hình tắt (`False`)
 
+Case mới cho Issue 174 (Nút xóa nhanh cho các ô list input):
+
+- `IT-LIST-01`: kiểm tra nút xóa nhanh (clear button) tự động hiển thị khi gõ chữ và xóa trắng ô nhập khi bấm trên các ô nhập dạng list input (có liên kết datalist).
+
 ## Lưu ý
 
 - App runtime thật vẫn chỉ cần `Python stdlib + SQLite`

@@ -494,15 +494,23 @@ function attachSearchClearButton(input, container) {
   const clearButton = document.createElement("button");
   clearButton.type = "button";
   clearButton.className = "search-clear-button";
-  clearButton.setAttribute("aria-label", "Xóa tìm kiếm");
+  clearButton.setAttribute("aria-label", "Xóa nội dung");
   clearButton.innerHTML = "&times;";
   container.appendChild(clearButton);
 
   const refresh = () => {
+    if (!input.isConnected) return;
     clearButton.hidden = !String(input.value || "").trim();
   };
+  refresh.isConnected = () => input.isConnected;
 
-  clearButton.addEventListener("click", () => {
+  clearButton.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+  });
+
+  clearButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     input.value = "";
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.focus();
@@ -515,15 +523,48 @@ function attachSearchClearButton(input, container) {
   refresh();
 }
 
+// #Issue 174: Áp dụng nút xóa nhanh cho các ô nhập ở dạng list input
+function setupListInputClearButtons(root = document) {
+  if (!root || !root.querySelectorAll) {
+    return;
+  }
+  root.querySelectorAll('input[list]:not([type="radio"]):not([type="checkbox"])').forEach((input) => {
+    const existingBox = input.closest(".search-box, .input-clear-wrap");
+    if (existingBox) {
+      attachSearchClearButton(input, existingBox);
+      return;
+    }
+    let wrap = input.parentElement;
+    if (!wrap || !wrap.classList.contains("input-clear-wrap")) {
+      wrap = document.createElement("div");
+      wrap.className = "input-clear-wrap";
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+    }
+    attachSearchClearButton(input, wrap);
+  });
+}
+
 function setupSearchClearButtons() {
   document.querySelectorAll(".search-box input").forEach((input) => {
     attachSearchClearButton(input, input.closest(".search-box"));
   });
   attachSearchClearButton(floatingSearchInput, floatingSearchDock);
+  // #Issue 174: Áp dụng cho các ô nhập ở dạng list input
+  setupListInputClearButtons(document);
 }
 
 function refreshSearchClearButtons() {
-  searchClearRefreshers.forEach((refresh) => refresh());
+  // #Issue 174: Tự động gắn nút xóa cho list input render động nếu có
+  setupListInputClearButtons(document);
+  for (let i = searchClearRefreshers.length - 1; i >= 0; i--) {
+    const entry = searchClearRefreshers[i];
+    if (typeof entry?.isConnected === "function" && !entry.isConnected()) {
+      searchClearRefreshers.splice(i, 1);
+    } else if (typeof entry === "function") {
+      entry();
+    }
+  }
 }
 
 function parsePixelValue(value) {

@@ -215,4 +215,6 @@ Lưu ý:
 | 164 | `UT-QUICK-06` | Kiểm tra backend `create_quick_purchase()` xử lý đúng khi truyền `target_purchase_id` (kể cả ID nháp client chưa lưu vào DB), lưu đầy đủ các trường quy đổi đơn vị (`input_quantity`, `input_unit`, `conversion_factor`) và giảm giá vào `purchase_items`. |
 | 165 | `ACC-QUICK-07` | Kiểm tra UI `Xử lý nhanh nhập hàng` thao tác nút `Lấy từ phiếu đang mở`, hiển thị banner liên kết phiếu, lưu cập nhật thành công vào phiếu đang mở và đổi trạng thái nút thành `Đã cập nhật`. |
 | 166 | `IT-PURSUP-08` | Kiểm tra chọn và nhập nhà cung cấp khi tạo mới đơn nhập hàng: ô nhập NCC và nút danh bạ NCC không bị khóa khi xem phiếu đã nhận/đã thanh toán/đã hủy, hỗ trợ Enter/chọn NCC tự tạo/mở phiếu nháp mới và nút tạo phiếu tạo phiếu nháp trắng để chọn NCC. |
+| 167 | `IT-LIST-01` | Kiểm tra nút xóa nhanh (clear button) tự động hiển thị khi gõ chữ và xóa trắng ô nhập khi bấm trên tất cả các ô nhập dạng list input (có liên kết datalist). |
+
 

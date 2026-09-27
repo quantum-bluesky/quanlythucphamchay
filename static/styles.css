@@ -801,13 +801,22 @@ button:disabled {
   width: 100%;
 }
 
-.search-box {
+.search-box,
+.input-clear-wrap {
   position: relative;
   display: block;
+}
+
+.search-box {
   min-width: min(280px, 100%);
 }
 
-.search-box input {
+.input-clear-wrap {
+  width: 100%;
+}
+
+.search-box input,
+.input-clear-wrap input {
   padding-right: 42px;
 }
 
@@ -829,6 +838,19 @@ button:disabled {
   font-size: 1rem;
   line-height: 1;
   z-index: 2;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.search-clear-button:hover,
+.search-clear-button:focus-visible {
+  color: var(--text-dark, #1c2e24);
+  border-color: rgba(34, 49, 39, 0.28);
+  background: #ffffff;
 }
 
 .search-clear-button[hidden] {
@@ -2505,6 +2527,10 @@ button:disabled {
     padding: 6px 12px;
   }
 
+  [data-menu-section="create-order"].has-active-cart .sales-customer-card .input-clear-wrap input {
+    padding-right: 42px;
+  }
+
   [data-menu-section="create-order"] .sales-panel,
   [data-menu-section="create-order"] .sales-card {
     overflow: visible;
@@ -2782,6 +2808,10 @@ button:disabled {
   [data-menu-section="purchases"].has-active-purchase .sales-customer-card input {
     min-height: 36px;
     padding: 6px 12px;
+  }
+
+  [data-menu-section="purchases"].has-active-purchase .sales-customer-card .input-clear-wrap input {
+    padding-right: 42px;
   }
 
   [data-menu-section="purchases"] .active-cart-panel .empty-state {
