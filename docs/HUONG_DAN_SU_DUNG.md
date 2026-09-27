@@ -431,6 +431,26 @@ Lưu ý:
 - nếu muốn nhập nhiều ảnh, cấu hình đơn vị quy đổi và thông tin chi tiết (hướng dẫn sử dụng, chế biến...), chọn `Sửa chi tiết` thay vì `Sửa nhanh`. Form chi tiết sẽ được mở ra để bạn thao tác trọn vẹn.
 - ở các màn hình khác (Đơn hàng, Nhập hàng, Tồn kho...), có thể click trực tiếp vào tên sản phẩm (được gạch dưới) để mở popup hiển thị toàn bộ ảnh, thông tin chi tiết, đơn vị quy đổi và hướng dẫn sử dụng của sản phẩm đó.
 
+### Chuyển đổi đơn vị chính của sản phẩm (Dành riêng cho Admin)
+
+Khi một sản phẩm đã phát sinh giao dịch hoặc đã lưu tồn kho theo một đơn vị cũ (ví dụ: `gói`, `hộp`, `kg`...) và Admin muốn đổi sang đơn vị chuẩn khác (ví dụ: từ `gói` sang `lạng` hoặc từ `kg` sang `lạng`), hệ thống cung cấp tính năng **Đổi ĐV chính** an toàn và nhất quán:
+
+1. **Điều kiện sử dụng**: Chỉ tài khoản có quyền Quản trị (Admin) mới có quyền thực hiện.
+2. **Cách thao tác**:
+   - Trong danh sách sản phẩm, bấm nút `Đổi ĐV chính` (hoặc mở form Sửa chi tiết sản phẩm và bấm `Đổi đơn vị chính (Admin)`).
+   - Hộp thoại **Chuyển đổi đơn vị chính của sản phẩm** xuất hiện, hiển thị rõ tên sản phẩm, đơn vị chính hiện tại, tồn kho hiện tại, giá nhập/bán gốc và tổng giá trị tồn kho.
+   - Nhập **Đơn vị chính mới** (có thể chọn gợi ý nhanh như: `kg`, `lạng`, `gói`, `hộp`, `chai`, `chiếc`...).
+   - Chọn chiều quy đổi và nhập tỷ lệ:
+     - `1 [đơn vị cũ] = [K] [đơn vị mới]` (ví dụ: 1 gói = 5 lạng, K = 5).
+     - Hoặc `1 [đơn vị mới] = [K] [đơn vị cũ]` (ví dụ: 1 kg = 10 lạng, K = 10).
+   - Tùy chọn `Thêm đơn vị cũ vào bảng quy đổi đơn vị phụ`: Nếu tích chọn (mặc định), đơn vị cũ sẽ tự động được đưa vào danh sách đơn vị quy đổi phụ với hệ số tương ứng để nhân viên vẫn có thể chọn nhập/bán theo đơn vị cũ khi cần.
+   - Xem trước kết quả tính toán trực quan (Live preview): Tồn kho mới, Giá nhập mới, Giá bán mới, Ngưỡng cảnh báo mới và Tổng giá trị tồn kho không đổi.
+   - Bấm **Xác nhận chuyển đổi đơn vị**.
+3. **Cơ chế đảm bảo an toàn dữ liệu**:
+   - Toàn bộ tồn kho vật lý, các lô hàng (batches), phân bổ lô (allocations), các dòng trong giỏ hàng chờ xuất (draft carts) và phiếu chờ nhập (purchase drafts) đều được tự động quy đổi đồng bộ.
+   - Giá trị tồn kho thực tế và tổng tiền của các giỏ hàng/phiếu nhập được bảo toàn chính xác 100%.
+   - Thao tác được ghi vết chi tiết vào Audit Log với hành động `change_base_unit`.
+
 ## 8. Luồng nhập hàng
 
 Vào menu:

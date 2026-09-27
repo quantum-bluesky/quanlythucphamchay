@@ -387,6 +387,45 @@ ordered -> cancelled
     - `unit_price` / `unit_cost`: Đơn giá tại thời điểm tạo dòng hàng.
   - Khi danh mục sản phẩm sau này có thay đổi tỉ lệ quy đổi (ví dụ nhà sản xuất đổi quy cách 1 thùng từ 12 lên 14), các chứng từ đã phát sinh trong quá khứ vẫn giữ nguyên giá trị lịch sử và số lượng tồn kho đã trừ/cộng.
 
+### 7B. Luồng chuyển đổi đơn vị cơ sở sản phẩm (Change Base Unit)
+
+- **Quyền hạn**: Chỉ Master Admin (hoặc người dùng có quyền quản trị) mới được phép thực hiện chuyển đổi đơn vị cơ sở.
+- **Mục tiêu nghiệp vụ**:
+  - Cho phép điều chỉnh đơn vị cơ sở (Base Unit) của sản phẩm từ một đơn vị này sang đơn vị khác (ví dụ: `gói/hộp/cái` $\rightarrow$ `lạng/kg` hoặc ngược lại) ngay cả khi sản phẩm đã phát sinh giao dịch xuất/nhập/tồn kho.
+  - Bảo toàn 100% giá trị tồn kho, tính toàn vẹn của sổ cái, số liệu các lô hàng và các đơn/phiếu đang mở.
+- **Công thức chuyển đổi toán học**:
+  - Tỷ lệ chuyển đổi: $1\ \text{đơn vị cũ} = K\ \text{đơn vị mới}$ (với $K > 0$).
+  - Giá nhập chuẩn mới: $\text{price}_{\text{new}} = \text{round}\left(\frac{\text{price}_{\text{old}}}{K}, 4\right)$
+  - Giá bán chuẩn mới: $\text{sale\_price}_{\text{new}} = \text{round}\left(\frac{\text{sale\_price}_{\text{old}}}{K}, 4\right)$
+  - Ngưỡng tồn cảnh báo mới: $\text{threshold}_{\text{new}} = \text{round}(\text{threshold}_{\text{old}} \times K, 4)$
+  - Biến động sổ kho (`transactions`): $\text{quantity} = \text{round}(\text{quantity} \times K, 4)$
+  - Lô hàng tồn kho (`inventory_batches`):
+    - $\text{initial\_quantity} = \text{round}(\text{initial\_quantity} \times K, 4)$
+    - $\text{remaining\_quantity} = \text{round}(\text{remaining\_quantity} \times K, 4)$
+    - $\text{unit\_cost} = \text{round}\left(\frac{\text{unit\_cost}}{K}, 4\right)$
+    - Tổng giá trị lô hàng $\text{valuation} = \text{remaining\_quantity} \times \text{unit\_cost}$ được bảo toàn.
+  - Phân bổ lô (`inventory_batch_allocations`): $\text{quantity} = \text{round}(\text{quantity} \times K, 4)$
+  - Chi tiết phiếu kho (`inventory_receipt_items`):
+    - $\text{quantity} = \text{round}(\text{quantity} \times K, 4)$
+    - $\text{unit\_amount} = \text{round}\left(\frac{\text{unit\_amount}}{K}, 4\right)$
+    - $\text{stock\_after} = \text{round}(\text{stock\_after} \times K, 4)$
+    - $\text{conversion\_factor} = \text{round}(\text{conversion\_factor} \times K, 4)$
+  - Giỏ hàng chờ xuất (`cart_items` thuộc đơn `draft/committed`):
+    - $\text{quantity} = \text{round}(\text{quantity} \times K, 4)$
+    - $\text{conversion\_factor} = \text{round}(\text{conversion\_factor} \times K, 4)$
+    - Nếu dòng hàng trước đây nhập theo đơn vị cơ sở cũ mà chưa lưu `input_unit`, tự động fallback sang tên đơn vị cũ để không làm biến dạng số lượng nhập của người dùng.
+  - Phiếu nhập chờ (`purchase_items` thuộc phiếu `draft/ordered`):
+    - Tương tự giỏ hàng chờ: $\text{quantity} = \text{round}(\text{quantity} \times K, 4)$, $\text{conversion\_factor} = \text{round}(\text{conversion\_factor} \times K, 4)$, fallback `input_unit`.
+  - Phân bổ gom hàng (`procurement_assignments`): $\text{assigned\_quantity} = \text{round}(\text{assigned\_quantity} \times K, 4)$
+  - Bảng quy đổi đơn vị phụ (`product_unit_conversion`):
+    - Các đơn vị phụ khác hiện có: $\text{conversion\_factor}_{\text{new}} = \text{round}(\text{conversion\_factor}_{\text{old}} \times K, 4)$
+    - Nếu đơn vị phụ trùng với đơn vị mới: tắt kích hoạt (`is_active = 0`).
+    - Nếu chọn `add_old_unit_to_conversions`: thêm hoặc kích hoạt lại đơn vị cũ thành đơn vị quy đổi phụ với hệ số $K$.
+- **Tính nguyên tử và Audit**:
+  - Toàn bộ quá trình chuyển đổi thực thi trong một Database Transaction duy nhất.
+  - Tự động làm mới cache đồng bộ đa máy (`_refresh_sync_collection_cache` cho `carts` và `purchases`).
+  - Ghi vết hành động vào Audit Log hệ thống với action `change_base_unit`.
+
 ### Khách hàng
 
 - lưu danh bạ giao hàng
