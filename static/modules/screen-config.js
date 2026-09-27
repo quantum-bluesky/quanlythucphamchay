@@ -20,6 +20,7 @@ export const SCREEN_HELP = {
       "Nếu có máy khác vừa cập nhật tồn hoặc giá, màn hình sẽ tự nạp lại khi bạn đang rảnh thao tác; trong lúc đang gõ thì app sẽ tạm hoãn để tránh mất dữ liệu đang nhập.",
       "Chỉ `Master Admin` hoặc user có permission `inventory_adjust_manage` mới được chỉnh tồn trực tiếp; khi đăng nhập sẽ hiện cảnh báo riêng ở màn tồn kho và bắt buộc nhập lý do điều chỉnh.",
       "Trên mobile hoặc tablet portrait, khi bạn có quyền direct adjust thì khối `Chỉnh tồn trực tiếp` sẽ được ưu tiên mở gần đầu màn hình, bản thu gọn không để thừa khoảng trắng và khi mở vẫn chừa khoảng cuộn an toàn để các dock nổi không che mất field hay nút thao tác.",
+      "Trong khối `Chỉnh tồn trực tiếp`, Admin có thể bấm nút `Xuất tất cả` để nhanh chóng xuất toàn bộ số lượng tồn hiện tại của mặt hàng đã chọn và đưa tồn về 0 sau khi xác nhận.",
       "Nếu cần xử lý sai lệch sau khi chứng từ đã xử lý, dùng nút Phiếu DC hoặc mở khối Phiếu điều chỉnh tồn để lập chứng từ tăng/giảm mới thay vì sửa ngược đơn/phiếu cũ.",
       "Nút `Lịch sử biến động` ở đầu màn sẽ mở sang màn riêng để chọn một sản phẩm và đối chiếu toàn bộ nhập/xuất theo khoảng ngày.",
       "Trong detail từng mặt hàng có thêm nút `Xem lịch sử` để mở nhanh đúng sản phẩm đang nghi ngờ lệch tồn.",

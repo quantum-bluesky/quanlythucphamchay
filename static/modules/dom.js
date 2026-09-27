@@ -36,6 +36,7 @@ export const inventoryReceiptClearButton = document.getElementById("inventoryRec
 export const productLookupInput = document.getElementById("productLookupInput");
 export const productOptions = document.getElementById("productOptions");
 export const quickTransactionForm = document.getElementById("quickTransactionForm");
+export const quickClearAllStockButton = document.getElementById("quickClearAllStockButton");
 export const productForm = document.getElementById("productForm");
 export const toast = document.getElementById("toast");
 export const searchInput = document.getElementById("searchInput");

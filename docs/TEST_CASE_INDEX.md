@@ -222,6 +222,7 @@ Mục tiêu:
 | 165 | `ACC-QUICK-07` | `tests/integration/quick-purchase-active-order.spec.js` | `npx playwright test tests/integration/quick-purchase-active-order.spec.js` |
 | 166 | `IT-PURSUP-08` | `tests/integration/purchase-create-select-supplier.spec.js` | `npx playwright test tests/integration/purchase-create-select-supplier.spec.js` |
 | 167 | `IT-LIST-01` | `tests/integration/list-inputs-clear-button.spec.js` | `npx playwright test tests/integration/list-inputs-clear-button.spec.js --grep "IT-LIST-01"` |
+| 168 | `IT-INV-03` | `tests/integration/inventory-clear-all-stock.spec.js` | `npx playwright test tests/integration/inventory-clear-all-stock.spec.js --grep "IT-INV-03"` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

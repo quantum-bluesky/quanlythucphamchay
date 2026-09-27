@@ -84,6 +84,7 @@ Lưu ý:
 - user thường không chỉnh tăng/giảm tồn trực tiếp ở màn này nữa
 - chỉ `Master Admin` hoặc user có permission `inventory_adjust_manage` mới có chế độ chỉnh tồn trực tiếp và sẽ thấy cảnh báo rõ khi dùng
 - khi dùng chế độ chỉnh tồn trực tiếp, bắt buộc phải nhập lý do để lưu vào lịch sử và audit
+- trong panel `Chỉnh tồn trực tiếp`, Admin có thể bấm nút `Xuất tất cả` để nhanh chóng xuất toàn bộ lượng tồn hiện tại của mặt hàng đã chọn và đưa tồn kho về 0 (hệ thống có hộp thoại xác nhận trước khi thực hiện)
 - trên mobile/tablet portrait, panel `Chỉnh tồn trực tiếp` được ưu tiên nằm sát đầu màn hình, tự mở sẵn khi vào màn tồn kho; khi thu gọn không để thừa khoảng trắng và khi mở vẫn chừa khoảng cuộn an toàn để không bị thanh nổi che mất field hay button thao tác
 - sort `Ưu tiên nhập/xử lý` dùng sức bán đã chuẩn hóa theo ngưỡng tồn và mức thiếu hàng, không so sánh thô theo số lượng tuyệt đối giữa các sản phẩm
 - sort `Hạn còn ít` ưu tiên theo HSD thật của từng lô còn hàng; nếu mặt hàng chưa có lô nào có HSD thì app mới fallback về ước tính từ metadata sản phẩm
