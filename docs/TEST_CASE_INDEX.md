@@ -223,6 +223,13 @@ Mục tiêu:
 | 166 | `IT-PURSUP-08` | `tests/integration/purchase-create-select-supplier.spec.js` | `npx playwright test tests/integration/purchase-create-select-supplier.spec.js` |
 | 167 | `IT-LIST-01` | `tests/integration/list-inputs-clear-button.spec.js` | `npx playwright test tests/integration/list-inputs-clear-button.spec.js --grep "IT-LIST-01"` |
 | 168 | `IT-INV-03` | `tests/integration/inventory-clear-all-stock.spec.js` | `npx playwright test tests/integration/inventory-clear-all-stock.spec.js --grep "IT-INV-03"` |
+| 177 | `UT-BASEUNIT-01` | `tests/test_change_base_unit.py` | `python -m unittest tests.test_change_base_unit.ChangeProductBaseUnitTests.test_basic_change_base_unit` |
+| 178 | `UT-BASEUNIT-02` | `tests/test_change_base_unit.py` | `python -m unittest tests.test_change_base_unit.ChangeProductBaseUnitTests.test_change_base_unit_scales_existing_secondary_conversions` |
+| 179 | `UT-BASEUNIT-03` | `tests/test_change_base_unit.py` | `python -m unittest tests.test_change_base_unit.ChangeProductBaseUnitTests.test_change_base_unit_when_target_already_secondary_unit` |
+| 180 | `UT-BASEUNIT-04` | `tests/test_change_base_unit.py` | `python -m unittest tests.test_change_base_unit.ChangeProductBaseUnitTests.test_change_base_unit_updates_open_carts_without_distorting_display` |
+| 181 | `UT-BASEUNIT-05` | `tests/test_change_base_unit.py` | `python -m unittest tests.test_change_base_unit.ChangeProductBaseUnitTests.test_reversibility_conversion` |
+| 182 | `UT-BASEUNIT-06` | `tests/test_change_base_unit.py` | `python -m unittest tests.test_change_base_unit.ChangeProductBaseUnitTests.test_validation_errors` |
+| 183 | `UT-BASEUNIT-07` | `tests/test_change_base_unit.py` | `python -m unittest tests.test_change_base_unit.ChangeProductBaseUnitHTTPTests.test_http_change_base_unit_endpoint_and_permission` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

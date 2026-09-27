@@ -217,5 +217,13 @@ Lưu ý:
 | 166 | `IT-PURSUP-08` | Kiểm tra chọn và nhập nhà cung cấp khi tạo mới đơn nhập hàng: ô nhập NCC và nút danh bạ NCC không bị khóa khi xem phiếu đã nhận/đã thanh toán/đã hủy, hỗ trợ Enter/chọn NCC tự tạo/mở phiếu nháp mới và nút tạo phiếu tạo phiếu nháp trắng để chọn NCC. |
 | 167 | `IT-LIST-01` | Kiểm tra nút xóa nhanh (clear button) tự động hiển thị khi gõ chữ và xóa trắng ô nhập khi bấm trên tất cả các ô nhập dạng list input (có liên kết datalist). |
 | 168 | `IT-INV-03` | Kiểm tra nút `Xuất tất cả` ở form Chỉnh tồn trực tiếp màn Tồn kho: yêu cầu quyền Admin, báo lỗi khi chưa chọn sản phẩm hoặc sản phẩm hết hàng, hiển thị confirm dialog và xuất toàn bộ tồn kho để giảm tồn về 0 sau khi xác nhận. |
+| 177 | `UT-BASEUNIT-01` | Kiểm tra backend `change_product_base_unit()` chuyển đổi đơn vị cơ sở: quy đổi tồn kho, đơn giá nhập/bán, ngưỡng tồn, số lượng và giá vốn các lô hàng `inventory_batches`, phân bổ lô `inventory_batch_allocations`, dòng phiếu kho `inventory_receipt_items` và thêm đơn vị cũ vào bảng quy đổi đơn vị phụ. |
+| 178 | `UT-BASEUNIT-02` | Kiểm tra backend tự động nhân hệ số quy đổi của các đơn vị phụ hiện có với tỷ lệ $K$ tương ứng để bảo toàn lượng quy đổi sau khi đổi đơn vị cơ sở. |
+| 179 | `UT-BASEUNIT-03` | Kiểm tra trường hợp đơn vị mới trùng với một đơn vị quy đổi phụ đã có: backend vô hiệu hóa dòng đơn vị phụ cũ và cập nhật đơn vị cơ sở mới. |
+| 180 | `UT-BASEUNIT-04` | Kiểm tra các giỏ hàng chờ xuất (`cart_items`) và phiếu chờ nhập (`purchase_items`) được quy đổi số lượng cơ sở và hệ số mà vẫn bảo toàn số lượng hiển thị và thành tiền nhập liệu của người dùng. |
+| 181 | `UT-BASEUNIT-05` | Kiểm tra tính bảo toàn hai chiều (reversibility): chuyển từ đơn vị A sang B rồi từ B ngược về A thì tồn kho, giá và hệ số quy đổi quay về trạng thái ban đầu. |
+| 182 | `UT-BASEUNIT-06` | Kiểm tra các điều kiện validation: chặn tỷ lệ <= 0, chặn tên đơn vị rỗng hoặc trùng đơn vị hiện tại, chặn sản phẩm không tồn tại. |
+| 183 | `UT-BASEUNIT-07` | Kiểm tra API endpoint `POST /api/products/<id>/change-base-unit`: yêu cầu quyền Admin (chặn user thường hoặc chưa đăng nhập), xử lý chuyển đổi thành công và trả về summary cùng thông tin sản phẩm mới. |
+
 
 

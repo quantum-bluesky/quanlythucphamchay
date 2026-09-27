@@ -79,6 +79,10 @@ export function registerProductsControllerEvents(contract) {
     } else if (dom.productRecipeEditor) {
       dom.productRecipeEditor.innerHTML = "";
     }
+    if (dom.btnProductFormChangeBaseUnit) {
+      dom.btnProductFormChangeBaseUnit.hidden = true;
+      dom.btnProductFormChangeBaseUnit.onclick = null;
+    }
     utils.syncPriceWarningGroups(dom.productForm);
   };
 
@@ -748,6 +752,184 @@ export function registerProductsControllerEvents(contract) {
     }
   });
 
+  function openChangeBaseUnitModal(product) {
+    if (!product || !dom.changeBaseUnitModal) return;
+
+    dom.changeBaseUnitProductId.value = product.id;
+    dom.changeBaseUnitProductName.textContent = product.name;
+    dom.changeBaseUnitOldUnit.textContent = product.unit;
+    dom.changeBaseUnitCurrentStock.textContent = `${utils.formatQuantity(product.current_stock || 0)} ${product.unit}`;
+    dom.changeBaseUnitCurrentPrice.textContent = utils.formatCurrency(product.price || 0);
+    dom.changeBaseUnitCurrentSalePrice.textContent = utils.formatCurrency(product.sale_price || 0);
+
+    dom.changeBaseUnitModal.querySelectorAll(".lbl-old-unit").forEach(el => {
+      el.textContent = product.unit;
+    });
+
+    if (dom.changeBaseUnitSuggestedList) {
+      const suggestions = (product.unit_conversions || [])
+        .map(u => u.from_unit || u.unit)
+        .filter(Boolean);
+      ["lạng", "kg", "gói", "hộp", "thùng"].forEach(commonUnit => {
+        if (commonUnit.toLowerCase() !== (product.unit || "").toLowerCase() && !suggestions.includes(commonUnit)) {
+          suggestions.push(commonUnit);
+        }
+      });
+      dom.changeBaseUnitSuggestedList.innerHTML = suggestions
+        .map(u => `<option value="${escapeHtml(u)}"></option>`)
+        .join("");
+    }
+
+    dom.changeBaseUnitNewUnitInput.value = "";
+    dom.changeBaseUnitRateOldToNew.value = "1";
+    dom.changeBaseUnitRateNewToOld.value = "1";
+    const oldToNewRadio = dom.changeBaseUnitForm.querySelector('input[name="changeBaseUnitDirection"][value="old_to_new"]');
+    if (oldToNewRadio) oldToNewRadio.checked = true;
+    dom.changeBaseUnitRateOldToNew.disabled = false;
+    dom.changeBaseUnitRateOldToNew.style.opacity = "1";
+    dom.changeBaseUnitRateNewToOld.disabled = true;
+    dom.changeBaseUnitRateNewToOld.style.opacity = "0.6";
+    if (dom.changeBaseUnitKeepOldCheck) dom.changeBaseUnitKeepOldCheck.checked = true;
+
+    function updatePreview() {
+      const newUnit = dom.changeBaseUnitNewUnitInput.value.trim() || "(Đơn vị mới)";
+      dom.changeBaseUnitModal.querySelectorAll(".lbl-new-unit").forEach(el => {
+        el.textContent = newUnit;
+      });
+
+      const direction = dom.changeBaseUnitForm.querySelector('input[name="changeBaseUnitDirection"]:checked')?.value || "old_to_new";
+      let K = 1.0;
+      if (direction === "old_to_new") {
+        K = parseFloat(dom.changeBaseUnitRateOldToNew.value) || 0;
+      } else {
+        const rateNewToOld = parseFloat(dom.changeBaseUnitRateNewToOld.value) || 0;
+        K = rateNewToOld > 0 ? (1.0 / rateNewToOld) : 0;
+      }
+
+      if (K > 0) {
+        const curStock = Number(product.current_stock || 0);
+        const curPrice = Number(product.price || 0);
+        const curSalePrice = Number(product.sale_price || 0);
+        const curThreshold = Number(product.low_stock_threshold || 0);
+
+        const newStock = Math.round((curStock * K) * 10000) / 10000;
+        const newThreshold = Math.round((curThreshold * K) * 10000) / 10000;
+        const newPrice = Math.round((curPrice / K) * 10000) / 10000;
+        const newSalePrice = Math.round((curSalePrice / K) * 10000) / 10000;
+
+        dom.previewNewStock.textContent = `${utils.formatQuantity(newStock)} ${newUnit}`;
+        dom.previewNewThreshold.textContent = `${utils.formatQuantity(newThreshold)} ${newUnit}`;
+        dom.previewNewPrice.textContent = `${utils.formatCurrency(newPrice)} / ${newUnit}`;
+        dom.previewNewSalePrice.textContent = `${utils.formatCurrency(newSalePrice)} / ${newUnit}`;
+      } else {
+        dom.previewNewStock.textContent = "-";
+        dom.previewNewThreshold.textContent = "-";
+        dom.previewNewPrice.textContent = "-";
+        dom.previewNewSalePrice.textContent = "-";
+      }
+    }
+
+    dom.changeBaseUnitNewUnitInput.oninput = () => {
+      const typedUnit = dom.changeBaseUnitNewUnitInput.value.trim().toLowerCase();
+      const existingConv = (product.unit_conversions || []).find(
+        c => (c.from_unit || c.unit || "").trim().toLowerCase() === typedUnit
+      );
+      if (existingConv && existingConv.conversion_factor) {
+        const newToOldRadio = dom.changeBaseUnitForm.querySelector('input[name="changeBaseUnitDirection"][value="new_to_old"]');
+        if (newToOldRadio) {
+          newToOldRadio.checked = true;
+          dom.changeBaseUnitRateNewToOld.value = existingConv.conversion_factor;
+          dom.changeBaseUnitRateNewToOld.disabled = false;
+          dom.changeBaseUnitRateNewToOld.style.opacity = "1";
+          dom.changeBaseUnitRateOldToNew.disabled = true;
+          dom.changeBaseUnitRateOldToNew.style.opacity = "0.6";
+        }
+      }
+      updatePreview();
+    };
+
+    dom.changeBaseUnitRateOldToNew.oninput = updatePreview;
+    dom.changeBaseUnitRateNewToOld.oninput = updatePreview;
+
+    dom.changeBaseUnitForm.querySelectorAll('input[name="changeBaseUnitDirection"]').forEach(radio => {
+      radio.onchange = () => {
+        const isOldToNew = radio.value === "old_to_new";
+        dom.changeBaseUnitRateOldToNew.disabled = !isOldToNew;
+        dom.changeBaseUnitRateOldToNew.style.opacity = isOldToNew ? "1" : "0.6";
+        dom.changeBaseUnitRateNewToOld.disabled = isOldToNew;
+        dom.changeBaseUnitRateNewToOld.style.opacity = isOldToNew ? "0.6" : "1";
+        updatePreview();
+      };
+    });
+
+    updatePreview();
+
+    function closeChangeBaseUnitModal() {
+      dom.changeBaseUnitModal.hidden = true;
+      dom.changeBaseUnitForm.onsubmit = null;
+    }
+
+    dom.changeBaseUnitCancelButton.onclick = closeChangeBaseUnitModal;
+    dom.changeBaseUnitCloseButton.onclick = closeChangeBaseUnitModal;
+    const backdrop = dom.changeBaseUnitModal.querySelector('[data-change-base-unit-close="backdrop"]');
+    if (backdrop) backdrop.onclick = closeChangeBaseUnitModal;
+
+    dom.changeBaseUnitForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const newUnit = dom.changeBaseUnitNewUnitInput.value.trim();
+      if (!newUnit) {
+        actions.showToast("Vui lòng nhập đơn vị chính mới.", true);
+        return;
+      }
+      if (newUnit.toLowerCase() === (product.unit || "").trim().toLowerCase()) {
+        actions.showToast("Đơn vị chính mới phải khác đơn vị hiện tại.", true);
+        return;
+      }
+
+      const direction = dom.changeBaseUnitForm.querySelector('input[name="changeBaseUnitDirection"]:checked')?.value || "old_to_new";
+      let K = 1.0;
+      if (direction === "old_to_new") {
+        K = parseFloat(dom.changeBaseUnitRateOldToNew.value) || 0;
+      } else {
+        const rateNewToOld = parseFloat(dom.changeBaseUnitRateNewToOld.value) || 0;
+        K = rateNewToOld > 0 ? (1.0 / rateNewToOld) : 0;
+      }
+
+      if (K <= 0) {
+        actions.showToast("Tỷ lệ quy đổi phải là số dương lớn hơn 0.", true);
+        return;
+      }
+
+      const confirmMsg = `Xác nhận chuyển đổi đơn vị chính của sản phẩm "${product.name}" từ [${product.unit}] sang [${newUnit}] với tỷ lệ 1 ${product.unit} = ${K} ${newUnit}?\n\nToàn bộ tồn kho, lô hàng và các đơn hàng liên quan sẽ được tự động quy đổi.`;
+      if (!window.confirm(confirmMsg)) return;
+
+      try {
+        dom.changeBaseUnitConfirmButton.disabled = true;
+        dom.changeBaseUnitConfirmButton.textContent = "Đang chuyển đổi...";
+
+        const data = await actions.apiRequest(`/api/products/${product.id}/change-base-unit`, {
+          method: "POST",
+          body: JSON.stringify({
+            new_unit: newUnit,
+            conversion_rate: K,
+            add_old_unit_to_conversions: Boolean(dom.changeBaseUnitKeepOldCheck?.checked),
+          }),
+        });
+
+        await actions.refreshData();
+        closeChangeBaseUnitModal();
+        actions.showToast(data.message || "Đã chuyển đổi đơn vị chính thành công.");
+      } catch (err) {
+        actions.showToast(err.message || "Lỗi chuyển đổi đơn vị chính.", true);
+      } finally {
+        dom.changeBaseUnitConfirmButton.disabled = false;
+        dom.changeBaseUnitConfirmButton.textContent = "Xác nhận chuyển đổi";
+      }
+    };
+
+    dom.changeBaseUnitModal.hidden = false;
+  }
+
   dom.productManageList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-product-manage-action]");
     if (!button) return;
@@ -851,6 +1033,15 @@ export function registerProductsControllerEvents(contract) {
 
       scheduleQuillInitialization();
       utils.syncPriceWarningGroups(dom.productForm);
+      if (dom.btnProductFormChangeBaseUnit) {
+        dom.btnProductFormChangeBaseUnit.hidden = !Boolean(state.admin?.isAdmin);
+        dom.btnProductFormChangeBaseUnit.onclick = () => openChangeBaseUnitModal(product);
+      }
+      return;
+    }
+
+    if (button.dataset.productManageAction === "change-base-unit") {
+      openChangeBaseUnitModal(product);
       return;
     }
 

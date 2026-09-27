@@ -1925,6 +1925,29 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
+                match = re.fullmatch(r"/(?:api/admin/products|api/products)/(\d+)/change-base-unit", route)
+                if match:
+                    if not self._require_admin():
+                        return
+                    product = store.change_product_base_unit(
+                        product_id=match.group(1),
+                        new_unit=payload.get("new_unit"),
+                        conversion_rate=payload.get("conversion_rate"),
+                        add_old_unit_to_conversions=bool(payload.get("add_old_unit_to_conversions", True)),
+                        default_purchase_unit=payload.get("default_purchase_unit"),
+                        default_sale_unit=payload.get("default_sale_unit"),
+                        actor=payload.get("actor") or self._get_current_actor_name(),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": f"Đã chuyển đổi đơn vị chính thành công sang '{product.get('unit')}'.",
+                            "product": product,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
             except ValueError as exc:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
@@ -2052,6 +2075,33 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         HTTPStatus.OK,
                         {
                             "message": "Đã cập nhật giá bán.",
+                            "product": product,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
+            match = re.fullmatch(r"/(?:api/admin/products|api/products)/(\d+)/change-base-unit", route)
+            if match:
+                if not self._require_admin():
+                    return
+                try:
+                    payload = self._read_json_body()
+                    product = store.change_product_base_unit(
+                        product_id=match.group(1),
+                        new_unit=payload.get("new_unit"),
+                        conversion_rate=payload.get("conversion_rate"),
+                        add_old_unit_to_conversions=bool(payload.get("add_old_unit_to_conversions", True)),
+                        default_purchase_unit=payload.get("default_purchase_unit"),
+                        default_sale_unit=payload.get("default_sale_unit"),
+                        actor=payload.get("actor") or self._get_current_actor_name(),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": f"Đã chuyển đổi đơn vị chính thành công sang '{product.get('unit')}'.",
                             "product": product,
                             "summary": store.get_summary(),
                         },

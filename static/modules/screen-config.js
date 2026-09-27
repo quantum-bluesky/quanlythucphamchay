@@ -183,6 +183,7 @@ export const SCREEN_HELP = {
       "Nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` của 1 mặt hàng, app sẽ hiện cảnh báo ngay tại vùng sửa; ở các dòng chỉ xem thì chỉ gắn nhãn cảnh báo ngắn.",
       "Có thể thiết lập Đơn vị cơ sở (`base_unit`), Đơn vị bán mặc định và Đơn vị nhập mặc định của sản phẩm.",
       "Khối `Quy đổi đơn vị` cho phép thêm nhiều đơn vị quy đổi (thùng, hộp, gói...) kèm hệ số quy đổi ra đơn vị cơ sở, giá bán và giá nhập riêng theo từng đơn vị quy đổi.",
+      "Admin có thể bấm nút `Đổi ĐV chính` trên từng mặt hàng hoặc trong form sửa chi tiết để chuyển đổi đơn vị cơ sở (ví dụ từ gói sang lạng hoặc ngược lại); hệ thống sẽ tự động quy đổi tồn kho, lô hàng, giá vốn, giá bán và đơn vị quy đổi phụ với preview trực quan và bảo toàn 100% giá trị tài sản kho.",
       "Có thể nhập thêm Hạn dùng và Bảo quản theo số ngày để làm metadata fallback khi lô chưa có HSD thật; nếu lô đã có HSD riêng thì màn tồn kho sẽ ưu tiên theo dữ liệu lô.",
       "Nếu cần thêm mới, dùng form phía dưới danh sách.",
       "Xem phần Lịch sử sản phẩm bên dưới để biết thay đổi gần đây trước khi chỉnh tiếp.",
