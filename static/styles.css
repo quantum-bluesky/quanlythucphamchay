@@ -724,6 +724,12 @@ select:focus {
   grid-template-columns: repeat(2, 1fr);
 }
 
+@media (min-width: 721px) {
+  .quick-form .action-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 button {
   border: 0;
   border-radius: 999px;

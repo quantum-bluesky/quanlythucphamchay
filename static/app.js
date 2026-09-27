@@ -37,6 +37,7 @@ import {
   productLookupInput,
   productOptions,
   quickTransactionForm,
+  quickClearAllStockButton,
   productForm,
   productImageUpload,
   uploadProductImageButton,
@@ -7165,6 +7166,7 @@ registerInventoryControllerEvents({
   state,
   dom: {
     quickTransactionForm,
+    quickClearAllStockButton,
     productLookupInput,
     quantityInput,
     noteInput,
@@ -7240,10 +7242,13 @@ registerInventoryControllerEvents({
   queries: {
     getProductById,
     getInventoryAdjustmentReason,
+    resolveProductFromText,
   },
   utils: {
     syncPriceWarningGroup,
     syncPriceWarningGroups,
+    formatQuantity,
+    normalizeLookup,
   },
 });
 

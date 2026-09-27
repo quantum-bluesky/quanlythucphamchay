@@ -1,9 +1,9 @@
 {
-  "app_version": "3.37.2",
+  "app_version": "3.37.3",
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "75fc59f530af3a081b4836f31060af978488f8b8fc4a3e3992d84b1a19d4df30"
+      "sha256": "2cb3b8ac9e5ca679fc2cb3526ed0ff882241c7e8909623b29b1abe6a960c3fbb"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -27,7 +27,7 @@
     },
     "modules/controllers/inventory-controller.js": {
       "counter": 1,
-      "sha256": "91044307790ab7e6a56a0533847cfaf4aeaa9fcfbdfecaa34d5055cdfac1c1c1"
+      "sha256": "d6bd37779d64d3e8b10f8b133dbb9156c9d87d862c2cfbe507e030c23dddd5f1"
     },
     "modules/controllers/payments-controller.js": {
       "counter": 1,
@@ -51,7 +51,7 @@
     },
     "modules/dom.js": {
       "counter": 1,
-      "sha256": "aa3e8c8669ea966e6fa0420b7adcabad068626ec7c222802ec6f83cfc43434f6"
+      "sha256": "a6c39ff0eaf2f2ecdf4765dca920fc7586b6c298ccd1fc8aa67adfa0c65293dc"
     },
     "modules/domain-helpers/inventory-domain.js": {
       "counter": 1,
@@ -75,7 +75,7 @@
     },
     "modules/screen-config.js": {
       "counter": 1,
-      "sha256": "c905ba92b68f1f905db655ac59cacd4114397bc892159600f824df1be2004b05"
+      "sha256": "dff457478ab4012024adf4da14b47ae259b8db6d1be838009fab5962525f6944"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -135,7 +135,7 @@
     },
     "styles.css": {
       "counter": 1,
-      "sha256": "a911b7cd34b01a5b4c84cb1a87a2f2c398ccdcd9c6b9d2846fc8cd17da019b88"
+      "sha256": "831b5fef48d136009e14b629154a4d87074e57aec8d3ae64a62d12ca83c7f805"
     },
     "vendor/quill/quill.min.js": {
       "counter": 1,
