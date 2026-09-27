@@ -276,7 +276,6 @@ import {
   previewNewPrice,
   previewNewSalePrice,
 } from "./modules/dom.js";
-import { formatCurrency } from "./modules/utils.js";
 import { SCREEN_HELP, SCREEN_META, FLOATING_SEARCH_CONFIG } from "./modules/screen-config.js";
 import { createCoreUi } from "./modules/ui/core-ui.js";
 import { createProductsUi } from "./modules/ui/products-ui.js";
@@ -7199,7 +7198,6 @@ registerProductsControllerEvents({
     getProductDeleteImpact,
   },
   utils: {
-    formatCurrency,
     formatQuantity,
     syncPriceWarningGroup,
     syncPriceWarningGroups,

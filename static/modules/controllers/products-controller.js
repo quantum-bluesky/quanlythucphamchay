@@ -940,35 +940,58 @@ export function registerProductsControllerEvents(contract) {
     updatePreview();
 
     function closeChangeBaseUnitModal() {
-      dom.changeBaseUnitModal.hidden = true;
-      dom.changeBaseUnitModal.setAttribute("hidden", "");
-      dom.changeBaseUnitModal.style.display = "none";
-      dom.changeBaseUnitForm.onsubmit = null;
+      const modalEl = dom.changeBaseUnitModal || document.getElementById("changeBaseUnitModal");
+      if (modalEl) {
+        modalEl.hidden = true;
+        modalEl.setAttribute("hidden", "");
+        modalEl.style.display = "none";
+      }
+      const form = dom.changeBaseUnitForm || document.getElementById("changeBaseUnitForm");
+      if (form) form.onsubmit = null;
+      const confirmBtn = dom.changeBaseUnitConfirmButton || document.getElementById("changeBaseUnitConfirmButton");
+      if (confirmBtn) confirmBtn.onclick = null;
     }
 
-    dom.changeBaseUnitCancelButton.onclick = closeChangeBaseUnitModal;
-    dom.changeBaseUnitCloseButton.onclick = closeChangeBaseUnitModal;
-    const backdrop = dom.changeBaseUnitModal.querySelector('[data-change-base-unit-close="backdrop"]');
+    const cancelBtn = dom.changeBaseUnitCancelButton || document.getElementById("changeBaseUnitCancelButton");
+    if (cancelBtn) cancelBtn.onclick = closeChangeBaseUnitModal;
+    const closeBtn = dom.changeBaseUnitCloseButton || document.getElementById("changeBaseUnitCloseButton");
+    if (closeBtn) closeBtn.onclick = closeChangeBaseUnitModal;
+    const backdrop = (dom.changeBaseUnitModal || document.getElementById("changeBaseUnitModal"))?.querySelector('[data-change-base-unit-close="backdrop"]');
     if (backdrop) backdrop.onclick = closeChangeBaseUnitModal;
 
-    dom.changeBaseUnitForm.onsubmit = async (e) => {
-      e.preventDefault();
-      const newUnit = dom.changeBaseUnitNewUnitInput.value.trim();
+    const handleConfirm = async (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      if (!product || !product.id) {
+        actions.showToast("Vui lòng lưu sản phẩm trước khi chuyển đổi đơn vị chính.", true);
+        return;
+      }
+
+      const newUnitInput = dom.changeBaseUnitNewUnitInput || document.getElementById("changeBaseUnitNewUnitInput");
+      const newUnit = (newUnitInput?.value || "").trim();
       if (!newUnit) {
         actions.showToast("Vui lòng nhập đơn vị chính mới.", true);
+        newUnitInput?.focus();
         return;
       }
       if (newUnit.toLowerCase() === (product.unit || "").trim().toLowerCase()) {
         actions.showToast("Đơn vị chính mới phải khác đơn vị hiện tại.", true);
+        newUnitInput?.focus();
         return;
       }
 
-      const direction = dom.changeBaseUnitForm.querySelector('input[name="changeBaseUnitDirection"]:checked')?.value || "old_to_new";
+      const form = dom.changeBaseUnitForm || document.getElementById("changeBaseUnitForm");
+      const direction = form?.querySelector('input[name="changeBaseUnitDirection"]:checked')?.value || "old_to_new";
       let K = 1.0;
+      const rateOldToNewInput = dom.changeBaseUnitRateOldToNew || document.getElementById("changeBaseUnitRateOldToNew");
+      const rateNewToOldInput = dom.changeBaseUnitRateNewToOld || document.getElementById("changeBaseUnitRateNewToOld");
       if (direction === "old_to_new") {
-        K = parseFloat(dom.changeBaseUnitRateOldToNew.value) || 0;
+        K = parseFloat(rateOldToNewInput?.value || "0") || 0;
       } else {
-        const rateNewToOld = parseFloat(dom.changeBaseUnitRateNewToOld.value) || 0;
+        const rateNewToOld = parseFloat(rateNewToOldInput?.value || "0") || 0;
         K = rateNewToOld > 0 ? (1.0 / rateNewToOld) : 0;
       }
 
@@ -980,16 +1003,20 @@ export function registerProductsControllerEvents(contract) {
       const confirmMsg = `Xác nhận chuyển đổi đơn vị chính của sản phẩm "${product.name}" từ [${product.unit}] sang [${newUnit}] với tỷ lệ 1 ${product.unit} = ${K} ${newUnit}?\n\nToàn bộ tồn kho, lô hàng và các đơn hàng liên quan sẽ được tự động quy đổi.`;
       if (!window.confirm(confirmMsg)) return;
 
+      const confirmBtn = dom.changeBaseUnitConfirmButton || document.getElementById("changeBaseUnitConfirmButton");
       try {
-        dom.changeBaseUnitConfirmButton.disabled = true;
-        dom.changeBaseUnitConfirmButton.textContent = "Đang chuyển đổi...";
+        if (confirmBtn) {
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = "Đang chuyển đổi...";
+        }
 
+        const keepOldCheck = dom.changeBaseUnitKeepOldCheck || document.getElementById("changeBaseUnitKeepOldCheck");
         const data = await actions.apiRequest(`/api/products/${product.id}/change-base-unit`, {
           method: "POST",
           body: JSON.stringify({
             new_unit: newUnit,
             conversion_rate: K,
-            add_old_unit_to_conversions: Boolean(dom.changeBaseUnitKeepOldCheck?.checked),
+            add_old_unit_to_conversions: Boolean(keepOldCheck?.checked),
           }),
         });
 
@@ -1010,10 +1037,17 @@ export function registerProductsControllerEvents(contract) {
       } catch (err) {
         actions.showToast(err.message || "Lỗi chuyển đổi đơn vị chính.", true);
       } finally {
-        dom.changeBaseUnitConfirmButton.disabled = false;
-        dom.changeBaseUnitConfirmButton.textContent = "Xác nhận chuyển đổi";
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = "Xác nhận chuyển đổi";
+        }
       }
     };
+
+    const confirmButton = dom.changeBaseUnitConfirmButton || document.getElementById("changeBaseUnitConfirmButton");
+    if (confirmButton) confirmButton.onclick = handleConfirm;
+    const formEl = dom.changeBaseUnitForm || document.getElementById("changeBaseUnitForm");
+    if (formEl) formEl.onsubmit = handleConfirm;
 
     modal.hidden = false;
     modal.removeAttribute("hidden");
@@ -1129,11 +1163,6 @@ export function registerProductsControllerEvents(contract) {
       utils.syncPriceWarningGroups(dom.productForm);
       if (dom.btnProductFormChangeBaseUnit) {
         dom.btnProductFormChangeBaseUnit.hidden = false;
-        dom.btnProductFormChangeBaseUnit.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          openChangeBaseUnitModal(product);
-        };
       }
       return;
     }
