@@ -1,5 +1,5 @@
 {
-  "app_version": "3.37.3",
+  "app_version": "3.37.4",
   "files": {
     "app.js": {
       "counter": 1,
@@ -26,8 +26,8 @@
       "sha256": "7c1ed565a9d8203babfc1252a37155d8bda5b2706c9d2e04729aca0256c748a7"
     },
     "modules/controllers/inventory-controller.js": {
-      "counter": 1,
-      "sha256": "d6bd37779d64d3e8b10f8b133dbb9156c9d87d862c2cfbe507e030c23dddd5f1"
+      "counter": 2,
+      "sha256": "d7160bcdad85620c42667f4442127e8120ef936985ff5eeca555fda965fce1ea"
     },
     "modules/controllers/payments-controller.js": {
       "counter": 1,

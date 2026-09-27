@@ -92,7 +92,10 @@ export function registerInventoryControllerEvents(contract) {
         }
       }
 
-      const currentStock = Number(product.current_stock || 0);
+      // Issue #176: round 6 chữ số để loại float noise từ SUM REAL trong SQLite
+      // (ví dụ product.current_stock = 0.010000000000000009 sau khi xuất 0.99 từ 1.0)
+      const currentStock = Math.round(Number(product.current_stock || 0) * 1e6) / 1e6;
+
       if (currentStock <= 0) {
         const formattedStock = utils.formatQuantity ? utils.formatQuantity(currentStock) : String(currentStock);
         actions.showToast(`Mặt hàng "${product.name}" hiện không có tồn kho để xuất (tồn: ${formattedStock}).`, true);
