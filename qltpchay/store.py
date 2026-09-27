@@ -1494,7 +1494,11 @@ class InventoryStore:
             Decimal(str(row["remaining_quantity"] or 0))
             for row in available_batches
         )
-        if quantity > total_available:
+        # Issue #176: Dùng epsilon tolerance để bỏ qua float noise nhỏ (< 0.000001);
+        # ví dụ frontend gửi 0.010000000000000009 (từ SUM REAL) trong khi
+        # inventory_batches.remaining_quantity lưu đúng 0.01 -> so sánh naive sẽ raise lỗi sai.
+        _EPSILON = Decimal("0.000001")
+        if quantity > total_available + _EPSILON:
             if clean_preferred_batch_code:
                 raise ValueError(
                     f"Lô {clean_preferred_batch_code} không đủ tồn để trừ theo phiếu hiện tại."
@@ -3052,15 +3056,17 @@ class InventoryStore:
         }
 
     def _get_stock_for_product(self, connection: sqlite3.Connection, product_id: int) -> Decimal:
+        # Issue #176: Dùng ROUND 6 chữ số trong SQL để loại bỏ float noise từ SUM REAL;
+        # ví dụ 1.0 - 0.99 trong SQLite REAL cho 0.010000000000000009 thay vì 0.01.
         row = connection.execute(
             """
             SELECT COALESCE(
-                SUM(
+                ROUND(SUM(
                     CASE
                         WHEN transaction_type = 'in' THEN quantity
                         ELSE -quantity
                     END
-                ),
+                ), 6),
                 0
             ) AS current_stock
             FROM transactions
