@@ -473,8 +473,10 @@ export function createPurchasesUi(deps) {
     }
     if (dom.purchaseSupplierMenuButton) {
       dom.purchaseSupplierMenuButton.textContent = mobileQuery.matches ? "NCC" : "Nhà cung cấp";
-      dom.purchaseSupplierMenuButton.disabled = Boolean(purchase) && !purchaseSupplierEditable;
-      dom.purchaseSupplierMenuButton.title = purchase && !purchaseSupplierEditable
+      // #Issue 172: Không khóa nút NCC khi phiếu đã nhận/đã trả để người dùng mở danh bạ chọn NCC tạo đơn mới
+      const isSupplierMenuLocked = structureLocked || Boolean(purchase && (purchase.status === "ordered" || purchase._adminEditMode));
+      dom.purchaseSupplierMenuButton.disabled = isSupplierMenuLocked;
+      dom.purchaseSupplierMenuButton.title = isSupplierMenuLocked
         ? (
           structureLocked
             ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được sửa phiếu nhập nháp hoặc đã đặt."

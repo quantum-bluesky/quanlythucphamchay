@@ -2159,6 +2159,10 @@ function canEditPurchaseDiscount(purchase) {
   return getPurchasesDomainHelpers().canEditPurchaseDiscount(purchase);
 }
 
+function isDraftPurchase(purchase) {
+  return getPurchasesDomainHelpers().isDraftPurchase(purchase);
+}
+
 function canEditPurchaseSupplier(purchase) {
   return getPurchasesDomainHelpers().canEditPurchaseSupplier(purchase);
 }
@@ -5423,8 +5427,18 @@ function renderSupplierOptions() {
     : [];
   const priorityMap = new Map(prioritizedSupplierNames.map((name, index) => [name, index]));
   const activeSuppliers = getActiveSuppliers();
-  const originalIndexMap = new Map(activeSuppliers.map((supplier, index) => [supplier.id || supplier.name, index]));
-  supplierOptions.innerHTML = activeSuppliers
+  const supplierNamesSet = new Set(activeSuppliers.map((s) => normalizeText(s.name)));
+  const extraSupplierNames = [];
+  (state.purchases || []).forEach((p) => {
+    const sName = String(p.supplierName || "").trim();
+    if (sName && !supplierNamesSet.has(normalizeText(sName))) {
+      supplierNamesSet.add(normalizeText(sName));
+      extraSupplierNames.push({ name: sName });
+    }
+  });
+  const allSuppliers = [...activeSuppliers, ...extraSupplierNames];
+  const originalIndexMap = new Map(allSuppliers.map((supplier, index) => [supplier.id || supplier.name, index]));
+  supplierOptions.innerHTML = allSuppliers
     .slice()
     .sort((left, right) => {
       const leftPriority = priorityMap.get(normalizeText(left.name));
@@ -5434,7 +5448,7 @@ function renderSupplierOptions() {
       }
       return (originalIndexMap.get(left.id || left.name) || 0) - (originalIndexMap.get(right.id || right.name) || 0);
     })
-    .map((supplier) => `<option value="${escapeHtml(supplier.name)}"></option>`)
+    .map((supplier) => `<option value="${escapeHtml(supplier.name)}">${escapeHtml(supplier.name)}</option>`)
     .join("");
 }
 
@@ -5981,8 +5995,11 @@ function renderAll() {
     purchaseSupplierInput.value = state.pendingPurchaseSupplierName || "";
     purchaseNoteInput.value = "";
   }
+  // #Issue 172: Không khóa ô nhập NCC và nút NCC khi phiếu đã hoàn tất (received/paid) hoặc đã hủy,
+  // giúp người dùng có thể click chọn hoặc đổi NCC để tạo đơn nhập mới
+  const isSupplierInputLocked = Boolean(activePurchase && (activePurchase.status === "ordered" || activePurchase._adminEditMode || isPurchaseStructureLockedByProcurementBatch(activePurchase)));
   if (purchaseSupplierInput) {
-    purchaseSupplierInput.disabled = Boolean(activePurchase) && !supplierEditable;
+    purchaseSupplierInput.disabled = isSupplierInputLocked;
   }
   if (purchaseNoteInput) {
     purchaseNoteInput.disabled = Boolean(activePurchase) && !noteEditable;
@@ -5991,8 +6008,8 @@ function renderAll() {
     salesNoteInput.disabled = !activeCart || !cartNoteEditable;
   }
   if (purchaseSupplierMenuButton) {
-    purchaseSupplierMenuButton.disabled = Boolean(activePurchase) && !supplierEditable;
-    purchaseSupplierMenuButton.title = activePurchase && !supplierEditable
+    purchaseSupplierMenuButton.disabled = isSupplierInputLocked;
+    purchaseSupplierMenuButton.title = activePurchase && (activePurchase.status === "ordered" || activePurchase._adminEditMode)
       ? "Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp."
       : "";
   }
@@ -7486,6 +7503,7 @@ registerPurchasesControllerEvents({
   },
   queries: {
     getActivePurchase,
+    isDraftPurchase,
     getProductById,
     canEditPurchase,
     canEditPurchaseNote,

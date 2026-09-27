@@ -220,6 +220,7 @@ Mục tiêu:
 | 163 | `UT-PUR-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_pur_custom_receive_date` |
 | 164 | `UT-QUICK-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_quick_06_quick_purchase_target_purchase_with_conversion_unit_and_unsaved_id` |
 | 165 | `ACC-QUICK-07` | `tests/integration/quick-purchase-active-order.spec.js` | `npx playwright test tests/integration/quick-purchase-active-order.spec.js` |
+| 166 | `IT-PURSUP-08` | `tests/integration/purchase-create-select-supplier.spec.js` | `npx playwright test tests/integration/purchase-create-select-supplier.spec.js` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

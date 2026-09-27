@@ -1320,6 +1320,7 @@ export function createPurchasesDomainHelpers(deps) {
 
   return {
     getActivePurchase,
+    isDraftPurchase,
     decoratePurchase,
     canMarkPurchasePaid,
     hasPurchaseSupplier,
