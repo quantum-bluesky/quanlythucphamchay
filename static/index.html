@@ -125,8 +125,10 @@
           <form id="quickTransactionForm" class="quick-form">
             <label>
               <span>Sản phẩm</span>
-              <input id="productLookupInput" name="product_lookup" list="productOptions" type="text"
-                placeholder="Gõ tên sản phẩm..." required>
+              <div class="input-clear-wrap">
+                <input id="productLookupInput" name="product_lookup" list="productOptions" type="text"
+                  placeholder="Gõ tên sản phẩm..." required>
+              </div>
             </label>
             <div class="flex-row" style="display: flex; gap: 8px;">
               <label style="flex: 1;">
@@ -190,8 +192,10 @@
           <form id="inventoryReceiptEntryForm" class="quick-form">
             <label>
               <span>Sản phẩm</span>
-              <input id="inventoryReceiptProductInput" type="text" list="productOptions"
-                placeholder="Gõ tên sản phẩm...">
+              <div class="input-clear-wrap">
+                <input id="inventoryReceiptProductInput" type="text" list="productOptions"
+                  placeholder="Gõ tên sản phẩm...">
+              </div>
             </label>
             <label>
               <span>SL điều chỉnh (+/-)</span>
@@ -252,8 +256,10 @@
           <form id="productMovementForm" class="quick-form product-movement-form">
             <label class="product-movement-product-field">
               <span>Sản phẩm</span>
-              <input id="productMovementProductInput" type="text" list="productOptions" placeholder="Gõ tên sản phẩm..."
-                required>
+              <div class="input-clear-wrap">
+                <input id="productMovementProductInput" type="text" list="productOptions" placeholder="Gõ tên sản phẩm..."
+                  required>
+              </div>
             </label>
             <label>
               <span>Từ ngày</span>
@@ -321,8 +327,10 @@
           <div class="sales-customer-form">
             <label>
               <span>Khách hàng</span>
-              <input id="customerLookupInput" type="text" list="customerOptions" maxlength="80"
-                placeholder="Gõ tên khách hàng để tìm hoặc tạo mới">
+              <div class="input-clear-wrap">
+                <input id="customerLookupInput" type="text" list="customerOptions" maxlength="80"
+                  placeholder="Gõ tên khách hàng để tìm hoặc tạo mới">
+              </div>
             </label>
             <label>
               <span>Ghi chú phiếu xuất</span>
@@ -397,8 +405,10 @@
           <div class="sales-customer-form bulk-order-customer-entry">
             <label>
               <span>Khách hàng</span>
-              <input id="bulkCustomerLookupInput" type="text" list="customerOptions" maxlength="80"
-                placeholder="Gõ tên khách có sẵn hoặc tên khách mới">
+              <div class="input-clear-wrap">
+                <input id="bulkCustomerLookupInput" type="text" list="customerOptions" maxlength="80"
+                  placeholder="Gõ tên khách có sẵn hoặc tên khách mới">
+              </div>
             </label>
             <button type="button" id="bulkAddCustomerButton" class="primary-button">+ Thêm khách</button>
           </div>
@@ -706,8 +716,10 @@
           <div class="sales-customer-form">
             <label>
               <span>Nhà cung cấp / ghi chú nguồn hàng</span>
-              <input id="purchaseSupplierInput" type="text" list="supplierOptions" maxlength="120"
-                placeholder="Ví dụ: Chợ đầu mối, NCC Minh Tâm">
+              <div class="input-clear-wrap">
+                <input id="purchaseSupplierInput" type="text" list="supplierOptions" maxlength="120"
+                  placeholder="Ví dụ: Chợ đầu mối, NCC Minh Tâm">
+              </div>
             </label>
             <label>
               <span>Ghi chú phiếu nhập</span>
