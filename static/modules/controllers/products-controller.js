@@ -1,15 +1,23 @@
-import { escapeHtml } from "../utils.js";
+import { escapeHtml, formatCurrency, formatQuantity } from "../utils.js";
+import * as defaultDom from "../dom.js";
 
 let quillEditor = null;
 let recipeQuillEditor = null;
 export function registerProductsControllerEvents(contract) {
+  const dom = {
+    ...defaultDom,
+    ...contract.dom,
+  };
+  const utils = {
+    formatCurrency,
+    formatQuantity,
+    ...contract.utils,
+  };
   const {
     state,
-    dom,
     actions,
     renderers,
     queries,
-    utils,
   } = contract;
 
   const syncDefaultUnitDropdowns = (selectedPurchaseUnit = null, selectedSaleUnit = null) => {
@@ -80,7 +88,7 @@ export function registerProductsControllerEvents(contract) {
       dom.productRecipeEditor.innerHTML = "";
     }
     if (dom.btnProductFormChangeBaseUnit) {
-      dom.btnProductFormChangeBaseUnit.hidden = true;
+      dom.btnProductFormChangeBaseUnit.hidden = false;
     }
     utils.syncPriceWarningGroups(dom.productForm);
   };
@@ -715,11 +723,33 @@ export function registerProductsControllerEvents(contract) {
     utils.syncPriceWarningGroups(dom.productForm);
   });
 
-  if (dom.btnProductFormChangeBaseUnit) {
-    dom.btnProductFormChangeBaseUnit.addEventListener("click", (e) => {
+  const btnProductFormChangeBaseUnitEl = dom.btnProductFormChangeBaseUnit || document.getElementById("btnProductFormChangeBaseUnit");
+  if (btnProductFormChangeBaseUnitEl) {
+    btnProductFormChangeBaseUnitEl.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const targetProduct = queries.getProductById(state.editingProductId) || (state.products || []).find(p => p.id === state.editingProductId);
+      let targetProduct = null;
+      if (state.editingProductId) {
+        targetProduct = queries.getProductById?.(state.editingProductId) || (state.products || []).find(p => p.id == state.editingProductId);
+      }
+      if (!targetProduct && dom.productForm) {
+        const formName = dom.productForm.name?.value?.trim();
+        if (formName) {
+          targetProduct = (state.products || []).find(p => p.name === formName);
+        }
+      }
+      if (!targetProduct && dom.productForm?.name?.value?.trim() && dom.productForm?.unit?.value?.trim()) {
+        targetProduct = {
+          id: state.editingProductId || 0,
+          name: dom.productForm.name.value.trim(),
+          unit: dom.productForm.unit.value.trim(),
+          price: Number(dom.productForm.price?.value || 0),
+          sale_price: Number(dom.productForm.sale_price?.value || 0),
+          current_stock: 0,
+          low_stock_threshold: Number(dom.productForm.low_stock_threshold?.value || 0),
+          unit_conversions: [],
+        };
+      }
       if (!targetProduct) {
         actions.showToast("Vui lòng chọn sản phẩm cần đổi đơn vị chính.", true);
         return;
@@ -765,10 +795,37 @@ export function registerProductsControllerEvents(contract) {
   });
 
   function openChangeBaseUnitModal(productOrId) {
-    const product = typeof productOrId === "object" && productOrId
-      ? productOrId
-      : (state.products || []).find(p => p.id == productOrId) || (state.deletedProducts || []).find(p => p.id == productOrId) || (state.editingProductId ? (state.products || []).find(p => p.id == state.editingProductId) : null);
-    if (!product || !dom.changeBaseUnitModal) {
+    const modal = dom.changeBaseUnitModal || document.getElementById("changeBaseUnitModal");
+    let product = typeof productOrId === "object" && productOrId ? productOrId : null;
+    if (!product && productOrId) {
+      product = queries.getProductById?.(productOrId)
+        || (state.products || []).find(p => p.id == productOrId)
+        || (state.deletedProducts || []).find(p => p.id == productOrId);
+    }
+    if (!product && state.editingProductId) {
+      product = queries.getProductById?.(state.editingProductId)
+        || (state.products || []).find(p => p.id == state.editingProductId);
+    }
+    if (!product && dom.productForm) {
+      const nameVal = dom.productForm.name?.value?.trim();
+      if (nameVal) {
+        product = (state.products || []).find(p => p.name === nameVal);
+      }
+    }
+    if (!product && dom.productForm?.name?.value?.trim() && dom.productForm?.unit?.value?.trim()) {
+      product = {
+        id: state.editingProductId || 0,
+        name: dom.productForm.name.value.trim(),
+        unit: dom.productForm.unit.value.trim(),
+        price: Number(dom.productForm.price?.value || 0),
+        sale_price: Number(dom.productForm.sale_price?.value || 0),
+        current_stock: 0,
+        low_stock_threshold: Number(dom.productForm.low_stock_threshold?.value || 0),
+        unit_conversions: [],
+      };
+    }
+
+    if (!product || !modal) {
       actions.showToast("Không tìm thấy sản phẩm để đổi đơn vị.", true);
       return;
     }
@@ -776,9 +833,9 @@ export function registerProductsControllerEvents(contract) {
     dom.changeBaseUnitProductId.value = product.id;
     dom.changeBaseUnitProductName.textContent = product.name;
     dom.changeBaseUnitOldUnit.textContent = product.unit;
-    dom.changeBaseUnitCurrentStock.textContent = `${utils.formatQuantity(product.current_stock || 0)} ${product.unit}`;
-    dom.changeBaseUnitCurrentPrice.textContent = utils.formatCurrency(product.price || 0);
-    dom.changeBaseUnitCurrentSalePrice.textContent = utils.formatCurrency(product.sale_price || 0);
+    dom.changeBaseUnitCurrentStock.textContent = `${(utils.formatQuantity || formatQuantity)(product.current_stock || 0)} ${product.unit}`;
+    dom.changeBaseUnitCurrentPrice.textContent = (utils.formatCurrency || formatCurrency)(product.price || 0);
+    dom.changeBaseUnitCurrentSalePrice.textContent = (utils.formatCurrency || formatCurrency)(product.sale_price || 0);
 
     dom.changeBaseUnitModal.querySelectorAll(".lbl-old-unit").forEach(el => {
       el.textContent = product.unit;
@@ -835,10 +892,10 @@ export function registerProductsControllerEvents(contract) {
         const newPrice = Math.round((curPrice / K) * 10000) / 10000;
         const newSalePrice = Math.round((curSalePrice / K) * 10000) / 10000;
 
-        dom.previewNewStock.textContent = `${utils.formatQuantity(newStock)} ${newUnit}`;
-        dom.previewNewThreshold.textContent = `${utils.formatQuantity(newThreshold)} ${newUnit}`;
-        dom.previewNewPrice.textContent = `${utils.formatCurrency(newPrice)} / ${newUnit}`;
-        dom.previewNewSalePrice.textContent = `${utils.formatCurrency(newSalePrice)} / ${newUnit}`;
+        dom.previewNewStock.textContent = `${(utils.formatQuantity || formatQuantity)(newStock)} ${newUnit}`;
+        dom.previewNewThreshold.textContent = `${(utils.formatQuantity || formatQuantity)(newThreshold)} ${newUnit}`;
+        dom.previewNewPrice.textContent = `${(utils.formatCurrency || formatCurrency)(newPrice)} / ${newUnit}`;
+        dom.previewNewSalePrice.textContent = `${(utils.formatCurrency || formatCurrency)(newSalePrice)} / ${newUnit}`;
       } else {
         dom.previewNewStock.textContent = "-";
         dom.previewNewThreshold.textContent = "-";
@@ -958,9 +1015,10 @@ export function registerProductsControllerEvents(contract) {
       }
     };
 
-    dom.changeBaseUnitModal.hidden = false;
-    dom.changeBaseUnitModal.removeAttribute("hidden");
-    dom.changeBaseUnitModal.style.display = "grid";
+    modal.hidden = false;
+    modal.removeAttribute("hidden");
+    modal.style.setProperty("display", "grid", "important");
+    modal.style.setProperty("z-index", "1000", "important");
   }
 
   window.openChangeBaseUnitModal = openChangeBaseUnitModal;
