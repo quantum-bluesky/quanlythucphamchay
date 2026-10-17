@@ -97,6 +97,8 @@ Phù hợp khi sửa:
 
 Integration test dùng `Playwright`.
 
+Playwright và integration server dùng chung cấu hình test tại `tests/integration/test_runtime_config.json`. Server integration không đọc config runtime test/production; nó khởi tạo config fixture riêng, dùng tài khoản test, bật mock Zalo và ghi SQLite cùng manifest asset JS vào thư mục tạm. Khi đổi admin path, sửa cấu hình test này hoặc truyền `TEST_ADMIN_PATH` cho cả runner; không sửa URL admin rải rác trong từng test. UI test phải dùng `openAdminPage(page)` trong `tests/integration/support/ui.js`, helper này xác nhận form admin tải thành công trước khi test login.
+
 ### Cài dependency test
 
 ```powershell

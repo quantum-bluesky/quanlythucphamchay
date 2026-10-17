@@ -30,6 +30,12 @@ function attachRuntimeTracking(page, { autoAcceptDialogs = true } = {}) {
   return state;
 }
 
+async function openAdminPage(page) {
+  const adminPath = process.env.TEST_ADMIN_PATH || "admin";
+  await page.goto(adminPath);
+  await expect(page.locator("#adminLoginForm")).toBeVisible();
+}
+
 async function expectScreenTitle(page, title) {
   await expect(page.locator("#activeScreenBarTitle")).toHaveText(title);
 }
@@ -283,6 +289,7 @@ module.exports = {
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
+  openAdminPage,
   gotoWithRetry,
   reloadHealthy,
   switchMenu,

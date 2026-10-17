@@ -62,16 +62,14 @@ DATABASE_URL = current_app.config["DATABASE_URL"]  # RuntimeError khi import mod
 
 ### Database và config test
 
-- Không bao giờ chạy test tự động lên `data/inventory.db`, database production, server staging/remote hoặc file config production. Trước khi chạy, kiểm tra command, URL đích và nguồn DB. Nếu không chứng minh được test đang cô lập, dừng trước khi thực thi lệnh có thể ghi dữ liệu.
+- Không bao giờ chạy test tự động lên `data/inventory.db`, database production, server staging/remote hoặc file config production. Trước khi chạy, kiểm tra command, URL đích và nguồn DB. Integration server phải đặt cả SQLite fixture lẫn manifest asset JS vào thư mục tạm, không được ghi vào `data/`. Nếu không chứng minh được test đang cô lập, dừng trước khi thực thi lệnh có thể ghi dữ liệu.
 - `APP_ENV=test` không đủ để bảo đảm an toàn: `qltpchay/constants.py` vẫn trỏ `DB_PATH` vào `data/inventory.db`. Unit test hiện tạo SQLite file riêng bằng `tempfile`; integration server tạo DB trong thư mục tạm và seed fixture. Giữ cơ chế này hoặc thay bằng cơ chế cô lập đã được xác minh.
-- Integration harness hiện đọc hệ thống config rồi override `admin_path` thành `/admin`. Dùng giá trị `admin_path` do test server/config thực sự cung cấp; không lấy endpoint từ config production, không hardcode `/admin` nếu harness/config có thể thay đổi, và không suy ra rằng load trang gốc `/` là admin.
-- Với UI admin, điều hướng phải đến `admin_path` đầy đủ và khẳng định trang admin đã mở trước khi thao tác đăng nhập. Nếu trang chuyển về frontend, fail sớm bằng assertion URL/selector admin; không tiếp tục thao tác trên trang sai.
+- Integration harness dùng cấu hình test riêng ở `tests/integration/test_runtime_config.json`; không đọc `system_config.json` hoặc `system_config.production.json` để chạy integration test. `playwright.config.js` và test server cùng lấy `TEST_ADMIN_PATH` từ cấu hình này (hoặc override tường minh qua environment).
+- Với UI admin, dùng `openAdminPage(page)` từ `tests/integration/support/ui.js`. Helper điều hướng theo `TEST_ADMIN_PATH` và assert `#adminLoginForm` hiện ra trước khi cho phép thao tác đăng nhập. Không tự gọi `page.goto("/")`/`page.goto("/admin")` trong test admin hoặc tiếp tục thao tác nếu assertion route thất bại.
 
 ```js
 // DO: dùng origin của Playwright và path cấu hình dành riêng cho test.
-const adminPath = process.env.TEST_ADMIN_PATH || "/admin"; // Phải khớp test server hiện hành.
-await page.goto(adminPath);
-await expect(page.locator("#adminLoginForm")).toBeVisible();
+await openAdminPage(page); // Đọc path test dùng chung và xác nhận đúng UI admin.
 ```
 
 ```js

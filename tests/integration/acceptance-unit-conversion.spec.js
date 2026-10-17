@@ -3,7 +3,7 @@ const {
   attachRuntimeTracking,
   autoLoginAdmin,
   expectNoRuntimeErrors,
-  gotoWithRetry,
+  openAdminPage,
   switchMenu,
   waitForAppReady,
 } = require("./support/ui");
@@ -11,7 +11,7 @@ const {
 test("UI-ACCEPTANCE-01 multi-unit conversion, default units, name bugfix, and auto quantity/price recalculation", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await gotoWithRetry(page, "/admin");
+  await openAdminPage(page);
   await page.waitForLoadState("networkidle");
   await autoLoginAdmin(page, request);
   await page.reload({ waitUntil: "networkidle" });

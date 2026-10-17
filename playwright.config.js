@@ -1,4 +1,7 @@
 const { defineConfig } = require("@playwright/test");
+const { adminPath } = require("./tests/integration/support/test-config");
+
+process.env.TEST_ADMIN_PATH = adminPath;
 
 module.exports = defineConfig({
   testDir: "./tests/integration",
@@ -17,6 +20,7 @@ module.exports = defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
     command: "python tests/integration/run_test_server.py --host 127.0.0.1 --port 8130",
     url: "http://127.0.0.1:8130",
+    env: { ...process.env, TEST_ADMIN_PATH: adminPath },
     reuseExistingServer: false,
     timeout: 120000,
   },

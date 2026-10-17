@@ -1,0 +1,35 @@
+{
+  "admin_path": "admin",
+  "admin": {
+    "username": "masteradmin",
+    "password": "admin12345"
+  },
+  "users": [
+    {
+      "username": "user",
+      "password": "user12345",
+      "permissions": ["bulk_order_commit", "bulk_order_create"]
+    },
+    {
+      "username": "staff",
+      "password": "staff12345",
+      "permissions": []
+    },
+    {
+      "username": "bizmanager",
+      "password": "biz12345",
+      "permissions": [
+        "bulk_order_commit",
+        "bulk_order_create",
+        "document_cancel_approve",
+        "inventory_adjust_manage",
+        "order_batch_manage",
+        "procurement_batch_manage"
+      ]
+    }
+  ],
+  "EnableLogin": true,
+  "EnableMultiuserConflictCheck": true,
+  "EnableAdminLockedEdit": true,
+  "zalo_mock_test_mode": true
+}

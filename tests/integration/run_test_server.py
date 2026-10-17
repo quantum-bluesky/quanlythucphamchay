@@ -6,6 +6,7 @@ import shutil
 import signal
 import sys
 import tempfile
+import threading
 from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -17,7 +18,7 @@ if str(REPO_ROOT) not in sys.path:
 
 import qltpchay.constants as constants
 from qltpchay.auth import AdminSessionManager
-from qltpchay.config import load_system_config
+from test_runtime_config import load_test_system_config
 from qltpchay.http_handler import create_handler
 from qltpchay.logger import get_logger
 from qltpchay.store import InventoryStore
@@ -259,6 +260,8 @@ def main() -> int:
 
     temp_root = Path(tempfile.mkdtemp(prefix="qltpchay-int-"))
     db_path = temp_root / "inventory-test.db"
+    if not db_path.resolve().is_relative_to(temp_root.resolve()):
+        raise RuntimeError("Integration test database must stay inside its temporary directory.")
     # Issue: redirect DATA_DIR về temp để upload ảnh test không vào data/ thật
     constants.DATA_DIR = temp_root
     constants.BACKUP_DIR = temp_root / "backups"
@@ -272,10 +275,9 @@ def main() -> int:
     store = InventoryStore(db_path)
     build_fixture(store)
 
-    system_config = load_system_config()
-    system_config["admin_path"] = "/admin"
-    system_config["EnableMultiuserConflictCheck"] = True
-    system_config["EnableAdminLockedEdit"] = True
+    system_config = load_test_system_config()
+    # Static asset refreshes write their manifest; keep that mutation inside the disposable fixture.
+    system_config["asset_versions_path"] = str(temp_root / "js_asset_versions.json")
 
     # Giảm nhiễu log console cho Playwright runner khi chạy qua summary script
     if os.environ.get("QLTP_QUIET_TEST_SERVER") == "1":
@@ -295,7 +297,8 @@ def main() -> int:
     )
 
     def shutdown_handler(*_args) -> None:
-        server.shutdown()
+        # BaseServer.shutdown() waits for serve_forever(); signal handlers must not wait on that same thread.
+        threading.Thread(target=server.shutdown, daemon=True).start()
 
     signal.signal(signal.SIGTERM, shutdown_handler)
     signal.signal(signal.SIGINT, shutdown_handler)
