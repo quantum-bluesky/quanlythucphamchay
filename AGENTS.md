@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Quy tắc bắt buộc cho Agent
+
+Trước khi sửa code hoặc chạy test, Agent phải đọc [AGENT_RULES.md](AGENT_RULES.md) và tuân thủ quy tắc kiến trúc/test tại đó. Tài liệu này bổ sung quy trình thực tế cho repo; nếu phát hiện code hoặc cấu hình đã đổi, hãy kiểm tra lại nguồn hiện hành trước khi làm.
+
 ## Mục tiêu project
 
 Ứng dụng này là hệ thống quản lý thực phẩm chay chạy bằng Python stdlib + SQLite + SPA frontend.
