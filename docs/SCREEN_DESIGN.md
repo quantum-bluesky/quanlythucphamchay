@@ -46,6 +46,7 @@ Liên kết detail hiện có:
 - `Sắp hết` chỉ áp dụng khi hàng còn tồn (tồn kho >= đơn vị nhỏ nhất của mặt hàng) và backend xác định tồn đã bằng hoặc thấp hơn `ngưỡng sắp hết` của mặt hàng
 - khi tồn bằng `0` hoặc nhỏ hơn đơn vị nhỏ nhất của mặt hàng, ưu tiên `Sắp về` nếu có lượng nhập đang mở; nếu không thì hiển thị `Hết hàng`
 - client dùng cờ `is_low_stock` từ API để đồng nhất với rule tại màn `Sản phẩm`, không tự tính một ngưỡng riêng
+- số lượng và đơn vị trên trang public dùng `Đơn vị bán mặc định`; đơn gửi lên được chốt thành snapshot theo đơn vị và giá bán của đơn vị đó, còn tồn kho vẫn quy về `Đơn vị cơ sở`
 
 ### `inventory` - Kiểm tra tồn kho
 

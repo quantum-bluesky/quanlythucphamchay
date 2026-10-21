@@ -354,6 +354,7 @@ ordered -> cancelled
 - thêm mới
 - cấu hình Đơn vị cơ sở (`base_unit`), Đơn vị nhập mặc định (`default_purchase_unit`), Đơn vị bán mặc định (`default_sale_unit`)
 - cấu hình bảng Quy đổi đơn vị (`product_unit_conversion`) cho từng sản phẩm
+- Đơn public và đơn xuất mặc định ghi số lượng, đơn vị, giá theo `default_sale_unit`; phiếu nhập mặc định dùng `default_purchase_unit`. Cả hai vẫn quy lượng tồn về `base_unit`.
 - sửa giá nhập / giá bán mặc định
 - soft delete khi ngừng bán
 - xem audit lịch sử sản phẩm

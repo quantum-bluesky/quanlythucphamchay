@@ -202,6 +202,21 @@ function checkProductHasStock(product) {
   return stock >= (minUnit - 0.00001);
 }
 
+// #Issue180: Resolve the configured selling unit, quantity factor, and unit price for public orders.
+function getPublicSaleUnit(product) {
+  const configuredUnit = product.default_sale_unit || product.unit || "";
+  const configuredConversion = (product.unit_conversions || []).find((entry) => entry.from_unit === configuredUnit);
+  const unit = configuredUnit === product.unit || configuredConversion ? configuredUnit : (product.unit || "");
+  const conversion = unit === configuredUnit ? configuredConversion : null;
+  const factor = conversion && Number(conversion.conversion_factor) > 0 ? Number(conversion.conversion_factor) : 1;
+  const basePrice = Number(product.sale_price || product.price || 0);
+  return {
+    unit,
+    factor,
+    price: conversion ? Number(conversion.sale_price || (basePrice * factor)) : basePrice,
+  };
+}
+
 // Issue 8: Cập nhật phần chia tách đơn trong modal chốt đơn
 function updateCheckoutSplitSection() {
   const splitOptionSection = document.getElementById('checkoutSplitOptionSection');
@@ -264,7 +279,8 @@ function renderCheckoutReview() {
       if (p) {
         totalQuantity += qty;
 
-        const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+        const saleUnit = getPublicSaleUnit(p).unit;
+        const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(saleUnit ? saleUnit.toLowerCase() : '');
         const stepVal = isIndivisible ? "1" : "0.1";
 
         const itemDiv = document.createElement('div');
@@ -285,7 +301,7 @@ function renderCheckoutReview() {
             <button type="button" class="btn-review-qty-minus" data-id="${p.id}" title="Giảm số lượng" style="width: 28px; height: 28px; padding: 0; font-size: 16px; font-weight: bold; border: 1px solid #ccc; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; cursor: pointer; user-select: none;">-</button>
             <input type="number" class="review-input-qty" data-id="${p.id}" value="${qty}" min="0" step="${stepVal}" style="width: 52px; text-align: center; height: 28px; border-radius: 4px; border: 1px solid #1976d2; padding: 0 2px; font-weight: 600; color: #1976d2; font-size: 0.95rem; background: #e3f2fd;" title="Nhập số lượng">
             <button type="button" class="btn-review-qty-plus" data-id="${p.id}" title="Tăng số lượng" style="width: 28px; height: 28px; padding: 0; font-size: 16px; font-weight: bold; border: 1px solid #ccc; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; cursor: pointer; user-select: none;">+</button>
-            <span style="font-size: 0.85em; color: #555; margin-left: 2px; white-space: nowrap;">${p.unit || 'món'}</span>
+            <span style="font-size: 0.85em; color: #555; margin-left: 2px; white-space: nowrap;">${saleUnit || 'món'}</span>
           </div>
         `;
 
@@ -573,7 +589,8 @@ function setupCart() {
         const p = allProducts.find(x => String(x.id) === id);
         if (p) {
           const qty = window.selectedProducts[id];
-          const price = p.sale_price || p.price || 0;
+          const saleUnit = getPublicSaleUnit(p);
+          const price = saleUnit.price;
           const lineTotal = price * qty;
           const hasStock = checkProductHasStock(p);
           const hasIncoming = (p.incoming_open_purchases !== undefined && p.incoming_open_purchases > 0);
@@ -582,15 +599,18 @@ function setupCart() {
           const itemPayload = {
             product_id: p.id,
             product_name: p.name,
-            quantity: qty,
+            quantity: qty * saleUnit.factor,
+            input_quantity: qty,
+            input_unit: saleUnit.unit,
+            conversion_factor: saleUnit.factor,
             unit_price: price,
             price: price,
-            unit: p.unit
+            unit: saleUnit.unit
           };
           const itemSummary = {
             name: p.name,
             quantity: qty,
-            unit: p.unit,
+            unit: saleUnit.unit,
             price: price,
             total: lineTotal,
             isOutOfStock
@@ -1051,7 +1071,8 @@ function renderProducts(products) {
 
     const qty = window.selectedProducts[p.id] || 0;
 
-    const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+    const saleUnit = getPublicSaleUnit(p).unit;
+    const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(saleUnit ? saleUnit.toLowerCase() : '');
     const stepVal = isIndivisible ? "1" : "0.1";
 
     const hasStock = checkProductHasStock(p);
@@ -1081,7 +1102,7 @@ function renderProducts(products) {
         </label>
         <div class="qty-control" style="${qty > 0 ? 'display: flex; align-items: center; gap: 4px;' : 'display: none;'}">
           <input type="number" class="input-qty" data-id="${p.id}" value="${qty > 0 ? qty : 1}" min="${stepVal}" step="${stepVal}" style="width: 60px; text-align: center; height: 32px; border-radius: 4px; border: 1px solid #ccc; padding: 0 4px;">
-          <span class="unit-display" style="font-size: 0.9em; color: #555; white-space: nowrap;">${p.unit || ''}</span>
+          <span class="unit-display" style="font-size: 0.9em; color: #555; white-space: nowrap;">${saleUnit || ''}</span>
         </div>
       </div>
     `;
@@ -1170,7 +1191,8 @@ function renderProducts(products) {
           }
           let rawStr = String(inputQty.value || '').replace(',', '.');
           let val = parseFloat(rawStr) || 1;
-          const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+          const selectedUnit = getPublicSaleUnit(p).unit;
+          const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(selectedUnit ? selectedUnit.toLowerCase() : '');
           if (isIndivisible) {
             if (isNaN(val) || val < 1) val = 1;
             else val = Math.round(val);
@@ -1195,7 +1217,8 @@ function renderProducts(products) {
       inputQty.addEventListener('change', (e) => {
         let rawStr = String(e.target.value || '').replace(',', '.');
         let val = parseFloat(rawStr);
-        const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(p.unit ? p.unit.toLowerCase() : '');
+        const selectedUnit = getPublicSaleUnit(p).unit;
+        const isIndivisible = ['gói', 'cái', 'hộp', 'chiếc', 'khoanh'].includes(selectedUnit ? selectedUnit.toLowerCase() : '');
         if (isIndivisible) {
           if (isNaN(val) || val < 1) val = 1;
           else val = Math.round(val);
@@ -1243,7 +1266,7 @@ function updateCartUI() {
             div.style.cssText = "display: flex; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid #eee;";
             div.innerHTML = `
               <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 8px;">${p.name}</span>
-              <span style="font-weight: 500; white-space: nowrap;">${qty} ${p.unit || ''}</span>
+              <span style="font-weight: 500; white-space: nowrap;">${qty} ${getPublicSaleUnit(p).unit || ''}</span>
             `;
             itemsList.appendChild(div);
           }

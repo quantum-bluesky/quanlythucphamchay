@@ -54,6 +54,8 @@ Trang danh mục thực phẩm công khai hiển thị bốn trạng thái:
 
 Muốn ẩn riêng một mặt hàng khỏi trang công khai, vào màn `Sản phẩm`, mở sửa chi tiết, bỏ chọn `Hiển thị trên Web (Public)` rồi lưu. Bật lại tùy chọn này để mặt hàng xuất hiện trở lại.
 
+Khi khách chọn sản phẩm trên web, số lượng và đơn vị hiển thị theo `Đơn vị bán mặc định` đã cấu hình ở sản phẩm. Khi đơn về màn quản trị, dòng hàng giữ đơn vị và giá bán theo đơn vị đó; số lượng tồn kho vẫn được quy về `Đơn vị cơ sở`.
+
 ## 3. Luồng làm việc hằng ngày
 
 ### Luồng A: Kiểm tra tồn kho đầu ngày
@@ -403,7 +405,7 @@ Màn này dùng để:
 ### Cách thiết lập đơn vị và quy đổi đơn vị
 
 1. **Đơn vị cơ sở (Base Unit)**: Là đơn vị chuẩn duy nhất dùng để quản lý số lượng tồn kho vật lý và tính toán biến động sổ kho của sản phẩm.
-2. **Đơn vị nhập mặc định & Đơn vị bán mặc định**: Khi lập đơn bán hoặc phiếu nhập, hệ thống sẽ tự động chọn trước đơn vị này để tiết kiệm thời gian thao tác.
+2. **Đơn vị nhập mặc định & Đơn vị bán mặc định**: Đơn khách đặt trên web và đơn xuất mặc định tính theo Đơn vị bán; phiếu nhập mặc định tính theo Đơn vị nhập. Dòng chứng từ lưu số lượng, đơn vị, hệ số và giá tại thời điểm lập; tồn kho luôn quy về Đơn vị cơ sở.
 3. **Thêm quy đổi đơn vị**:
    - Trong form chi tiết sản phẩm, tại khối `Quy đổi đơn vị`, bấm `+ Thêm quy đổi`.
    - Nhập `Đơn vị quy đổi` (ví dụ: `thùng`, `hộp`, `gói`...).

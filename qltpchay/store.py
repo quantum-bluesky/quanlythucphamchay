@@ -7191,10 +7191,42 @@ class InventoryStore:
         if not items:
             raise ValueError("Giỏ hàng đang trống.")
 
-        grouped_items = self._group_sale_items(items)
         now = utc_now_iso()
 
         with self._connect() as connection:
+            # #Issue180: Public quantities and prices are interpreted using the product's configured sale unit.
+            configured_sale_items = []
+            for raw_item in items:
+                product_id = int(raw_item.get("product_id") or raw_item.get("productId") or 0)
+                product = self._get_product_or_raise(connection, product_id)
+                input_quantity = parse_positive_decimal(
+                    raw_item.get("inputQuantity") or raw_item.get("input_quantity") or raw_item.get("quantity"),
+                    "Số lượng theo đơn vị bán",
+                )
+                sale_unit = str(product["default_sale_unit"] or product["unit"] or "").strip()
+                factor = 1.0
+                sale_price = float(product["sale_price"] or product["price"] or 0)
+                if sale_unit and sale_unit != str(product["unit"] or ""):
+                    conversion = connection.execute(
+                        "SELECT conversion_factor, sale_price FROM product_unit_conversion WHERE product_id = ? AND from_unit = ? AND is_active = 1 LIMIT 1",
+                        (product_id, sale_unit),
+                    ).fetchone()
+                    if conversion:
+                        factor = float(conversion["conversion_factor"] or 1)
+                        sale_price = float(conversion["sale_price"] or (sale_price * factor))
+                    else:
+                        sale_unit = str(product["unit"] or "")
+                configured_sale_items.append({
+                    "product_id": product_id,
+                    "quantity": float(input_quantity) * factor,
+                    "input_quantity": float(input_quantity),
+                    "input_unit": sale_unit or str(product["unit"] or ""),
+                    "conversion_factor": factor,
+                    "unit_price": sale_price,
+                    "note": raw_item.get("note") or "",
+                })
+            grouped_items = self._group_sale_items(configured_sale_items)
+
             existing_customer = None
             if clean_zalo_id:
                 row = connection.execute(
@@ -7266,20 +7298,32 @@ class InventoryStore:
                 cart_id = existing_cart_row["id"]
                 # Lấy items cũ
                 existing_items_rows = connection.execute(
-                    "SELECT product_id, quantity FROM cart_items WHERE cart_id = ?",
+                    "SELECT * FROM cart_items WHERE cart_id = ? ORDER BY sort_order, id",
                     (cart_id,)
                 ).fetchall()
-                
-                # Gom items cũ và mới
-                combined_items = list(items)
-                for item_row in existing_items_rows:
-                    combined_items.append({
-                        "product_id": item_row["product_id"],
-                        "quantity": float(item_row["quantity"] or 0)
-                    })
-                
-                grouped_items = self._group_sale_items(combined_items)
-                cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
+                # #Issue180: Keep existing order line snapshots intact when new lines use another configured unit.
+                cart_items = [self._serialize_cart_item_row(row) for row in existing_items_rows]
+                new_cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
+                for new_item in new_cart_items:
+                    matching_item = next((
+                        old_item for old_item in cart_items
+                        if int(old_item.get("productId") or old_item.get("product_id") or 0) == int(new_item["productId"])
+                        and str(old_item.get("inputUnit") or old_item.get("input_unit") or "") == str(new_item["inputUnit"])
+                        and float(old_item.get("conversionFactor") or old_item.get("conversion_factor") or 1) == float(new_item["conversionFactor"])
+                        and float(old_item.get("unitPrice") or old_item.get("unit_price") or 0) == float(new_item["unitPrice"])
+                    ), None)
+                    if matching_item:
+                        next_quantity = round(float(matching_item.get("quantity") or 0) + float(new_item["quantity"]), 4)
+                        next_input_quantity = round(
+                            float(matching_item.get("inputQuantity") or matching_item.get("input_quantity") or 0)
+                            + float(new_item["inputQuantity"]),
+                            4,
+                        )
+                        matching_item["quantity"] = next_quantity
+                        matching_item["inputQuantity"] = next_input_quantity
+                        matching_item["input_quantity"] = next_input_quantity
+                    else:
+                        cart_items.append(new_item)
                 
                 # Nối ghi chú
                 new_note = existing_cart_row["note"] or ""
@@ -8851,6 +8895,33 @@ class InventoryStore:
                 raw_input_qty = raw_item.get("inputQuantity", raw_item.get("input_quantity"))
                 raw_input_unit = raw_item.get("inputUnit", raw_item.get("input_unit"))
                 raw_conv_factor = raw_item.get("conversionFactor", raw_item.get("conversion_factor"))
+                # #Issue180: Fill omitted purchase unit snapshots from the product's configured default.
+                default_purchase_unit = str(product["default_purchase_unit"] or product["unit"] or "").strip()
+                input_unit = str(raw_input_unit or default_purchase_unit).strip()
+                conversion = None
+                if input_unit and input_unit != str(product["unit"] or ""):
+                    conversion = connection.execute(
+                        "SELECT conversion_factor, price FROM product_unit_conversion WHERE product_id = ? AND from_unit = ? AND is_active = 1 LIMIT 1",
+                        (product_id, input_unit),
+                    ).fetchone()
+                if raw_input_unit is None and input_unit != str(product["unit"] or "") and not conversion:
+                    input_unit = str(product["unit"] or "")
+                input_factor = (
+                    float(raw_conv_factor)
+                    if raw_conv_factor is not None
+                    else float(conversion["conversion_factor"] or 1) if conversion else 1.0
+                )
+                raw_unit_cost = raw_item.get("unitCost", raw_item.get("unit_cost"))
+                if raw_unit_cost is None:
+                    unit_cost = parse_non_negative_decimal(
+                        (conversion["price"] or (float(product["price"] or 0) * input_factor))
+                        if conversion else product["price"] or 0,
+                        "Giá nhập",
+                    )
+                input_qty = parse_positive_decimal(
+                    raw_input_qty if raw_input_qty is not None else quantity,
+                    "Số lượng theo đơn vị nhập",
+                )
                 normalized_items.append(
                     {
                         "id": str(raw_item.get("id") or f"purchase_item_{secrets.token_urlsafe(8)}"),
@@ -8858,7 +8929,7 @@ class InventoryStore:
                         "productName": str(product["name"] or "").strip(),
                         "sourceKind": "extra",
                         "sourceNote": "Tạo bằng Xử lý nhanh nhập hàng",
-                        "quantity": round(float(quantity), 2),
+                        "quantity": round(float(input_qty) * input_factor, 2),
                         "unitCost": round(float(unit_cost), 2),
                         "discountAmount": round(float(item_discount), 2),
                         "batchCode": str(raw_item.get("batchCode") or raw_item.get("batch_code") or "").strip(),
@@ -8866,9 +8937,9 @@ class InventoryStore:
                         "manufactureDate": raw_item.get("manufactureDate") or raw_item.get("manufacture_date") or "",
                         "expiryDate": raw_item.get("expiryDate") or raw_item.get("expiry_date") or "",
                         "sortOrder": index,
-                        "inputQuantity": round(float(raw_input_qty), 4) if raw_input_qty is not None else round(float(quantity), 4),
-                        "inputUnit": str(raw_input_unit or product["unit"] or "").strip() or None,
-                        "conversionFactor": float(raw_conv_factor) if raw_conv_factor is not None else 1.0,
+                        "inputQuantity": round(float(input_qty), 4),
+                        "inputUnit": input_unit or str(product["unit"] or ""),
+                        "conversionFactor": input_factor,
                     }
                 )
             for index, item in enumerate(normalized_items):

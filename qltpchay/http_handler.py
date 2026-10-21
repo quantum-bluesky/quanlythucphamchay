@@ -236,6 +236,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "name": p["name"],
                         "category": p["category"],
                         "unit": p["unit"],
+                        # #Issue180: Public catalog displays and orders using the configured sale unit.
+                        "default_sale_unit": p.get("default_sale_unit") or p["unit"],
                         "sale_price": p["sale_price"],
                         "current_stock": p.get("current_stock", 0),
                         # Public stock badges must use the same threshold rule as internal product screens.
