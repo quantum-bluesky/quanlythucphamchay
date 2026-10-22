@@ -254,6 +254,27 @@ import {
   documentActionDateCancelButton,
   documentActionDateConfirmButton,
   documentActionDateCloseButton,
+  btnProductFormChangeBaseUnit,
+  changeBaseUnitModal,
+  changeBaseUnitForm,
+  changeBaseUnitProductId,
+  changeBaseUnitProductName,
+  changeBaseUnitOldUnit,
+  changeBaseUnitCurrentStock,
+  changeBaseUnitCurrentPrice,
+  changeBaseUnitCurrentSalePrice,
+  changeBaseUnitNewUnitInput,
+  changeBaseUnitSuggestedList,
+  changeBaseUnitRateOldToNew,
+  changeBaseUnitRateNewToOld,
+  changeBaseUnitKeepOldCheck,
+  changeBaseUnitCancelButton,
+  changeBaseUnitConfirmButton,
+  changeBaseUnitCloseButton,
+  previewNewStock,
+  previewNewThreshold,
+  previewNewPrice,
+  previewNewSalePrice,
 } from "./modules/dom.js";
 import { SCREEN_HELP, SCREEN_META, FLOATING_SEARCH_CONFIG } from "./modules/screen-config.js";
 import { createCoreUi } from "./modules/ui/core-ui.js";
@@ -7135,6 +7156,27 @@ registerProductsControllerEvents({
     productDefaultPurchaseUnitSelect,
     productDefaultSaleUnitSelect,
     mobileQuery,
+    btnProductFormChangeBaseUnit,
+    changeBaseUnitModal,
+    changeBaseUnitForm,
+    changeBaseUnitProductId,
+    changeBaseUnitProductName,
+    changeBaseUnitOldUnit,
+    changeBaseUnitCurrentStock,
+    changeBaseUnitCurrentPrice,
+    changeBaseUnitCurrentSalePrice,
+    changeBaseUnitNewUnitInput,
+    changeBaseUnitSuggestedList,
+    changeBaseUnitRateOldToNew,
+    changeBaseUnitRateNewToOld,
+    changeBaseUnitKeepOldCheck,
+    changeBaseUnitCancelButton,
+    changeBaseUnitConfirmButton,
+    changeBaseUnitCloseButton,
+    previewNewStock,
+    previewNewThreshold,
+    previewNewPrice,
+    previewNewSalePrice,
   },
   actions: {
     apiRequest,
@@ -8169,6 +8211,17 @@ function showProductDetailModal(productId) {
   } else {
     if (recipeEl) recipeEl.innerHTML = "";
     if (recipeContainer) recipeContainer.hidden = true;
+  }
+
+  const changeBaseUnitBtn = document.getElementById("productDetailChangeBaseUnitButton");
+  if (changeBaseUnitBtn) {
+    changeBaseUnitBtn.hidden = false;
+    changeBaseUnitBtn.onclick = () => {
+      modal.hidden = true;
+      if (typeof window.openChangeBaseUnitModal === "function") {
+        window.openChangeBaseUnitModal(product);
+      }
+    };
   }
 
   modal.hidden = false;
