@@ -410,6 +410,7 @@ Liên kết detail hiện có:
   - header session có tên user, dropdown `Chuyển quyền...` và nút `Logout`
   - export/import master
   - backup/restore database
+  - khối `Kiểm tra gửi mail` với nút gửi email thử, trạng thái đang gửi/thành công/thất bại và chi tiết môi trường, máy chủ SMTP, bảo mật/cổng, người gửi, người nhận, thời điểm chạy; không hiển thị mật khẩu
   - panel `Legacy Audit` gồm:
     - summary card số lượng anomaly
     - khối `fix an toàn`
@@ -418,6 +419,7 @@ Liên kết detail hiện có:
 - nguyên tắc UI:
   - chọn account nhanh chỉ hiển thị type quyền cố định trong dropdown; không gọi API lấy list user, không lộ username trong option label/value, không lưu hoặc tự điền password
   - khi switch sang nhóm quyền khác từ header, app phải logout phiên hiện tại và yêu cầu nhập lại password trước khi chuyển quyền
+  - thao tác test mail yêu cầu xác nhận, chỉ gửi tới danh sách nhận server đã cấu hình; kết quả render thông tin kết nối và địa chỉ phục vụ đối chiếu nhưng không render thông tin đăng nhập
 
 ### `about` - About ứng dụng
 

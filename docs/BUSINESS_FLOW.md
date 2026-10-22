@@ -476,6 +476,7 @@ ordered -> cancelled
   - export/import master data
   - backup database
   - restore database
+  - test gửi email qua cấu hình SMTP runtime tới danh sách người nhận đã cấu hình; thao tác chỉ dành cho Master Admin, xác nhận trước khi gửi, không tạo dữ liệu nghiệp vụ; màn hình thể hiện thời điểm, môi trường, máy chủ, người gửi/nhận và kết quả SMTP nhưng không lộ credential
 
 ## 11. Rule business cốt lõi
 

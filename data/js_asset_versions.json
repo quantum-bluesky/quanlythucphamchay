@@ -2,8 +2,8 @@
   "app_version": "3.40.0",
   "files": {
     "app.js": {
-      "counter": 2,
-      "sha256": "bcb42ce6566adb920717463220f843b77cdf4b71b6c4a0eed50cab85e925321b"
+      "counter": 3,
+      "sha256": "0ada8bf4959c706c8049c38a8d4f0cecfb2adf486780ec7705aa9107cc8b73d3"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -42,16 +42,16 @@
       "sha256": "9fb3d12fe8ee9e43dc901afc65c398035179c191a450967b50bcca5da48dea99"
     },
     "modules/controllers/reports-admin-controller.js": {
-      "counter": 1,
-      "sha256": "1465e6beb1859304bffbbf752402f4deabebb9b4274272951a0315052a71ff6c"
+      "counter": 3,
+      "sha256": "ed3da0858f7e8458bafa850ebd9891b52c0b978d3a186d54fcf29b47ce7d5b98"
     },
     "modules/controllers/sales-controller.js": {
       "counter": 1,
       "sha256": "0ae59686a4d0ed2db24ba356ef3ff7d4dc8532c7cc9396ad08e8b92971257dcb"
     },
     "modules/dom.js": {
-      "counter": 1,
-      "sha256": "00cfd5a54a17fd6369ed29e2e5a12cf094ea446a0a88b125f315c14ffa43c591"
+      "counter": 2,
+      "sha256": "6e4e71124b98ecf7c55a6e98001bbc8d72fac70b11a86953359987116d9999f5"
     },
     "modules/domain-helpers/inventory-domain.js": {
       "counter": 1,
@@ -74,8 +74,8 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 1,
-      "sha256": "0369cb1c01541dc453408d84c5e7f0a23bfd339196df0b9c34d7946bff3247a8"
+      "counter": 3,
+      "sha256": "ecfbbde328f74ca84f403c4bfc976cb18f8292a88472ee91feb346146a0f7bc2"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -110,8 +110,8 @@
       "sha256": "8495e79646e4f5a92bce73283eb2e126b05a3dafe2fdb6a7066d1dd6d83a93e7"
     },
     "modules/ui/reports-admin-ui.js": {
-      "counter": 1,
-      "sha256": "0b1bb53d5dc7bb1b9272971efbf73d0111787ba38813b9ec349628708eb2d4c7"
+      "counter": 2,
+      "sha256": "13772a540be051044944f9462ae98de4a8ca5475e28bd87d60ebf563a48dc289"
     },
     "modules/ui/sales-ui.js": {
       "counter": 1,
@@ -134,8 +134,8 @@
       "sha256": "bcd7b2f3c3f8173a87a0db503713d4fff866932f42aa2b83255895b0eda7c557"
     },
     "styles.css": {
-      "counter": 2,
-      "sha256": "9d2c1e37c9b743a8214aba9c19793d35a2ab7b1681428b82ee7db3ee205598fd"
+      "counter": 3,
+      "sha256": "a8bd63464d156fb9c77529a59aee57c9216c2063196d3e459316942b3ff79bb9"
     },
     "vendor/quill/quill.min.js": {
       "counter": 1,

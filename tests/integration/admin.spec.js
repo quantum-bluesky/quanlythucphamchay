@@ -88,5 +88,57 @@ test("ACC-ADM-01 / ACC-ADM-02 master admin login, export, import, backup and res
   expectNoRuntimeErrors(runtime);
 });
 
+test("ACC-ADM-04 Master Admin can send a configured-recipient test mail after confirmation", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
+  let confirmMessage = "";
+  let requestPayload = null;
+
+  await openAdminPage(page);
+  await page.waitForLoadState("networkidle");
+  await autoLoginAdmin(page, request);
+  await page.reload({ waitUntil: "networkidle" });
+  await switchMenu(page, "admin");
+  await expect(page.locator("#adminModulePanel")).toBeVisible();
+  await expect(page.locator("#adminTestMailButton")).toBeVisible();
+
+  page.once("dialog", async (dialog) => {
+    confirmMessage = dialog.message();
+    await dialog.accept();
+  });
+  await page.route("**/api/admin/test-mail", async (route) => {
+    requestPayload = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        message: "Máy chủ SMTP đã nhận email thử.",
+        result: {
+          status: "sent",
+          tested_at: "2026-10-23T10:30:00+07:00",
+          environment: "production",
+          smtp_host: "smtp.test.invalid",
+          smtp_port: 587,
+          security: "STARTTLS",
+          from_email: "sender@test.invalid",
+          to_emails: ["recipient@test.invalid"],
+          recipient_count: 1,
+        },
+      }),
+    });
+  });
+
+  await page.locator("#adminTestMailButton").click();
+  await expect(page.locator("#adminTestMailStatus")).toContainText("Số người nhận: 1");
+  await expect(page.locator("#adminTestMailStatus")).toContainText("SMTP đã nhận");
+  await expect(page.locator("#adminTestMailResult")).toHaveAttribute("data-state", "sent");
+  await expect(page.locator('[data-mail-result="environment"]')).toHaveText("production");
+  await expect(page.locator('[data-mail-result="server"]')).toHaveText("smtp.test.invalid:587");
+  await expect(page.locator('[data-mail-result="recipients"]')).toContainText("recipient@test.invalid");
+  await expect(page.locator('[data-mail-result="tested-at"]')).not.toHaveText("—");
+  expect(confirmMessage).toContain("toàn bộ người nhận");
+  expect(requestPayload).toEqual({});
+  expectNoRuntimeErrors(runtime);
+});
+
 
 

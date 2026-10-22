@@ -7,7 +7,7 @@
   "admin_path": "qlht",
   "EnableLogin": true,
   "EnableMultiuserConflictCheck": false,
-  "EnableAdminLockedEdit": false,
+  "EnableAdminLockedEdit": true,
   "session_timeout_minutes": 360,
   "admin_session_timeout_minutes": 30,
   "admin": {
@@ -74,7 +74,7 @@
     ]
   },
   "mail": {
-    "enabled": false,
+    "enabled": true,
     "smtp_host": "",
     "smtp_port": 587,
     "username": "",

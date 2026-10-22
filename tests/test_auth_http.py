@@ -11,6 +11,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 from qltpchay.auth import SessionManager
 from qltpchay.config import load_system_config
@@ -1262,6 +1263,73 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(approve_status, 200)
         self.assertEqual(approve_payload["request"]["status"], "processed")
         self.assertTrue(any(cart["id"] == sale_result["cart"]["id"] and cart["status"] == "cancelled" for cart in approve_payload["carts"]))
+
+    def test_ut_auth_18_admin_test_mail_requires_master_admin_and_uses_configured_recipients(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [{"username": "staff", "password": "staff12345", "permissions": []}],
+            "debug": {"sync_state": False},
+            "mail": {
+                "enabled": True,
+                "smtp_host": "smtp.test.invalid",
+                "smtp_port": 587,
+                "username": "sender@test.invalid",
+                "password": "test-secret",
+                "from_email": "sender@test.invalid",
+                "to_emails": ["recipient@test.invalid"],
+                "use_tls": True,
+                "use_ssl": False,
+            },
+        }
+        self._start_server(config)
+
+        _, _, staff_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+        )
+        staff_cookie = self._extract_cookie(staff_login_headers)
+        _, _, admin_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "masteradmin", "password": "admin12345"},
+        )
+        admin_cookie = self._extract_cookie(admin_login_headers)
+
+        with patch("qltpchay.http_handler.send_mail_notification") as send_mail:
+            send_mail.return_value = {"sent": True, "skipped": False, "recipient_count": 1}
+            denied_status, _, _ = self._request_json(
+                "POST",
+                "/api/admin/test-mail",
+                payload={},
+                cookie=staff_cookie,
+            )
+            self.assertEqual(denied_status, 401)
+            send_mail.assert_not_called()
+
+            success_status, success_payload, _ = self._request_json(
+                "POST",
+                "/api/admin/test-mail",
+                payload={},
+                cookie=admin_cookie,
+            )
+
+        self.assertEqual(success_status, 200)
+        self.assertEqual(success_payload["recipient_count"], 1)
+        self.assertEqual(success_payload["result"]["recipient_count"], 1)
+        self.assertEqual(success_payload["result"]["environment"], "test")
+        self.assertEqual(success_payload["result"]["smtp_host"], "smtp.test.invalid")
+        self.assertEqual(success_payload["result"]["smtp_port"], 587)
+        self.assertEqual(success_payload["result"]["security"], "STARTTLS")
+        self.assertEqual(success_payload["result"]["from_email"], "sender@test.invalid")
+        self.assertEqual(success_payload["result"]["to_emails"], ["recipient@test.invalid"])
+        self.assertTrue(success_payload["result"]["tested_at"])
+        self.assertNotIn("password", success_payload["result"])
+        self.assertNotIn("username", success_payload["result"])
+        self.assertEqual(send_mail.call_args.kwargs["mail_config"], config["mail"])
 
     def test_ut_auth_13_pending_bulk_order_request_delete_allows_owner_and_manager_only(self) -> None:
         config = {

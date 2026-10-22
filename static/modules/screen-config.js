@@ -374,6 +374,7 @@ export const SCREEN_HELP = {
       "Khi đã login, dropdown `Chuyển quyền...` cạnh nút Logout cho phép chọn nhanh nhóm quyền khác; app sẽ đăng xuất phiên hiện tại và bắt buộc nhập lại mật khẩu trước khi chuyển quyền.",
       "Dùng export/import để quản trị dữ liệu master của sản phẩm, khách hàng và nhà cung cấp (hỗ trợ cả JSON và CSV).",
       "User thường chỉ dùng được phần nghiệp vụ chung; riêng `Master Admin` mới thấy module quản trị, còn user có `inventory_adjust_manage` chỉ được mở nhánh chỉnh tồn trực tiếp mà không thấy quyền quản trị.",
+      "Khối `Kiểm tra gửi mail` gửi email thử đến danh sách người nhận trong cấu hình runtime sau khi xác nhận; màn hình hiển thị trạng thái, thời điểm, môi trường, máy chủ SMTP, người gửi và người nhận, không hiển thị mật khẩu.",
       "Session user thường dùng session_timeout_minutes, còn admin dùng admin_session_timeout_minutes trong system_config.json; nếu không có thao tác đủ lâu thì phiên sẽ tự hết hạn và cần login lại.",
       "Nếu cùng một domain đang chạy nhiều app ở các port khác nhau, mỗi port sẽ giữ session login riêng để không tự logout chéo.",
       "Khối `Legacy Audit` dùng để quét DB hiện hành, tách phần có thể `Áp dụng fix an toàn` và phần buộc admin phải review thủ công.",

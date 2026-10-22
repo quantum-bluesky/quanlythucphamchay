@@ -1088,6 +1088,31 @@
           <section class="sales-card">
             <div class="subheading">
               <div>
+                <p class="panel-kicker">Thông báo</p>
+                <h3>Kiểm tra gửi mail</h3>
+              </div>
+            </div>
+            <p class="cart-line-note">Gửi email thử đến danh sách người nhận trong cấu hình. Kết quả hiển thị môi trường, máy chủ SMTP, người gửi, người nhận và thời điểm chạy; mật khẩu không bao giờ hiển thị.</p>
+            <div class="row-actions">
+              <button type="button" id="adminTestMailButton" class="ghost-button compact-button">Gửi email thử</button>
+            </div>
+            <div id="adminTestMailResult" class="admin-mail-test-result" aria-live="polite">
+              <p id="adminTestMailStatus" class="inline-alert" role="status">Chưa chạy kiểm tra gửi mail trong phiên này.</p>
+              <dl class="admin-mail-test-details">
+                <div><dt>Thời điểm</dt><dd data-mail-result="tested-at">—</dd></div>
+                <div><dt>Môi trường</dt><dd data-mail-result="environment">—</dd></div>
+                <div><dt>Máy chủ SMTP</dt><dd data-mail-result="server">—</dd></div>
+                <div><dt>Bảo mật / cổng</dt><dd data-mail-result="security">—</dd></div>
+                <div><dt>Người gửi</dt><dd data-mail-result="from">—</dd></div>
+                <div><dt>Người nhận</dt><dd data-mail-result="recipients">—</dd></div>
+              </dl>
+              <p class="panel-note">“SMTP đã nhận” xác nhận máy chủ chấp nhận gửi; hãy kiểm tra hộp thư đến hoặc thư rác để xác nhận email đã tới.</p>
+            </div>
+          </section>
+
+          <section class="sales-card">
+            <div class="subheading">
+              <div>
                 <p class="panel-kicker">Master Data</p>
                 <h3>Xuất và nhập các file master</h3>
               </div>

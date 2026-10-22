@@ -1474,6 +1474,61 @@ button:disabled {
   font-weight: 600;
 }
 
+/* #Issue144: Keep mail test progress and delivery diagnostics visible inline. */
+.admin-mail-test-result {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-mail-test-result .inline-alert {
+  margin: 0;
+}
+
+.admin-mail-test-result[data-state="sending"] .inline-alert {
+  border-color: rgba(55, 111, 160, 0.25);
+  background: rgba(223, 239, 250, 0.7);
+}
+
+.admin-mail-test-result[data-state="sent"] .inline-alert {
+  border-color: rgba(59, 121, 87, 0.28);
+  background: rgba(221, 241, 230, 0.7);
+  color: #1f5b3f;
+}
+
+.admin-mail-test-result[data-state="failed"] .inline-alert,
+.admin-mail-test-result[data-state="skipped"] .inline-alert {
+  border-color: rgba(200, 100, 48, 0.28);
+  background: rgba(248, 225, 214, 0.7);
+  color: var(--warning);
+}
+
+.admin-mail-test-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.admin-mail-test-details > div {
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-mail-test-details dt {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.admin-mail-test-details dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
 .price-warning-message {
   margin-top: 8px;
 }

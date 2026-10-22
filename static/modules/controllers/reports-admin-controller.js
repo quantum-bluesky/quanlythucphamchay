@@ -208,6 +208,58 @@ export function registerReportsAdminControllerEvents(contract) {
     }
   });
 
+  // Issue #144: Send the test message only to server-side configured recipients.
+  dom.adminTestMailButton?.addEventListener("click", async () => {
+    if (!window.confirm("Gửi email thử đến toàn bộ người nhận trong cấu hình mail hiện tại?")) {
+      return;
+    }
+    const button = dom.adminTestMailButton;
+    const status = dom.adminTestMailStatus;
+    const resultBox = status?.closest("#adminTestMailResult");
+    const renderResult = (result = {}) => {
+      if (!resultBox) return;
+      const values = {
+        "tested-at": result.tested_at ? new Date(result.tested_at).toLocaleString("vi-VN") : "—",
+        environment: result.environment || "—",
+        server: result.smtp_host ? `${result.smtp_host}:${result.smtp_port || "—"}` : "—",
+        security: result.security ? `${result.security} / cổng ${result.smtp_port || "—"}` : "—",
+        from: result.from_email || "—",
+        recipients: Array.isArray(result.to_emails) && result.to_emails.length
+          ? `${result.to_emails.join(", ")} (${result.to_emails.length})`
+          : "Không có người nhận được cấu hình",
+      };
+      Object.entries(values).forEach(([key, value]) => {
+        const target = resultBox.querySelector(`[data-mail-result="${key}"]`);
+        if (target) target.textContent = value;
+      });
+    };
+    button.disabled = true;
+    button.textContent = "Đang gửi...";
+    if (resultBox) resultBox.dataset.state = "sending";
+    if (status) status.textContent = "Đang gửi email thử đến người nhận đã cấu hình...";
+    try {
+      const data = await actions.apiRequest("/api/admin/test-mail", {
+        method: "POST",
+        body: JSON.stringify({}),
+        showBusy: false,
+      });
+      renderResult(data.result);
+      if (resultBox) resultBox.dataset.state = data.result?.status || "sent";
+      if (status) {
+        status.textContent = `${data.message} Số người nhận: ${data.result?.recipient_count ?? 0}. Email có thể cần thêm thời gian để tới hộp thư.`;
+      }
+      actions.showToast(data.message);
+    } catch (error) {
+      renderResult(error.payload?.result);
+      if (resultBox) resultBox.dataset.state = error.payload?.result?.status || "failed";
+      if (status) status.textContent = error.message;
+      actions.showToast(error.message, true);
+    } finally {
+      button.disabled = false;
+      button.textContent = "Gửi email thử";
+    }
+  });
+
   dom.adminModulePanel.addEventListener("click", async (event) => {
     const formatMap = {
       products: document.getElementById("adminMasterFormatProducts"),

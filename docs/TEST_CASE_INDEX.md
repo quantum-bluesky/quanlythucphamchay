@@ -228,6 +228,8 @@ Mục tiêu:
 | 163 | `UT-PUR-02` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_pur_custom_receive_date` |
 | 164 | `UT-QUICK-06` | `tests/test_app.py` | `python -m unittest tests.test_app.InventoryStoreTests.test_ut_quick_06_quick_purchase_target_purchase_with_conversion_unit_and_unsaved_id` |
 | 165 | `ACC-QUICK-07` | `tests/integration/quick-purchase-active-order.spec.js` | `npx playwright test tests/integration/quick-purchase-active-order.spec.js` |
+| 187 | `UT-AUTH-18` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_18_admin_test_mail_requires_master_admin_and_uses_configured_recipients` |
+| 188 | `ACC-ADM-04` | `tests/integration/admin.spec.js` | `npx playwright test tests/integration/admin.spec.js --grep "ACC-ADM-04"` |
 | 166 | `IT-PURSUP-08` | `tests/integration/purchase-create-select-supplier.spec.js` | `npx playwright test tests/integration/purchase-create-select-supplier.spec.js` |
 | 167 | `IT-LIST-01` | `tests/integration/list-inputs-clear-button.spec.js` | `npx playwright test tests/integration/list-inputs-clear-button.spec.js --grep "IT-LIST-01"` |
 | 168 | `IT-INV-03` | `tests/integration/inventory-clear-all-stock.spec.js` | `npx playwright test tests/integration/inventory-clear-all-stock.spec.js --grep "IT-INV-03"` |

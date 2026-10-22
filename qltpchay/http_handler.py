@@ -939,6 +939,80 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 if not self._require_admin():
                     return
 
+                # Issue #144: Send a diagnostic message only to the recipients configured server-side.
+                if route == "/api/admin/test-mail":
+                    # #Issue144: Return only mail diagnostics that help Master Admin verify the attempt; never expose credentials.
+                    tested_at = datetime.now().astimezone().isoformat(timespec="seconds")
+                    recipients = [
+                        str(email or "").strip()
+                        for email in (mail_config.get("to_emails") or [])
+                        if str(email or "").strip()
+                    ]
+                    security = (
+                        "SSL/TLS"
+                        if mail_config.get("use_ssl")
+                        else "STARTTLS"
+                        if mail_config.get("use_tls")
+                        else "Không mã hóa"
+                    )
+                    diagnostics = {
+                        "tested_at": tested_at,
+                        "environment": constants.APP_ENV,
+                        "smtp_host": str(mail_config.get("smtp_host") or "").strip(),
+                        "smtp_port": int(mail_config.get("smtp_port") or 587),
+                        "security": security,
+                        "from_email": str(mail_config.get("from_email") or "").strip(),
+                        "to_emails": recipients,
+                        "recipient_count": len(recipients),
+                    }
+                    try:
+                        mail_result = send_mail_notification(
+                            mail_config=mail_config,
+                            subject="Kiểm tra gửi mail từ Master Admin",
+                            body=(
+                                "Đây là email kiểm tra gửi từ màn Master Admin của ứng dụng.\n"
+                                "Nếu nhận được email này, cấu hình gửi mail hiện tại đang hoạt động."
+                            ),
+                        )
+                    except Exception:
+                        actor = self._get_current_username() or "unknown"
+                        log_error(f"Master Admin mail test failed for {actor}.", exc_info=True)
+                        self._send_json(
+                            HTTPStatus.BAD_GATEWAY,
+                            {
+                                "error": "Không gửi được email thử. Hãy kiểm tra cấu hình SMTP và log máy chủ.",
+                                "result": {**diagnostics, "status": "failed"},
+                            },
+                        )
+                        return
+
+                    if mail_result.get("skipped"):
+                        reason = mail_result.get("reason")
+                        message = (
+                            "Gửi mail đang bị tắt trong cấu hình."
+                            if reason == "disabled"
+                            else "Cấu hình mail còn thiếu máy chủ SMTP, địa chỉ gửi hoặc người nhận."
+                        )
+                        self._send_json(
+                            HTTPStatus.BAD_REQUEST,
+                            {"error": message, "skipped": True, "result": {**diagnostics, "status": "skipped"}},
+                        )
+                        return
+
+                    recipient_count = int(mail_result.get("recipient_count") or 0)
+                    actor = self._get_current_username() or "unknown"
+                    log_info(f"Master Admin {actor} sent a test email to {recipient_count} configured recipient(s).")
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Máy chủ SMTP đã nhận email thử.",
+                            # Keep the original top-level count for clients that may still have cached frontend assets.
+                            "recipient_count": recipient_count,
+                            "result": {**diagnostics, "status": "sent", "recipient_count": recipient_count},
+                        },
+                    )
+                    return
+
                 if route == "/api/admin/orders/edit-locked":
                     if not (system_config or {}).get("EnableAdminLockedEdit", False):
                         self._send_json(
