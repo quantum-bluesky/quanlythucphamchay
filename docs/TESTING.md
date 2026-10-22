@@ -592,5 +592,5 @@ Chạy `npm run test:integration -- tests/integration/unit-quantity-roundtrip.sp
 ### Test email trong Master Admin
 
 - `UT-AUTH-18`: API đọc/sửa cấu hình mail chỉ cho Master Admin gọi, giữ password khi trường nhập trống, cho phép cập nhật password nhưng không trả password; mock SMTP để không gửi email thật.
-- `ACC-ADM-04`: test UI trong `tests/integration/admin.spec.js` mock API để xác nhận cấu hình được tải lên form, password được che, lưu cấu hình, confirm, kết quả và thông tin SMTP/người nhận/thời điểm hiển thị; không gửi email thật.
+- `ACC-ADM-04`: test UI trong `tests/integration/admin.spec.js` mock API để xác nhận cấu hình được tải lên form, môi trường tải được báo, nút tải lại nạp lại cấu hình, password được che, lưu cấu hình, confirm, kết quả và thông tin SMTP/người nhận/thời điểm hiển thị; không gửi email thật.
 

@@ -234,7 +234,7 @@ Lưu ý:
 | 183 | `UT-BASEUNIT-07` | Kiểm tra API endpoint `POST /api/products/<id>/change-base-unit`: yêu cầu quyền Admin (chặn user thường hoặc chưa đăng nhập), xử lý chuyển đổi thành công và trả về summary cùng thông tin sản phẩm mới. |
 | 184 | `IT-ORDER-01` | Khách gửi đơn public mới thì header backend hiện chuông và số chưa xem; trạng thái này còn sau khi tải lại trang và được xóa khi mở màn `Đơn hàng`. |
 | 187 | `UT-AUTH-18` | Kiểm tra API đọc/sửa cấu hình mail yêu cầu Master Admin, không trả mật khẩu, giữ mật khẩu hiện có khi payload để trống và nhận mật khẩu mới; endpoint test mail dùng cấu hình vừa lưu và mock SMTP. |
-| 188 | `ACC-ADM-04` | Kiểm tra màn Master Admin tải cấu hình vào form, không điền mật khẩu đã lưu, cho lưu mật khẩu mới, hỏi xác nhận gửi và hiện kết quả cùng diagnostics từ response mock; test không gửi email thật. |
+| 188 | `ACC-ADM-04` | Kiểm tra màn Master Admin tải cấu hình và báo môi trường, tải lại cấu hình, không điền mật khẩu đã lưu, cho lưu mật khẩu mới, hỏi xác nhận gửi và hiện kết quả cùng diagnostics từ response mock; test không gửi email thật. |
 
 
 

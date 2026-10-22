@@ -476,7 +476,7 @@ ordered -> cancelled
   - export/import master data
   - backup database
   - restore database
-  - cấu hình SMTP runtime được tải và chỉnh sửa từ màn Master Admin; khi lưu, mật khẩu để trống sẽ giữ mật khẩu hiện có, mật khẩu mới sẽ thay giá trị cũ, API không trả password
+  - cấu hình SMTP runtime được tải và chỉnh sửa từ màn Master Admin; màn hình ghi rõ môi trường, cho tải lại cấu hình và báo lỗi đăng nhập/quyền nếu API từ chối; khi lưu, mật khẩu để trống sẽ giữ mật khẩu hiện có, mật khẩu mới sẽ thay giá trị cũ, API không trả password
   - test gửi email tới danh sách người nhận đã lưu; thao tác chỉ dành cho Master Admin, xác nhận trước khi gửi, không tạo dữ liệu nghiệp vụ; màn hình thể hiện thời điểm, môi trường, máy chủ, người gửi/nhận và kết quả SMTP
 
 ## 11. Rule business cốt lõi

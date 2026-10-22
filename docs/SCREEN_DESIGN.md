@@ -410,7 +410,7 @@ Liên kết detail hiện có:
   - header session có tên user, dropdown `Chuyển quyền...` và nút `Logout`
   - export/import master
   - backup/restore database
-  - khối `Kiểm tra gửi mail` hiển thị cấu hình SMTP runtime khi mở màn, cho phép sửa và lưu host, cổng, tài khoản, mật khẩu, địa chỉ gửi/nhận, bảo mật và tiền tố tiêu đề; mật khẩu đã lưu không được trả về hoặc điền vào form
+  - khối `Kiểm tra gửi mail` tải cấu hình SMTP runtime khi mở màn, ghi rõ môi trường đã tải, cho phép tải lại nếu cần và hiển thị lỗi đăng nhập/quyền khi API từ chối; cho phép sửa và lưu host, cổng, tài khoản, mật khẩu, địa chỉ gửi/nhận, bảo mật và tiền tố tiêu đề; mật khẩu đã lưu không được trả về hoặc điền vào form
   - nút gửi email thử có trạng thái đang gửi/thành công/thất bại và chi tiết môi trường, máy chủ SMTP, bảo mật/cổng, người gửi, người nhận, thời điểm chạy
   - panel `Legacy Audit` gồm:
     - summary card số lượng anomaly

@@ -212,6 +212,7 @@ export function registerReportsAdminControllerEvents(contract) {
   const mailConfigStatus = document.getElementById("adminMailConfigStatus");
   const mailPasswordState = document.getElementById("adminMailPasswordState");
   const mailSaveButton = document.getElementById("adminMailConfigSaveButton");
+  const mailReloadButton = document.getElementById("adminMailConfigReloadButton");
   const mailTestButton = dom.adminTestMailButton;
   const mailResultBox = dom.adminTestMailStatus?.closest("#adminTestMailResult");
   let mailConfigLoading = false;
@@ -262,21 +263,35 @@ export function registerReportsAdminControllerEvents(contract) {
   async function loadMailConfig() {
     if (mailConfigLoading) return;
     mailConfigLoading = true;
+    if (mailConfigStatus) mailConfigStatus.textContent = "Đang tải cấu hình mail từ máy chủ...";
+    if (mailReloadButton) mailReloadButton.disabled = true;
     try {
       const payload = await actions.apiRequest("/api/admin/mail-config", { showBusy: false });
       fillMailConfig(payload.mail, payload.environment);
-      if (mailConfigStatus) mailConfigStatus.textContent = "Đã tải cấu hình mail hiện hành.";
+      if (mailConfigStatus) {
+        mailConfigStatus.textContent = `Đã tải cấu hình mail hiện hành từ môi trường ${payload.environment || "không xác định"}.`;
+      }
       if (mailTestButton) mailTestButton.disabled = false;
       if (mailResultBox) mailResultBox.dataset.state = "ready";
     } catch (error) {
       if (mailTestButton) mailTestButton.disabled = true;
-      if (error.status !== 401 && error.status !== 403 && mailConfigStatus) {
-        mailConfigStatus.textContent = `Không tải được cấu hình mail: ${error.message}`;
+      if (mailConfigStatus) {
+        const reason = error.status === 401
+          ? "Phiên Master Admin chưa đăng nhập hoặc đã hết hạn. Hãy đăng nhập lại rồi tải cấu hình."
+          : error.status === 403
+            ? "Tài khoản hiện tại không có quyền xem cấu hình mail. Hãy dùng Master Admin."
+            : `Không tải được cấu hình mail: ${error.message}`;
+        mailConfigStatus.textContent = reason;
       }
     } finally {
       mailConfigLoading = false;
+      if (mailReloadButton) mailReloadButton.disabled = false;
     }
   }
+
+  mailReloadButton?.addEventListener("click", () => {
+    void loadMailConfig();
+  });
 
   const adminViewSection = document.querySelector('[data-menu-section="admin"]');
   if (adminViewSection && typeof MutationObserver !== "undefined") {

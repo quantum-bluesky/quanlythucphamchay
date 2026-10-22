@@ -93,6 +93,7 @@ test("ACC-ADM-04 Master Admin can send a configured-recipient test mail after co
   let confirmMessage = "";
   let requestPayload = null;
   let savedMailConfig = null;
+  let mailConfigLoadCount = 0;
 
   await openAdminPage(page);
   await page.waitForLoadState("networkidle");
@@ -100,6 +101,7 @@ test("ACC-ADM-04 Master Admin can send a configured-recipient test mail after co
   await page.reload({ waitUntil: "networkidle" });
   await page.route("**/api/admin/mail-config", async (route) => {
     if (route.request().method() === "GET") {
+      mailConfigLoadCount += 1;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -140,9 +142,14 @@ test("ACC-ADM-04 Master Admin can send a configured-recipient test mail after co
   await expect(page.locator("#adminMailRecipients")).toHaveValue("recipient@test.invalid");
   await expect(page.locator("#adminMailPassword")).toHaveValue("");
   await expect(page.locator("#adminMailPasswordState")).toContainText("Đã có mật khẩu");
+  await expect(page.locator("#adminMailConfigStatus")).toContainText("môi trường production");
   await expect(page.locator('[data-mail-result="environment"]')).toHaveText("production");
   await expect(page.locator('[data-mail-result="server"]')).toHaveText("smtp.test.invalid:587");
   await expect(page.locator('[data-mail-result="recipients"]')).toContainText("recipient@test.invalid");
+  await page.locator("#adminMailSmtpHost").fill("");
+  await page.locator("#adminMailConfigReloadButton").click();
+  await expect(page.locator("#adminMailSmtpHost")).toHaveValue("smtp.test.invalid");
+  expect(mailConfigLoadCount).toBeGreaterThanOrEqual(2);
   await page.locator("#adminMailPassword").fill("replacement-secret");
   await page.locator("#adminMailConfigSaveButton").click();
   await expect(page.locator("#adminMailConfigStatus")).toContainText("Đã lưu");
