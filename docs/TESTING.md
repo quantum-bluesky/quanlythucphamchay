@@ -535,6 +535,10 @@ Case regression danh mục công khai:
 - `IT-PUB-06`: danh mục công khai ẩn dải nhắc khi còn hơn 7 ngày tới mùng 1 hoặc 15 âm lịch.
 - `UT-LUN-04` và `UT-LUN-05`: bộ tính ngày mục tiêu trả đúng số ngày đến mùng 1/15, bao gồm trường hợp mục tiêu là hôm nay, và từ chối input không hợp lệ.
 
+Case hồi quy thông báo đơn online:
+
+- `IT-ORDER-01`: khách gửi đơn mới qua API public thì backend tự đồng bộ, hiện số chưa xem ở chuông; số báo còn sau khi tải lại và được xóa khi mở danh sách `Đơn hàng`.
+
 Case mới cho Issue 70:
 
 - `UT-INVSORT-01`: product metadata hạn dùng/bảo quản và metric ưu tiên tồn kho được chuẩn hóa đúng, không tính nhầm trả NCC hoặc điều chỉnh tồn vào demand

@@ -238,6 +238,7 @@ Mục tiêu:
 | 181 | `UT-BASEUNIT-05` | `tests/test_change_base_unit.py` | `python -m unittest tests.test_change_base_unit.ChangeProductBaseUnitTests.test_reversibility_conversion` |
 | 182 | `UT-BASEUNIT-06` | `tests/test_change_base_unit.py` | `python -m unittest tests.test_change_base_unit.ChangeProductBaseUnitTests.test_validation_errors` |
 | 183 | `UT-BASEUNIT-07` | `tests/test_change_base_unit.py` | `python -m unittest tests.test_change_base_unit.ChangeProductBaseUnitHTTPTests.test_http_change_base_unit_endpoint_and_permission` |
+| 184 | `IT-ORDER-01` | `tests/integration/cross-client-sync.spec.js` | `npx playwright test tests/integration/cross-client-sync.spec.js --grep IT-ORDER-01` |
 
 ## 3. Lệnh chạy nhanh theo nhóm
 

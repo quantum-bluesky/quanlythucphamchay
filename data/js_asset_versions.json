@@ -2,8 +2,8 @@
   "app_version": "3.40.0",
   "files": {
     "app.js": {
-      "counter": 1,
-      "sha256": "d7ee8c06a24145c61482745ba1550edeeaa14de526a26d02b5129c178b6337e3"
+      "counter": 2,
+      "sha256": "bcb42ce6566adb920717463220f843b77cdf4b71b6c4a0eed50cab85e925321b"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -11,7 +11,7 @@
     },
     "modules/app-state.js": {
       "counter": 1,
-      "sha256": "3ce853fd39199bed7a54bdafad1868a46a86e0778823bfdda5d37247028bdd0b"
+      "sha256": "86c7e8b5bb7c52699ededd2984bb525126dccb6e5184ee16cac8557d6b4a45b1"
     },
     "modules/controllers/bulk-orders-controller.js": {
       "counter": 1,
@@ -19,7 +19,7 @@
     },
     "modules/controllers/core-controller.js": {
       "counter": 1,
-      "sha256": "e0041ba27ab3bfb562e05013924032363041098c2917c7f4401f0c7ff1dd6420"
+      "sha256": "ee1169d98bb9a4cebfbd5bb4dba2da756ce5d91b9f0e3437f3ace9aac61205ab"
     },
     "modules/controllers/entities-controller.js": {
       "counter": 1,
@@ -51,7 +51,7 @@
     },
     "modules/dom.js": {
       "counter": 1,
-      "sha256": "94a85dacbc72414a427da35683cdc779c59b4077175c79ae04b4f02a748f1923"
+      "sha256": "00cfd5a54a17fd6369ed29e2e5a12cf094ea446a0a88b125f315c14ffa43c591"
     },
     "modules/domain-helpers/inventory-domain.js": {
       "counter": 1,
@@ -75,7 +75,7 @@
     },
     "modules/screen-config.js": {
       "counter": 1,
-      "sha256": "45f2a6a4460b4678137c96eb8386a54ccedb79a460aed2b6621abf14eefc4907"
+      "sha256": "0369cb1c01541dc453408d84c5e7f0a23bfd339196df0b9c34d7946bff3247a8"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -87,7 +87,7 @@
     },
     "modules/ui/core-ui.js": {
       "counter": 1,
-      "sha256": "cca67d41bbaf0d20aa048e076295c430b0635d40329ad9ff19fd0954bcdc8e5b"
+      "sha256": "746e6dc9fcd6273ff1e40f6bccbc2a05319f34a3b4e906826163af6c133cb8f5"
     },
     "modules/ui/entities-ui.js": {
       "counter": 1,
@@ -130,12 +130,12 @@
       "sha256": "affb80c90f405d93e018eb806d49a5f17788c34a24d4bcea703e565d0bc48269"
     },
     "public_products.js": {
-      "counter": 1,
+      "counter": 2,
       "sha256": "bcd7b2f3c3f8173a87a0db503713d4fff866932f42aa2b83255895b0eda7c557"
     },
     "styles.css": {
-      "counter": 1,
-      "sha256": "831b5fef48d136009e14b629154a4d87074e57aec8d3ae64a62d12ca83c7f805"
+      "counter": 2,
+      "sha256": "9d2c1e37c9b743a8214aba9c19793d35a2ab7b1681428b82ee7db3ee205598fd"
     },
     "vendor/quill/quill.min.js": {
       "counter": 1,

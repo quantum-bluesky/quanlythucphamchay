@@ -299,6 +299,8 @@ Lưu ý:
 
 ## 5. Luồng xem lại và hoàn tất đơn hàng
 
+Khi khách gửi đơn từ trang public, hoặc bổ sung mặt hàng vào đơn nháp online, thanh header của trang quản lý sẽ bật chuông và hiện số đơn chưa xem. Trang đang mở tự kiểm tra dữ liệu định kỳ; khi quay lại tab, app cũng kiểm tra cập nhật. Bấm chuông để mở danh sách `Đơn hàng`; số báo được giữ qua lần tải lại trang đến khi mở danh sách.
+
 Vào menu:
 
 ```text

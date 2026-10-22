@@ -145,6 +145,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Ở màn `Nhập hàng`, có thể tick nhiều phiếu rồi bấm `Đặt hàng` để chuyển nhanh các phiếu nháp hợp lệ sang `Đã đặt hàng`; phiếu thiếu NCC hoặc không còn sửa được sẽ được giữ nguyên và app báo lại theo từng phiếu
 - Ở màn `Đơn hàng`, có thể tick nhiều phiếu `Nháp/Chốt đơn` cùng khách để mở flow `Gộp đơn`; hệ thống sẽ chặn nếu chọn khác khách
 - Ở màn `Đơn hàng`, có thể tick nhiều phiếu rồi bấm `Chốt đơn` để xử lý hàng loạt các đơn nháp hợp lệ; đơn thiếu hàng hoặc không còn ở trạng thái nháp sẽ được giữ nguyên và app báo lại theo từng phiếu
+- Đơn online mới hoặc được khách bổ sung trên trang public hiện chuông kèm số chưa xem ở header quản lý; bấm chuông để mở danh sách `Đơn hàng`. App kiểm tra khi trang đang mở và khi quay lại tab.
 - Khi một action đang lưu thay đổi lên server, app sẽ phủ `Loading` toàn màn hình và khóa tạm các thao tác khác cho tới khi trạng thái mới được cập nhật xong, để tránh bấm chồng nhiều action liên tiếp
 - Khi chốt đơn bị thiếu hàng, app vẫn cho chốt nếu phần thiếu đã được cover đủ bởi phiếu nhập `Đã đặt`; nếu mới chỉ có phiếu `Nháp` hoặc vẫn thiếu số lượng thì app sẽ báo trước khi tạo/cập nhật phiếu nhập và cho mở lại phiếu liên quan khi người dùng xác nhận cần chỉnh
 - Màn `Xử lý nhập thiếu` cho phép bật kỳ gom nhập định kỳ, gom nhu cầu của cả đơn nháp và đơn đã chốt theo từng mặt hàng để tạo phiếu nhập batch

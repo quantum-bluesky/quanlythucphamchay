@@ -124,6 +124,8 @@ export const SCREEN_HELP = {
     title: "Quản lý đơn hàng",
     overview: "Theo dõi các đơn nháp, đơn đã chốt, đơn đã xuất hàng, đơn đã thanh toán và tra cứu lịch sử đơn theo khách hay mặt hàng.",
     steps: [
+      "Đơn mới hoặc đơn nháp được khách bổ sung trên trang public sẽ báo bằng chuông trên thanh header; app tự kiểm tra cập nhật khi trang đang mở và khi quay lại tab.",
+      "Bấm chuông để mở danh sách Đơn hàng. Số báo chưa xem được giữ lại khi tải lại trang và được xóa sau khi bạn mở danh sách.",
       "Dùng ô tìm kiếm để lọc theo khách hàng, mã đơn hoặc tên mặt hàng.",
       "Mặc định list ưu tiên các đơn đang chờ xử lý gồm `Nháp` và `Chốt đơn`; bật `Hiện đơn lưu trữ` khi cần xem các đơn đã xuất chưa thanh toán hoặc đơn đã hủy.",
       "Checkbox `Hiện đơn đã thanh toán` hoạt động độc lập: chỉ cần bật checkbox này là list sẽ hiện các đơn đã thu tiền, không cần bật thêm `Hiện đơn lưu trữ`.",

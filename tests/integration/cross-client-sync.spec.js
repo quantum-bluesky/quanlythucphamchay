@@ -6,7 +6,9 @@ const {
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
+  openAdminPage,
   switchMenu,
+  waitForAppReady,
 } = require("./support/ui");
 
 function formatQuantity(value) {
@@ -108,6 +110,42 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
   }
 
   await collectToast(page, runtime, "cross-client-sync");
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-ORDER-01 public online order shows a persistent bell notice in the admin page", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  await openAdminPage(page);
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
+
+  const productsResponse = await request.get("./api/public/products");
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = (productsPayload.products || []).find((entry) => entry.id);
+  expect(product).toBeTruthy();
+
+  const orderResponse = await request.post("./api/public/orders", {
+    data: {
+      customer_name: "Khách kiểm tra thông báo Issue 181",
+      customer_phone: `090${String(Date.now()).slice(-7)}`,
+      zalo_id: `issue181-${Date.now()}`,
+      items: [{ product_id: product.id, quantity: 1 }],
+    },
+  });
+  expect(orderResponse.status()).toBe(201);
+
+  const noticeButton = page.locator("#onlineOrderNoticeButton");
+  await expect(noticeButton).toBeVisible();
+  await expect(page.locator("#onlineOrderNoticeCount")).toHaveText("1", { timeout: 15000 });
+
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
+  await expect(page.locator("#onlineOrderNoticeCount")).toHaveText("1");
+  await page.locator("#onlineOrderNoticeButton").click();
+  await expectScreenTitle(page, "Đơn hàng");
+  await expect(page.locator("#onlineOrderNoticeCount")).toBeEmpty();
   expectNoRuntimeErrors(runtime);
 });
 

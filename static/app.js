@@ -42,6 +42,8 @@ import {
   productImageUpload,
   uploadProductImageButton,
   toast,
+  onlineOrderNoticeButton,
+  onlineOrderNoticeCount,
   searchInput,
   quantityInput,
   noteInput,
@@ -2013,6 +2015,43 @@ function writeStorage(key, value) {
   }
 }
 
+function trackOnlineOrderUpdates(carts = []) {
+  const currentVersions = {};
+  (Array.isArray(carts) ? carts : []).forEach((cart) => {
+    const createdMode = String(cart?.createdMode || cart?.created_mode || "").trim().toLowerCase();
+    if (createdMode !== "online" || String(cart?.status || "draft").trim().toLowerCase() !== "draft") return;
+    const cartId = String(cart?.id || "").trim();
+    const updatedAt = String(cart?.updatedAt || cart?.updated_at || cart?.createdAt || cart?.created_at || "").trim();
+    if (cartId && updatedAt) currentVersions[cartId] = updatedAt;
+  });
+
+  const previousVersions = readStorage(STORAGE_KEYS.onlineOrderSnapshots, null);
+  const existingNotifications = readStorage(STORAGE_KEYS.onlineOrderNotifications, []);
+  const notifications = Array.isArray(existingNotifications) ? existingNotifications : [];
+  const changes = previousVersions && typeof previousVersions === "object"
+    ? Object.entries(currentVersions).filter(([cartId, updatedAt]) => previousVersions[cartId] !== updatedAt)
+    : [];
+
+  if (changes.length) {
+    const notificationsByCartId = new Map(notifications.map((item) => [String(item.cartId), item]));
+    changes.forEach(([cartId, updatedAt]) => {
+      const cart = carts.find((entry) => String(entry?.id) === cartId);
+      notificationsByCartId.set(cartId, {
+        cartId,
+        customerName: String(cart?.customerName || "Khách hàng"),
+        updatedAt,
+      });
+    });
+    state.onlineOrderNotifications = Array.from(notificationsByCartId.values());
+    writeStorage(STORAGE_KEYS.onlineOrderNotifications, state.onlineOrderNotifications);
+    // #Issue181: Báo ngay khi server state có đơn online mới hoặc khách vừa bổ sung vào đơn nháp.
+    showToast(`Có ${changes.length} đơn hàng online mới hoặc vừa được khách bổ sung. Bấm chuông để xem.`);
+  } else {
+    state.onlineOrderNotifications = notifications;
+  }
+  writeStorage(STORAGE_KEYS.onlineOrderSnapshots, currentVersions);
+}
+
 function getProductById(productId) {
   return state.products.find((product) => Number(product.id) === Number(productId)) || null;
 }
@@ -2835,6 +2874,8 @@ function getCoreUi() {
         menuToggleButton,
         viewSections,
         activeScreenBarTitle,
+        onlineOrderNoticeButton,
+        onlineOrderNoticeCount,
         appVersionButton,
         appVersionLabel,
         aboutContent,
@@ -5383,6 +5424,8 @@ async function refreshData({ sessionAlreadyLoaded = false, sessionActivity = "ac
     state.customers = payload.customers || [];
     state.suppliers = payload.suppliers || [];
     state.carts = payload.carts || [];
+    // #Issue181: So sánh snapshot đơn online sau mỗi lần tải state; snapshot cũ giúp phát hiện đơn mới kể cả khi tải lại trang.
+    trackOnlineOrderUpdates(state.carts);
     state.purchases = payload.purchases || [];
     state.bulkOrderRequests = payload.bulk_order_requests || payload.bulkOrderRequests || [];
     state.documentCancelRequests = payload.document_cancel_requests || payload.documentCancelRequests || [];
@@ -5433,6 +5476,21 @@ function openOrderDocumentById(cartId) {
   switchMenu("orders");
   renderCartQueue();
   focusOrderDetailPanel();
+}
+
+function openOnlineOrderNotifications() {
+  const notificationCount = (state.onlineOrderNotifications || []).length;
+  state.showArchivedCarts = true;
+  state.orderSearchTerm = "";
+  state.pagination.orders = 1;
+  const navigationResult = switchMenu("orders");
+  if (navigationResult?.blocked) return;
+  state.onlineOrderNotifications = [];
+  writeStorage(STORAGE_KEYS.onlineOrderNotifications, []);
+  renderAll();
+  if (notificationCount) {
+    showToast(`Đang mở danh sách đơn hàng; có ${notificationCount} đơn online cần xem.`);
+  }
 }
 
 function openPurchaseConflictReview(productId, options = {}) {
@@ -7094,6 +7152,7 @@ registerCoreControllerEvents({
     navBackButton,
     navForwardButton,
     openHelpButton,
+    onlineOrderNoticeButton,
   },
   actions: {
     setQuickPanelCollapsed,
@@ -7116,6 +7175,7 @@ registerCoreControllerEvents({
     applyMobileCollapsedDefaults,
     resetFloatingClusterAutoHide,
     checkForRemoteUpdates,
+    openOnlineOrderNotifications,
   },
   renderers: {
     renderMenu,
