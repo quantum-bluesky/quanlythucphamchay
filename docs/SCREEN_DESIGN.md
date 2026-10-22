@@ -46,6 +46,7 @@ Liên kết detail hiện có:
 - `Sắp hết` chỉ áp dụng khi hàng còn tồn (tồn kho >= đơn vị nhỏ nhất của mặt hàng) và backend xác định tồn đã bằng hoặc thấp hơn `ngưỡng sắp hết` của mặt hàng
 - khi tồn bằng `0` hoặc nhỏ hơn đơn vị nhỏ nhất của mặt hàng, ưu tiên `Sắp về` nếu có lượng nhập đang mở; nếu không thì hiển thị `Hết hàng`
 - client dùng cờ `is_low_stock` từ API để đồng nhất với rule tại màn `Sản phẩm`, không tự tính một ngưỡng riêng
+- số lượng và đơn vị trên trang public dùng `Đơn vị bán mặc định`; đơn gửi lên được chốt thành snapshot theo đơn vị và giá bán của đơn vị đó, còn tồn kho vẫn quy về `Đơn vị cơ sở`
 
 ### `inventory` - Kiểm tra tồn kho
 
@@ -239,6 +240,14 @@ Liên kết detail hiện có:
   - card lịch sử ghi rõ field thay đổi, giá trị cũ/mới, actor và thời gian
   - field `Hạn dùng (ngày)` và `Bảo quản (ngày)` để làm metadata fallback cho sort hạn còn lại khi lô chưa có HSD thật
   - khi sửa giá nhập/giá bán mặc định, nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng thì phải hiện message cảnh báo ngay tại vùng edit; ở list/view chỉ gắn nhãn cảnh báo ngắn
+  - **Nút & Modal Chuyển đổi đơn vị chính (Dành cho Admin)**:
+    - Button `Đổi ĐV chính` trên từng card sản phẩm (chỉ hiển thị khi đăng nhập với quyền Admin) và button `Đổi đơn vị chính (Admin)` trong form sửa chi tiết sản phẩm.
+    - Modal `#changeBaseUnitModal` hiển thị thông tin sản phẩm: Tên sản phẩm, Đơn vị chính hiện tại, Tồn kho hiện tại, Giá nhập/Giá bán gốc, Tổng giá trị tồn kho.
+    - Input nhập tên Đơn vị chính mới kèm datalist gợi ý (`kg`, `lạng`, `gói`, `hộp`, `chai`, `chiếc`...).
+    - Radio lựa chọn hướng quy đổi linh hoạt hai chiều: $1\ \text{cũ} = K\ \text{mới}$ hoặc $1\ \text{mới} = K\ \text{cũ}$, cùng input nhập tỷ lệ $K > 0$.
+    - Checkbox tùy chọn đưa đơn vị cũ vào bảng quy đổi đơn vị phụ (mặc định bật).
+    - Khối xem trước trực quan (Live preview) tự động tính toán lại và hiển thị: Tồn kho mới, Giá nhập mới, Giá bán mới, Ngưỡng cảnh báo mới và Tổng giá trị tồn kho bảo toàn.
+    - Các nút hành động: `Hủy` và `Xác nhận chuyển đổi đơn vị`.
 
 ### `purchases` - Quản lý nhập hàng
 

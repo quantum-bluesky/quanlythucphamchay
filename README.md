@@ -101,6 +101,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 ## Tính năng chính
 
 - Trang danh mục thực phẩm công khai chỉ lấy các mặt hàng đang bật `Hiển thị trên Web (Public)` và hiển thị `Có sẵn / Sắp hết / Sắp về / Hết hàng`; `Sắp hết` dùng đúng ngưỡng tồn của từng mặt hàng đã cấu hình trong màn `Sản phẩm`, nếu số lượng tồn kho nhỏ hơn đơn vị nhỏ nhất của mặt hàng thì trên trang web public được xem là hết hàng.
+- Đơn public và đơn xuất mặc định tính số lượng, đơn vị, giá theo `Đơn vị bán mặc định`; phiếu nhập mặc định tính theo `Đơn vị nhập mặc định`. Tồn kho vẫn quy về `Đơn vị cơ sở`.
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
 - Màn tồn kho có dropdown sắp xếp trong khu vực phân trang để xem theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít
 - Quản lý tồn kho theo lô còn hàng; card tồn kho có thể hiện các lô active, mã lô, HSD gần nhất và số lượng còn lại theo từng lô
@@ -111,6 +112,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Quản lý **đa đơn vị tính & quy đổi theo từng sản phẩm** (ví dụ: thùng, hộp, gói, lạng...): hỗ trợ đơn vị bán mặc định, đơn vị nhập mặc định, giá bán/giá nhập riêng theo đơn vị quy đổi, tự động quy đổi số lượng và đơn giá khi chọn mua/nhập hàng. Tồn kho dùng số lượng cơ sở; thành tiền dòng dùng số lượng theo đơn vị đang chọn nhân giá của đơn vị đó.
 - Trên đơn xuất nháp/đã chốt, `Lưu dòng` chỉ gửi và cập nhật đúng dòng của đơn đang mở qua API riêng; không gửi lại toàn bộ giỏ hàng. Các dòng nằm trong khối đơn, phía trên nhóm nút chuyển trạng thái.
 - Khi đổi đơn vị qua lại trong giỏ xuất hoặc phiếu nhập, app giữ nguyên lượng cơ sở kể cả khi số hiển thị phải làm tròn; chỉ sửa ô số lượng mới thay đổi lượng hàng. Đơn vị đã chọn được giữ sau khi lưu và tải lại trang.
+- Dành riêng cho Admin: Hỗ trợ **chuyển đổi đơn vị chính (Base Unit)** của sản phẩm đã phát sinh giao dịch/tồn kho sang đơn vị mới (ví dụ từ gói sang lạng, kg sang lạng...), tự động quy đổi đồng bộ tồn kho, các lô hàng (batches), đơn giá, ngưỡng cảnh báo, giỏ hàng chờ xuất, phiếu chờ nhập và đơn vị phụ; bảo toàn 100% giá trị tồn kho.
 - Quản lý riêng `giá nhập` và `giá bán mặc định` của sản phẩm
 - Ở các màn đang sửa giá/mặt hàng, app sẽ hiện cảnh báo nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng; ở các màn chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
 - Khi bấm `Giá chung` để đẩy `giá nhập` hoặc `giá bán` hiện tại lên giá mặc định của mặt hàng, app luôn hiện hộp xác nhận trước để tránh cập nhật nhầm trên mobile

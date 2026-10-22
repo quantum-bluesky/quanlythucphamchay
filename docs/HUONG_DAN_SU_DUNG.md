@@ -54,6 +54,8 @@ Trang danh mục thực phẩm công khai hiển thị bốn trạng thái:
 
 Muốn ẩn riêng một mặt hàng khỏi trang công khai, vào màn `Sản phẩm`, mở sửa chi tiết, bỏ chọn `Hiển thị trên Web (Public)` rồi lưu. Bật lại tùy chọn này để mặt hàng xuất hiện trở lại.
 
+Khi khách chọn sản phẩm trên web, số lượng và đơn vị hiển thị theo `Đơn vị bán mặc định` đã cấu hình ở sản phẩm. Khi đơn về màn quản trị, dòng hàng giữ đơn vị và giá bán theo đơn vị đó; số lượng tồn kho vẫn được quy về `Đơn vị cơ sở`.
+
 ## 3. Luồng làm việc hằng ngày
 
 ### Luồng A: Kiểm tra tồn kho đầu ngày
@@ -403,7 +405,7 @@ Màn này dùng để:
 ### Cách thiết lập đơn vị và quy đổi đơn vị
 
 1. **Đơn vị cơ sở (Base Unit)**: Là đơn vị chuẩn duy nhất dùng để quản lý số lượng tồn kho vật lý và tính toán biến động sổ kho của sản phẩm.
-2. **Đơn vị nhập mặc định & Đơn vị bán mặc định**: Khi lập đơn bán hoặc phiếu nhập, hệ thống sẽ tự động chọn trước đơn vị này để tiết kiệm thời gian thao tác.
+2. **Đơn vị nhập mặc định & Đơn vị bán mặc định**: Đơn khách đặt trên web và đơn xuất mặc định tính theo Đơn vị bán; phiếu nhập mặc định tính theo Đơn vị nhập. Dòng chứng từ lưu số lượng, đơn vị, hệ số và giá tại thời điểm lập; tồn kho luôn quy về Đơn vị cơ sở.
 3. **Thêm quy đổi đơn vị**:
    - Trong form chi tiết sản phẩm, tại khối `Quy đổi đơn vị`, bấm `+ Thêm quy đổi`.
    - Nhập `Đơn vị quy đổi` (ví dụ: `thùng`, `hộp`, `gói`...).
@@ -430,6 +432,26 @@ Lưu ý:
 - ở danh sách chỉ xem, các mặt hàng có giá đáng chú ý sẽ được gắn nhãn cảnh báo ngắn để rà nhanh
 - nếu muốn nhập nhiều ảnh, cấu hình đơn vị quy đổi và thông tin chi tiết (hướng dẫn sử dụng, chế biến...), chọn `Sửa chi tiết` thay vì `Sửa nhanh`. Form chi tiết sẽ được mở ra để bạn thao tác trọn vẹn.
 - ở các màn hình khác (Đơn hàng, Nhập hàng, Tồn kho...), có thể click trực tiếp vào tên sản phẩm (được gạch dưới) để mở popup hiển thị toàn bộ ảnh, thông tin chi tiết, đơn vị quy đổi và hướng dẫn sử dụng của sản phẩm đó.
+
+### Chuyển đổi đơn vị chính của sản phẩm (Dành riêng cho Admin)
+
+Khi một sản phẩm đã phát sinh giao dịch hoặc đã lưu tồn kho theo một đơn vị cũ (ví dụ: `gói`, `hộp`, `kg`...) và Admin muốn đổi sang đơn vị chuẩn khác (ví dụ: từ `gói` sang `lạng` hoặc từ `kg` sang `lạng`), hệ thống cung cấp tính năng **Đổi ĐV chính** an toàn và nhất quán:
+
+1. **Điều kiện sử dụng**: Chỉ tài khoản có quyền Quản trị (Admin) mới có quyền thực hiện.
+2. **Cách thao tác**:
+   - Trong danh sách sản phẩm, bấm nút `Đổi ĐV chính` (hoặc mở form Sửa chi tiết sản phẩm và bấm `Đổi đơn vị chính (Admin)`).
+   - Hộp thoại **Chuyển đổi đơn vị chính của sản phẩm** xuất hiện, hiển thị rõ tên sản phẩm, đơn vị chính hiện tại, tồn kho hiện tại, giá nhập/bán gốc và tổng giá trị tồn kho.
+   - Nhập **Đơn vị chính mới** (có thể chọn gợi ý nhanh như: `kg`, `lạng`, `gói`, `hộp`, `chai`, `chiếc`...).
+   - Chọn chiều quy đổi và nhập tỷ lệ:
+     - `1 [đơn vị cũ] = [K] [đơn vị mới]` (ví dụ: 1 gói = 5 lạng, K = 5).
+     - Hoặc `1 [đơn vị mới] = [K] [đơn vị cũ]` (ví dụ: 1 kg = 10 lạng, K = 10).
+   - Tùy chọn `Thêm đơn vị cũ vào bảng quy đổi đơn vị phụ`: Nếu tích chọn (mặc định), đơn vị cũ sẽ tự động được đưa vào danh sách đơn vị quy đổi phụ với hệ số tương ứng để nhân viên vẫn có thể chọn nhập/bán theo đơn vị cũ khi cần.
+   - Xem trước kết quả tính toán trực quan (Live preview): Tồn kho mới, Giá nhập mới, Giá bán mới, Ngưỡng cảnh báo mới và Tổng giá trị tồn kho không đổi.
+   - Bấm **Xác nhận chuyển đổi đơn vị**.
+3. **Cơ chế đảm bảo an toàn dữ liệu**:
+   - Toàn bộ tồn kho vật lý, các lô hàng (batches), phân bổ lô (allocations), các dòng trong giỏ hàng chờ xuất (draft carts) và phiếu chờ nhập (purchase drafts) đều được tự động quy đổi đồng bộ.
+   - Giá trị tồn kho thực tế và tổng tiền của các giỏ hàng/phiếu nhập được bảo toàn chính xác 100%.
+   - Thao tác được ghi vết chi tiết vào Audit Log với hành động `change_base_unit`.
 
 ## 8. Luồng nhập hàng
 
