@@ -4329,12 +4329,12 @@ class InventoryStore:
     ) -> dict:
         clean_source_type = str(source_type or "").strip()
         clean_source_code = str(source_code or "").strip()
-        if clean_source_type == "sale_cancellation" and clean_source_code:
+        if clean_source_type in {"sale_cancellation", "admin_edit_reversal"} and clean_source_code:
             return {
                 "document_code": clean_source_code,
                 "document_type": "order",
             }
-        if clean_source_type == "purchase_cancellation" and clean_source_code:
+        if clean_source_type in {"purchase_cancellation", "admin_edit_purchase"} and clean_source_code:
             return {
                 "document_code": clean_source_code,
                 "document_type": "purchase",
@@ -13697,15 +13697,15 @@ class InventoryStore:
             raise ValueError("Chế độ Admin Edit không được phép thay đổi khách hàng của đơn đã xuất.")
 
         new_items = cart.get("items") or []
-        old_items = previous_cart.get("items") or []
-        old_product_ids = {int(it.get("productId") or it.get("product_id") or 0) for it in old_items if int(it.get("productId") or it.get("product_id") or 0)}
-        new_product_ids = {int(it.get("productId") or it.get("product_id") or 0) for it in new_items if int(it.get("productId") or it.get("product_id") or 0)}
-        if old_product_ids != new_product_ids:
-            raise ValueError("Chế độ Admin Edit chỉ cho phép sửa số lượng và giá của các mặt hàng đã có, không được thêm hoặc xóa sản phẩm.")
-
+        if not isinstance(new_items, list) or not new_items:
+            raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
         for item in new_items:
-            qty = float(item.get("quantity") or 0)
-            if qty <= 0:
+            try:
+                qty = float(item.get("quantity") or 0)
+                product_id = int(item.get("productId") or item.get("product_id") or 0)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Mặt hàng hoặc số lượng không hợp lệ.") from exc
+            if product_id <= 0 or not math.isfinite(qty) or qty <= 0:
                 raise ValueError("Số lượng mặt hàng phải lớn hơn 0.")
 
         order_transactions = self._validate_order_cancellation_target(connection, previous_cart)
@@ -13906,22 +13906,62 @@ class InventoryStore:
         if str(previous_purchase.get("paidAt") or previous_purchase.get("paid_at") or ""):
             raise ValueError("Phiếu nhập đã thanh toán không thể sửa.")
         
-        # Admin Edit restrictions: supplier cannot change, products cannot be added/removed
+        # #Issue37: Keep supplier immutable while allowing Master Admin to edit purchase lines.
         if str(purchase.get("supplierId") or "").strip() != str(previous_purchase.get("supplierId") or "").strip() or \
            str(purchase.get("supplierName") or "").strip() != str(previous_purchase.get("supplierName") or "").strip():
             raise ValueError("Chế độ Admin Edit không được phép thay đổi nhà cung cấp của phiếu đã nhận.")
 
         new_items = purchase.get("items") or []
-        old_items = previous_purchase.get("items") or []
-        old_product_ids = {int(it.get("productId") or it.get("product_id") or 0) for it in old_items if int(it.get("productId") or it.get("product_id") or 0)}
-        new_product_ids = {int(it.get("productId") or it.get("product_id") or 0) for it in new_items if int(it.get("productId") or it.get("product_id") or 0)}
-        if old_product_ids != new_product_ids:
-            raise ValueError("Chế độ Admin Edit chỉ cho phép sửa số lượng và giá của các mặt hàng đã có, không được thêm hoặc xóa sản phẩm.")
-
+        if not isinstance(new_items, list) or not new_items:
+            raise ValueError("Phiếu nhập phải có ít nhất một mặt hàng.")
+        new_items_by_id: dict[str, dict] = {}
+        legacy_matched_ids: set[str] = set()
         for item in new_items:
-            qty = float(item.get("quantity") or 0)
-            if qty <= 0:
-                raise ValueError("Số lượng mặt hàng phải lớn hơn 0.")
+            if not isinstance(item, dict):
+                raise ValueError("Dòng mặt hàng không hợp lệ.")
+            item_id = str(item.get("id") or "").strip()
+            try:
+                product_id = int(item.get("productId") or item.get("product_id") or 0)
+                qty = float(item.get("quantity") or 0)
+                input_qty = float(item.get("inputQuantity") or item.get("input_quantity") or qty)
+                factor = float(item.get("conversionFactor") or item.get("conversion_factor") or 1)
+                unit_cost = float(item.get("unitCost") or item.get("unit_cost") or item.get("unitPrice") or item.get("unit_price") or 0)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Mặt hàng hoặc thông số nhập không hợp lệ.") from exc
+            item_discount = float(
+                self._parse_discount_amount_value(
+                    item.get("discountAmount", item.get("discount_amount", 0)),
+                    "Khuyến mại dòng nhập",
+                )
+            )
+            if not item_id:
+                # #Issue37: Older admin clients omit line ids; reuse a matching original id when possible.
+                matching_old_item = next(
+                    (
+                        old_item for old_item in (previous_purchase.get("items") or [])
+                        if str(old_item.get("id") or "").strip() not in legacy_matched_ids
+                        and int(old_item.get("productId") or old_item.get("product_id") or 0) == product_id
+                    ),
+                    None,
+                )
+                item_id = str(matching_old_item.get("id") or "").strip() if matching_old_item else ""
+                if item_id:
+                    legacy_matched_ids.add(item_id)
+                else:
+                    item_id = f"purchase_item_{secrets.token_hex(6)}"
+                item["id"] = item_id
+            if item_id in new_items_by_id:
+                raise ValueError("Mã dòng nhập không hợp lệ hoặc bị trùng.")
+            if product_id <= 0 or not all(math.isfinite(value) for value in (qty, input_qty, factor, unit_cost, item_discount)):
+                raise ValueError("Mặt hàng hoặc thông số nhập không hợp lệ.")
+            if qty <= 0 or input_qty <= 0 or factor <= 0 or unit_cost < 0:
+                raise ValueError("Số lượng, hệ số quy đổi hoặc giá nhập không hợp lệ.")
+            if round(input_qty * factor, 4) != round(qty, 4):
+                raise ValueError("Số lượng nhập và số lượng cơ sở không khớp hệ số quy đổi.")
+            # #Issue37: Preserve the same non-negative line-discount validation used by regular purchase flows.
+            item["discountAmount"] = item_discount
+            self._get_product_or_raise(connection, product_id, allow_deleted=True)
+            new_items_by_id[item_id] = item
         
         receipt_code = str(previous_purchase.get("receiptCode") or previous_purchase.get("receipt_code") or purchase_id).strip()
         
@@ -13941,21 +13981,47 @@ class InventoryStore:
 
         old_items_rows = connection.execute(
             """
-            SELECT product_id, quantity, unit_amount, transaction_id, batch_id
+            SELECT id, product_id, quantity, unit_amount, line_total, transaction_id, batch_id,
+                   purchase_item_id, batch_code, expiry_date
             FROM inventory_receipt_items
             WHERE receipt_id = ?
             """,
             (receipt_id,),
         ).fetchall()
         
-        old_item_map = {}
+        old_item_map: dict[str, dict] = {}
+        old_receipt_rows_by_product: dict[int, list[dict]] = {}
         for row in old_items_rows:
-            old_item_map[int(row["product_id"])] = {
+            mapped = {
+                "receipt_item_id": int(row["id"]),
+                "product_id": int(row["product_id"]),
                 "quantity": float(row["quantity"] or 0),
                 "unit_amount": float(row["unit_amount"] or 0),
+                "line_total": float(row["line_total"] or 0),
                 "transaction_id": int(row["transaction_id"]) if row["transaction_id"] is not None else None,
                 "batch_id": int(row["batch_id"]) if row["batch_id"] is not None else None,
+                "purchase_item_id": str(row["purchase_item_id"] or "").strip(),
+                "batch_code": str(row["batch_code"] or "").strip(),
+                "expiry_date": str(row["expiry_date"] or "").strip(),
             }
+            if mapped["purchase_item_id"]:
+                old_item_map[mapped["purchase_item_id"]] = mapped
+            old_receipt_rows_by_product.setdefault(mapped["product_id"], []).append(mapped)
+
+        # #Issue37: Legacy receipt rows may not have a purchase_item_id; pair those by product once.
+        used_receipt_item_ids = {entry["receipt_item_id"] for entry in old_item_map.values()}
+        for old_item in previous_purchase.get("items") or []:
+            item_id = str(old_item.get("id") or "").strip()
+            if item_id in old_item_map:
+                continue
+            product_id = int(old_item.get("productId") or old_item.get("product_id") or 0)
+            fallback = next(
+                (row for row in old_receipt_rows_by_product.get(product_id, []) if row["receipt_item_id"] not in used_receipt_item_ids),
+                None,
+            )
+            if fallback:
+                old_item_map[item_id] = fallback
+                used_receipt_item_ids.add(fallback["receipt_item_id"])
 
         new_items = purchase.get("items") or []
         # Update purchases table
@@ -14016,90 +14082,285 @@ class InventoryStore:
                 ),
             )
 
-        # Process deltas for stock & batches
-        for item in new_items:
-            product_id = int(item.get("productId") or item.get("product_id") or 0)
-            product = self._get_product_or_raise(connection, product_id, allow_deleted=True)
-            new_qty = float(item.get("quantity") or 0)
-            new_price = float(item.get("unitCost") or item.get("unit_cost") or item.get("unitPrice") or item.get("unit_price") or 0)
-            
-            old = old_item_map.get(product_id)
-            if not old:
-                raise ValueError(f"Sản phẩm {product.get('name')} là mặt hàng mới thêm vào đơn đã khóa. Vui lòng tạo phiếu nhập mới thay vì sửa.")
-            
-            old_qty = old["quantity"]
+        # #Issue37: Reconcile each original line against its stable purchase_item id so added,
+        # removed, and replaced products update stock, batches, the receipt snapshot, and audit atomically.
+        connection.execute(
+            "UPDATE inventory_receipts SET supplier_id = ?, supplier_name = ?, discount_amount = ? WHERE id = ?",
+            (supplier_id, supplier_name, new_discount_amount, receipt_id),
+        )
+        old_purchase_items_by_id = {
+            str(item.get("id") or "").strip(): item
+            for item in (previous_purchase.get("items") or [])
+            if str(item.get("id") or "").strip()
+        }
+        matched_new_ids: set[str] = set()
+        adjustment_receipt_id: int | None = None
+
+        def record_stock_adjustment(*, product, item, quantity: float, direction: str, batch_id: int, batch_code: str, expiry_date: str, unit_cost: float) -> int:
+            nonlocal adjustment_receipt_id
+            if adjustment_receipt_id is None:
+                suffix = hashlib.sha1(f"{receipt_code}-{processed_at}-{admin_edit_reason}".encode("utf-8")).hexdigest()[:6]
+                adjustment_code = f"AD-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{suffix}"
+                adjustment_receipt_id = self._insert_inventory_receipt(
+                    connection,
+                    receipt_code=adjustment_code,
+                    receipt_type="inventory_adjustment",
+                    supplier_name=supplier_name,
+                    source_type="admin_edit_purchase",
+                    source_code=receipt_code,
+                    actor=actor,
+                    reason=admin_edit_reason,
+                    note=f"Điều chỉnh tồn khi Master Admin sửa phiếu nhập {receipt_code}.",
+                    created_at=processed_at,
+                )
+            direction_label = "giảm" if direction == "out" else "tăng"
+            note_str = (
+                f"Phiếu điều chỉnh | Admin sửa {direction_label} phiếu nhập {receipt_code} "
+                f"| NCC: {supplier_name} | Giá nhập: {unit_cost:.2f} | Lý do: {admin_edit_reason}"
+            )
+            cursor = connection.execute(
+                "INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at) VALUES(?, ?, ?, ?, ?)",
+                (int(product["id"]), direction, round(quantity, 2), note_str, processed_at),
+            )
+            self._insert_inventory_batch_allocation(
+                connection,
+                batch_id=batch_id,
+                transaction_id=int(cursor.lastrowid),
+                product_id=int(product["id"]),
+                quantity=quantity,
+                direction=direction,
+                created_at=processed_at,
+            )
+            current_stock = round(float(self._get_stock_for_product(connection, int(product["id"]))), 2)
+            self._insert_inventory_receipt_item(
+                connection,
+                receipt_id=adjustment_receipt_id,
+                product_id=int(product["id"]),
+                product_name=str(product["name"]),
+                unit=str(product["unit"]),
+                transaction_type=direction,
+                quantity=round(quantity, 2),
+                unit_amount=round(unit_cost, 2),
+                line_total=round(quantity * unit_cost, 2),
+                stock_after=current_stock,
+                transaction_id=int(cursor.lastrowid),
+                batch_id=batch_id,
+                batch_code=batch_code,
+                expiry_date=expiry_date or None,
+            )
+            return int(cursor.lastrowid)
+
+        for item_id, old_item in old_purchase_items_by_id.items():
+            old_product_id = int(old_item.get("productId") or old_item.get("product_id") or 0)
+            old_product = self._get_product_or_raise(connection, old_product_id, allow_deleted=True)
+            old = old_item_map.get(item_id)
+            if old is None:
+                raise ValueError(f"Không tìm thấy dòng receipt gốc của {old_product['name']}.")
+            candidate = new_items_by_id.get(item_id)
+            is_same_product = bool(
+                candidate
+                and int(candidate.get("productId") or candidate.get("product_id") or 0) == old_product_id
+            )
+            if is_same_product:
+                matched_new_ids.add(item_id)
+            new_qty = float(candidate.get("quantity") or 0) if is_same_product else 0.0
+            input_qty = float(candidate.get("inputQuantity") or candidate.get("input_quantity") or new_qty) if is_same_product else 0.0
+            factor = float(candidate.get("conversionFactor") or candidate.get("conversion_factor") or 1) if is_same_product else 1.0
+            unit_cost = float(candidate.get("unitCost") or candidate.get("unit_cost") or candidate.get("unitPrice") or candidate.get("unit_price") or 0) if is_same_product else 0.0
+            base_unit_cost = unit_cost / factor if is_same_product else float(old.get("unit_amount") or 0)
+            item_discount = float(candidate.get("discountAmount") or candidate.get("discount_amount") or 0) if is_same_product else 0.0
+            line_total = max(0.0, input_qty * unit_cost - item_discount) if is_same_product else 0.0
+            expiry_meta = self._resolve_purchase_item_expiry_metadata(
+                raw_item=candidate or {},
+                product=old_product,
+                received_at=previous_purchase.get("receivedAt") or previous_purchase.get("received_at") or processed_at,
+            ) if is_same_product else {
+                "expiry_date": old.get("expiry_date") or "",
+                "manufacture_date": "",
+                "expiry_input_mode": "direct",
+            }
             batch_id = old.get("batch_id")
             if not batch_id:
                 batch_row = connection.execute(
-                    """
-                    SELECT id, remaining_quantity, initial_quantity, unit_cost
-                    FROM inventory_batches
-                    WHERE source_receipt_code = ? AND product_id = ?
-                    LIMIT 1
-                    """,
-                    (receipt_code, product_id),
+                    "SELECT id FROM inventory_batches WHERE source_receipt_code = ? AND product_id = ? ORDER BY id LIMIT 1",
+                    (receipt_code, old_product_id),
                 ).fetchone()
-                if batch_row:
-                    batch_id = int(batch_row["id"])
-            
+                batch_id = int(batch_row["id"]) if batch_row else None
             if not batch_id:
-                raise ValueError(f"Không tìm thấy lô hàng gốc của {product.get('name')}.")
-            
-            if new_qty < old_qty:
-                # Decreasing stock -> Out transaction, reduce batch
-                delta_qty = round(old_qty - new_qty, 2)
-                
-                # Check batch remaining
-                batch = connection.execute("SELECT id, remaining_quantity FROM inventory_batches WHERE id = ?", (batch_id,)).fetchone()
-                if not batch:
-                    raise ValueError(f"Không tìm thấy lô hàng gốc của {product.get('name')}.")
-                remaining = float(batch["remaining_quantity"] or 0)
-                if remaining < delta_qty:
-                    raise ValueError(f"Mặt hàng {product.get('name')} đã được xuất một phần ({old_qty - remaining:g} đã xuất). Không thể giảm xuống {new_qty:g}.")
-                
-                # Reduce batch
+                raise ValueError(f"Không tìm thấy lô hàng gốc của {old_product['name']}.")
+
+            old_qty = float(old.get("quantity") or 0)
+            delta = round(new_qty - old_qty, 2)
+            batch_row = connection.execute(
+                "SELECT remaining_quantity, initial_quantity FROM inventory_batches WHERE id = ?",
+                (batch_id,),
+            ).fetchone()
+            if not batch_row:
+                raise ValueError(f"Không tìm thấy lô hàng gốc của {old_product['name']}.")
+            if delta < 0:
+                decrease = round(-delta, 2)
+                remaining = float(batch_row["remaining_quantity"] or 0)
+                if remaining < decrease:
+                    used_quantity = old_qty - remaining
+                    raise ValueError(
+                        f"Mặt hàng {old_product['name']} đã được xuất một phần ({used_quantity:g} đã xuất). "
+                        f"Không thể giảm xuống {new_qty:g}."
+                    )
                 connection.execute(
-                    "UPDATE inventory_batches SET initial_quantity = initial_quantity - ?, remaining_quantity = remaining_quantity - ?, unit_cost = ? WHERE id = ?",
-                    (delta_qty, delta_qty, new_price, batch_id)
+                    "UPDATE inventory_batches SET initial_quantity = initial_quantity - ?, remaining_quantity = remaining_quantity - ?, unit_cost = ?, batch_code = ?, expiry_date = ?, updated_at = ? WHERE id = ?",
+                    (
+                        decrease,
+                        decrease,
+                        base_unit_cost,
+                        str(candidate.get("batchCode") or candidate.get("batch_code") or old.get("batch_code") or "") if candidate else old.get("batch_code") or "",
+                        expiry_meta.get("expiry_date") or None,
+                        processed_at,
+                        batch_id,
+                    ),
                 )
-                
-                # Out transaction
-                note_str = f"Phiếu điều chỉnh | Admin sửa giảm phiếu nhập {receipt_code} | Khách/NCC: {supplier_name} | Lý do: {admin_edit_reason}"
-                cursor = connection.execute(
-                    """
-                    INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
-                    VALUES(?, 'out', ?, ?, ?)
-                    """,
-                    (product_id, delta_qty, note_str, processed_at)
+                record_stock_adjustment(
+                    product=old_product,
+                    item=old_item,
+                    quantity=decrease,
+                    direction="out",
+                    batch_id=batch_id,
+                    batch_code=old.get("batch_code") or "",
+                    expiry_date=old.get("expiry_date") or "",
+                    unit_cost=base_unit_cost,
                 )
-                
-            elif new_qty > old_qty:
-                # Increasing stock -> In transaction, increase batch
-                delta_qty = round(new_qty - old_qty, 2)
+            elif delta > 0:
+                increase = round(delta, 2)
                 connection.execute(
-                    "UPDATE inventory_batches SET initial_quantity = initial_quantity + ?, remaining_quantity = remaining_quantity + ?, unit_cost = ? WHERE id = ?",
-                    (delta_qty, delta_qty, new_price, batch_id)
+                    "UPDATE inventory_batches SET initial_quantity = initial_quantity + ?, remaining_quantity = remaining_quantity + ?, unit_cost = ?, batch_code = ?, expiry_date = ?, updated_at = ? WHERE id = ?",
+                    (
+                        increase,
+                        increase,
+                        base_unit_cost,
+                        str(candidate.get("batchCode") or candidate.get("batch_code") or old.get("batch_code") or "") if candidate else old.get("batch_code") or "",
+                        expiry_meta.get("expiry_date") or None,
+                        processed_at,
+                        batch_id,
+                    ),
                 )
-                # In transaction
-                note_str = f"Phiếu điều chỉnh | Admin sửa tăng phiếu nhập {receipt_code} | Khách/NCC: {supplier_name} | Lý do: {admin_edit_reason}"
-                cursor = connection.execute(
-                    """
-                    INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
-                    VALUES(?, 'in', ?, ?, ?)
-                    """,
-                    (product_id, delta_qty, note_str, processed_at)
+                record_stock_adjustment(
+                    product=old_product,
+                    item=candidate or old_item,
+                    quantity=increase,
+                    direction="in",
+                    batch_id=batch_id,
+                    batch_code=str(candidate.get("batchCode") or candidate.get("batch_code") or old.get("batch_code") or "") if candidate else old.get("batch_code") or "",
+                    expiry_date=str(expiry_meta.get("expiry_date") or ""),
+                    unit_cost=base_unit_cost,
                 )
             else:
-                # Only price changed
                 connection.execute(
-                    "UPDATE inventory_batches SET unit_cost = ? WHERE id = ?",
-                    (new_price, batch_id)
+                    "UPDATE inventory_batches SET unit_cost = ?, batch_code = ?, expiry_date = ?, updated_at = ? WHERE id = ?",
+                    (
+                        base_unit_cost,
+                        str(candidate.get("batchCode") or candidate.get("batch_code") or old.get("batch_code") or "") if candidate else old.get("batch_code") or "",
+                        expiry_meta.get("expiry_date") or None,
+                        processed_at,
+                        batch_id,
+                    ),
                 )
-                
-            # Update receipt item
+
+            if is_same_product:
+                connection.execute(
+                    """UPDATE inventory_receipt_items
+                       SET product_name = ?, unit = ?, quantity = ?, unit_amount = ?, line_total = ?,
+                           purchase_item_id = ?, batch_code = ?, expiry_date = ?, input_quantity = ?, input_unit = ?, conversion_factor = ?
+                       WHERE id = ?""",
+                    (
+                        str(candidate.get("productName") or candidate.get("product_name") or old_product["name"]).strip(),
+                        str(old_product["unit"]),
+                        new_qty,
+                        base_unit_cost,
+                        line_total,
+                        item_id,
+                        str(candidate.get("batchCode") or candidate.get("batch_code") or old.get("batch_code") or "").strip(),
+                        expiry_meta.get("expiry_date") or None,
+                        input_qty,
+                        str(candidate.get("inputUnit") or candidate.get("input_unit") or candidate.get("unit") or old_product["unit"]).strip(),
+                        factor,
+                        old["receipt_item_id"],
+                    ),
+                )
+            else:
+                # Keep the original ledger line as a zero-value history row; the new adjustment transaction records its reversal.
+                connection.execute(
+                    "UPDATE inventory_receipt_items SET quantity = 0, line_total = 0, purchase_item_id = '' WHERE id = ?",
+                    (old["receipt_item_id"],),
+                )
+
+        # #Issue37: New or replacement products get their own purchase ledger row and FEFO batch.
+        for item in new_items:
+            item_id = str(item.get("id") or "").strip()
+            if item_id in matched_new_ids:
+                continue
+            product_id = int(item.get("productId") or item.get("product_id") or 0)
+            product = self._get_product_or_raise(connection, product_id, allow_deleted=True)
+            quantity = float(item.get("quantity") or 0)
+            input_quantity = float(item.get("inputQuantity") or item.get("input_quantity") or quantity)
+            factor = float(item.get("conversionFactor") or item.get("conversion_factor") or 1)
+            unit_cost = float(item.get("unitCost") or item.get("unit_cost") or item.get("unitPrice") or item.get("unit_price") or 0)
+            base_unit_cost = unit_cost / factor
+            item_discount = float(item.get("discountAmount") or item.get("discount_amount") or 0)
+            line_total = max(0.0, input_quantity * unit_cost - item_discount)
+            expiry_meta = self._resolve_purchase_item_expiry_metadata(
+                raw_item=item,
+                product=product,
+                received_at=previous_purchase.get("receivedAt") or previous_purchase.get("received_at") or processed_at,
+            )
+            batch_code = str(item.get("batchCode") or item.get("batch_code") or "").strip()
+            transaction_note = (
+                f"Phiếu nhập {receipt_code} | Master Admin thêm mặt hàng | NCC: {supplier_name} "
+                f"| Giá nhập: {unit_cost:.2f} | Lý do: {admin_edit_reason}"
+            )
+            cursor = connection.execute(
+                "INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at) VALUES(?, 'in', ?, ?, ?)",
+                (product_id, quantity, transaction_note, processed_at),
+            )
+            batch = self._create_inventory_batch(
+                connection,
+                product=product,
+                quantity=Decimal(str(quantity)),
+                unit_cost=Decimal(str(base_unit_cost)),
+                received_at=processed_at,
+                source_receipt_code=receipt_code,
+                source_receipt_type="purchase",
+                source_transaction_id=int(cursor.lastrowid),
+                transaction_id=int(cursor.lastrowid),
+                batch_code=batch_code,
+                expiry_date=expiry_meta.get("expiry_date"),
+                note=note,
+                fallback_batch_code=f"{receipt_code}-AD-{item_id[-6:]}",
+            )
+            current_stock = round(float(self._get_stock_for_product(connection, product_id)), 2)
+            self._insert_inventory_receipt_item(
+                connection,
+                receipt_id=receipt_id,
+                product_id=product_id,
+                product_name=str(item.get("productName") or item.get("product_name") or product["name"]).strip(),
+                unit=str(product["unit"]),
+                transaction_type="in",
+                quantity=quantity,
+                unit_amount=base_unit_cost,
+                line_total=line_total,
+                stock_after=current_stock,
+                transaction_id=int(cursor.lastrowid),
+                purchase_item_id=item_id,
+                batch_id=int(batch["id"]),
+                batch_code=batch["batch_code"],
+                expiry_date=batch["expiry_date"] or None,
+            )
             connection.execute(
-                "UPDATE inventory_receipt_items SET quantity = ?, unit_amount = ?, line_total = ? WHERE receipt_id = ? AND product_id = ?",
-                (new_qty, new_price, round(new_qty * new_price, 2), receipt_id, product_id)
+                "UPDATE inventory_receipt_items SET input_quantity = ?, input_unit = ?, conversion_factor = ? WHERE transaction_id = ?",
+                (
+                    input_quantity,
+                    str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or product["unit"]).strip(),
+                    factor,
+                    int(cursor.lastrowid),
+                ),
             )
 
         current_purchase = self._get_purchase_document(connection, purchase_id)

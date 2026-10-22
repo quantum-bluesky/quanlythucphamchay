@@ -131,8 +131,8 @@ Tài liệu này gom các API hiện có trong backend để tra cứu nhanh khi
 | `POST` | `/api/admin/import/{products|customers|suppliers}` | Import master data | Body: `format`, `records` hoặc `content` | - |
 | `DELETE` | `/api/admin/customers/{id}/hard` | Xóa cứng khách hàng | - | - |
 | `DELETE` | `/api/admin/suppliers/{id}/hard` | Xóa cứng nhà cung cấp | - | - |
-| `POST` | `/api/admin/orders/edit-locked` | Master Admin sửa phiếu xuất đã khóa | Body: `cart`, `adminEditReason` | Chỉ khi bật `EnableAdminLockedEdit`. |
-| `POST` | `/api/admin/purchases/edit-locked` | Master Admin sửa phiếu nhập đã khóa | Body: `purchase`, `adminEditReason` | Chỉ khi bật `EnableAdminLockedEdit`. |
+| `POST` | `/api/admin/orders/edit-locked` | Master Admin sửa đơn đã xuất nhưng chưa thanh toán | Body: `cart`, `adminEditReason` | Có thể thêm/xóa/thay dòng hàng, sửa số lượng/giá; backend đối soát tồn/lịch sử và audit. Khách hàng không đổi. Chỉ khi bật `EnableAdminLockedEdit`. |
+| `POST` | `/api/admin/purchases/edit-locked` | Master Admin sửa phiếu đã nhận nhưng chưa thanh toán | Body: `purchase`, `adminEditReason` | Có thể thêm/xóa/thay dòng hàng, sửa số lượng/giá; backend đối soát tồn/lịch sử và audit. Nhà cung cấp không đổi. Chỉ khi bật `EnableAdminLockedEdit`. |
 
 ## Ghi chú triển khai
 

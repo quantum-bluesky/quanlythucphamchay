@@ -559,6 +559,13 @@ Case mới cho Issue 175 (Nút Xuất tất cả ở màn Tồn kho):
 
 - `IT-INV-03`: kiểm tra nút `Xuất tất cả` ở form Chỉnh tồn trực tiếp màn Tồn kho: yêu cầu quyền Admin, báo lỗi khi chưa chọn sản phẩm hoặc sản phẩm hết hàng, hiển thị confirm dialog và xuất toàn bộ tồn kho để giảm tồn về 0 sau khi xác nhận.
 
+## Issue 37: Master Admin sửa chứng từ đã khóa
+
+- `UT-ADM-EDIT-01..05` trong `tests/test_app.py`: quyền/lý do/trạng thái thanh toán; điều chỉnh sổ tồn của đơn đã xuất và phiếu đã nhận; thay mặt hàng; giữ nguyên khách/NCC; chặn giảm hàng đã bị tiêu thụ; xóa mặt hàng nhập còn nguyên tồn và vẫn hủy được phiếu nhập sau đó.
+- `IT-ADM-EDIT-01` trong `tests/integration/test-admin-edit.spec.js`: tạo phiếu nhập đã nhận và đơn đã xuất qua API quick-create để sinh ledger hợp lệ, mở đúng route admin bằng `openAdminPage`, sửa ghi chú qua chế độ Master Admin, rồi kiểm tra response và dữ liệu đã lưu qua API state.
+- Chạy unit tập trung: `python -m unittest tests.test_app.InventoryStoreTests.test_ut_admin_edit_01_locked_purchase_success_and_ledger_adjustment tests.test_app.InventoryStoreTests.test_ut_admin_edit_02_locked_order_success_and_ledger_adjustment tests.test_app.InventoryStoreTests.test_ut_admin_edit_03_role_and_reason_validation tests.test_app.InventoryStoreTests.test_ut_admin_edit_04_item_changes_and_customer_supplier_immutability tests.test_app.InventoryStoreTests.test_ut_admin_edit_05_remove_unused_received_purchase_item_updates_ledger`.
+- Chạy browser integration: `node node_modules/@playwright/test/cli.js test tests/integration/test-admin-edit.spec.js --grep IT-ADM-EDIT-01` (gọi runner cục bộ trực tiếp, không cần `npx` global).
+
 ## Lưu ý
 
 - App runtime thật vẫn chỉ cần `Python stdlib + SQLite`

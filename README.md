@@ -185,7 +185,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Phiếu nhập bắt buộc có nhà cung cấp trước khi chuyển sang `Đã đặt hàng` hoặc `Nhập kho`
 - Ở màn `Nhập hàng`, có thể tick nhiều phiếu `Nháp/Đã đặt` cùng NCC để mở flow `Gộp đơn`; hệ thống sẽ chặn nếu chọn khác NCC
 - Cùng thanh chọn nhiều phiếu ở màn `Nhập hàng` có thêm nút `Đặt hàng` để đẩy nhanh loạt phiếu nháp đủ điều kiện sang trạng thái `Đã đặt hàng`
-- Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Ghi chú` và `Giảm giá khuyến mại`; app không mở khóa lại số lượng, giá, mã lô, NCC hay cấu trúc dòng nhập
+- Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, user thông thường chỉ sửa được `Ghi chú`, `Giảm giá khuyến mại` và metadata HSD/NSX; Master Admin có thể dùng `Sửa Admin` để thêm/xóa/thay mặt hàng hoặc sửa số lượng/giá. Thao tác bắt buộc nhập lý do và xác nhận, cập nhật tồn kho/lịch sử/audit; nhà cung cấp vẫn không đổi được
 - Mỗi dòng nhập có thể khai báo riêng `Mã lô` và `Hạn dùng`; có thể nhập HSD trực tiếp hoặc nhập gián tiếp qua `Ngày sản xuất` để app tự tính `HSD = NSX + thời gian bảo quản`; nếu cùng một sản phẩm về nhiều lô khác nhau có thể tách nhanh bằng nút `+ Lô`
 - Nếu để trống `Hạn dùng`, khi `Nhập kho` app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` của sản phẩm
 - Nếu phiếu nhập được tạo từ một đơn đang thiếu hàng, app giữ liên kết nguồn đơn riêng trong metadata phiếu; ô ghi chú vẫn để trống để user tự nhập
@@ -493,7 +493,7 @@ UI tương ứng:
 Quy tắc workflow vẫn giữ nguyên:
 
 - không sửa ngược đơn đã chốt
-- không sửa ngược phiếu đã nhập kho / đã thanh toán
+- user thông thường không sửa ngược mặt hàng của phiếu đã nhập kho; Master Admin chỉ được sửa phiếu chưa thanh toán qua `Sửa Admin`, có lý do, xác nhận và đối soát tồn kho/audit
 - không mở quyền `Master Admin` để xóa hoặc hủy ngược các chứng từ đã khóa
 
 API tra cứu audit chứng từ Phase B:

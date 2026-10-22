@@ -5175,6 +5175,12 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(updated_c["customerName"], "Khách Test")
         self.assertEqual(updated_c["items"][0]["quantity"], 3.0)
         self.assertEqual(updated_c["items"][0]["unitPrice"], 55000.0)
+        reversal = next(
+            row for row in self.store.get_product_movements(product_id=product["id"])["movements"]
+            if "Hủy lô gốc đơn:" in row["note"]
+        )
+        self.assertEqual(reversal["document_type"], "order")
+        self.assertEqual(reversal["document_code"], result["cart"]["orderCode"])
 
     def test_ut_admin_edit_03_role_and_reason_validation(self) -> None:
         with self.assertRaises(ValueError) as ctx:
@@ -5197,7 +5203,7 @@ class InventoryStoreTests(unittest.TestCase):
             )
         self.assertIn("lý do", str(ctx.exception))
 
-    def test_ut_admin_edit_04_item_boundary_and_customer_immutability(self) -> None:
+    def test_ut_admin_edit_04_item_changes_and_customer_supplier_immutability(self) -> None:
         p1 = self.store.create_product(
             name="Sườn non 1", category="Đồ khô", unit="gói", low_stock_threshold=2, price=30000, sale_price=45000,
         )
@@ -5207,6 +5213,13 @@ class InventoryStoreTests(unittest.TestCase):
 
         # Create and receive purchase with p1
         purchase_id = "test_pur_bound"
+        purchase_created_at = "2026-08-16T08:00:00.000Z"
+        purchase_receipt = self._create_purchase_receipt_at(
+            supplier_name="NCC Gốc",
+            items=[{"product_id": p1["id"], "quantity": 5, "unit_cost": 30000}],
+            created_at=purchase_created_at,
+            note="Phiếu nhập gốc",
+        )
         purchase_doc = {
             "id": purchase_id,
             "supplierId": "sup_1",
@@ -5224,8 +5237,8 @@ class InventoryStoreTests(unittest.TestCase):
                 }
             ],
             "totalAmount": 150000.0,
-            "receivedAt": "2026-08-16T08:00:00.000Z",
-            "receiptCode": "NH-20260816-BOUND",
+            "receivedAt": purchase_created_at,
+            "receiptCode": purchase_receipt["receipt_code"],
         }
         self.store.save_sync_state(
             {
@@ -5248,30 +5261,45 @@ class InventoryStoreTests(unittest.TestCase):
             )
         self.assertIn("không được phép thay đổi nhà cung cấp", str(ctx.exception))
 
-        # 2. Try adding new product p2 to purchase
+        # #Issue37: Admin Edit keeps the regular non-negative line-discount validation.
         with self.assertRaises(ValueError) as ctx:
             self.store.admin_edit_locked_purchase(
                 purchase_id=purchase_id,
                 purchase_payload={
                     **purchase_doc,
-                    "items": [
-                        *purchase_doc["items"],
-                        {
-                            "id": "it_2",
-                            "productId": p2["id"],
-                            "productName": p2["name"],
-                            "unit": p2["unit"],
-                            "quantity": 2.0,
-                            "unitCost": 35000.0,
-                            "lineTotal": 70000.0,
-                        },
-                    ],
+                    "items": [{**purchase_doc["items"][0], "discountAmount": -1}],
                 },
-                admin_edit_reason="Thêm SP",
+                admin_edit_reason="Giảm giá không hợp lệ",
                 actor_username="admin",
                 actor_role="admin",
             )
-        self.assertIn("không được thêm hoặc xóa sản phẩm", str(ctx.exception))
+        self.assertIn("khuyến mại dòng nhập", str(ctx.exception).lower())
+        self.assertEqual(self.store.get_product_by_id(p1["id"])["current_stock"], 5.0)
+
+        # 2. Master Admin can add a new product while keeping the original line.
+        purchase_result = self.store.admin_edit_locked_purchase(
+            purchase_id=purchase_id,
+            purchase_payload={
+                **purchase_doc,
+                "items": [
+                    *purchase_doc["items"],
+                    {
+                        "id": "it_2",
+                        "productId": p2["id"],
+                        "productName": p2["name"],
+                        "unit": p2["unit"],
+                        "quantity": 2.0,
+                        "unitCost": 35000.0,
+                        "lineTotal": 70000.0,
+                    },
+                ],
+            },
+            admin_edit_reason="Thêm SP",
+            actor_username="admin",
+            actor_role="admin",
+        )
+        self.assertEqual({item["productId"] for item in purchase_result["purchase"]["items"]}, {p1["id"], p2["id"]})
+        self.assertEqual(self.store.get_product_by_id(p2["id"])["current_stock"], 2.0)
 
         # 3. Create and ship order with p1
         cart_id = "test_cart_bound"
@@ -5279,7 +5307,7 @@ class InventoryStoreTests(unittest.TestCase):
             "id": cart_id,
             "customerId": "cust_1",
             "customerName": "Khách Gốc",
-            "status": "completed",
+            "status": "draft",
             "items": [
                 {
                     "id": "cit_1",
@@ -5293,8 +5321,6 @@ class InventoryStoreTests(unittest.TestCase):
             ],
             "totalAmount": 90000.0,
             "orderCode": "DH-BOUND-01",
-            "committedAt": "2026-08-16T08:00:00.000Z",
-            "completedAt": "2026-08-16T08:05:00.000Z",
         }
         self.store.save_sync_state(
             {
@@ -5302,6 +5328,9 @@ class InventoryStoreTests(unittest.TestCase):
                 "customers": [{"id": "cust_1", "name": "Khách Gốc"}],
             }
         )
+        self.store.commit_cart_order(cart_id, actor="tester")
+        self.store.ship_cart_order(cart_id, actor="tester")
+        cart_doc = next(cart for cart in self.store.get_sync_state()["carts"] if cart["id"] == cart_id)
 
         # 4. Try changing customer
         with self.assertRaises(ValueError) as ctx:
@@ -5317,30 +5346,73 @@ class InventoryStoreTests(unittest.TestCase):
             )
         self.assertIn("không được phép thay đổi khách hàng", str(ctx.exception))
 
-        # 5. Try adding new product p2 to cart
-        with self.assertRaises(ValueError) as ctx:
-            self.store.admin_edit_locked_order(
-                cart_id=cart_id,
-                cart_payload={
-                    **cart_doc,
-                    "items": [
-                        *cart_doc["items"],
-                        {
-                            "id": "cit_2",
-                            "productId": p2["id"],
-                            "productName": p2["name"],
-                            "unit": p2["unit"],
-                            "quantity": 1.0,
-                            "unitPrice": 50000.0,
-                            "lineTotal": 50000.0,
-                        },
-                    ],
-                },
-                admin_edit_reason="Thêm SP",
-                actor_username="admin",
-                actor_role="admin",
-            )
-        self.assertIn("không được thêm hoặc xóa sản phẩm", str(ctx.exception))
+        # 5. Master Admin can add a new product to the locked export order.
+        order_result = self.store.admin_edit_locked_order(
+            cart_id=cart_id,
+            cart_payload={
+                **cart_doc,
+                "items": [{
+                    "id": "cit_2",
+                    "productId": p2["id"],
+                    "productName": p2["name"],
+                    "unit": p2["unit"],
+                    "quantity": 1.0,
+                    "unitPrice": 50000.0,
+                    "lineTotal": 50000.0,
+                }],
+            },
+            admin_edit_reason="Thêm SP",
+            actor_username="admin",
+            actor_role="admin",
+        )
+        self.assertEqual({item["productId"] for item in order_result["cart"]["items"]}, {p2["id"]})
+        self.assertEqual(self.store.get_product_by_id(p1["id"])["current_stock"], 5.0)
+        self.assertEqual(self.store.get_product_by_id(p2["id"])["current_stock"], 1.0)
+
+    def test_ut_admin_edit_05_remove_unused_received_purchase_item_updates_ledger(self) -> None:
+        p1 = self.store.create_product(name="Sườn non 1", category="Đồ khô", unit="gói", price=30000)
+        p2 = self.store.create_product(name="Sườn non 2", category="Đồ khô", unit="gói", price=35000)
+        created_at = "2026-08-17T08:00:00.000Z"
+        receipt = self._create_purchase_receipt_at(
+            supplier_name="NCC Gốc",
+            items=[
+                {"product_id": p1["id"], "quantity": 3, "unit_cost": 30000},
+                {"product_id": p2["id"], "quantity": 4, "unit_cost": 35000},
+            ],
+            created_at=created_at,
+        )
+        purchase_id = "test_pur_admin_remove"
+        self.store.save_sync_state({"purchases": [{
+            "id": purchase_id,
+            "supplierName": "NCC Gốc",
+            "status": "received",
+            "receivedAt": created_at,
+            "receiptCode": receipt["receipt_code"],
+            "items": [
+                {"productId": p1["id"], "productName": p1["name"], "quantity": 3, "unitCost": 30000},
+                {"productId": p2["id"], "productName": p2["name"], "quantity": 4, "unitCost": 35000},
+            ],
+        }]})
+        purchase = next(item for item in self.store.get_sync_state()["purchases"] if item["id"] == purchase_id)
+        result = self.store.admin_edit_locked_purchase(
+            purchase_id=purchase_id,
+            purchase_payload={**purchase, "items": [purchase["items"][0]]},
+            admin_edit_reason="Gỡ nhầm mặt hàng khỏi phiếu",
+            actor_username="admin",
+            actor_role="admin",
+        )
+        self.assertEqual(len(result["purchase"]["items"]), 1)
+        self.assertEqual(self.store.get_product_by_id(p1["id"])["current_stock"], 3.0)
+        self.assertEqual(self.store.get_product_by_id(p2["id"])["current_stock"], 0.0)
+        with self.store._connect() as connection:
+            _, cancellation_items = self.store._validate_purchase_cancellation_target(connection, result["purchase"])
+        self.assertEqual(sum(item["quantity"] for item in cancellation_items), 3.0)
+        adjustment = next(
+            row for row in self.store.get_product_movements(product_id=p2["id"])["movements"]
+            if "Admin sửa giảm phiếu nhập" in row["note"]
+        )
+        self.assertEqual(adjustment["document_type"], "purchase")
+        self.assertEqual(adjustment["document_code"], receipt["receipt_code"])
 
     # Issue 169: Unit tests cho việc chọn ngày xuất và ngày nhập
     def test_ut_ord_custom_ship_date(self) -> None:

@@ -1212,6 +1212,7 @@ export function createPurchasesDomainHelpers(deps) {
     const product = getProductById(productId);
     if (!product) throw new Error("Không tìm thấy sản phẩm.");
     const allowActiveOrderedPurchase = options.allowActiveOrderedPurchase !== false;
+    const activeAdminEditPurchase = getActivePurchase()?._adminEditMode ? getActivePurchase() : null;
     const activeEditableOrderedPurchase = (() => {
       if (!allowActiveOrderedPurchase) {
         return null;
@@ -1224,7 +1225,7 @@ export function createPurchasesDomainHelpers(deps) {
         ? (activatePurchaseState(activePurchase.id) || activePurchase)
         : null;
     })();
-    const purchase = activeEditableOrderedPurchase || createPurchaseDraftIfMissing({
+    const purchase = activeAdminEditPurchase || activeEditableOrderedPurchase || createPurchaseDraftIfMissing({
       preferredSupplierName: Object.prototype.hasOwnProperty.call(options, "preferredSupplierName")
         ? options.preferredSupplierName
         : String(purchaseSupplierInput?.value || "").trim(),
@@ -1266,11 +1267,11 @@ export function createPurchasesDomainHelpers(deps) {
         }];
       return { items, supplierName: currentPurchase.supplierName || "", note: currentPurchase.note || "" };
     });
-    const supplierSuggestion = maybeApplySupplierSuggestionToPurchase(updatedPurchase.id, [product.id]);
+    const supplierSuggestion = purchase._adminEditMode ? null : maybeApplySupplierSuggestionToPurchase(updatedPurchase.id, [product.id]);
     state.purchasePanelCollapsed = false;
     state.purchaseDetailExpanded = false;
     state.selectedPurchaseItemsCollapsed = false;
-    saveAndRenderAll(["purchases"]);
+    saveAndRenderAll(purchase._adminEditMode ? [] : ["purchases"]);
     return {
       purchase: getActivePurchase(),
       supplierSuggestion,

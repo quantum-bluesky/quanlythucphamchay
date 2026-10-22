@@ -341,7 +341,7 @@ Lưu ý:
 - một khách có thể có nhiều đơn `Chốt đơn`; khi mở đơn mới cho khách mà khách chưa có đơn nháp nhưng đang có đơn đã chốt, app sẽ hiện khối chọn để `Mở đơn đã chốt` hoặc `Tạo đơn mới`
 - nếu đang mở đơn ở màn `Tạo đơn xuất hàng` mà muốn tách hẳn ra một đơn khác, bấm `Tạo đơn mới`; app sẽ hỏi trước khi reset form hiện tại nhưng vẫn giữ nguyên đơn cũ trong danh sách để mở lại sau
 - đơn đã `Chốt đơn` không đổi được khách hàng và không được xóa, nhưng vẫn hủy được nếu khách không lấy nữa
-- đơn đã `Đã xuất hàng` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao
+- đơn đã `Đã xuất hàng` không cho user thông thường sửa mặt hàng, số lượng, giá hay địa chỉ giao; Master Admin có thể dùng `Sửa Admin` trên đơn chưa thanh toán để thêm/xóa/thay mặt hàng hoặc sửa số lượng/giá. Cần nhập lý do và xác nhận; tồn kho, lịch sử và audit được cập nhật, còn khách hàng không đổi được
 - riêng `Ghi chú phiếu xuất` của cả đơn có thể sửa trực tiếp ở mọi trạng thái
 - nếu khách cần mua lại gần giống một đơn cũ, bấm `Xuất lại`; app sẽ tạo một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng của phiếu đã chọn. Nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
 - trước khi `Đã thanh toán`, vẫn được sửa riêng `Giảm giá khuyến mại` của cả đơn; riêng địa chỉ giao chỉ được sửa tới trước `Đã xuất hàng`
@@ -504,7 +504,7 @@ Màn này có 2 phần:
 26. Nếu chưa có `Nhà cung cấp`, app cũng sẽ chặn luôn bước `Nhập kho`
 27. Nếu bỏ trống `Mã lô`, app sẽ tự sinh mã lô lúc nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang giá trị tự tính `ngày nhập kho + thời gian bảo quản`
 28. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
-29. Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Giảm giá khuyến mại` và cập nhật lại `Hạn dùng` hoặc `Ngày sản xuất`; riêng `Ghi chú` có thể sửa ở mọi trạng thái; app không mở khóa lại số lượng, giá, mã lô hay NCC
+29. Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, user thông thường chỉ sửa được `Giảm giá khuyến mại`, `Hạn dùng`/`Ngày sản xuất` và `Ghi chú`. Master Admin có thể dùng `Sửa Admin` để thêm, xóa, thay mặt hàng hoặc sửa số lượng/giá; cần nhập lý do và xác nhận. App cập nhật tồn kho, giữ lịch sử biến động và ghi audit; nhà cung cấp không đổi được.
 30. Nếu cần nhập lại gần giống một phiếu cũ đã `Đã nhập kho` hoặc `Đã thanh toán`, bấm `Nhập lại`; app sẽ tạo nhanh một phiếu nháp mới với cùng NCC, ghi chú, giảm giá và các dòng hàng. Nếu NCC đó đang có phiếu nháp sẵn thì app sẽ dồn thêm vào phiếu nháp hiện có để giữ đúng rule mỗi NCC tối đa một phiếu nháp
 31. Có thể bấm `In` để in phiếu gửi NCC hoặc `Copy text` để sao chép nội dung dạng text từ lúc phiếu còn `Nháp` cho tới `Đã thanh toán`; nội dung lấy đúng theo đơn vị chọn trong phiếu kèm số lượng cơ sở (nếu không phải đơn vị trọng lượng) và thành tiền = số lượng (theo đơn vị) × giá 1 đơn vị. Khi copy phiếu nhập có thêm câu hỏi lựa chọn copy kèm giá nhập và thành tiền như phiếu xuất; ở list phiếu, nút `In` không hiện khi phiếu đã thanh toán nên nếu cần in lại thì mở detail của phiếu
 32. Khi `Nhập lại`, app chỉ sao chép các dòng hàng và thông tin mức phiếu; `Mã lô`, `HSD` và `Ngày sản xuất` sẽ để trống để bạn nhập lại theo lô hàng mới

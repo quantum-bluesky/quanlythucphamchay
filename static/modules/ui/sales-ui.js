@@ -598,7 +598,7 @@ export function createSalesUi(deps) {
     const statusMeta = getCartStatusMeta(cart);
     const canPrint = canPrintCartDocument(cart);
     const noteText = cart._adminEditMode
-      ? "Chế độ Master Admin sửa đơn đã xuất: Chỉ được phép sửa số lượng và giá của các mặt hàng hiện có. Không được thêm/xóa sản phẩm hoặc đổi khách hàng."
+      ? "Chế độ Master Admin sửa đơn đã xuất: Có thể thêm, bỏ, thay mặt hàng và sửa số lượng, giá. Khách hàng của đơn không đổi được."
       : cart.status === "committed"
         ? "Đơn đã chốt: khóa khách hàng, vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới khi xuất. Nếu cần làm đơn khác riêng hẳn, bấm `Tạo đơn mới`."
         : "Đơn nháp: có thể chọn khách, sửa dòng hàng, địa chỉ giao và giảm giá trước khi chốt. Nếu không muốn dùng lại đơn cũ, bấm `Tạo đơn mới`.";
@@ -684,8 +684,8 @@ export function createSalesUi(deps) {
 
     const notice = !activeCart
       ? '<article class="inline-alert warning">Chưa mở đơn hàng. Hãy chọn khách và bấm "Mở giỏ hàng" trước khi chọn sản phẩm.</article>'
-      : activeCart._adminEditMode
-        ? '<article class="inline-alert warning">Chế độ Master Admin sửa đơn đã xuất: Chỉ được phép sửa số lượng và giá của các mặt hàng hiện có trong đơn. Không được thêm sản phẩm mới.</article>'
+        : activeCart._adminEditMode
+        ? '<article class="inline-alert warning">Chế độ Master Admin sửa đơn đã xuất: Có thể thêm, bỏ, thay mặt hàng và sửa số lượng, giá. Khách hàng của đơn không đổi được.</article>'
         : activeCart.status === "committed"
           ? '<article class="inline-alert warning">Đơn đã chốt: không đổi được khách hàng, nhưng vẫn có thể điều chỉnh dòng hàng cho tới khi xuất.</article>'
           : "";
@@ -713,7 +713,7 @@ export function createSalesUi(deps) {
           <article class="sales-product-row ${inCart ? "is-selected" : ""} ${isOutOfStock ? "is-empty-stock" : ""}">
             <div class="sales-product-head">
               <label class="picker-toggle">
-                <input type="checkbox" data-pick-product="${product.id}" ${inCart ? "checked" : ""} ${activeCart && !activeCart._adminEditMode ? "" : "disabled"}>
+                <input type="checkbox" data-pick-product="${product.id}" ${inCart ? "checked" : ""} ${activeCart ? "" : "disabled"}>
                 <span>${escapeHtml(product.name)}</span>
               </label>
               <span class="status-pill ${(isOutOfStock || product.is_low_stock) ? "cancelled" : "draft"}">${availabilityLabel}</span>
@@ -788,8 +788,8 @@ export function createSalesUi(deps) {
               <div class="cart-line-pricing">
                 <div class="line-actions">
                   <button type="button" class="ghost-button compact-button" data-cart-item-action="save" data-item-id="${item.id}">Lưu dòng</button>
-                  <button type="button" class="ghost-button compact-button" data-cart-item-action="update-default-price" data-product-id="${item.productId}" data-item-id="${item.id}">Giá chung</button>
-                  ${cart._adminEditMode ? "" : `<button type="button" class="danger-button compact-button" data-cart-item-action="remove" data-item-id="${item.id}">Bỏ khỏi đơn</button>`}
+                  ${cart._adminEditMode ? "" : `<button type="button" class="ghost-button compact-button" data-cart-item-action="update-default-price" data-product-id="${item.productId}" data-item-id="${item.id}">Giá chung</button>`}
+                  <button type="button" class="danger-button compact-button" data-cart-item-action="remove" data-item-id="${item.id}">Bỏ khỏi đơn</button>
                 </div>
               </div>
             </div>` : ""}

@@ -588,7 +588,8 @@ export function createPurchasesUi(deps) {
             </div>
             <div data-price-warning-host>${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>
             <div class="cart-line-note" data-purchase-expiry-hint="${item.id}">${editorHint}</div>
-            ${purchaseExpiryEditable ? `<div class="line-actions"><button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">${purchase.status === "received" ? "Cập nhật HSD" : "Lưu dòng"}</button>${purchaseEditable && !purchase._adminEditMode ? `<button type="button" class="ghost-button compact-button" data-purchase-item-action="clone-lot" data-purchase-item-id="${item.id}">+ Lô</button><button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button><button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button><button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>` : purchaseEditable && purchase._adminEditMode ? `<button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button>` : ""}</div>` : ""}
+            ${purchaseExpiryEditable ? `<div class="line-actions"><button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">${purchase.status === "received" ? "Cập nhật HSD" : "Lưu dòng"}</button>${purchaseEditable && !purchase._adminEditMode ? `<button type="button" class="ghost-button compact-button" data-purchase-item-action="clone-lot" data-purchase-item-id="${item.id}">+ Lô</button><button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button><button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button><button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>` : ""}</div>` : ""}
+            ${purchase._adminEditMode && purchaseEditable ? `<div class="line-actions"><button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ mặt hàng</button></div>` : ""}
           </div>` : ""}
         </article>
       `;
@@ -642,7 +643,7 @@ export function createPurchasesUi(deps) {
         ${purchaseConflictWarnings.length ? `<article class="inline-alert warning"><strong>Cảnh báo NCC theo mặt hàng:</strong> ${purchaseConflictWarnings.map((entry) => `${escapeHtml(entry.productName)} đang có phiếu chờ ở ${escapeHtml(joinSupplierNames(entry.otherSupplierNames))}${entry.hasMultiSupplierOpenState ? `; hiện đang có ${escapeHtml(String(entry.openPurchaseCount))} phiếu mở cho mặt hàng này.` : "."}`).join(" ")}</article>` : ""}
         ${repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đang ở trạng thái lỗi dữ liệu: marker xử lý và trạng thái hiện tại không còn khớp nhau. Có thể hủy hoặc xóa để dọn dữ liệu lỗi, app sẽ không khôi phục lại thành nháp.</article>` : ""}
         ${purchaseLocked && !repairableInvalidPurchase && !purchase._adminEditMode ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
-        ${purchase._adminEditMode ? `<article class="inline-alert warning"><strong>Chế độ Master Admin sửa phiếu đã nhận:</strong> Chỉ được phép sửa số lượng và giá của các mặt hàng hiện có trong phiếu. Không được thêm/xóa sản phẩm hoặc đổi nhà cung cấp.</article>` : ""}
+        ${purchase._adminEditMode ? `<article class="inline-alert warning"><strong>Chế độ Master Admin sửa phiếu đã nhận:</strong> Có thể thêm, bỏ, thay mặt hàng và sửa số lượng, giá. Nhà cung cấp của phiếu không đổi được.</article>` : ""}
         ${renderPurchaseCancelRequestPanel(purchase)}
         <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">
           <div class="subheading selected-items-heading">
@@ -678,10 +679,6 @@ export function createPurchasesUi(deps) {
       return text.includes(utils.normalizeText(state.purchaseSearchTerm)) && !selectedProductIds.has(Number(entry.product.id));
     });
     dom.purchaseSuggestionList.classList.toggle("is-compact-search", isSearchResultMode("purchaseSuggestions"));
-    if (activePurchase?._adminEditMode) {
-      dom.purchaseSuggestionList.innerHTML = `<div class="empty-state">Chế độ Master Admin sửa phiếu đã nhận: Chỉ được phép sửa số lượng và giá của các mặt hàng hiện có, không được thêm mặt hàng mới.</div>`;
-      return;
-    }
     if (!filtered.length) {
       dom.purchaseSuggestionList.innerHTML = `<div class="empty-state">${activePurchase?.items?.length ? "Các mặt hàng đang khớp đã được chuyển vào phần phiếu nhập hiện hành phía trên." : "Không có gợi ý nhập hàng."}</div>`;
       return;
@@ -719,7 +716,7 @@ export function createPurchasesUi(deps) {
             <span>SL</span>
             <input class="qty-input" type="number" min="0.01" step="0.01" value="${entry.suggestedQuantity || entry.shortageFromOrders || 1}" data-purchase-suggestion-qty-input="${entry.product.id}" aria-label="Số lượng thêm vào phiếu cho ${escapeHtml(entry.product.name)}">
           </label>
-          <button type="button" class="ghost-button compact-button" data-purchase-suggestion-action="add" data-product-id="${entry.product.id}" data-quantity="${entry.suggestedQuantity || entry.shortageFromOrders || 1}" ${isPurchaseStructureLockedByProcurementBatch() || activePurchase?._adminEditMode ? "disabled" : ""}>+ Phiếu</button>
+          <button type="button" class="ghost-button compact-button" data-purchase-suggestion-action="add" data-product-id="${entry.product.id}" data-quantity="${entry.suggestedQuantity || entry.shortageFromOrders || 1}" ${isPurchaseStructureLockedByProcurementBatch() ? "disabled" : ""}>+ Phiếu</button>
         </div>
       </article>
     `;

@@ -392,7 +392,8 @@ export function registerPurchasesControllerEvents(contract) {
       discountAmount: Number(discountAmount.toFixed(2)),
       updatedAt: utils.nowIso(),
     }));
-    actions.saveAndRenderAll(persist ? ["purchases"] : []);
+    // #Issue37: Keep Master Admin discounts pending for the audited bypass endpoint.
+    actions.saveAndRenderAll(persist && !purchase._adminEditMode ? ["purchases"] : []);
     if (!silent) {
       actions.showToast("Đã lưu giảm giá khuyến mại.");
     }
@@ -418,7 +419,8 @@ export function registerPurchasesControllerEvents(contract) {
       note: note,
       updatedAt: utils.nowIso(),
     }));
-    actions.saveAndRenderAll(persist ? ["purchases"] : []);
+    // #Issue37: Keep Master Admin notes pending for the audited bypass endpoint.
+    actions.saveAndRenderAll(persist && !purchase._adminEditMode ? ["purchases"] : []);
     if (!silent) {
       actions.showToast("Đã lưu ghi chú.");
     }
@@ -728,7 +730,8 @@ export function registerPurchasesControllerEvents(contract) {
       supplierName: dom.purchaseSupplierInput.value.trim(),
       note: dom.purchaseNoteInput.value.trim(),
     }));
-    actions.saveAndRenderAll(["purchases"]);
+    // #Issue37: Keep Master Admin edits local until the audited bypass endpoint saves them.
+    actions.saveAndRenderAll(purchase._adminEditMode ? [] : ["purchases"]);
   });
 
   dom.purchaseSupplierMenuButton?.addEventListener("pointerdown", () => {
@@ -1107,7 +1110,7 @@ export function registerPurchasesControllerEvents(contract) {
           supplierName: dom.purchaseSupplierInput.value.trim(),
           note: dom.purchaseNoteInput.value.trim(),
         }));
-        actions.saveAndRenderAll(["purchases"]);
+        actions.saveAndRenderAll(purchase._adminEditMode ? [] : ["purchases"]);
         actions.showToast("Đã lưu dòng nhập hàng.");
         return;
       }
@@ -1168,7 +1171,7 @@ export function registerPurchasesControllerEvents(contract) {
         supplierName: dom.purchaseSupplierInput.value.trim(),
         note: dom.purchaseNoteInput.value.trim(),
       }));
-      actions.saveAndRenderAll(["purchases"]);
+      actions.saveAndRenderAll(purchase._adminEditMode ? [] : ["purchases"]);
       return;
     }
 

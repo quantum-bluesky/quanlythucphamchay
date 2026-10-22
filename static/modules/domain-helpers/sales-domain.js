@@ -731,7 +731,7 @@ export function createSalesDomainHelpers(deps) {
     if (!checked && state.visibleSelectedSalesProductId === product.id) {
       state.visibleSelectedSalesProductId = null;
     }
-    saveAndRenderAll(["carts"]);
+    saveAndRenderAll(cart._adminEditMode ? [] : ["carts"]);
   }
 
   function updateCartItem(itemId, changes) {
@@ -742,7 +742,7 @@ export function createSalesDomainHelpers(deps) {
       items: currentCart.items.map((item) => item.id !== itemId ? item : { ...item, ...changes }),
       updatedAt: nowIso(),
     }));
-    saveAndRenderAll(["carts"]);
+    saveAndRenderAll(cart._adminEditMode ? [] : ["carts"]);
   }
 
   function removeCartItem(itemId) {
@@ -763,7 +763,7 @@ export function createSalesDomainHelpers(deps) {
     if (removedItem && state.expandedSalesProductId === removedItem.productId) {
       state.expandedSalesProductId = null;
     }
-    saveAndRenderAll(["carts"]);
+    saveAndRenderAll(cart._adminEditMode ? [] : ["carts"]);
   }
 
   function getDraftDemandByProductId() {

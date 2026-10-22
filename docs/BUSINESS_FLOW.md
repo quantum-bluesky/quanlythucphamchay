@@ -27,6 +27,11 @@ Nếu phát hiện sai sau khi chứng từ đã xử lý
 
 Nếu cần can thiệp đặc biệt
   -> Master Admin hoặc user có quyền điều chỉnh tồn khi chỉ cần sửa chênh lệch kho
+
+Nếu Master Admin phát hiện sai trên đơn đã xuất hoặc phiếu nhập đã nhận nhưng chưa thanh toán
+  -> dùng `Sửa Admin`, nhập lý do và xác nhận
+  -> backend đối soát số lượng hàng còn trong lô, ghi giao dịch điều chỉnh tồn và audit
+  -> giữ khách hàng/nhà cung cấp của chứng từ gốc; chứng từ đã thanh toán không được sửa
 ```
 
 ### Danh mục công khai và nhắc đặt trước

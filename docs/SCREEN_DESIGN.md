@@ -137,7 +137,7 @@ Liên kết detail hiện có:
   - detail đơn phải có thêm `Địa chỉ giao`; field này là snapshot riêng của đơn và cho sửa tới trước khi `Đã xuất hàng`
   - không dùng cụm nút tăng giảm nhanh trong `Giỏ hiện hành` để tránh rối trên mobile
   - sau khi đơn đã `Chốt đơn`, app khóa khách hàng nhưng vẫn cho sửa dòng hàng, địa chỉ giao, `Ghi chú phiếu xuất` và `Giảm giá khuyến mại`
-  - sau khi đơn đã `Đã xuất hàng` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Giảm giá khuyến mại`; riêng `Ghi chú phiếu xuất` có thể sửa ở mọi trạng thái; không mở khóa lại dòng hàng
+  - sau khi đơn đã `Đã xuất hàng` nhưng chưa `Đã thanh toán`, user thông thường chỉ sửa `Giảm giá khuyến mại` và `Ghi chú phiếu xuất`; Master Admin có action `Sửa Admin` để thêm/xóa/thay mặt hàng hoặc sửa số lượng/giá, kèm lý do và xác nhận; khách hàng không đổi được
   - khi mở đơn mới cho khách đang có đơn `Chốt đơn`, panel phải hiện lựa chọn `Mở đơn đã chốt` hoặc `Tạo đơn mới`
   - khi user chủ động bấm `Tạo đơn mới`, UI phải hỏi confirm nếu form hiện tại đang có dữ liệu hoặc đang ở preview đơn cũ, rồi reset toàn bộ editor về một draft trắng riêng; không reuse draft cũ và không tự gộp vào preview đang mở
   - khi chốt đơn, hệ thống được phép tính thêm phần hàng đã nằm trong phiếu nhập `Đã đặt`; chỉ khi phần thiếu còn lại chưa được `Đã đặt` cover đủ thì app mới báo trước khi tạo/cập nhật phiếu nhập
@@ -296,7 +296,7 @@ Liên kết detail hiện có:
   - list phiếu nhập cho phép tick nhiều phiếu `draft/ordered` cùng NCC để mở preview `gộp đơn`; nếu khác NCC thì app báo lỗi và không điều hướng
   - khi phiếu còn `Nháp`, bấm nút `NCC` từ một phiếu đã có NCC vẫn phải cho sang danh sách NCC để đổi sang NCC khác, không được kẹt ở chế độ sửa NCC hiện tại
   - nếu bỏ trống `Mã lô`, app tự sinh batch code khi nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` để FEFO vẫn có mốc hạn
-  - sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, chỉ cho sửa `Ghi chú`, `Giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; không mở khóa lại số lượng, giá, mã lô, NCC hay cấu trúc dòng nhập
+  - sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, user thông thường chỉ sửa `Ghi chú`, `Giảm giá khuyến mại` và metadata HSD/NSX; Master Admin có action `Sửa Admin` để thêm/xóa/thay mặt hàng hoặc sửa số lượng/giá, kèm lý do và xác nhận; NCC không đổi được
   - phiếu `received/paid` có action `Nhập lại` để tạo nhanh phiếu nháp mới với cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đó đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có thay vì tạo draft thứ hai
   - phiếu `received/paid` có thêm action `Yêu cầu hủy`; UI bắt buộc nhập lý do, hiển thị trạng thái request hủy và cho user có quyền `document_cancel_approve` duyệt/từ chối ngay trong detail
   - preview `gộp đơn` của phiếu nhập tái sử dụng panel chi tiết hiện hành, giữ lại phiếu ưu tiên `ordered` trước `draft`, rồi mới xét phiếu đang mở và thời điểm cập nhật
