@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import math
-from datetime import date
+from datetime import date, timedelta
 
 
 _TIME_ZONE = 7.0
+PREORDER_REMINDER_WINDOW_DAYS = 7
 
 
 def _julian_day(day: int, month: int, year: int) -> int:
@@ -115,3 +116,16 @@ def solar_to_vietnamese_lunar(solar_date: date) -> tuple[int, int, int, bool]:
     if lunar_month >= 11 and diff < 4:
         lunar_year -= 1
     return lunar_day, lunar_month, lunar_year, leap
+
+
+def next_preorder_lunar_date(solar_date: date) -> tuple[int, int, int, int, bool]:
+    """Return days until and lunar date of the next lunar 1st or 15th, including today."""
+    if not isinstance(solar_date, date):
+        raise TypeError("solar_date must be a datetime.date")
+    # #Issue179: Đếm tới mùng 1 hoặc 15 tiếp theo để chỉ nhắc trong cửa sổ đặt trước.
+    for days_until in range(32):
+        candidate_date = solar_date + timedelta(days=days_until)
+        lunar_day, lunar_month, lunar_year, is_leap_month = solar_to_vietnamese_lunar(candidate_date)
+        if lunar_day in (1, 15):
+            return days_until, lunar_day, lunar_month, lunar_year, is_leap_month
+    raise RuntimeError("Không tìm thấy ngày mùng 1 hoặc 15 âm lịch kế tiếp trong khoảng tìm kiếm.")

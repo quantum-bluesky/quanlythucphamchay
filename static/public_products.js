@@ -976,13 +976,20 @@ async function fetchProducts() {
     const data = await res.json();
     allProducts = data.products || [];
 
-    // Issue 179: Hiện ngày âm lịch và lời nhắc đặt trước từ dữ liệu theo giờ Việt Nam.
+    // Issue 179: Chỉ hiện lời nhắc trong 7 ngày trước mùng 1 hoặc 15 âm lịch theo giờ Việt Nam.
     const lunarDate = data.lunar_calendar;
     const lunarReminder = document.getElementById("lunarDateReminder");
-    if (lunarReminder && lunarDate && lunarDate.day && lunarDate.month) {
+    if (lunarReminder && lunarDate && lunarDate.day && lunarDate.month && lunarDate.show_preorder_reminder === true) {
       const leapLabel = lunarDate.is_leap_month ? " nhuận" : "";
-      lunarReminder.textContent = `Hôm nay ${lunarDate.day}/${lunarDate.month}${leapLabel} âm lịch — nhớ đặt trước các mặt hàng cần chuẩn bị.`;
+      const nextReminder = lunarDate.next_reminder || {};
+      const nextLeapLabel = nextReminder.is_leap_month ? " nhuận" : "";
+      const targetLabel = `mùng ${nextReminder.day}/${nextReminder.month}${nextLeapLabel} âm lịch`;
+      lunarReminder.textContent = lunarDate.days_until_reminder === 0
+        ? `Hôm nay ${targetLabel} — nhớ đặt trước các mặt hàng cần chuẩn bị.`
+        : `Hôm nay ${lunarDate.day}/${lunarDate.month}${leapLabel} âm lịch; còn ${lunarDate.days_until_reminder} ngày tới ${targetLabel} — nhớ đặt trước các mặt hàng cần chuẩn bị.`;
       lunarReminder.hidden = false;
+    } else if (lunarReminder) {
+      lunarReminder.hidden = true;
     }
 
     globalSettings = data.settings || {};

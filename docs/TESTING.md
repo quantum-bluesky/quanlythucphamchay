@@ -531,7 +531,9 @@ Case regression danh mục công khai:
 - `IT-PUB-03`: Public ProductList phải xác định đúng trạng thái hết hàng khi tồn kho nhỏ hơn đơn vị nhỏ nhất (theo quy đổi hoặc cơ sở).
 - `UT-LUN-01` đến `UT-LUN-03`: chuyển đổi ngày âm lịch Việt Nam qua ngày Tết, tháng nhuận và kiểm tra input không hợp lệ.
 - `IT-PUB-04`: danh mục công khai hiển thị lời nhắc ngày âm lịch và giữ lời nhắc trong viewport khi cuộn.
-- `IT-PUB-05`: API danh mục công khai trả dữ liệu ngày âm lịch Việt Nam đủ các trường.
+- `IT-PUB-05`: API danh mục công khai trả ngày âm lịch, ngày mục tiêu mùng 1/15 và cờ hiển thị nhất quán với số ngày còn lại.
+- `IT-PUB-06`: danh mục công khai ẩn dải nhắc khi còn hơn 7 ngày tới mùng 1 hoặc 15 âm lịch.
+- `UT-LUN-04` và `UT-LUN-05`: bộ tính ngày mục tiêu trả đúng số ngày đến mùng 1/15, bao gồm trường hợp mục tiêu là hôm nay, và từ chối input không hợp lệ.
 
 Case mới cho Issue 70:
 

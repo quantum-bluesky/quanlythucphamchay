@@ -36,17 +36,43 @@ test("IT-PUB-04 Public ProductList displays and keeps lunar preorder reminder vi
         sale_price: 20000, current_stock: 5, is_low_stock: false, incoming_open_purchases: 0,
         sold_count: 0, images: [], details: "", recipe: "", note: "",
       })),
-      lunar_calendar: { day: 1, month: 2, year: 2023, is_leap_month: true },
+      lunar_calendar: {
+        day: 24, month: 12, year: 2023, is_leap_month: false,
+        days_until_reminder: 7, show_preorder_reminder: true,
+        next_reminder: { day: 1, month: 1, year: 2024, is_leap_month: false },
+      },
       settings: {},
     }),
   }));
 
   await page.goto("./");
   const reminder = page.locator("#lunarDateReminder");
-  await expect(reminder).toContainText("Hôm nay 1/2 nhuận âm lịch");
+  await expect(reminder).toContainText("Hôm nay 24/12 âm lịch");
+  await expect(reminder).toContainText("còn 7 ngày tới mùng 1/1 âm lịch");
   await expect(reminder).toContainText("nhớ đặt trước");
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await expect(reminder).toBeInViewport();
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-PUB-06 Public ProductList hides the lunar preorder reminder when more than 7 days remain", async ({ page }) => {
+  const runtime = attachRuntimeTracking(page);
+  await page.route("**/api/public/products", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      products: [],
+      lunar_calendar: {
+        day: 7, month: 1, year: 2024, is_leap_month: false,
+        days_until_reminder: 8, show_preorder_reminder: false,
+        next_reminder: { day: 15, month: 1, year: 2024, is_leap_month: false },
+      },
+      settings: {},
+    }),
+  }));
+
+  await page.goto("./");
+  await expect(page.locator("#lunarDateReminder")).toBeHidden();
   expectNoRuntimeErrors(runtime);
 });
 
@@ -68,6 +94,16 @@ test("IT-PUB-05 Public products API returns a Vietnam lunar date", async ({ page
   expect(lunarDate.day).toBeLessThanOrEqual(30);
   expect(lunarDate.month).toBeGreaterThanOrEqual(1);
   expect(lunarDate.month).toBeLessThanOrEqual(12);
+  expect(lunarDate.days_until_reminder).toBeGreaterThanOrEqual(0);
+  expect(lunarDate.days_until_reminder).toBeLessThanOrEqual(15);
+  expect(lunarDate.reminder_window_days).toBe(7);
+  expect(lunarDate.show_preorder_reminder).toBe(lunarDate.days_until_reminder <= lunarDate.reminder_window_days);
+  expect(lunarDate.next_reminder).toEqual(expect.objectContaining({
+    day: expect.any(Number),
+    month: expect.any(Number),
+    year: expect.any(Number),
+    is_leap_month: expect.any(Boolean),
+  }));
 });
 
 test("Public ProductList preserves cart, supports review quantity edits and sorting", async ({ page }) => {
