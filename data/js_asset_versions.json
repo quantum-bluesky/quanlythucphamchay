@@ -3,7 +3,7 @@
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "09280ef038c2bfa7e9b23cdc56fa4c3e0bbf70c9c7e246d97bd5cc8af2f17f1d"
+      "sha256": "87a11bd85ad61465122e502f211753677f22be0e647ac7a906f762cba4f8dee3"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -38,20 +38,20 @@
       "sha256": "b939dd08900a70347b868ebd01dd4d96a52f919b268ee317ff48808b9e3b59dc"
     },
     "modules/controllers/purchases-controller.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "ab1d552644560c899d53d80ee479798ff96a27fb14b81459b4be20bbe045f034"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
-      "sha256": "1465e6beb1859304bffbbf752402f4deabebb9b4274272951a0315052a71ff6c"
+      "sha256": "c45d02f570e639549a4a768431381aa18d3f79a492ee5068162681515f085d09"
     },
     "modules/controllers/sales-controller.js": {
-      "counter": 2,
+      "counter": 1,
       "sha256": "c72a3aa127221aaf07b7b0dec3fde0e919bd31150437ab8eb60745e8c6061b54"
     },
     "modules/dom.js": {
       "counter": 1,
-      "sha256": "00cfd5a54a17fd6369ed29e2e5a12cf094ea446a0a88b125f315c14ffa43c591"
+      "sha256": "6e4e71124b98ecf7c55a6e98001bbc8d72fac70b11a86953359987116d9999f5"
     },
     "modules/domain-helpers/inventory-domain.js": {
       "counter": 1,
@@ -75,7 +75,7 @@
     },
     "modules/screen-config.js": {
       "counter": 1,
-      "sha256": "d899be809048e9a435968b6f0e130c0366d2bc4c880815e8fe1bf7271fa42025"
+      "sha256": "498f180c4872e6d3148e4d5dc862f4c82a3477f75b6184e1c2c8b5d5c71fc7d5"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -111,7 +111,7 @@
     },
     "modules/ui/reports-admin-ui.js": {
       "counter": 1,
-      "sha256": "0b1bb53d5dc7bb1b9272971efbf73d0111787ba38813b9ec349628708eb2d4c7"
+      "sha256": "13772a540be051044944f9462ae98de4a8ca5475e28bd87d60ebf563a48dc289"
     },
     "modules/ui/sales-ui.js": {
       "counter": 1,
@@ -135,7 +135,7 @@
     },
     "styles.css": {
       "counter": 1,
-      "sha256": "9d2c1e37c9b743a8214aba9c19793d35a2ab7b1681428b82ee7db3ee205598fd"
+      "sha256": "eb216a84ef2742b338e6cd12b6c957363f8df4d6b13e5e48a5e0a7feef591fa0"
     },
     "vendor/quill/quill.min.js": {
       "counter": 1,

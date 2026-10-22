@@ -278,6 +278,8 @@ def main() -> int:
     system_config = load_test_system_config()
     # Static asset refreshes write their manifest; keep that mutation inside the disposable fixture.
     system_config["asset_versions_path"] = str(temp_root / "js_asset_versions.json")
+    # Admin configuration edits in integration tests must stay inside the disposable fixture too.
+    system_config["config_path"] = str(temp_root / "system_config.test.json")
 
     # Giảm nhiễu log console cho Playwright runner khi chạy qua summary script
     if os.environ.get("QLTP_QUIET_TEST_SERVER") == "1":

@@ -208,6 +208,183 @@ export function registerReportsAdminControllerEvents(contract) {
     }
   });
 
+  const mailConfigForm = document.getElementById("adminMailConfigForm");
+  const mailConfigStatus = document.getElementById("adminMailConfigStatus");
+  const mailPasswordState = document.getElementById("adminMailPasswordState");
+  const mailSaveButton = document.getElementById("adminMailConfigSaveButton");
+  const mailReloadButton = document.getElementById("adminMailConfigReloadButton");
+  const mailTestButton = dom.adminTestMailButton;
+  const mailResultBox = dom.adminTestMailStatus?.closest("#adminTestMailResult");
+  let mailConfigLoading = false;
+
+  function setMailField(name, value) {
+    const field = mailConfigForm?.elements.namedItem(name);
+    if (!field) return;
+    if (field.type === "checkbox") field.checked = Boolean(value);
+    else field.value = String(value ?? "");
+  }
+
+  function renderMailSummary(config = {}, environment = "—", testedAt = "—") {
+    const values = {
+      "tested-at": testedAt,
+      environment: environment || "—",
+      server: config.smtp_host ? `${config.smtp_host}:${config.smtp_port || "—"}` : "—",
+      security: `${config.use_ssl ? "SSL/TLS" : config.use_tls ? "STARTTLS" : "Không mã hóa"} / cổng ${config.smtp_port || "—"}`,
+      from: config.from_email || "—",
+      recipients: Array.isArray(config.to_emails) && config.to_emails.length
+        ? `${config.to_emails.join(", ")} (${config.to_emails.length})`
+        : "Không có người nhận được cấu hình",
+    };
+    Object.entries(values).forEach(([key, value]) => {
+      const target = mailResultBox?.querySelector(`[data-mail-result="${key}"]`);
+      if (target) target.textContent = value;
+    });
+  }
+
+  function fillMailConfig(config = {}, environment = "—") {
+    setMailField("enabled", config.enabled);
+    setMailField("smtp_host", config.smtp_host);
+    setMailField("smtp_port", config.smtp_port || 587);
+    setMailField("username", config.username);
+    setMailField("password", "");
+    setMailField("from_email", config.from_email);
+    setMailField("to_emails", Array.isArray(config.to_emails) ? config.to_emails.join("\n") : "");
+    setMailField("subject_prefix", config.subject_prefix);
+    setMailField("use_tls", config.use_tls);
+    setMailField("use_ssl", config.use_ssl);
+    if (mailPasswordState) {
+      mailPasswordState.textContent = config.has_password
+        ? "Đã có mật khẩu SMTP lưu trong cấu hình. Để trống ô mật khẩu để giữ nguyên."
+        : "Chưa có mật khẩu SMTP được lưu.";
+    }
+    renderMailSummary(config, environment);
+  }
+
+  async function loadMailConfig() {
+    if (mailConfigLoading) return;
+    mailConfigLoading = true;
+    if (mailConfigStatus) mailConfigStatus.textContent = "Đang tải cấu hình mail từ máy chủ...";
+    if (mailReloadButton) mailReloadButton.disabled = true;
+    try {
+      const payload = await actions.apiRequest("/api/admin/mail-config", { showBusy: false });
+      fillMailConfig(payload.mail, payload.environment);
+      if (mailConfigStatus) {
+        mailConfigStatus.textContent = `Đã tải cấu hình mail hiện hành từ môi trường ${payload.environment || "không xác định"}.`;
+      }
+      if (mailTestButton) mailTestButton.disabled = false;
+      if (mailResultBox) mailResultBox.dataset.state = "ready";
+    } catch (error) {
+      if (mailTestButton) mailTestButton.disabled = true;
+      if (mailConfigStatus) {
+        const reason = error.status === 401
+          ? "Phiên Master Admin chưa đăng nhập hoặc đã hết hạn. Hãy đăng nhập lại rồi tải cấu hình."
+          : error.status === 403
+            ? "Tài khoản hiện tại không có quyền xem cấu hình mail. Hãy dùng Master Admin."
+            : `Không tải được cấu hình mail: ${error.message}`;
+        mailConfigStatus.textContent = reason;
+      }
+    } finally {
+      mailConfigLoading = false;
+      if (mailReloadButton) mailReloadButton.disabled = false;
+    }
+  }
+
+  mailReloadButton?.addEventListener("click", () => {
+    void loadMailConfig();
+  });
+
+  const adminViewSection = document.querySelector('[data-menu-section="admin"]');
+  if (adminViewSection && typeof MutationObserver !== "undefined") {
+    new MutationObserver(() => {
+      if (adminViewSection.classList.contains("is-active") && state.admin?.isAdmin) void loadMailConfig();
+    }).observe(adminViewSection, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  document.addEventListener("click", (event) => {
+    if (event.target.closest('[data-menu="admin"]') && state.admin?.isAdmin) {
+      void loadMailConfig();
+    }
+  });
+
+  mailConfigForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(mailConfigForm);
+    const data = {
+      enabled: mailConfigForm.elements.namedItem("enabled").checked,
+      smtp_host: String(formData.get("smtp_host") || "").trim(),
+      smtp_port: Number(formData.get("smtp_port") || 587),
+      username: String(formData.get("username") || "").trim(),
+      password: String(formData.get("password") || ""),
+      from_email: String(formData.get("from_email") || "").trim(),
+      to_emails: String(formData.get("to_emails") || "").split(/[\n,;]+/).map((email) => email.trim()).filter(Boolean),
+      subject_prefix: String(formData.get("subject_prefix") || "").trim(),
+      use_tls: mailConfigForm.elements.namedItem("use_tls").checked,
+      use_ssl: mailConfigForm.elements.namedItem("use_ssl").checked,
+    };
+    if (mailSaveButton) mailSaveButton.disabled = true;
+    if (mailConfigStatus) mailConfigStatus.textContent = "Đang lưu cấu hình mail...";
+    try {
+      const payload = await actions.apiRequest("/api/admin/mail-config", {
+        method: "POST",
+        body: JSON.stringify(data),
+        showBusy: false,
+      });
+      fillMailConfig(payload.mail, payload.environment);
+      if (mailConfigStatus) mailConfigStatus.textContent = payload.message || "Đã lưu cấu hình gửi mail.";
+      if (mailResultBox) mailResultBox.dataset.state = "ready";
+      actions.showToast(payload.message || "Đã lưu cấu hình gửi mail.");
+    } catch (error) {
+      if (mailConfigStatus) mailConfigStatus.textContent = error.message;
+      actions.showToast(error.message, true);
+    } finally {
+      if (mailSaveButton) mailSaveButton.disabled = false;
+    }
+  });
+
+  mailConfigForm?.elements.namedItem("use_tls")?.addEventListener("change", (event) => {
+    if (event.target.checked) mailConfigForm.elements.namedItem("use_ssl").checked = false;
+  });
+  mailConfigForm?.elements.namedItem("use_ssl")?.addEventListener("change", (event) => {
+    if (event.target.checked) mailConfigForm.elements.namedItem("use_tls").checked = false;
+  });
+
+  // #Issue144: Send the test message only to server-side configured recipients.
+  dom.adminTestMailButton?.addEventListener("click", async () => {
+    if (!window.confirm("Gửi email thử đến toàn bộ người nhận trong cấu hình mail hiện tại?")) {
+      return;
+    }
+    const button = dom.adminTestMailButton;
+    const status = dom.adminTestMailStatus;
+    const renderResult = (result = {}) => {
+      renderMailSummary(result, result.environment, result.tested_at ? new Date(result.tested_at).toLocaleString("vi-VN") : "—");
+    };
+    button.disabled = true;
+    button.textContent = "Đang gửi...";
+    if (mailResultBox) mailResultBox.dataset.state = "sending";
+    if (status) status.textContent = "Đang gửi email thử đến người nhận đã cấu hình...";
+    try {
+      const data = await actions.apiRequest("/api/admin/test-mail", {
+        method: "POST",
+        body: JSON.stringify({}),
+        showBusy: false,
+      });
+      renderResult(data.result);
+      if (mailResultBox) mailResultBox.dataset.state = data.result?.status || "sent";
+      if (status) {
+        status.textContent = `${data.message} Số người nhận: ${data.result?.recipient_count ?? 0}. Email có thể cần thêm thời gian để tới hộp thư.`;
+      }
+      actions.showToast(data.message);
+    } catch (error) {
+      renderResult(error.payload?.result);
+      if (mailResultBox) mailResultBox.dataset.state = error.payload?.result?.status || "failed";
+      if (status) status.textContent = error.message;
+      actions.showToast(error.message, true);
+    } finally {
+      button.disabled = false;
+      button.textContent = "Gửi email thử";
+    }
+  });
+
   dom.adminModulePanel.addEventListener("click", async (event) => {
     const formatMap = {
       products: document.getElementById("adminMasterFormatProducts"),

@@ -181,6 +181,7 @@ export function createReportsAdminUi(deps) {
     }
 
     if (!isAdmin) {
+      if (dom.adminTestMailStatus) dom.adminTestMailStatus.textContent = "";
       if (dom.adminLegacyAuditSummary) dom.adminLegacyAuditSummary.innerHTML = "";
       if (dom.adminLegacySafeFixList) dom.adminLegacySafeFixList.innerHTML = "";
       if (dom.adminLegacyManualReviewList) dom.adminLegacyManualReviewList.innerHTML = "";

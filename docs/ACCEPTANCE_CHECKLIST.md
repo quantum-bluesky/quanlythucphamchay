@@ -49,6 +49,7 @@ Mục tiêu:
 | 27  | ACC-ADM-EDIT-01 | P0     | Master Admin / chứng từ đã khóa | Sửa dòng hàng đơn đã xuất và phiếu đã nhận chưa thanh toán phải xác nhận, đối soát tồn và ghi audit | Auto | `tests/integration/test-admin-edit.spec.js`                                                      |
 | 25  | ACC-INV-03   | P1       | Tồn kho / sắp xếp              | Dropdown sắp xếp nằm trong khu vực phân trang và sort đúng tồn kho         | Auto | `tests/integration/inventory-sort.spec.js`                                                       |
 | 26  | ACC-UNIT-01  | P1       | Đơn vị trên đơn xuất / nhập    | Đơn web dùng đơn vị bán mặc định, phiếu nhập dùng đơn vị nhập mặc định; tồn kho vẫn quy về đơn vị cơ sở | Manual | Sản phẩm có đơn vị cơ sở và hai đơn vị mặc định khác nhau                         |
+| 27  | ACC-ADM-04   | P1       | Master Admin / Email           | Cấu hình SMTP hiển thị và sửa được; password không lộ, ô trống giữ giá trị cũ; test mail hiện tiến trình, kết quả và thông tin môi trường/SMTP/người nhận/thời điểm | Auto | `tests/integration/admin.spec.js`; API được mock, không gửi email thật |
 
 ## 3. Bộ chạy tự động chuẩn cho Codex agent
 

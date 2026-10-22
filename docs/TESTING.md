@@ -596,3 +596,8 @@ Chạy `npm run test:integration -- tests/integration/unit-quantity-roundtrip.sp
 - `UT-BASEUNIT-01..07` trong `tests/test_change_base_unit.py`: kiểm tra chuyển đổi đơn vị cơ sở (Base Unit) của sản phẩm, bao gồm tính toán lại tỷ lệ giá nhập/giá bán, ngưỡng tồn, biến động sổ kho (`transactions`), lô hàng (`inventory_batches`), phân bổ lô (`inventory_batch_allocations`), chi tiết phiếu kho (`inventory_receipt_items`), giỏ hàng chờ xuất (`cart_items`), phiếu nhập chờ (`purchase_items`), thang quy đổi đơn vị phụ (`product_unit_conversion`), bảo toàn tính hai chiều (reversibility), kiểm tra validation và quyền Admin ở API `POST /api/products/<id>/change-base-unit`.
 - Chạy backend tập trung: `python -m unittest tests/test_change_base_unit.py`.
 
+### Test email trong Master Admin
+
+- `UT-AUTH-18`: API đọc/sửa cấu hình mail chỉ cho Master Admin gọi, giữ password khi trường nhập trống, cho phép cập nhật password nhưng không trả password; mock SMTP để không gửi email thật.
+- `ACC-ADM-04`: test UI trong `tests/integration/admin.spec.js` mock API để xác nhận cấu hình được tải lên form, môi trường tải được báo, nút tải lại nạp lại cấu hình, password được che, lưu cấu hình, confirm, kết quả và thông tin SMTP/người nhận/thời điểm hiển thị; không gửi email thật.
+

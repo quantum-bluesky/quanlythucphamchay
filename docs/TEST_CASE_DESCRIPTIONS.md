@@ -235,6 +235,8 @@ Lưu ý:
 | 184 | `IT-ORDER-01` | Khách gửi đơn public mới thì header backend hiện chuông và số chưa xem; trạng thái này còn sau khi tải lại trang và được xóa khi mở màn `Đơn hàng`. |
 | 185 | `IT-ADM-EDIT-01` | Tạo phiếu nhập và đơn đã xử lý qua API quick-create để có ledger thật; Master Admin sửa ghi chú, xác nhận trước lưu nêu rõ quyền Admin Edit và kiểm tra response cùng dữ liệu đã lưu trên API state. |
 | 186 | `UT-ADM-EDIT-01..05` | Backend kiểm tra role/lý do/trạng thái, điều chỉnh tăng/giảm tồn theo dòng hàng, thêm/xóa/thay mặt hàng, khóa giảm lượng đã tiêu thụ, giữ nguyên khách/NCC và bảo toàn khả năng hủy phiếu nhập sau chỉnh sửa. |
+| 187 | `UT-AUTH-18` | Kiểm tra API đọc/sửa cấu hình mail yêu cầu Master Admin, không trả mật khẩu, giữ mật khẩu hiện có khi payload để trống và nhận mật khẩu mới; endpoint test mail dùng cấu hình vừa lưu và mock SMTP. |
+| 188 | `ACC-ADM-04` | Kiểm tra màn Master Admin tải cấu hình và báo môi trường, tải lại cấu hình, không điền mật khẩu đã lưu, cho lưu mật khẩu mới, hỏi xác nhận gửi và hiện kết quả cùng diagnostics từ response mock; test không gửi email thật. |
 
 
 

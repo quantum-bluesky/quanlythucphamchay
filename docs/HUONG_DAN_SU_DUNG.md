@@ -916,6 +916,8 @@ Màn này có 3 nhóm chức năng:
   - tách phần `fix an toàn` có thể auto backfill timestamp
   - liệt kê các record còn phải admin review thủ công
   - cho gắn lại `receipt_code` hoặc `đơn nguồn` nếu đã đối chiếu chắc chắn
+- Khối `Kiểm tra gửi mail` tải cấu hình runtime và hiển thị môi trường đang dùng. Nếu chưa thấy thông tin, xem trạng thái tải cấu hình, đăng nhập lại bằng Master Admin nếu phiên hết hạn hoặc bấm `Tải lại cấu hình`. Có thể sửa máy chủ SMTP, cổng, tài khoản, mật khẩu, địa chỉ gửi/nhận, chế độ bảo mật và tiền tố tiêu đề. Mật khẩu đã lưu không hiển thị; để trống ô mật khẩu để giữ nguyên hoặc nhập mật khẩu mới để thay đổi. Bấm `Lưu cấu hình mail` trước khi gửi thử.
+- Nút gửi email thử gửi tới toàn bộ người nhận đã lưu sau khi xác nhận; màn hình hiển thị trạng thái gửi, thời điểm, môi trường, máy chủ SMTP, người gửi và người nhận. Trạng thái SMTP đã nhận có nghĩa máy chủ chấp nhận email; kiểm tra hộp thư đến hoặc thư rác để xác nhận email đã tới.
 - trạng thái phiên: nút `Login` / `Logout` nằm ở thanh header nổi; khi đã login sẽ hiện tên user bên cạnh
 - khi đã login, dropdown `Chuyển quyền...` nằm cạnh `Logout`; chọn nhóm quyền khác sẽ đăng xuất phiên hiện tại, quay về màn login và bắt buộc nhập lại mật khẩu trước khi đổi quyền
 
