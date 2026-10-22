@@ -38,16 +38,16 @@
       "sha256": "b939dd08900a70347b868ebd01dd4d96a52f919b268ee317ff48808b9e3b59dc"
     },
     "modules/controllers/purchases-controller.js": {
-      "counter": 1,
-      "sha256": "74530b60dd677c9ea84a5ba82a983cfc5a47ac466be0d147ac3484a766ab3fcf"
+      "counter": 2,
+      "sha256": "ab1d552644560c899d53d80ee479798ff96a27fb14b81459b4be20bbe045f034"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
       "sha256": "1465e6beb1859304bffbbf752402f4deabebb9b4274272951a0315052a71ff6c"
     },
     "modules/controllers/sales-controller.js": {
-      "counter": 1,
-      "sha256": "0ae59686a4d0ed2db24ba356ef3ff7d4dc8532c7cc9396ad08e8b92971257dcb"
+      "counter": 2,
+      "sha256": "c72a3aa127221aaf07b7b0dec3fde0e919bd31150437ab8eb60745e8c6061b54"
     },
     "modules/dom.js": {
       "counter": 1,

@@ -668,7 +668,8 @@ export function registerSalesControllerEvents(contract) {
       discountAmount: Number(discountAmount.toFixed(2)),
       updatedAt: utils.nowIso(),
     }));
-    actions.saveAndRenderAll(persist ? ["carts"] : []);
+    // #Issue37: Avoid bypassing the audited locked-order endpoint while editing a completed cart.
+    actions.saveAndRenderAll(persist && !cart._adminEditMode ? ["carts"] : []);
     if (!silent) {
       actions.showToast("Đã lưu giảm giá khuyến mại.");
     }
@@ -693,7 +694,8 @@ export function registerSalesControllerEvents(contract) {
       note,
       updatedAt: utils.nowIso(),
     }));
-    actions.saveAndRenderAll(persist ? ["carts"] : []);
+    // #Issue37: Include locked-order notes in the audited bypass save, not generic state sync.
+    actions.saveAndRenderAll(persist && !cart._adminEditMode ? ["carts"] : []);
     if (!silent) {
       actions.showToast("Đã lưu ghi chú phiếu xuất.");
     }

@@ -10,6 +10,24 @@ const {
   switchMenu,
 } = require("./support/ui");
 
+async function createQuickPurchase(request, cookie, payload) {
+  const response = await request.post("./api/purchases/quick-create", {
+    headers: { Cookie: cookie },
+    data: payload,
+  });
+  expect(response.ok()).toBeTruthy();
+  return response.json();
+}
+
+async function createQuickSale(request, cookie, payload) {
+  const response = await request.post("./api/orders/quick-create", {
+    headers: { Cookie: cookie },
+    data: payload,
+  });
+  expect(response.ok()).toBeTruthy();
+  return response.json();
+}
+
 test("IT-ADM-EDIT-01 Master Admin can edit locked received purchase and locked completed sale", async ({ page, request }) => {
   test.setTimeout(120000);
   const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
@@ -32,70 +50,24 @@ test("IT-ADM-EDIT-01 Master Admin can edit locked received purchase and locked c
   const timestamp = Date.now();
   const product = originalState.products[0];
   const orderCustomerName = `Khách Test Admin Edit ${timestamp}`;
-
-  const purchaseId = `purchase_rec_${timestamp}`;
-  const receivedPurchase = {
-    id: purchaseId,
-    supplierName: "NCC Test Admin Edit",
-    note: "Ghi chú phiếu nhập nhận hàng",
-    status: "received",
-    discountAmount: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    receivedAt: new Date().toISOString(),
-    receiptCode: `PN-REC-${timestamp}`,
-    items: [
-      {
-        id: `purchase_item_${timestamp}`,
-        productId: product.id,
-        productName: product.name,
-        unit: product.unit || "Cái",
-        quantity: 5,
-        unitCost: Number(product.price || 0) || 10000,
-        batchCode: `LO-${timestamp}`,
-        expiryInputMode: "direct",
-        expiryDate: "2026-12-31",
-        manufactureDate: "",
-      },
-    ],
-  };
-
-  const cartId = `cart_comm_${timestamp}`;
-  const orderCode = `DH-COMM-${timestamp}`;
-  const committedCart = {
-    id: cartId,
-    customerId: originalState.customers[0]?.id || "cust_1",
-    customerName: orderCustomerName,
-    status: "committed",
-    paymentStatus: "unpaid",
-    note: "Đơn committed chuẩn bị xuất hàng",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    committedAt: new Date().toISOString(),
-    orderCode: orderCode,
-    items: [
-      {
-        id: `cart_item_${timestamp}`,
-        productId: product.id,
-        productName: product.name,
-        quantity: 2,
-        unitPrice: 20000,
-        lineTotal: 40000,
-        unit: product.unit || "Cái",
-      },
-    ],
-  };
-
-  const seedResponse = await request.put("./api/state", {
-    headers: { Cookie: adminCookie },
-    data: {
-      customers: originalState.customers,
-      suppliers: originalState.suppliers,
-      carts: [committedCart, ...(originalState.carts || [])],
-      purchases: [receivedPurchase, ...(originalState.purchases || [])],
-    },
+  const unitCost = Number(product.price || 0) || 10000;
+  const unitPrice = Number(product.sale_price || product.price || 0) || 20000;
+  const receivedPurchasePayload = await createQuickPurchase(request, adminCookie, {
+    supplier_name: `NCC Test Admin Edit ${timestamp}`,
+    document_date: "2026-06-06",
+    items: [{ product_id: product.id, quantity: 5, unit_cost: unitCost }],
+    final_status: "received",
+    mark_paid: false,
   });
-  expect(seedResponse.ok()).toBeTruthy();
+  const purchaseId = receivedPurchasePayload.purchase.id;
+  const completedSalePayload = await createQuickSale(request, adminCookie, {
+    customer_name: orderCustomerName,
+    document_date: "2026-06-06",
+    items: [{ product_id: product.id, quantity: 2, unit_price: unitPrice }],
+    final_status: "completed",
+    mark_paid: false,
+  });
+  const cartId = completedSalePayload.cart.id;
 
   await openAdminPage(page);
   await autoLoginAdmin(page, request);
@@ -131,36 +103,35 @@ test("IT-ADM-EDIT-01 Master Admin can edit locked received purchase and locked c
   // Modify note and save
   const purchaseNote = page.locator("#purchaseNoteInput");
   await expect(purchaseNote).toBeVisible();
-  await purchaseNote.fill("Updated note by admin test " + timestamp);
+  const updatedPurchaseNote = "Updated note by admin test " + timestamp;
+  await purchaseNote.fill(updatedPurchaseNote);
+  await purchaseNote.press("Tab");
+  await expect(page.getByText("Chế độ Master Admin sửa phiếu đã nhận")).toBeVisible();
+  await expect(adminBypassSaveBtn).toBeEnabled();
 
-  await adminBypassSaveBtn.click();
-  await page.waitForTimeout(1000);
+  const purchaseEditResponsePromise = page.waitForResponse((response) =>
+    response.url().includes("/api/admin/purchases/edit-locked") && response.request().method() === "POST",
+    { timeout: 15000 }
+  );
+  const purchaseConfirmDialog = page.waitForEvent("dialog", { timeout: 10000 });
+  await adminBypassSaveBtn.click({ timeout: 10000 });
+  await purchaseConfirmDialog;
+  const purchaseEditResponse = await purchaseEditResponsePromise;
+  expect(purchaseEditResponse.ok()).toBeTruthy();
   const toastText = await collectToast(page, runtime, "save-admin-purchase");
   console.log("Toast received after save:", toastText);
+  const savedPurchaseState = await (await request.get("./api/state", { headers: { Cookie: adminCookie } })).json();
+  expect(savedPurchaseState.purchases.find((purchase) => purchase.id === purchaseId)?.note).toBe(updatedPurchaseNote);
 
   // 2. TEST SALES ADMIN EDIT
   await switchMenu(page, "orders");
   await expectScreenTitle(page, "Đơn hàng");
 
-  // Find the committed order card and click to select it
-  const committedOrderCard = page.locator(".cart-queue-item", { hasText: orderCustomerName }).first();
-  await expect(committedOrderCard).toBeVisible({ timeout: 10000 });
-  await committedOrderCard.click();
-  await page.waitForTimeout(500);
-
-  const shipBtn = page.locator('[data-order-detail-action="ship"]').first();
-  await expect(shipBtn).toBeVisible({ timeout: 10000 });
-  await shipBtn.click();
-  await page.waitForTimeout(1000);
-  const shipToast = await collectToast(page, runtime, "ship-order");
-  console.log("Ship toast:", shipToast);
-
-  // Check showArchivedCarts to show completed orders
+  // The quick-create API creates a real completed receipt with ledger data for the admin-edit endpoint.
   const showArchivedCheckbox = page.locator("#showArchivedCarts");
   await showArchivedCheckbox.check();
   await page.waitForTimeout(500);
 
-  // Find the now completed order card
   const completedOrderCard = page.locator(".cart-queue-item", { hasText: orderCustomerName }).first();
   await expect(completedOrderCard).toBeVisible({ timeout: 10000 });
 
@@ -182,16 +153,30 @@ test("IT-ADM-EDIT-01 Master Admin can edit locked received purchase and locked c
   console.log("SUCCESS: Active cart panel opened with admin-bypass-save button!");
 
   // Modify note or items and save
-  const saleNote = page.locator("#noteInput");
-  if (await saleNote.isVisible()) {
-    await saleNote.fill("Updated sale note by admin " + timestamp);
+  const saleDetailToggle = page.locator('[data-cart-action="toggle-detail"]').first();
+  if (await saleDetailToggle.isVisible()) {
+    await saleDetailToggle.click();
   }
+  const saleNote = page.locator("#activeCartPanel [data-cart-note-input]");
+  const updatedSaleNote = "Updated sale note by admin " + timestamp;
+  await expect(saleNote).toBeVisible();
+  await saleNote.fill(updatedSaleNote);
+  await page.locator('[data-cart-action="save-note"]').click();
 
   // Save admin bypass cart
-  await cartAdminBypassSaveBtn.click();
-  await page.waitForTimeout(1000);
+  const saleEditResponsePromise = page.waitForResponse((response) =>
+    response.url().includes("/api/admin/orders/edit-locked") && response.request().method() === "POST",
+    { timeout: 15000 }
+  );
+  const saleConfirmDialog = page.waitForEvent("dialog", { timeout: 10000 });
+  await cartAdminBypassSaveBtn.click({ timeout: 10000 });
+  await saleConfirmDialog;
+  const saleEditResponse = await saleEditResponsePromise;
+  expect(saleEditResponse.ok()).toBeTruthy();
   const saleToast = await collectToast(page, runtime, "save-admin-sale");
   console.log("Sale toast received after save:", saleToast);
+  const savedSaleState = await (await request.get("./api/state", { headers: { Cookie: adminCookie } })).json();
+  expect(savedSaleState.carts.find((cart) => cart.id === cartId)?.note).toBe(updatedSaleNote);
 
   expect(adminEditConfirmations.some((message) => message.includes("Phiếu này đã nhập kho") && message.includes("Master Admin"))).toBeTruthy();
   expect(adminEditConfirmations.some((message) => message.includes("Đơn này đã xuất hàng") && message.includes("Master Admin"))).toBeTruthy();
