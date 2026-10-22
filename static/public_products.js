@@ -976,6 +976,15 @@ async function fetchProducts() {
     const data = await res.json();
     allProducts = data.products || [];
 
+    // Issue 179: Hiện ngày âm lịch và lời nhắc đặt trước từ dữ liệu theo giờ Việt Nam.
+    const lunarDate = data.lunar_calendar;
+    const lunarReminder = document.getElementById("lunarDateReminder");
+    if (lunarReminder && lunarDate && lunarDate.day && lunarDate.month) {
+      const leapLabel = lunarDate.is_leap_month ? " nhuận" : "";
+      lunarReminder.textContent = `Hôm nay ${lunarDate.day}/${lunarDate.month}${leapLabel} âm lịch — nhớ đặt trước các mặt hàng cần chuẩn bị.`;
+      lunarReminder.hidden = false;
+    }
+
     globalSettings = data.settings || {};
     const settings = globalSettings;
     const root = document.documentElement;

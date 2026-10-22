@@ -55,6 +55,7 @@ Trang danh mục thực phẩm công khai hiển thị bốn trạng thái:
 Muốn ẩn riêng một mặt hàng khỏi trang công khai, vào màn `Sản phẩm`, mở sửa chi tiết, bỏ chọn `Hiển thị trên Web (Public)` rồi lưu. Bật lại tùy chọn này để mặt hàng xuất hiện trở lại.
 
 Khi khách chọn sản phẩm trên web, số lượng và đơn vị hiển thị theo `Đơn vị bán mặc định` đã cấu hình ở sản phẩm. Khi đơn về màn quản trị, dòng hàng giữ đơn vị và giá bán theo đơn vị đó; số lượng tồn kho vẫn được quy về `Đơn vị cơ sở`.
+Trang công khai hiển thị ngày âm lịch Việt Nam ở một nhắc nhở nhỏ ghim theo màn hình khi cuộn danh sách. Dựa vào đó, khách có thể nhớ đặt trước các mặt hàng có ghi chú cần chuẩn bị sớm.
 
 ## 3. Luồng làm việc hằng ngày
 

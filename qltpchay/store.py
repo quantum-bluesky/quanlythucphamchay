@@ -2852,8 +2852,9 @@ class InventoryStore:
     ) -> sqlite3.Row:
         product = connection.execute(
             """
+            -- #Issue180: Shared product lookup must include configured sale and purchase units.
             SELECT
-                id, name, category, unit, price, sale_price, low_stock_threshold,
+                id, name, category, unit, price, sale_price, default_sale_unit, default_purchase_unit, low_stock_threshold,
                 shelf_life_days, storage_life_days, is_public, is_deleted, deleted_at
             FROM products
             WHERE id = ?

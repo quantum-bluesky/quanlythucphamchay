@@ -384,6 +384,8 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
       window.confirm = () => true;
     });
     await page.locator('[data-purchase-action="receive"]').click();
+    await expect(page.locator("#documentActionDateModal")).toBeVisible();
+    await page.locator("#documentActionDateConfirmButton").click();
     await expect.poll(async () => {
       const syncResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
       expect(syncResponse.ok()).toBeTruthy();
@@ -760,10 +762,9 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const commitToast = await collectToast(page, runtime, "it-sts-01-commit", { errorPattern: /^$/ });
     expect(commitToast).toContain("Đã chốt đơn");
 
-    const shipDialog = await captureDialogMessage(page, async () => {
-      await page.locator('[data-cart-action="ship"]').click();
-    });
-    expect(shipDialog).toContain("Đã xuất hàng");
+    await page.locator('[data-cart-action="ship"]').click();
+    await expect(page.locator("#documentActionDateModal")).toBeVisible();
+    await page.locator("#documentActionDateConfirmButton").click();
     const shipToast = await collectToast(page, runtime, "it-sts-01-ship", { errorPattern: /^$/ });
     expect(shipToast).toContain("Đã xuất hàng");
 
@@ -834,10 +835,9 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const orderedToast = await collectToast(page, runtime, "it-sts-01-ordered", { errorPattern: /^$/ });
     expect(orderedToast).toContain("Đã cập nhật trạng thái đặt hàng");
 
-    const receiveDialog = await captureDialogMessage(page, async () => {
-      await page.locator('[data-purchase-action="receive"]').click();
-    });
-    expect(receiveDialog).toContain("Đã nhập kho");
+    await page.locator('[data-purchase-action="receive"]').click();
+    await expect(page.locator("#documentActionDateModal")).toBeVisible();
+    await page.locator("#documentActionDateConfirmButton").click();
     const receiveToast = await collectToast(page, runtime, "it-sts-01-receive", { errorPattern: /^$/ });
     expect(receiveToast).toContain("Đã nhập hàng vào kho");
 

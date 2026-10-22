@@ -8,12 +8,13 @@ import json
 import mimetypes
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, parse_qsl, urlparse
 from qltpchay.logger import log_error, log_info
+from qltpchay.lunar_calendar import solar_to_vietnamese_lunar
 
 from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
 from . import constants as constants
@@ -228,6 +229,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return
 
             if route == "/api/public/products":
+                # Issue 179: Tính ngày âm lịch theo múi giờ Việt Nam để nhắc khách đặt trước.
+                vietnam_now = datetime.now(timezone(timedelta(hours=7)))
+                lunar_day, lunar_month, lunar_year, is_leap_month = solar_to_vietnamese_lunar(vietnam_now.date())
                 all_products = store.get_products()
                 sales_stats = store.get_product_sales_stats()
                 public_products = [
@@ -262,6 +266,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
                 self._send_json(HTTPStatus.OK, {
                     "products": public_products,
+                    "lunar_calendar": {
+                        "day": lunar_day,
+                        "month": lunar_month,
+                        "year": lunar_year,
+                        "is_leap_month": is_leap_month,
+                    },
                     "settings": {
                         **public_web_config,
                         "require_zalo_login": bool(zalo_config.get("require_zalo_login", True)),

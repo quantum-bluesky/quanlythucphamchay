@@ -529,6 +529,9 @@ Case regression danh mục công khai:
 - `IT-PUB-01`: Public ProductList phải nạp JS kèm version cache-busting và phân biệt đúng `Có sẵn / Sắp hết / Sắp về / Hết hàng`.
 - `IT-PUB-02`: sửa chi tiết sản phẩm phải bỏ chọn/lưu được `Hiển thị trên Web (Public)`, ẩn khỏi danh mục public và đọc lại đúng checkbox.
 - `IT-PUB-03`: Public ProductList phải xác định đúng trạng thái hết hàng khi tồn kho nhỏ hơn đơn vị nhỏ nhất (theo quy đổi hoặc cơ sở).
+- `UT-LUN-01` đến `UT-LUN-03`: chuyển đổi ngày âm lịch Việt Nam qua ngày Tết, tháng nhuận và kiểm tra input không hợp lệ.
+- `IT-PUB-04`: danh mục công khai hiển thị lời nhắc ngày âm lịch và giữ lời nhắc trong viewport khi cuộn.
+- `IT-PUB-05`: API danh mục công khai trả dữ liệu ngày âm lịch Việt Nam đủ các trường.
 
 Case mới cho Issue 70:
 

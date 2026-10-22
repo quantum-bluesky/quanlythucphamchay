@@ -74,8 +74,8 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 1,
-      "sha256": "f5b665be6e5467590859faaa2b760af5cdb286253171c6c08c85fa280b7db5db"
+      "counter": 2,
+      "sha256": "45f2a6a4460b4678137c96eb8386a54ccedb79a460aed2b6621abf14eefc4907"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -127,11 +127,11 @@
     },
     "public_products.css": {
       "counter": 1,
-      "sha256": "9f0389aaa73efc78e34e22080b7a83a91f23900a219336db15e0f486664d1c48"
+      "sha256": "affb80c90f405d93e018eb806d49a5f17788c34a24d4bcea703e565d0bc48269"
     },
     "public_products.js": {
-      "counter": 1,
-      "sha256": "15cce32c981a69a481594a195a4147142ce53377049047438b4d04fe96eb76d8"
+      "counter": 2,
+      "sha256": "0fd4cdd6a7d4d432b98e86c1f5466c756918fc248011106308c98ba6aee955e4"
     },
     "styles.css": {
       "counter": 1,
