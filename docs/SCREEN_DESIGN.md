@@ -35,6 +35,7 @@ Liên kết detail hiện có:
 - popup/help phải đóng được và có liên kết qua lại giữa các màn liên quan
 - luồng chính ưu tiên thao tác nhanh cho cửa hàng nhỏ
 - với action có ghi dữ liệu lên server hoặc đồng bộ SQLite/state, UI phải hiện loading overlay toàn cục và khóa tạm thao tác còn lại cho tới khi trạng thái mới render xong để tránh bấm chồng
+- khi có đơn nháp online mới hoặc được khách bổ sung, thanh header sau đăng nhập hiển thị chuông kèm số chưa xem; bấm chuông mở màn `Đơn hàng`. Số báo được lưu trong trình duyệt đến khi người dùng mở danh sách.
 - khi Batch procurement mode còn active lock, các màn liên quan như `inventory`, `create-order`, `orders`, `purchases`, `suppliers`, `procurement-planner` phải hiện cảnh báo ngắn cho biết owner của lock, thời điểm hết hạn gần nhất và impact chính trên màn hiện tại
 
 ## 2. Danh sách màn hình
@@ -176,6 +177,8 @@ Liên kết detail hiện có:
   - import Excel nếu có chỉ là action phụ; dữ liệu sau import vẫn phải đổ về list card để user review/sửa trước khi lưu hoặc chốt
 
 ### `orders` - Quản lý đơn hàng
+
+- đơn mới/đơn nháp được khách bổ sung từ web public được phát hiện qua đồng bộ state hiện có; chuông header báo số đơn chưa xem và dẫn thẳng tới màn này
 
 - mục tiêu:
   - xem đơn nháp và đơn đã chốt

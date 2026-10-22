@@ -86,6 +86,20 @@ export function createCoreUi(deps) {
   function renderScreenHeader() {
     const meta = screenMeta[state.activeMenu] || screenMeta.inventory;
     dom.activeScreenBarTitle.textContent = meta.title;
+    if (dom.onlineOrderNoticeButton) {
+      const notificationCount = (state.onlineOrderNotifications || []).length;
+      const isSignedIn = !state.admin?.enableLogin || Boolean(state.admin?.authenticated);
+      dom.onlineOrderNoticeButton.hidden = !isSignedIn;
+      dom.onlineOrderNoticeButton.classList.toggle("has-notifications", notificationCount > 0);
+      dom.onlineOrderNoticeCount.textContent = notificationCount ? String(notificationCount) : "";
+      dom.onlineOrderNoticeButton.setAttribute(
+        "aria-label",
+        notificationCount ? `${notificationCount} đơn hàng online chưa xem` : "Thông báo đơn hàng online"
+      );
+      dom.onlineOrderNoticeButton.title = notificationCount
+        ? `${notificationCount} đơn hàng online mới hoặc vừa được khách bổ sung`
+        : "Mở danh sách đơn hàng online";
+    }
   }
 
   function renderAppVersion() {

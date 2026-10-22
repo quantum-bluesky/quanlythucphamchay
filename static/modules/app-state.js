@@ -4,6 +4,8 @@ export const STORAGE_KEYS = {
   activePurchaseId: "qltpchay.active-purchase.v1",
   menuCollapsed: "qltpchay.menu-collapsed.v1",
   migratedSyncState: "qltpchay.server-sync-migrated.v1",
+  onlineOrderSnapshots: "qltpchay.online-order-snapshots.v1",
+  onlineOrderNotifications: "qltpchay.online-order-notifications.v1",
 };
 
 export const LEGACY_STORAGE_KEYS = {
@@ -121,6 +123,7 @@ export const state = {
   customers: [],
   suppliers: [],
   carts: [],
+  onlineOrderNotifications: [],
   purchases: [],
   bulkOrderRequests: [],
   documentCancelRequests: [],

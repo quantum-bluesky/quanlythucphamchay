@@ -111,6 +111,20 @@ select {
   max-width: 150px;
 }
 
+/* #Issue181: Giữ chuông thông báo nhỏ gọn trong header, dễ bấm trên điện thoại. */
+.online-order-notice-button {
+  min-width: 40px;
+  padding-inline: 9px;
+  color: var(--accent-strong);
+}
+
+.online-order-notice-button.has-notifications {
+  color: #8c3218;
+  background: var(--warning-soft);
+  border-color: rgba(200, 100, 48, 0.35);
+  font-weight: 800;
+}
+
 .screen-header-main {
   min-width: 0;
   display: grid;
@@ -3349,6 +3363,30 @@ button:disabled {
   .pagination-bar.is-search-pagination .pagination-status {
     text-align: center;
     font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .admin-session-header {
+    gap: 4px;
+  }
+
+  .admin-session-header .panel-note {
+    display: none;
+  }
+
+  .admin-session-header select {
+    max-width: 88px;
+    padding-inline: 6px;
+  }
+
+  .admin-session-header .compact-button {
+    min-height: 36px;
+    padding-inline: 7px;
+  }
+
+  .online-order-notice-button {
+    min-width: 36px;
   }
 }
 

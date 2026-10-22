@@ -59,6 +59,8 @@ Nếu cần can thiệp đặc biệt
 
 ## 3. Luồng bán hàng
 
+- Đơn do khách gửi từ web public được lưu là đơn online ở trạng thái nháp. Khi server state thay đổi, backend page tự tải state theo cơ chế đồng bộ hiện có; nếu có đơn online mới hoặc đơn nháp được khách bổ sung, header báo chuông để nhân viên vào `Đơn hàng` xử lý. Thông báo chưa xem được giữ ở trình duyệt qua lần tải lại và được xóa khi mở danh sách đơn.
+
 ### Bước 1: Mở giỏ theo khách
 
 - chọn khách có sẵn hoặc gõ tên mới

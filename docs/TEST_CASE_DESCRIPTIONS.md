@@ -229,6 +229,7 @@ Lưu ý:
 | 181 | `UT-BASEUNIT-05` | Kiểm tra tính bảo toàn hai chiều (reversibility): chuyển từ đơn vị A sang B rồi từ B ngược về A thì tồn kho, giá và hệ số quy đổi quay về trạng thái ban đầu. |
 | 182 | `UT-BASEUNIT-06` | Kiểm tra các điều kiện validation: chặn tỷ lệ <= 0, chặn tên đơn vị rỗng hoặc trùng đơn vị hiện tại, chặn sản phẩm không tồn tại. |
 | 183 | `UT-BASEUNIT-07` | Kiểm tra API endpoint `POST /api/products/<id>/change-base-unit`: yêu cầu quyền Admin (chặn user thường hoặc chưa đăng nhập), xử lý chuyển đổi thành công và trả về summary cùng thông tin sản phẩm mới. |
+| 184 | `IT-ORDER-01` | Khách gửi đơn public mới thì header backend hiện chuông và số chưa xem; trạng thái này còn sau khi tải lại trang và được xóa khi mở màn `Đơn hàng`. |
 
 
 

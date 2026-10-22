@@ -533,6 +533,10 @@ Case regression danh mục công khai:
 - `IT-PUB-04`: danh mục công khai hiển thị lời nhắc ngày âm lịch và giữ lời nhắc trong viewport khi cuộn.
 - `IT-PUB-05`: API danh mục công khai trả dữ liệu ngày âm lịch Việt Nam đủ các trường.
 
+Case hồi quy thông báo đơn online:
+
+- `IT-ORDER-01`: khách gửi đơn mới qua API public thì backend tự đồng bộ, hiện số chưa xem ở chuông; số báo còn sau khi tải lại và được xóa khi mở danh sách `Đơn hàng`.
+
 Case mới cho Issue 70:
 
 - `UT-INVSORT-01`: product metadata hạn dùng/bảo quản và metric ưu tiên tồn kho được chuẩn hóa đúng, không tính nhầm trả NCC hoặc điều chỉnh tồn vào demand

@@ -46,6 +46,10 @@ export function registerCoreControllerEvents(contract) {
     actions.setHelpOpen(!state.helpOpen);
   });
 
+  dom.onlineOrderNoticeButton?.addEventListener("click", () => {
+    actions.openOnlineOrderNotifications();
+  });
+
   LOGIN_GUARD_EVENT_TYPES.forEach((eventType) => {
     document.addEventListener(eventType, (event) => {
       actions.handleBlockedLoginInteraction(event);
