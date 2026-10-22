@@ -31,8 +31,8 @@ Nếu cần can thiệp đặc biệt
 
 ### Danh mục công khai và nhắc đặt trước
 
-- API danh mục công khai trả thêm ngày âm lịch Việt Nam tính theo múi giờ UTC+7.
-- Trang danh mục hiển thị ngày này cùng lời nhắc khách đặt trước mặt hàng cần chuẩn bị; lời nhắc được ghim khi cuộn để giữ ngữ cảnh trên điện thoại.
+- API danh mục công khai trả ngày âm lịch Việt Nam và số ngày còn lại đến mùng 1 hoặc 15 tiếp theo, tính theo UTC+7.
+- Trang danh mục chỉ hiện lời nhắc trong 7 ngày trước mùng 1 hoặc 15 và đúng ngày đó; nội dung nêu ngày âm lịch hiện tại, ngày mục tiêu và nhắc khách đặt trước mặt hàng cần chuẩn bị. Dải nhắc được ghim khi cuộn trên điện thoại.
 - Đây là lời nhắc chung, còn thời gian đặt trước cụ thể vẫn theo ghi chú của từng sản phẩm.
 
 ## 2. Luồng tồn kho

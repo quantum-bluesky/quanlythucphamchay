@@ -33,6 +33,9 @@ Mục tiêu:
 | 179 | `UT-LUN-03` | `tests/test_lunar_calendar.py` | `python -m unittest tests.test_lunar_calendar.VietnameseLunarCalendarTests.test_ut_lunar_03_rejects_non_date_input` |
 | 180 | `IT-PUB-04` | `tests/integration/public-product-list.spec.js` | `npx playwright test tests/integration/public-product-list.spec.js --grep IT-PUB-04` |
 | 181 | `IT-PUB-05` | `tests/integration/public-product-list.spec.js` | `npx playwright test tests/integration/public-product-list.spec.js --grep IT-PUB-05` |
+| 184 | `UT-LUN-04` | `tests/test_lunar_calendar.py` | `python -m unittest tests.test_lunar_calendar.VietnameseLunarCalendarTests.test_ut_lunar_04_counts_down_to_lunar_first_and_fifteenth` |
+| 185 | `UT-LUN-05` | `tests/test_lunar_calendar.py` | `python -m unittest tests.test_lunar_calendar.VietnameseLunarCalendarTests.test_ut_lunar_05_includes_today_and_rejects_non_date_input` |
+| 186 | `IT-PUB-06` | `tests/integration/public-product-list.spec.js` | `npx playwright test tests/integration/public-product-list.spec.js --grep IT-PUB-06` |
 | 164 | `IT-UNIT-03` | `tests/integration/unit-quantity-roundtrip.spec.js` | `npx playwright test --grep IT-UNIT-03` |
 | 165 | `UT-UNIT-01` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |
 | 166 | `UT-UNIT-02` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |

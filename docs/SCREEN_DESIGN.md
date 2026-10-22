@@ -47,7 +47,7 @@ Liên kết detail hiện có:
 - khi tồn bằng `0` hoặc nhỏ hơn đơn vị nhỏ nhất của mặt hàng, ưu tiên `Sắp về` nếu có lượng nhập đang mở; nếu không thì hiển thị `Hết hàng`
 - client dùng cờ `is_low_stock` từ API để đồng nhất với rule tại màn `Sản phẩm`, không tự tính một ngưỡng riêng
 - số lượng và đơn vị trên trang public dùng `Đơn vị bán mặc định`; đơn gửi lên được chốt thành snapshot theo đơn vị và giá bán của đơn vị đó, còn tồn kho vẫn quy về `Đơn vị cơ sở`
-- hiển thị một nhắc nhở nhỏ gồm ngày âm lịch Việt Nam (UTC+7) và lời nhắc đặt trước; nhắc nhở ghim ở mép trên khi cuộn danh sách để vẫn đọc được trên mobile
+- chỉ hiện lời nhắc ngày âm lịch khi còn từ 0 đến 7 ngày tới mùng 1 hoặc 15 tiếp theo theo giờ UTC+7; khi hiện, cho biết ngày âm lịch hiện tại và ngày mục tiêu, đồng thời ghim dải nhắc ở mép trên khi cuộn trên mobile
 
 ### `inventory` - Kiểm tra tồn kho
 

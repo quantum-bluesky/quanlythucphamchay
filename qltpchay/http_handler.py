@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, parse_qsl, urlparse
 from qltpchay.logger import log_error, log_info
-from qltpchay.lunar_calendar import solar_to_vietnamese_lunar
+from qltpchay.lunar_calendar import PREORDER_REMINDER_WINDOW_DAYS, next_preorder_lunar_date, solar_to_vietnamese_lunar
 
 from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
 from . import constants as constants
@@ -232,6 +232,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 # Issue 179: Tính ngày âm lịch theo múi giờ Việt Nam để nhắc khách đặt trước.
                 vietnam_now = datetime.now(timezone(timedelta(hours=7)))
                 lunar_day, lunar_month, lunar_year, is_leap_month = solar_to_vietnamese_lunar(vietnam_now.date())
+                days_until_reminder, reminder_day, reminder_month, reminder_year, reminder_is_leap_month = next_preorder_lunar_date(vietnam_now.date())
                 all_products = store.get_products()
                 sales_stats = store.get_product_sales_stats()
                 public_products = [
@@ -271,6 +272,15 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         "month": lunar_month,
                         "year": lunar_year,
                         "is_leap_month": is_leap_month,
+                        "days_until_reminder": days_until_reminder,
+                        "show_preorder_reminder": days_until_reminder <= PREORDER_REMINDER_WINDOW_DAYS,
+                        "reminder_window_days": PREORDER_REMINDER_WINDOW_DAYS,
+                        "next_reminder": {
+                            "day": reminder_day,
+                            "month": reminder_month,
+                            "year": reminder_year,
+                            "is_leap_month": reminder_is_leap_month,
+                        },
                     },
                     "settings": {
                         **public_web_config,

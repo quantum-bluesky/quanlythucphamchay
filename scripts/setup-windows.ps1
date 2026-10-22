@@ -233,6 +233,7 @@ if (-not $SkipPythonToolingDeps) {
 } elseif ($CheckOnly) {
     Write-Warn "Bo qua kiem tra Python tooling deps theo tham so."
 }
+Ensure-PythonPackage -ImportName "PIL" -PackageName "Pillow" -Reason "backend image resize and optimization tests"
 
 if ($CheckOnly) {
     Write-Step "Check-only summary"

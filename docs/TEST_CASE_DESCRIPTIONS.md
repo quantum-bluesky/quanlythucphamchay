@@ -26,7 +26,10 @@ Lưu ý:
 | 178 | `UT-LUN-02` | Bộ chuyển đổi nhận diện đúng ngày đầu tháng 2 nhuận năm 2023 theo lịch Việt Nam. |
 | 179 | `UT-LUN-03` | Bộ chuyển đổi từ chối dữ liệu đầu vào không phải `datetime.date`. |
 | 180 | `IT-PUB-04` | Trang công khai hiện ngày âm lịch, lời nhắc đặt trước, và giữ nhắc nhở trong vùng nhìn thấy sau khi cuộn. |
-| 181 | `IT-PUB-05` | API danh mục công khai trả ngày âm lịch Việt Nam gồm ngày, tháng, năm và cờ tháng nhuận. |
+| 181 | `IT-PUB-05` | API danh mục công khai trả ngày âm lịch, ngày mục tiêu mùng 1/15 và cờ hiển thị tương ứng số ngày còn lại. |
+| 184 | `UT-LUN-04` | Bộ tính ngày mục tiêu tìm đúng số ngày tới mùng 1 hoặc 15 âm lịch, kể cả khi mục tiêu cách đúng 7 ngày. |
+| 185 | `UT-LUN-05` | Bộ tính ngày mục tiêu trả 0 khi hôm nay là mùng 1/15 và từ chối input không phải ngày. |
+| 186 | `IT-PUB-06` | Danh mục công khai ẩn dải nhắc ngày âm lịch khi còn 8 ngày tới mùng 1 hoặc 15. |
 | 164 | `IT-UNIT-03` | Lưu riêng dòng đơn nháp không gửi collection hoặc đổi đơn lịch sử; server vẫn chặn đơn đã khóa; editor nằm trước nút trạng thái. |
 | 165 | `UT-UNIT-01` | Ghi đúng dòng và audit, giữ nguyên đơn khác và tồn kho. |
 | 166 | `UT-UNIT-02` | Sửa dòng đơn đã chốt; xung đột theo phiên bản đúng đơn, tôn trọng cấu hình conflict. |
