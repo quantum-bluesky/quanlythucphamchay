@@ -6921,16 +6921,23 @@ function beginAdminEditPurchase(originalPurchaseId, reason) {
 async function saveAdminBypassCart() {
   const cart = getActiveCart();
   if (!cart || !cart._adminEditMode) return;
+  // #Issue37: Confirm the stock, movement-history, and audit impact before sending the locked-order edit.
+  if (!window.confirm("Đơn này đã xuất hàng và đang bị khóa. Bạn đang dùng quyền Master Admin để sửa đơn. Thay đổi sẽ cập nhật lại tồn kho, lịch sử biến động và được ghi audit; đây không phải thao tác sửa thông thường. Bạn có chắc muốn tiếp tục không?")) return;
   const payload = {
     cart: {
       id: cart.id,
       customerId: cart.customerId,
       customerName: cart.customerName,
       items: (cart.items || []).map(item => ({
+        id: item.id,
         productId: item.productId,
         productName: item.productName,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        inputQuantity: item.inputQuantity ?? item.input_quantity ?? item.quantity,
+        inputUnit: item.inputUnit ?? item.input_unit ?? item.unit ?? "",
+        conversionFactor: item.conversionFactor ?? item.conversion_factor ?? 1,
+        discountAmount: item.discountAmount ?? item.discount_amount ?? 0,
         note: item.note || "",
       })),
       discountAmount: cart.discountAmount || 0,
@@ -6956,16 +6963,26 @@ async function saveAdminBypassCart() {
 async function saveAdminBypassPurchase() {
   const purchase = getActivePurchase();
   if (!purchase || !purchase._adminEditMode) return;
+  // #Issue37: Confirm the stock, movement-history, and audit impact before sending the locked-purchase edit.
+  if (!window.confirm("Phiếu này đã nhập kho và đang bị khóa. Bạn đang dùng quyền Master Admin để sửa phiếu. Thay đổi sẽ cập nhật lại tồn kho, lịch sử biến động và được ghi audit; đây không phải thao tác sửa thông thường. Bạn có chắc muốn tiếp tục không?")) return;
   const payload = {
     purchase: {
       id: purchase.id,
       supplierId: purchase.supplierId,
       supplierName: purchase.supplierName,
       items: (purchase.items || []).map(item => ({
+        id: item.id,
         productId: item.productId,
         productName: item.productName,
         quantity: item.quantity,
-        unitPrice: item.unitPrice,
+        unitCost: item.unitCost,
+        inputQuantity: item.inputQuantity ?? item.input_quantity ?? item.quantity,
+        inputUnit: item.inputUnit ?? item.input_unit ?? item.unit ?? "",
+        conversionFactor: item.conversionFactor ?? item.conversion_factor ?? 1,
+        discountAmount: item.discountAmount ?? item.discount_amount ?? 0,
+        batchCode: item.batchCode || "",
+        expiryInputMode: item.expiryInputMode || "direct",
+        manufactureDate: item.manufactureDate || "",
         expiryDate: item.expiryDate || "",
         note: item.note || "",
       })),

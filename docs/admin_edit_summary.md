@@ -6,7 +6,7 @@
 
 ### 1.1. Mục tiêu nghiệp vụ
 - **Master Admin Bypass Edit**: Cho phép tài khoản Master Admin có quyền chỉnh sửa nội dung của các chứng từ đã hoàn thành và khóa cấu trúc:
-  - **Phiếu nhập hàng đã nhận kho (`status = "received"`)** nhưng **chưa thanh toán (`paymentStatus != "paid"`)**: cho phép sửa nhà cung cấp, danh sách sản phẩm (số lượng, đơn giá, hạn sử dụng), tiền giảm giá và ghi chú.
+  - **Phiếu nhập hàng đã nhận kho (`status = "received"`)** nhưng **chưa thanh toán (`paymentStatus != "paid"`)**: Master Admin được sửa danh sách sản phẩm (thêm/xóa/thay, số lượng, đơn giá, hạn sử dụng), tiền giảm giá và ghi chú; nhà cung cấp không đổi.
   - **Đơn xuất hàng đã xuất kho (`status = "completed"`)** nhưng **chưa thanh toán (`paymentStatus != "paid"`)**: cho phép chuyển sang giao diện tạo đơn để sửa danh sách sản phẩm (thêm/bớt/sửa số lượng, đơn giá xuất), tiền giảm giá và ghi chú.
 - **Cơ chế kiểm soát & ghi vết**: Bắt buộc Master Admin nhập **Lý do sửa phiếu/đơn**, hiển thị nút **"Lưu (Admin Bypass)"**, và khi lưu sẽ gọi endpoint Backend riêng (`/api/admin/purchases/edit-locked` và `/api/admin/orders/edit-locked`) để hoàn trả/ghi sổ nhật ký kho (Ledger) tự động, an toàn và toàn vẹn dữ liệu.
 

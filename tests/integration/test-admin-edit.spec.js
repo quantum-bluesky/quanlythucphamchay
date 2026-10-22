@@ -6,12 +6,14 @@ const {
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
+  openAdminPage,
   switchMenu,
 } = require("./support/ui");
 
-test("ADMIN-EDIT-FULL Master Admin can edit locked received purchase and locked completed sale", async ({ page, request }) => {
+test("IT-ADM-EDIT-01 Master Admin can edit locked received purchase and locked completed sale", async ({ page, request }) => {
   test.setTimeout(120000);
   const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
+  const adminEditConfirmations = [];
 
   // Handle prompt dialogs
   page.on("dialog", async (dialog) => {
@@ -19,6 +21,7 @@ test("ADMIN-EDIT-FULL Master Admin can edit locked received purchase and locked 
     if (dialog.type() === "prompt") {
       await dialog.accept("Sua do Master Admin dieu chinh ly do");
     } else {
+      if (dialog.type() === "confirm") adminEditConfirmations.push(dialog.message());
       await dialog.accept();
     }
   });
@@ -94,8 +97,7 @@ test("ADMIN-EDIT-FULL Master Admin can edit locked received purchase and locked 
   });
   expect(seedResponse.ok()).toBeTruthy();
 
-  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
-  await page.waitForLoadState("networkidle");
+  await openAdminPage(page);
   await autoLoginAdmin(page, request);
   await page.reload({ waitUntil: "networkidle" });
 
@@ -190,6 +192,9 @@ test("ADMIN-EDIT-FULL Master Admin can edit locked received purchase and locked 
   await page.waitForTimeout(1000);
   const saleToast = await collectToast(page, runtime, "save-admin-sale");
   console.log("Sale toast received after save:", saleToast);
+
+  expect(adminEditConfirmations.some((message) => message.includes("Phiếu này đã nhập kho") && message.includes("Master Admin"))).toBeTruthy();
+  expect(adminEditConfirmations.some((message) => message.includes("Đơn này đã xuất hàng") && message.includes("Master Admin"))).toBeTruthy();
 
   expectNoRuntimeErrors(runtime);
 });

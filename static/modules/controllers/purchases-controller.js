@@ -1107,7 +1107,7 @@ export function registerPurchasesControllerEvents(contract) {
           supplierName: dom.purchaseSupplierInput.value.trim(),
           note: dom.purchaseNoteInput.value.trim(),
         }));
-        actions.saveAndRenderAll(["purchases"]);
+        actions.saveAndRenderAll(purchase._adminEditMode ? [] : ["purchases"]);
         actions.showToast("Đã lưu dòng nhập hàng.");
         return;
       }
@@ -1168,7 +1168,7 @@ export function registerPurchasesControllerEvents(contract) {
         supplierName: dom.purchaseSupplierInput.value.trim(),
         note: dom.purchaseNoteInput.value.trim(),
       }));
-      actions.saveAndRenderAll(["purchases"]);
+      actions.saveAndRenderAll(purchase._adminEditMode ? [] : ["purchases"]);
       return;
     }
 

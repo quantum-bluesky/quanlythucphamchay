@@ -414,6 +414,8 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - `inventory_adjustment` được tái dùng cho cả chỉnh tồn trực tiếp lẫn bút toán đảo khi duyệt hủy chứng từ
 - với hủy đơn đã xuất, `source_type = sale_cancellation` và `source_code = order_code`
 - với hủy phiếu nhập đã nhận, `source_type = purchase_cancellation` và `source_code = receipt_code` của phiếu nguồn
+- với Master Admin sửa đơn đã xuất, `source_type = admin_edit_reversal` và `source_code = order_code`; với phiếu nhập đã nhận, `source_type = admin_edit_purchase` và `source_code = receipt_code` nguồn
+- các điều chỉnh do Admin Edit vẫn ghi trong `transactions`, `inventory_batch_allocations` và `inventory_receipts`; liên kết chứng từ trên lịch sử biến động trỏ về đơn/phiếu nguồn. Thêm dòng nhập tạo lô và receipt line gắn với phiếu gốc để việc hủy phiếu sau này còn đối soát được
 
 ### `inventory_receipt_items`
 
