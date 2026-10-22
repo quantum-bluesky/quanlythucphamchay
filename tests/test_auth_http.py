@@ -28,6 +28,7 @@ class AuthHttpTests(unittest.TestCase):
         os.close(manifest_fd)
         Path(manifest_file).unlink(missing_ok=True)
         self.asset_versions_path = Path(manifest_file)
+        self.test_config_path = self.db_path.with_suffix(".config.json")
         self.store = InventoryStore(self.db_path)
         self.server = None
         self.server_thread = None
@@ -44,10 +45,12 @@ class AuthHttpTests(unittest.TestCase):
         for suffix in ("", "-wal", "-shm"):
             self.db_path.with_name(self.db_path.name + suffix).unlink(missing_ok=True)
         self.asset_versions_path.unlink(missing_ok=True)
+        self.test_config_path.unlink(missing_ok=True)
 
     def _start_server(self, system_config: dict) -> None:
         system_config = dict(system_config)
         system_config.setdefault("asset_versions_path", str(self.asset_versions_path))
+        system_config.setdefault("config_path", str(self.test_config_path))
         self.session_manager = SessionManager(
             admin=system_config["admin"],
             users=system_config.get("users", []),
@@ -1264,7 +1267,7 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(approve_payload["request"]["status"], "processed")
         self.assertTrue(any(cart["id"] == sale_result["cart"]["id"] and cart["status"] == "cancelled" for cart in approve_payload["carts"]))
 
-    def test_ut_auth_18_admin_test_mail_requires_master_admin_and_uses_configured_recipients(self) -> None:
+    def test_ut_auth_18_admin_mail_config_and_test_mail_require_master_admin(self) -> None:
         config = {
             "EnableLogin": True,
             "session_timeout_minutes": 360,
@@ -1299,6 +1302,65 @@ class AuthHttpTests(unittest.TestCase):
         )
         admin_cookie = self._extract_cookie(admin_login_headers)
 
+        denied_config_status, _, _ = self._request_json(
+            "GET",
+            "/api/admin/mail-config",
+            cookie=staff_cookie,
+        )
+        self.assertEqual(denied_config_status, 401)
+        config_status, config_payload, _ = self._request_json(
+            "GET",
+            "/api/admin/mail-config",
+            cookie=admin_cookie,
+        )
+        self.assertEqual(config_status, 200)
+        self.assertEqual(config_payload["mail"]["smtp_host"], "smtp.test.invalid")
+        self.assertTrue(config_payload["mail"]["has_password"])
+        self.assertNotIn("password", config_payload["mail"])
+
+        mail_update = {
+            "enabled": True,
+            "smtp_host": "smtp.updated.invalid",
+            "smtp_port": 465,
+            "username": "sender-updated@test.invalid",
+            "password": "",
+            "from_email": "sender-updated@test.invalid",
+            "to_emails": ["new-recipient@test.invalid"],
+            "use_tls": False,
+            "use_ssl": True,
+            "subject_prefix": "[Updated]",
+        }
+        denied_update_status, _, _ = self._request_json(
+            "POST",
+            "/api/admin/mail-config",
+            payload=mail_update,
+            cookie=staff_cookie,
+        )
+        self.assertEqual(denied_update_status, 401)
+        saved_status, saved_payload, _ = self._request_json(
+            "POST",
+            "/api/admin/mail-config",
+            payload=mail_update,
+            cookie=admin_cookie,
+        )
+        self.assertEqual(saved_status, 200)
+        self.assertTrue(saved_payload["mail"]["has_password"])
+        self.assertNotIn("password", saved_payload["mail"])
+        saved_config = json.loads(self.test_config_path.read_text(encoding="utf-8"))
+        self.assertEqual(saved_config["mail"]["password"], "test-secret")
+
+        mail_update["password"] = "updated-secret"
+        saved_status, saved_payload, _ = self._request_json(
+            "POST",
+            "/api/admin/mail-config",
+            payload=mail_update,
+            cookie=admin_cookie,
+        )
+        self.assertEqual(saved_status, 200)
+        self.assertNotIn("password", saved_payload["mail"])
+        saved_config = json.loads(self.test_config_path.read_text(encoding="utf-8"))
+        self.assertEqual(saved_config["mail"]["password"], "updated-secret")
+
         with patch("qltpchay.http_handler.send_mail_notification") as send_mail:
             send_mail.return_value = {"sent": True, "skipped": False, "recipient_count": 1}
             denied_status, _, _ = self._request_json(
@@ -1321,15 +1383,16 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(success_payload["recipient_count"], 1)
         self.assertEqual(success_payload["result"]["recipient_count"], 1)
         self.assertEqual(success_payload["result"]["environment"], "test")
-        self.assertEqual(success_payload["result"]["smtp_host"], "smtp.test.invalid")
-        self.assertEqual(success_payload["result"]["smtp_port"], 587)
-        self.assertEqual(success_payload["result"]["security"], "STARTTLS")
-        self.assertEqual(success_payload["result"]["from_email"], "sender@test.invalid")
-        self.assertEqual(success_payload["result"]["to_emails"], ["recipient@test.invalid"])
+        self.assertEqual(success_payload["result"]["smtp_host"], "smtp.updated.invalid")
+        self.assertEqual(success_payload["result"]["smtp_port"], 465)
+        self.assertEqual(success_payload["result"]["security"], "SSL/TLS")
+        self.assertEqual(success_payload["result"]["from_email"], "sender-updated@test.invalid")
+        self.assertEqual(success_payload["result"]["to_emails"], ["new-recipient@test.invalid"])
         self.assertTrue(success_payload["result"]["tested_at"])
         self.assertNotIn("password", success_payload["result"])
         self.assertNotIn("username", success_payload["result"])
-        self.assertEqual(send_mail.call_args.kwargs["mail_config"], config["mail"])
+        self.assertEqual(send_mail.call_args.kwargs["mail_config"]["password"], "updated-secret")
+        self.assertEqual(send_mail.call_args.kwargs["mail_config"]["smtp_host"], "smtp.updated.invalid")
 
     def test_ut_auth_13_pending_bulk_order_request_delete_allows_owner_and_manager_only(self) -> None:
         config = {

@@ -1092,9 +1092,26 @@
                 <h3>Kiểm tra gửi mail</h3>
               </div>
             </div>
-            <p class="cart-line-note">Gửi email thử đến danh sách người nhận trong cấu hình. Kết quả hiển thị môi trường, máy chủ SMTP, người gửi, người nhận và thời điểm chạy; mật khẩu không bao giờ hiển thị.</p>
+            <p class="cart-line-note">Thông tin bên dưới được tải từ cấu hình runtime. Lưu thay đổi trước khi gửi thử; mật khẩu đã lưu không được hiển thị, để trống nếu muốn giữ nguyên.</p>
+            <form id="adminMailConfigForm" class="admin-mail-config-form">
+              <label class="checkbox-label"><input id="adminMailEnabled" name="enabled" type="checkbox"> Bật gửi mail</label>
+              <label for="adminMailSmtpHost">Máy chủ SMTP<input id="adminMailSmtpHost" name="smtp_host" type="text" autocomplete="off"></label>
+              <label for="adminMailSmtpPort">Cổng SMTP<input id="adminMailSmtpPort" name="smtp_port" type="number" min="1" max="65535" required></label>
+              <label for="adminMailUsername">Tài khoản SMTP<input id="adminMailUsername" name="username" type="text" autocomplete="username"></label>
+              <label for="adminMailPassword">Mật khẩu SMTP<input id="adminMailPassword" name="password" type="password" autocomplete="new-password" placeholder="Để trống nếu giữ mật khẩu đã lưu"></label>
+              <p id="adminMailPasswordState" class="panel-note" role="status">Đang tải trạng thái mật khẩu...</p>
+              <label for="adminMailFromEmail">Địa chỉ gửi<input id="adminMailFromEmail" name="from_email" type="email" autocomplete="email"></label>
+              <label for="adminMailRecipients">Địa chỉ nhận<textarea id="adminMailRecipients" name="to_emails" rows="3" placeholder="Mỗi địa chỉ một dòng"></textarea></label>
+              <label for="adminMailSubjectPrefix">Tiền tố tiêu đề<input id="adminMailSubjectPrefix" name="subject_prefix" type="text"></label>
+              <label class="checkbox-label"><input id="adminMailUseTls" name="use_tls" type="checkbox"> STARTTLS</label>
+              <label class="checkbox-label"><input id="adminMailUseSsl" name="use_ssl" type="checkbox"> SSL/TLS</label>
+              <div class="row-actions">
+                <button id="adminMailConfigSaveButton" type="submit" class="primary-button compact-button">Lưu cấu hình mail</button>
+              </div>
+            </form>
+            <p id="adminMailConfigStatus" class="panel-note" role="status" aria-live="polite">Đang tải cấu hình mail...</p>
             <div class="row-actions">
-              <button type="button" id="adminTestMailButton" class="ghost-button compact-button">Gửi email thử</button>
+              <button type="button" id="adminTestMailButton" class="ghost-button compact-button" disabled>Gửi email thử</button>
             </div>
             <div id="adminTestMailResult" class="admin-mail-test-result" aria-live="polite">
               <p id="adminTestMailStatus" class="inline-alert" role="status">Chưa chạy kiểm tra gửi mail trong phiên này.</p>

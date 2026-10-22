@@ -20,10 +20,26 @@ from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candi
 from . import constants as constants
 from . import helpers
 from .constants import ADMIN_SESSION_COOKIE, APP_NAME, DATA_DIR, JS_ASSET_VERSIONS_PATH, STATIC_DIR
-from .config import DEFAULT_APP_VERSION
+from .config import DEFAULT_APP_VERSION, _normalize_mail_config, save_system_config as persist_system_config
 from .js_asset_versions import JavaScriptAssetVersionManager
 from .mailer import send_mail_notification
 from .store import BulkOrderRequestDuplicateError, ProcurementBatchStartConflictError, SyncConflictError
+
+
+def _public_mail_config(mail_config: dict | None) -> dict:
+    config = mail_config if isinstance(mail_config, dict) else {}
+    return {
+        "enabled": bool(config.get("enabled")),
+        "smtp_host": str(config.get("smtp_host") or ""),
+        "smtp_port": int(config.get("smtp_port") or 587),
+        "username": str(config.get("username") or ""),
+        "has_password": bool(config.get("password")),
+        "from_email": str(config.get("from_email") or ""),
+        "to_emails": [str(email or "").strip() for email in (config.get("to_emails") or []) if str(email or "").strip()],
+        "use_tls": bool(config.get("use_tls")),
+        "use_ssl": bool(config.get("use_ssl")),
+        "subject_prefix": str(config.get("subject_prefix") or ""),
+    }
 
 
 def create_handler(store, admin_sessions, system_config: dict | None = None):
@@ -762,6 +778,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
+                # #Issue144: Expose mail settings to Master Admin with the password redacted.
+                if route == "/api/admin/mail-config":
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {"mail": _public_mail_config(mail_config), "environment": constants.APP_ENV},
+                    )
+                    return
+
                 if route == "/api/admin/legacy-audit":
                     self._send_json(
                         HTTPStatus.OK,
@@ -1056,6 +1080,66 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     return
 
 
+                # #Issue144: Persist editable SMTP settings while retaining a saved password when the field is blank.
+                if route == "/api/admin/mail-config":
+                    if system_config is None:
+                        self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Hệ thống chưa tải cấu hình."})
+                        return
+                    try:
+                        payload = self._read_json_body()
+                        if not isinstance(payload, dict):
+                            raise ValueError("Cấu hình mail không hợp lệ.")
+                        recipients = payload.get("to_emails", [])
+                        if not isinstance(recipients, list):
+                            raise ValueError("Danh sách người nhận không hợp lệ.")
+                        try:
+                            smtp_port = int(payload.get("smtp_port") or 587)
+                        except (TypeError, ValueError) as exc:
+                            raise ValueError("Cổng SMTP phải là số từ 1 đến 65535.") from exc
+                        if not 1 <= smtp_port <= 65535:
+                            raise ValueError("Cổng SMTP phải là số từ 1 đến 65535.")
+                        use_tls = bool(payload.get("use_tls"))
+                        use_ssl = bool(payload.get("use_ssl"))
+                        if use_tls and use_ssl:
+                            raise ValueError("Chỉ chọn một chế độ bảo mật: STARTTLS hoặc SSL/TLS.")
+
+                        raw_mail_config = {
+                            "enabled": bool(payload.get("enabled")),
+                            "smtp_host": str(payload.get("smtp_host") or "").strip(),
+                            "smtp_port": smtp_port,
+                            "username": str(payload.get("username") or "").strip(),
+                            "password": str(payload.get("password") or mail_config.get("password") or ""),
+                            "from_email": str(payload.get("from_email") or "").strip(),
+                            "to_emails": recipients,
+                            "use_tls": use_tls,
+                            "use_ssl": use_ssl,
+                            "subject_prefix": str(payload.get("subject_prefix") or "").strip(),
+                        }
+                        normalized_mail_config = _normalize_mail_config(raw_mail_config, raw_mail_config)
+                        saved_config = {**system_config, "mail": normalized_mail_config}
+                        config_path = Path(system_config.get("config_path") or constants.CONFIG_PATH)
+                        persist_system_config(saved_config, config_path=config_path)
+
+                        mail_config.clear()
+                        mail_config.update(normalized_mail_config)
+                        system_config["mail"] = mail_config
+                        actor = self._get_current_username() or "unknown"
+                        log_info(f"Master Admin {actor} updated mail configuration.")
+                        self._send_json(
+                            HTTPStatus.OK,
+                            {
+                                "message": "Đã lưu cấu hình gửi mail.",
+                                "mail": _public_mail_config(mail_config),
+                                "environment": constants.APP_ENV,
+                            },
+                        )
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    except Exception:
+                        log_error("Master Admin mail configuration save failed.", exc_info=True)
+                        self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Không lưu được cấu hình gửi mail."})
+                    return
+
                 if route == "/api/admin/public-web-config":
                     try:
                         payload = self._read_json_body()
@@ -1069,7 +1153,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             }
                             normalized = _normalize_public_web_config(updated_public_web)
                             system_config["public_web"] = normalized
-                            save_system_config(system_config)
+                            save_system_config(
+                                system_config,
+                                config_path=Path(system_config.get("config_path") or constants.CONFIG_PATH),
+                            )
                             
                             self._send_json(HTTPStatus.OK, {
                                 "message": "Đã lưu cấu hình Public Web.",

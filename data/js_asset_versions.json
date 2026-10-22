@@ -42,8 +42,8 @@
       "sha256": "9fb3d12fe8ee9e43dc901afc65c398035179c191a450967b50bcca5da48dea99"
     },
     "modules/controllers/reports-admin-controller.js": {
-      "counter": 3,
-      "sha256": "ed3da0858f7e8458bafa850ebd9891b52c0b978d3a186d54fcf29b47ce7d5b98"
+      "counter": 5,
+      "sha256": "314721618a44985a657a3ac40b49f8466114f0d51fda034b97384303b93b0b79"
     },
     "modules/controllers/sales-controller.js": {
       "counter": 1,
@@ -134,8 +134,8 @@
       "sha256": "bcd7b2f3c3f8173a87a0db503713d4fff866932f42aa2b83255895b0eda7c557"
     },
     "styles.css": {
-      "counter": 3,
-      "sha256": "a8bd63464d156fb9c77529a59aee57c9216c2063196d3e459316942b3ff79bb9"
+      "counter": 4,
+      "sha256": "eb216a84ef2742b338e6cd12b6c957363f8df4d6b13e5e48a5e0a7feef591fa0"
     },
     "vendor/quill/quill.min.js": {
       "counter": 1,
