@@ -25,6 +25,51 @@ test("IT-PUB-01 Public ProductList shows low-stock status from the product thres
   expectNoRuntimeErrors(runtime);
 });
 
+test("IT-PUB-04 Public ProductList displays and keeps lunar preorder reminder visible while scrolling", async ({ page }) => {
+  const runtime = attachRuntimeTracking(page);
+  await page.route("**/api/public/products", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      products: Array.from({ length: 12 }, (_, index) => ({
+        id: 950 + index, name: `Sản phẩm ${index + 1}`, category: "Đồ chay", unit: "gói",
+        sale_price: 20000, current_stock: 5, is_low_stock: false, incoming_open_purchases: 0,
+        sold_count: 0, images: [], details: "", recipe: "", note: "",
+      })),
+      lunar_calendar: { day: 1, month: 2, year: 2023, is_leap_month: true },
+      settings: {},
+    }),
+  }));
+
+  await page.goto("./");
+  const reminder = page.locator("#lunarDateReminder");
+  await expect(reminder).toContainText("Hôm nay 1/2 nhuận âm lịch");
+  await expect(reminder).toContainText("nhớ đặt trước");
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect(reminder).toBeInViewport();
+  expectNoRuntimeErrors(runtime);
+});
+
+test("IT-PUB-05 Public products API returns a Vietnam lunar date", async ({ page }) => {
+  await page.goto("./");
+  const lunarDate = await page.evaluate(async () => {
+    const response = await fetch("./api/public/products");
+    const payload = await response.json();
+    return payload.lunar_calendar;
+  });
+
+  expect(lunarDate).toEqual(expect.objectContaining({
+    day: expect.any(Number),
+    month: expect.any(Number),
+    year: expect.any(Number),
+    is_leap_month: expect.any(Boolean),
+  }));
+  expect(lunarDate.day).toBeGreaterThanOrEqual(1);
+  expect(lunarDate.day).toBeLessThanOrEqual(30);
+  expect(lunarDate.month).toBeGreaterThanOrEqual(1);
+  expect(lunarDate.month).toBeLessThanOrEqual(12);
+});
+
 test("Public ProductList preserves cart, supports review quantity edits and sorting", async ({ page }) => {
   const runtime = attachRuntimeTracking(page);
 

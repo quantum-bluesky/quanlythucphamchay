@@ -22,6 +22,11 @@ Lưu ý:
 | 174 | `UT-AUTH-17` | API cập nhật sản phẩm lưu được `is_public=false`, trả lại đúng trạng thái và loại mặt hàng đó khỏi danh mục công khai. |
 | 175 | `IT-PUB-02` | Form sửa chi tiết sản phẩm bỏ chọn và lưu được `Hiển thị trên Web (Public)`, sản phẩm biến mất khỏi API public, mở lại vẫn thấy checkbox tắt, sau đó bật lại thành công. |
 | 176 | `IT-PUB-03` | Public ProductList xác định hàng có tồn kho nhỏ hơn đơn vị nhỏ nhất (theo bảng quy đổi hoặc đơn vị cơ sở) là hết hàng (hoặc sắp về nếu có hàng chờ nhập). |
+| 177 | `UT-LUN-01` | Bộ chuyển đổi ngày âm lịch Việt Nam trả đúng ngày mùng 1 Tết cho các năm đã biết. |
+| 178 | `UT-LUN-02` | Bộ chuyển đổi nhận diện đúng ngày đầu tháng 2 nhuận năm 2023 theo lịch Việt Nam. |
+| 179 | `UT-LUN-03` | Bộ chuyển đổi từ chối dữ liệu đầu vào không phải `datetime.date`. |
+| 180 | `IT-PUB-04` | Trang công khai hiện ngày âm lịch, lời nhắc đặt trước, và giữ nhắc nhở trong vùng nhìn thấy sau khi cuộn. |
+| 181 | `IT-PUB-05` | API danh mục công khai trả ngày âm lịch Việt Nam gồm ngày, tháng, năm và cờ tháng nhuận. |
 | 164 | `IT-UNIT-03` | Lưu riêng dòng đơn nháp không gửi collection hoặc đổi đơn lịch sử; server vẫn chặn đơn đã khóa; editor nằm trước nút trạng thái. |
 | 165 | `UT-UNIT-01` | Ghi đúng dòng và audit, giữ nguyên đơn khác và tồn kho. |
 | 166 | `UT-UNIT-02` | Sửa dòng đơn đã chốt; xung đột theo phiên bản đúng đơn, tôn trọng cấu hình conflict. |

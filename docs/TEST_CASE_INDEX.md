@@ -28,6 +28,11 @@ Mục tiêu:
 | 174 | `UT-AUTH-17` | `tests/test_auth_http.py` | `python -m unittest tests.test_auth_http.AuthHttpTests.test_ut_auth_17_product_update_can_hide_item_from_public_catalog` |
 | 175 | `IT-PUB-02` | `tests/integration/product-metadata.spec.js` | `npx playwright test tests/integration/product-metadata.spec.js --grep IT-PUB-02` |
 | 176 | `IT-PUB-03` | `tests/integration/public-product-list.spec.js` | `npx playwright test tests/integration/public-product-list.spec.js --grep IT-PUB-03` |
+| 177 | `UT-LUN-01` | `tests/test_lunar_calendar.py` | `python -m unittest tests.test_lunar_calendar.VietnameseLunarCalendarTests.test_ut_lunar_01_known_vietnamese_new_year_dates` |
+| 178 | `UT-LUN-02` | `tests/test_lunar_calendar.py` | `python -m unittest tests.test_lunar_calendar.VietnameseLunarCalendarTests.test_ut_lunar_02_identifies_vietnamese_leap_month` |
+| 179 | `UT-LUN-03` | `tests/test_lunar_calendar.py` | `python -m unittest tests.test_lunar_calendar.VietnameseLunarCalendarTests.test_ut_lunar_03_rejects_non_date_input` |
+| 180 | `IT-PUB-04` | `tests/integration/public-product-list.spec.js` | `npx playwright test tests/integration/public-product-list.spec.js --grep IT-PUB-04` |
+| 181 | `IT-PUB-05` | `tests/integration/public-product-list.spec.js` | `npx playwright test tests/integration/public-product-list.spec.js --grep IT-PUB-05` |
 | 164 | `IT-UNIT-03` | `tests/integration/unit-quantity-roundtrip.spec.js` | `npx playwright test --grep IT-UNIT-03` |
 | 165 | `UT-UNIT-01` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |
 | 166 | `UT-UNIT-02` | `tests/test_cart_item_update.py` | `python -m unittest discover -s tests -p test_cart_item_update.py` |

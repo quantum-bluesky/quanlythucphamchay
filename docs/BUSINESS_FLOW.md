@@ -29,6 +29,12 @@ Nếu cần can thiệp đặc biệt
   -> Master Admin hoặc user có quyền điều chỉnh tồn khi chỉ cần sửa chênh lệch kho
 ```
 
+### Danh mục công khai và nhắc đặt trước
+
+- API danh mục công khai trả thêm ngày âm lịch Việt Nam tính theo múi giờ UTC+7.
+- Trang danh mục hiển thị ngày này cùng lời nhắc khách đặt trước mặt hàng cần chuẩn bị; lời nhắc được ghim khi cuộn để giữ ngữ cảnh trên điện thoại.
+- Đây là lời nhắc chung, còn thời gian đặt trước cụ thể vẫn theo ghi chú của từng sản phẩm.
+
 ## 2. Luồng tồn kho
 
 - màn chính: `inventory`
