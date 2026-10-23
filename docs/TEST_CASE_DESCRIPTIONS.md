@@ -336,6 +336,9 @@ Lưu ý:
 | 285 | `UT-WEB-97` | Kiểm tra ship order chuyển actor/ngày giao và trả summary. |
 | 286 | `UT-WEB-98` | Kiểm tra receive purchase chuyển actor/role/ngày nhận và trả status 201. |
 | 287 | `UT-WEB-99` | Kiểm tra receive purchase ánh xạ lỗi nghiệp vụ thành status 400. |
+| 288 | `UT-WEB-100` | Kiểm tra quick-create purchase giữ actor/role, payment flags và response summary. |
+| 289 | `UT-WEB-101` | Kiểm tra mark-paid chuyển payment data cùng actor admin và trả purchase mới. |
+| 290 | `UT-WEB-102` | Kiểm tra purchase payment ánh xạ lỗi validation của store thành 400. |
 
 
 

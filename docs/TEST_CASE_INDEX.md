@@ -346,6 +346,9 @@ Mục tiêu:
 | 285 | `UT-WEB-97` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_97_ship_order_passes_dates_actor_and_returns_summary` |
 | 286 | `UT-WEB-98` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_98_receive_purchase_passes_role_dates_and_returns_created_response` |
 | 287 | `UT-WEB-99` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_99_receive_purchase_maps_validation_error_to_400` |
+| 288 | `UT-WEB-100` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_100_quick_create_purchase_preserves_actor_role_and_response` |
+| 289 | `UT-WEB-101` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_101_mark_purchase_paid_passes_payment_and_actor_fields` |
+| 290 | `UT-WEB-102` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_102_purchase_payment_maps_store_validation_error_to_400` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

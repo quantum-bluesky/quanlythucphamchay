@@ -124,6 +124,8 @@ Approve/reject document-cancel request yêu cầu `document_cancel_approve`, gi�
 response sync state + summary khi approve và actor/reason khi reject.
 Ship order/receive purchase áp dụng auth gate hệ thống, giữ actor/role, ngày giao
 dịch, response schema và status khác nhau; lỗi nghiệp vụ trả 400.
+Quick purchase, mark-paid và purchase payment giữ response/actor/role, payment
+metadata và validation status.
 
 Chạy riêng nhóm này:
 

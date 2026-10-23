@@ -1226,6 +1226,114 @@ def create_app(
             "summary": store.get_summary(),
         }), 201
 
+    @app.post("/api/purchases/quick-create")
+    @app.post(f"{admin_path}/api/purchases/quick-create")
+    def quick_create_purchase():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.create_quick_purchase(
+                supplier_id=payload.get("supplier_id", ""),
+                supplier_name=payload.get("supplier_name", ""),
+                document_date=payload.get("document_date", ""),
+                note=payload.get("note", ""),
+                items=payload.get("items", []),
+                discount_amount=payload.get("discount_amount", 0),
+                final_status=payload.get("final_status", "received"),
+                mark_paid=bool(payload.get("mark_paid")),
+                payment_method=payload.get("payment_method", ""),
+                payment_note=payload.get("payment_note", ""),
+                actor_username=str((session or {}).get("username") or ""),
+                actor_role=str((session or {}).get("role") or ""),
+                target_purchase_id=payload.get("target_purchase_id", ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": result["message"],
+            "purchase": result["purchase"],
+            "receipt": result["receipt"],
+            "quick_summary": result["summary"],
+            "purchases": result["purchases"],
+            "suppliers": result["suppliers"],
+            "summary": store.get_summary(),
+        }), 201
+
+    @app.post("/api/purchases/mark-paid")
+    @app.post(f"{admin_path}/api/purchases/mark-paid")
+    def mark_purchase_paid():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.mark_purchase_paid(
+                payload.get("purchase_id", ""),
+                discount_amount=payload.get("discount_amount"),
+                paid_at=payload.get("paid_at"),
+                payment_method=payload.get("payment_method", ""),
+                payment_note=payload.get("payment_note", ""),
+                actor_username=str((session or {}).get("username") or ""),
+                actor_role=str((session or {}).get("role") or ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": result["message"],
+            "purchase": result["purchase"],
+            "purchases": result["purchases"],
+            "summary": store.get_summary(),
+        })
+
+    @app.post("/api/purchases/payment")
+    @app.post(f"{admin_path}/api/purchases/payment")
+    def update_purchase_payment():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.update_purchase_payment(
+                payload.get("purchase_id", ""),
+                discount_amount=payload.get("discount_amount"),
+                paid_at=payload.get("paid_at"),
+                payment_method=payload.get("payment_method", ""),
+                payment_note=payload.get("payment_note", ""),
+                actor_username=str((session or {}).get("username") or ""),
+                actor_role=str((session or {}).get("role") or ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": result["message"],
+            "purchase": result["purchase"],
+            "purchases": result["purchases"],
+            "summary": store.get_summary(),
+        })
+
     def submit_document_cancel_request(document_type: str, document_id: str):
         config = current_app.config["SYSTEM_CONFIG"]
         if not config.get("EnableLogin"):

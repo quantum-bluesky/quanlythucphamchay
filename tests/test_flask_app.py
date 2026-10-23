@@ -1874,6 +1874,89 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Phiếu nhập không tồn tại."})
 
+    def test_ut_web_100_quick_create_purchase_preserves_actor_role_and_response(self):
+        app = self.build_app("quick-create-purchase")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        quick_result = {
+            "message": "Đã tạo phiếu nhập nhanh.",
+            "purchase": {"id": "purchase-100"},
+            "receipt": {"id": 100},
+            "summary": {"created_count": 1},
+            "purchases": [{"id": "purchase-100"}],
+            "suppliers": [{"id": "supplier-1"}],
+        }
+        with patch.object(store, "create_quick_purchase", return_value=quick_result) as create:
+            response = client.post(
+                "/control-room/api/purchases/quick-create",
+                json={
+                    "supplier_id": "supplier-1",
+                    "items": [{"product_id": 1, "quantity": 3}],
+                    "mark_paid": True,
+                    "payment_method": "cash",
+                    "target_purchase_id": "purchase-100",
+                },
+            )
+
+        self.assertEqual(response.status_code, 201)
+        result = response.get_json()
+        self.assertEqual(result["quick_summary"], {"created_count": 1})
+        self.assertEqual(result["receipt"], {"id": 100})
+        self.assertEqual(create.call_args.kwargs["actor_username"], "staff")
+        self.assertEqual(create.call_args.kwargs["actor_role"], "user")
+        self.assertTrue(create.call_args.kwargs["mark_paid"])
+
+    def test_ut_web_101_mark_purchase_paid_passes_payment_and_actor_fields(self):
+        app = self.build_app("purchase-mark-paid")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        payment_result = {
+            "message": "Đã thanh toán phiếu nhập.",
+            "purchase": {"id": "purchase-101", "status": "paid"},
+            "purchases": [{"id": "purchase-101", "status": "paid"}],
+        }
+        with patch.object(store, "mark_purchase_paid", return_value=payment_result) as mark_paid:
+            response = client.post(
+                "/api/purchases/mark-paid",
+                json={
+                    "purchase_id": "purchase-101",
+                    "discount_amount": 2000,
+                    "paid_at": "2026-10-23T11:00:00Z",
+                    "payment_method": "bank",
+                    "payment_note": "Chuyển khoản",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["purchase"], payment_result["purchase"])
+        self.assertEqual(mark_paid.call_args.kwargs["actor_username"], "test-admin")
+        self.assertEqual(mark_paid.call_args.kwargs["actor_role"], "admin")
+        self.assertEqual(mark_paid.call_args.kwargs["payment_method"], "bank")
+
+    def test_ut_web_102_purchase_payment_maps_store_validation_error_to_400(self):
+        app = self.build_app("purchase-payment-invalid")
+        store = app.extensions["qltpchay.store"]
+        with patch.object(store, "update_purchase_payment", side_effect=ValueError("Phiếu nhập không tồn tại.")):
+            response = app.test_client().post(
+                "/api/purchases/payment",
+                json={"purchase_id": "missing", "payment_status": "paid"},
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Phiếu nhập không tồn tại."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]
