@@ -2699,6 +2699,129 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(invalid.status_code, 400)
         self.assertEqual(invalid.get_json(), {"error": "Nhóm đang có khách."})
 
+    def test_ut_web_136_master_data_import_requires_master_admin(self):
+        app = self.build_app("master-import-auth")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+
+        response = client.post(
+            "/api/admin/import/customers",
+            json={"records": [{"name": "Khách", "phone": "0900"}]},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập Master Admin."})
+
+    def test_ut_web_137_json_master_import_preserves_entity_actor_and_summary(self):
+        app = self.build_app("master-import-json")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        result = {"created": 1, "updated": 0}
+        records = [{"name": "Khách nhập", "phone": "0900000137"}]
+        with patch.object(store, "import_master_data", return_value=result) as import_data:
+            response = client.post(
+                "/control-room/api/admin/import/customers",
+                json={"entity_type": "customers", "format": "json", "records": records},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["result"], result)
+        import_data.assert_called_once_with("customers", records, actor="test-admin")
+        mismatch = client.post(
+            "/api/admin/import/customers",
+            json={"entity_type": "suppliers", "records": records},
+        )
+        self.assertEqual(mismatch.status_code, 400)
+        self.assertIn("không đúng loại dữ liệu", mismatch.get_json()["error"])
+
+    def test_ut_web_138_csv_master_import_parses_numeric_product_fields(self):
+        app = self.build_app("master-import-csv")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        with patch.object(store, "import_master_data", return_value={"created": 1}) as import_data:
+            response = client.post(
+                "/api/admin/import/products",
+                json={
+                    "format": "csv",
+                    "content": (
+                        "name,category,unit,price,sale_price,low_stock_threshold,shelf_life_days\n"
+                        "Chả chay,Đồ chay,gói,12000,18000,4,14\n"
+                    ),
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        records = import_data.call_args.args[1]
+        self.assertEqual(records[0]["price"], 12000)
+        self.assertEqual(records[0]["sale_price"], 18000)
+        self.assertEqual(records[0]["low_stock_threshold"], 4)
+        self.assertEqual(records[0]["shelf_life_days"], 14)
+
+    def test_ut_web_139_master_import_validates_format_records_and_csv_headers(self):
+        app = self.build_app("master-import-invalid")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+
+        cases = [
+            ({"format": "xml", "records": [{}]}, "Định dạng import không hợp lệ."),
+            ({"records": []}, "File import không có bản ghi hợp lệ."),
+            ({"format": "csv", "content": "name,phone\\nKhách,0900"}, "File CSV không đúng mẫu"),
+        ]
+        for payload, expected_error in cases:
+            with self.subTest(payload=payload):
+                response = client.post("/api/admin/import/customers", json=payload)
+                self.assertEqual(response.status_code, 400)
+                self.assertIn(expected_error, response.get_json()["error"])
+
+    def test_ut_web_140_restore_uses_store_and_requires_encoded_backup(self):
+        import base64
+
+        app = self.build_app("database-restore")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        with patch.object(
+            store,
+            "restore_database_from_bytes",
+            return_value=Path("previous-backup.db"),
+        ) as restore:
+            response = client.post(
+                "/control-room/api/admin/restore",
+                json={"content_base64": base64.b64encode(b"fixture database").decode("ascii")},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {
+            "message": "Đã restore database toàn hệ thống.",
+            "previous_backup": "previous-backup.db",
+        })
+        restore.assert_called_once_with(b"fixture database")
+        missing = client.post("/api/admin/restore", json={})
+        self.assertEqual(missing.status_code, 400)
+        self.assertEqual(missing.get_json(), {"error": "Thiếu file restore."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

@@ -143,6 +143,9 @@ Hard-delete customer/supplier endpoints require Master Admin and preserve actor,
 store deletion results, and validation errors.
 Zalo group list/create/delete preserve the legacy unauthenticated API contract,
 custom admin-prefix aliases, generated IDs, and deletion validation errors.
+Master import accepts JSON/CSV with entity/header/record validation; database restore
+forwards decoded backup bytes to the store and remains covered with a temporary test
+app and mocked restore boundary.
 
 Chạy riêng nhóm này:
 

@@ -382,6 +382,11 @@ Mục tiêu:
 | 321 | `UT-WEB-133` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_133_zalo_group_list_preserves_legacy_public_access` |
 | 322 | `UT-WEB-134` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_134_zalo_group_create_generates_id_and_validates_name` |
 | 323 | `UT-WEB-135` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_135_zalo_group_delete_preserves_success_and_validation_response` |
+| 324 | `UT-WEB-136` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_136_master_data_import_requires_master_admin` |
+| 325 | `UT-WEB-137` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_137_json_master_import_preserves_entity_actor_and_summary` |
+| 326 | `UT-WEB-138` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_138_csv_master_import_parses_numeric_product_fields` |
+| 327 | `UT-WEB-139` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_139_master_import_validates_format_records_and_csv_headers` |
+| 328 | `UT-WEB-140` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_140_restore_uses_store_and_requires_encoded_backup` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

@@ -372,6 +372,11 @@ Lưu ý:
 | 321 | `UT-WEB-133` | Kiểm tra danh sách nhóm Zalo giữ quyền truy cập legacy không cần đăng nhập. |
 | 322 | `UT-WEB-134` | Kiểm tra tạo nhóm Zalo sinh ID và yêu cầu tên nhóm. |
 | 323 | `UT-WEB-135` | Kiểm tra xóa nhóm Zalo giữ kết quả thành công và lỗi đang được sử dụng. |
+| 324 | `UT-WEB-136` | Kiểm tra master data import từ chối user không phải Master Admin. |
+| 325 | `UT-WEB-137` | Kiểm tra import JSON giữ entity type, actor và summary. |
+| 326 | `UT-WEB-138` | Kiểm tra import CSV parse đúng trường số của sản phẩm. |
+| 327 | `UT-WEB-139` | Kiểm tra import từ chối format, danh sách rỗng và CSV thiếu header. |
+| 328 | `UT-WEB-140` | Kiểm tra restore giải mã backup, trả tên backup trước và báo thiếu file. |
 
 
 

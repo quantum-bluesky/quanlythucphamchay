@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import base64
 import csv
 import io
 import json
@@ -102,6 +103,102 @@ def _build_master_csv_bytes(entity_type: str, records: list[dict]) -> bytes:
                 row[key] = str(value)
         writer.writerow(row)
     return output.getvalue().encode("utf-8-sig")
+
+
+def _parse_csv_float(value: str, field_name: str, default: float | None = None) -> float | None:
+    cleaned = str(value or "").strip()
+    if not cleaned:
+        return default
+    try:
+        return float(cleaned)
+    except ValueError as error:
+        raise ValueError(f"Giá trị số không hợp lệ ở cột '{field_name}': {cleaned}") from error
+
+
+def _parse_master_csv_records(entity_type: str, raw_csv: str) -> list[dict]:
+    raw_text = str(raw_csv or "").lstrip("\ufeff").strip()
+    if not raw_text:
+        raise ValueError("File CSV import đang trống.")
+    try:
+        reader = csv.DictReader(io.StringIO(raw_text))
+    except csv.Error as error:
+        raise ValueError("Không đọc được định dạng CSV.") from error
+    if not reader.fieldnames:
+        raise ValueError("File CSV thiếu dòng tiêu đề (header).")
+    normalized_headers = {str(field or "").strip() for field in reader.fieldnames if field}
+    required_headers = set(_master_csv_columns(entity_type))
+    if entity_type == "products":
+        required_headers = {
+            "name", "category", "unit", "price", "sale_price", "low_stock_threshold",
+        }
+    elif entity_type in {"customers", "suppliers"}:
+        required_headers = {"name", "phone"}
+    missing_headers = sorted(required_headers - normalized_headers)
+    if missing_headers:
+        raise ValueError(
+            "File CSV không đúng mẫu cho dữ liệu "
+            f"{entity_type}. Thiếu cột: {', '.join(missing_headers)}."
+        )
+
+    records: list[dict] = []
+    for row in reader:
+        data = {
+            str(key or "").strip(): str(value or "").strip()
+            for key, value in row.items()
+            if key
+        }
+        if not any(data.values()):
+            continue
+        if entity_type == "products":
+            price = _parse_csv_float(data.get("price", ""), "price", 0)
+            threshold = _parse_csv_float(data.get("low_stock_threshold", ""), "low_stock_threshold", 5)
+            shelf_life_days = _parse_csv_float(data.get("shelf_life_days", ""), "shelf_life_days", None)
+            storage_life_days = _parse_csv_float(data.get("storage_life_days", ""), "storage_life_days", None)
+            records.append({
+                "id": data.get("id", ""),
+                "global_id": data.get("global_id", ""),
+                "name": data.get("name", ""),
+                "category": data.get("category", ""),
+                "unit": data.get("unit", ""),
+                "price": 0 if price is None else price,
+                "sale_price": _parse_csv_float(data.get("sale_price", ""), "sale_price", None),
+                "low_stock_threshold": 5 if threshold is None else threshold,
+                "shelf_life_days": shelf_life_days,
+                "storage_life_days": storage_life_days,
+                "images": data.get("images", ""),
+                "details": data.get("details", ""),
+                "recipe": data.get("recipe", ""),
+                "note": data.get("note", ""),
+                "is_deleted": data.get("is_deleted", ""),
+                "deleted_at": data.get("deleted_at", ""),
+                "created_at": data.get("created_at", ""),
+                "updated_at": data.get("updated_at", ""),
+            })
+            continue
+        base_record = {
+            "id": data.get("id", ""),
+            "name": data.get("name", ""),
+            "phone": data.get("phone", ""),
+            "address": data.get("address", ""),
+            "createdAt": data.get("createdAt", ""),
+            "updatedAt": data.get("updatedAt", ""),
+            "deletedAt": data.get("deletedAt", "") or None,
+        }
+        if entity_type == "customers":
+            base_record["zaloUrl"] = data.get("zaloUrl", "")
+        else:
+            base_record["note"] = data.get("note", "")
+        records.append(base_record)
+    return records
+
+
+def _validate_import_entity_match(import_entity_type: str, payload: dict) -> None:
+    source_entity_type = str(payload.get("entity_type") or "").strip().lower()
+    if source_entity_type and source_entity_type != import_entity_type:
+        raise ValueError(
+            "File import không đúng loại dữ liệu. "
+            f"Bạn đang import '{source_entity_type}' vào '{import_entity_type}'."
+        )
 
 
 def create_app(
@@ -1310,6 +1407,71 @@ def create_app(
         except ValueError as error:
             return jsonify({"error": str(error)}), 400
         return jsonify(result)
+
+    # Issue #182: Keep import formats and restore responses compatible while using the selected store.
+    @app.post("/api/admin/import/<entity_type>")
+    @app.post(f"{admin_path}/api/admin/import/<entity_type>")
+    def import_master_data(entity_type: str):
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        if entity_type not in {"products", "customers", "suppliers"}:
+            return jsonify({"error": "Không tìm thấy API admin."}), 404
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        try:
+            _validate_import_entity_match(entity_type, payload)
+            import_format = str(payload.get("format") or "json").strip().lower()
+            if import_format == "json":
+                records = payload.get("records", [])
+            elif import_format == "csv":
+                records = _parse_master_csv_records(
+                    entity_type,
+                    str(payload.get("content") or ""),
+                )
+            else:
+                raise ValueError("Định dạng import không hợp lệ. Chỉ hỗ trợ json/csv.")
+            if not isinstance(records, list):
+                raise ValueError("Dữ liệu import không hợp lệ.")
+            if not records:
+                raise ValueError("File import không có bản ghi hợp lệ.")
+            store = current_app.extensions["qltpchay.store"]
+            result = store.import_master_data(
+                entity_type,
+                records,
+                actor=current_actor_name(),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã import dữ liệu master.",
+            "result": result,
+            "summary": store.get_summary(),
+        })
+
+    @app.post("/api/admin/restore")
+    @app.post(f"{admin_path}/api/admin/restore")
+    def restore_database():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        encoded = payload.get("content_base64", "")
+        if not encoded:
+            return jsonify({"error": "Thiếu file restore."}), 400
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            raw_bytes = base64.b64decode(encoded)
+            previous_backup = store.restore_database_from_bytes(raw_bytes)
+        except (ValueError, base64.binascii.Error) as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã restore database toàn hệ thống.",
+            "previous_backup": Path(previous_backup).name,
+        })
 
     @app.get("/api/admin/export/<entity_type>")
     @app.get(f"{admin_path}/api/admin/export/<entity_type>")

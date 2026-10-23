@@ -404,4 +404,8 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Đã chuyển quản lý Zalo groups, giữ khả năng truy cập legacy không cần đăng nhập
   và alias `admin_path`; `UT-WEB-133..135` kiểm tra list/create/delete, ID sinh
   tự động và validation. Kết quả: `tests.test_flask_app` 135/135 pass, full unit
-  275/275 pass, `py_compile` và `git diff --check` pass; chờ commit.
+  275/275 pass, `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.
+- Đã chuyển master import JSON/CSV và database restore; `UT-WEB-136..140` kiểm
+  tra Master Admin, entity/header validation, actor và dữ liệu backup decode.
+  Kết quả: `tests.test_flask_app` 140/140 pass, full unit 280/280 pass,
+  `py_compile` và `git diff --check` pass; chờ commit.
