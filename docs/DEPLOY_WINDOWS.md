@@ -184,6 +184,8 @@ Ví dụ:
 }
 ```
 
+**Lưu ý cổng và bảo mật SMTP:** `use_ssl=true` khiến app mở kết nối `SMTP_SSL` ngay từ đầu; khi bật SSL, `use_tls` không được áp dụng. Vì vậy, nếu dùng cổng `587`, hãy đặt `use_ssl=false` và `use_tls=true` để dùng STARTTLS. Nếu dùng SSL/TLS ngay khi kết nối, hãy chọn cổng `465` và đặt `use_ssl=true`. Với Gmail, dùng một trong hai cặp `587 + STARTTLS` hoặc `465 + SSL/TLS`.
+
 Nếu muốn đổi tài khoản admin, host/port mặc định, cấp quyền như `document_cancel_approve`, cấu hình mail SMTP hoặc base phân trang, sửa trực tiếp file này rồi chạy lại app.
 
 Ý nghĩa nhanh:

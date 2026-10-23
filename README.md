@@ -299,6 +299,8 @@ Ví dụ:
 }
 ```
 
+**Lưu ý cổng và bảo mật SMTP:** `use_ssl=true` khiến app mở kết nối `SMTP_SSL` ngay từ đầu; khi bật SSL, `use_tls` không được áp dụng. Vì vậy, nếu dùng cổng `587`, hãy đặt `use_ssl=false` và `use_tls=true` để dùng STARTTLS. Nếu dùng SSL/TLS ngay khi kết nối, hãy chọn cổng `465` và đặt `use_ssl=true`. Với Gmail, dùng một trong hai cặp `587 + STARTTLS` hoặc `465 + SSL/TLS`.
+
 Muốn đổi tài khoản user/admin, bật `EnableLogin`, cấp thêm permission như `document_cancel_approve`, cấu hình mail SMTP cho luồng `Yêu cầu hủy`, đổi timeout phiên rảnh, hoặc đổi base phân trang thì sửa trực tiếp `system_config.json`. App không tự ghi đè lại các giá trị này trong lúc đang chạy.
 
 Rà soát dữ liệu legacy bằng CLI:
