@@ -146,6 +146,8 @@ custom admin-prefix aliases, generated IDs, and deletion validation errors.
 Master import accepts JSON/CSV with entity/header/record validation; database restore
 forwards decoded backup bytes to the store and remains covered with a temporary test
 app and mocked restore boundary.
+Zalo OAuth start/callback preserves redirect URI, PKCE cookie, mock mode, customer
+upsert and callback HTML; token/profile HTTP calls are mocked in tests.
 
 Chạy riêng nhóm này:
 

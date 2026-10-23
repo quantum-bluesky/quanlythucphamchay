@@ -2822,6 +2822,123 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(missing.status_code, 400)
         self.assertEqual(missing.get_json(), {"error": "Thiếu file restore."})
 
+    def test_ut_web_141_zalo_login_requires_app_id_unless_mock_mode_is_enabled(self):
+        app = self.build_app("zalo-login-no-app-id")
+        config = app.config["SYSTEM_CONFIG"]["zalo_login"]
+        config.update({"app_id": "", "mock_test_mode": False})
+
+        response = app.test_client().get("/api/public/zalo-login")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Chưa cấu hình Zalo App ID."})
+
+    def test_ut_web_142_zalo_mock_login_redirects_and_callback_stores_customer(self):
+        app = self.build_app("zalo-login-mock")
+        app.config["SYSTEM_CONFIG"]["zalo_login"].update({"mock_test_mode": True})
+        client = app.test_client()
+
+        login = client.get("/control-room/api/public/zalo-login")
+        self.assertEqual(login.status_code, 302)
+        self.assertEqual(login.headers["Location"], "./zalo-callback?code=MOCK_CODE")
+        store = app.extensions["qltpchay.store"]
+        customer = {
+            "name": "Khách Zalo Test",
+            "phone": "0999999999",
+            "address": "",
+            "zalo_id": "mock_zalo_123456",
+            "avatar_url": "",
+            "zaloUrl": "",
+            "zalo_group_id": "",
+            "group_zalo_url": "",
+        }
+        with patch.object(store, "upsert_zalo_customer", return_value=customer) as upsert:
+            callback = client.get("/control-room/api/public/zalo-callback?code=MOCK_CODE")
+
+        self.assertEqual(callback.status_code, 200)
+        self.assertIn(b"localStorage.setItem(\"public_customer_info\"", callback.data)
+        self.assertIn(b"window.location.pathname.split(\"/api/\")", callback.data)
+        upsert.assert_called_once_with(
+            zalo_id="mock_zalo_123456",
+            name="Khách Zalo Test",
+            phone="0999999999",
+            avatar_url="",
+        )
+
+    def test_ut_web_143_zalo_oauth_redirect_builds_proxy_callback_and_pkce_cookie(self):
+        from urllib.parse import parse_qs, urlparse
+
+        app = self.build_app("zalo-login-oauth", "/backoffice")
+        app.config["SYSTEM_CONFIG"]["zalo_login"].update({
+            "app_id": "zalo-app-143",
+            "callback_url": "",
+            "mock_test_mode": False,
+        })
+        response = app.test_client().get(
+            "http://shop.example.test/backoffice/api/public/zalo-login",
+            headers={"X-Forwarded-Proto": "https", "X-Forwarded-Host": "shop.example.test"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        query = parse_qs(urlparse(response.headers["Location"]).query)
+        self.assertEqual(query["app_id"], ["zalo-app-143"])
+        self.assertEqual(query["state"], ["zalo_login"])
+        self.assertEqual(query["redirect_uri"], [
+            "https://shop.example.test/backoffice/api/public/zalo-callback"
+        ])
+        self.assertEqual(len(query["code_challenge"][0]), 43)
+        cookie = response.headers["Set-Cookie"]
+        self.assertIn("zalo_code_verifier=", cookie)
+        self.assertIn("HttpOnly", cookie)
+        self.assertIn("Max-Age=300", cookie)
+
+    def test_ut_web_144_zalo_callback_exchanges_token_and_fetches_user_with_mocked_network(self):
+        from contextlib import nullcontext
+        from io import BytesIO
+
+        app = self.build_app("zalo-callback-network")
+        app.config["SYSTEM_CONFIG"]["zalo_login"].update({
+            "app_id": "zalo-app-144",
+            "secret_key": "zalo-secret-144",
+            "mock_test_mode": False,
+        })
+        client = app.test_client()
+        client.set_cookie("zalo_code_verifier", "pkce-verifier")
+        token_payload = BytesIO(b'{"access_token":"access-144"}')
+        user_payload = BytesIO(b'{"error":0,"id":"zalo-144","name":"Khach 144","picture":{"data":{"url":"https://img.test/144.png"}}}')
+        store = app.extensions["qltpchay.store"]
+        customer = {
+            "name": "Khach 144", "phone": "", "address": "", "zalo_id": "zalo-144",
+            "avatar_url": "https://img.test/144.png", "zaloUrl": "", "zalo_group_id": "",
+            "group_zalo_url": "",
+        }
+        with (
+            patch("urllib.request.urlopen", side_effect=[
+                nullcontext(token_payload),
+                nullcontext(user_payload),
+            ]) as open_url,
+            patch.object(store, "upsert_zalo_customer", return_value=customer) as upsert,
+        ):
+            response = client.get("/api/public/zalo-callback?code=oauth-code-144")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(open_url.call_count, 2)
+        self.assertEqual(upsert.call_args.kwargs["zalo_id"], "zalo-144")
+        self.assertEqual(upsert.call_args.kwargs["avatar_url"], "https://img.test/144.png")
+        self.assertIn(b"Khach 144", response.data)
+
+    def test_ut_web_145_zalo_callback_maps_missing_code_and_config_errors(self):
+        app = self.build_app("zalo-callback-invalid")
+        client = app.test_client()
+        missing_code = client.get("/api/public/zalo-callback")
+        self.assertEqual(missing_code.status_code, 400)
+        self.assertEqual(missing_code.get_json(), {"error": "Missing code"})
+
+        config = app.config["SYSTEM_CONFIG"]["zalo_login"]
+        config.update({"app_id": "", "secret_key": "", "mock_test_mode": False})
+        missing_config = client.get("/api/public/zalo-callback?code=oauth-code")
+        self.assertEqual(missing_config.status_code, 500)
+        self.assertEqual(missing_config.get_json(), {"error": "Zalo config missing"})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

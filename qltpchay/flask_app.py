@@ -8,13 +8,14 @@ import csv
 import io
 import json
 import mimetypes
+import os
 import secrets
 import uuid
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from flask import Flask, Response, current_app, jsonify, request, send_file
+from flask import Flask, Response, current_app, jsonify, redirect, request, send_file
 from werkzeug.exceptions import HTTPException
 
 from .auth import (
@@ -717,6 +718,163 @@ def create_app(
     @app.get(f"{admin_path}/images/<path:relative_path>")
     def uploaded_image(relative_path: str) -> Response:
         return serve_static(relative_path, is_asset=False)
+
+    # Issue #182: Preserve the public Zalo OAuth redirect, PKCE cookie, and callback response.
+    @app.get("/api/public/zalo-login")
+    @app.get(f"{admin_path}/api/public/zalo-login")
+    def start_zalo_login():
+        config = current_app.config["SYSTEM_CONFIG"]
+        zalo_config = config.get("zalo_login", {})
+        app_id = zalo_config.get("app_id")
+        if zalo_config.get("mock_test_mode"):
+            return redirect("./zalo-callback?code=MOCK_CODE", code=302)
+        if not app_id:
+            return jsonify({"error": "Chưa cấu hình Zalo App ID."}), 400
+
+        redirect_uri = zalo_config.get("callback_url")
+        if not redirect_uri:
+            forwarded_proto = request.headers.get("X-Forwarded-Proto")
+            forwarded_host = request.headers.get("X-Forwarded-Host")
+            host = forwarded_host or request.headers.get("Host") or "localhost"
+            if forwarded_proto:
+                protocol = forwarded_proto
+            else:
+                protocol = "https" if "localhost" not in host and "127.0.0.1" not in host else "http"
+            raw_path = request.path
+            raw_prefix = raw_path.split("/api/", 1)[0] if "/api/" in raw_path else ""
+            forwarded_prefix = request.headers.get("X-Forwarded-Prefix") or ""
+            if not forwarded_prefix and not raw_prefix:
+                referer = request.headers.get("Referer")
+                if referer:
+                    from urllib.parse import urlparse
+                    reference_path = urlparse(referer).path
+                    if reference_path.endswith("/index.html"):
+                        reference_path = reference_path[:-11]
+                    if reference_path.endswith("/"):
+                        reference_path = reference_path[:-1]
+                    if "/api/" in reference_path:
+                        reference_path = reference_path.split("/api/", 1)[0]
+                    forwarded_prefix = reference_path
+            prefix = (raw_prefix or forwarded_prefix or "").rstrip("/")
+            callback_path = f"{prefix}/api/public/zalo-callback"
+            redirect_uri = f"{protocol}://{host}{callback_path}"
+
+        import urllib.parse
+        code_verifier = base64.urlsafe_b64encode(os.urandom(32)).decode("utf-8").rstrip("=")
+        code_challenge = base64.urlsafe_b64encode(
+            hashlib.sha256(code_verifier.encode("utf-8")).digest()
+        ).decode("utf-8").rstrip("=")
+        auth_url = (
+            "https://oauth.zaloapp.com/v4/permission"
+            f"?app_id={app_id}&redirect_uri={urllib.parse.quote(redirect_uri, safe='')}"
+            f"&code_challenge={code_challenge}&state=zalo_login"
+        )
+        response = redirect(auth_url, code=302)
+        response.set_cookie(
+            "zalo_code_verifier",
+            code_verifier,
+            max_age=300,
+            path="/",
+            httponly=True,
+            samesite="Lax",
+        )
+        return response
+
+    @app.get("/api/public/zalo-callback")
+    @app.get(f"{admin_path}/api/public/zalo-callback")
+    def finish_zalo_login():
+        code = str(request.args.get("code") or "").strip()
+        if not code:
+            return jsonify({"error": "Missing code"}), 400
+        config = current_app.config["SYSTEM_CONFIG"]
+        zalo_config = config.get("zalo_login", {})
+        zalo_id = ""
+        name = ""
+        avatar = ""
+        phone = ""
+        if zalo_config.get("mock_test_mode") and code == "MOCK_CODE":
+            zalo_id = "mock_zalo_123456"
+            name = "Khách Zalo Test"
+            phone = "0999999999"
+        else:
+            import urllib.error
+            import urllib.parse
+            import urllib.request
+
+            verifier = request.cookies.get("zalo_code_verifier", "")
+            app_id = zalo_config.get("app_id")
+            secret_key = zalo_config.get("secret_key")
+            if not app_id or not secret_key:
+                return jsonify({"error": "Zalo config missing"}), 500
+            try:
+                token_data_bytes = urllib.parse.urlencode({
+                    "app_id": app_id,
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "code_verifier": verifier,
+                }).encode("utf-8")
+                token_request = urllib.request.Request(
+                    "https://oauth.zaloapp.com/v4/access_token",
+                    data=token_data_bytes,
+                    headers={
+                        "secret_key": secret_key,
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                )
+                with urllib.request.urlopen(token_request) as token_response:
+                    token_data = json.loads(token_response.read())
+                access_token = token_data.get("access_token")
+                if not access_token:
+                    return jsonify({"error": "Could not get access token"}), 400
+                user_request = urllib.request.Request(
+                    "https://graph.zalo.me/v2.0/me?fields=id,name,picture",
+                    headers={"access_token": access_token},
+                )
+                with urllib.request.urlopen(user_request) as user_response:
+                    user_data = json.loads(user_response.read())
+                if user_data.get("error", 0) != 0:
+                    return jsonify({"error": user_data}), 400
+                zalo_id = str(user_data.get("id", ""))
+                name = user_data.get("name", "")
+                picture = user_data.get("picture", {})
+                if isinstance(picture, dict) and "data" in picture:
+                    avatar = picture["data"].get("url", "")
+            except urllib.error.HTTPError as error:
+                error_body = error.read().decode("utf-8", errors="ignore")
+                return jsonify({"error": f"HTTP {error.code}", "details": error_body}), 500
+            except Exception as error:
+                return jsonify({"error": str(error)}), 500
+        if not zalo_id:
+            return jsonify({"error": "Could not get Zalo ID"}), 400
+        store = current_app.extensions["qltpchay.store"]
+        customer = store.upsert_zalo_customer(
+            zalo_id=zalo_id,
+            name=name,
+            phone=phone,
+            avatar_url=avatar,
+        )
+        callback_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+    <script>
+        const user = {{
+            name: {json.dumps(customer['name'])},
+            phone: {json.dumps(customer['phone'])},
+            address: {json.dumps(customer['address'])},
+            zalo_id: {json.dumps(customer.get('zalo_id', ''))},
+            avatar_url: {json.dumps(customer.get('avatar_url', ''))},
+            zalo_url: {json.dumps(customer.get('zaloUrl', ''))},
+            zalo_group_id: {json.dumps(customer.get('zalo_group_id', ''))},
+            group_zalo_url: {json.dumps(customer.get('group_zalo_url', ''))}
+        }};
+        localStorage.setItem("public_customer_info", JSON.stringify(user));
+        let targetUrl = window.location.pathname.split("/api/")[0] || "/";
+        window.location.href = targetUrl;
+    </script>
+</body>
+</html>"""
+        return Response(callback_html, status=200, content_type="text/html; charset=utf-8")
 
     @app.get("/api/public/products")
     @app.get(f"{admin_path}/api/public/products")

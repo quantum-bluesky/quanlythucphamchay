@@ -377,6 +377,11 @@ Lưu ý:
 | 326 | `UT-WEB-138` | Kiểm tra import CSV parse đúng trường số của sản phẩm. |
 | 327 | `UT-WEB-139` | Kiểm tra import từ chối format, danh sách rỗng và CSV thiếu header. |
 | 328 | `UT-WEB-140` | Kiểm tra restore giải mã backup, trả tên backup trước và báo thiếu file. |
+| 329 | `UT-WEB-141` | Kiểm tra Zalo login yêu cầu App ID trừ khi bật mock mode. |
+| 330 | `UT-WEB-142` | Kiểm tra mock OAuth redirect, customer upsert và callback HTML. |
+| 331 | `UT-WEB-143` | Kiểm tra OAuth redirect URI theo proxy prefix và PKCE cookie. |
+| 332 | `UT-WEB-144` | Kiểm tra callback gọi token/profile APIs và lưu customer qua network mock. |
+| 333 | `UT-WEB-145` | Kiểm tra callback báo thiếu code và thiếu cấu hình Zalo. |
 
 
 

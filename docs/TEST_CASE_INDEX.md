@@ -387,6 +387,11 @@ Mục tiêu:
 | 326 | `UT-WEB-138` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_138_csv_master_import_parses_numeric_product_fields` |
 | 327 | `UT-WEB-139` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_139_master_import_validates_format_records_and_csv_headers` |
 | 328 | `UT-WEB-140` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_140_restore_uses_store_and_requires_encoded_backup` |
+| 329 | `UT-WEB-141` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_141_zalo_login_requires_app_id_unless_mock_mode_is_enabled` |
+| 330 | `UT-WEB-142` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_142_zalo_mock_login_redirects_and_callback_stores_customer` |
+| 331 | `UT-WEB-143` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_143_zalo_oauth_redirect_builds_proxy_callback_and_pkce_cookie` |
+| 332 | `UT-WEB-144` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_144_zalo_callback_exchanges_token_and_fetches_user_with_mocked_network` |
+| 333 | `UT-WEB-145` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_145_zalo_callback_maps_missing_code_and_config_errors` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

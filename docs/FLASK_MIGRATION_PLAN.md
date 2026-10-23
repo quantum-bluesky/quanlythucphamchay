@@ -408,4 +408,8 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Đã chuyển master import JSON/CSV và database restore; `UT-WEB-136..140` kiểm
   tra Master Admin, entity/header validation, actor và dữ liệu backup decode.
   Kết quả: `tests.test_flask_app` 140/140 pass, full unit 280/280 pass,
+  `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.
+- Đã chuyển Zalo OAuth start/callback, giữ mock mode, PKCE, proxy callback URI,
+  token/profile flow và customer upsert; `UT-WEB-141..145` mock mọi request ngoài.
+  Kết quả: `tests.test_flask_app` 145/145 pass, full unit 285/285 pass,
   `py_compile` và `git diff --check` pass; chờ commit.
