@@ -414,6 +414,34 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(history[0]["action"], "update-price")
         self.assertEqual(history[0]["actor"], "flask-history-user")
 
+    def test_ut_web_26_product_movements_route_forwards_filters_and_response(self):
+        app = self.build_app("product-movements-route")
+        store = app.extensions["qltpchay.store"]
+        expected = {"product": {"id": 12}, "movements": [], "summary": {"total_in": 0}}
+        with patch.object(store, "get_product_movements", return_value=expected) as get_movements:
+            response = app.test_client().get(
+                "/api/product-movements?product_id=12&from_date=2026-01-01"
+                "&to_date=2026-10-01&movement_type=in&keyword=receipt"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), expected)
+        get_movements.assert_called_once_with(
+            product_id=12,
+            from_date="2026-01-01",
+            to_date="2026-10-01",
+            movement_type="in",
+            keyword="receipt",
+        )
+
+    def test_ut_web_27_product_movements_route_maps_invalid_product_id_to_400(self):
+        app = self.build_app("product-movements-invalid")
+
+        response = app.test_client().get("/api/product-movements")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("invalid literal", response.get_json()["error"])
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

@@ -262,6 +262,8 @@ Lưu ý:
 | 211 | `UT-WEB-23` | Xác nhận `X-Session-Activity: passive` cho `GET /api/products` không gia hạn thời gian hoạt động của session. |
 | 212 | `UT-WEB-24` | Kiểm tra `GET /api/products/deleted` trả sản phẩm soft-delete với schema legacy. |
 | 213 | `UT-WEB-25` | Kiểm tra `GET /api/products/history` giữ bộ lọc actor/limit và các trường history của sản phẩm. |
+| 214 | `UT-WEB-26` | Kiểm tra `GET /api/product-movements` chuyển đầy đủ bộ lọc và giữ nguyên response từ `InventoryStore`. |
+| 215 | `UT-WEB-27` | Kiểm tra `GET /api/product-movements` trả 400 khi product ID không hợp lệ. |
 
 
 

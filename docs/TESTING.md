@@ -69,6 +69,8 @@ Zalo theo config injected, ánh xạ lỗi validation sang 400, lỗi bất ng�
 và nhận session qua cookie hiện hành; request passive không gia hạn session.
 `GET /api/products/deleted` và `GET /api/products/history` dùng cùng auth gate,
 giữ schema response và bộ lọc actor/date/limit hiện có.
+`GET /api/product-movements` giữ các bộ lọc ngày/loại/keyword và ánh xạ đầu vào
+không hợp lệ thành status 400.
 
 Chạy riêng nhóm này:
 

@@ -468,6 +468,25 @@ def create_app(
         )
         return jsonify({"history": history})
 
+    @app.get("/api/product-movements")
+    @app.get(f"{admin_path}/api/product-movements")
+    def get_product_movements():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.get_product_movements(
+                product_id=int(request.args.get("product_id", "")),
+                from_date=request.args.get("from_date"),
+                to_date=request.args.get("to_date"),
+                movement_type=request.args.get("movement_type", ""),
+                keyword=request.args.get("keyword", ""),
+            )
+        except (TypeError, ValueError) as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify(result)
+
     @app.get("/api/public/orders")
     @app.get(f"{admin_path}/api/public/orders")
     def public_orders():
