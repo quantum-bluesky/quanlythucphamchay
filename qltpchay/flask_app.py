@@ -727,6 +727,24 @@ def create_app(
             "summary": store.get_summary(),
         })
 
+    @app.delete("/api/admin/products/<int:product_id>/hard")
+    @app.delete(f"{admin_path}/api/admin/products/<int:product_id>/hard")
+    def hard_delete_product(product_id: int):
+        # Issue #182: legacy admin mutations apply login gate, then require Master Admin.
+        if current_app.config["SYSTEM_CONFIG"].get("EnableLogin"):
+            auth_error = require_authenticated_session()
+            if auth_error is not None:
+                return auth_error
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            deleted = store.hard_delete_product(product_id, actor=current_actor_name())
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify(deleted)
+
     @app.get("/api/products/deleted")
     @app.get(f"{admin_path}/api/products/deleted")
     def get_deleted_products():

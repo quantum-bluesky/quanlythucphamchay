@@ -300,6 +300,9 @@ Mục tiêu:
 | 239 | `UT-WEB-51` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_51_change_base_unit_requires_master_admin_even_when_login_disabled` |
 | 240 | `UT-WEB-52` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_52_change_base_unit_rejects_staff_session` |
 | 241 | `UT-WEB-53` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_53_change_base_unit_allows_master_admin_and_admin_prefix` |
+| 242 | `UT-WEB-54` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_54_hard_delete_product_requires_authenticated_session_when_enabled` |
+| 243 | `UT-WEB-55` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_55_hard_delete_product_rejects_staff` |
+| 244 | `UT-WEB-56` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_56_hard_delete_product_returns_legacy_result_for_admin` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

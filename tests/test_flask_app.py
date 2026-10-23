@@ -923,6 +923,72 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(result["product"]["unit"], "lạng")
         self.assertEqual(result["product"]["price"], 10000)
 
+    def test_ut_web_54_hard_delete_product_requires_authenticated_session_when_enabled(self):
+        app = self.build_app("product-hard-delete-auth")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        product = app.extensions["qltpchay.store"].create_product(
+            name="Sản phẩm xóa hẳn",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+        )
+
+        response = app.test_client().delete(f"/api/admin/products/{product['id']}/hard")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập hệ thống."})
+
+    def test_ut_web_55_hard_delete_product_rejects_staff(self):
+        app = self.build_app("product-hard-delete-staff")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        product = app.extensions["qltpchay.store"].create_product(
+            name="Sản phẩm xóa hẳn",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+        )
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+
+        response = client.delete(f"/control-room/api/admin/products/{product['id']}/hard")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập Master Admin."})
+
+    def test_ut_web_56_hard_delete_product_returns_legacy_result_for_admin(self):
+        app = self.build_app("product-hard-delete-admin")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        product = store.create_product(
+            name="Sản phẩm xóa hẳn",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+        )
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+
+        response = client.delete(f"/control-room/api/admin/products/{product['id']}/hard")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {
+            "product_id": product["id"],
+            "product_name": "Sản phẩm xóa hẳn",
+            "message": "Đã xóa hẳn sản phẩm khỏi hệ thống.",
+        })
+        self.assertEqual(store.get_products(include_deleted=True), [])
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

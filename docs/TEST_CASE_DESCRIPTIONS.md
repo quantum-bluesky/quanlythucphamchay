@@ -290,6 +290,9 @@ Lưu ý:
 | 239 | `UT-WEB-51` | Kiểm tra đổi đơn vị cơ sở vẫn yêu cầu Master Admin khi `EnableLogin` tắt. |
 | 240 | `UT-WEB-52` | Kiểm tra API đổi đơn vị cơ sở từ chối session của staff. |
 | 241 | `UT-WEB-53` | Kiểm tra Master Admin đổi đơn vị cơ sở thành công qua alias admin prefix và giữ tính toán giá theo tỷ lệ. |
+| 242 | `UT-WEB-54` | Kiểm tra API xóa hẳn yêu cầu đăng nhập hệ thống khi `EnableLogin` bật. |
+| 243 | `UT-WEB-55` | Kiểm tra API xóa hẳn từ chối staff dù đã có session. |
+| 244 | `UT-WEB-56` | Kiểm tra Master Admin xóa hẳn sản phẩm và response giữ nguyên contract legacy. |
 
 
 

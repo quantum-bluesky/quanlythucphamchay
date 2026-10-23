@@ -92,6 +92,8 @@ Các endpoint `PUT /api/products/<id>/price`,
 cập nhật riêng giá nhập/giá bán và khôi phục sản phẩm đã xóa mềm.
 `POST /api/products/<id>/change-base-unit` chỉ cho Master Admin, kể cả khi
 `EnableLogin` tắt; hỗ trợ cả admin prefix cấu hình và alias `/api/admin`.
+`DELETE /api/admin/products/<id>/hard` giữ auth gate login + Master Admin và
+response xóa hẳn trực tiếp từ `InventoryStore`.
 
 Chạy riêng nhóm này:
 

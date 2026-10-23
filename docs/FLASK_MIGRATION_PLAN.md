@@ -308,3 +308,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   prefix cấu hình. Kết quả: `tests.test_flask_app` 53/53 pass, full unit
   193/193 pass, `py_compile` và `git diff --check` pass; đã chốt thành commit
   riêng trong Issue #182.
+- Chuyển `DELETE /api/admin/products/<id>/hard`, gồm kiểm tra login gate,
+  Master Admin và response legacy; `UT-WEB-54..56` pass. Nhóm hiện đạt
+  `tests.test_flask_app` 56/56 pass, full unit 196/196 pass, `py_compile` và
+  `git diff --check` pass; đã chốt thành commit riêng trong Issue #182.
