@@ -1028,6 +1028,94 @@ def create_app(
             "summary": store.get_summary(),
         }), 201
 
+    @app.post("/api/orders/checkout")
+    @app.post(f"{admin_path}/api/orders/checkout")
+    def checkout_order():
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            order = store.create_checkout_order(
+                customer_name=payload.get("customer_name"),
+                items=payload.get("items", []),
+                note=payload.get("note", ""),
+                discount_amount=payload.get("discount_amount", 0),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã chốt giỏ hàng và xuất kho.",
+            "order": order,
+            "summary": store.get_summary(),
+        }), 201
+
+    @app.post("/api/orders/quick-create")
+    @app.post(f"{admin_path}/api/orders/quick-create")
+    def quick_create_order():
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        store = current_app.extensions["qltpchay.store"]
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        try:
+            result = store.create_quick_sale(
+                target_cart_id=payload.get("target_cart_id", ""),
+                customer_id=payload.get("customer_id", ""),
+                customer_name=payload.get("customer_name", ""),
+                document_date=payload.get("document_date", ""),
+                note=payload.get("note", ""),
+                items=payload.get("items", []),
+                discount_amount=payload.get("discount_amount", 0),
+                final_status=payload.get("final_status", "completed"),
+                mark_paid=bool(payload.get("mark_paid")),
+                payment_method=payload.get("payment_method", ""),
+                payment_note=payload.get("payment_note", ""),
+                actor_username=str((session or {}).get("username") or ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": result["message"],
+            "cart": result["cart"],
+            "order": result["order"],
+            "quick_summary": result["summary"],
+            "carts": result["carts"],
+            "customers": result["customers"],
+            "summary": store.get_summary(),
+        }), 201
+
+    @app.post("/api/orders/commit")
+    @app.post(f"{admin_path}/api/orders/commit")
+    def commit_order():
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        store = current_app.extensions["qltpchay.store"]
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        try:
+            result = store.commit_cart_order(
+                payload.get("cart_id", ""),
+                actor=str((session or {}).get("username") or ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã chốt đơn.",
+            "cart": result["cart"],
+            "order": {
+                "order_code": result["order_code"],
+                "committed_at": result["committed_at"],
+            },
+            "summary": store.get_summary(),
+        })
+
     @app.get("/api/orders/bulk-requests/<request_id>/history")
     @app.get(f"{admin_path}/api/orders/bulk-requests/<request_id>/history")
     def get_bulk_order_request_history(request_id: str):

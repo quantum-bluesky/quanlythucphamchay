@@ -311,6 +311,9 @@ Lưu ý:
 | 260 | `UT-WEB-72` | Kiểm tra transaction create từ chối staff không có quyền điều chỉnh tồn. |
 | 261 | `UT-WEB-73` | Kiểm tra transaction create chuyển actor/batch data và trả status 201 cùng summary. |
 | 262 | `UT-WEB-74` | Kiểm tra transaction create ánh xạ product ID không hợp lệ thành 400. |
+| 263 | `UT-WEB-75` | Kiểm tra checkout chuyển đầy đủ order payload và trả order/summary với status 201. |
+| 264 | `UT-WEB-76` | Kiểm tra quick-create giữ actor, payment flags, quick summary và response collections. |
+| 265 | `UT-WEB-77` | Kiểm tra commit order ánh xạ cart không hợp lệ thành status 400. |
 
 
 

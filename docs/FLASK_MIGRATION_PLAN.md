@@ -343,3 +343,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   `UT-WEB-71..74` pass. Kết quả: `tests.test_flask_app` 74/74 pass, full unit
   214/214 pass, `py_compile` và `git diff --check` pass; đã chốt thành commit
   riêng trong Issue #182.
+- Đang chuyển các thao tác bán hàng đơn lẻ: checkout, quick-create và commit;
+  `UT-WEB-75..77` pass. Kết quả: `tests.test_flask_app` 77/77 pass,
+  full unit 217/217 pass, `py_compile` và `git diff --check` pass; đã chốt thành
+  commit riêng.

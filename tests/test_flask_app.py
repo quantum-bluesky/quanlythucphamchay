@@ -1321,6 +1321,76 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertTrue(response.get_json()["error"])
 
+    def test_ut_web_75_checkout_route_preserves_order_response_and_payload(self):
+        app = self.build_app("checkout-route")
+        store = app.extensions["qltpchay.store"]
+        order = {"order_code": "ORD-1", "total": 25000}
+        payload = {
+            "customer_name": "Khách thử",
+            "items": [{"product_id": 3, "quantity": 2}],
+            "note": "Giao buổi sáng",
+            "discount_amount": 5000,
+        }
+        with patch.object(store, "create_checkout_order", return_value=order) as checkout:
+            response = app.test_client().post("/api/orders/checkout", json=payload)
+
+        self.assertEqual(response.status_code, 201)
+        result = response.get_json()
+        self.assertEqual(result["message"], "Đã chốt giỏ hàng và xuất kho.")
+        self.assertEqual(result["order"], order)
+        self.assertEqual(checkout.call_args.kwargs, {
+            "customer_name": "Khách thử",
+            "items": [{"product_id": 3, "quantity": 2}],
+            "note": "Giao buổi sáng",
+            "discount_amount": 5000,
+        })
+
+    def test_ut_web_76_quick_create_route_preserves_summary_and_actor(self):
+        app = self.build_app("quick-create-route")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        quick_summary = {"created_count": 1}
+        quick_result = {
+            "message": "Đã tạo đơn nhanh.",
+            "cart": {"id": "cart-1"},
+            "order": {"order_code": "ORD-2"},
+            "summary": quick_summary,
+            "carts": [{"id": "cart-1"}],
+            "customers": [{"id": "customer-1"}],
+        }
+        with patch.object(store, "create_quick_sale", return_value=quick_result) as quick_create:
+            response = client.post(
+                "/control-room/api/orders/quick-create",
+                json={
+                    "customer_name": "Khách nhanh",
+                    "items": [{"product_id": 4, "quantity": 1}],
+                    "mark_paid": True,
+                    "payment_method": "cash",
+                },
+            )
+
+        self.assertEqual(response.status_code, 201)
+        result = response.get_json()
+        self.assertEqual(result["quick_summary"], quick_summary)
+        self.assertEqual(result["cart"], {"id": "cart-1"})
+        self.assertEqual(quick_create.call_args.kwargs["actor_username"], "staff")
+        self.assertEqual(quick_create.call_args.kwargs["mark_paid"], True)
+
+    def test_ut_web_77_commit_order_maps_missing_cart_to_400(self):
+        app = self.build_app("commit-order-invalid")
+        store = app.extensions["qltpchay.store"]
+        with patch.object(store, "commit_cart_order", side_effect=ValueError("Đơn không tồn tại.")):
+            response = app.test_client().post("/api/orders/commit", json={"cart_id": "missing"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Đơn không tồn tại."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

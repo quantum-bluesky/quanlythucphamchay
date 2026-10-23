@@ -110,6 +110,8 @@ response, conflict payload `409`, validation payload `400` và admin prefix alia
 `POST /api/transactions` luôn yêu cầu session admin hoặc quyền
 `inventory_adjust_manage`, giữ actor username, các trường batch/expiry và response
 201; lỗi đầu vào từ chối bằng 400.
+`POST /api/orders/checkout`, `/api/orders/quick-create` và `/api/orders/commit`
+giữ response tạo/chốt đơn, quick summary, actor username và lỗi validation 400.
 
 Chạy riêng nhóm này:
 

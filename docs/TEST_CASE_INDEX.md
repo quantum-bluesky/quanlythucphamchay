@@ -321,6 +321,9 @@ Mục tiêu:
 | 260 | `UT-WEB-72` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_72_transaction_create_rejects_staff_without_inventory_permission` |
 | 261 | `UT-WEB-73` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_73_transaction_create_passes_actor_and_returns_summary` |
 | 262 | `UT-WEB-74` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_74_transaction_create_maps_invalid_product_id_to_400` |
+| 263 | `UT-WEB-75` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_75_checkout_route_preserves_order_response_and_payload` |
+| 264 | `UT-WEB-76` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_76_quick_create_route_preserves_summary_and_actor` |
+| 265 | `UT-WEB-77` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_77_commit_order_maps_missing_cart_to_400` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 
