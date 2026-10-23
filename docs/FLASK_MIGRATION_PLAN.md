@@ -389,3 +389,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   tra Master Admin, persistence, bảo toàn password, validation và mock SMTP.
   Kết quả: `tests.test_flask_app` 122/122 pass, full unit 262/262 pass,
   `py_compile` và `git diff --check` pass; chờ commit.
+- Đã chuyển legacy audit safe-fix và liên kết receipt/source cho phiếu nhập;
+  `UT-WEB-123..126` kiểm tra Master Admin, actor, audit payload và validation.
+  Kết quả: `tests.test_flask_app` 126/126 pass, full unit 266/266 pass,
+  `py_compile` và `git diff --check` pass; chờ commit.

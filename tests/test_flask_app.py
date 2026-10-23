@@ -2446,6 +2446,92 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(failed.get_json()["result"]["status"], "failed")
         self.assertNotIn("SMTP secret detail", failed.get_data(as_text=True))
 
+    def test_ut_web_123_legacy_audit_mutations_require_master_admin(self):
+        app = self.build_app("legacy-audit-write-auth")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+
+        response = client.post("/api/admin/legacy-audit/apply-safe-fixes", json={})
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập Master Admin."})
+
+    def test_ut_web_124_apply_legacy_audit_safe_fixes_returns_counts_and_audit(self):
+        app = self.build_app("legacy-audit-safe-fixes")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        result = {
+            "message": "Đã sửa dữ liệu an toàn.",
+            "counts": {"fixed": 2},
+            "audit": [{"id": "audit-124"}],
+        }
+        with patch.object(store, "apply_safe_legacy_fixes", return_value=result) as apply_fixes:
+            response = client.post(
+                "/control-room/api/admin/legacy-audit/apply-safe-fixes",
+                json={},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), result)
+        self.assertEqual(apply_fixes.call_args.kwargs["actor"], "test-admin")
+
+    def test_ut_web_125_link_purchase_receipt_maps_payload_actor_and_audit(self):
+        app = self.build_app("legacy-link-purchase-receipt")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        result = {
+            "message": "Đã liên kết phiếu.",
+            "purchase": {"id": "purchase-125"},
+            "purchases": [{"id": "purchase-125"}],
+            "audit": [{"id": "audit-125"}],
+        }
+        with patch.object(store, "attach_purchase_receipt_code", return_value=result) as attach:
+            response = client.post(
+                "/api/admin/legacy-audit/link-purchase-receipt",
+                json={"purchase_id": "purchase-125", "receipt_code": "RC-125"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["audit"], result["audit"])
+        self.assertEqual(attach.call_args.args, ("purchase-125", "RC-125"))
+        self.assertEqual(attach.call_args.kwargs["actor"], "test-admin")
+
+    def test_ut_web_126_link_purchase_source_maps_validation_error(self):
+        app = self.build_app("legacy-link-purchase-source-invalid")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        with patch.object(
+            store,
+            "attach_purchase_source_cart",
+            side_effect=ValueError("Không tìm thấy giỏ nguồn."),
+        ):
+            response = client.post(
+                "/api/admin/legacy-audit/link-purchase-source",
+                json={"purchase_id": "purchase-126", "cart_id": "missing-cart"},
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Không tìm thấy giỏ nguồn."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

@@ -359,6 +359,10 @@ Lưu ý:
 | 308 | `UT-WEB-120` | Kiểm tra cấu hình Public Web được merge, normalize và persist. |
 | 309 | `UT-WEB-121` | Kiểm tra test mail success trả diagnostics không lộ credential. |
 | 310 | `UT-WEB-122` | Kiểm tra test mail ánh xạ kết quả skipped/failure và không lộ lỗi SMTP. |
+| 311 | `UT-WEB-123` | Kiểm tra các thao tác legacy audit từ chối user thường. |
+| 312 | `UT-WEB-124` | Kiểm tra safe-fix trả message, số lượng sửa và audit. |
+| 313 | `UT-WEB-125` | Kiểm tra liên kết receipt chuyển purchase/receipt code và actor. |
+| 314 | `UT-WEB-126` | Kiểm tra liên kết source ánh xạ validation error thành status 400. |
 
 
 

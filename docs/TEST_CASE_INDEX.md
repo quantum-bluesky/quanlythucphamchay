@@ -369,6 +369,10 @@ Mục tiêu:
 | 308 | `UT-WEB-120` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_120_public_web_config_merges_normalizes_and_persists` |
 | 309 | `UT-WEB-121` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_121_admin_test_mail_reports_success_without_exposing_credentials` |
 | 310 | `UT-WEB-122` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_122_admin_test_mail_maps_failure_and_skipped_results` |
+| 311 | `UT-WEB-123` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_123_legacy_audit_mutations_require_master_admin` |
+| 312 | `UT-WEB-124` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_124_apply_legacy_audit_safe_fixes_returns_counts_and_audit` |
+| 313 | `UT-WEB-125` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_125_link_purchase_receipt_maps_payload_actor_and_audit` |
+| 314 | `UT-WEB-126` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_126_link_purchase_source_maps_validation_error` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

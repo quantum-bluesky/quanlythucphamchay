@@ -135,6 +135,8 @@ actor, conflict payload, draft scope, and created/skipped purchase results.
 Master Admin mail and Public Web configuration writes persist through the injected
 config path, preserve secrets and existing fields; test-mail mocks SMTP and checks
 sent/skipped/failure diagnostics without exposing credentials in the response.
+Legacy audit repair and purchase receipt/source linking remain Master Admin-only
+and preserve actor, audit entries, updated purchase lists, and validation errors.
 
 Chạy riêng nhóm này:
 

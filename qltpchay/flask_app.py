@@ -1121,6 +1121,73 @@ def create_app(
             },
         })
 
+    # Issue #182: Preserve Master Admin audit repair and manual-link contracts.
+    @app.post("/api/admin/legacy-audit/apply-safe-fixes")
+    @app.post(f"{admin_path}/api/admin/legacy-audit/apply-safe-fixes")
+    def apply_legacy_audit_safe_fixes():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        result = store.apply_safe_legacy_fixes(actor=current_actor_name())
+        return jsonify({
+            "message": result["message"],
+            "counts": result["counts"],
+            "audit": result["audit"],
+        })
+
+    @app.post("/api/admin/legacy-audit/link-purchase-receipt")
+    @app.post(f"{admin_path}/api/admin/legacy-audit/link-purchase-receipt")
+    def link_legacy_purchase_receipt():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.attach_purchase_receipt_code(
+                payload.get("purchase_id", ""),
+                payload.get("receipt_code", ""),
+                actor=current_actor_name(),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": result["message"],
+            "purchase": result["purchase"],
+            "purchases": result["purchases"],
+            "audit": result["audit"],
+            "summary": store.get_summary(),
+        })
+
+    @app.post("/api/admin/legacy-audit/link-purchase-source")
+    @app.post(f"{admin_path}/api/admin/legacy-audit/link-purchase-source")
+    def link_legacy_purchase_source():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.attach_purchase_source_cart(
+                payload.get("purchase_id", ""),
+                payload.get("cart_id", ""),
+                actor=current_actor_name(),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": result["message"],
+            "purchase": result["purchase"],
+            "purchases": result["purchases"],
+            "audit": result["audit"],
+            "summary": store.get_summary(),
+        })
+
     @app.get("/api/admin/export/<entity_type>")
     @app.get(f"{admin_path}/api/admin/export/<entity_type>")
     def export_master_data(entity_type: str):
