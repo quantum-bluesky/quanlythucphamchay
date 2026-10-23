@@ -255,6 +255,28 @@ def create_app(
             return None
         return jsonify({"error": "Tài khoản này không có quyền điều chỉnh tồn trực tiếp."}), 401
 
+    def require_named_permission(
+        permission_name: str,
+        error_message: str,
+    ) -> Response | tuple[Response, int] | None:
+        if not current_app.config["SYSTEM_CONFIG"].get("EnableLogin"):
+            return None
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        permissions = {
+            str(permission or "").strip()
+            for permission in ((session or {}).get("permissions") or [])
+            if str(permission or "").strip()
+        }
+        if str((session or {}).get("role") or "") == "admin" or permission_name in permissions:
+            return None
+        return jsonify({"error": error_message}), 401
+
     def current_actor_name() -> str:
         session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
             get_session_token(),
@@ -1196,6 +1218,64 @@ def create_app(
             "message": message,
             **result,
             "inventory_summary": store.get_summary(),
+        })
+
+    @app.post("/api/orders/bulk-requests/<request_id>/approve")
+    @app.post(f"{admin_path}/api/orders/bulk-requests/<request_id>/approve")
+    def approve_bulk_order_request(request_id: str):
+        auth_error = require_named_permission(
+            "order_batch_manage",
+            "Tài khoản này không có quyền duyệt yêu cầu xuất nhanh.",
+        )
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        try:
+            request_doc = store.approve_bulk_order_request(
+                request_id,
+                actor=str((session or {}).get("username") or ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã approve yêu cầu xuất nhanh.",
+            "request": request_doc,
+            "bulk_order_requests": store.list_bulk_order_requests(limit=30),
+        })
+
+    @app.post("/api/orders/bulk-requests/<request_id>/reject")
+    @app.post(f"{admin_path}/api/orders/bulk-requests/<request_id>/reject")
+    def reject_bulk_order_request(request_id: str):
+        auth_error = require_named_permission(
+            "order_batch_manage",
+            "Tài khoản này không có quyền từ chối yêu cầu xuất nhanh.",
+        )
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            payload = {}
+        store = current_app.extensions["qltpchay.store"]
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        try:
+            request_doc = store.reject_bulk_order_request(
+                request_id,
+                actor=str((session or {}).get("username") or ""),
+                reason=payload.get("reason") or "",
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã reject yêu cầu xuất nhanh.",
+            "request": request_doc,
+            "bulk_order_requests": store.list_bulk_order_requests(limit=30),
         })
 
     @app.get("/api/orders/bulk-requests/<request_id>/history")

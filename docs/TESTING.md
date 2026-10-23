@@ -114,6 +114,8 @@ response, conflict payload `409`, validation payload `400` và admin prefix alia
 giữ response tạo/chốt đơn, quick summary, actor username và lỗi validation 400.
 `POST /api/orders/bulk-create` giữ permission riêng cho create/commit, luồng
 approval request, alias camelCase, duplicate response `409` và allow-duplicates.
+Các endpoint approve/reject yêu cầu `order_batch_manage`, giữ actor/reason và
+response request cùng queue cập nhật.
 
 Chạy riêng nhóm này:
 

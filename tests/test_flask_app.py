@@ -1490,6 +1490,74 @@ class FlaskAppFactoryTests(unittest.TestCase):
             "can_continue": False,
         })
 
+    def test_ut_web_83_approve_bulk_request_requires_manager_permission(self):
+        app = self.build_app("bulk-approve-permission")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+
+        response = client.post("/api/orders/bulk-requests/request-83/approve", json={})
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Tài khoản này không có quyền duyệt yêu cầu xuất nhanh."},
+        )
+
+    def test_ut_web_84_approve_bulk_request_returns_request_and_queue(self):
+        app = self.build_app("bulk-approve-success")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        request_doc = {"id": "request-84", "status": "approved"}
+        queue = [request_doc]
+        with patch.object(store, "approve_bulk_order_request", return_value=request_doc) as approve, patch.object(
+            store, "list_bulk_order_requests", return_value=queue
+        ):
+            response = client.post(
+                "/control-room/api/orders/bulk-requests/request-84/approve",
+                json={},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["request"], request_doc)
+        self.assertEqual(response.get_json()["bulk_order_requests"], queue)
+        self.assertEqual(approve.call_args.kwargs["actor"], "test-admin")
+
+    def test_ut_web_85_reject_bulk_request_passes_reason_and_manager_actor(self):
+        app = self.build_app("bulk-reject-success")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.extensions["qltpchay.admin_sessions"]._users[0]["permissions"].append("order_batch_manage")
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        request_doc = {"id": "request-85", "status": "rejected"}
+        with patch.object(store, "reject_bulk_order_request", return_value=request_doc) as reject, patch.object(
+            store, "list_bulk_order_requests", return_value=[request_doc]
+        ):
+            response = client.post(
+                "/api/orders/bulk-requests/request-85/reject",
+                json={"reason": "Thiếu thông tin."},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["message"], "Đã reject yêu cầu xuất nhanh.")
+        self.assertEqual(reject.call_args.kwargs["actor"], "staff")
+        self.assertEqual(reject.call_args.kwargs["reason"], "Thiếu thông tin.")
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

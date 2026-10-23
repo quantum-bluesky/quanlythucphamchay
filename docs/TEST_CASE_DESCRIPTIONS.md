@@ -319,6 +319,9 @@ Lưu ý:
 | 268 | `UT-WEB-80` | Kiểm tra user có quyền tạo nhưng không quản lý batch gửi request chờ duyệt. |
 | 269 | `UT-WEB-81` | Kiểm tra mode `commit_valid` yêu cầu permission `bulk_order_commit`. |
 | 270 | `UT-WEB-82` | Kiểm tra duplicate bulk request trả conflict code/details và quyền tiếp tục. |
+| 271 | `UT-WEB-83` | Kiểm tra approve bulk request từ chối tài khoản thiếu quyền manager. |
+| 272 | `UT-WEB-84` | Kiểm tra Master Admin duyệt bulk request và trả queue mới. |
+| 273 | `UT-WEB-85` | Kiểm tra reject bulk request chuyển lý do và actor của manager tới store. |
 
 
 

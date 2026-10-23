@@ -329,6 +329,9 @@ Mục tiêu:
 | 268 | `UT-WEB-80` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_80_bulk_create_user_without_manager_permission_creates_approval_request` |
 | 269 | `UT-WEB-81` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_81_bulk_commit_requires_bulk_commit_permission` |
 | 270 | `UT-WEB-82` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_82_bulk_create_duplicate_request_returns_conflict_metadata` |
+| 271 | `UT-WEB-83` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_83_approve_bulk_request_requires_manager_permission` |
+| 272 | `UT-WEB-84` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_84_approve_bulk_request_returns_request_and_queue` |
+| 273 | `UT-WEB-85` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_85_reject_bulk_request_passes_reason_and_manager_actor` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 
