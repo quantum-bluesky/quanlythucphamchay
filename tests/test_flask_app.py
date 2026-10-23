@@ -852,6 +852,77 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(result["product"]["id"], product["id"])
         self.assertEqual(result["summary"]["product_count"], 1)
 
+    def test_ut_web_51_change_base_unit_requires_master_admin_even_when_login_disabled(self):
+        app = self.build_app("base-unit-admin-required")
+        product = app.extensions["qltpchay.store"].create_product(
+            name="Sản phẩm đổi đơn vị",
+            category="Đồ chay",
+            unit="gói",
+            price=20000,
+            sale_price=30000,
+        )
+
+        response = app.test_client().post(
+            f"/api/products/{product['id']}/change-base-unit",
+            json={"new_unit": "lạng", "conversion_rate": 2},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập Master Admin."})
+
+    def test_ut_web_52_change_base_unit_rejects_staff_session(self):
+        app = self.build_app("base-unit-staff-rejected")
+        product = app.extensions["qltpchay.store"].create_product(
+            name="Sản phẩm đổi đơn vị",
+            category="Đồ chay",
+            unit="gói",
+            price=20000,
+            sale_price=30000,
+        )
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+
+        response = client.post(
+            f"/api/products/{product['id']}/change-base-unit",
+            json={"new_unit": "lạng", "conversion_rate": 2},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập Master Admin."})
+
+    def test_ut_web_53_change_base_unit_allows_master_admin_and_admin_prefix(self):
+        app = self.build_app("base-unit-admin-success")
+        product = app.extensions["qltpchay.store"].create_product(
+            name="Sản phẩm đổi đơn vị",
+            category="Đồ chay",
+            unit="gói",
+            price=20000,
+            sale_price=30000,
+        )
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+
+        response = client.post(
+            f"/control-room/api/products/{product['id']}/change-base-unit",
+            json={"new_unit": "lạng", "conversion_rate": 2},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["message"], "Đã chuyển đổi đơn vị chính thành công sang 'lạng'.")
+        self.assertEqual(result["product"]["unit"], "lạng")
+        self.assertEqual(result["product"]["price"], 10000)
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

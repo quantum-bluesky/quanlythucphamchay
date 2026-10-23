@@ -287,6 +287,9 @@ Lưu ý:
 | 236 | `UT-WEB-48` | Kiểm tra endpoint giá nhập cập nhật sản phẩm và trả summary theo contract legacy. |
 | 237 | `UT-WEB-49` | Kiểm tra endpoint giá bán cập nhật sản phẩm và trả summary theo contract legacy. |
 | 238 | `UT-WEB-50` | Kiểm tra `POST /api/products/<id>/restore` khôi phục sản phẩm đã soft-delete. |
+| 239 | `UT-WEB-51` | Kiểm tra đổi đơn vị cơ sở vẫn yêu cầu Master Admin khi `EnableLogin` tắt. |
+| 240 | `UT-WEB-52` | Kiểm tra API đổi đơn vị cơ sở từ chối session của staff. |
+| 241 | `UT-WEB-53` | Kiểm tra Master Admin đổi đơn vị cơ sở thành công qua alias admin prefix và giữ tính toán giá theo tỷ lệ. |
 
 
 

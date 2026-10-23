@@ -303,3 +303,8 @@ admin tùy chỉnh không bị rơi về frontend root.
   thêm `UT-WEB-48..50`. Kết quả: `tests.test_flask_app` 50/50 pass, full unit
   190/190 pass, `py_compile` và `git diff --check` pass; đã chốt thành commit
   riêng trong Issue #182.
+- Đang chuyển `POST /api/products/<id>/change-base-unit` cùng quyền Master Admin;
+  `UT-WEB-51..53` kiểm tra login tắt, staff bị chặn và admin thành công qua
+  prefix cấu hình. Kết quả: `tests.test_flask_app` 53/53 pass, full unit
+  193/193 pass, `py_compile` và `git diff --check` pass; đã chốt thành commit
+  riêng trong Issue #182.

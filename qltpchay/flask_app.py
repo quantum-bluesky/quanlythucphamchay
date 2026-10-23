@@ -155,6 +155,24 @@ def create_app(
             payload = {"error": "Cần đăng nhập hệ thống."}
         return jsonify(payload), 401
 
+    def require_admin_session() -> Response | tuple[Response, int] | None:
+        # Issue #182: base-unit conversion is always restricted to Master Admin, matching legacy.
+        should_touch = (
+            str(request.headers.get("X-Session-Activity") or "").strip().lower()
+            != "passive"
+        )
+        session, expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=should_touch,
+        )
+        if session and str(session.get("role") or "") == "admin":
+            return None
+        if expired:
+            payload = {"error": "Phiên đăng nhập đã hết hạn.", "session_expired": True}
+        else:
+            payload = {"error": "Cần đăng nhập Master Admin."}
+        return jsonify(payload), 401
+
     def current_actor_name() -> str:
         session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
             get_session_token(),
@@ -675,6 +693,36 @@ def create_app(
             return jsonify({"error": str(error)}), 400
         return jsonify({
             "message": "Đã khôi phục sản phẩm.",
+            "product": product,
+            "summary": store.get_summary(),
+        })
+
+    @app.post("/api/products/<int:product_id>/change-base-unit")
+    @app.post("/api/admin/products/<int:product_id>/change-base-unit")
+    @app.post(f"{admin_path}/api/products/<int:product_id>/change-base-unit")
+    @app.post(f"{admin_path}/api/admin/products/<int:product_id>/change-base-unit")
+    def change_product_base_unit(product_id: int):
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            payload = {}
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            product = store.change_product_base_unit(
+                product_id=product_id,
+                new_unit=payload.get("new_unit"),
+                conversion_rate=payload.get("conversion_rate"),
+                add_old_unit_to_conversions=bool(payload.get("add_old_unit_to_conversions", True)),
+                default_purchase_unit=payload.get("default_purchase_unit"),
+                default_sale_unit=payload.get("default_sale_unit"),
+                actor=payload.get("actor") or current_actor_name(),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": f"Đã chuyển đổi đơn vị chính thành công sang '{product.get('unit')}'.",
             "product": product,
             "summary": store.get_summary(),
         })

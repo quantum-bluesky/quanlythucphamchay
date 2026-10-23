@@ -90,6 +90,8 @@ trạng thái public rõ ràng và ánh xạ validation thành 400.
 Các endpoint `PUT /api/products/<id>/price`,
 `PUT /api/products/<id>/sale-price` và `POST /api/products/<id>/restore` giữ
 cập nhật riêng giá nhập/giá bán và khôi phục sản phẩm đã xóa mềm.
+`POST /api/products/<id>/change-base-unit` chỉ cho Master Admin, kể cả khi
+`EnableLogin` tắt; hỗ trợ cả admin prefix cấu hình và alias `/api/admin`.
 
 Chạy riêng nhóm này:
 
