@@ -280,6 +280,9 @@ Mục tiêu:
 | 219 | `UT-WEB-31` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_31_order_history_route_returns_400_when_cart_is_missing` |
 | 220 | `UT-WEB-32` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_32_purchase_history_route_returns_document_and_limited_history` |
 | 221 | `UT-WEB-33` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_33_purchase_history_route_returns_400_when_purchase_is_missing` |
+| 222 | `UT-WEB-34` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_34_runtime_version_route_includes_runtime_and_app_metadata` |
+| 223 | `UT-WEB-35` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_35_monthly_report_route_forwards_filters` |
+| 224 | `UT-WEB-36` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_36_monthly_report_route_rejects_invalid_month_filter` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

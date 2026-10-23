@@ -518,6 +518,48 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Không tìm thấy phiếu nhập."})
 
+    def test_ut_web_34_runtime_version_route_includes_runtime_and_app_metadata(self):
+        app = self.build_app("runtime-version-route")
+        store = app.extensions["qltpchay.store"]
+        runtime = {"database_version": "test-db-version", "server_time": "2026-10-23T10:00:00"}
+        with patch.object(store, "get_runtime_version", return_value=runtime):
+            response = app.test_client().get("/api/runtime-version")
+
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["database_version"], runtime["database_version"])
+        self.assertEqual(result["server_time"], runtime["server_time"])
+        self.assertEqual(result["app"]["version"], "test")
+        self.assertIn("debug", result)
+        self.assertIn("pagination", result)
+
+    def test_ut_web_35_monthly_report_route_forwards_filters(self):
+        app = self.build_app("monthly-report-route")
+        store = app.extensions["qltpchay.store"]
+        expected = {"months": [], "totals": {"income": 100}}
+        with patch.object(store, "get_monthly_report", return_value=expected) as get_report:
+            response = app.test_client().get(
+                "/api/reports/monthly?months=9&focus_month=2026-09"
+                "&start_date=2026-01-01&end_date=2026-09-30"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), expected)
+        get_report.assert_called_once_with(
+            months=9,
+            focus_month="2026-09",
+            start_date="2026-01-01",
+            end_date="2026-09-30",
+        )
+
+    def test_ut_web_36_monthly_report_route_rejects_invalid_month_filter(self):
+        app = self.build_app("monthly-report-invalid")
+
+        response = app.test_client().get("/api/reports/monthly?months=invalid")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Bộ lọc báo cáo không hợp lệ."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

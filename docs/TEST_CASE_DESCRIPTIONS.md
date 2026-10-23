@@ -270,6 +270,9 @@ Lưu ý:
 | 219 | `UT-WEB-31` | Kiểm tra lịch sử đơn hàng trả 400 nếu cart không tồn tại. |
 | 220 | `UT-WEB-32` | Kiểm tra lịch sử phiếu nhập trả purchase cùng history theo limit đã yêu cầu. |
 | 221 | `UT-WEB-33` | Kiểm tra lịch sử phiếu nhập trả 400 nếu purchase không tồn tại. |
+| 222 | `UT-WEB-34` | Kiểm tra `GET /api/runtime-version` kết hợp runtime version với app/debug/pagination metadata. |
+| 223 | `UT-WEB-35` | Kiểm tra `GET /api/reports/monthly` chuyển bộ lọc tháng/ngày tới store và giữ payload. |
+| 224 | `UT-WEB-36` | Kiểm tra `GET /api/reports/monthly` trả lỗi 400 chuẩn khi months không hợp lệ. |
 
 
 

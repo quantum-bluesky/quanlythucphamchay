@@ -75,6 +75,9 @@ không hợp lệ thành status 400.
 limit cùng các bộ lọc lịch sử sang `InventoryStore`.
 `GET /api/orders/<id>/history` và `GET /api/purchases/<id>/history` giữ response
 document/history, giới hạn truy vấn và status 400 nếu chứng từ không tồn tại.
+`GET /api/runtime-version` bổ sung app/debug/pagination metadata hiện hành;
+`GET /api/reports/monthly` chuyển các bộ lọc tháng/ngày và trả 400 nếu tham số
+tháng không hợp lệ.
 
 Chạy riêng nhóm này:
 

@@ -553,6 +553,39 @@ def create_app(
             "history": store.get_purchase_change_history(purchase_id, limit=limit),
         })
 
+    @app.get("/api/runtime-version")
+    @app.get(f"{admin_path}/api/runtime-version")
+    def get_runtime_version():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        metadata = session_status_payload(session_token="")
+        return jsonify({
+            **store.get_runtime_version(),
+            "app": metadata["app"],
+            "debug": metadata["debug"],
+            "pagination": metadata["pagination"],
+        })
+
+    @app.get("/api/reports/monthly")
+    @app.get(f"{admin_path}/api/reports/monthly")
+    def get_monthly_report():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            payload = store.get_monthly_report(
+                months=int(request.args.get("months", "6")),
+                focus_month=request.args.get("focus_month"),
+                start_date=request.args.get("start_date"),
+                end_date=request.args.get("end_date"),
+            )
+        except ValueError:
+            return jsonify({"error": "Bộ lọc báo cáo không hợp lệ."}), 400
+        return jsonify(payload)
+
     @app.get("/api/public/orders")
     @app.get(f"{admin_path}/api/public/orders")
     def public_orders():
