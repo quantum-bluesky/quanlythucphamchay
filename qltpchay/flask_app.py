@@ -155,6 +155,64 @@ def create_app(
             payload = {"error": "Cần đăng nhập hệ thống."}
         return jsonify(payload), 401
 
+    def procurement_public_config() -> dict:
+        procurement = current_app.config["SYSTEM_CONFIG"].get("procurement", {})
+        return {
+            "batch_planner_enabled": bool(procurement.get("batch_planner_enabled", True)),
+            "allow_daily_quick_shortage_flow": bool(
+                procurement.get("allow_daily_quick_shortage_flow", True)
+            ),
+            "required_login_for_batch_mode": bool(
+                procurement.get("required_login_for_batch_mode", True)
+            ),
+        }
+
+    def procurement_lock_timeout() -> int:
+        procurement = current_app.config["SYSTEM_CONFIG"].get("procurement", {})
+        try:
+            return max(1, int(procurement.get("batch_lock_timeout_minutes", 180)))
+        except (TypeError, ValueError):
+            return 180
+
+    def procurement_permission_payload(
+        status: dict | None = None,
+        *,
+        include_lock_owner: bool = True,
+    ) -> dict:
+        config = current_app.config["SYSTEM_CONFIG"].get("procurement", {})
+        store = current_app.extensions["qltpchay.store"]
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        username = str((session or {}).get("username") or "")
+        role = str((session or {}).get("role") or "")
+        permissions = {
+            str(permission or "").strip()
+            for permission in ((session or {}).get("permissions") or [])
+            if str(permission or "").strip()
+        }
+        manager_usernames = config.get("planner_manager_usernames", [])
+        can_manage = (
+            role == "admin"
+            or "procurement_batch_manage" in permissions
+            or (
+                isinstance(manager_usernames, list)
+                and username in {str(entry or "").strip() for entry in manager_usernames}
+            )
+        )
+        current_status = status
+        if include_lock_owner and current_status is None:
+            current_status = store.get_procurement_status(
+                lock_timeout_minutes=procurement_lock_timeout(),
+            )
+        return {
+            "can_manage_batch": can_manage,
+            "is_lock_owner": bool(username)
+            and include_lock_owner
+            and str(((current_status or {}).get("lock") or {}).get("owner_username") or "") == username,
+        }
+
     def session_status_payload(session_token: str | None = None) -> dict:
         token = session_token if session_token is not None else get_session_token()
         session = current_app.extensions["qltpchay.admin_sessions"].get_session(
@@ -592,50 +650,50 @@ def create_app(
         auth_error = require_authenticated_session()
         if auth_error is not None:
             return auth_error
-        config = current_app.config["SYSTEM_CONFIG"]
-        procurement_config = config.get("procurement", {})
-        try:
-            lock_timeout_minutes = max(1, int(procurement_config.get("batch_lock_timeout_minutes", 180)))
-        except (TypeError, ValueError):
-            lock_timeout_minutes = 180
         store = current_app.extensions["qltpchay.store"]
-        status = store.get_procurement_status(lock_timeout_minutes=lock_timeout_minutes)
-        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
-            get_session_token(),
-            touch=False,
-        )
-        username = str((session or {}).get("username") or "")
-        role = str((session or {}).get("role") or "")
-        permissions = {
-            str(permission or "").strip()
-            for permission in ((session or {}).get("permissions") or [])
-            if str(permission or "").strip()
-        }
-        manager_usernames = procurement_config.get("planner_manager_usernames", [])
-        can_manage_batch = (
-            role == "admin"
-            or "procurement_batch_manage" in permissions
-            or (
-                isinstance(manager_usernames, list)
-                and username in {str(entry or "").strip() for entry in manager_usernames}
-            )
+        status = store.get_procurement_status(
+            lock_timeout_minutes=procurement_lock_timeout(),
         )
         return jsonify({
             **status,
-            "config": {
-                "batch_planner_enabled": bool(procurement_config.get("batch_planner_enabled", True)),
-                "allow_daily_quick_shortage_flow": bool(
-                    procurement_config.get("allow_daily_quick_shortage_flow", True)
+            "config": procurement_public_config(),
+            "permissions": procurement_permission_payload(status),
+        })
+
+    @app.get("/api/procurement/planner")
+    @app.get(f"{admin_path}/api/procurement/planner")
+    def get_procurement_planner():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        config = current_app.config["SYSTEM_CONFIG"]
+        procurement = config.get("procurement", {})
+        if (
+            procurement.get("required_login_for_batch_mode", True)
+            and not config.get("EnableLogin")
+        ):
+            return jsonify(
+                {"error": "Batch mode cần bật EnableLogin để xác định người giữ khóa."}
+            ), 400
+        permissions = procurement_permission_payload(include_lock_owner=False)
+        if not permissions["can_manage_batch"]:
+            return jsonify({"error": "Tài khoản này không có quyền xử lý kỳ gom nhập."}), 401
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            planner = store.get_procurement_planner(
+                scope_type=request.args.get("scope", "all"),
+                scope_code=request.args.get(
+                    "scope_code",
+                    request.args.get("cart_id", request.args.get("product_id", "")),
                 ),
-                "required_login_for_batch_mode": bool(
-                    procurement_config.get("required_login_for_batch_mode", True)
-                ),
-            },
-            "permissions": {
-                "can_manage_batch": can_manage_batch,
-                "is_lock_owner": bool(username)
-                and str((status.get("lock") or {}).get("owner_username") or "") == username,
-            },
+                lock_timeout_minutes=procurement_lock_timeout(),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            **planner,
+            "config": procurement_public_config(),
+            "permissions": procurement_permission_payload(),
         })
 
     @app.get("/api/public/orders")

@@ -596,6 +596,79 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.get_json(), {"error": "Cần đăng nhập hệ thống."})
 
+    def test_ut_web_39_procurement_planner_forwards_scope_and_permissions(self):
+        app = self.build_app("procurement-planner-route")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.config["SYSTEM_CONFIG"]["procurement"] = {
+            "batch_lock_timeout_minutes": 91,
+            "planner_manager_usernames": [],
+        }
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        store = app.extensions["qltpchay.store"]
+        planner = {"scope": {"type": "product", "code": "12"}, "items": []}
+        status = {"lock": {"owner_username": "staff"}}
+        with patch.object(store, "get_procurement_planner", return_value=planner) as get_planner, patch.object(
+            store, "get_procurement_status", return_value=status
+        ):
+            response = client.get("/api/procurement/planner?scope=product&product_id=12")
+
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["scope"], planner["scope"])
+        self.assertTrue(result["permissions"]["can_manage_batch"])
+        self.assertTrue(result["permissions"]["is_lock_owner"])
+        self.assertEqual(result["config"]["required_login_for_batch_mode"], True)
+        get_planner.assert_called_once_with(
+            scope_type="product",
+            scope_code="12",
+            lock_timeout_minutes=91,
+        )
+
+    def test_ut_web_40_procurement_planner_requires_login_setting_for_batch_mode(self):
+        app = self.build_app("procurement-planner-login-config")
+        app.config["SYSTEM_CONFIG"]["procurement"] = {
+            "required_login_for_batch_mode": True,
+        }
+
+        response = app.test_client().get("/api/procurement/planner")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Batch mode cần bật EnableLogin để xác định người giữ khóa."},
+        )
+
+    def test_ut_web_41_procurement_planner_maps_invalid_scope_to_400(self):
+        app = self.build_app("procurement-planner-invalid")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.config["SYSTEM_CONFIG"]["procurement"] = {
+            "required_login_for_batch_mode": False,
+        }
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        store = app.extensions["qltpchay.store"]
+        with patch.object(
+            store,
+            "get_procurement_planner",
+            side_effect=ValueError("Phạm vi xử lý nhập thiếu không hợp lệ."),
+        ):
+            response = client.get("/api/procurement/planner?scope=invalid")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Phạm vi xử lý nhập thiếu không hợp lệ."},
+        )
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

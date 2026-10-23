@@ -80,6 +80,8 @@ document/history, giới hạn truy vấn và status 400 nếu chứng từ khô
 tháng không hợp lệ.
 `GET /api/procurement/status` giữ lock timeout, config công khai, quyền quản lý
 batch và nhận diện lock owner từ session hiện tại.
+`GET /api/procurement/planner` giữ scope, yêu cầu `EnableLogin` theo config,
+kiểm tra quyền quản lý và ánh xạ scope không hợp lệ thành 400.
 
 Chạy riêng nhóm này:
 

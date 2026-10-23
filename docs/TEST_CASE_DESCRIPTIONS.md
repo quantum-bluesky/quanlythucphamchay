@@ -275,6 +275,9 @@ Lưu ý:
 | 224 | `UT-WEB-36` | Kiểm tra `GET /api/reports/monthly` trả lỗi 400 chuẩn khi months không hợp lệ. |
 | 225 | `UT-WEB-37` | Kiểm tra trạng thái procurement giữ config, quyền quản lý batch và nhận diện đúng chủ khóa. |
 | 226 | `UT-WEB-38` | Kiểm tra `GET /api/procurement/status` yêu cầu session khi `EnableLogin` bật. |
+| 227 | `UT-WEB-39` | Kiểm tra procurement planner chuyển scope/timeout và trả config/quyền của người đang giữ khóa. |
+| 228 | `UT-WEB-40` | Kiểm tra planner từ chối khi batch mode yêu cầu login nhưng `EnableLogin` đang tắt. |
+| 229 | `UT-WEB-41` | Kiểm tra planner trả 400 cho scope không hợp lệ theo lỗi của `InventoryStore`. |
 
 
 

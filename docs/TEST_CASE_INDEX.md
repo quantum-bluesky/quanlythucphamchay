@@ -285,6 +285,9 @@ Mục tiêu:
 | 224 | `UT-WEB-36` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_36_monthly_report_route_rejects_invalid_month_filter` |
 | 225 | `UT-WEB-37` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_37_procurement_status_includes_config_permissions_and_lock_owner` |
 | 226 | `UT-WEB-38` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_38_procurement_status_requires_session_when_login_is_enabled` |
+| 227 | `UT-WEB-39` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_39_procurement_planner_forwards_scope_and_permissions` |
+| 228 | `UT-WEB-40` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_40_procurement_planner_requires_login_setting_for_batch_mode` |
+| 229 | `UT-WEB-41` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_41_procurement_planner_maps_invalid_scope_to_400` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 
