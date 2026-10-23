@@ -309,6 +309,9 @@ Mục tiêu:
 | 248 | `UT-WEB-60` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_60_document_cancel_request_history_returns_400_when_missing` |
 | 249 | `UT-WEB-61` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_61_admin_settings_reads_require_master_admin_and_redact_mail_password` |
 | 250 | `UT-WEB-62` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_62_admin_legacy_audit_route_returns_store_payload` |
+| 251 | `UT-WEB-63` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_63_admin_master_json_export_preserves_payload_and_download_header` |
+| 252 | `UT-WEB-64` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_64_admin_master_csv_export_preserves_columns_and_utf8_bom` |
+| 253 | `UT-WEB-65` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_65_admin_master_export_rejects_unsupported_format` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

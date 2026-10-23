@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import csv
+import io
+import json
 import mimetypes
 import uuid
 from copy import deepcopy
@@ -53,6 +56,40 @@ def _public_mail_config(mail_config: dict | None) -> dict:
         "use_ssl": bool(config.get("use_ssl")),
         "subject_prefix": str(config.get("subject_prefix") or ""),
     }
+
+
+def _master_csv_columns(entity_type: str) -> list[str]:
+    if entity_type == "products":
+        return [
+            "id", "global_id", "name", "category", "unit", "price", "sale_price",
+            "low_stock_threshold", "shelf_life_days", "storage_life_days", "images",
+            "details", "recipe", "note", "is_public", "is_deleted", "deleted_at",
+            "created_at", "updated_at",
+        ]
+    if entity_type == "customers":
+        return ["id", "name", "phone", "address", "zaloUrl", "createdAt", "updatedAt", "deletedAt"]
+    if entity_type == "suppliers":
+        return ["id", "name", "phone", "address", "note", "createdAt", "updatedAt", "deletedAt"]
+    raise ValueError("Loại dữ liệu master không hợp lệ.")
+
+
+def _build_master_csv_bytes(entity_type: str, records: list[dict]) -> bytes:
+    output = io.StringIO()
+    columns = _master_csv_columns(entity_type)
+    writer = csv.DictWriter(output, fieldnames=columns, extrasaction="ignore")
+    writer.writeheader()
+    for record in records:
+        row = {}
+        for key in columns:
+            value = record.get(key)
+            if value is None:
+                row[key] = ""
+            elif key == "images" and isinstance(value, list):
+                row[key] = json.dumps(value, ensure_ascii=False)
+            else:
+                row[key] = str(value)
+        writer.writerow(row)
+    return output.getvalue().encode("utf-8-sig")
 
 
 def create_app(
@@ -821,6 +858,34 @@ def create_app(
             return auth_error
         store = current_app.extensions["qltpchay.store"]
         return jsonify(store.get_legacy_data_audit())
+
+    @app.get("/api/admin/export/<entity_type>")
+    @app.get(f"{admin_path}/api/admin/export/<entity_type>")
+    def export_master_data(entity_type: str):
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        if entity_type not in {"products", "customers", "suppliers"}:
+            return jsonify({"error": "Không tìm thấy tài nguyên."}), 404
+        export_format = str(request.args.get("format", "json")).strip().lower()
+        if export_format not in {"json", "csv"}:
+            return jsonify({
+                "error": "Định dạng export không hợp lệ. Chỉ hỗ trợ json/csv."
+            }), 400
+        store = current_app.extensions["qltpchay.store"]
+        payload = store.export_master_data(entity_type)
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        if export_format == "csv":
+            body = _build_master_csv_bytes(entity_type, payload.get("records", []))
+            content_type = "text/csv; charset=utf-8"
+            filename = f"{entity_type}-master-{timestamp}.csv"
+        else:
+            body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+            content_type = "application/json; charset=utf-8"
+            filename = f"{entity_type}-master-{timestamp}.json"
+        response = Response(body, status=200, content_type=content_type)
+        response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
 
     @app.get("/api/products/deleted")
     @app.get(f"{admin_path}/api/products/deleted")

@@ -299,6 +299,9 @@ Lưu ý:
 | 248 | `UT-WEB-60` | Kiểm tra lịch sử yêu cầu hủy trả 400 khi request ID không tồn tại. |
 | 249 | `UT-WEB-61` | Kiểm tra admin config đọc cần Master Admin, dùng được admin prefix và che mật khẩu mail. |
 | 250 | `UT-WEB-62` | Kiểm tra admin legacy audit trả nguyên payload từ store sau khi xác thực. |
+| 251 | `UT-WEB-63` | Kiểm tra export master JSON giữ nguyên payload và header download. |
+| 252 | `UT-WEB-64` | Kiểm tra export master CSV giữ thứ tự cột, UTF-8 BOM và serialize trường ảnh. |
+| 253 | `UT-WEB-65` | Kiểm tra export master từ chối format ngoài JSON/CSV. |
 
 
 

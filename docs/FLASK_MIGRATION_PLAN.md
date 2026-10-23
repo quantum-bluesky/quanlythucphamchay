@@ -325,3 +325,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   audit; `UT-WEB-61..62` kiểm tra Master Admin, che password và response audit.
   Kết quả: `tests.test_flask_app` 62/62 pass, full unit 202/202 pass,
   `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.
+- Đang chuyển admin export master data sang JSON/CSV, giữ download headers, thứ
+  tự cột CSV/UTF-8 BOM và lỗi format không hỗ trợ; `UT-WEB-63..65` pass.
+  Kết quả: `tests.test_flask_app` 65/65 pass, full unit 205/205 pass,
+  `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.

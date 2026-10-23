@@ -1094,6 +1094,60 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json(), expected)
 
+    def test_ut_web_63_admin_master_json_export_preserves_payload_and_download_header(self):
+        app = self.build_app("admin-export-json")
+        store = app.extensions["qltpchay.store"]
+        expected = {"entity": "products", "records": [{"name": "Đậu hũ"}]}
+        client = app.test_client()
+        login = client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        with patch.object(store, "export_master_data", return_value=expected):
+            response = client.get("/control-room/api/admin/export/products?format=json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), expected)
+        self.assertEqual(response.mimetype, "application/json")
+        self.assertIn("attachment; filename=\"products-master-", response.headers["Content-Disposition"])
+
+    def test_ut_web_64_admin_master_csv_export_preserves_columns_and_utf8_bom(self):
+        app = self.build_app("admin-export-csv")
+        store = app.extensions["qltpchay.store"]
+        record = {"id": 1, "name": "Đậu hũ", "images": ["/images/products/a.png"]}
+        client = app.test_client()
+        login = client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        with patch.object(store, "export_master_data", return_value={"records": [record]}):
+            response = client.get("/api/admin/export/products?format=csv")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data[:3], b"\xef\xbb\xbf")
+        self.assertIn("id,global_id,name,category,unit,price,sale_price", response.data.decode("utf-8-sig"))
+        self.assertIn('"[""/images/products/a.png""]"', response.data.decode("utf-8-sig"))
+        self.assertTrue(response.headers["Content-Disposition"].endswith(".csv\""))
+
+    def test_ut_web_65_admin_master_export_rejects_unsupported_format(self):
+        app = self.build_app("admin-export-invalid-format")
+        client = app.test_client()
+        login = client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+
+        response = client.get("/api/admin/export/products?format=xml")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Định dạng export không hợp lệ. Chỉ hỗ trợ json/csv."},
+        )
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

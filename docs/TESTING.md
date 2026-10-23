@@ -101,6 +101,8 @@ ghi dưới image root của app và trả URL dùng được qua static image r
 limit và status 400 khi không tìm thấy request.
 Admin read routes cho public web config, mail config và legacy audit bắt buộc
 Master Admin; mail config chỉ trả cờ `has_password`, tuyệt đối không lộ mật khẩu.
+`GET /api/admin/export/<entity>` giữ JSON/CSV download contract, UTF-8 BOM cho
+CSV, tên file attachment và validation format.
 
 Chạy riêng nhóm này:
 
