@@ -1148,6 +1148,32 @@ class FlaskAppFactoryTests(unittest.TestCase):
             {"error": "Định dạng export không hợp lệ. Chỉ hỗ trợ json/csv."},
         )
 
+    def test_ut_web_66_admin_database_backup_requires_master_admin_and_downloads_file(self):
+        app = self.build_app("admin-backup")
+        store = app.extensions["qltpchay.store"]
+        backup_path = self.root / "inventory-backup-fixture.db"
+        backup_path.write_bytes(b"SQLite fixture backup")
+        client = app.test_client()
+
+        denied = client.get("/api/admin/backup")
+        login = client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        with patch.object(store, "create_database_backup", return_value=backup_path):
+            response = client.get("/control-room/api/admin/backup")
+
+        self.assertEqual(denied.status_code, 401)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, b"SQLite fixture backup")
+        self.assertEqual(response.mimetype, "application/octet-stream")
+        self.assertEqual(
+            response.headers["Content-Disposition"],
+            'attachment; filename=inventory-backup-fixture.db',
+        )
+        response.close()
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

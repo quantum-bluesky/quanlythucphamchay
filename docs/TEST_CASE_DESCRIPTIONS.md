@@ -302,6 +302,7 @@ Lưu ý:
 | 251 | `UT-WEB-63` | Kiểm tra export master JSON giữ nguyên payload và header download. |
 | 252 | `UT-WEB-64` | Kiểm tra export master CSV giữ thứ tự cột, UTF-8 BOM và serialize trường ảnh. |
 | 253 | `UT-WEB-65` | Kiểm tra export master từ chối format ngoài JSON/CSV. |
+| 254 | `UT-WEB-66` | Kiểm tra tải backup yêu cầu Master Admin và trả file attachment đúng content type. |
 
 
 

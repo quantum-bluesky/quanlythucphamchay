@@ -103,6 +103,8 @@ Admin read routes cho public web config, mail config và legacy audit bắt bu�
 Master Admin; mail config chỉ trả cờ `has_password`, tuyệt đối không lộ mật khẩu.
 `GET /api/admin/export/<entity>` giữ JSON/CSV download contract, UTF-8 BOM cho
 CSV, tên file attachment và validation format.
+`GET /api/admin/backup` yêu cầu Master Admin và trả file từ backup service dưới
+dạng attachment `application/octet-stream`.
 
 Chạy riêng nhóm này:
 

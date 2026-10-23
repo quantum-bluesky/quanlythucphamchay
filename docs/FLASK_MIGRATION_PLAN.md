@@ -329,3 +329,8 @@ admin tùy chỉnh không bị rơi về frontend root.
   tự cột CSV/UTF-8 BOM và lỗi format không hỗ trợ; `UT-WEB-63..65` pass.
   Kết quả: `tests.test_flask_app` 65/65 pass, full unit 205/205 pass,
   `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.
+- Đang chuyển admin database backup download; test mock backup file trong thư
+  mục tạm để không tạo file backup trên runtime. `UT-WEB-66` pass;
+  `tests.test_flask_app` 66/66 pass, full unit cuối cùng 206/206 pass,
+  `py_compile` và `git diff --check` pass. Một lượt full trước đó gặp socket
+  abort ở test legacy #177; chạy riêng pass và rerun full pass.

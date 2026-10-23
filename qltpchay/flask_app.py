@@ -12,7 +12,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from flask import Flask, Response, current_app, jsonify, request
+from flask import Flask, Response, current_app, jsonify, request, send_file
 from werkzeug.exceptions import HTTPException
 
 from .auth import (
@@ -886,6 +886,21 @@ def create_app(
         response = Response(body, status=200, content_type=content_type)
         response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
+
+    @app.get("/api/admin/backup")
+    @app.get(f"{admin_path}/api/admin/backup")
+    def download_database_backup():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        backup_path = store.create_database_backup()
+        return send_file(
+            backup_path,
+            mimetype="application/octet-stream",
+            as_attachment=True,
+            download_name=Path(backup_path).name,
+        )
 
     @app.get("/api/products/deleted")
     @app.get(f"{admin_path}/api/products/deleted")
