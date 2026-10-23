@@ -381,3 +381,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   `UT-WEB-106..110` kiểm tra permission, actor, source fields và lỗi. Kết quả:
   `tests.test_flask_app` 110/110 pass, full unit 250/250 pass,
   `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.
+- Đã chuyển các mutation của procurement batch và tạo phiếu nhập đơn/lô;
+  `UT-WEB-111..116` kiểm tra login/manager gate, actor, lock status, conflict,
+  scope và danh sách tạo/bỏ qua. Kết quả: `tests.test_flask_app` 116/116 pass,
+  full unit 256/256 pass, `py_compile` và `git diff --check` pass; chờ commit.

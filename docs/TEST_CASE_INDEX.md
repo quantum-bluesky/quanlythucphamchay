@@ -357,6 +357,12 @@ Mục tiêu:
 | 296 | `UT-WEB-108` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_108_inventory_adjustment_passes_actor_and_returns_created_receipt` |
 | 297 | `UT-WEB-109` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_109_customer_return_passes_source_and_actor` |
 | 298 | `UT-WEB-110` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_110_supplier_return_maps_validation_error_to_400` |
+| 299 | `UT-WEB-111` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_111_procurement_mutations_enforce_login_and_manager_permission` |
+| 300 | `UT-WEB-112` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_112_procurement_batch_start_preserves_actor_and_status` |
+| 301 | `UT-WEB-113` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_113_procurement_batch_start_returns_structured_conflicts` |
+| 302 | `UT-WEB-114` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_114_procurement_batch_finish_and_refresh_preserve_contract` |
+| 303 | `UT-WEB-115` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_115_procurement_single_purchase_draft_preserves_scope_and_actor` |
+| 304 | `UT-WEB-116` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_116_procurement_bulk_draft_returns_created_and_skipped_data` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

@@ -31,7 +31,12 @@ from .lunar_calendar import (
     solar_to_vietnamese_lunar,
 )
 from .mailer import send_mail_notification
-from .store import BulkOrderRequestDuplicateError, InventoryStore, SyncConflictError
+from .store import (
+    BulkOrderRequestDuplicateError,
+    InventoryStore,
+    ProcurementBatchStartConflictError,
+    SyncConflictError,
+)
 
 
 LONG_LIVED_CACHE = "public, max-age=31536000, immutable"
@@ -377,6 +382,31 @@ def create_app(
             "config": procurement_public_config(),
             "permissions": procurement_permission_payload(status),
         }
+
+    def require_procurement_manager() -> Response | tuple[Response, int] | None:
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        config = current_app.config["SYSTEM_CONFIG"]
+        procurement = config.get("procurement", {})
+        if (
+            procurement.get("required_login_for_batch_mode", True)
+            and not config.get("EnableLogin")
+        ):
+            return jsonify(
+                {"error": "Batch mode cần bật EnableLogin để xác định người giữ khóa."}
+            ), 400
+        if not procurement_permission_payload(include_lock_owner=False)["can_manage_batch"]:
+            return jsonify({"error": "Tài khoản này không có quyền xử lý kỳ gom nhập."}), 401
+        return None
+
+    def procurement_json_payload() -> tuple[dict | None, tuple[Response, int] | None]:
+        if not request.get_data(cache=True):
+            return None, (jsonify({"error": "Thiếu dữ liệu gửi lên."}), 400)
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return None, (jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400)
+        return payload, None
 
     def session_status_payload(session_token: str | None = None) -> dict:
         token = session_token if session_token is not None else get_session_token()
@@ -2036,6 +2066,170 @@ def create_app(
             "config": procurement_public_config(),
             "permissions": procurement_permission_payload(),
         })
+
+    # Issue #182: Match legacy procurement manager gates and preserve batch response contracts.
+    @app.post("/api/procurement/batch/start")
+    @app.post(f"{admin_path}/api/procurement/batch/start")
+    def start_procurement_batch():
+        auth_error = require_procurement_manager()
+        if auth_error is not None:
+            return auth_error
+        _payload, payload_error = procurement_json_payload()
+        if payload_error is not None:
+            return payload_error
+        store = current_app.extensions["qltpchay.store"]
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        try:
+            result = store.start_procurement_batch(
+                username=str((session or {}).get("username") or ""),
+                role=str((session or {}).get("role") or ""),
+                lock_timeout_minutes=procurement_lock_timeout(),
+            )
+        except ProcurementBatchStartConflictError as error:
+            return jsonify({
+                "error": str(error),
+                "code": "procurement_batch_start_conflicts",
+                "conflicts": error.conflicts,
+            }), 400
+        except (TypeError, ValueError) as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã bắt đầu kỳ gom nhập.",
+            **{
+                **result,
+                "config": procurement_public_config(),
+                "permissions": procurement_permission_payload(result),
+            },
+        })
+
+    @app.post("/api/procurement/batch/finish")
+    @app.post(f"{admin_path}/api/procurement/batch/finish")
+    def finish_procurement_batch():
+        auth_error = require_procurement_manager()
+        if auth_error is not None:
+            return auth_error
+        _payload, payload_error = procurement_json_payload()
+        if payload_error is not None:
+            return payload_error
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.finish_procurement_batch(
+                username=str((session or {}).get("username") or ""),
+                role=str((session or {}).get("role") or ""),
+            )
+        except (TypeError, ValueError) as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã kết thúc kỳ gom nhập.",
+            **result,
+            "config": procurement_public_config(),
+            "permissions": procurement_permission_payload(result),
+        })
+
+    @app.post("/api/procurement/batch/refresh-lock")
+    @app.post(f"{admin_path}/api/procurement/batch/refresh-lock")
+    def refresh_procurement_batch_lock():
+        auth_error = require_procurement_manager()
+        if auth_error is not None:
+            return auth_error
+        _payload, payload_error = procurement_json_payload()
+        if payload_error is not None:
+            return payload_error
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.refresh_procurement_batch_lock(
+                username=str((session or {}).get("username") or ""),
+                role=str((session or {}).get("role") or ""),
+                lock_timeout_minutes=procurement_lock_timeout(),
+            )
+        except (TypeError, ValueError) as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã gia hạn khóa kỳ gom nhập.",
+            **result,
+            "config": procurement_public_config(),
+            "permissions": procurement_permission_payload(result),
+        })
+
+    @app.post("/api/procurement/purchases/create-draft")
+    @app.post(f"{admin_path}/api/procurement/purchases/create-draft")
+    def create_procurement_purchase_draft():
+        auth_error = require_procurement_manager()
+        if auth_error is not None:
+            return auth_error
+        payload, payload_error = procurement_json_payload()
+        if payload_error is not None:
+            return payload_error
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.create_procurement_purchase_for_product(
+                product_id=int(payload.get("product_id", 0)),
+                quantity=payload.get("quantity", 0),
+                supplier_name=payload.get("supplier_name", ""),
+                actor=str((session or {}).get("username") or ""),
+                role=str((session or {}).get("role") or ""),
+                scope_type=payload.get("scope_type", "all"),
+                scope_code=payload.get("scope_code", ""),
+            )
+            return jsonify({
+                "message": "Đã tạo phiếu nhập từ kỳ gom nhập.",
+                "purchase": result["purchase"],
+                "purchases": result["purchases"],
+                "planner": result["planner"],
+                "summary": store.get_summary(),
+            }), 201
+        except (TypeError, ValueError) as error:
+            return jsonify({"error": str(error)}), 400
+
+    @app.post("/api/procurement/purchases/create-drafts")
+    @app.post(f"{admin_path}/api/procurement/purchases/create-drafts")
+    def create_procurement_purchase_drafts():
+        auth_error = require_procurement_manager()
+        if auth_error is not None:
+            return auth_error
+        payload, payload_error = procurement_json_payload()
+        if payload_error is not None:
+            return payload_error
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.create_procurement_purchases(
+                lines=payload.get("lines", []),
+                actor=str((session or {}).get("username") or ""),
+                role=str((session or {}).get("role") or ""),
+                scope_type=payload.get("scope_type", "all"),
+                scope_code=payload.get("scope_code", ""),
+            )
+            created_count = len(result.get("created_purchases") or [])
+            return jsonify({
+                "message": f"Đã tạo/cập nhật {created_count} phiếu nhập từ kỳ gom nhập.",
+                "created_purchases": result["created_purchases"],
+                "created_purchase_ids": result["created_purchase_ids"],
+                "skipped": result["skipped"],
+                "purchases": result["purchases"],
+                "planner": result["planner"],
+                "summary": store.get_summary(),
+            }), 201
+        except (TypeError, ValueError) as error:
+            return jsonify({"error": str(error)}), 400
 
     @app.get("/api/state")
     @app.get(f"{admin_path}/api/state")

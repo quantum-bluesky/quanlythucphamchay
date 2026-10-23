@@ -130,6 +130,8 @@ Cart item updates preserve conflict `409`, cart payment passes session actor/rol
 and received purchase expiry preserves date/actor fields in its response.
 Purchase repair preserves detached receipt details, inventory adjustment requires
 its dedicated permission, and customer/supplier returns preserve source/error data.
+Procurement mutations require the configured batch manager gate and preserve lock
+actor, conflict payload, draft scope, and created/skipped purchase results.
 
 Chạy riêng nhóm này:
 

@@ -2125,6 +2125,160 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Thiếu phiếu nhập nguồn."})
 
+    def test_ut_web_111_procurement_mutations_enforce_login_and_manager_permission(self):
+        app = self.build_app("procurement-mutation-login-disabled")
+        response = app.test_client().post("/api/procurement/batch/start", json={})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Batch mode cần bật EnableLogin để xác định người giữ khóa."},
+        )
+
+        app = self.build_app("procurement-mutation-no-manager")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.extensions["qltpchay.admin_sessions"]._users[0]["permissions"] = []
+        client = app.test_client()
+        client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        denied = client.post("/api/procurement/batch/start", json={})
+        self.assertEqual(denied.status_code, 401)
+        self.assertEqual(
+            denied.get_json(),
+            {"error": "Tài khoản này không có quyền xử lý kỳ gom nhập."},
+        )
+
+    def test_ut_web_112_procurement_batch_start_preserves_actor_and_status(self):
+        app = self.build_app("procurement-start")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        store = app.extensions["qltpchay.store"]
+        status = {"active": True, "lock": {"owner_username": "staff"}}
+        with patch.object(store, "start_procurement_batch", return_value=status) as start:
+            response = client.post("/control-room/api/procurement/batch/start", json={})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["message"], "Đã bắt đầu kỳ gom nhập.")
+        self.assertTrue(response.get_json()["permissions"]["is_lock_owner"])
+        self.assertEqual(start.call_args.kwargs["username"], "staff")
+        self.assertEqual(start.call_args.kwargs["role"], "user")
+
+    def test_ut_web_113_procurement_batch_start_returns_structured_conflicts(self):
+        from qltpchay.store import ProcurementBatchStartConflictError
+
+        app = self.build_app("procurement-start-conflict")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        conflicts = [{"purchase_id": "p-1"}]
+        with patch.object(
+            store,
+            "start_procurement_batch",
+            side_effect=ProcurementBatchStartConflictError("Có phiếu xung đột.", conflicts=conflicts),
+        ):
+            response = client.post("/api/procurement/batch/start", json={})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {
+            "error": "Có phiếu xung đột.",
+            "code": "procurement_batch_start_conflicts",
+            "conflicts": conflicts,
+        })
+
+    def test_ut_web_114_procurement_batch_finish_and_refresh_preserve_contract(self):
+        app = self.build_app("procurement-finish-refresh")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        finished = {"active": False, "lock": {"owner_username": ""}}
+        refreshed = {"active": True, "lock": {"owner_username": "staff"}}
+        with (
+            patch.object(store, "finish_procurement_batch", return_value=finished) as finish,
+            patch.object(store, "refresh_procurement_batch_lock", return_value=refreshed) as refresh,
+        ):
+            finish_response = client.post("/api/procurement/batch/finish", json={})
+            refresh_response = client.post("/api/procurement/batch/refresh-lock", json={})
+
+        self.assertEqual(finish_response.status_code, 200)
+        self.assertEqual(finish_response.get_json()["message"], "Đã kết thúc kỳ gom nhập.")
+        self.assertEqual(refresh_response.status_code, 200)
+        self.assertEqual(refresh_response.get_json()["message"], "Đã gia hạn khóa kỳ gom nhập.")
+        self.assertEqual(finish.call_args.kwargs["username"], "staff")
+        self.assertEqual(refresh.call_args.kwargs["username"], "staff")
+        self.assertEqual(refresh.call_args.kwargs["lock_timeout_minutes"], 180)
+
+    def test_ut_web_115_procurement_single_purchase_draft_preserves_scope_and_actor(self):
+        app = self.build_app("procurement-single-draft")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        result = {
+            "purchase": {"id": "p-115"},
+            "purchases": [{"id": "p-115"}],
+            "planner": {"scope_type": "cart"},
+        }
+        with patch.object(store, "create_procurement_purchase_for_product", return_value=result) as create:
+            response = client.post(
+                "/control-room/api/procurement/purchases/create-draft",
+                json={
+                    "product_id": 15,
+                    "quantity": 2,
+                    "supplier_name": "NCC",
+                    "scope_type": "cart",
+                    "scope_code": "cart-115",
+                },
+            )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()["purchase"], result["purchase"])
+        self.assertEqual(create.call_args.kwargs["actor"], "staff")
+        self.assertEqual(create.call_args.kwargs["scope_code"], "cart-115")
+
+    def test_ut_web_116_procurement_bulk_draft_returns_created_and_skipped_data(self):
+        app = self.build_app("procurement-bulk-draft")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        result = {
+            "created_purchases": [{"id": "p-116"}],
+            "created_purchase_ids": ["p-116"],
+            "skipped": [{"product_id": 2}],
+            "purchases": [{"id": "p-116"}],
+            "planner": {"scope_type": "all"},
+        }
+        with patch.object(store, "create_procurement_purchases", return_value=result) as create:
+            response = client.post(
+                "/api/procurement/purchases/create-drafts",
+                json={"lines": [{"product_id": 1}], "scope_type": "all"},
+            )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("Đã tạo/cập nhật 1 phiếu nhập", response.get_json()["message"])
+        self.assertEqual(response.get_json()["skipped"], result["skipped"])
+        self.assertEqual(create.call_args.kwargs["actor"], "staff")
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

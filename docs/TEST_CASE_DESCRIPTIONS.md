@@ -347,6 +347,12 @@ Lưu ý:
 | 296 | `UT-WEB-108` | Kiểm tra user có quyền điều chỉnh tồn tạo receipt và chuyển actor/reason. |
 | 297 | `UT-WEB-109` | Kiểm tra phiếu trả khách chuyển source fields và actor fallback. |
 | 298 | `UT-WEB-110` | Kiểm tra phiếu trả NCC ánh xạ validation error thành status 400. |
+| 299 | `UT-WEB-111` | Kiểm tra procurement mutation yêu cầu bật login và quyền manager. |
+| 300 | `UT-WEB-112` | Kiểm tra bắt đầu kỳ gom nhập chuyển actor/role và trả lock status. |
+| 301 | `UT-WEB-113` | Kiểm tra conflict khi bắt đầu kỳ gom nhập giữ code và danh sách lỗi. |
+| 302 | `UT-WEB-114` | Kiểm tra kết thúc kỳ và gia hạn lock giữ actor, timeout, message. |
+| 303 | `UT-WEB-115` | Kiểm tra tạo phiếu nhập đơn giữ actor, scope và response. |
+| 304 | `UT-WEB-116` | Kiểm tra tạo phiếu nhập hàng loạt giữ danh sách tạo/bỏ qua và actor. |
 
 
 
