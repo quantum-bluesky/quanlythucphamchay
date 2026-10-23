@@ -932,6 +932,33 @@ def create_app(
             return jsonify({"error": str(error)}), 400
         return jsonify(deleted)
 
+    # Issue #182: Keep destructive master-data deletion restricted to Master Admin.
+    @app.delete("/api/admin/customers/<customer_id>/hard")
+    @app.delete(f"{admin_path}/api/admin/customers/<customer_id>/hard")
+    def hard_delete_customer(customer_id: str):
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            deleted = store.hard_delete_customer(customer_id, actor=current_actor_name())
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify(deleted)
+
+    @app.delete("/api/admin/suppliers/<supplier_id>/hard")
+    @app.delete(f"{admin_path}/api/admin/suppliers/<supplier_id>/hard")
+    def hard_delete_supplier(supplier_id: str):
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            deleted = store.hard_delete_supplier(supplier_id, actor=current_actor_name())
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify(deleted)
+
     @app.get("/api/admin/public-web-config")
     @app.get(f"{admin_path}/api/admin/public-web-config")
     def get_admin_public_web_config():

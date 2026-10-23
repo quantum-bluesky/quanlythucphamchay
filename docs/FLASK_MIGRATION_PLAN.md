@@ -396,4 +396,8 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Đã chuyển sửa đơn/phiếu nhập đã khóa, giữ Master Admin gate và
   `EnableAdminLockedEdit`; `UT-WEB-127..129` kiểm tra actor, payload, feature gate
   và lỗi validation. Kết quả: `tests.test_flask_app` 129/129 pass, full unit
-  269/269 pass, `py_compile` và `git diff --check` pass; chờ commit.
+  269/269 pass, `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.
+- Đã chuyển hard-delete customer/supplier với Master Admin gate và actor;
+  `UT-WEB-130..132` kiểm tra permission, response và lỗi validation. Kết quả:
+  `tests.test_flask_app` 132/132 pass, full unit 272/272 pass, `py_compile` và
+  `git diff --check` pass; chờ commit.

@@ -376,6 +376,9 @@ Mục tiêu:
 | 315 | `UT-WEB-127` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_127_locked_document_edit_requires_master_admin` |
 | 316 | `UT-WEB-128` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_128_locked_order_edit_checks_feature_gate_and_passes_snapshot` |
 | 317 | `UT-WEB-129` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_129_locked_purchase_edit_maps_validation_error_to_400` |
+| 318 | `UT-WEB-130` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_130_hard_delete_customer_requires_master_admin` |
+| 319 | `UT-WEB-131` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_131_hard_delete_customer_passes_actor_and_returns_store_result` |
+| 320 | `UT-WEB-132` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_132_hard_delete_supplier_maps_validation_error_to_400` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

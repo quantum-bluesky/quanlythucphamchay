@@ -2604,6 +2604,56 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Không thể sửa phiếu nhập đã sử dụng."})
 
+    def test_ut_web_130_hard_delete_customer_requires_master_admin(self):
+        app = self.build_app("hard-delete-customer-auth")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+
+        response = client.delete("/api/admin/customers/customer-130/hard")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập Master Admin."})
+
+    def test_ut_web_131_hard_delete_customer_passes_actor_and_returns_store_result(self):
+        app = self.build_app("hard-delete-customer")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        deleted = {"message": "Đã xóa khách hàng.", "customer_id": "customer-131"}
+        with patch.object(store, "hard_delete_customer", return_value=deleted) as delete_customer:
+            response = client.delete("/control-room/api/admin/customers/customer-131/hard")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), deleted)
+        delete_customer.assert_called_once_with("customer-131", actor="test-admin")
+
+    def test_ut_web_132_hard_delete_supplier_maps_validation_error_to_400(self):
+        app = self.build_app("hard-delete-supplier-invalid")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        with patch.object(
+            store,
+            "hard_delete_supplier",
+            side_effect=ValueError("Nhà cung cấp đang được chứng từ sử dụng."),
+        ):
+            response = client.delete("/api/admin/suppliers/supplier-132/hard")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Nhà cung cấp đang được chứng từ sử dụng."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

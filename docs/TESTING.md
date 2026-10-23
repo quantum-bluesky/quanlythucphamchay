@@ -139,6 +139,8 @@ Legacy audit repair and purchase receipt/source linking remain Master Admin-only
 and preserve actor, audit entries, updated purchase lists, and validation errors.
 Locked order/purchase edits require Master Admin and the feature gate, then pass the
 locked document snapshot and edit reason through to the store with actor context.
+Hard-delete customer/supplier endpoints require Master Admin and preserve actor,
+store deletion results, and validation errors.
 
 Chạy riêng nhóm này:
 

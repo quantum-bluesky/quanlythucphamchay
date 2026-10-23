@@ -366,6 +366,9 @@ Lưu ý:
 | 315 | `UT-WEB-127` | Kiểm tra sửa chứng từ đã khóa từ chối tài khoản không phải Master Admin. |
 | 316 | `UT-WEB-128` | Kiểm tra sửa đơn đã khóa có feature gate và giữ payload/lý do/actor. |
 | 317 | `UT-WEB-129` | Kiểm tra sửa phiếu nhập đã khóa ánh xạ lỗi nghiệp vụ thành status 400. |
+| 318 | `UT-WEB-130` | Kiểm tra hard-delete khách hàng từ chối user không phải Master Admin. |
+| 319 | `UT-WEB-131` | Kiểm tra hard-delete khách hàng chuyển actor và response từ store. |
+| 320 | `UT-WEB-132` | Kiểm tra hard-delete nhà cung cấp ánh xạ lỗi validation thành 400. |
 
 
 
