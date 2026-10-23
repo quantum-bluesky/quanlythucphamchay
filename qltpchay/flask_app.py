@@ -231,6 +231,30 @@ def create_app(
             payload = {"error": "Cần đăng nhập Master Admin."}
         return jsonify(payload), 401
 
+    def require_inventory_adjust_session() -> Response | tuple[Response, int] | None:
+        should_touch = (
+            str(request.headers.get("X-Session-Activity") or "").strip().lower()
+            != "passive"
+        )
+        session, expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=should_touch,
+        )
+        if expired:
+            return jsonify({"error": "Phiên đăng nhập đã hết hạn.", "session_expired": True}), 401
+        if not session:
+            return jsonify({
+                "error": "Cần đăng nhập tài khoản có quyền điều chỉnh tồn."
+            }), 401
+        permissions = {
+            str(permission or "").strip()
+            for permission in (session.get("permissions") or [])
+            if str(permission or "").strip()
+        }
+        if str(session.get("role") or "") == "admin" or "inventory_adjust_manage" in permissions:
+            return None
+        return jsonify({"error": "Tài khoản này không có quyền điều chỉnh tồn trực tiếp."}), 401
+
     def current_actor_name() -> str:
         session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
             get_session_token(),
@@ -970,6 +994,39 @@ def create_app(
         return jsonify(
             {"transactions": store.get_transactions(limit=int(request.args.get("limit", "20")))}
         )
+
+    @app.post("/api/transactions")
+    @app.post(f"{admin_path}/api/transactions")
+    def create_transaction():
+        auth_error = require_inventory_adjust_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            transaction = store.create_transaction(
+                product_id=int(payload.get("product_id", 0)),
+                transaction_type=payload.get("transaction_type"),
+                quantity=payload.get("quantity"),
+                note=payload.get("note", ""),
+                adjustment_reason=payload.get("adjustment_reason", ""),
+                actor=str((session or {}).get("username") or ""),
+                batch_code=payload.get("batch_code", ""),
+                expiry_date=payload.get("expiry_date"),
+            )
+        except (TypeError, ValueError) as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã cập nhật tồn kho.",
+            "transaction": transaction,
+            "summary": store.get_summary(),
+        }), 201
 
     @app.get("/api/orders/bulk-requests/<request_id>/history")
     @app.get(f"{admin_path}/api/orders/bulk-requests/<request_id>/history")

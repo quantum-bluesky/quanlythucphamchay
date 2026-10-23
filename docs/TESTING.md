@@ -107,6 +107,9 @@ CSV, tên file attachment và validation format.
 dạng attachment `application/octet-stream`.
 `PUT /api/state` áp dụng login gate, actor/role session, contract metadata trong
 response, conflict payload `409`, validation payload `400` và admin prefix alias.
+`POST /api/transactions` luôn yêu cầu session admin hoặc quyền
+`inventory_adjust_manage`, giữ actor username, các trường batch/expiry và response
+201; lỗi đầu vào từ chối bằng 400.
 
 Chạy riêng nhóm này:
 

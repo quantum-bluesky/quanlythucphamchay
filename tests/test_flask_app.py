@@ -1235,6 +1235,92 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Dữ liệu JSON không hợp lệ."})
 
+    def test_ut_web_71_transaction_create_requires_permission_even_when_login_disabled(self):
+        app = self.build_app("transaction-create-auth")
+
+        response = app.test_client().post(
+            "/api/transactions",
+            json={"product_id": 1, "transaction_type": "nhập", "quantity": 1},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Cần đăng nhập tài khoản có quyền điều chỉnh tồn."},
+        )
+
+    def test_ut_web_72_transaction_create_rejects_staff_without_inventory_permission(self):
+        app = self.build_app("transaction-create-staff")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+
+        response = client.post(
+            "/api/transactions",
+            json={"product_id": 1, "transaction_type": "nhập", "quantity": 1},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Tài khoản này không có quyền điều chỉnh tồn trực tiếp."},
+        )
+
+    def test_ut_web_73_transaction_create_passes_actor_and_returns_summary(self):
+        app = self.build_app("transaction-create-authorized")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        sessions = app.extensions["qltpchay.admin_sessions"]
+        sessions._users[0]["permissions"].append("inventory_adjust_manage")
+        store = app.extensions["qltpchay.store"]
+        transaction = {"id": 99, "product_id": 1, "quantity": 2}
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        with patch.object(store, "create_transaction", return_value=transaction) as create:
+            response = client.post(
+                "/control-room/api/transactions",
+                json={
+                    "product_id": 1,
+                    "transaction_type": "nhập",
+                    "quantity": 2,
+                    "batch_code": "LOT-1",
+                    "expiry_date": "2027-01-01",
+                },
+            )
+
+        self.assertEqual(response.status_code, 201)
+        result = response.get_json()
+        self.assertEqual(result["message"], "Đã cập nhật tồn kho.")
+        self.assertEqual(result["transaction"], transaction)
+        self.assertEqual(result["summary"]["product_count"], 0)
+        self.assertEqual(create.call_args.kwargs["actor"], "staff")
+        self.assertEqual(create.call_args.kwargs["batch_code"], "LOT-1")
+
+    def test_ut_web_74_transaction_create_maps_invalid_product_id_to_400(self):
+        app = self.build_app("transaction-create-invalid")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+
+        response = client.post(
+            "/api/transactions",
+            json={"product_id": "invalid", "transaction_type": "nhập", "quantity": 1},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.get_json()["error"])
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

@@ -317,6 +317,10 @@ Mục tiêu:
 | 256 | `UT-WEB-68` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_68_state_write_passes_actor_role_and_keeps_aggregate_response` |
 | 257 | `UT-WEB-69` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_69_state_write_maps_conflict_details_to_409` |
 | 258 | `UT-WEB-70` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_70_state_write_rejects_non_object_json` |
+| 259 | `UT-WEB-71` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_71_transaction_create_requires_permission_even_when_login_disabled` |
+| 260 | `UT-WEB-72` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_72_transaction_create_rejects_staff_without_inventory_permission` |
+| 261 | `UT-WEB-73` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_73_transaction_create_passes_actor_and_returns_summary` |
+| 262 | `UT-WEB-74` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_74_transaction_create_maps_invalid_product_id_to_400` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

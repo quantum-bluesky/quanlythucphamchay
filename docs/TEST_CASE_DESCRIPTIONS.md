@@ -307,6 +307,10 @@ Lưu ý:
 | 256 | `UT-WEB-68` | Kiểm tra PUT state chuyển đúng actor/role và trả metadata cùng dữ liệu store. |
 | 257 | `UT-WEB-69` | Kiểm tra sync conflict trả 409 cùng state key và timestamp mong đợi/hiện tại. |
 | 258 | `UT-WEB-70` | Kiểm tra PUT state từ chối JSON không phải object với status 400. |
+| 259 | `UT-WEB-71` | Kiểm tra transaction create vẫn yêu cầu session có quyền dù login toggle đang tắt. |
+| 260 | `UT-WEB-72` | Kiểm tra transaction create từ chối staff không có quyền điều chỉnh tồn. |
+| 261 | `UT-WEB-73` | Kiểm tra transaction create chuyển actor/batch data và trả status 201 cùng summary. |
+| 262 | `UT-WEB-74` | Kiểm tra transaction create ánh xạ product ID không hợp lệ thành 400. |
 
 
 

@@ -338,3 +338,8 @@ admin tùy chỉnh không bị rơi về frontend root.
   `SyncConflictError` 409 và validation 400; `UT-WEB-67..70` pass.
   Kết quả: `tests.test_flask_app` 70/70 pass, full unit 210/210 pass,
   `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.
+- Đang chuyển `POST /api/transactions`, giữ quyền inventory adjustment luôn
+  yêu cầu session, actor username, batch/expiry data và response 201;
+  `UT-WEB-71..74` pass. Kết quả: `tests.test_flask_app` 74/74 pass, full unit
+  214/214 pass, `py_compile` và `git diff --check` pass; đã chốt thành commit
+  riêng trong Issue #182.
