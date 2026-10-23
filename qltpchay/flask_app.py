@@ -278,6 +278,30 @@ def create_app(
             return None
         return jsonify({"error": error_message}), 401
 
+    def require_document_cancel_approval() -> Response | tuple[Response, int] | None:
+        if not current_app.config["SYSTEM_CONFIG"].get("EnableLogin"):
+            return jsonify({
+                "error": "Cần bật EnableLogin để dùng luồng hủy có phê duyệt."
+            }), 400
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        permissions = {
+            str(permission or "").strip()
+            for permission in ((session or {}).get("permissions") or [])
+            if str(permission or "").strip()
+        }
+        if (
+            str((session or {}).get("role") or "") == "admin"
+            or "document_cancel_approve" in permissions
+        ):
+            return None
+        return jsonify({"error": "Tài khoản này không có quyền duyệt yêu cầu hủy chứng từ."}), 401
+
     def current_actor_name() -> str:
         session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
             get_session_token(),
@@ -1216,6 +1240,60 @@ def create_app(
     @app.post(f"{admin_path}/api/purchases/<document_id>/cancel-request")
     def create_purchase_cancel_request(document_id: str):
         return submit_document_cancel_request("purchase", document_id)
+
+    @app.post("/api/document-cancel-requests/<request_id>/approve")
+    @app.post(f"{admin_path}/api/document-cancel-requests/<request_id>/approve")
+    def approve_document_cancel_request(request_id: str):
+        auth_error = require_document_cancel_approval()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        try:
+            result = store.approve_document_cancel_request(
+                request_id,
+                actor=str((session or {}).get("username") or ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã duyệt và hủy chứng từ.",
+            **result,
+            "document_cancel_requests": store.list_document_cancel_requests(limit=30),
+            "summary": store.get_summary(),
+            **store.get_sync_state(),
+        })
+
+    @app.post("/api/document-cancel-requests/<request_id>/reject")
+    @app.post(f"{admin_path}/api/document-cancel-requests/<request_id>/reject")
+    def reject_document_cancel_request(request_id: str):
+        auth_error = require_document_cancel_approval()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            payload = {}
+        store = current_app.extensions["qltpchay.store"]
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        try:
+            request_doc = store.reject_document_cancel_request(
+                request_id,
+                actor=str((session or {}).get("username") or ""),
+                reason=payload.get("reason", ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã từ chối yêu cầu hủy chứng từ.",
+            "request": request_doc,
+            "document_cancel_requests": store.list_document_cancel_requests(limit=30),
+        })
 
     @app.post("/api/orders/bulk-create")
     @app.post(f"{admin_path}/api/orders/bulk-create")

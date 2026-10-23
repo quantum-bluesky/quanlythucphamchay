@@ -329,6 +329,9 @@ Lưu ý:
 | 278 | `UT-WEB-90` | Kiểm tra cancel request từ chối khi `EnableLogin` tắt. |
 | 279 | `UT-WEB-91` | Kiểm tra order cancel request lưu actor/request và trả message mail sent. |
 | 280 | `UT-WEB-92` | Kiểm tra purchase cancel request vẫn trả 201 kèm warning khi mail gửi lỗi. |
+| 281 | `UT-WEB-93` | Kiểm tra document cancel approval yêu cầu bật login và permission chuyên biệt. |
+| 282 | `UT-WEB-94` | Kiểm tra approve document cancel trả dữ liệu đồng bộ và summary mới. |
+| 283 | `UT-WEB-95` | Kiểm tra reject document cancel chuyển actor/reason và trả request cập nhật. |
 
 
 

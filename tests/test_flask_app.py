@@ -1716,6 +1716,86 @@ class FlaskAppFactoryTests(unittest.TestCase):
         )
         self.assertEqual(result["request"], request_doc)
 
+    def test_ut_web_93_document_cancel_approval_requires_login_and_permission(self):
+        app = self.build_app("cancel-approval-requires-login")
+        disabled = app.test_client().post(
+            "/api/document-cancel-requests/request-93/approve",
+            json={},
+        )
+        self.assertEqual(disabled.status_code, 400)
+        self.assertEqual(
+            disabled.get_json(),
+            {"error": "Cần bật EnableLogin để dùng luồng hủy có phê duyệt."},
+        )
+
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        denied = client.post(
+            "/api/document-cancel-requests/request-93/approve",
+            json={},
+        )
+        self.assertEqual(denied.status_code, 401)
+        self.assertEqual(
+            denied.get_json(),
+            {"error": "Tài khoản này không có quyền duyệt yêu cầu hủy chứng từ."},
+        )
+
+    def test_ut_web_94_approve_document_cancel_returns_sync_state_and_summary(self):
+        app = self.build_app("cancel-approval-admin")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        approved = {"cancelled": True, "request": {"id": "request-94"}}
+        sync_state = {"carts": [], "purchases": []}
+        with patch.object(store, "approve_document_cancel_request", return_value=approved) as approve, patch.object(
+            store, "list_document_cancel_requests", return_value=[]
+        ), patch.object(store, "get_sync_state", return_value=sync_state):
+            response = client.post(
+                "/control-room/api/document-cancel-requests/request-94/approve",
+                json={},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["message"], "Đã duyệt và hủy chứng từ.")
+        self.assertTrue(result["cancelled"])
+        self.assertEqual(result["carts"], [])
+        self.assertEqual(approve.call_args.kwargs["actor"], "test-admin")
+
+    def test_ut_web_95_reject_document_cancel_passes_reason(self):
+        app = self.build_app("cancel-reject-admin")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        request_doc = {"id": "request-95", "status": "rejected"}
+        with patch.object(store, "reject_document_cancel_request", return_value=request_doc) as reject, patch.object(
+            store, "list_document_cancel_requests", return_value=[request_doc]
+        ):
+            response = client.post(
+                "/api/document-cancel-requests/request-95/reject",
+                json={"reason": "Không đủ căn cứ."},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["request"], request_doc)
+        self.assertEqual(reject.call_args.kwargs["actor"], "test-admin")
+        self.assertEqual(reject.call_args.kwargs["reason"], "Không đủ căn cứ.")
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

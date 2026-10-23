@@ -339,6 +339,9 @@ Mục tiêu:
 | 278 | `UT-WEB-90` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_90_cancel_request_requires_login_configuration` |
 | 279 | `UT-WEB-91` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_91_order_cancel_request_keeps_request_and_mail_success_message` |
 | 280 | `UT-WEB-92` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_92_purchase_cancel_request_preserves_request_when_mail_fails` |
+| 281 | `UT-WEB-93` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_93_document_cancel_approval_requires_login_and_permission` |
+| 282 | `UT-WEB-94` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_94_approve_document_cancel_returns_sync_state_and_summary` |
+| 283 | `UT-WEB-95` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_95_reject_document_cancel_passes_reason` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

@@ -363,3 +363,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   notification semantics; `UT-WEB-90..92` pass với email boundary mock.
   Kết quả: `tests.test_flask_app` 92/92 pass, full unit 232/232 pass,
   `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.
+- Đang chuyển approve/reject document-cancel requests, giữ permission
+  `document_cancel_approve`, sync-state response và reason; `UT-WEB-93..95`
+  pass. Kết quả: `tests.test_flask_app` 95/95 pass, full unit 235/235 pass,
+  `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.

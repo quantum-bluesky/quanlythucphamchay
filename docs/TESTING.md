@@ -120,6 +120,8 @@ Các endpoint delete/process bulk request giữ quy tắc owner hoặc manager, 
 gate khi bật login và inventory summary sau khi xử lý.
 Cancel request của đơn/phiếu nhập yêu cầu `EnableLogin`, lưu actor/reason trước,
 gửi mail qua boundary mockable và giữ response 201/warning khi SMTP lỗi.
+Approve/reject document-cancel request yêu cầu `document_cancel_approve`, giữ
+response sync state + summary khi approve và actor/reason khi reject.
 
 Chạy riêng nhóm này:
 
