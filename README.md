@@ -2,11 +2,12 @@
 
 Ứng dụng web nhẹ để theo dõi tồn kho thực phẩm chay đông lạnh. Backend dùng Flask, Waitress và SQLite; không dùng ORM.
 
-App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/qltp/`. Nếu proxy giữ prefix khi forward, đặt `APP_URL_PREFIX=/qltp` để Waitress chuyển prefix thành WSGI `SCRIPT_NAME`; nếu proxy đã strip prefix, để biến này trống. Xem [hướng dẫn deploy Windows](docs/DEPLOY_WINDOWS.md#71-chạy-sau-reverse-proxy-ở-subpath).
+App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/qltp/`. Nếu proxy giữ prefix khi forward, đặt `APP_URL_PREFIX=/qltp` để Waitress chuyển prefix thành WSGI `SCRIPT_NAME`; nếu proxy đã strip prefix, để biến này trống. Xem hướng dẫn [deploy Windows](docs/DEPLOY_WINDOWS.md#71-chạy-sau-reverse-proxy-ở-subpath) hoặc [cài đặt Debian](docs/DEPLOY_DEBIAN.md).
 
 ## Tài liệu
 
 - Deploy Windows: [docs/DEPLOY_WINDOWS.md](docs/DEPLOY_WINDOWS.md)
+- Deploy Debian: [docs/DEPLOY_DEBIAN.md](docs/DEPLOY_DEBIAN.md)
 - Hướng dẫn sử dụng: [docs/HUONG_DAN_SU_DUNG.md](docs/HUONG_DAN_SU_DUNG.md)
 - Tài liệu tham chiếu API: [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
 - Bảng thuật ngữ Anh - Việt: [docs/TERM_GLOSSARY.md](docs/TERM_GLOSSARY.md)
