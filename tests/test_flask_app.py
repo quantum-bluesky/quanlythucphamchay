@@ -442,6 +442,36 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("invalid literal", response.get_json()["error"])
 
+    def test_ut_web_28_receipt_history_route_forwards_filters(self):
+        app = self.build_app("receipt-history-route")
+        store = app.extensions["qltpchay.store"]
+        expected = [{"receipt_code": "receipt-test", "receipt_type": "purchase"}]
+        with patch.object(store, "get_receipt_history", return_value=expected) as get_history:
+            response = app.test_client().get(
+                "/api/receipts/history?limit=12&receipt_type=purchase"
+                "&start_date=2026-01-01&end_date=2026-10-01"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"history": expected})
+        get_history.assert_called_once_with(
+            limit=12,
+            receipt_type="purchase",
+            start_date="2026-01-01",
+            end_date="2026-10-01",
+        )
+
+    def test_ut_web_29_transactions_route_forwards_limit_and_response(self):
+        app = self.build_app("transactions-route")
+        store = app.extensions["qltpchay.store"]
+        expected = [{"id": "transaction-test", "quantity": 3}]
+        with patch.object(store, "get_transactions", return_value=expected) as get_transactions:
+            response = app.test_client().get("/api/transactions?limit=37")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"transactions": expected})
+        get_transactions.assert_called_once_with(limit=37)
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

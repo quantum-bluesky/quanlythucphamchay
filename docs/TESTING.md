@@ -71,6 +71,8 @@ và nhận session qua cookie hiện hành; request passive không gia hạn ses
 giữ schema response và bộ lọc actor/date/limit hiện có.
 `GET /api/product-movements` giữ các bộ lọc ngày/loại/keyword và ánh xạ đầu vào
 không hợp lệ thành status 400.
+`GET /api/receipts/history` và `GET /api/transactions` giữ wrapper JSON và chuyển
+limit cùng các bộ lọc lịch sử sang `InventoryStore`.
 
 Chạy riêng nhóm này:
 

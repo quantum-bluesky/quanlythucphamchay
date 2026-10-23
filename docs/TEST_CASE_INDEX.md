@@ -274,6 +274,8 @@ Mục tiêu:
 | 213 | `UT-WEB-25` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_25_product_history_route_preserves_filters_and_shape` |
 | 214 | `UT-WEB-26` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_26_product_movements_route_forwards_filters_and_response` |
 | 215 | `UT-WEB-27` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_27_product_movements_route_maps_invalid_product_id_to_400` |
+| 216 | `UT-WEB-28` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_28_receipt_history_route_forwards_filters` |
+| 217 | `UT-WEB-29` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_29_transactions_route_forwards_limit_and_response` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

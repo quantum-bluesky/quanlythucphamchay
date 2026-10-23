@@ -487,6 +487,32 @@ def create_app(
             return jsonify({"error": str(error)}), 400
         return jsonify(result)
 
+    @app.get("/api/receipts/history")
+    @app.get(f"{admin_path}/api/receipts/history")
+    def get_receipt_history():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        history = store.get_receipt_history(
+            limit=int(request.args.get("limit", "40")),
+            receipt_type=request.args.get("receipt_type", ""),
+            start_date=request.args.get("start_date"),
+            end_date=request.args.get("end_date"),
+        )
+        return jsonify({"history": history})
+
+    @app.get("/api/transactions")
+    @app.get(f"{admin_path}/api/transactions")
+    def get_transactions():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        return jsonify(
+            {"transactions": store.get_transactions(limit=int(request.args.get("limit", "20")))}
+        )
+
     @app.get("/api/public/orders")
     @app.get(f"{admin_path}/api/public/orders")
     def public_orders():

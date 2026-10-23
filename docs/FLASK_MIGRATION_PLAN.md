@@ -232,6 +232,8 @@ admin tùy chỉnh không bị rơi về frontend root.
   lọc history theo limit, actor và ngày; các endpoint dùng chung auth gate.
 - Đã chuyển `GET /api/product-movements`, giữ query filters và lỗi 400 khi product
   ID không hợp lệ; endpoint dùng chung auth gate.
+- Đã chuyển `GET /api/receipts/history` và `GET /api/transactions`, giữ response
+  wrappers và query parameters; hai endpoint dùng chung auth gate.
 - Runtime factory đọc config theo `APP_ENV` khi được gọi; test mode bắt buộc config
   được inject, không tự đọc config runtime.
 - `tests/test_flask_app.py`: `UT-WEB-01..14` xác nhận admin path tùy chỉnh, root
@@ -263,3 +265,6 @@ admin tùy chỉnh không bị rơi về frontend root.
   `py_compile` và `git diff --check` pass.
 - Thêm `GET /api/product-movements`; kết quả hiện tại: Flask test module 27/27
   pass, full unit 167/167 pass, `py_compile` và `git diff --check` pass.
+- Thêm `GET /api/receipts/history` và `GET /api/transactions`; kết quả hiện tại:
+  Flask test module 29/29 pass, full unit 169/169 pass, `py_compile` và
+  `git diff --check` pass.

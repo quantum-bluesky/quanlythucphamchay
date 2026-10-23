@@ -264,6 +264,8 @@ Lưu ý:
 | 213 | `UT-WEB-25` | Kiểm tra `GET /api/products/history` giữ bộ lọc actor/limit và các trường history của sản phẩm. |
 | 214 | `UT-WEB-26` | Kiểm tra `GET /api/product-movements` chuyển đầy đủ bộ lọc và giữ nguyên response từ `InventoryStore`. |
 | 215 | `UT-WEB-27` | Kiểm tra `GET /api/product-movements` trả 400 khi product ID không hợp lệ. |
+| 216 | `UT-WEB-28` | Kiểm tra `GET /api/receipts/history` chuyển limit, loại phiếu và khoảng ngày tới store, giữ wrapper `history`. |
+| 217 | `UT-WEB-29` | Kiểm tra `GET /api/transactions` chuyển limit và giữ wrapper `transactions`. |
 
 
 
