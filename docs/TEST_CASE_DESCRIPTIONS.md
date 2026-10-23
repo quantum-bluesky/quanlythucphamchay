@@ -237,6 +237,20 @@ Lưu ý:
 | 186 | `UT-ADM-EDIT-01..05` | Backend kiểm tra role/lý do/trạng thái, điều chỉnh tăng/giảm tồn theo dòng hàng, thêm/xóa/thay mặt hàng, khóa giảm lượng đã tiêu thụ, giữ nguyên khách/NCC và bảo toàn khả năng hủy phiếu nhập sau chỉnh sửa. |
 | 187 | `UT-AUTH-18` | Kiểm tra API đọc/sửa cấu hình mail yêu cầu Master Admin, không trả mật khẩu, giữ mật khẩu hiện có khi payload để trống và nhận mật khẩu mới; endpoint test mail dùng cấu hình vừa lưu và mock SMTP. |
 | 188 | `ACC-ADM-04` | Kiểm tra màn Master Admin tải cấu hình và báo môi trường, tải lại cấu hình, không điền mật khẩu đã lưu, cho lưu mật khẩu mới, hỏi xác nhận gửi và hiện kết quả cùng diagnostics từ response mock; test không gửi email thật. |
+| 189 | `UT-WEB-01` | Dùng `admin_path` tùy chỉnh, xác nhận route đó phục vụ form admin, `/` tiếp tục phục vụ giao diện public và `/admin` không tự được coi là route admin. |
+| 190 | `UT-WEB-02` | Tạo hai app factory với DB và admin path riêng; xác nhận mỗi app chỉ mở route admin được cấu hình và không dùng chung DB. |
+| 191 | `UT-WEB-03` | Xác nhận app ở `testing=True` từ chối đường dẫn DB runtime `data/inventory.db`. |
+| 192 | `UT-WEB-04` | Kiểm tra route Flask `GET /api/public/products`: giữ schema catalog/lunar/settings, chỉ trả sản phẩm public và dùng config được inject vào app. |
+| 193 | `UT-WEB-05` | Xác nhận factory ở test mode bắt buộc nhận config test tường minh thay vì tự đọc config runtime. |
+| 194 | `UT-WEB-06` | Kiểm tra `GET /api/public/orders` giữ lỗi 400 và schema thông báo khi thiếu cả số điện thoại lẫn Zalo ID. |
+| 195 | `UT-WEB-07` | Kiểm tra runtime factory yêu cầu module config loader đọc đúng `CONFIG_PATH` đã chọn theo `APP_ENV`, với DB/manifest test tạm. |
+| 196 | `UT-WEB-08` | Xác nhận exception ngoài ý muốn được ghi qua `qltpchay.logger` với `exc_info=True`, trả JSON 500 ổn định và không lộ chi tiết exception. |
+| 197 | `UT-WEB-09` | Xác nhận mọi DB trong `data/` đều bị chặn ở test mode, không chỉ đúng `inventory.db`. |
+| 198 | `UT-WEB-10` | Kiểm tra asset URL dưới configured admin prefix (ví dụ `/backoffice/static/...`) vẫn trả đúng nội dung như URL gốc. |
+| 199 | `UT-WEB-11` | Kiểm tra admin login qua admin prefix, cookie port-scoped, session status và logout/clear cookie theo contract hiện hành. |
+| 200 | `UT-WEB-12` | Xác nhận normal user bị từ chối ở admin login nhưng vẫn đăng nhập được qua session login với permissions. |
+| 201 | `UT-WEB-13` | Chạy Flask WSGI app qua loopback server thật; xác nhận admin path trả form admin và `/` vẫn trả trang public. |
+| 202 | `UT-WEB-14` | So sánh nguyên response JSON `GET /backoffice/api/session/status` giữa Flask test client và HTTP handler cũ với cùng config/session. |
 
 
 

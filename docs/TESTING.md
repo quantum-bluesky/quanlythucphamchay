@@ -41,6 +41,34 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 
 
 ## 1. Unit test
 
+### Flask migration factory
+
+Các test mới cho app factory Flask nằm trong `tests/test_flask_app.py` và chạy cùng
+`unittest`. Cài dependencies theo `requirements.txt` vào đúng Python environment
+trước khi chạy; không cài vào Python global chỉ để chạy test. Factory nhận DB,
+system config và asset manifest tường minh. Test dùng DB/manifest/thư mục ảnh ở
+`tempfile`; `testing=True` sẽ từ chối các đường dẫn runtime trong `data/` và bắt
+buộc nhận system config test tường minh. Runtime factory chỉ đọc config theo
+`APP_ENV` khi được gọi. Test admin dùng `admin_path` riêng và xác nhận trang admin
+khác trang public root.
+Session/admin login, port-scoped cookie, status payload và logout hiện có test Flask
+riêng; admin login phải từ chối tài khoản user thường.
+`UT-WEB-13` cũng gửi HTTP request qua WSGI server loopback thật để kiểm tra
+admin/public routing ngoài Flask test client.
+`UT-WEB-14` so sánh nguyên payload session status của Flask với legacy HTTP
+handler trên cùng config và session manager.
+Route `GET /api/public/products` đã có kiểm tra schema, lọc sản phẩm public,
+thông tin âm lịch và settings lấy từ config injected. `GET /api/public/orders` có
+kiểm thử contract cho phản hồi 400 khi thiếu thông tin tra cứu. Exception Flask
+được kiểm tra dùng `qltpchay.logger` với stack trace trong server log, còn response
+500 không chứa chi tiết nội bộ.
+
+Chạy riêng nhóm này:
+
+```powershell
+python -m unittest tests.test_flask_app
+```
+
 ### Cách chạy nhanh gọn (Khuyến nghị để tiết kiệm token và giữ console sạch)
 
 Chạy qua wrapper summary (toàn bộ log chi tiết được tự động lưu vào `logs/test-unit-<timestamp>.log`, chỉ in kết quả tóm tắt và lỗi cốt lõi ra console):

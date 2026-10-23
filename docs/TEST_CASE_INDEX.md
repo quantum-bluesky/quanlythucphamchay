@@ -243,7 +243,26 @@ Mục tiêu:
 | 184 | `IT-ORDER-01` | `tests/integration/cross-client-sync.spec.js` | `npx playwright test tests/integration/cross-client-sync.spec.js --grep IT-ORDER-01` |
 | 185 | `IT-ADM-EDIT-01` | `tests/integration/test-admin-edit.spec.js` | `node node_modules/@playwright/test/cli.js test tests/integration/test-admin-edit.spec.js --grep IT-ADM-EDIT-01` |
 
-## 3. Lệnh chạy nhanh theo nhóm
+## 3. Test factory Flask
+
+| STT | Case code | File spec / test | Lệnh chạy nhanh |
+| --- | --- | --- | --- |
+| 189 | `UT-WEB-01` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_01_custom_admin_path_serves_admin_ui_and_root_stays_public` |
+| 190 | `UT-WEB-02` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_02_factory_instances_keep_database_and_admin_route_independent` |
+| 191 | `UT-WEB-03` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_03_testing_factory_rejects_runtime_database` |
+| 192 | `UT-WEB-04` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_04_public_catalog_json_shape_and_filtering` |
+| 193 | `UT-WEB-05` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_05_testing_factory_requires_injected_system_config` |
+| 194 | `UT-WEB-06` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_06_public_order_lookup_requires_contact_identifier` |
+| 195 | `UT-WEB-07` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_07_runtime_factory_uses_environment_selected_config_path` |
+| 196 | `UT-WEB-08` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_08_unexpected_errors_use_project_logger_and_safe_response` |
+| 197 | `UT-WEB-09` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_09_testing_factory_rejects_any_database_under_data_dir` |
+| 198 | `UT-WEB-10` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_10_admin_subpath_static_asset_aliases` |
+| 199 | `UT-WEB-11` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_11_admin_session_login_cookie_status_and_logout` |
+| 200 | `UT-WEB-12` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_12_admin_login_rejects_normal_user_but_session_login_allows_it` |
+| 201 | `UT-WEB-13` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_13_wsgi_request_smoke_for_admin_and_public_routes` |
+| 202 | `UT-WEB-14` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_14_session_status_matches_legacy_handler_contract` |
+
+## 4. Lệnh chạy nhanh theo nhóm
 
 ### Chạy một case integration
 

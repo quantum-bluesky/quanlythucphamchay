@@ -22,9 +22,15 @@ Các quy tắc này áp dụng trước khi Agent đọc sâu, sửa code hoặc
 - Giữ format response JSON theo endpoint lân cận và test hiện có. Trước khi đổi field/status/error payload, tìm các consumer frontend/test và cập nhật đồng bộ. Lỗi HTTP phải có status phù hợp; exception hệ thống cần log bằng `qltpchay.logger` với `exc_info=True` theo `AGENTS.md`, không trả traceback/secret cho client.
 - Không log mật khẩu, token, cookie, dữ liệu nhạy cảm hoặc toàn bộ request body tùy tiện. Dùng logger hiện hành `qltpchay.logger`; không thêm logging framework khác hoặc chuyển ngầm sang `app.logger`.
 
-### Flask khi được đưa vào trong tương lai
+### Flask trong giai đoạn chuyển đổi
 
-Chỉ áp dụng mục này sau khi xác nhận app factory, Flask version và cấu hình Flask đã thực sự tồn tại trong repo. Khi đó, tuân theo convention hiện hành của project; nếu chưa có convention thì trước khi mở rộng Flask routes, thống nhất một mẫu duy nhất: route/Blueprint mỏng, validation/HTTP mapping ở tầng web, nghiệp vụ ở service, persistence ở model/repository. Không nhét SQL/nghiệp vụ vào route.
+`qltpchay/flask_app.py` hiện có app factory thử nghiệm; runtime mặc định vẫn dùng `http.server` cho đến khi hoàn tất route parity và cutover. Mọi route Flask mới phải được tạo trong `create_app` hoặc Blueprint đăng ký từ factory, route mỏng, giữ nghiệp vụ/persistence trong `InventoryStore` hoặc service hiện hữu. Không tạo ORM/database model song song.
+
+- Factory phải nhận `database_path` và `system_config` tường minh; không tự chọn DB/config runtime khi tạo app.
+- Test factory phải dùng DB, asset manifest, config và thư mục ảnh trong thư mục tạm. `testing=True` phải từ chối `data/inventory.db`, manifest runtime, config runtime và thư mục ảnh runtime.
+- Giữ URL admin lấy từ `system_config["admin_path"]`; không coi `/` là trang admin. Test admin phải yêu cầu đúng URL admin cấu hình và xác nhận nội dung trang admin trước thao tác.
+- Chưa chuyển endpoint nghiệp vụ sang Flask trừ khi có test parity cho status, payload, cookie/header, quyền và side effects so với HTTP handler hiện tại.
+- Convention Flask đã có cho factory: truy cập dependency qua `current_app.extensions["qltpchay.store"]` trong request context; ngoài request phải nhận object/dependency rõ ràng. Không dùng proxy context ở import-time hoặc background thread.
 
 ```python
 # DO: chỉ dùng context proxy trong request/app context; truyền dependency ngoài request.
