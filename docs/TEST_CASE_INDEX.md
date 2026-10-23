@@ -332,6 +332,10 @@ Mục tiêu:
 | 271 | `UT-WEB-83` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_83_approve_bulk_request_requires_manager_permission` |
 | 272 | `UT-WEB-84` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_84_approve_bulk_request_returns_request_and_queue` |
 | 273 | `UT-WEB-85` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_85_reject_bulk_request_passes_reason_and_manager_actor` |
+| 274 | `UT-WEB-86` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_86_bulk_request_owner_can_delete_own_pending_request` |
+| 275 | `UT-WEB-87` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_87_bulk_request_delete_rejects_non_owner` |
+| 276 | `UT-WEB-88` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_88_bulk_request_owner_can_process_approved_request` |
+| 277 | `UT-WEB-89` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_89_bulk_request_process_returns_400_when_missing` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

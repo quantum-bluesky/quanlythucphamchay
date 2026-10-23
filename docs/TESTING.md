@@ -116,6 +116,8 @@ giữ response tạo/chốt đơn, quick summary, actor username và lỗi valid
 approval request, alias camelCase, duplicate response `409` và allow-duplicates.
 Các endpoint approve/reject yêu cầu `order_batch_manage`, giữ actor/reason và
 response request cùng queue cập nhật.
+Các endpoint delete/process bulk request giữ quy tắc owner hoặc manager, auth
+gate khi bật login và inventory summary sau khi xử lý.
 
 Chạy riêng nhóm này:
 

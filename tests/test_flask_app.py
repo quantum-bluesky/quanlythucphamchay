@@ -1558,6 +1558,86 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(reject.call_args.kwargs["actor"], "staff")
         self.assertEqual(reject.call_args.kwargs["reason"], "Thiếu thông tin.")
 
+    def test_ut_web_86_bulk_request_owner_can_delete_own_pending_request(self):
+        app = self.build_app("bulk-delete-owner")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        request_doc = {"id": "request-86", "requested_by": "staff"}
+        deleted = {"id": "request-86", "status": "deleted"}
+        with patch.object(store, "get_bulk_order_request", return_value=request_doc), patch.object(
+            store, "delete_bulk_order_request", return_value=deleted
+        ) as delete, patch.object(store, "list_bulk_order_requests", return_value=[]):
+            response = client.post("/api/orders/bulk-requests/request-86/delete", json={})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["request"], deleted)
+        self.assertEqual(delete.call_args.kwargs, {"actor": "staff", "can_manage": False})
+
+    def test_ut_web_87_bulk_request_delete_rejects_non_owner(self):
+        app = self.build_app("bulk-delete-not-owner")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        with patch.object(
+            store,
+            "get_bulk_order_request",
+            return_value={"id": "request-87", "requested_by": "another-user"},
+        ):
+            response = client.post("/api/orders/bulk-requests/request-87/delete", json={})
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Chỉ owner hoặc user quản lý mới được xóa yêu cầu xuất nhanh này."},
+        )
+
+    def test_ut_web_88_bulk_request_owner_can_process_approved_request(self):
+        app = self.build_app("bulk-process-owner")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        result = {"processed_count": 2}
+        with patch.object(
+            store,
+            "get_bulk_order_request",
+            return_value={"id": "request-88", "requested_by": "staff"},
+        ), patch.object(store, "process_bulk_order_request", return_value=result) as process, patch.object(
+            store, "list_bulk_order_requests", return_value=[]
+        ):
+            response = client.post("/control-room/api/orders/bulk-requests/request-88/process", json={})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["processed_count"], 2)
+        self.assertEqual(process.call_args.kwargs["actor"], "staff")
+
+    def test_ut_web_89_bulk_request_process_returns_400_when_missing(self):
+        app = self.build_app("bulk-process-missing")
+        store = app.extensions["qltpchay.store"]
+        with patch.object(store, "get_bulk_order_request", return_value=None):
+            response = app.test_client().post(
+                "/api/orders/bulk-requests/missing/process",
+                json={},
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Không tìm thấy yêu cầu xuất nhanh."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

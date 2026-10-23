@@ -322,6 +322,10 @@ Lưu ý:
 | 271 | `UT-WEB-83` | Kiểm tra approve bulk request từ chối tài khoản thiếu quyền manager. |
 | 272 | `UT-WEB-84` | Kiểm tra Master Admin duyệt bulk request và trả queue mới. |
 | 273 | `UT-WEB-85` | Kiểm tra reject bulk request chuyển lý do và actor của manager tới store. |
+| 274 | `UT-WEB-86` | Kiểm tra owner xóa request bulk của mình và store nhận cờ manager=false. |
+| 275 | `UT-WEB-87` | Kiểm tra user khác owner không được xóa request bulk. |
+| 276 | `UT-WEB-88` | Kiểm tra owner xử lý bulk request đã duyệt và response trả inventory summary. |
+| 277 | `UT-WEB-89` | Kiểm tra xử lý bulk request không tồn tại trả 400. |
 
 
 

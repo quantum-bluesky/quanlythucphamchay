@@ -355,3 +355,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   actor, reason và queue response; `UT-WEB-83..85` pass. Kết quả:
   `tests.test_flask_app` 85/85 pass, full unit 225/225 pass, `py_compile` và
   `git diff --check` pass; đã chốt thành commit riêng.
+- Đang chuyển delete/process bulk requests, giữ owner-or-manager permission,
+  login gate và inventory summary; `UT-WEB-86..89` pass. Kết quả:
+  `tests.test_flask_app` 89/89 pass, full unit 229/229 pass, `py_compile` và
+  `git diff --check` pass; đã chốt thành commit riêng.

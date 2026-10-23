@@ -1278,6 +1278,83 @@ def create_app(
             "bulk_order_requests": store.list_bulk_order_requests(limit=30),
         })
 
+    @app.post("/api/orders/bulk-requests/<request_id>/delete")
+    @app.post(f"{admin_path}/api/orders/bulk-requests/<request_id>/delete")
+    def delete_bulk_order_request(request_id: str):
+        if current_app.config["SYSTEM_CONFIG"].get("EnableLogin"):
+            auth_error = require_authenticated_session()
+            if auth_error is not None:
+                return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        request_doc = store.get_bulk_order_request(request_id)
+        if not request_doc:
+            return jsonify({"error": "Không tìm thấy yêu cầu xuất nhanh."}), 400
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        username = str((session or {}).get("username") or "")
+        permissions = {
+            str(permission or "").strip()
+            for permission in ((session or {}).get("permissions") or [])
+            if str(permission or "").strip()
+        }
+        can_manage = str((session or {}).get("role") or "") == "admin" or "order_batch_manage" in permissions
+        if not (can_manage or username == str(request_doc.get("requested_by") or "").strip()):
+            return jsonify({
+                "error": "Chỉ owner hoặc user quản lý mới được xóa yêu cầu xuất nhanh này."
+            }), 401
+        try:
+            deleted_request = store.delete_bulk_order_request(
+                request_id,
+                actor=username,
+                can_manage=can_manage,
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã xóa yêu cầu xuất nhanh chờ duyệt.",
+            "request": deleted_request,
+            "bulk_order_requests": store.list_bulk_order_requests(limit=30),
+        })
+
+    @app.post("/api/orders/bulk-requests/<request_id>/process")
+    @app.post(f"{admin_path}/api/orders/bulk-requests/<request_id>/process")
+    def process_bulk_order_request(request_id: str):
+        if current_app.config["SYSTEM_CONFIG"].get("EnableLogin"):
+            auth_error = require_authenticated_session()
+            if auth_error is not None:
+                return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        request_doc = store.get_bulk_order_request(request_id)
+        if not request_doc:
+            return jsonify({"error": "Không tìm thấy yêu cầu xuất nhanh."}), 400
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        username = str((session or {}).get("username") or "")
+        permissions = {
+            str(permission or "").strip()
+            for permission in ((session or {}).get("permissions") or [])
+            if str(permission or "").strip()
+        }
+        can_manage = str((session or {}).get("role") or "") == "admin" or "order_batch_manage" in permissions
+        if not (can_manage or username == str(request_doc.get("requested_by") or "").strip()):
+            return jsonify({
+                "error": "Tài khoản này không có quyền xử lý yêu cầu xuất nhanh đã duyệt."
+            }), 401
+        try:
+            result = store.process_bulk_order_request(request_id, actor=username)
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã xử lý yêu cầu xuất nhanh đã duyệt.",
+            **result,
+            "bulk_order_requests": store.list_bulk_order_requests(limit=30),
+            "inventory_summary": store.get_summary(),
+        })
+
     @app.get("/api/orders/bulk-requests/<request_id>/history")
     @app.get(f"{admin_path}/api/orders/bulk-requests/<request_id>/history")
     def get_bulk_order_request_history(request_id: str):
