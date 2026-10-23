@@ -8,6 +8,8 @@ from unittest.mock import patch
 from urllib.request import urlopen
 from wsgiref.simple_server import make_server
 
+from qltpchay.auth import build_port_scoped_cookie_name
+from qltpchay.constants import ADMIN_SESSION_COOKIE
 from qltpchay.constants import DATA_DIR, DB_PATH
 
 
@@ -307,6 +309,67 @@ class FlaskAppFactoryTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.get_json()["cart"]["created_mode"], "online")
+
+    def test_ut_web_20_products_route_returns_products_and_summary(self):
+        app = self.build_app("products-list")
+        store = app.extensions["qltpchay.store"]
+        product = store.create_product(
+            name="Sản phẩm danh mục",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+        )
+
+        response = app.test_client().get("/api/products")
+
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual([row["id"] for row in result["products"]], [product["id"]])
+        self.assertEqual(result["summary"]["product_count"], 1)
+
+    def test_ut_web_21_products_route_requires_session_when_login_is_enabled(self):
+        app = self.build_app("products-auth-required")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+
+        response = app.test_client().get("/api/products")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập hệ thống."})
+
+    def test_ut_web_22_products_route_accepts_authenticated_session(self):
+        app = self.build_app("products-authenticated")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+
+        response = client.get("/api/products")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("products", response.get_json())
+        self.assertIn("summary", response.get_json())
+
+    def test_ut_web_23_passive_products_request_does_not_extend_session(self):
+        app = self.build_app("products-passive-session")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        sessions = app.extensions["qltpchay.admin_sessions"]
+        session = sessions.login("staff", "staff-test-password")
+        client = app.test_client()
+        cookie_name = build_port_scoped_cookie_name(ADMIN_SESSION_COOKIE, "localhost")
+        client.set_cookie(cookie_name, session["token"])
+        last_activity_before = sessions._sessions[session["token"]]["last_activity_at"]
+
+        response = client.get("/api/products", headers={"X-Session-Activity": "passive"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            sessions._sessions[session["token"]]["last_activity_at"],
+            last_activity_before,
+        )
 
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")

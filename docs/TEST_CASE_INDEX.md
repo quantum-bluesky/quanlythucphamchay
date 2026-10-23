@@ -266,6 +266,10 @@ Mục tiêu:
 | 205 | `UT-WEB-17` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_17_public_order_submission_maps_store_validation_to_400` |
 | 206 | `UT-WEB-18` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_18_public_order_submission_logs_and_hides_unexpected_error` |
 | 207 | `UT-WEB-19` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_19_public_order_submission_supports_admin_prefix_alias` |
+| 208 | `UT-WEB-20` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_20_products_route_returns_products_and_summary` |
+| 209 | `UT-WEB-21` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_21_products_route_requires_session_when_login_is_enabled` |
+| 210 | `UT-WEB-22` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_22_products_route_accepts_authenticated_session` |
+| 211 | `UT-WEB-23` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_23_passive_products_request_does_not_extend_session` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

@@ -65,6 +65,8 @@ kiểm thử contract cho phản hồi 400 khi thiếu thông tin tra cứu. Exc
 `POST /api/public/orders` kiểm tra tạo đơn online qua `InventoryStore`, yêu cầu
 Zalo theo config injected, ánh xạ lỗi validation sang 400, lỗi bất ngờ sang JSON
 500 an toàn và hỗ trợ alias theo admin prefix.
+`GET /api/products` giữ response gồm danh sách và summary, áp dụng `EnableLogin`
+và nhận session qua cookie hiện hành; request passive không gia hạn session.
 
 Chạy riêng nhóm này:
 

@@ -135,6 +135,26 @@ def create_app(
                 return token
         return None
 
+    def require_authenticated_session() -> Response | tuple[Response, int] | None:
+        # #Issue182: Match the legacy API login gate and preserve passive sync session behavior.
+        if not current_app.config["SYSTEM_CONFIG"].get("EnableLogin"):
+            return None
+        should_touch = (
+            str(request.headers.get("X-Session-Activity") or "").strip().lower()
+            != "passive"
+        )
+        session, expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=should_touch,
+        )
+        if session:
+            return None
+        if expired:
+            payload = {"error": "Phiên đăng nhập đã hết hạn.", "session_expired": True}
+        else:
+            payload = {"error": "Cần đăng nhập hệ thống."}
+        return jsonify(payload), 401
+
     def session_status_payload(session_token: str | None = None) -> dict:
         token = session_token if session_token is not None else get_session_token()
         session = current_app.extensions["qltpchay.admin_sessions"].get_session(
@@ -414,6 +434,15 @@ def create_app(
                 },
             }
         )
+
+    @app.get("/api/products")
+    @app.get(f"{admin_path}/api/products")
+    def get_products():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        return jsonify({"products": store.get_products(), "summary": store.get_summary()})
 
     @app.get("/api/public/orders")
     @app.get(f"{admin_path}/api/public/orders")

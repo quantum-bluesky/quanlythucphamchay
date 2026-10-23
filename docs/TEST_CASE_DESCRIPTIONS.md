@@ -256,6 +256,10 @@ Lưu ý:
 | 205 | `UT-WEB-17` | Xác nhận lỗi validation giỏ hàng từ `InventoryStore` được ánh xạ thành JSON 400. |
 | 206 | `UT-WEB-18` | Xác nhận lỗi bất ngờ khi tạo đơn được log với `exc_info=True`, trả JSON 500 chung và không lộ chi tiết nội bộ. |
 | 207 | `UT-WEB-19` | Xác nhận `POST /api/public/orders` vẫn hoạt động qua alias dưới `admin_path` được cấu hình. |
+| 208 | `UT-WEB-20` | Kiểm tra `GET /api/products` trả danh sách sản phẩm và summary theo schema legacy. |
+| 209 | `UT-WEB-21` | Kiểm tra `GET /api/products` trả 401 với response đăng nhập legacy khi `EnableLogin` bật và thiếu session. |
+| 210 | `UT-WEB-22` | Kiểm tra `GET /api/products` chấp nhận session hợp lệ đã đăng nhập qua endpoint Flask. |
+| 211 | `UT-WEB-23` | Xác nhận `X-Session-Activity: passive` cho `GET /api/products` không gia hạn thời gian hoạt động của session. |
 
 
 
