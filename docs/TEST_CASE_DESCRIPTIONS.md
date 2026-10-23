@@ -339,6 +339,9 @@ Lưu ý:
 | 288 | `UT-WEB-100` | Kiểm tra quick-create purchase giữ actor/role, payment flags và response summary. |
 | 289 | `UT-WEB-101` | Kiểm tra mark-paid chuyển payment data cùng actor admin và trả purchase mới. |
 | 290 | `UT-WEB-102` | Kiểm tra purchase payment ánh xạ lỗi validation của store thành 400. |
+| 291 | `UT-WEB-103` | Kiểm tra cart item sync conflict trả 409 và flag conflict legacy. |
+| 292 | `UT-WEB-104` | Kiểm tra cart payment chuyển actor/role và trả cart/carts cập nhật. |
+| 293 | `UT-WEB-105` | Kiểm tra cập nhật HSD dòng phiếu nhập chuyển mode/ngày/actor và trả summary. |
 
 
 

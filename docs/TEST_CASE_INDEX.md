@@ -349,6 +349,9 @@ Mục tiêu:
 | 288 | `UT-WEB-100` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_100_quick_create_purchase_preserves_actor_role_and_response` |
 | 289 | `UT-WEB-101` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_101_mark_purchase_paid_passes_payment_and_actor_fields` |
 | 290 | `UT-WEB-102` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_102_purchase_payment_maps_store_validation_error_to_400` |
+| 291 | `UT-WEB-103` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_103_cart_item_conflict_returns_409_contract` |
+| 292 | `UT-WEB-104` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_104_cart_payment_passes_session_and_returns_updated_cart` |
+| 293 | `UT-WEB-105` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_105_received_item_expiry_preserves_dates_actor_and_summary` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

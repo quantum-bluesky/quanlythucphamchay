@@ -1957,6 +1957,86 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Phiếu nhập không tồn tại."})
 
+    def test_ut_web_103_cart_item_conflict_returns_409_contract(self):
+        from qltpchay.store import SyncConflictError
+
+        app = self.build_app("cart-item-conflict")
+        store = app.extensions["qltpchay.store"]
+        with patch.object(
+            store,
+            "update_cart_item",
+            side_effect=SyncConflictError("carts", "expected", "actual"),
+        ):
+            response = app.test_client().post(
+                "/api/carts/item",
+                json={"cart_id": "cart-103", "item_id": "item-1"},
+            )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.get_json(), {
+            "error": "Dữ liệu carts đã được cập nhật từ máy khác. Vui lòng tải lại trước khi lưu.",
+            "conflict": True,
+        })
+
+    def test_ut_web_104_cart_payment_passes_session_and_returns_updated_cart(self):
+        app = self.build_app("cart-payment")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        payment = {
+            "message": "Đã cập nhật thanh toán.",
+            "cart": {"id": "cart-104", "paymentStatus": "paid"},
+            "carts": [{"id": "cart-104", "paymentStatus": "paid"}],
+        }
+        with patch.object(store, "update_cart_payment", return_value=payment) as update_payment:
+            response = client.post(
+                "/control-room/api/carts/payment",
+                json={"cart_id": "cart-104", "payment_method": "cash", "payment_status": "paid"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["cart"], payment["cart"])
+        self.assertEqual(update_payment.call_args.kwargs["actor_username"], "staff")
+        self.assertEqual(update_payment.call_args.kwargs["actor_role"], "user")
+
+    def test_ut_web_105_received_item_expiry_preserves_dates_actor_and_summary(self):
+        app = self.build_app("received-item-expiry")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        updated = {
+            "purchase": {"id": "purchase-105"},
+            "item": {"id": "item-105", "expiry_date": "2027-01-01"},
+            "purchases": [{"id": "purchase-105"}],
+        }
+        with patch.object(store, "update_received_purchase_item_expiry", return_value=updated) as update_expiry:
+            response = client.post(
+                "/api/purchases/received-item-expiry",
+                json={
+                    "purchase_id": "purchase-105",
+                    "purchase_item_id": "item-105",
+                    "expiry_input_mode": "manufacture",
+                    "manufacture_date": "2026-10-23",
+                    "expiry_date": "2027-01-01",
+                    "expected_updated_at": "v1",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["item"], updated["item"])
+        self.assertEqual(update_expiry.call_args.kwargs["actor"], "staff")
+        self.assertEqual(update_expiry.call_args.kwargs["expiry_input_mode"], "manufacture")
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

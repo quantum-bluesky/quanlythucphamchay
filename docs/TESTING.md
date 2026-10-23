@@ -126,6 +126,8 @@ Ship order/receive purchase áp dụng auth gate hệ thống, giữ actor/role,
 dịch, response schema và status khác nhau; lỗi nghiệp vụ trả 400.
 Quick purchase, mark-paid và purchase payment giữ response/actor/role, payment
 metadata và validation status.
+Cart item updates preserve conflict `409`, cart payment passes session actor/role,
+and received purchase expiry preserves date/actor fields in its response.
 
 Chạy riêng nhóm này:
 

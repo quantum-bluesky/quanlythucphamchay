@@ -1334,6 +1334,98 @@ def create_app(
             "summary": store.get_summary(),
         })
 
+    @app.post("/api/carts/item")
+    @app.post(f"{admin_path}/api/carts/item")
+    def update_cart_item():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.update_cart_item(
+                payload.get("cart_id", ""),
+                payload.get("item_id", ""),
+                payload,
+                actor=current_actor_name(),
+            )
+        except SyncConflictError as error:
+            return jsonify({"error": str(error), "conflict": True}), 409
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify(result)
+
+    @app.post("/api/carts/payment")
+    @app.post(f"{admin_path}/api/carts/payment")
+    def update_cart_payment():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.update_cart_payment(
+                payload.get("cart_id", ""),
+                payment_status=payload.get("payment_status", "paid"),
+                paid_at=payload.get("paid_at"),
+                payment_method=payload.get("payment_method", ""),
+                payment_note=payload.get("payment_note", ""),
+                actor_username=str((session or {}).get("username") or ""),
+                actor_role=str((session or {}).get("role") or ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": result["message"],
+            "cart": result["cart"],
+            "carts": result["carts"],
+            "summary": store.get_summary(),
+        })
+
+    @app.post("/api/purchases/received-item-expiry")
+    @app.post(f"{admin_path}/api/purchases/received-item-expiry")
+    def update_received_purchase_item_expiry():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        store = current_app.extensions["qltpchay.store"]
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        try:
+            result = store.update_received_purchase_item_expiry(
+                payload.get("purchase_id", ""),
+                payload.get("purchase_item_id", ""),
+                expiry_input_mode=payload.get("expiry_input_mode", "direct"),
+                manufacture_date=payload.get("manufacture_date"),
+                expiry_date=payload.get("expiry_date"),
+                expected_updated_at=payload.get("expected_updated_at", ""),
+                actor=str((session or {}).get("username") or ""),
+            )
+        except SyncConflictError as error:
+            return jsonify({"error": str(error), "conflict": True}), 409
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã cập nhật hạn dùng của dòng nhập hàng.",
+            "purchase": result["purchase"],
+            "item": result["item"],
+            "purchases": result["purchases"],
+            "summary": store.get_summary(),
+        })
+
     def submit_document_cancel_request(document_type: str, document_id: str):
         config = current_app.config["SYSTEM_CONFIG"]
         if not config.get("EnableLogin"):
