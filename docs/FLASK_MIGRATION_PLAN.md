@@ -33,8 +33,12 @@ response tương thích.
 ## Giai đoạn 0 — Baseline và kiểm kê
 
 - [x] Ghi lại Python/dependency/runtime, lệnh CLI, cấu hình test và cách deploy.
-- [ ] Lập danh sách route theo method, URL, response status/body/headers, auth,
-  cookie, static asset, cache và hành vi proxy/subpath.
+- [x] Kiểm kê method/path và admin-prefix aliases từ Flask factory tại
+  [`docs/FLASK_ROUTE_INVENTORY.md`](FLASK_ROUTE_INVENTORY.md): 183 URL rules,
+  94 endpoint/path groups và method/path contracts sau khi gộp aliases, trong
+  đó có 87 API contracts.
+- [ ] Bổ sung đối chiếu response status/body/headers, auth, cookie, static cache
+  và hành vi proxy/subpath cho từng route với backend legacy.
 - [x] Chạy baseline unit, integration/acceptance hiện có trên fixture test.
 - [ ] Đánh giá regression phạm vi fix #119: batch lock, trạng thái phiếu nhập,
   gán sản phẩm vào batch, đồng bộ state, audit và các luồng nhập/xuất liên quan.
@@ -436,3 +440,6 @@ admin tùy chỉnh không bị rơi về frontend root.
   khoản không có quyền mở procurement planner. Đổi assertion cuối sang xác minh
   batch lock qua API manager. Ca riêng hiện pass trên Flask/Waitress và legacy;
   cả hai dùng fixture DB mới.
+- Sau đó chạy toàn bộ `procurement-batch-lock.spec.js` trên cả hai backend:
+  Flask/Waitress 6/6 pass, legacy 6/6 pass. #119 hiện có xác nhận end-to-end cho
+  nhận hàng/thanh toán trước batch, lock batch, quyền manager và dọn batch.
