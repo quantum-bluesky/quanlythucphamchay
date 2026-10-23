@@ -307,6 +307,8 @@ Mục tiêu:
 | 246 | `UT-WEB-58` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_58_product_image_upload_uses_configured_admin_prefix_and_safe_extension` |
 | 247 | `UT-WEB-59` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_59_bulk_order_request_history_preserves_request_and_limit` |
 | 248 | `UT-WEB-60` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_60_document_cancel_request_history_returns_400_when_missing` |
+| 249 | `UT-WEB-61` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_61_admin_settings_reads_require_master_admin_and_redact_mail_password` |
+| 250 | `UT-WEB-62` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_62_admin_legacy_audit_route_returns_store_payload` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

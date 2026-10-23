@@ -99,6 +99,8 @@ ghi dưới image root của app và trả URL dùng được qua static image r
 `GET /api/orders/bulk-requests/<id>/history` và
 `GET /api/document-cancel-requests/<id>/history` giữ payload request/history,
 limit và status 400 khi không tìm thấy request.
+Admin read routes cho public web config, mail config và legacy audit bắt buộc
+Master Admin; mail config chỉ trả cờ `has_password`, tuyệt đối không lộ mật khẩu.
 
 Chạy riêng nhóm này:
 

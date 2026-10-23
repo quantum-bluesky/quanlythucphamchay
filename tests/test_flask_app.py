@@ -1047,6 +1047,53 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Không tìm thấy yêu cầu hủy."})
 
+    def test_ut_web_61_admin_settings_reads_require_master_admin_and_redact_mail_password(self):
+        app = self.build_app("admin-config-read")
+        app.config["SYSTEM_CONFIG"]["public_web"] = {"enabled": True}
+        app.config["SYSTEM_CONFIG"]["mail"] = {
+            "enabled": True,
+            "smtp_host": "smtp.example.test",
+            "smtp_port": 465,
+            "username": "mailer",
+            "password": "secret-value",
+            "to_emails": [" ops@example.test ", ""],
+            "use_ssl": True,
+        }
+        client = app.test_client()
+
+        denied = client.get("/api/admin/mail-config")
+        login = client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        public_web = client.get("/control-room/api/admin/public-web-config")
+        mail = client.get("/api/admin/mail-config")
+
+        self.assertEqual(denied.status_code, 401)
+        self.assertEqual(denied.get_json(), {"error": "Cần đăng nhập Master Admin."})
+        self.assertEqual(public_web.get_json()["public_web"], {"enabled": True})
+        mail_payload = mail.get_json()
+        self.assertTrue(mail_payload["mail"]["has_password"])
+        self.assertNotIn("password", mail_payload["mail"])
+        self.assertEqual(mail_payload["mail"]["to_emails"], ["ops@example.test"])
+
+    def test_ut_web_62_admin_legacy_audit_route_returns_store_payload(self):
+        app = self.build_app("admin-legacy-audit")
+        store = app.extensions["qltpchay.store"]
+        expected = {"issues": [], "summary": {"count": 0}}
+        client = app.test_client()
+        login = client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        with patch.object(store, "get_legacy_data_audit", return_value=expected):
+            response = client.get("/control-room/api/admin/legacy-audit")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), expected)
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

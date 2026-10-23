@@ -297,6 +297,8 @@ Lưu ý:
 | 246 | `UT-WEB-58` | Kiểm tra upload qua admin prefix cấu hình và extension không hợp lệ được chuẩn hóa về `.jpg`. |
 | 247 | `UT-WEB-59` | Kiểm tra lịch sử yêu cầu xuất nhanh giữ wrapper và chuyển đúng limit xuống store. |
 | 248 | `UT-WEB-60` | Kiểm tra lịch sử yêu cầu hủy trả 400 khi request ID không tồn tại. |
+| 249 | `UT-WEB-61` | Kiểm tra admin config đọc cần Master Admin, dùng được admin prefix và che mật khẩu mail. |
+| 250 | `UT-WEB-62` | Kiểm tra admin legacy audit trả nguyên payload từ store sau khi xác thực. |
 
 
 

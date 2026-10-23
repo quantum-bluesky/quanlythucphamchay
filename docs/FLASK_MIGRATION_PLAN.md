@@ -321,3 +321,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   cancellation request; `UT-WEB-59..60` kiểm tra wrapper, limit và not-found.
   Kết quả: `tests.test_flask_app` 60/60 pass, full unit 200/200 pass,
   `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.
+- Đang chuyển admin read routes cho public-web config, mail config và legacy
+  audit; `UT-WEB-61..62` kiểm tra Master Admin, che password và response audit.
+  Kết quả: `tests.test_flask_app` 62/62 pass, full unit 202/202 pass,
+  `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.

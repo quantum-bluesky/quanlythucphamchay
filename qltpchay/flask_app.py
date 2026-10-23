@@ -18,7 +18,7 @@ from .auth import (
     build_session_cookie_name_candidates,
 )
 from .config import load_system_config
-from .constants import ADMIN_SESSION_COOKIE, APP_NAME, CONFIG_PATH, DATA_DIR, STATIC_DIR
+from .constants import ADMIN_SESSION_COOKIE, APP_ENV, APP_NAME, CONFIG_PATH, DATA_DIR, STATIC_DIR
 from .helpers import get_product_min_unit, resize_image_bytes
 from .js_asset_versions import JavaScriptAssetVersionManager
 from .logger import log_error
@@ -33,6 +33,26 @@ from .store import InventoryStore
 LONG_LIVED_CACHE = "public, max-age=31536000, immutable"
 SHORT_LIVED_CACHE = "public, max-age=3600"
 REVALIDATED_CACHE = "no-cache, must-revalidate"
+
+
+def _public_mail_config(mail_config: dict | None) -> dict:
+    config = mail_config if isinstance(mail_config, dict) else {}
+    return {
+        "enabled": bool(config.get("enabled")),
+        "smtp_host": str(config.get("smtp_host") or ""),
+        "smtp_port": int(config.get("smtp_port") or 587),
+        "username": str(config.get("username") or ""),
+        "has_password": bool(config.get("password")),
+        "from_email": str(config.get("from_email") or ""),
+        "to_emails": [
+            str(email or "").strip()
+            for email in (config.get("to_emails") or [])
+            if str(email or "").strip()
+        ],
+        "use_tls": bool(config.get("use_tls")),
+        "use_ssl": bool(config.get("use_ssl")),
+        "subject_prefix": str(config.get("subject_prefix") or ""),
+    }
 
 
 def create_app(
@@ -768,6 +788,39 @@ def create_app(
         except ValueError as error:
             return jsonify({"error": str(error)}), 400
         return jsonify(deleted)
+
+    @app.get("/api/admin/public-web-config")
+    @app.get(f"{admin_path}/api/admin/public-web-config")
+    def get_admin_public_web_config():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        config = current_app.config["SYSTEM_CONFIG"]
+        return jsonify({
+            "public_web": config.get("public_web", {}),
+            "zalo_login": config.get("zalo_login", {}),
+        })
+
+    @app.get("/api/admin/mail-config")
+    @app.get(f"{admin_path}/api/admin/mail-config")
+    def get_admin_mail_config():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        config = current_app.config["SYSTEM_CONFIG"]
+        return jsonify({
+            "mail": _public_mail_config(config.get("mail")),
+            "environment": APP_ENV,
+        })
+
+    @app.get("/api/admin/legacy-audit")
+    @app.get(f"{admin_path}/api/admin/legacy-audit")
+    def get_admin_legacy_audit():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        return jsonify(store.get_legacy_data_audit())
 
     @app.get("/api/products/deleted")
     @app.get(f"{admin_path}/api/products/deleted")
