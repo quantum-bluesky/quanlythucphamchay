@@ -234,6 +234,8 @@ admin tùy chỉnh không bị rơi về frontend root.
   ID không hợp lệ; endpoint dùng chung auth gate.
 - Đã chuyển `GET /api/receipts/history` và `GET /api/transactions`, giữ response
   wrappers và query parameters; hai endpoint dùng chung auth gate.
+- Đã chuyển lịch sử đơn hàng và phiếu nhập theo ID, giữ response document/history,
+  limit và status 400 khi chứng từ không tồn tại; hai endpoint dùng chung auth gate.
 - Runtime factory đọc config theo `APP_ENV` khi được gọi; test mode bắt buộc config
   được inject, không tự đọc config runtime.
 - `tests/test_flask_app.py`: `UT-WEB-01..14` xác nhận admin path tùy chỉnh, root
@@ -268,3 +270,6 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Thêm `GET /api/receipts/history` và `GET /api/transactions`; kết quả hiện tại:
   Flask test module 29/29 pass, full unit 169/169 pass, `py_compile` và
   `git diff --check` pass.
+- Thêm history endpoint cho đơn hàng và phiếu nhập; kết quả hiện tại: Flask test
+  module 33/33 pass, full unit 173/173 pass, `py_compile` và `git diff --check`
+  pass.

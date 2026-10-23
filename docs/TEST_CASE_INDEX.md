@@ -276,6 +276,10 @@ Mục tiêu:
 | 215 | `UT-WEB-27` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_27_product_movements_route_maps_invalid_product_id_to_400` |
 | 216 | `UT-WEB-28` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_28_receipt_history_route_forwards_filters` |
 | 217 | `UT-WEB-29` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_29_transactions_route_forwards_limit_and_response` |
+| 218 | `UT-WEB-30` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_30_order_history_route_returns_cart_and_limited_history` |
+| 219 | `UT-WEB-31` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_31_order_history_route_returns_400_when_cart_is_missing` |
+| 220 | `UT-WEB-32` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_32_purchase_history_route_returns_document_and_limited_history` |
+| 221 | `UT-WEB-33` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_33_purchase_history_route_returns_400_when_purchase_is_missing` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

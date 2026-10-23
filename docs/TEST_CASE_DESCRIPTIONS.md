@@ -266,6 +266,10 @@ Lưu ý:
 | 215 | `UT-WEB-27` | Kiểm tra `GET /api/product-movements` trả 400 khi product ID không hợp lệ. |
 | 216 | `UT-WEB-28` | Kiểm tra `GET /api/receipts/history` chuyển limit, loại phiếu và khoảng ngày tới store, giữ wrapper `history`. |
 | 217 | `UT-WEB-29` | Kiểm tra `GET /api/transactions` chuyển limit và giữ wrapper `transactions`. |
+| 218 | `UT-WEB-30` | Kiểm tra lịch sử đơn hàng trả cart cùng history theo limit đã yêu cầu. |
+| 219 | `UT-WEB-31` | Kiểm tra lịch sử đơn hàng trả 400 nếu cart không tồn tại. |
+| 220 | `UT-WEB-32` | Kiểm tra lịch sử phiếu nhập trả purchase cùng history theo limit đã yêu cầu. |
+| 221 | `UT-WEB-33` | Kiểm tra lịch sử phiếu nhập trả 400 nếu purchase không tồn tại. |
 
 
 

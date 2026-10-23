@@ -472,6 +472,52 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.get_json(), {"transactions": expected})
         get_transactions.assert_called_once_with(limit=37)
 
+    def test_ut_web_30_order_history_route_returns_cart_and_limited_history(self):
+        app = self.build_app("order-history-route")
+        store = app.extensions["qltpchay.store"]
+        cart = {"id": "cart-history-1", "status": "draft"}
+        history = [{"action": "created"}]
+        with patch.object(store, "get_sync_state", return_value={"carts": [cart]}), patch.object(
+            store, "get_cart_change_history", return_value=history
+        ) as get_history:
+            response = app.test_client().get("/api/orders/cart-history-1/history?limit=17")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"cart": cart, "history": history})
+        get_history.assert_called_once_with("cart-history-1", limit=17)
+
+    def test_ut_web_31_order_history_route_returns_400_when_cart_is_missing(self):
+        app = self.build_app("order-history-missing")
+        store = app.extensions["qltpchay.store"]
+        with patch.object(store, "get_sync_state", return_value={"carts": []}):
+            response = app.test_client().get("/api/orders/missing-cart/history")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Không tìm thấy đơn hàng."})
+
+    def test_ut_web_32_purchase_history_route_returns_document_and_limited_history(self):
+        app = self.build_app("purchase-history-route")
+        store = app.extensions["qltpchay.store"]
+        purchase = {"id": "purchase-history-1", "status": "draft"}
+        history = [{"action": "created"}]
+        with patch.object(store, "get_sync_state", return_value={"purchases": [purchase]}), patch.object(
+            store, "get_purchase_change_history", return_value=history
+        ) as get_history:
+            response = app.test_client().get("/api/purchases/purchase-history-1/history?limit=13")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"purchase": purchase, "history": history})
+        get_history.assert_called_once_with("purchase-history-1", limit=13)
+
+    def test_ut_web_33_purchase_history_route_returns_400_when_purchase_is_missing(self):
+        app = self.build_app("purchase-history-missing")
+        store = app.extensions["qltpchay.store"]
+        with patch.object(store, "get_sync_state", return_value={"purchases": []}):
+            response = app.test_client().get("/api/purchases/missing-purchase/history")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Không tìm thấy phiếu nhập."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

@@ -513,6 +513,46 @@ def create_app(
             {"transactions": store.get_transactions(limit=int(request.args.get("limit", "20")))}
         )
 
+    @app.get("/api/orders/<cart_id>/history")
+    @app.get(f"{admin_path}/api/orders/<cart_id>/history")
+    def get_order_history(cart_id: str):
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        limit = int(request.args.get("limit", "30"))
+        carts = store.get_sync_state().get("carts", [])
+        cart = next(
+            (entry for entry in carts if str(entry.get("id") or "").strip() == cart_id.strip()),
+            None,
+        )
+        if not cart:
+            return jsonify({"error": "Không tìm thấy đơn hàng."}), 400
+        return jsonify({
+            "cart": cart,
+            "history": store.get_cart_change_history(cart_id, limit=limit),
+        })
+
+    @app.get("/api/purchases/<purchase_id>/history")
+    @app.get(f"{admin_path}/api/purchases/<purchase_id>/history")
+    def get_purchase_history(purchase_id: str):
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        limit = int(request.args.get("limit", "30"))
+        purchases = store.get_sync_state().get("purchases", [])
+        purchase = next(
+            (entry for entry in purchases if str(entry.get("id") or "").strip() == purchase_id.strip()),
+            None,
+        )
+        if not purchase:
+            return jsonify({"error": "Không tìm thấy phiếu nhập."}), 400
+        return jsonify({
+            "purchase": purchase,
+            "history": store.get_purchase_change_history(purchase_id, limit=limit),
+        })
+
     @app.get("/api/public/orders")
     @app.get(f"{admin_path}/api/public/orders")
     def public_orders():

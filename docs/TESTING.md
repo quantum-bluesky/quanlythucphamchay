@@ -73,6 +73,8 @@ giữ schema response và bộ lọc actor/date/limit hiện có.
 không hợp lệ thành status 400.
 `GET /api/receipts/history` và `GET /api/transactions` giữ wrapper JSON và chuyển
 limit cùng các bộ lọc lịch sử sang `InventoryStore`.
+`GET /api/orders/<id>/history` và `GET /api/purchases/<id>/history` giữ response
+document/history, giới hạn truy vấn và status 400 nếu chứng từ không tồn tại.
 
 Chạy riêng nhóm này:
 
