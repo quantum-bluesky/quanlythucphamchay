@@ -669,6 +669,43 @@ class FlaskAppFactoryTests(unittest.TestCase):
             {"error": "Phạm vi xử lý nhập thiếu không hợp lệ."},
         )
 
+    def test_ut_web_42_application_state_returns_aggregate_and_forwards_transaction_limit(self):
+        app = self.build_app("application-state-route")
+        store = app.extensions["qltpchay.store"]
+        with (
+            patch.object(store, "get_products", return_value=[{"id": 1}]),
+            patch.object(store, "get_summary", return_value={"product_count": 1}),
+            patch.object(store, "get_transactions", return_value=[{"id": "txn-1"}]) as get_transactions,
+            patch.object(store, "get_runtime_version", return_value={"version": "test-runtime"}),
+            patch.object(store, "get_procurement_status", return_value={"lock": {}}),
+            patch.object(store, "list_bulk_order_requests", return_value=[]),
+            patch.object(store, "list_document_cancel_requests", return_value=[]),
+            patch.object(
+                store,
+                "get_sync_state",
+                return_value={"customers": [], "suppliers": [], "carts": [], "purchases": []},
+            ),
+        ):
+            response = app.test_client().get("/api/state?transaction_limit=31")
+
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["products"], [{"id": 1}])
+        self.assertEqual(result["transactions"], [{"id": "txn-1"}])
+        self.assertEqual(result["runtime_version"], {"version": "test-runtime"})
+        self.assertEqual(result["customers"], [])
+        self.assertEqual(result["procurement"]["permissions"]["can_manage_batch"], False)
+        get_transactions.assert_called_once_with(limit=31)
+
+    def test_ut_web_43_application_state_requires_session_when_login_is_enabled(self):
+        app = self.build_app("application-state-auth")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+
+        response = app.test_client().get("/api/state")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập hệ thống."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

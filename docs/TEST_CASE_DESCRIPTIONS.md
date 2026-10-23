@@ -278,6 +278,8 @@ Lưu ý:
 | 227 | `UT-WEB-39` | Kiểm tra procurement planner chuyển scope/timeout và trả config/quyền của người đang giữ khóa. |
 | 228 | `UT-WEB-40` | Kiểm tra planner từ chối khi batch mode yêu cầu login nhưng `EnableLogin` đang tắt. |
 | 229 | `UT-WEB-41` | Kiểm tra planner trả 400 cho scope không hợp lệ theo lỗi của `InventoryStore`. |
+| 230 | `UT-WEB-42` | Kiểm tra `/api/state` giữ aggregate response và chuyển `transaction_limit` tới store. |
+| 231 | `UT-WEB-43` | Kiểm tra `/api/state` yêu cầu session khi `EnableLogin` bật. |
 
 
 

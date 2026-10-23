@@ -213,6 +213,17 @@ def create_app(
             and str(((current_status or {}).get("lock") or {}).get("owner_username") or "") == username,
         }
 
+    def procurement_status_payload() -> dict:
+        store = current_app.extensions["qltpchay.store"]
+        status = store.get_procurement_status(
+            lock_timeout_minutes=procurement_lock_timeout(),
+        )
+        return {
+            **status,
+            "config": procurement_public_config(),
+            "permissions": procurement_permission_payload(status),
+        }
+
     def session_status_payload(session_token: str | None = None) -> dict:
         token = session_token if session_token is not None else get_session_token()
         session = current_app.extensions["qltpchay.admin_sessions"].get_session(
@@ -650,15 +661,7 @@ def create_app(
         auth_error = require_authenticated_session()
         if auth_error is not None:
             return auth_error
-        store = current_app.extensions["qltpchay.store"]
-        status = store.get_procurement_status(
-            lock_timeout_minutes=procurement_lock_timeout(),
-        )
-        return jsonify({
-            **status,
-            "config": procurement_public_config(),
-            "permissions": procurement_permission_payload(status),
-        })
+        return jsonify(procurement_status_payload())
 
     @app.get("/api/procurement/planner")
     @app.get(f"{admin_path}/api/procurement/planner")
@@ -694,6 +697,31 @@ def create_app(
             **planner,
             "config": procurement_public_config(),
             "permissions": procurement_permission_payload(),
+        })
+
+    @app.get("/api/state")
+    @app.get(f"{admin_path}/api/state")
+    def get_application_state():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        metadata = session_status_payload(session_token="")
+        sync_state = store.get_sync_state()
+        return jsonify({
+            "app": metadata["app"],
+            "debug": metadata["debug"],
+            "pagination": metadata["pagination"],
+            "products": store.get_products(),
+            "summary": store.get_summary(),
+            "transactions": store.get_transactions(
+                limit=int(request.args.get("transaction_limit", "16")),
+            ),
+            "runtime_version": store.get_runtime_version(),
+            "procurement": procurement_status_payload(),
+            "bulk_order_requests": store.list_bulk_order_requests(limit=30),
+            "document_cancel_requests": store.list_document_cancel_requests(limit=30),
+            **sync_state,
         })
 
     @app.get("/api/public/orders")

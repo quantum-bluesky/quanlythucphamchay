@@ -82,6 +82,8 @@ tháng không hợp lệ.
 batch và nhận diện lock owner từ session hiện tại.
 `GET /api/procurement/planner` giữ scope, yêu cầu `EnableLogin` theo config,
 kiểm tra quyền quản lý và ánh xạ scope không hợp lệ thành 400.
+`GET /api/state` tổng hợp metadata, sản phẩm, giao dịch, procurement, request
+pending và sync collections; test xác nhận `transaction_limit` và auth gate.
 
 Chạy riêng nhóm này:
 

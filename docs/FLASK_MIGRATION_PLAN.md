@@ -242,6 +242,8 @@ admin tùy chỉnh không bị rơi về frontend root.
   quyền `procurement_batch_manage`, manager allowlist và trạng thái lock owner.
 - Đã chuyển `GET /api/procurement/planner`, giữ scope, timeout khóa, config,
   yêu cầu login khi batch mode bật và quyền quản lý; scope sai trả 400.
+- Đã chuyển aggregate `GET /api/state`, gồm metadata, products, summary,
+  transactions, runtime version, procurement, request queues và sync collections.
 - Runtime factory đọc config theo `APP_ENV` khi được gọi; test mode bắt buộc config
   được inject, không tự đọc config runtime.
 - `tests/test_flask_app.py`: `UT-WEB-01..14` xác nhận admin path tùy chỉnh, root
@@ -288,3 +290,6 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Thêm procurement planner với kiểm tra scope, login và quyền; kết quả hiện tại:
   Flask test module 41/41 pass, full unit 181/181 pass, `py_compile` và
   `git diff --check` pass.
+- Thêm aggregate `/api/state` và dùng chung helper cho procurement status;
+  kết quả hiện tại: Flask test module 43/43 pass, full unit 183/183 pass,
+  `py_compile` và `git diff --check` pass.
