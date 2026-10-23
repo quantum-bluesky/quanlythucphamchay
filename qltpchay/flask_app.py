@@ -838,6 +838,38 @@ def create_app(
             {"transactions": store.get_transactions(limit=int(request.args.get("limit", "20")))}
         )
 
+    @app.get("/api/orders/bulk-requests/<request_id>/history")
+    @app.get(f"{admin_path}/api/orders/bulk-requests/<request_id>/history")
+    def get_bulk_order_request_history(request_id: str):
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        limit = int(request.args.get("limit", "30"))
+        request_doc = store.get_bulk_order_request(request_id)
+        if not request_doc:
+            return jsonify({"error": "Không tìm thấy yêu cầu xuất nhanh."}), 400
+        return jsonify({
+            "request": request_doc,
+            "history": store.get_bulk_order_request_change_history(request_id, limit=limit),
+        })
+
+    @app.get("/api/document-cancel-requests/<request_id>/history")
+    @app.get(f"{admin_path}/api/document-cancel-requests/<request_id>/history")
+    def get_document_cancel_request_history(request_id: str):
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        limit = int(request.args.get("limit", "30"))
+        request_doc = store.get_document_cancel_request(request_id)
+        if not request_doc:
+            return jsonify({"error": "Không tìm thấy yêu cầu hủy."}), 400
+        return jsonify({
+            "request": request_doc,
+            "history": store.get_document_cancel_request_change_history(request_id, limit=limit),
+        })
+
     @app.get("/api/orders/<cart_id>/history")
     @app.get(f"{admin_path}/api/orders/<cart_id>/history")
     def get_order_history(cart_id: str):

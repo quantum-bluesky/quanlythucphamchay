@@ -317,3 +317,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   đường dẫn có thể đọc qua route ảnh. `UT-WEB-57..58` kiểm tra save/serve và
   admin prefix. Kết quả: `tests.test_flask_app` 58/58 pass, full unit 198/198
   pass, `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.
+- Đang chuyển hai read endpoint lịch sử cho bulk order request và document
+  cancellation request; `UT-WEB-59..60` kiểm tra wrapper, limit và not-found.
+  Kết quả: `tests.test_flask_app` 60/60 pass, full unit 200/200 pass,
+  `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.

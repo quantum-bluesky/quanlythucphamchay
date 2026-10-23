@@ -295,6 +295,8 @@ Lưu ý:
 | 244 | `UT-WEB-56` | Kiểm tra Master Admin xóa hẳn sản phẩm và response giữ nguyên contract legacy. |
 | 245 | `UT-WEB-57` | Kiểm tra upload ảnh raw binary lưu file vào image root tạm và URL trả về đọc được. |
 | 246 | `UT-WEB-58` | Kiểm tra upload qua admin prefix cấu hình và extension không hợp lệ được chuẩn hóa về `.jpg`. |
+| 247 | `UT-WEB-59` | Kiểm tra lịch sử yêu cầu xuất nhanh giữ wrapper và chuyển đúng limit xuống store. |
+| 248 | `UT-WEB-60` | Kiểm tra lịch sử yêu cầu hủy trả 400 khi request ID không tồn tại. |
 
 
 

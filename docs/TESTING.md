@@ -96,6 +96,9 @@ cập nhật riêng giá nhập/giá bán và khôi phục sản phẩm đã xó
 response xóa hẳn trực tiếp từ `InventoryStore`.
 `POST /api/products/images/upload` giữ hợp đồng raw binary, lọc extension,
 ghi dưới image root của app và trả URL dùng được qua static image route.
+`GET /api/orders/bulk-requests/<id>/history` và
+`GET /api/document-cancel-requests/<id>/history` giữ payload request/history,
+limit và status 400 khi không tìm thấy request.
 
 Chạy riêng nhóm này:
 

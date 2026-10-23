@@ -1020,6 +1020,33 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertTrue(image_url.endswith(".jpg"))
         self.assertEqual(app.test_client().get(image_url).data, b"opaque image payload")
 
+    def test_ut_web_59_bulk_order_request_history_preserves_request_and_limit(self):
+        app = self.build_app("bulk-order-request-history")
+        store = app.extensions["qltpchay.store"]
+        request_doc = {"id": "bulk-1", "status": "pending"}
+        history = [{"action": "created"}]
+        with patch.object(store, "get_bulk_order_request", return_value=request_doc), patch.object(
+            store, "get_bulk_order_request_change_history", return_value=history
+        ) as get_history:
+            response = app.test_client().get(
+                "/api/orders/bulk-requests/bulk-1/history?limit=9"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"request": request_doc, "history": history})
+        get_history.assert_called_once_with("bulk-1", limit=9)
+
+    def test_ut_web_60_document_cancel_request_history_returns_400_when_missing(self):
+        app = self.build_app("cancel-request-history-missing")
+        store = app.extensions["qltpchay.store"]
+        with patch.object(store, "get_document_cancel_request", return_value=None):
+            response = app.test_client().get(
+                "/control-room/api/document-cancel-requests/missing/history"
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Không tìm thấy yêu cầu hủy."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]
