@@ -377,3 +377,7 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Đang chuyển cart item/payment và received-item expiry; `UT-WEB-103..105`
   pass. Kết quả: `tests.test_flask_app` 105/105 pass, full unit 245/245 pass,
   `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.
+- Đã chuyển purchase repair, inventory adjustment và customer/supplier returns;
+  `UT-WEB-106..110` kiểm tra permission, actor, source fields và lỗi. Kết quả:
+  `tests.test_flask_app` 110/110 pass, full unit 250/250 pass,
+  `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.

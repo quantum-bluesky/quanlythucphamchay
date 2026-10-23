@@ -2037,6 +2037,94 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(update_expiry.call_args.kwargs["actor"], "staff")
         self.assertEqual(update_expiry.call_args.kwargs["expiry_input_mode"], "manufacture")
 
+    def test_ut_web_106_purchase_repair_preserves_actor_and_detached_receipts(self):
+        app = self.build_app("purchase-repair")
+        store = app.extensions["qltpchay.store"]
+        repair_result = {
+            "message": "Đã sửa phiếu nhập.",
+            "purchases": [{"id": "purchase-106"}],
+            "detached_receipt_codes": ["RC-106"],
+        }
+        with patch.object(store, "repair_purchase_document", return_value=repair_result) as repair:
+            response = app.test_client().post(
+                "/api/purchases/repair",
+                json={"purchase_id": "purchase-106", "action": "detach_receipt"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["detached_receipt_codes"], ["RC-106"])
+        self.assertEqual(repair.call_args.kwargs["actor"], "")
+
+    def test_ut_web_107_inventory_adjustment_requires_authorized_session(self):
+        app = self.build_app("inventory-adjustment-auth")
+
+        response = app.test_client().post(
+            "/api/adjustments/inventory",
+            json={"items": [], "reason": "Kiểm kê"},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Cần đăng nhập tài khoản có quyền điều chỉnh tồn."},
+        )
+
+    def test_ut_web_108_inventory_adjustment_passes_actor_and_returns_created_receipt(self):
+        app = self.build_app("inventory-adjustment-authorized")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        sessions = app.extensions["qltpchay.admin_sessions"]
+        sessions._users[0]["permissions"].append("inventory_adjust_manage")
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        receipt = {"receipt_code": "ADJ-108"}
+        with patch.object(store, "create_inventory_adjustment_receipt", return_value=receipt) as adjust:
+            response = client.post(
+                "/control-room/api/adjustments/inventory",
+                json={"items": [{"product_id": 1, "quantity": 2}], "reason": "Kiểm kê", "note": "Đếm lại"},
+            )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()["receipt"], receipt)
+        self.assertEqual(adjust.call_args.kwargs["actor"], "staff")
+        self.assertEqual(adjust.call_args.kwargs["reason"], "Kiểm kê")
+
+    def test_ut_web_109_customer_return_passes_source_and_actor(self):
+        app = self.build_app("customer-return")
+        store = app.extensions["qltpchay.store"]
+        receipt = {"receipt_code": "THK-109"}
+        with patch.object(store, "create_customer_return_receipt", return_value=receipt) as create_return:
+            response = app.test_client().post(
+                "/api/returns/customers",
+                json={
+                    "customer_name": "Khách trả",
+                    "items": [{"product_id": 1, "quantity": 1}],
+                    "source_type": "order",
+                    "source_code": "ORD-109",
+                },
+            )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()["message"], "Đã tạo phiếu trả hàng khách.")
+        self.assertEqual(create_return.call_args.kwargs["actor"], "Nhân viên")
+        self.assertEqual(create_return.call_args.kwargs["source_code"], "ORD-109")
+
+    def test_ut_web_110_supplier_return_maps_validation_error_to_400(self):
+        app = self.build_app("supplier-return-invalid")
+        store = app.extensions["qltpchay.store"]
+        with patch.object(store, "create_supplier_return_receipt", side_effect=ValueError("Thiếu phiếu nhập nguồn.")):
+            response = app.test_client().post(
+                "/api/returns/suppliers",
+                json={"supplier_name": "NCC", "items": []},
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Thiếu phiếu nhập nguồn."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

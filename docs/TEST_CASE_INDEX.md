@@ -352,6 +352,11 @@ Mục tiêu:
 | 291 | `UT-WEB-103` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_103_cart_item_conflict_returns_409_contract` |
 | 292 | `UT-WEB-104` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_104_cart_payment_passes_session_and_returns_updated_cart` |
 | 293 | `UT-WEB-105` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_105_received_item_expiry_preserves_dates_actor_and_summary` |
+| 294 | `UT-WEB-106` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_106_purchase_repair_preserves_actor_and_detached_receipts` |
+| 295 | `UT-WEB-107` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_107_inventory_adjustment_requires_authorized_session` |
+| 296 | `UT-WEB-108` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_108_inventory_adjustment_passes_actor_and_returns_created_receipt` |
+| 297 | `UT-WEB-109` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_109_customer_return_passes_source_and_actor` |
+| 298 | `UT-WEB-110` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_110_supplier_return_maps_validation_error_to_400` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

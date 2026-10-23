@@ -128,6 +128,8 @@ Quick purchase, mark-paid và purchase payment giữ response/actor/role, paymen
 metadata và validation status.
 Cart item updates preserve conflict `409`, cart payment passes session actor/role,
 and received purchase expiry preserves date/actor fields in its response.
+Purchase repair preserves detached receipt details, inventory adjustment requires
+its dedicated permission, and customer/supplier returns preserve source/error data.
 
 Chạy riêng nhóm này:
 

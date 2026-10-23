@@ -1426,6 +1426,119 @@ def create_app(
             "summary": store.get_summary(),
         })
 
+    # Issue #182: Preserve legacy actor, permission, and receipt response contracts.
+    @app.post("/api/purchases/repair")
+    @app.post(f"{admin_path}/api/purchases/repair")
+    def repair_purchase():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.repair_purchase_document(
+                payload.get("purchase_id", ""),
+                action=payload.get("action", ""),
+                actor=str((session or {}).get("username") or ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": result["message"],
+            "purchases": result["purchases"],
+            "detached_receipt_codes": result["detached_receipt_codes"],
+            "summary": store.get_summary(),
+        })
+
+    @app.post("/api/adjustments/inventory")
+    @app.post(f"{admin_path}/api/adjustments/inventory")
+    def create_inventory_adjustment():
+        auth_error = require_inventory_adjust_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            receipt = store.create_inventory_adjustment_receipt(
+                items=payload.get("items", []),
+                reason=payload.get("reason", ""),
+                note=payload.get("note", ""),
+                actor=str((session or {}).get("username") or ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã tạo phiếu điều chỉnh tồn.",
+            "receipt": receipt,
+            "summary": store.get_summary(),
+        }), 201
+
+    @app.post("/api/returns/customers")
+    @app.post(f"{admin_path}/api/returns/customers")
+    def create_customer_return():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            receipt = store.create_customer_return_receipt(
+                customer_name=payload.get("customer_name", ""),
+                items=payload.get("items", []),
+                note=payload.get("note", ""),
+                source_type=payload.get("source_type", ""),
+                source_code=payload.get("source_code", ""),
+                actor=current_actor_name(),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã tạo phiếu trả hàng khách.",
+            "receipt": receipt,
+            "summary": store.get_summary(),
+        }), 201
+
+    @app.post("/api/returns/suppliers")
+    @app.post(f"{admin_path}/api/returns/suppliers")
+    def create_supplier_return():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            receipt = store.create_supplier_return_receipt(
+                supplier_name=payload.get("supplier_name", ""),
+                items=payload.get("items", []),
+                note=payload.get("note", ""),
+                source_type=payload.get("source_type", ""),
+                source_code=payload.get("source_code", ""),
+                actor=current_actor_name(),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã tạo phiếu trả nhà cung cấp.",
+            "receipt": receipt,
+            "summary": store.get_summary(),
+        }), 201
+
     def submit_document_cancel_request(document_type: str, document_id: str):
         config = current_app.config["SYSTEM_CONFIG"]
         if not config.get("EnableLogin"):

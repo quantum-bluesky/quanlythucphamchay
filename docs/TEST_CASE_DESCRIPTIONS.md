@@ -342,6 +342,11 @@ Lưu ý:
 | 291 | `UT-WEB-103` | Kiểm tra cart item sync conflict trả 409 và flag conflict legacy. |
 | 292 | `UT-WEB-104` | Kiểm tra cart payment chuyển actor/role và trả cart/carts cập nhật. |
 | 293 | `UT-WEB-105` | Kiểm tra cập nhật HSD dòng phiếu nhập chuyển mode/ngày/actor và trả summary. |
+| 294 | `UT-WEB-106` | Kiểm tra repair phiếu nhập giữ actor và danh sách receipt bị tách. |
+| 295 | `UT-WEB-107` | Kiểm tra điều chỉnh tồn yêu cầu session có quyền chuyên biệt. |
+| 296 | `UT-WEB-108` | Kiểm tra user có quyền điều chỉnh tồn tạo receipt và chuyển actor/reason. |
+| 297 | `UT-WEB-109` | Kiểm tra phiếu trả khách chuyển source fields và actor fallback. |
+| 298 | `UT-WEB-110` | Kiểm tra phiếu trả NCC ánh xạ validation error thành status 400. |
 
 
 
