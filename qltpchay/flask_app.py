@@ -1163,6 +1163,69 @@ def create_app(
             "summary": store.get_summary(),
         })
 
+    @app.post("/api/orders/ship")
+    @app.post(f"{admin_path}/api/orders/ship")
+    def ship_order():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.ship_cart_order(
+                payload.get("cart_id", ""),
+                actor=str((session or {}).get("username") or ""),
+                shipped_at=payload.get("shipped_at", ""),
+                ship_date=payload.get("ship_date", ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã xuất hàng.",
+            "cart": result["cart"],
+            "order": result["order"],
+            "summary": store.get_summary(),
+        })
+
+    @app.post("/api/purchases/receive")
+    @app.post(f"{admin_path}/api/purchases/receive")
+    def receive_purchase():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.receive_purchase(
+                payload.get("purchase_id", ""),
+                discount_amount=payload.get("discount_amount"),
+                actor_username=str((session or {}).get("username") or ""),
+                actor_role=str((session or {}).get("role") or ""),
+                received_at=payload.get("received_at", ""),
+                received_date=payload.get("received_date", ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": result["message"],
+            "receipt": result["receipt"],
+            "purchase": result["purchase"],
+            "purchases": result["purchases"],
+            "summary": store.get_summary(),
+        }), 201
+
     def submit_document_cancel_request(document_type: str, document_id: str):
         config = current_app.config["SYSTEM_CONFIG"]
         if not config.get("EnableLogin"):

@@ -1796,6 +1796,84 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(reject.call_args.kwargs["actor"], "test-admin")
         self.assertEqual(reject.call_args.kwargs["reason"], "Không đủ căn cứ.")
 
+    def test_ut_web_96_ship_order_requires_session_when_login_enabled(self):
+        app = self.build_app("ship-order-auth")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+
+        response = app.test_client().post("/api/orders/ship", json={"cart_id": "cart-96"})
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập hệ thống."})
+
+    def test_ut_web_97_ship_order_passes_dates_actor_and_returns_summary(self):
+        app = self.build_app("ship-order-success")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        ship_result = {"cart": {"id": "cart-97"}, "order": {"order_code": "ORD-97"}}
+        with patch.object(store, "ship_cart_order", return_value=ship_result) as ship:
+            response = client.post(
+                "/control-room/api/orders/ship",
+                json={"cart_id": "cart-97", "shipped_at": "2026-10-23T10:00:00Z", "ship_date": "2026-10-23"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["order"], ship_result["order"])
+        self.assertEqual(ship.call_args.kwargs["actor"], "staff")
+        self.assertEqual(ship.call_args.kwargs["ship_date"], "2026-10-23")
+
+    def test_ut_web_98_receive_purchase_passes_role_dates_and_returns_created_response(self):
+        app = self.build_app("receive-purchase-success")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        received = {
+            "message": "Đã nhập kho.",
+            "receipt": {"id": 97},
+            "purchase": {"id": "purchase-97"},
+            "purchases": [{"id": "purchase-97"}],
+        }
+        with patch.object(store, "receive_purchase", return_value=received) as receive:
+            response = client.post(
+                "/api/purchases/receive",
+                json={
+                    "purchase_id": "purchase-97",
+                    "discount_amount": 1500,
+                    "received_at": "2026-10-23T10:30:00Z",
+                    "received_date": "2026-10-23",
+                },
+            )
+
+        self.assertEqual(response.status_code, 201)
+        result = response.get_json()
+        self.assertEqual(result["receipt"], received["receipt"])
+        self.assertEqual(result["purchase"], received["purchase"])
+        self.assertEqual(receive.call_args.kwargs["actor_username"], "staff")
+        self.assertEqual(receive.call_args.kwargs["actor_role"], "user")
+        self.assertEqual(receive.call_args.kwargs["received_date"], "2026-10-23")
+
+    def test_ut_web_99_receive_purchase_maps_validation_error_to_400(self):
+        app = self.build_app("receive-purchase-invalid")
+        store = app.extensions["qltpchay.store"]
+        with patch.object(store, "receive_purchase", side_effect=ValueError("Phiếu nhập không tồn tại.")):
+            response = app.test_client().post(
+                "/api/purchases/receive",
+                json={"purchase_id": "missing"},
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Phiếu nhập không tồn tại."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

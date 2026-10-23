@@ -332,6 +332,10 @@ Lưu ý:
 | 281 | `UT-WEB-93` | Kiểm tra document cancel approval yêu cầu bật login và permission chuyên biệt. |
 | 282 | `UT-WEB-94` | Kiểm tra approve document cancel trả dữ liệu đồng bộ và summary mới. |
 | 283 | `UT-WEB-95` | Kiểm tra reject document cancel chuyển actor/reason và trả request cập nhật. |
+| 284 | `UT-WEB-96` | Kiểm tra ship order yêu cầu session khi `EnableLogin` bật. |
+| 285 | `UT-WEB-97` | Kiểm tra ship order chuyển actor/ngày giao và trả summary. |
+| 286 | `UT-WEB-98` | Kiểm tra receive purchase chuyển actor/role/ngày nhận và trả status 201. |
+| 287 | `UT-WEB-99` | Kiểm tra receive purchase ánh xạ lỗi nghiệp vụ thành status 400. |
 
 
 

@@ -122,6 +122,8 @@ Cancel request của đơn/phiếu nhập yêu cầu `EnableLogin`, lưu actor/r
 gửi mail qua boundary mockable và giữ response 201/warning khi SMTP lỗi.
 Approve/reject document-cancel request yêu cầu `document_cancel_approve`, giữ
 response sync state + summary khi approve và actor/reason khi reject.
+Ship order/receive purchase áp dụng auth gate hệ thống, giữ actor/role, ngày giao
+dịch, response schema và status khác nhau; lỗi nghiệp vụ trả 400.
 
 Chạy riêng nhóm này:
 

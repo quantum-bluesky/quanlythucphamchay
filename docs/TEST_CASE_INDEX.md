@@ -342,6 +342,10 @@ Mục tiêu:
 | 281 | `UT-WEB-93` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_93_document_cancel_approval_requires_login_and_permission` |
 | 282 | `UT-WEB-94` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_94_approve_document_cancel_returns_sync_state_and_summary` |
 | 283 | `UT-WEB-95` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_95_reject_document_cancel_passes_reason` |
+| 284 | `UT-WEB-96` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_96_ship_order_requires_session_when_login_enabled` |
+| 285 | `UT-WEB-97` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_97_ship_order_passes_dates_actor_and_returns_summary` |
+| 286 | `UT-WEB-98` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_98_receive_purchase_passes_role_dates_and_returns_created_response` |
+| 287 | `UT-WEB-99` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_99_receive_purchase_maps_validation_error_to_400` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 
