@@ -1400,7 +1400,7 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       try {
-        await actions.flushPendingPersistCollections();
+        // #Issue119: Payment is saved for this document; flushing the whole collection lets unrelated batch-locked purchases block it.
         const data = await actions.updatePurchasePaymentDetails(latestPurchase.id);
         state.activePurchaseId = latestPurchase.id;
         actions.showToast(data.message);
@@ -1483,7 +1483,7 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       try {
-        await actions.flushPendingPersistCollections();
+        // #Issue119: Receipt is saved for this document; flushing the whole collection lets unrelated batch-locked purchases block it.
         const data = await actions.apiRequest("/api/purchases/receive", {
           method: "POST",
           body: JSON.stringify({

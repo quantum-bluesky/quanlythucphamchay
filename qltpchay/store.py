@@ -12592,7 +12592,6 @@ class InventoryStore:
             return False
         lock_started_at = self._parse_iso_datetime(active_lock.get("acquired_at") or "")
         purchase_ordered_at = self._resolve_purchase_ordered_at_for_batch_check(previous_purchase)
-        print(f"[DEBUG_LOCK] lock_started_at={lock_started_at}, purchase_ordered_at={purchase_ordered_at}", flush=True)
         if not lock_started_at or not purchase_ordered_at or purchase_ordered_at >= lock_started_at:
             return False
         if self._snapshot_purchase_for_receive_lock(previous_purchase or {}) != self._snapshot_purchase_for_receive_lock(next_purchase or {}):
