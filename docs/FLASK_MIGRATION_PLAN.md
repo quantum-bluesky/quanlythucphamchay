@@ -238,6 +238,8 @@ admin tùy chỉnh không bị rơi về frontend root.
   limit và status 400 khi chứng từ không tồn tại; hai endpoint dùng chung auth gate.
 - Đã chuyển `GET /api/runtime-version` và `GET /api/reports/monthly`, giữ metadata,
   bộ lọc và lỗi 400 cho tham số tháng không hợp lệ.
+- Đã chuyển `GET /api/procurement/status`, giữ timeout khóa, config công khai,
+  quyền `procurement_batch_manage`, manager allowlist và trạng thái lock owner.
 - Runtime factory đọc config theo `APP_ENV` khi được gọi; test mode bắt buộc config
   được inject, không tự đọc config runtime.
 - `tests/test_flask_app.py`: `UT-WEB-01..14` xác nhận admin path tùy chỉnh, root
@@ -278,3 +280,6 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Thêm runtime version và monthly report reads; kết quả hiện tại: Flask test
   module 36/36 pass, full unit 176/176 pass, `py_compile` và `git diff --check`
   pass.
+- Thêm procurement status cùng auth/permission contract; kết quả hiện tại:
+  Flask test module 38/38 pass, full unit 178/178 pass, `py_compile` và
+  `git diff --check` pass.

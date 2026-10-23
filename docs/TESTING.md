@@ -78,6 +78,8 @@ document/history, giới hạn truy vấn và status 400 nếu chứng từ khô
 `GET /api/runtime-version` bổ sung app/debug/pagination metadata hiện hành;
 `GET /api/reports/monthly` chuyển các bộ lọc tháng/ngày và trả 400 nếu tham số
 tháng không hợp lệ.
+`GET /api/procurement/status` giữ lock timeout, config công khai, quyền quản lý
+batch và nhận diện lock owner từ session hiện tại.
 
 Chạy riêng nhóm này:
 

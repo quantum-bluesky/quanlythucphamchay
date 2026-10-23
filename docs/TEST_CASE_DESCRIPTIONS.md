@@ -273,6 +273,8 @@ Lưu ý:
 | 222 | `UT-WEB-34` | Kiểm tra `GET /api/runtime-version` kết hợp runtime version với app/debug/pagination metadata. |
 | 223 | `UT-WEB-35` | Kiểm tra `GET /api/reports/monthly` chuyển bộ lọc tháng/ngày tới store và giữ payload. |
 | 224 | `UT-WEB-36` | Kiểm tra `GET /api/reports/monthly` trả lỗi 400 chuẩn khi months không hợp lệ. |
+| 225 | `UT-WEB-37` | Kiểm tra trạng thái procurement giữ config, quyền quản lý batch và nhận diện đúng chủ khóa. |
+| 226 | `UT-WEB-38` | Kiểm tra `GET /api/procurement/status` yêu cầu session khi `EnableLogin` bật. |
 
 
 

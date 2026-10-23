@@ -283,6 +283,8 @@ Mục tiêu:
 | 222 | `UT-WEB-34` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_34_runtime_version_route_includes_runtime_and_app_metadata` |
 | 223 | `UT-WEB-35` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_35_monthly_report_route_forwards_filters` |
 | 224 | `UT-WEB-36` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_36_monthly_report_route_rejects_invalid_month_filter` |
+| 225 | `UT-WEB-37` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_37_procurement_status_includes_config_permissions_and_lock_owner` |
+| 226 | `UT-WEB-38` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_38_procurement_status_requires_session_when_login_is_enabled` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

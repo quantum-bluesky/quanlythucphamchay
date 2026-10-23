@@ -560,6 +560,42 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Bộ lọc báo cáo không hợp lệ."})
 
+    def test_ut_web_37_procurement_status_includes_config_permissions_and_lock_owner(self):
+        app = self.build_app("procurement-status-route")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.config["SYSTEM_CONFIG"]["procurement"] = {
+            "batch_lock_timeout_minutes": 75,
+            "batch_planner_enabled": False,
+            "allow_daily_quick_shortage_flow": True,
+            "required_login_for_batch_mode": True,
+        }
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        status = {"lock": {"owner_username": "staff"}, "active": True}
+        store = app.extensions["qltpchay.store"]
+        with patch.object(store, "get_procurement_status", return_value=status) as get_status:
+            response = client.get("/api/procurement/status")
+
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["active"], True)
+        self.assertEqual(result["config"]["batch_planner_enabled"], False)
+        self.assertEqual(result["permissions"], {"can_manage_batch": True, "is_lock_owner": True})
+        get_status.assert_called_once_with(lock_timeout_minutes=75)
+
+    def test_ut_web_38_procurement_status_requires_session_when_login_is_enabled(self):
+        app = self.build_app("procurement-status-auth")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+
+        response = app.test_client().get("/api/procurement/status")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập hệ thống."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

@@ -586,6 +586,58 @@ def create_app(
             return jsonify({"error": "Bộ lọc báo cáo không hợp lệ."}), 400
         return jsonify(payload)
 
+    @app.get("/api/procurement/status")
+    @app.get(f"{admin_path}/api/procurement/status")
+    def get_procurement_status():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        config = current_app.config["SYSTEM_CONFIG"]
+        procurement_config = config.get("procurement", {})
+        try:
+            lock_timeout_minutes = max(1, int(procurement_config.get("batch_lock_timeout_minutes", 180)))
+        except (TypeError, ValueError):
+            lock_timeout_minutes = 180
+        store = current_app.extensions["qltpchay.store"]
+        status = store.get_procurement_status(lock_timeout_minutes=lock_timeout_minutes)
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        username = str((session or {}).get("username") or "")
+        role = str((session or {}).get("role") or "")
+        permissions = {
+            str(permission or "").strip()
+            for permission in ((session or {}).get("permissions") or [])
+            if str(permission or "").strip()
+        }
+        manager_usernames = procurement_config.get("planner_manager_usernames", [])
+        can_manage_batch = (
+            role == "admin"
+            or "procurement_batch_manage" in permissions
+            or (
+                isinstance(manager_usernames, list)
+                and username in {str(entry or "").strip() for entry in manager_usernames}
+            )
+        )
+        return jsonify({
+            **status,
+            "config": {
+                "batch_planner_enabled": bool(procurement_config.get("batch_planner_enabled", True)),
+                "allow_daily_quick_shortage_flow": bool(
+                    procurement_config.get("allow_daily_quick_shortage_flow", True)
+                ),
+                "required_login_for_batch_mode": bool(
+                    procurement_config.get("required_login_for_batch_mode", True)
+                ),
+            },
+            "permissions": {
+                "can_manage_batch": can_manage_batch,
+                "is_lock_owner": bool(username)
+                and str((status.get("lock") or {}).get("owner_username") or "") == username,
+            },
+        })
+
     @app.get("/api/public/orders")
     @app.get(f"{admin_path}/api/public/orders")
     def public_orders():
