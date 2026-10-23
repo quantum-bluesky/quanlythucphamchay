@@ -293,6 +293,8 @@ Lưu ý:
 | 242 | `UT-WEB-54` | Kiểm tra API xóa hẳn yêu cầu đăng nhập hệ thống khi `EnableLogin` bật. |
 | 243 | `UT-WEB-55` | Kiểm tra API xóa hẳn từ chối staff dù đã có session. |
 | 244 | `UT-WEB-56` | Kiểm tra Master Admin xóa hẳn sản phẩm và response giữ nguyên contract legacy. |
+| 245 | `UT-WEB-57` | Kiểm tra upload ảnh raw binary lưu file vào image root tạm và URL trả về đọc được. |
+| 246 | `UT-WEB-58` | Kiểm tra upload qua admin prefix cấu hình và extension không hợp lệ được chuẩn hóa về `.jpg`. |
 
 
 

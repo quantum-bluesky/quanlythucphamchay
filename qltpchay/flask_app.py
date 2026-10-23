@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import mimetypes
+import uuid
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -18,7 +19,7 @@ from .auth import (
 )
 from .config import load_system_config
 from .constants import ADMIN_SESSION_COOKIE, APP_NAME, CONFIG_PATH, DATA_DIR, STATIC_DIR
-from .helpers import get_product_min_unit
+from .helpers import get_product_min_unit, resize_image_bytes
 from .js_asset_versions import JavaScriptAssetVersionManager
 from .logger import log_error
 from .lunar_calendar import (
@@ -696,6 +697,29 @@ def create_app(
             "product": product,
             "summary": store.get_summary(),
         })
+
+    @app.post("/api/products/images/upload")
+    @app.post(f"{admin_path}/api/products/images/upload")
+    def upload_product_image():
+        # Issue #182: keep the legacy raw-binary upload contract and isolated image root.
+        try:
+            filename = request.args.get("filename", "image.jpg")
+            extension = Path(filename).suffix
+            if extension.lower() not in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}:
+                extension = ".jpg"
+            payload = request.get_data(cache=False)
+            if extension.lower() != ".svg":
+                payload, optimized_extension = resize_image_bytes(payload, max_dim=1024)
+                if optimized_extension:
+                    extension = optimized_extension
+            unique_name = f"{uuid.uuid4().hex}{extension}"
+            image_directory = Path(current_app.config["IMAGE_ROOT"]) / "products"
+            image_directory.mkdir(parents=True, exist_ok=True)
+            (image_directory / unique_name).write_bytes(payload)
+        except Exception as error:
+            log_error("Product image upload failed", exc_info=True)
+            return jsonify({"error": str(error)}), 400
+        return jsonify({"url": f"/images/products/{unique_name}"})
 
     @app.post("/api/products/<int:product_id>/change-base-unit")
     @app.post("/api/admin/products/<int:product_id>/change-base-unit")

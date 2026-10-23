@@ -989,6 +989,37 @@ class FlaskAppFactoryTests(unittest.TestCase):
         })
         self.assertEqual(store.get_products(include_deleted=True), [])
 
+    def test_ut_web_57_product_image_upload_saves_binary_and_serves_returned_url(self):
+        app = self.build_app("product-image-upload")
+        client = app.test_client()
+
+        response = client.post(
+            "/api/products/images/upload?filename=sample.svg",
+            data=b"<svg xmlns='http://www.w3.org/2000/svg'></svg>",
+            content_type="application/octet-stream",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        image_url = response.get_json()["url"]
+        self.assertTrue(image_url.startswith("/images/products/"))
+        served_image = client.get(image_url)
+        self.assertEqual(served_image.status_code, 200)
+        self.assertEqual(served_image.data, b"<svg xmlns='http://www.w3.org/2000/svg'></svg>")
+
+    def test_ut_web_58_product_image_upload_uses_configured_admin_prefix_and_safe_extension(self):
+        app = self.build_app("product-image-upload-prefix")
+
+        response = app.test_client().post(
+            "/control-room/api/products/images/upload?filename=payload.exe",
+            data=b"opaque image payload",
+            content_type="application/octet-stream",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        image_url = response.get_json()["url"]
+        self.assertTrue(image_url.endswith(".jpg"))
+        self.assertEqual(app.test_client().get(image_url).data, b"opaque image payload")
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]
