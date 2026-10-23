@@ -1391,6 +1391,105 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Đơn không tồn tại."})
 
+    def test_ut_web_78_bulk_create_without_login_uses_direct_store_path(self):
+        app = self.build_app("bulk-create-direct")
+        store = app.extensions["qltpchay.store"]
+        result = {"created_count": 2}
+        with patch.object(store, "bulk_create_orders", return_value=result) as bulk_create:
+            response = app.test_client().post(
+                "/api/orders/bulk-create",
+                json={
+                    "mode": "save_drafts",
+                    "requestId": "request-78",
+                    "orders": [{"customer_name": "A"}],
+                    "allowDuplicates": True,
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["message"], "Đã lưu các đơn nháp.")
+        self.assertEqual(response.get_json()["created_count"], 2)
+        self.assertEqual(bulk_create.call_args.kwargs["request_id"], "request-78")
+        self.assertTrue(bulk_create.call_args.kwargs["allow_duplicates"])
+
+    def test_ut_web_79_bulk_create_requires_permission_when_login_enabled(self):
+        app = self.build_app("bulk-create-no-permission")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+
+        response = client.post("/api/orders/bulk-create", json={"mode": "save_drafts"})
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Tài khoản này không có quyền tạo nhiều đơn."})
+
+    def test_ut_web_80_bulk_create_user_without_manager_permission_creates_approval_request(self):
+        app = self.build_app("bulk-create-approval")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.extensions["qltpchay.admin_sessions"]._users[0]["permissions"].append("bulk_order_create")
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        request_result = {"request_id": "approval-1", "status": "pending"}
+        with patch.object(store, "create_bulk_order_request", return_value=request_result) as create_request:
+            response = client.post(
+                "/control-room/api/orders/bulk-create",
+                json={"mode": "save_drafts", "request_id": "approval-1", "orders": []},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["message"], "Đã gửi yêu cầu lưu nhiều đơn nháp để chờ duyệt.")
+        self.assertEqual(create_request.call_args.kwargs["actor"], "staff")
+
+    def test_ut_web_81_bulk_commit_requires_bulk_commit_permission(self):
+        app = self.build_app("bulk-commit-permission")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.extensions["qltpchay.admin_sessions"]._users[0]["permissions"].append("bulk_order_create")
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+
+        response = client.post("/api/orders/bulk-create", json={"mode": "commit_valid"})
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Tài khoản này không có quyền chốt nhiều đơn."})
+
+    def test_ut_web_82_bulk_create_duplicate_request_returns_conflict_metadata(self):
+        from qltpchay.store import BulkOrderRequestDuplicateError
+
+        app = self.build_app("bulk-create-duplicate")
+        store = app.extensions["qltpchay.store"]
+        duplicates = [{"request_id": "duplicate-82"}]
+        with patch.object(
+            store,
+            "bulk_create_orders",
+            side_effect=BulkOrderRequestDuplicateError("Yêu cầu bị trùng.", duplicates=duplicates),
+        ):
+            response = app.test_client().post(
+                "/api/orders/bulk-create",
+                json={"mode": "save_drafts", "request_id": "duplicate-82"},
+            )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.get_json(), {
+            "error": "Yêu cầu bị trùng.",
+            "code": "bulk_order_duplicate_request",
+            "duplicates": duplicates,
+            "approval_required": False,
+            "can_continue": False,
+        })
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

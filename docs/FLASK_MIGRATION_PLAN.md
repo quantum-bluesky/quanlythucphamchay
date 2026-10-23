@@ -347,3 +347,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   `UT-WEB-75..77` pass. Kết quả: `tests.test_flask_app` 77/77 pass,
   full unit 217/217 pass, `py_compile` và `git diff --check` pass; đã chốt thành
   commit riêng.
+- Đang chuyển `POST /api/orders/bulk-create`, gồm quyền create/commit riêng,
+  approval workflow và duplicate conflict; `UT-WEB-78..82` pass. Kết quả:
+  `tests.test_flask_app` 82/82 pass, full unit 222/222 pass, `py_compile` và
+  `git diff --check` pass; đã chốt thành commit riêng.

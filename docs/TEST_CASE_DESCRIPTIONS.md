@@ -314,6 +314,11 @@ Lưu ý:
 | 263 | `UT-WEB-75` | Kiểm tra checkout chuyển đầy đủ order payload và trả order/summary với status 201. |
 | 264 | `UT-WEB-76` | Kiểm tra quick-create giữ actor, payment flags, quick summary và response collections. |
 | 265 | `UT-WEB-77` | Kiểm tra commit order ánh xạ cart không hợp lệ thành status 400. |
+| 266 | `UT-WEB-78` | Kiểm tra bulk create không login dùng direct store path và giữ camelCase request fields. |
+| 267 | `UT-WEB-79` | Kiểm tra bulk create từ chối user thiếu permission khi login bật. |
+| 268 | `UT-WEB-80` | Kiểm tra user có quyền tạo nhưng không quản lý batch gửi request chờ duyệt. |
+| 269 | `UT-WEB-81` | Kiểm tra mode `commit_valid` yêu cầu permission `bulk_order_commit`. |
+| 270 | `UT-WEB-82` | Kiểm tra duplicate bulk request trả conflict code/details và quyền tiếp tục. |
 
 
 

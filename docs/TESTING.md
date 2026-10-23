@@ -112,6 +112,8 @@ response, conflict payload `409`, validation payload `400` và admin prefix alia
 201; lỗi đầu vào từ chối bằng 400.
 `POST /api/orders/checkout`, `/api/orders/quick-create` và `/api/orders/commit`
 giữ response tạo/chốt đơn, quick summary, actor username và lỗi validation 400.
+`POST /api/orders/bulk-create` giữ permission riêng cho create/commit, luồng
+approval request, alias camelCase, duplicate response `409` và allow-duplicates.
 
 Chạy riêng nhóm này:
 

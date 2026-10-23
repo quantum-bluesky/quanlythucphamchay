@@ -30,7 +30,7 @@ from .lunar_calendar import (
     next_preorder_lunar_date,
     solar_to_vietnamese_lunar,
 )
-from .store import InventoryStore, SyncConflictError
+from .store import BulkOrderRequestDuplicateError, InventoryStore, SyncConflictError
 
 
 LONG_LIVED_CACHE = "public, max-age=31536000, immutable"
@@ -1114,6 +1114,88 @@ def create_app(
                 "committed_at": result["committed_at"],
             },
             "summary": store.get_summary(),
+        })
+
+    @app.post("/api/orders/bulk-create")
+    @app.post(f"{admin_path}/api/orders/bulk-create")
+    def bulk_create_orders():
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        config = current_app.config["SYSTEM_CONFIG"]
+        login_enabled = bool(config.get("EnableLogin"))
+        if login_enabled:
+            auth_error = require_authenticated_session()
+            if auth_error is not None:
+                return auth_error
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        role = str((session or {}).get("role") or "")
+        permissions = {
+            str(permission or "").strip()
+            for permission in ((session or {}).get("permissions") or [])
+            if str(permission or "").strip()
+        }
+
+        def has_permission(permission: str) -> bool:
+            return role == "admin" or permission in permissions
+
+        mode = str(payload.get("mode") or "").strip()
+        if mode == "commit_valid" and not has_permission("bulk_order_commit"):
+            return jsonify({"error": "Tài khoản này không có quyền chốt nhiều đơn."}), 401
+        if (
+            login_enabled
+            and mode != "commit_valid"
+            and not has_permission("bulk_order_create")
+            and not has_permission("bulk_order_commit")
+        ):
+            return jsonify({"error": "Tài khoản này không có quyền tạo nhiều đơn."}), 401
+
+        can_manage_requests = has_permission("order_batch_manage")
+        approval_required = login_enabled and not can_manage_requests
+        request_id = payload.get("request_id") or payload.get("requestId") or ""
+        orders = payload.get("orders") or []
+        allow_duplicates = bool(payload.get("allow_duplicates") or payload.get("allowDuplicates"))
+        actor = str((session or {}).get("username") or "")
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            if approval_required:
+                result = store.create_bulk_order_request(
+                    mode=mode,
+                    request_id=request_id,
+                    orders=orders,
+                    actor=actor,
+                )
+                message = (
+                    "Đã gửi yêu cầu chốt nhiều đơn để chờ duyệt."
+                    if mode == "commit_valid"
+                    else "Đã gửi yêu cầu lưu nhiều đơn nháp để chờ duyệt."
+                )
+            else:
+                result = store.bulk_create_orders(
+                    mode=mode,
+                    request_id=request_id,
+                    orders=orders,
+                    actor=actor,
+                    allow_duplicates=allow_duplicates,
+                )
+                message = "Đã chốt các đơn hợp lệ." if mode == "commit_valid" else "Đã lưu các đơn nháp."
+        except BulkOrderRequestDuplicateError as error:
+            return jsonify({
+                "error": str(error),
+                "code": "bulk_order_duplicate_request",
+                "duplicates": error.duplicates,
+                "approval_required": approval_required,
+                "can_continue": can_manage_requests,
+            }), 409
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": message,
+            **result,
+            "inventory_summary": store.get_summary(),
         })
 
     @app.get("/api/orders/bulk-requests/<request_id>/history")

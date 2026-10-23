@@ -324,6 +324,11 @@ Mục tiêu:
 | 263 | `UT-WEB-75` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_75_checkout_route_preserves_order_response_and_payload` |
 | 264 | `UT-WEB-76` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_76_quick_create_route_preserves_summary_and_actor` |
 | 265 | `UT-WEB-77` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_77_commit_order_maps_missing_cart_to_400` |
+| 266 | `UT-WEB-78` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_78_bulk_create_without_login_uses_direct_store_path` |
+| 267 | `UT-WEB-79` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_79_bulk_create_requires_permission_when_login_enabled` |
+| 268 | `UT-WEB-80` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_80_bulk_create_user_without_manager_permission_creates_approval_request` |
+| 269 | `UT-WEB-81` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_81_bulk_commit_requires_bulk_commit_permission` |
+| 270 | `UT-WEB-82` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_82_bulk_create_duplicate_request_returns_conflict_metadata` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 
