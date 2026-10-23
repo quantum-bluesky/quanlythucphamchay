@@ -81,32 +81,34 @@ admin tùy chỉnh không bị rơi về frontend root.
 
 ## Giai đoạn 3 — Test harness
 
-- [ ] Giữ `unittest`; dùng Flask test client cho kiểm thử HTTP không cần socket.
-- [ ] Fixture tạo app/client/store/session cho từng test; teardown đóng kết nối,
+- [x] Giữ `unittest`; dùng Flask test client cho kiểm thử HTTP không cần socket.
+- [x] Fixture tạo app/client/store/session cho từng test; teardown đóng kết nối,
   xóa DB tạm cùng WAL/SHM và dọn auth state.
-- [ ] Dùng DB file tạm khi cần nhiều connection hoặc mô phỏng WAL/locking.
-- [ ] Mock mail, Zalo/OAuth, network ngoài, thời gian và background tasks ở boundary.
-- [ ] Tiếp tục Playwright cho browser flows và một smoke test qua WSGI server thật.
-- [ ] Test admin phải điều hướng bằng `TEST_ADMIN_PATH` từ fixture và assert trang
+- [x] Dùng DB file tạm khi cần nhiều connection hoặc mô phỏng WAL/locking.
+- [x] Mock mail, Zalo/OAuth, network ngoài, thời gian và background tasks ở boundary.
+- [x] Tiếp tục Playwright cho browser flows và smoke test qua WSGI server thật,
+  gồm Waitress với subpath prefix cấu hình.
+- [x] Test admin phải điều hướng bằng `TEST_ADMIN_PATH` từ fixture và assert trang
   login admin trước khi nhập thông tin.
-- [ ] Cập nhật `docs/TESTING.md`, test index/descriptions nếu thay đổi test spec.
+- [x] Cập nhật `docs/TESTING.md`, test index/descriptions nếu thay đổi test spec.
 
 **Gate:** Suite không phụ thuộc thứ tự; không chạm DB runtime; test admin xác nhận
 đúng route trước khi đăng nhập.
 
 ## Giai đoạn 4 — Runtime và deploy
 
-- [ ] Chọn WSGI server sau khi xác minh môi trường Windows/deploy hiện tại; không
+- [x] Chọn Waitress làm WSGI server runtime mặc định; không
   dùng Flask development server cho production.
-- [ ] Giữ `python app.py`, `config`, `init` và đối số host/port tương thích.
-- [ ] Xác minh route khi proxy giữ prefix và khi proxy đã strip prefix; không tin
-  forwarded headers từ nguồn không được cấu hình rõ.
-- [ ] Cập nhật requirements/setup/Windows/IIS/reverse proxy docs và hướng dẫn
+- [x] Giữ `python app.py`, `config`, `init` và đối số host/port tương thích.
+- [x] Kiểm tra WSGI khi proxy giữ prefix qua `APP_URL_PREFIX` và khi proxy strip
+  prefix qua `SCRIPT_NAME`; không tin forwarded headers chưa cấu hình rõ.
+- [x] Cập nhật requirements/setup/Windows/reverse proxy docs và hướng dẫn
   vận hành, logging, restart, backup và rollback.
 - [ ] Đánh giá concurrency/SQLite lock với WSGI worker/thread configuration.
 
-**Gate:** Máy Windows có thể setup/chạy theo tài liệu; smoke test qua proxy/subpath
-đạt; rollback về entrypoint cũ đã được thử.
+**Gate:** Smoke WSGI subpath đã đạt trên Waitress loopback. Chưa xác minh trên IIS
+hoặc reverse proxy triển khai thật, cũng chưa hoàn tất đánh giá SQLite concurrency;
+rollback legacy đã được thử qua CLI/test.
 
 ## Giai đoạn 5 — So sánh, cutover và dọn mã cũ
 
@@ -425,9 +427,15 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Chuyển CLI mặc định sang Flask/Waitress và cập nhật README/Windows deploy với
   cài dependencies và lệnh rollback legacy. `UT-WEB-146` kiểm tra default,
   lựa chọn Flask và rollback.
-- Kiểm chứng gần nhất sau khi chọn Flask/Waitress làm runtime mặc định: Flask
-  tests 146/146, full unit 286/286, Python compile, Node config syntax và
-  `git diff --check` pass. Playwright Flask full suite có 110 case: 92 pass,
+- Bổ sung cấu hình Waitress `APP_URL_PREFIX` cho trường hợp proxy forward prefix
+  còn nguyên; kiểm thử WSGI bằng Waitress loopback và `SCRIPT_NAME` khi proxy đã
+  strip prefix qua `UT-WEB-147`, đồng thời kiểm tra wiring từ CLI qua
+  `UT-WEB-148`. Hai test mục tiêu pass; full unit suite đạt 288/288. Cập nhật
+  README, deploy guide và test catalog.
+- Kiểm chứng gần nhất sau khi chọn Flask/Waitress làm runtime mặc định và thêm
+  prefix support: Flask tests 148/148, full unit 288/288, Python compile, Node
+  config syntax và `git diff --check` pass. Playwright Flask full suite có 110
+  case: 92 pass,
   14 fail, 4 skip. Lượt đối chứng legacy chạy cùng 110 case, nhưng dừng ở
   `IT-PHB-04` sau khi test lỗi trong bước phục hồi fixture; đã thu được lỗi của
   các test trước đó nhưng chưa có summary cuối toàn suite.
@@ -444,9 +452,9 @@ admin tùy chỉnh không bị rơi về frontend root.
   baseline hoặc cô lập fixture cần được xử lý/đánh giá riêng trước khi dùng
   full-suite làm gate cutover.
 - Chưa hoàn tất cutover gate: còn đối chiếu API contract status/body/headers,
-  xác minh proxy/subpath trên cấu hình deploy thực tế, khắc phục hoặc phân loại
-  rõ lỗi test baseline/state leak, và chạy lại full suite hoàn tất trên cả hai
-  backend. Tiếp tục giữ legacy rollback; chưa xóa `BaseHTTPRequestHandler`.
+  xác minh IIS/reverse proxy triển khai thực tế và concurrency/SQLite, khắc phục
+  hoặc phân loại rõ lỗi test baseline/state leak, và chạy lại full suite hoàn tất
+  trên cả hai backend. Tiếp tục giữ legacy rollback; chưa xóa `BaseHTTPRequestHandler`.
 - Điều tra regression #119 `IT-PROC-02`: hai thao tác nhận kho và thanh toán của
   user thường đều thành công; test fail ở assertion điều hướng sau đó vì tài
   khoản không có quyền mở procurement planner. Đổi assertion cuối sang xác minh

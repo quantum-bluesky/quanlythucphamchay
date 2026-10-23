@@ -2,7 +2,7 @@
 
 Ứng dụng web nhẹ để theo dõi tồn kho thực phẩm chay đông lạnh. Backend dùng Flask, Waitress và SQLite; không dùng ORM.
 
-App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/qltp/`; client sẽ tự suy ra `app root` để gọi `static/*` và `api/*` theo đường dẫn hiện hành thay vì khóa cứng ở `/`.
+App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/qltp/`. Nếu proxy giữ prefix khi forward, đặt `APP_URL_PREFIX=/qltp` để Waitress chuyển prefix thành WSGI `SCRIPT_NAME`; nếu proxy đã strip prefix, để biến này trống. Xem [hướng dẫn deploy Windows](docs/DEPLOY_WINDOWS.md#71-chạy-sau-reverse-proxy-ở-subpath).
 
 ## Tài liệu
 

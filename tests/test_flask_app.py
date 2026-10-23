@@ -3047,6 +3047,65 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertNotIn(b"secret details", response.data)
         self.assertTrue(log_error.call_args.kwargs["exc_info"])
 
+    def test_ut_web_147_waitress_supports_configured_reverse_proxy_prefix(self):
+        # Issue #182: Exercise Waitress prefix stripping and WSGI SCRIPT_NAME as deployed.
+        from qltpchay.wsgi_server import create_waitress_server
+
+        app = self.build_app("waitress-proxy-prefix", "/control-room")
+        server = create_waitress_server(
+            app,
+            host="127.0.0.1",
+            port=0,
+            threads=1,
+            url_prefix="/qltp",
+        )
+        server_thread = threading.Thread(target=server.run, daemon=True)
+        server_thread.start()
+        base_url = f"http://127.0.0.1:{server.effective_port}"
+        try:
+            with urlopen(f"{base_url}/qltp/") as response:
+                public_html = response.read()
+            with urlopen(f"{base_url}/qltp/control-room") as response:
+                admin_html = response.read()
+            with urlopen(f"{base_url}/qltp/static/styles.css") as response:
+                static_css = response.read()
+            with urlopen(f"{base_url}/qltp/api/public/products") as response:
+                public_payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.close()
+            server_thread.join(timeout=5)
+
+        self.assertNotIn(b"adminLoginForm", public_html)
+        self.assertIn(b"adminLoginForm", admin_html)
+        self.assertTrue(static_css)
+        self.assertIn("products", public_payload)
+
+        # A proxy that strips the prefix can expose the same WSGI SCRIPT_NAME directly.
+        admin_response = app.test_client().get(
+            "/control-room",
+            environ_overrides={"SCRIPT_NAME": "/qltp"},
+        )
+        self.assertEqual(admin_response.status_code, 200)
+        self.assertIn(b"adminLoginForm", admin_response.data)
+
+    def test_ut_web_148_run_server_passes_normalized_proxy_prefix_to_waitress(self):
+        # Issue #182: Keep the environment-to-Waitress prefix wiring covered.
+        from app import run_server
+
+        config = {
+            "version": "test-proxy-prefix",
+            "server": {"host": "127.0.0.1", "port": 8130},
+            "admin": {"username": "test-admin"},
+        }
+        app_instance = object()
+        with patch.dict("os.environ", {"APP_URL_PREFIX": "qltp/"}):
+            with patch("qltpchay.flask_app.create_app", return_value=app_instance):
+                with patch("qltpchay.wsgi_server.serve_flask_app") as serve:
+                    run_server(config, backend="flask")
+
+        self.assertEqual(serve.call_args.kwargs["url_prefix"], "/qltp")
+        self.assertEqual(serve.call_args.kwargs["threads"], 4)
+
 
 if __name__ == "__main__":
     unittest.main()

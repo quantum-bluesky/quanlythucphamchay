@@ -383,6 +383,8 @@ Lưu ý:
 | 332 | `UT-WEB-144` | Kiểm tra callback gọi token/profile APIs và lưu customer qua network mock. |
 | 333 | `UT-WEB-145` | Kiểm tra callback báo thiếu code và thiếu cấu hình Zalo. |
 | 334 | `UT-WEB-146` | Kiểm tra CLI mặc định chọn Flask và vẫn hỗ trợ chọn legacy để rollback. |
+| 335 | `UT-WEB-147` | Kiểm tra Waitress giữ subpath prefix cấu hình và hỗ trợ `SCRIPT_NAME` khi proxy strip prefix. |
+| 336 | `UT-WEB-148` | Kiểm tra `APP_URL_PREFIX` được chuẩn hóa và chuyển vào Waitress khi khởi chạy. |
 
 
 

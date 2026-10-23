@@ -152,8 +152,20 @@ def run_server(
             database_path=DB_PATH,
             system_config=runtime_config,
         )
+        # Issue #182: Configure the proxy prefix explicitly; do not trust forwarded headers.
+        url_prefix = str(os.environ.get("APP_URL_PREFIX", "")).strip()
+        if url_prefix:
+            url_prefix = "/" + url_prefix.strip("/")
+            if url_prefix == "/":
+                url_prefix = ""
         try:
-            serve_flask_app(flask_app, host=resolved_host, port=resolved_port, threads=4)
+            serve_flask_app(
+                flask_app,
+                host=resolved_host,
+                port=resolved_port,
+                threads=4,
+                url_prefix=url_prefix,
+            )
         except KeyboardInterrupt:
             log_always("Shutting down server...")
         return

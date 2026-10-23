@@ -393,6 +393,8 @@ Mục tiêu:
 | 332 | `UT-WEB-144` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_144_zalo_callback_exchanges_token_and_fetches_user_with_mocked_network` |
 | 333 | `UT-WEB-145` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_145_zalo_callback_maps_missing_code_and_config_errors` |
 | 334 | `UT-WEB-146` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_146_cli_exposes_flask_backend_and_legacy_rollback` |
+| 335 | `UT-WEB-147` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_147_waitress_supports_configured_reverse_proxy_prefix` |
+| 336 | `UT-WEB-148` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_148_run_server_passes_normalized_proxy_prefix_to_waitress` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

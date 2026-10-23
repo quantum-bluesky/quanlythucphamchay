@@ -55,6 +55,9 @@ Session/admin login, port-scoped cookie, status payload và logout hiện có te
 riêng; admin login phải từ chối tài khoản user thường.
 `UT-WEB-13` cũng gửi HTTP request qua WSGI server loopback thật để kiểm tra
 admin/public routing ngoài Flask test client.
+`UT-WEB-147` kiểm tra Waitress với prefix được cấu hình rõ và WSGI
+`SCRIPT_NAME` khi reverse proxy đã strip prefix; test dùng DB trong thư mục tạm.
+`UT-WEB-148` xác nhận `APP_URL_PREFIX` được chuẩn hóa rồi chuyển vào Waitress.
 `UT-WEB-14` so sánh nguyên payload session status của Flask với legacy HTTP
 handler trên cùng config và session manager.
 Route `GET /api/public/products` đã có kiểm tra schema, lọc sản phẩm public,

@@ -9,9 +9,41 @@ from typing import Any
 from waitress.server import create_server
 
 
-def serve_flask_app(app: Any, *, host: str, port: int, threads: int = 4) -> None:
+def create_waitress_server(
+    app: Any,
+    *,
+    host: str,
+    port: int,
+    threads: int = 4,
+    url_prefix: str = "",
+) -> Any:
+    """Create Waitress with an optional, explicitly configured proxy prefix."""
+    # Issue #182: Waitress strips this prefix from PATH_INFO and sets SCRIPT_NAME.
+    return create_server(
+        app,
+        host=host,
+        port=port,
+        threads=threads,
+        url_prefix=url_prefix,
+    )
+
+
+def serve_flask_app(
+    app: Any,
+    *,
+    host: str,
+    port: int,
+    threads: int = 4,
+    url_prefix: str = "",
+) -> None:
     """Run a WSGI app and close Waitress cleanly when the parent process stops it."""
-    server = create_server(app, host=host, port=port, threads=threads)
+    server = create_waitress_server(
+        app,
+        host=host,
+        port=port,
+        threads=threads,
+        url_prefix=url_prefix,
+    )
     close_lock = threading.Lock()
     closed = False
 
