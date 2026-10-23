@@ -7,6 +7,7 @@ import csv
 import io
 import json
 import mimetypes
+import secrets
 import uuid
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
@@ -970,6 +971,44 @@ def create_app(
             "public_web": config.get("public_web", {}),
             "zalo_login": config.get("zalo_login", {}),
         })
+
+    # Issue #182: Preserve the legacy public access contract for Zalo group management.
+    @app.get("/api/admin/zalo-groups")
+    @app.get(f"{admin_path}/api/admin/zalo-groups")
+    def get_zalo_groups():
+        store = current_app.extensions["qltpchay.store"]
+        return jsonify({"zalo_groups": store.get_zalo_groups()})
+
+    @app.post("/api/admin/zalo-groups")
+    @app.post(f"{admin_path}/api/admin/zalo-groups")
+    def save_zalo_group():
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        group_id = str(payload.get("id") or "").strip()
+        name = str(payload.get("name") or "").strip()
+        zalo_url = str(payload.get("zalo_url") or "").strip()
+        if not group_id:
+            group_id = f"zg_{secrets.token_hex(4)}"
+        if not name:
+            return jsonify({"error": "Tên nhóm là bắt buộc."}), 400
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            group = store.upsert_zalo_group(group_id, name, zalo_url, is_active=1)
+        except Exception as error:
+            log_error("Zalo group save failed.", exc_info=True)
+            return jsonify({"error": str(error)}), 500
+        return jsonify({"message": "Đã lưu nhóm Zalo.", "zalo_group": group})
+
+    @app.delete("/api/admin/zalo-groups/<group_id>")
+    @app.delete(f"{admin_path}/api/admin/zalo-groups/<group_id>")
+    def delete_zalo_group(group_id: str):
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            store.delete_zalo_group(group_id)
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({"message": "Đã xóa nhóm Zalo."})
 
     @app.get("/api/admin/mail-config")
     @app.get(f"{admin_path}/api/admin/mail-config")

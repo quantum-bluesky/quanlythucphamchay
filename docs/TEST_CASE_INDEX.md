@@ -379,6 +379,9 @@ Mục tiêu:
 | 318 | `UT-WEB-130` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_130_hard_delete_customer_requires_master_admin` |
 | 319 | `UT-WEB-131` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_131_hard_delete_customer_passes_actor_and_returns_store_result` |
 | 320 | `UT-WEB-132` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_132_hard_delete_supplier_maps_validation_error_to_400` |
+| 321 | `UT-WEB-133` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_133_zalo_group_list_preserves_legacy_public_access` |
+| 322 | `UT-WEB-134` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_134_zalo_group_create_generates_id_and_validates_name` |
+| 323 | `UT-WEB-135` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_135_zalo_group_delete_preserves_success_and_validation_response` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

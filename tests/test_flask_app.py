@@ -2654,6 +2654,51 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Nhà cung cấp đang được chứng từ sử dụng."})
 
+    def test_ut_web_133_zalo_group_list_preserves_legacy_public_access(self):
+        app = self.build_app("zalo-groups-list")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        groups = [{"id": "zg-133", "name": "Nhóm đặt hàng"}]
+        with patch.object(store, "get_zalo_groups", return_value=groups):
+            response = app.test_client().get("/control-room/api/admin/zalo-groups")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"zalo_groups": groups})
+
+    def test_ut_web_134_zalo_group_create_generates_id_and_validates_name(self):
+        app = self.build_app("zalo-group-create")
+        store = app.extensions["qltpchay.store"]
+        group = {"id": "zg-134", "name": "Nhóm chay", "zalo_url": "https://zalo.me/g/134"}
+        with patch.object(store, "upsert_zalo_group", return_value=group) as upsert:
+            response = app.test_client().post(
+                "/control-room/api/admin/zalo-groups",
+                json={"name": "Nhóm chay", "zalo_url": "https://zalo.me/g/134"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["message"], "Đã lưu nhóm Zalo.")
+        self.assertTrue(upsert.call_args.args[0].startswith("zg_"))
+        self.assertEqual(upsert.call_args.args[1:], ("Nhóm chay", "https://zalo.me/g/134"))
+        self.assertEqual(upsert.call_args.kwargs["is_active"], 1)
+        invalid = app.test_client().post("/api/admin/zalo-groups", json={"name": " "})
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(invalid.get_json(), {"error": "Tên nhóm là bắt buộc."})
+
+    def test_ut_web_135_zalo_group_delete_preserves_success_and_validation_response(self):
+        app = self.build_app("zalo-group-delete")
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        with patch.object(store, "delete_zalo_group") as delete_group:
+            response = client.delete("/api/admin/zalo-groups/zg-135")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"message": "Đã xóa nhóm Zalo."})
+        delete_group.assert_called_once_with("zg-135")
+
+        with patch.object(store, "delete_zalo_group", side_effect=ValueError("Nhóm đang có khách.")):
+            invalid = client.delete("/control-room/api/admin/zalo-groups/zg-used")
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(invalid.get_json(), {"error": "Nhóm đang có khách."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

@@ -141,6 +141,8 @@ Locked order/purchase edits require Master Admin and the feature gate, then pass
 locked document snapshot and edit reason through to the store with actor context.
 Hard-delete customer/supplier endpoints require Master Admin and preserve actor,
 store deletion results, and validation errors.
+Zalo group list/create/delete preserve the legacy unauthenticated API contract,
+custom admin-prefix aliases, generated IDs, and deletion validation errors.
 
 Chạy riêng nhóm này:
 

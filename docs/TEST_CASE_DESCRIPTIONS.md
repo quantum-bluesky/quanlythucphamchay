@@ -369,6 +369,9 @@ Lưu ý:
 | 318 | `UT-WEB-130` | Kiểm tra hard-delete khách hàng từ chối user không phải Master Admin. |
 | 319 | `UT-WEB-131` | Kiểm tra hard-delete khách hàng chuyển actor và response từ store. |
 | 320 | `UT-WEB-132` | Kiểm tra hard-delete nhà cung cấp ánh xạ lỗi validation thành 400. |
+| 321 | `UT-WEB-133` | Kiểm tra danh sách nhóm Zalo giữ quyền truy cập legacy không cần đăng nhập. |
+| 322 | `UT-WEB-134` | Kiểm tra tạo nhóm Zalo sinh ID và yêu cầu tên nhóm. |
+| 323 | `UT-WEB-135` | Kiểm tra xóa nhóm Zalo giữ kết quả thành công và lỗi đang được sử dụng. |
 
 
 
