@@ -392,6 +392,7 @@ Mục tiêu:
 | 331 | `UT-WEB-143` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_143_zalo_oauth_redirect_builds_proxy_callback_and_pkce_cookie` |
 | 332 | `UT-WEB-144` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_144_zalo_callback_exchanges_token_and_fetches_user_with_mocked_network` |
 | 333 | `UT-WEB-145` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_145_zalo_callback_maps_missing_code_and_config_errors` |
+| 334 | `UT-WEB-146` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_146_cli_exposes_flask_backend_and_legacy_rollback` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

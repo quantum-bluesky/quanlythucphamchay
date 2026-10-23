@@ -1,6 +1,6 @@
 # Quản lý nhanh đồ thực phẩm chay
 
-Ứng dụng web nhẹ để theo dõi tồn kho cá nhân cho thực phẩm chay đông lạnh. Hệ thống dùng Python chuẩn và SQLite, không cần cài thêm package ngoài.
+Ứng dụng web nhẹ để theo dõi tồn kho thực phẩm chay đông lạnh. Backend dùng Flask, Waitress và SQLite; không dùng ORM.
 
 App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/qltp/`; client sẽ tự suy ra `app root` để gọi `static/*` và `api/*` theo đường dẫn hiện hành thay vì khóa cứng ở `/`.
 
@@ -237,6 +237,8 @@ python app.py
 
 App sẽ chạy ở cổng 4000 theo cấu hình `data/system_config.json`.
 Sau đó mở trình duyệt tại `http://127.0.0.1:4000` cho cửa hàng (khách hàng) hoặc `http://127.0.0.1:4000/admin` cho trang quản trị.
+
+Backend mặc định là Flask/Waitress. Nếu cần rollback tạm thời, chạy `python app.py --http-backend legacy` hoặc đặt `APP_HTTP_BACKEND=legacy` trước khi khởi động.
 
 Dữ liệu nghiệp vụ được lưu trong `data\inventory.db`. Nếu nhiều máy cùng mở vào cùng một địa chỉ app/server thì sẽ dùng chung một nguồn dữ liệu.
 

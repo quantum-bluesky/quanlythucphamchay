@@ -384,15 +384,15 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Đã chuyển các mutation của procurement batch và tạo phiếu nhập đơn/lô;
   `UT-WEB-111..116` kiểm tra login/manager gate, actor, lock status, conflict,
   scope và danh sách tạo/bỏ qua. Kết quả: `tests.test_flask_app` 116/116 pass,
-  full unit 256/256 pass, `py_compile` và `git diff --check` pass; chờ commit.
+  full unit 256/256 pass, `py_compile` và `git diff --check` pass; đã commit riêng.
 - Đã chuyển cập nhật mail/Public Web config và test-mail; `UT-WEB-117..122` kiểm
   tra Master Admin, persistence, bảo toàn password, validation và mock SMTP.
   Kết quả: `tests.test_flask_app` 122/122 pass, full unit 262/262 pass,
-  `py_compile` và `git diff --check` pass; chờ commit.
+  `py_compile` và `git diff --check` pass; đã commit riêng.
 - Đã chuyển legacy audit safe-fix và liên kết receipt/source cho phiếu nhập;
   `UT-WEB-123..126` kiểm tra Master Admin, actor, audit payload và validation.
   Kết quả: `tests.test_flask_app` 126/126 pass, full unit 266/266 pass,
-  `py_compile` và `git diff --check` pass; chờ commit.
+  `py_compile` và `git diff --check` pass; đã commit riêng.
 - Đã chuyển sửa đơn/phiếu nhập đã khóa, giữ Master Admin gate và
   `EnableAdminLockedEdit`; `UT-WEB-127..129` kiểm tra actor, payload, feature gate
   và lỗi validation. Kết quả: `tests.test_flask_app` 129/129 pass, full unit
@@ -412,4 +412,22 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Đã chuyển Zalo OAuth start/callback, giữ mock mode, PKCE, proxy callback URI,
   token/profile flow và customer upsert; `UT-WEB-141..145` mock mọi request ngoài.
   Kết quả: `tests.test_flask_app` 145/145 pass, full unit 285/285 pass,
-  `py_compile` và `git diff --check` pass; chờ commit.
+  `py_compile` và `git diff --check` pass; đã commit riêng.
+- Đã bổ sung runtime Flask/Waitress có thể chọn bằng `--http-backend` hoặc
+  `APP_HTTP_BACKEND`, giữ legacy làm rollback tại thời điểm đối chứng. Runner
+  Playwright hỗ trợ chọn backend và khởi tạo DB/config/image/asset fixture trong
+  thư mục tạm. Waitress chạy trên Windows; Flask development server không được
+  dùng làm runtime phục vụ.
+- Chuyển CLI mặc định sang Flask/Waitress và cập nhật README/Windows deploy với
+  cài dependencies và lệnh rollback legacy. `UT-WEB-146` kiểm tra default,
+  lựa chọn Flask và rollback.
+- Kiểm tra gần nhất: Flask tests 146/146, full unit 286/286, Python compile,
+  Node config syntax và `git diff --check` đều pass. Playwright Flask full suite
+  chạy 110 case: 90 pass, 16 fail, 4 skip; một failure là matcher phân biệt chữ
+  hoa của reason phrase HTTP 400, đã sửa và `IT-PROC-01` pass riêng trên Flask.
+  Các lỗi nghiệp vụ còn lại đang được đối chiếu trên backend legacy; lỗi
+  `ACC-CANCEL-01` (tồn 60 thay vì 6) và `IT-PROC-02` đã tái hiện trên cả hai
+  backend. Các test public còn báo `ERR_NETWORK_ACCESS_DENIED` ở môi trường này.
+- Chưa hoàn tất cutover gate: cần chốt kết quả full suite legacy sau khi kết
+  thúc, đánh giá các lỗi baseline/fixture hiện hữu, kiểm tra proxy/subpath và
+  regression #119, rồi mới cân nhắc xóa HTTP handler cũ.

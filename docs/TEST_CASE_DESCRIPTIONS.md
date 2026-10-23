@@ -382,6 +382,7 @@ Lưu ý:
 | 331 | `UT-WEB-143` | Kiểm tra OAuth redirect URI theo proxy prefix và PKCE cookie. |
 | 332 | `UT-WEB-144` | Kiểm tra callback gọi token/profile APIs và lưu customer qua network mock. |
 | 333 | `UT-WEB-145` | Kiểm tra callback báo thiếu code và thiếu cấu hình Zalo. |
+| 334 | `UT-WEB-146` | Kiểm tra CLI mặc định chọn Flask và vẫn hỗ trợ chọn legacy để rollback. |
 
 
 

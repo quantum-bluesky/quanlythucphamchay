@@ -2939,6 +2939,20 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(missing_config.status_code, 500)
         self.assertEqual(missing_config.get_json(), {"error": "Zalo config missing"})
 
+    def test_ut_web_146_cli_exposes_flask_backend_and_legacy_rollback(self):
+        from app import build_cli_parser
+
+        config = {"server": {"host": "127.0.0.1", "port": 8000}}
+        with patch.dict("os.environ", {}, clear=True):
+            default_args = build_cli_parser(config).parse_args([])
+            flask_args = build_cli_parser(config).parse_args(["--http-backend", "flask", "serve"])
+        with patch.dict("os.environ", {"APP_HTTP_BACKEND": "legacy"}):
+            rollback_args = build_cli_parser(config).parse_args(["--http-backend", "legacy"])
+
+        self.assertEqual(default_args.http_backend, "flask")
+        self.assertEqual(flask_args.http_backend, "flask")
+        self.assertEqual(rollback_args.http_backend, "legacy")
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

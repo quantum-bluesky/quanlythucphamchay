@@ -229,6 +229,16 @@ npx playwright install chromium
 
 ### Chạy toàn bộ suite
 
+Playwright mặc định chạy server fixture bằng backend legacy để giữ đường đối chứng. Để chạy cùng suite trên Flask/Waitress, đặt biến môi trường trước lệnh:
+
+```powershell
+$env:PLAYWRIGHT_BACKEND = "flask"
+npm run test:integration
+Remove-Item Env:PLAYWRIGHT_BACKEND
+```
+
+Runner tạo SQLite fixture riêng trong thư mục tạm cho cả hai backend; không dùng `data/inventory.db`.
+
 #### Cách chạy nhanh gọn (Khuyến nghị để tiết kiệm token context cho Agent và giữ console sạch)
 
 Toàn bộ raw log tiến trình browser và server được tự động chuyển vào `logs/test-integration-<timestamp>.log`:

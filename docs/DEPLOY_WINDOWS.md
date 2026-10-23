@@ -12,6 +12,7 @@ Tài liệu này dành cho người cài và vận hành ứng dụng trên Wind
 
 - Windows 10 hoặc Windows 11
 - Python 3.11 trở lên
+- Các dependency runtime trong `requirements.txt` (Flask và Waitress)
 - `PyYAML` cho các script/tooling Python của Codex, nhất là workflow Git Issue
 - Node.js LTS nếu cần chạy test / setup tooling
 - Git để cập nhật mã nguồn
@@ -36,6 +37,12 @@ Script sẽ:
 - chạy `npm install`
 - chạy `npx playwright install chromium`
 - chạy kiểm tra nhanh `python -m py_compile app.py` và `node --check static/app.js`
+
+Backend mặc định dùng Flask chạy bằng Waitress; không dùng Flask development server cho máy phục vụ. Cài runtime dependencies bằng:
+
+```powershell
+python -m pip install -r requirements.txt
+```
 
 Có thể chạy lại 1 hay nhiều lần; các bước setup đều có tính idempotent ở mức vận hành.
 
@@ -100,6 +107,8 @@ Ví dụ chạy để thiết bị khác trong mạng có thể truy cập:
 ```powershell
 python app.py --host 0.0.0.0 --port 8000
 ```
+
+Lệnh trên dùng Flask/Waitress. Nếu cần rollback tạm thời về HTTP server cũ, thêm `--http-backend legacy`; có thể đặt `APP_HTTP_BACKEND=legacy` trong môi trường của Scheduled Task để duy trì lựa chọn rollback.
 
 Sau đó:
 

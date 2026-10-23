@@ -210,7 +210,8 @@ test("IT-PROC-01 start batch shows clickable conflict list for overlapping open 
     await expectScreenTitle(page, "Nhập hàng");
     await expect(page.locator("#purchasePanel")).toContainText(supplierName);
     await expect(page.locator("#purchasePanel")).toContainText("IT-PROC-01 draft conflict");
-    runtime.errors = runtime.errors.filter((entry) => !entry.includes("status of 400 (Bad Request)"));
+    // Issue #182: Waitress reports the expected conflict status with an uppercase reason phrase.
+    runtime.errors = runtime.errors.filter((entry) => !/status of 400/i.test(entry));
   } finally {
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
     await request.put("./api/state", {
