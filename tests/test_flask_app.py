@@ -1174,6 +1174,67 @@ class FlaskAppFactoryTests(unittest.TestCase):
         )
         response.close()
 
+    def test_ut_web_67_state_write_requires_session_when_login_enabled(self):
+        app = self.build_app("state-write-auth")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+
+        response = app.test_client().put("/api/state", json={"products": []})
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập hệ thống."})
+
+    def test_ut_web_68_state_write_passes_actor_role_and_keeps_aggregate_response(self):
+        app = self.build_app("state-write-success")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        expected_sync = {"saved": True, "updated_at": "2026-10-23T00:00:00Z"}
+        payload = {"products": [], "expected_updated_at": {}}
+        with patch.object(store, "save_sync_state", return_value=expected_sync) as save_state:
+            response = client.put("/control-room/api/state", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["message"], "Đã lưu dữ liệu đồng bộ.")
+        self.assertTrue(result["saved"])
+        self.assertIn("runtime_version", result)
+        saved_payload = save_state.call_args.args[0]
+        self.assertEqual(saved_payload["actor"], "staff")
+        self.assertEqual(save_state.call_args.kwargs["actor_username"], "staff")
+        self.assertEqual(save_state.call_args.kwargs["actor_role"], "user")
+
+    def test_ut_web_69_state_write_maps_conflict_details_to_409(self):
+        from qltpchay.store import SyncConflictError
+
+        app = self.build_app("state-write-conflict")
+        store = app.extensions["qltpchay.store"]
+        with patch.object(
+            store,
+            "save_sync_state",
+            side_effect=SyncConflictError("products", "expected-ts", "actual-ts"),
+        ):
+            response = app.test_client().put("/api/state", json={"products": []})
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.get_json()["conflict"], {
+            "state_key": "products",
+            "expected_updated_at": "expected-ts",
+            "actual_updated_at": "actual-ts",
+        })
+
+    def test_ut_web_70_state_write_rejects_non_object_json(self):
+        app = self.build_app("state-write-invalid-json")
+
+        response = app.test_client().put("/api/state", json=["invalid", "shape"])
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Dữ liệu JSON không hợp lệ."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

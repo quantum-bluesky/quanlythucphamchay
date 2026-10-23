@@ -313,6 +313,10 @@ Mục tiêu:
 | 252 | `UT-WEB-64` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_64_admin_master_csv_export_preserves_columns_and_utf8_bom` |
 | 253 | `UT-WEB-65` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_65_admin_master_export_rejects_unsupported_format` |
 | 254 | `UT-WEB-66` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_66_admin_database_backup_requires_master_admin_and_downloads_file` |
+| 255 | `UT-WEB-67` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_67_state_write_requires_session_when_login_enabled` |
+| 256 | `UT-WEB-68` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_68_state_write_passes_actor_role_and_keeps_aggregate_response` |
+| 257 | `UT-WEB-69` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_69_state_write_maps_conflict_details_to_409` |
+| 258 | `UT-WEB-70` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_70_state_write_rejects_non_object_json` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

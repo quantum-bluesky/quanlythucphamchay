@@ -105,6 +105,8 @@ Master Admin; mail config chỉ trả cờ `has_password`, tuyệt đối không
 CSV, tên file attachment và validation format.
 `GET /api/admin/backup` yêu cầu Master Admin và trả file từ backup service dưới
 dạng attachment `application/octet-stream`.
+`PUT /api/state` áp dụng login gate, actor/role session, contract metadata trong
+response, conflict payload `409`, validation payload `400` và admin prefix alias.
 
 Chạy riêng nhóm này:
 

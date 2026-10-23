@@ -334,3 +334,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   `tests.test_flask_app` 66/66 pass, full unit cuối cùng 206/206 pass,
   `py_compile` và `git diff --check` pass. Một lượt full trước đó gặp socket
   abort ở test legacy #177; chạy riêng pass và rerun full pass.
+- Đang chuyển `PUT /api/state`, giữ actor/session role, metadata response,
+  `SyncConflictError` 409 và validation 400; `UT-WEB-67..70` pass.
+  Kết quả: `tests.test_flask_app` 70/70 pass, full unit 210/210 pass,
+  `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.

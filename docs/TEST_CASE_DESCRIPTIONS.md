@@ -303,6 +303,10 @@ Lưu ý:
 | 252 | `UT-WEB-64` | Kiểm tra export master CSV giữ thứ tự cột, UTF-8 BOM và serialize trường ảnh. |
 | 253 | `UT-WEB-65` | Kiểm tra export master từ chối format ngoài JSON/CSV. |
 | 254 | `UT-WEB-66` | Kiểm tra tải backup yêu cầu Master Admin và trả file attachment đúng content type. |
+| 255 | `UT-WEB-67` | Kiểm tra ghi state yêu cầu session khi `EnableLogin` bật. |
+| 256 | `UT-WEB-68` | Kiểm tra PUT state chuyển đúng actor/role và trả metadata cùng dữ liệu store. |
+| 257 | `UT-WEB-69` | Kiểm tra sync conflict trả 409 cùng state key và timestamp mong đợi/hiện tại. |
+| 258 | `UT-WEB-70` | Kiểm tra PUT state từ chối JSON không phải object với status 400. |
 
 
 

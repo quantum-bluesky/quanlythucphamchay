@@ -30,7 +30,7 @@ from .lunar_calendar import (
     next_preorder_lunar_date,
     solar_to_vietnamese_lunar,
 )
-from .store import InventoryStore
+from .store import InventoryStore, SyncConflictError
 
 
 LONG_LIVED_CACHE = "public, max-age=31536000, immutable"
@@ -1142,6 +1142,48 @@ def create_app(
             "procurement": procurement_status_payload(),
             "bulk_order_requests": store.list_bulk_order_requests(limit=30),
             "document_cancel_requests": store.list_document_cancel_requests(limit=30),
+            **sync_state,
+        })
+
+    @app.put("/api/state")
+    @app.put(f"{admin_path}/api/state")
+    def save_application_state():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        payload["actor"] = payload.get("actor") or current_actor_name()
+        store = current_app.extensions["qltpchay.store"]
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        try:
+            sync_state = store.save_sync_state(
+                payload,
+                actor_username=str((session or {}).get("username") or ""),
+                actor_role=str((session or {}).get("role") or ""),
+            )
+        except SyncConflictError as error:
+            return jsonify({
+                "error": str(error),
+                "conflict": {
+                    "state_key": error.state_key,
+                    "expected_updated_at": error.expected_updated_at,
+                    "actual_updated_at": error.actual_updated_at,
+                },
+            }), 409
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        metadata = session_status_payload(session_token="")
+        return jsonify({
+            "message": "Đã lưu dữ liệu đồng bộ.",
+            "app": metadata["app"],
+            "debug": metadata["debug"],
+            "pagination": metadata["pagination"],
+            "runtime_version": store.get_runtime_version(),
             **sync_state,
         })
 
