@@ -613,6 +613,72 @@ def create_app(
             "summary": store.get_summary(),
         })
 
+    # Issue #182: preserve the legacy product price and restore endpoint contracts.
+    @app.put("/api/products/<int:product_id>/price")
+    @app.put(f"{admin_path}/api/products/<int:product_id>/price")
+    def update_product_price(product_id: int):
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            payload = {}
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            product = store.update_product_price(
+                product_id,
+                payload.get("price", 0),
+                actor=payload.get("actor") or current_actor_name(),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã cập nhật giá nhập.",
+            "product": product,
+            "summary": store.get_summary(),
+        })
+
+    @app.put("/api/products/<int:product_id>/sale-price")
+    @app.put(f"{admin_path}/api/products/<int:product_id>/sale-price")
+    def update_product_sale_price(product_id: int):
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            payload = {}
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            product = store.update_product_sale_price(
+                product_id,
+                payload.get("sale_price", 0),
+                actor=payload.get("actor") or current_actor_name(),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã cập nhật giá bán.",
+            "product": product,
+            "summary": store.get_summary(),
+        })
+
+    @app.post("/api/products/<int:product_id>/restore")
+    @app.post(f"{admin_path}/api/products/<int:product_id>/restore")
+    def restore_product(product_id: int):
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            product = store.restore_product(product_id, actor=current_actor_name())
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã khôi phục sản phẩm.",
+            "product": product,
+            "summary": store.get_summary(),
+        })
+
     @app.get("/api/products/deleted")
     @app.get(f"{admin_path}/api/products/deleted")
     def get_deleted_products():

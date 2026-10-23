@@ -298,3 +298,8 @@ admin tùy chỉnh không bị rơi về frontend root.
   và lỗi validation. Kết quả: `tests.test_flask_app` 47/47 pass, full unit
   187/187 pass, `py_compile` và `git diff --check` pass; commit lát cắt này đã
   hoàn tất riêng trong Issue #182.
+- Chuyển tiếp `PUT /api/products/<id>/price`,
+  `PUT /api/products/<id>/sale-price` và `POST /api/products/<id>/restore`;
+  thêm `UT-WEB-48..50`. Kết quả: `tests.test_flask_app` 50/50 pass, full unit
+  190/190 pass, `py_compile` và `git diff --check` pass; đã chốt thành commit
+  riêng trong Issue #182.

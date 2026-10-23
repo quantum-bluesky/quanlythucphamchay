@@ -294,6 +294,9 @@ Mục tiêu:
 | 233 | `UT-WEB-45` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_45_update_product_route_preserves_explicit_private_visibility` |
 | 234 | `UT-WEB-46` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_46_delete_product_route_soft_deletes_and_returns_summary` |
 | 235 | `UT-WEB-47` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_47_create_product_route_maps_validation_error_to_400` |
+| 236 | `UT-WEB-48` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_48_update_product_purchase_price_route_returns_product_and_summary` |
+| 237 | `UT-WEB-49` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_49_update_product_sale_price_route_returns_product_and_summary` |
+| 238 | `UT-WEB-50` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_50_restore_product_route_restores_soft_deleted_product` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

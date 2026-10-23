@@ -87,6 +87,9 @@ pending và sync collections; test xác nhận `transaction_limit` và auth gate
 `POST /api/products`, `PUT /api/products/<id>` và `DELETE /api/products/<id>`
 chuyển CRUD sản phẩm qua Flask, giữ response tạo/cập nhật/xóa mềm, actor session,
 trạng thái public rõ ràng và ánh xạ validation thành 400.
+Các endpoint `PUT /api/products/<id>/price`,
+`PUT /api/products/<id>/sale-price` và `POST /api/products/<id>/restore` giữ
+cập nhật riêng giá nhập/giá bán và khôi phục sản phẩm đã xóa mềm.
 
 Chạy riêng nhóm này:
 

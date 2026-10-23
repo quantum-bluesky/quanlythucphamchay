@@ -284,6 +284,9 @@ Lưu ý:
 | 233 | `UT-WEB-45` | Kiểm tra `PUT /api/products/<id>` cập nhật sản phẩm và bảo toàn `is_public=false` được gửi tường minh. |
 | 234 | `UT-WEB-46` | Kiểm tra `DELETE /api/products/<id>` soft-delete sản phẩm và trả summary sau khi xóa. |
 | 235 | `UT-WEB-47` | Kiểm tra lỗi validation khi tạo sản phẩm được ánh xạ thành JSON 400. |
+| 236 | `UT-WEB-48` | Kiểm tra endpoint giá nhập cập nhật sản phẩm và trả summary theo contract legacy. |
+| 237 | `UT-WEB-49` | Kiểm tra endpoint giá bán cập nhật sản phẩm và trả summary theo contract legacy. |
+| 238 | `UT-WEB-50` | Kiểm tra `POST /api/products/<id>/restore` khôi phục sản phẩm đã soft-delete. |
 
 
 
