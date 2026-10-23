@@ -444,6 +444,30 @@ def create_app(
         store = current_app.extensions["qltpchay.store"]
         return jsonify({"products": store.get_products(), "summary": store.get_summary()})
 
+    @app.get("/api/products/deleted")
+    @app.get(f"{admin_path}/api/products/deleted")
+    def get_deleted_products():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        return jsonify({"products": store.get_deleted_products()})
+
+    @app.get("/api/products/history")
+    @app.get(f"{admin_path}/api/products/history")
+    def get_product_history():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        history = store.get_product_history(
+            limit=int(request.args.get("limit", "40")),
+            actor=request.args.get("actor", ""),
+            start_date=request.args.get("start_date"),
+            end_date=request.args.get("end_date"),
+        )
+        return jsonify({"history": history})
+
     @app.get("/api/public/orders")
     @app.get(f"{admin_path}/api/public/orders")
     def public_orders():

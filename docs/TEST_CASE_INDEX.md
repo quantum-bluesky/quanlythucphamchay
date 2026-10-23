@@ -270,6 +270,8 @@ Mục tiêu:
 | 209 | `UT-WEB-21` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_21_products_route_requires_session_when_login_is_enabled` |
 | 210 | `UT-WEB-22` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_22_products_route_accepts_authenticated_session` |
 | 211 | `UT-WEB-23` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_23_passive_products_request_does_not_extend_session` |
+| 212 | `UT-WEB-24` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_24_deleted_products_route_returns_soft_deleted_products` |
+| 213 | `UT-WEB-25` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_25_product_history_route_preserves_filters_and_shape` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

@@ -371,6 +371,49 @@ class FlaskAppFactoryTests(unittest.TestCase):
             last_activity_before,
         )
 
+    def test_ut_web_24_deleted_products_route_returns_soft_deleted_products(self):
+        app = self.build_app("deleted-products")
+        store = app.extensions["qltpchay.store"]
+        product = store.create_product(
+            name="Sản phẩm đã xóa",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+        )
+        store.delete_product(product["id"], actor="test-agent")
+
+        response = app.test_client().get("/api/products/deleted")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [row["id"] for row in response.get_json()["products"]],
+            [product["id"]],
+        )
+
+    def test_ut_web_25_product_history_route_preserves_filters_and_shape(self):
+        app = self.build_app("product-history")
+        store = app.extensions["qltpchay.store"]
+        product = store.create_product(
+            name="Sản phẩm lịch sử",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+        )
+        store.update_product_price(product["id"], 12000, actor="flask-history-user")
+
+        response = app.test_client().get(
+            "/api/products/history?limit=5&actor=flask-history-user"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        history = response.get_json()["history"]
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["product_id"], product["id"])
+        self.assertEqual(history[0]["action"], "update-price")
+        self.assertEqual(history[0]["actor"], "flask-history-user")
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

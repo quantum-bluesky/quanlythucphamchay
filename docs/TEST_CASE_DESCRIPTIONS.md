@@ -260,6 +260,8 @@ Lưu ý:
 | 209 | `UT-WEB-21` | Kiểm tra `GET /api/products` trả 401 với response đăng nhập legacy khi `EnableLogin` bật và thiếu session. |
 | 210 | `UT-WEB-22` | Kiểm tra `GET /api/products` chấp nhận session hợp lệ đã đăng nhập qua endpoint Flask. |
 | 211 | `UT-WEB-23` | Xác nhận `X-Session-Activity: passive` cho `GET /api/products` không gia hạn thời gian hoạt động của session. |
+| 212 | `UT-WEB-24` | Kiểm tra `GET /api/products/deleted` trả sản phẩm soft-delete với schema legacy. |
+| 213 | `UT-WEB-25` | Kiểm tra `GET /api/products/history` giữ bộ lọc actor/limit và các trường history của sản phẩm. |
 
 
 

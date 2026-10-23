@@ -67,6 +67,8 @@ Zalo theo config injected, ánh xạ lỗi validation sang 400, lỗi bất ng�
 500 an toàn và hỗ trợ alias theo admin prefix.
 `GET /api/products` giữ response gồm danh sách và summary, áp dụng `EnableLogin`
 và nhận session qua cookie hiện hành; request passive không gia hạn session.
+`GET /api/products/deleted` và `GET /api/products/history` dùng cùng auth gate,
+giữ schema response và bộ lọc actor/date/limit hiện có.
 
 Chạy riêng nhóm này:
 

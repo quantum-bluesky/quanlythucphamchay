@@ -228,6 +228,8 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Đã chuyển `GET /api/products` với response danh sách + summary và helper xác
   thực dùng lại được; giữ response 401 và không gia hạn session cho request
   `X-Session-Activity: passive`.
+- Đã chuyển `GET /api/products/deleted` và `GET /api/products/history`, gồm bộ
+  lọc history theo limit, actor và ngày; các endpoint dùng chung auth gate.
 - Runtime factory đọc config theo `APP_ENV` khi được gọi; test mode bắt buộc config
   được inject, không tự đọc config runtime.
 - `tests/test_flask_app.py`: `UT-WEB-01..14` xác nhận admin path tùy chỉnh, root
@@ -254,3 +256,6 @@ admin tùy chỉnh không bị rơi về frontend root.
   session hợp lệ và request passive; cập nhật test index/descriptions. Kết quả
   mới nhất: Flask test module 23/23 pass, full unit 163/163 pass, `py_compile`
   và `git diff --check` pass.
+- Kế tiếp thêm `GET /api/products/deleted` và `/api/products/history`; chưa commit,
+  kết quả sau chuyển: Flask test module 25/25 pass, full unit 165/165 pass,
+  `py_compile` và `git diff --check` pass.
