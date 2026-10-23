@@ -212,6 +212,102 @@ class FlaskAppFactoryTests(unittest.TestCase):
         ).get_json()
         self.assertEqual(flask_payload, legacy_payload)
 
+    def test_ut_web_15_public_order_submission_creates_online_cart(self):
+        app = self.build_app("public-order-submit")
+        store = app.extensions["qltpchay.store"]
+        product = store.create_product(
+            name="Sản phẩm đặt online",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+        )
+
+        response = app.test_client().post(
+            "/api/public/orders",
+            json={
+                "customer_name": "Khách đặt Flask",
+                "customer_phone": "0900000001",
+                "items": [{"product_id": product["id"], "quantity": 2}],
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        result = response.get_json()
+        self.assertEqual(result["message"], "Đã ghi nhận đơn hàng.")
+        self.assertEqual(result["cart"]["created_mode"], "online")
+        self.assertEqual(result["cart"]["items"][0]["quantity"], 2)
+
+    def test_ut_web_16_public_order_submission_requires_zalo_from_injected_config(self):
+        app = self.build_app("public-order-zalo")
+        app.config["SYSTEM_CONFIG"]["zalo_login"]["require_zalo_login"] = True
+
+        response = app.test_client().post(
+            "/api/public/orders",
+            json={
+                "customer_name": "Khách thiếu Zalo",
+                "items": [{"product_id": 1, "quantity": 1}],
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Hệ thống yêu cầu đăng nhập bằng Zalo để xác thực đặt hàng."},
+        )
+
+    def test_ut_web_17_public_order_submission_maps_store_validation_to_400(self):
+        app = self.build_app("public-order-invalid")
+
+        response = app.test_client().post(
+            "/api/public/orders",
+            json={"customer_name": "Khách không có hàng", "items": []},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Giỏ hàng đang trống."})
+
+    def test_ut_web_18_public_order_submission_logs_and_hides_unexpected_error(self):
+        import qltpchay.flask_app as flask_app
+
+        app = self.build_app("public-order-error")
+        with patch.object(
+            app.extensions["qltpchay.store"],
+            "create_online_order",
+            side_effect=RuntimeError("private backend detail"),
+        ), patch.object(flask_app, "log_error") as log_error:
+            response = app.test_client().post(
+                "/api/public/orders",
+                json={"customer_name": "Khách", "items": [{"product_id": 1, "quantity": 1}]},
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.get_json(), {"error": "Lỗi hệ thống nội bộ."})
+        self.assertNotIn(b"private backend detail", response.data)
+        self.assertTrue(log_error.call_args.kwargs["exc_info"])
+
+    def test_ut_web_19_public_order_submission_supports_admin_prefix_alias(self):
+        app = self.build_app("public-order-admin-alias", "/backoffice")
+        store = app.extensions["qltpchay.store"]
+        product = store.create_product(
+            name="Sản phẩm qua prefix",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+        )
+
+        response = app.test_client().post(
+            "/backoffice/api/public/orders",
+            json={
+                "customer_name": "Khách qua prefix",
+                "items": [{"product_id": product["id"], "quantity": 1}],
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()["cart"]["created_mode"], "online")
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

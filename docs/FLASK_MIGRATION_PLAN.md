@@ -222,6 +222,9 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Đã chuyển `GET /api/session/status`, `GET /api/admin/status`, login/logout của
   session thường và Master Admin; giữ cookie theo port, trạng thái/permission,
   timeout và thông điệp logout cũ.
+- Đã chuyển `POST /api/public/orders`: config Zalo lấy từ app factory, tạo đơn qua
+  `InventoryStore`, giữ response 201 và validation 400; lỗi bất ngờ được log và
+  trả JSON 500 an toàn. Hỗ trợ URL gốc và alias dưới `admin_path`.
 - Runtime factory đọc config theo `APP_ENV` khi được gọi; test mode bắt buộc config
   được inject, không tự đọc config runtime.
 - `tests/test_flask_app.py`: `UT-WEB-01..14` xác nhận admin path tùy chỉnh, root
@@ -239,3 +242,8 @@ admin tùy chỉnh không bị rơi về frontend root.
   `python -m unittest tests.test_flask_app` (14 pass),
   `python -m py_compile qltpchay/flask_app.py tests/test_flask_app.py app.py` (pass).
 - Full unit gần nhất: `python scripts/run_tests_summary.py unit` (154 pass, 28.96s).
+- Checkpoint đầu đã commit `24358fa` (`feat(#182): add staged Flask app factory`);
+  `4.0.0` là version major duy nhất của Issue này.
+- Tiếp tục chuyển `POST /api/public/orders`; `tests.test_flask_app` hiện chạy
+  19/19 pass sau khi thêm test tạo đơn, config Zalo, validation, lỗi an toàn và
+  alias admin path. Full unit cần chạy lại trước checkpoint tiếp theo.

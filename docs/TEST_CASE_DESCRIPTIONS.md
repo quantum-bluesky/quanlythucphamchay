@@ -251,6 +251,11 @@ Lưu ý:
 | 200 | `UT-WEB-12` | Xác nhận normal user bị từ chối ở admin login nhưng vẫn đăng nhập được qua session login với permissions. |
 | 201 | `UT-WEB-13` | Chạy Flask WSGI app qua loopback server thật; xác nhận admin path trả form admin và `/` vẫn trả trang public. |
 | 202 | `UT-WEB-14` | So sánh nguyên response JSON `GET /backoffice/api/session/status` giữa Flask test client và HTTP handler cũ với cùng config/session. |
+| 203 | `UT-WEB-15` | Xác nhận `POST /api/public/orders` tạo đơn online qua `InventoryStore` và trả status 201 cùng cart đã lưu. |
+| 204 | `UT-WEB-16` | Xác nhận yêu cầu Zalo của `POST /api/public/orders` được đọc từ config injected và trả lỗi 400 nếu thiếu Zalo ID. |
+| 205 | `UT-WEB-17` | Xác nhận lỗi validation giỏ hàng từ `InventoryStore` được ánh xạ thành JSON 400. |
+| 206 | `UT-WEB-18` | Xác nhận lỗi bất ngờ khi tạo đơn được log với `exc_info=True`, trả JSON 500 chung và không lộ chi tiết nội bộ. |
+| 207 | `UT-WEB-19` | Xác nhận `POST /api/public/orders` vẫn hoạt động qua alias dưới `admin_path` được cấu hình. |
 
 
 

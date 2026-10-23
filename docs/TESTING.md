@@ -62,6 +62,9 @@ thông tin âm lịch và settings lấy từ config injected. `GET /api/public/
 kiểm thử contract cho phản hồi 400 khi thiếu thông tin tra cứu. Exception Flask
 được kiểm tra dùng `qltpchay.logger` với stack trace trong server log, còn response
 500 không chứa chi tiết nội bộ.
+`POST /api/public/orders` kiểm tra tạo đơn online qua `InventoryStore`, yêu cầu
+Zalo theo config injected, ánh xạ lỗi validation sang 400, lỗi bất ngờ sang JSON
+500 an toàn và hỗ trợ alias theo admin prefix.
 
 Chạy riêng nhóm này:
 

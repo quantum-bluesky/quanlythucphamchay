@@ -425,4 +425,37 @@ def create_app(
         store = current_app.extensions["qltpchay.store"]
         return jsonify({"orders": store.get_public_orders(phone=phone, zalo_id=zalo_id)})
 
+    @app.post("/api/public/orders")
+    @app.post(f"{admin_path}/api/public/orders")
+    def submit_public_order():
+        # #Issue182: Keep online-order creation on InventoryStore and use the app's injected config.
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            payload = {}
+        config = current_app.config["SYSTEM_CONFIG"]
+        zalo_config = config.get("zalo_login", {})
+        if zalo_config.get("require_zalo_login", True) and not payload.get("zalo_id"):
+            return jsonify(
+                {"error": "Hệ thống yêu cầu đăng nhập bằng Zalo để xác thực đặt hàng."}
+            ), 400
+
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.create_online_order(
+                customer_name=payload.get("customer_name") or "",
+                customer_phone=payload.get("customer_phone") or "",
+                customer_address=payload.get("customer_address") or "",
+                zalo_id=payload.get("zalo_id") or "",
+                avatar_url=payload.get("avatar_url") or "",
+                note=payload.get("note") or "",
+                items=payload.get("items") or [],
+                force_new_order=bool(payload.get("force_new_order", False)),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        except Exception:
+            log_error("Flask public order creation failed.", exc_info=True)
+            return jsonify({"error": "Lỗi hệ thống nội bộ."}), 500
+        return jsonify(result), 201
+
     return app

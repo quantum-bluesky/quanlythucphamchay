@@ -261,6 +261,11 @@ Mục tiêu:
 | 200 | `UT-WEB-12` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_12_admin_login_rejects_normal_user_but_session_login_allows_it` |
 | 201 | `UT-WEB-13` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_13_wsgi_request_smoke_for_admin_and_public_routes` |
 | 202 | `UT-WEB-14` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_14_session_status_matches_legacy_handler_contract` |
+| 203 | `UT-WEB-15` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_15_public_order_submission_creates_online_cart` |
+| 204 | `UT-WEB-16` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_16_public_order_submission_requires_zalo_from_injected_config` |
+| 205 | `UT-WEB-17` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_17_public_order_submission_maps_store_validation_to_400` |
+| 206 | `UT-WEB-18` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_18_public_order_submission_logs_and_hides_unexpected_error` |
+| 207 | `UT-WEB-19` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_19_public_order_submission_supports_admin_prefix_alias` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 
