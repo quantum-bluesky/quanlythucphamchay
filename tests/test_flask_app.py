@@ -2532,6 +2532,78 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Không tìm thấy giỏ nguồn."})
 
+    def test_ut_web_127_locked_document_edit_requires_master_admin(self):
+        app = self.build_app("locked-document-edit-auth")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.config["SYSTEM_CONFIG"]["EnableAdminLockedEdit"] = True
+        client = app.test_client()
+        client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+
+        response = client.post(
+            "/api/admin/orders/edit-locked",
+            json={"cart": {"id": "cart-127"}, "adminEditReason": "Điều chỉnh"},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json(), {"error": "Cần đăng nhập Master Admin."})
+
+    def test_ut_web_128_locked_order_edit_checks_feature_gate_and_passes_snapshot(self):
+        app = self.build_app("locked-order-edit")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        payload = {
+            "cart": {"id": "cart-128", "status": "shipped", "items": []},
+            "adminEditReason": "Sửa theo biên bản",
+        }
+        disabled = client.post("/api/admin/orders/edit-locked", json=payload)
+        self.assertEqual(disabled.status_code, 400)
+        self.assertIn("đang bị tắt", disabled.get_json()["error"])
+
+        app.config["SYSTEM_CONFIG"]["EnableAdminLockedEdit"] = True
+        store = app.extensions["qltpchay.store"]
+        expected = {"message": "Đã sửa đơn đã khóa.", "cart": payload["cart"]}
+        with patch.object(store, "admin_edit_locked_order", return_value=expected) as edit:
+            response = client.post("/control-room/api/admin/orders/edit-locked", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), expected)
+        self.assertEqual(edit.call_args.kwargs["cart_id"], "cart-128")
+        self.assertEqual(edit.call_args.kwargs["cart_payload"], payload["cart"])
+        self.assertEqual(edit.call_args.kwargs["admin_edit_reason"], "Sửa theo biên bản")
+        self.assertEqual(edit.call_args.kwargs["actor_username"], "test-admin")
+        self.assertEqual(edit.call_args.kwargs["actor_role"], "admin")
+
+    def test_ut_web_129_locked_purchase_edit_maps_validation_error_to_400(self):
+        app = self.build_app("locked-purchase-edit-invalid")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.config["SYSTEM_CONFIG"]["EnableAdminLockedEdit"] = True
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        store = app.extensions["qltpchay.store"]
+        payload = {
+            "purchase": {"id": "purchase-129", "status": "received", "items": []},
+            "adminEditReason": "Sửa sai lệch",
+        }
+        with patch.object(
+            store,
+            "admin_edit_locked_purchase",
+            side_effect=ValueError("Không thể sửa phiếu nhập đã sử dụng."),
+        ):
+            response = client.post("/api/admin/purchases/edit-locked", json=payload)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "Không thể sửa phiếu nhập đã sử dụng."})
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

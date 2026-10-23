@@ -363,6 +363,9 @@ Lưu ý:
 | 312 | `UT-WEB-124` | Kiểm tra safe-fix trả message, số lượng sửa và audit. |
 | 313 | `UT-WEB-125` | Kiểm tra liên kết receipt chuyển purchase/receipt code và actor. |
 | 314 | `UT-WEB-126` | Kiểm tra liên kết source ánh xạ validation error thành status 400. |
+| 315 | `UT-WEB-127` | Kiểm tra sửa chứng từ đã khóa từ chối tài khoản không phải Master Admin. |
+| 316 | `UT-WEB-128` | Kiểm tra sửa đơn đã khóa có feature gate và giữ payload/lý do/actor. |
+| 317 | `UT-WEB-129` | Kiểm tra sửa phiếu nhập đã khóa ánh xạ lỗi nghiệp vụ thành status 400. |
 
 
 

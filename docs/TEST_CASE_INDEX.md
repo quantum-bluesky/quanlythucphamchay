@@ -373,6 +373,9 @@ Mục tiêu:
 | 312 | `UT-WEB-124` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_124_apply_legacy_audit_safe_fixes_returns_counts_and_audit` |
 | 313 | `UT-WEB-125` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_125_link_purchase_receipt_maps_payload_actor_and_audit` |
 | 314 | `UT-WEB-126` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_126_link_purchase_source_maps_validation_error` |
+| 315 | `UT-WEB-127` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_127_locked_document_edit_requires_master_admin` |
+| 316 | `UT-WEB-128` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_128_locked_order_edit_checks_feature_gate_and_passes_snapshot` |
+| 317 | `UT-WEB-129` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_129_locked_purchase_edit_maps_validation_error_to_400` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

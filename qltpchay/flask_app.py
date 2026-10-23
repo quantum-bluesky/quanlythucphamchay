@@ -1188,6 +1188,63 @@ def create_app(
             "summary": store.get_summary(),
         })
 
+    # Issue #182: Preserve feature gate and actor context for locked document edits.
+    @app.post("/api/admin/orders/edit-locked")
+    @app.post(f"{admin_path}/api/admin/orders/edit-locked")
+    def admin_edit_locked_order():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        config = current_app.config["SYSTEM_CONFIG"]
+        if not config.get("EnableAdminLockedEdit", False):
+            return jsonify({
+                "error": "Tính năng Master Admin sửa chứng từ đã khóa đang bị tắt trong cấu hình hệ thống."
+            }), 400
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        cart = payload.get("cart") or {}
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.admin_edit_locked_order(
+                cart_id=str(cart.get("id") or ""),
+                cart_payload=cart,
+                admin_edit_reason=str(payload.get("adminEditReason") or ""),
+                actor_username=current_actor_name(),
+                actor_role="admin",
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify(result)
+
+    @app.post("/api/admin/purchases/edit-locked")
+    @app.post(f"{admin_path}/api/admin/purchases/edit-locked")
+    def admin_edit_locked_purchase():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        config = current_app.config["SYSTEM_CONFIG"]
+        if not config.get("EnableAdminLockedEdit", False):
+            return jsonify({
+                "error": "Tính năng Master Admin sửa chứng từ đã khóa đang bị tắt trong cấu hình hệ thống."
+            }), 400
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ."}), 400
+        purchase = payload.get("purchase") or {}
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            result = store.admin_edit_locked_purchase(
+                purchase_id=str(purchase.get("id") or ""),
+                purchase_payload=purchase,
+                admin_edit_reason=str(payload.get("adminEditReason") or ""),
+                actor_username=current_actor_name(),
+                actor_role="admin",
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify(result)
+
     @app.get("/api/admin/export/<entity_type>")
     @app.get(f"{admin_path}/api/admin/export/<entity_type>")
     def export_master_data(entity_type: str):

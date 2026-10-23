@@ -137,6 +137,8 @@ config path, preserve secrets and existing fields; test-mail mocks SMTP and chec
 sent/skipped/failure diagnostics without exposing credentials in the response.
 Legacy audit repair and purchase receipt/source linking remain Master Admin-only
 and preserve actor, audit entries, updated purchase lists, and validation errors.
+Locked order/purchase edits require Master Admin and the feature gate, then pass the
+locked document snapshot and edit reason through to the store with actor context.
 
 Chạy riêng nhóm này:
 
