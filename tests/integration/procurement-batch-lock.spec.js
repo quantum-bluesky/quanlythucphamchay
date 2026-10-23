@@ -1,4 +1,5 @@
 const { test, expect } = require("@playwright/test");
+const { testRuntimeConfig } = require("./support/test-config");
 const {
   attachRuntimeTracking,
   autoLoginProcurementManager,
@@ -226,7 +227,9 @@ test("IT-PROC-01 start batch shows clickable conflict list for overlapping open 
   expectNoRuntimeErrors(runtime);
 });
 
-test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during active batch", async ({ page, request }) => {
+test("IT-PROC-02 non-owner receives and pays pre-batch purchase with multiuser conflict check enabled", async ({ page, request }) => {
+  // #Issue119: Exercise both status transitions under the enabled conflict-check configuration.
+  expect(testRuntimeConfig.EnableMultiuserConflictCheck).toBe(true);
   const runtime = attachRuntimeTracking(page);
   const managerCookie = await autoLoginProcurementManagerRequest(request);
   const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
@@ -387,6 +390,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     await expect(page.locator("#purchasePanel")).toContainText(prebatchSupplierName);
     await expect(page.locator('[data-purchase-action="receive"]')).toBeEnabled();
     await page.locator('[data-purchase-action="receive"]').click();
+    await page.getByRole("button", { name: "Xác nhận nhập kho" }).click();
     await expect(page.locator("#purchasePanel")).toContainText("Đã nhập kho");
     await expect(page.locator('[data-purchase-action="mark-paid"]')).toBeEnabled();
     await page.locator('[data-purchase-action="mark-paid"]').click();
