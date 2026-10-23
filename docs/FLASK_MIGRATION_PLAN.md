@@ -425,16 +425,28 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Chuyển CLI mặc định sang Flask/Waitress và cập nhật README/Windows deploy với
   cài dependencies và lệnh rollback legacy. `UT-WEB-146` kiểm tra default,
   lựa chọn Flask và rollback.
-- Kiểm tra gần nhất: Flask tests 146/146, full unit 286/286, Python compile,
-  Node config syntax và `git diff --check` đều pass. Playwright Flask full suite
-  chạy 110 case: 90 pass, 16 fail, 4 skip; một failure là matcher phân biệt chữ
-  hoa của reason phrase HTTP 400, đã sửa và `IT-PROC-01` pass riêng trên Flask.
-  Các lỗi nghiệp vụ còn lại đang được đối chiếu trên backend legacy; lỗi
-  `ACC-CANCEL-01` (tồn 60 thay vì 6) và `IT-PROC-02` đã tái hiện trên cả hai
-  backend. Các test public còn báo `ERR_NETWORK_ACCESS_DENIED` ở môi trường này.
-- Chưa hoàn tất cutover gate: cần chốt kết quả full suite legacy sau khi kết
-  thúc, đánh giá các lỗi baseline/fixture hiện hữu, kiểm tra proxy/subpath và
-  regression #119, rồi mới cân nhắc xóa HTTP handler cũ.
+- Kiểm chứng gần nhất sau khi chọn Flask/Waitress làm runtime mặc định: Flask
+  tests 146/146, full unit 286/286, Python compile, Node config syntax và
+  `git diff --check` pass. Playwright Flask full suite có 110 case: 92 pass,
+  14 fail, 4 skip. Lượt đối chứng legacy chạy cùng 110 case, nhưng dừng ở
+  `IT-PHB-04` sau khi test lỗi trong bước phục hồi fixture; đã thu được lỗi của
+  các test trước đó nhưng chưa có summary cuối toàn suite.
+- Trong full run, `IT-PROC-02` thất bại ở bước nhận hàng trên cả Flask và legacy
+  với cùng thông báo khóa cấu trúc phiếu nhập. Riêng `procurement-batch-lock.spec.js`
+  vẫn pass 6/6 trên cả hai backend với DB fixture mới. Kết quả này cho thấy lỗi
+  phụ thuộc state/thứ tự của full suite, không phải khác biệt đã xác nhận giữa
+  hai HTTP backend; chưa được tính là regression #119 đã đóng hoàn toàn.
+- Các lỗi full-run khác trên Flask có cùng lỗi ở lượt legacy đối chứng: năm
+  test Public ProductList (`ERR_NETWORK_ACCESS_DENIED` do môi trường chặn mạng),
+  `IT-PURSUP-03/08/10`, `IT-ADM-EDIT-01`, `ACC-PUR-03/04` và `IT-PHB-04`.
+  `ACC-CANCEL-01` cũng có artifact lỗi trên legacy; backend trả tồn 60 thay vì
+  kỳ vọng 6. Lượt legacy còn có failure `Issue 171` quick purchase. Đây là lỗi
+  baseline hoặc cô lập fixture cần được xử lý/đánh giá riêng trước khi dùng
+  full-suite làm gate cutover.
+- Chưa hoàn tất cutover gate: còn đối chiếu API contract status/body/headers,
+  xác minh proxy/subpath trên cấu hình deploy thực tế, khắc phục hoặc phân loại
+  rõ lỗi test baseline/state leak, và chạy lại full suite hoàn tất trên cả hai
+  backend. Tiếp tục giữ legacy rollback; chưa xóa `BaseHTTPRequestHandler`.
 - Điều tra regression #119 `IT-PROC-02`: hai thao tác nhận kho và thanh toán của
   user thường đều thành công; test fail ở assertion điều hướng sau đó vì tài
   khoản không có quyền mở procurement planner. Đổi assertion cuối sang xác minh
@@ -443,3 +455,6 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Sau đó chạy toàn bộ `procurement-batch-lock.spec.js` trên cả hai backend:
   Flask/Waitress 6/6 pass, legacy 6/6 pass. #119 hiện có xác nhận end-to-end cho
   nhận hàng/thanh toán trước batch, lock batch, quyền manager và dọn batch.
+- Đối chiếu lại trong full suite cho thấy `IT-PROC-02` fail trên cả hai backend
+  khi nhận phiếu, trong khi file test chạy riêng vẫn pass 6/6. Cần sửa tính độc
+  lập của fixture hoặc xác định state bị rò trước khi coi #119 đã qua gate cuối.
