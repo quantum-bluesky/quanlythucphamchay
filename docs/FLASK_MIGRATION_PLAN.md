@@ -431,3 +431,8 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Chưa hoàn tất cutover gate: cần chốt kết quả full suite legacy sau khi kết
   thúc, đánh giá các lỗi baseline/fixture hiện hữu, kiểm tra proxy/subpath và
   regression #119, rồi mới cân nhắc xóa HTTP handler cũ.
+- Điều tra regression #119 `IT-PROC-02`: hai thao tác nhận kho và thanh toán của
+  user thường đều thành công; test fail ở assertion điều hướng sau đó vì tài
+  khoản không có quyền mở procurement planner. Đổi assertion cuối sang xác minh
+  batch lock qua API manager. Ca riêng hiện pass trên Flask/Waitress và legacy;
+  cả hai dùng fixture DB mới.

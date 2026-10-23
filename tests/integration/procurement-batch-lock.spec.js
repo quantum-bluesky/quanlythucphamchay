@@ -397,9 +397,13 @@ test("IT-PROC-02 non-owner receives and pays pre-batch purchase with multiuser c
     await page.locator('[data-purchase-action="mark-paid"]').click();
     await expect(page.locator("#purchasePanel")).toContainText("Đã thanh toán");
 
-    await switchMenu(page, "procurement-planner");
-    await expectScreenTitle(page, "Xử lý nhập thiếu");
-    await expect(page.locator("#procurementExtraPanel")).toBeHidden();
+    // Issue #119: A normal user has no procurement-planner permission; prove the lock stays active via its manager API instead.
+    const statusResponse = await request.get("./api/procurement/status", {
+      headers: { Cookie: managerCookie },
+    });
+    expect(statusResponse.ok()).toBeTruthy();
+    const statusPayload = await statusResponse.json();
+    expect(statusPayload.mode).toBe("batch");
   } finally {
     if (batchStarted) {
       await request.post("./api/procurement/batch/finish", {
