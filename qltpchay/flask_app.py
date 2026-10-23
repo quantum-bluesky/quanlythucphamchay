@@ -155,6 +155,13 @@ def create_app(
             payload = {"error": "Cần đăng nhập hệ thống."}
         return jsonify(payload), 401
 
+    def current_actor_name() -> str:
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        return str((session or {}).get("username") or "Nhân viên")
+
     def procurement_public_config() -> dict:
         procurement = current_app.config["SYSTEM_CONFIG"].get("procurement", {})
         return {
@@ -512,6 +519,99 @@ def create_app(
             return auth_error
         store = current_app.extensions["qltpchay.store"]
         return jsonify({"products": store.get_products(), "summary": store.get_summary()})
+
+    @app.post("/api/products")
+    @app.post(f"{admin_path}/api/products")
+    def create_product():
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            payload = {}
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            product = store.create_product(
+                name=payload.get("name"),
+                category=payload.get("category"),
+                unit=payload.get("unit"),
+                price=payload.get("price", 0),
+                sale_price=payload.get("sale_price"),
+                low_stock_threshold=payload.get("low_stock_threshold", 5),
+                shelf_life_days=payload.get("shelf_life_days"),
+                storage_life_days=payload.get("storage_life_days"),
+                images=payload.get("images"),
+                details=payload.get("details"),
+                recipe=payload.get("recipe"),
+                note=payload.get("note", ""),
+                actor=current_actor_name(),
+                unit_conversions=payload.get("unit_conversions"),
+                default_purchase_unit=payload.get("default_purchase_unit"),
+                default_sale_unit=payload.get("default_sale_unit"),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã thêm sản phẩm.",
+            "product": product,
+            "summary": store.get_summary(),
+        }), 201
+
+    @app.put("/api/products/<int:product_id>")
+    @app.put(f"{admin_path}/api/products/<int:product_id>")
+    def update_product(product_id: int):
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            payload = {}
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            product = store.update_product(
+                product_id=product_id,
+                name=payload.get("name"),
+                category=payload.get("category"),
+                unit=payload.get("unit"),
+                price=payload.get("price", 0),
+                sale_price=payload.get("sale_price"),
+                low_stock_threshold=payload.get("low_stock_threshold", 5),
+                shelf_life_days=payload.get("shelf_life_days"),
+                storage_life_days=payload.get("storage_life_days"),
+                images=payload.get("images"),
+                details=payload.get("details"),
+                recipe=payload.get("recipe"),
+                note=payload.get("note"),
+                is_public=payload.get("is_public"),
+                actor=payload.get("actor") or current_actor_name(),
+                unit_conversions=payload.get("unit_conversions"),
+                default_purchase_unit=payload.get("default_purchase_unit"),
+                default_sale_unit=payload.get("default_sale_unit"),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã cập nhật sản phẩm.",
+            "product": product,
+            "summary": store.get_summary(),
+        })
+
+    @app.delete("/api/products/<int:product_id>")
+    @app.delete(f"{admin_path}/api/products/<int:product_id>")
+    def delete_product(product_id: int):
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            deleted = store.delete_product(product_id, actor=current_actor_name())
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        return jsonify({
+            "message": "Đã chuyển sản phẩm sang danh mục đã xóa.",
+            "deleted": deleted,
+            "summary": store.get_summary(),
+        })
 
     @app.get("/api/products/deleted")
     @app.get(f"{admin_path}/api/products/deleted")

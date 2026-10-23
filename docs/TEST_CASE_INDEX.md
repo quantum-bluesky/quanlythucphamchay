@@ -290,6 +290,10 @@ Mục tiêu:
 | 229 | `UT-WEB-41` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_41_procurement_planner_maps_invalid_scope_to_400` |
 | 230 | `UT-WEB-42` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_42_application_state_returns_aggregate_and_forwards_transaction_limit` |
 | 231 | `UT-WEB-43` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_43_application_state_requires_session_when_login_is_enabled` |
+| 232 | `UT-WEB-44` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_44_create_product_route_persists_product_and_returns_summary` |
+| 233 | `UT-WEB-45` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_45_update_product_route_preserves_explicit_private_visibility` |
+| 234 | `UT-WEB-46` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_46_delete_product_route_soft_deletes_and_returns_summary` |
+| 235 | `UT-WEB-47` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_47_create_product_route_maps_validation_error_to_400` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

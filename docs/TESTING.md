@@ -84,6 +84,9 @@ batch và nhận diện lock owner từ session hiện tại.
 kiểm tra quyền quản lý và ánh xạ scope không hợp lệ thành 400.
 `GET /api/state` tổng hợp metadata, sản phẩm, giao dịch, procurement, request
 pending và sync collections; test xác nhận `transaction_limit` và auth gate.
+`POST /api/products`, `PUT /api/products/<id>` và `DELETE /api/products/<id>`
+chuyển CRUD sản phẩm qua Flask, giữ response tạo/cập nhật/xóa mềm, actor session,
+trạng thái public rõ ràng và ánh xạ validation thành 400.
 
 Chạy riêng nhóm này:
 

@@ -293,3 +293,8 @@ admin tùy chỉnh không bị rơi về frontend root.
 - Thêm aggregate `/api/state` và dùng chung helper cho procurement status;
   kết quả hiện tại: Flask test module 43/43 pass, full unit 183/183 pass,
   `py_compile` và `git diff --check` pass.
+- Thêm `POST /api/products`, `PUT /api/products/<id>` và
+  `DELETE /api/products/<id>`; thêm `UT-WEB-44..47` cho create/update/soft-delete
+  và lỗi validation. Kết quả: `tests.test_flask_app` 47/47 pass, full unit
+  187/187 pass, `py_compile` và `git diff --check` pass; commit lát cắt này đã
+  hoàn tất riêng trong Issue #182.

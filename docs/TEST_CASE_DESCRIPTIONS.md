@@ -280,6 +280,10 @@ Lưu ý:
 | 229 | `UT-WEB-41` | Kiểm tra planner trả 400 cho scope không hợp lệ theo lỗi của `InventoryStore`. |
 | 230 | `UT-WEB-42` | Kiểm tra `/api/state` giữ aggregate response và chuyển `transaction_limit` tới store. |
 | 231 | `UT-WEB-43` | Kiểm tra `/api/state` yêu cầu session khi `EnableLogin` bật. |
+| 232 | `UT-WEB-44` | Kiểm tra `POST /api/products` tạo sản phẩm qua store và trả product cùng summary với status 201. |
+| 233 | `UT-WEB-45` | Kiểm tra `PUT /api/products/<id>` cập nhật sản phẩm và bảo toàn `is_public=false` được gửi tường minh. |
+| 234 | `UT-WEB-46` | Kiểm tra `DELETE /api/products/<id>` soft-delete sản phẩm và trả summary sau khi xóa. |
+| 235 | `UT-WEB-47` | Kiểm tra lỗi validation khi tạo sản phẩm được ánh xạ thành JSON 400. |
 
 
 

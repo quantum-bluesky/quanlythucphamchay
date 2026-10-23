@@ -706,6 +706,88 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.get_json(), {"error": "Cần đăng nhập hệ thống."})
 
+    def test_ut_web_44_create_product_route_persists_product_and_returns_summary(self):
+        app = self.build_app("product-create-route")
+        response = app.test_client().post(
+            "/api/products",
+            json={
+                "name": "Sản phẩm Flask mới",
+                "category": "Đồ chay",
+                "unit": "gói",
+                "price": 12000,
+                "sale_price": 18000,
+                "unit_conversions": [],
+                "default_purchase_unit": "gói",
+                "default_sale_unit": "gói",
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        result = response.get_json()
+        self.assertEqual(result["message"], "Đã thêm sản phẩm.")
+        self.assertEqual(result["product"]["name"], "Sản phẩm Flask mới")
+        self.assertEqual(result["summary"]["product_count"], 1)
+
+    def test_ut_web_45_update_product_route_preserves_explicit_private_visibility(self):
+        app = self.build_app("product-update-route")
+        store = app.extensions["qltpchay.store"]
+        product = store.create_product(
+            name="Sản phẩm trước cập nhật",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+        )
+
+        response = app.test_client().put(
+            f"/api/products/{product['id']}",
+            json={
+                "name": "Sản phẩm sau cập nhật",
+                "category": "Đồ chay",
+                "unit": "gói",
+                "price": 11000,
+                "sale_price": 16000,
+                "low_stock_threshold": 5,
+                "is_public": False,
+                "unit_conversions": [],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        updated = response.get_json()["product"]
+        self.assertEqual(updated["name"], "Sản phẩm sau cập nhật")
+        self.assertFalse(updated["is_public"])
+
+    def test_ut_web_46_delete_product_route_soft_deletes_and_returns_summary(self):
+        app = self.build_app("product-delete-route")
+        store = app.extensions["qltpchay.store"]
+        product = store.create_product(
+            name="Sản phẩm cần xóa",
+            category="Đồ chay",
+            unit="gói",
+            price=10000,
+            sale_price=15000,
+        )
+
+        response = app.test_client().delete(f"/api/products/{product['id']}")
+
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()
+        self.assertEqual(result["message"], "Đã chuyển sản phẩm sang danh mục đã xóa.")
+        self.assertEqual(result["deleted"]["product_id"], product["id"])
+        self.assertEqual(result["summary"]["product_count"], 0)
+
+    def test_ut_web_47_create_product_route_maps_validation_error_to_400(self):
+        app = self.build_app("product-create-invalid")
+
+        response = app.test_client().post(
+            "/api/products",
+            json={"name": "", "category": "Đồ chay", "unit": "gói"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.get_json()["error"])
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]
