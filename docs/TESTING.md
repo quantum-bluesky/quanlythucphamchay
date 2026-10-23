@@ -41,6 +41,123 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 
 
 ## 1. Unit test
 
+### Flask migration factory
+
+Các test mới cho app factory Flask nằm trong `tests/test_flask_app.py` và chạy cùng
+`unittest`. Cài dependencies theo `requirements.txt` vào đúng Python environment
+trước khi chạy; không cài vào Python global chỉ để chạy test. Factory nhận DB,
+system config và asset manifest tường minh. Test dùng DB/manifest/thư mục ảnh ở
+`tempfile`; `testing=True` sẽ từ chối các đường dẫn runtime trong `data/` và bắt
+buộc nhận system config test tường minh. Runtime factory chỉ đọc config theo
+`APP_ENV` khi được gọi. Test admin dùng `admin_path` riêng và xác nhận trang admin
+khác trang public root.
+Session/admin login, port-scoped cookie, status payload và logout hiện có test Flask
+riêng; admin login phải từ chối tài khoản user thường.
+`UT-WEB-13` cũng gửi HTTP request qua WSGI server loopback thật để kiểm tra
+admin/public routing ngoài Flask test client.
+`UT-WEB-147` kiểm tra Waitress với prefix được cấu hình rõ và WSGI
+`SCRIPT_NAME` khi reverse proxy đã strip prefix; test dùng DB trong thư mục tạm.
+`UT-WEB-148` xác nhận `APP_URL_PREFIX` được chuẩn hóa rồi chuyển vào Waitress.
+`UT-WEB-14` so sánh nguyên payload session status của Flask với legacy HTTP
+handler trên cùng config và session manager.
+Route `GET /api/public/products` đã có kiểm tra schema, lọc sản phẩm public,
+thông tin âm lịch và settings lấy từ config injected. `GET /api/public/orders` có
+kiểm thử contract cho phản hồi 400 khi thiếu thông tin tra cứu. Exception Flask
+được kiểm tra dùng `qltpchay.logger` với stack trace trong server log, còn response
+500 không chứa chi tiết nội bộ.
+`POST /api/public/orders` kiểm tra tạo đơn online qua `InventoryStore`, yêu cầu
+Zalo theo config injected, ánh xạ lỗi validation sang 400, lỗi bất ngờ sang JSON
+500 an toàn và hỗ trợ alias theo admin prefix.
+`GET /api/products` giữ response gồm danh sách và summary, áp dụng `EnableLogin`
+và nhận session qua cookie hiện hành; request passive không gia hạn session.
+`GET /api/products/deleted` và `GET /api/products/history` dùng cùng auth gate,
+giữ schema response và bộ lọc actor/date/limit hiện có.
+`GET /api/product-movements` giữ các bộ lọc ngày/loại/keyword và ánh xạ đầu vào
+không hợp lệ thành status 400.
+`GET /api/receipts/history` và `GET /api/transactions` giữ wrapper JSON và chuyển
+limit cùng các bộ lọc lịch sử sang `InventoryStore`.
+`GET /api/orders/<id>/history` và `GET /api/purchases/<id>/history` giữ response
+document/history, giới hạn truy vấn và status 400 nếu chứng từ không tồn tại.
+`GET /api/runtime-version` bổ sung app/debug/pagination metadata hiện hành;
+`GET /api/reports/monthly` chuyển các bộ lọc tháng/ngày và trả 400 nếu tham số
+tháng không hợp lệ.
+`GET /api/procurement/status` giữ lock timeout, config công khai, quyền quản lý
+batch và nhận diện lock owner từ session hiện tại.
+`GET /api/procurement/planner` giữ scope, yêu cầu `EnableLogin` theo config,
+kiểm tra quyền quản lý và ánh xạ scope không hợp lệ thành 400.
+`GET /api/state` tổng hợp metadata, sản phẩm, giao dịch, procurement, request
+pending và sync collections; test xác nhận `transaction_limit` và auth gate.
+`POST /api/products`, `PUT /api/products/<id>` và `DELETE /api/products/<id>`
+chuyển CRUD sản phẩm qua Flask, giữ response tạo/cập nhật/xóa mềm, actor session,
+trạng thái public rõ ràng và ánh xạ validation thành 400.
+Các endpoint `PUT /api/products/<id>/price`,
+`PUT /api/products/<id>/sale-price` và `POST /api/products/<id>/restore` giữ
+cập nhật riêng giá nhập/giá bán và khôi phục sản phẩm đã xóa mềm.
+`POST /api/products/<id>/change-base-unit` chỉ cho Master Admin, kể cả khi
+`EnableLogin` tắt; hỗ trợ cả admin prefix cấu hình và alias `/api/admin`.
+`DELETE /api/admin/products/<id>/hard` giữ auth gate login + Master Admin và
+response xóa hẳn trực tiếp từ `InventoryStore`.
+`POST /api/products/images/upload` giữ hợp đồng raw binary, lọc extension,
+ghi dưới image root của app và trả URL dùng được qua static image route.
+`GET /api/orders/bulk-requests/<id>/history` và
+`GET /api/document-cancel-requests/<id>/history` giữ payload request/history,
+limit và status 400 khi không tìm thấy request.
+Admin read routes cho public web config, mail config và legacy audit bắt buộc
+Master Admin; mail config chỉ trả cờ `has_password`, tuyệt đối không lộ mật khẩu.
+`GET /api/admin/export/<entity>` giữ JSON/CSV download contract, UTF-8 BOM cho
+CSV, tên file attachment và validation format.
+`GET /api/admin/backup` yêu cầu Master Admin và trả file từ backup service dưới
+dạng attachment `application/octet-stream`.
+`PUT /api/state` áp dụng login gate, actor/role session, contract metadata trong
+response, conflict payload `409`, validation payload `400` và admin prefix alias.
+`POST /api/transactions` luôn yêu cầu session admin hoặc quyền
+`inventory_adjust_manage`, giữ actor username, các trường batch/expiry và response
+201; lỗi đầu vào từ chối bằng 400.
+`POST /api/orders/checkout`, `/api/orders/quick-create` và `/api/orders/commit`
+giữ response tạo/chốt đơn, quick summary, actor username và lỗi validation 400.
+`POST /api/orders/bulk-create` giữ permission riêng cho create/commit, luồng
+approval request, alias camelCase, duplicate response `409` và allow-duplicates.
+Các endpoint approve/reject yêu cầu `order_batch_manage`, giữ actor/reason và
+response request cùng queue cập nhật.
+Các endpoint delete/process bulk request giữ quy tắc owner hoặc manager, auth
+gate khi bật login và inventory summary sau khi xử lý.
+Cancel request của đơn/phiếu nhập yêu cầu `EnableLogin`, lưu actor/reason trước,
+gửi mail qua boundary mockable và giữ response 201/warning khi SMTP lỗi.
+Approve/reject document-cancel request yêu cầu `document_cancel_approve`, giữ
+response sync state + summary khi approve và actor/reason khi reject.
+Ship order/receive purchase áp dụng auth gate hệ thống, giữ actor/role, ngày giao
+dịch, response schema và status khác nhau; lỗi nghiệp vụ trả 400.
+Quick purchase, mark-paid và purchase payment giữ response/actor/role, payment
+metadata và validation status.
+Cart item updates preserve conflict `409`, cart payment passes session actor/role,
+and received purchase expiry preserves date/actor fields in its response.
+Purchase repair preserves detached receipt details, inventory adjustment requires
+its dedicated permission, and customer/supplier returns preserve source/error data.
+Procurement mutations require the configured batch manager gate and preserve lock
+actor, conflict payload, draft scope, and created/skipped purchase results.
+Master Admin mail and Public Web configuration writes persist through the injected
+config path, preserve secrets and existing fields; test-mail mocks SMTP and checks
+sent/skipped/failure diagnostics without exposing credentials in the response.
+Legacy audit repair and purchase receipt/source linking remain Master Admin-only
+and preserve actor, audit entries, updated purchase lists, and validation errors.
+Locked order/purchase edits require Master Admin and the feature gate, then pass the
+locked document snapshot and edit reason through to the store with actor context.
+Hard-delete customer/supplier endpoints require Master Admin and preserve actor,
+store deletion results, and validation errors.
+Zalo group list/create/delete preserve the legacy unauthenticated API contract,
+custom admin-prefix aliases, generated IDs, and deletion validation errors.
+Master import accepts JSON/CSV with entity/header/record validation; database restore
+forwards decoded backup bytes to the store and remains covered with a temporary test
+app and mocked restore boundary.
+Zalo OAuth start/callback preserves redirect URI, PKCE cookie, mock mode, customer
+upsert and callback HTML; token/profile HTTP calls are mocked in tests.
+
+Chạy riêng nhóm này:
+
+```powershell
+python -m unittest tests.test_flask_app
+```
+
 ### Cách chạy nhanh gọn (Khuyến nghị để tiết kiệm token và giữ console sạch)
 
 Chạy qua wrapper summary (toàn bộ log chi tiết được tự động lưu vào `logs/test-unit-<timestamp>.log`, chỉ in kết quả tóm tắt và lỗi cốt lõi ra console):
@@ -114,6 +231,16 @@ npx playwright install chromium
 ```
 
 ### Chạy toàn bộ suite
+
+Playwright mặc định chạy server fixture bằng backend legacy để giữ đường đối chứng. Để chạy cùng suite trên Flask/Waitress, đặt biến môi trường trước lệnh:
+
+```powershell
+$env:PLAYWRIGHT_BACKEND = "flask"
+npm run test:integration
+Remove-Item Env:PLAYWRIGHT_BACKEND
+```
+
+Runner tạo SQLite fixture riêng trong thư mục tạm cho cả hai backend; không dùng `data/inventory.db`.
 
 #### Cách chạy nhanh gọn (Khuyến nghị để tiết kiệm token context cho Agent và giữ console sạch)
 
@@ -477,7 +604,7 @@ Case mới cho Phase A:
 - `UT-PROC-02`: backend planner gom nhu cầu thiếu và chặn một sản phẩm thiếu bị gán vào nhiều phiếu nhập batch mở
 - `UT-PROC-03`: backend tạo batch nhiều dòng và gom các mặt hàng cùng NCC vào một phiếu nhập batch draft
 - `UT-PROC-04`: backend khóa tạo/sửa phiếu `draft/ordered` trên màn `Nhập hàng` cho user không giữ khóa batch, nhưng vẫn cho tiếp bước `received/paid` với phiếu thường đặt trước batch; đồng thời kiểm tra action theo từng phiếu không bị xung đột với collection sync.
-- `IT-PROC-02`: giao diện cho user không giữ khóa nhận rồi thanh toán phiếu thường đã đặt trước batch; test khẳng định `EnableMultiuserConflictCheck=true` và đảm bảo phiếu batch khác không chặn hai action này.
+- `IT-PROC-02`: giao diện cho user không giữ khóa nhận rồi thanh toán phiếu thường đã đặt trước batch; test khẳng định `EnableMultiuserConflictCheck=true`, phiếu batch khác không chặn hai action này, và xác minh batch lock còn hoạt động qua API manager (user thường không có quyền mở planner).
 - `UT-PROC-05`: assignment batch tự release khi phiếu batch bị hủy hoặc đã chuyển sang `received`
 - `UT-PROC-07`: batch create hỗ trợ mixed lines `shortage + extra`, vẫn gom đúng theo NCC và chỉ tạo assignment cho dòng shortage
 - `UT-PROC-08`: extra row cùng sản phẩm với shortage row phải merge vào cùng phiếu batch/NCC đang xử lý, không tạo extra assignment

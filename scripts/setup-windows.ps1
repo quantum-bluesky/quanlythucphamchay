@@ -234,6 +234,8 @@ if (-not $SkipPythonToolingDeps) {
     Write-Warn "Bo qua kiem tra Python tooling deps theo tham so."
 }
 Ensure-PythonPackage -ImportName "PIL" -PackageName "Pillow" -Reason "backend image resize and optimization tests"
+Ensure-PythonPackage -ImportName "flask" -PackageName "Flask>=3.1.0,<4.0" -Reason "Flask HTTP backend"
+Ensure-PythonPackage -ImportName "waitress" -PackageName "waitress>=3.0.2,<4.0" -Reason "production WSGI server for Windows"
 
 if ($CheckOnly) {
     Write-Step "Check-only summary"

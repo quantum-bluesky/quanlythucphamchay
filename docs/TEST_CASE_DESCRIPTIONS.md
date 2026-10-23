@@ -170,7 +170,7 @@ Lưu ý:
 | 108 | `UT-PROC-08` | Kiểm tra extra row cùng sản phẩm với shortage row sẽ merge vào đúng phiếu batch/NCC đang xử lý và không tạo thêm assignment ngoài shortage. |
 | 109 | `UT-AUTH-04B` | Kiểm tra user thường có permission `procurement_batch_manage` được bắt đầu kỳ gom nhập nhưng vẫn bị chặn chỉnh tồn trực tiếp vì không có `inventory_adjust_manage`. |
 | 110 | `IT-PROC-01` | Kiểm tra UI planner khi bị chặn `Bắt đầu kỳ gom` sẽ hiện danh sách conflict và cho bấm mở đúng các phiếu nhập mở liên quan để dọn. |
-| 111 | `IT-PROC-02` | Kiểm tra user không giữ khóa batch vào màn `Nhập hàng` sẽ bị khóa create/edit cấu trúc phiếu `draft/ordered`; với `EnableMultiuserConflictCheck=true`, phiếu batch không còn nút `Nhập kho`, còn phiếu thường đã `ordered` từ trước lúc batch bắt đầu vẫn được `Nhập kho` rồi `Đã thanh toán`, kể cả khi owner đã sửa ghi chú sau lúc batch mở. Các thao tác theo từng phiếu không flush collection `purchases` có thể chứa phiếu batch khác đang khóa. |
+| 111 | `IT-PROC-02` | Kiểm tra user không giữ khóa batch vào màn `Nhập hàng` sẽ bị khóa create/edit cấu trúc phiếu `draft/ordered`; với `EnableMultiuserConflictCheck=true`, phiếu batch không còn nút `Nhập kho`, còn phiếu thường đã `ordered` từ trước lúc batch bắt đầu vẫn được `Nhập kho` rồi `Đã thanh toán`, kể cả khi owner đã sửa ghi chú sau lúc batch mở. Xác minh batch lock vẫn active qua API manager vì user thường không có quyền mở procurement planner. Các thao tác theo từng phiếu không flush collection `purchases` có thể chứa phiếu batch khác đang khóa. |
 | 112 | `IT-PROC-03` | Kiểm tra batch owner thêm được extra product có badge `Ngoài nhu cầu đơn`, tạo phiếu batch mixed lines thành công và review chung với shortage row cùng NCC. |
 | 113 | `IT-PROC-04` | Kiểm tra owner đang ở flow batch khi bấm sang màn ngoài flow sẽ thấy dialog nhắc kết thúc kỳ gom; nếu không kết thúc thì app hỏi tiếp để chọn `ở lại` hoặc `đi tiếp mà vẫn giữ batch mode`, còn `OK` ở dialog đầu sẽ finish batch, release lock rồi mới điều hướng. |
 | 122 | `IT-PROC-05` | Kiểm tra màn `Xử lý nhập thiếu` chặn thao tác `Gộp đơn` khi user chọn lẫn phiếu nhập và phiếu xuất trong cùng một lần thao tác. |
@@ -237,6 +237,154 @@ Lưu ý:
 | 186 | `UT-ADM-EDIT-01..05` | Backend kiểm tra role/lý do/trạng thái, điều chỉnh tăng/giảm tồn theo dòng hàng, thêm/xóa/thay mặt hàng, khóa giảm lượng đã tiêu thụ, giữ nguyên khách/NCC và bảo toàn khả năng hủy phiếu nhập sau chỉnh sửa. |
 | 187 | `UT-AUTH-18` | Kiểm tra API đọc/sửa cấu hình mail yêu cầu Master Admin, không trả mật khẩu, giữ mật khẩu hiện có khi payload để trống và nhận mật khẩu mới; endpoint test mail dùng cấu hình vừa lưu và mock SMTP. |
 | 188 | `ACC-ADM-04` | Kiểm tra màn Master Admin tải cấu hình và báo môi trường, tải lại cấu hình, không điền mật khẩu đã lưu, cho lưu mật khẩu mới, hỏi xác nhận gửi và hiện kết quả cùng diagnostics từ response mock; test không gửi email thật. |
+| 189 | `UT-WEB-01` | Dùng `admin_path` tùy chỉnh, xác nhận route đó phục vụ form admin, `/` tiếp tục phục vụ giao diện public và `/admin` không tự được coi là route admin. |
+| 190 | `UT-WEB-02` | Tạo hai app factory với DB và admin path riêng; xác nhận mỗi app chỉ mở route admin được cấu hình và không dùng chung DB. |
+| 191 | `UT-WEB-03` | Xác nhận app ở `testing=True` từ chối đường dẫn DB runtime `data/inventory.db`. |
+| 192 | `UT-WEB-04` | Kiểm tra route Flask `GET /api/public/products`: giữ schema catalog/lunar/settings, chỉ trả sản phẩm public và dùng config được inject vào app. |
+| 193 | `UT-WEB-05` | Xác nhận factory ở test mode bắt buộc nhận config test tường minh thay vì tự đọc config runtime. |
+| 194 | `UT-WEB-06` | Kiểm tra `GET /api/public/orders` giữ lỗi 400 và schema thông báo khi thiếu cả số điện thoại lẫn Zalo ID. |
+| 195 | `UT-WEB-07` | Kiểm tra runtime factory yêu cầu module config loader đọc đúng `CONFIG_PATH` đã chọn theo `APP_ENV`, với DB/manifest test tạm. |
+| 196 | `UT-WEB-08` | Xác nhận exception ngoài ý muốn được ghi qua `qltpchay.logger` với `exc_info=True`, trả JSON 500 ổn định và không lộ chi tiết exception. |
+| 197 | `UT-WEB-09` | Xác nhận mọi DB trong `data/` đều bị chặn ở test mode, không chỉ đúng `inventory.db`. |
+| 198 | `UT-WEB-10` | Kiểm tra asset URL dưới configured admin prefix (ví dụ `/backoffice/static/...`) vẫn trả đúng nội dung như URL gốc. |
+| 199 | `UT-WEB-11` | Kiểm tra admin login qua admin prefix, cookie port-scoped, session status và logout/clear cookie theo contract hiện hành. |
+| 200 | `UT-WEB-12` | Xác nhận normal user bị từ chối ở admin login nhưng vẫn đăng nhập được qua session login với permissions. |
+| 201 | `UT-WEB-13` | Chạy Flask WSGI app qua loopback server thật; xác nhận admin path trả form admin và `/` vẫn trả trang public. |
+| 202 | `UT-WEB-14` | So sánh nguyên response JSON `GET /backoffice/api/session/status` giữa Flask test client và HTTP handler cũ với cùng config/session. |
+| 203 | `UT-WEB-15` | Xác nhận `POST /api/public/orders` tạo đơn online qua `InventoryStore` và trả status 201 cùng cart đã lưu. |
+| 204 | `UT-WEB-16` | Xác nhận yêu cầu Zalo của `POST /api/public/orders` được đọc từ config injected và trả lỗi 400 nếu thiếu Zalo ID. |
+| 205 | `UT-WEB-17` | Xác nhận lỗi validation giỏ hàng từ `InventoryStore` được ánh xạ thành JSON 400. |
+| 206 | `UT-WEB-18` | Xác nhận lỗi bất ngờ khi tạo đơn được log với `exc_info=True`, trả JSON 500 chung và không lộ chi tiết nội bộ. |
+| 207 | `UT-WEB-19` | Xác nhận `POST /api/public/orders` vẫn hoạt động qua alias dưới `admin_path` được cấu hình. |
+| 208 | `UT-WEB-20` | Kiểm tra `GET /api/products` trả danh sách sản phẩm và summary theo schema legacy. |
+| 209 | `UT-WEB-21` | Kiểm tra `GET /api/products` trả 401 với response đăng nhập legacy khi `EnableLogin` bật và thiếu session. |
+| 210 | `UT-WEB-22` | Kiểm tra `GET /api/products` chấp nhận session hợp lệ đã đăng nhập qua endpoint Flask. |
+| 211 | `UT-WEB-23` | Xác nhận `X-Session-Activity: passive` cho `GET /api/products` không gia hạn thời gian hoạt động của session. |
+| 212 | `UT-WEB-24` | Kiểm tra `GET /api/products/deleted` trả sản phẩm soft-delete với schema legacy. |
+| 213 | `UT-WEB-25` | Kiểm tra `GET /api/products/history` giữ bộ lọc actor/limit và các trường history của sản phẩm. |
+| 214 | `UT-WEB-26` | Kiểm tra `GET /api/product-movements` chuyển đầy đủ bộ lọc và giữ nguyên response từ `InventoryStore`. |
+| 215 | `UT-WEB-27` | Kiểm tra `GET /api/product-movements` trả 400 khi product ID không hợp lệ. |
+| 216 | `UT-WEB-28` | Kiểm tra `GET /api/receipts/history` chuyển limit, loại phiếu và khoảng ngày tới store, giữ wrapper `history`. |
+| 217 | `UT-WEB-29` | Kiểm tra `GET /api/transactions` chuyển limit và giữ wrapper `transactions`. |
+| 218 | `UT-WEB-30` | Kiểm tra lịch sử đơn hàng trả cart cùng history theo limit đã yêu cầu. |
+| 219 | `UT-WEB-31` | Kiểm tra lịch sử đơn hàng trả 400 nếu cart không tồn tại. |
+| 220 | `UT-WEB-32` | Kiểm tra lịch sử phiếu nhập trả purchase cùng history theo limit đã yêu cầu. |
+| 221 | `UT-WEB-33` | Kiểm tra lịch sử phiếu nhập trả 400 nếu purchase không tồn tại. |
+| 222 | `UT-WEB-34` | Kiểm tra `GET /api/runtime-version` kết hợp runtime version với app/debug/pagination metadata. |
+| 223 | `UT-WEB-35` | Kiểm tra `GET /api/reports/monthly` chuyển bộ lọc tháng/ngày tới store và giữ payload. |
+| 224 | `UT-WEB-36` | Kiểm tra `GET /api/reports/monthly` trả lỗi 400 chuẩn khi months không hợp lệ. |
+| 225 | `UT-WEB-37` | Kiểm tra trạng thái procurement giữ config, quyền quản lý batch và nhận diện đúng chủ khóa. |
+| 226 | `UT-WEB-38` | Kiểm tra `GET /api/procurement/status` yêu cầu session khi `EnableLogin` bật. |
+| 227 | `UT-WEB-39` | Kiểm tra procurement planner chuyển scope/timeout và trả config/quyền của người đang giữ khóa. |
+| 228 | `UT-WEB-40` | Kiểm tra planner từ chối khi batch mode yêu cầu login nhưng `EnableLogin` đang tắt. |
+| 229 | `UT-WEB-41` | Kiểm tra planner trả 400 cho scope không hợp lệ theo lỗi của `InventoryStore`. |
+| 230 | `UT-WEB-42` | Kiểm tra `/api/state` giữ aggregate response và chuyển `transaction_limit` tới store. |
+| 231 | `UT-WEB-43` | Kiểm tra `/api/state` yêu cầu session khi `EnableLogin` bật. |
+| 232 | `UT-WEB-44` | Kiểm tra `POST /api/products` tạo sản phẩm qua store và trả product cùng summary với status 201. |
+| 233 | `UT-WEB-45` | Kiểm tra `PUT /api/products/<id>` cập nhật sản phẩm và bảo toàn `is_public=false` được gửi tường minh. |
+| 234 | `UT-WEB-46` | Kiểm tra `DELETE /api/products/<id>` soft-delete sản phẩm và trả summary sau khi xóa. |
+| 235 | `UT-WEB-47` | Kiểm tra lỗi validation khi tạo sản phẩm được ánh xạ thành JSON 400. |
+| 236 | `UT-WEB-48` | Kiểm tra endpoint giá nhập cập nhật sản phẩm và trả summary theo contract legacy. |
+| 237 | `UT-WEB-49` | Kiểm tra endpoint giá bán cập nhật sản phẩm và trả summary theo contract legacy. |
+| 238 | `UT-WEB-50` | Kiểm tra `POST /api/products/<id>/restore` khôi phục sản phẩm đã soft-delete. |
+| 239 | `UT-WEB-51` | Kiểm tra đổi đơn vị cơ sở vẫn yêu cầu Master Admin khi `EnableLogin` tắt. |
+| 240 | `UT-WEB-52` | Kiểm tra API đổi đơn vị cơ sở từ chối session của staff. |
+| 241 | `UT-WEB-53` | Kiểm tra Master Admin đổi đơn vị cơ sở thành công qua alias admin prefix và giữ tính toán giá theo tỷ lệ. |
+| 242 | `UT-WEB-54` | Kiểm tra API xóa hẳn yêu cầu đăng nhập hệ thống khi `EnableLogin` bật. |
+| 243 | `UT-WEB-55` | Kiểm tra API xóa hẳn từ chối staff dù đã có session. |
+| 244 | `UT-WEB-56` | Kiểm tra Master Admin xóa hẳn sản phẩm và response giữ nguyên contract legacy. |
+| 245 | `UT-WEB-57` | Kiểm tra upload ảnh raw binary lưu file vào image root tạm và URL trả về đọc được. |
+| 246 | `UT-WEB-58` | Kiểm tra upload qua admin prefix cấu hình và extension không hợp lệ được chuẩn hóa về `.jpg`. |
+| 247 | `UT-WEB-59` | Kiểm tra lịch sử yêu cầu xuất nhanh giữ wrapper và chuyển đúng limit xuống store. |
+| 248 | `UT-WEB-60` | Kiểm tra lịch sử yêu cầu hủy trả 400 khi request ID không tồn tại. |
+| 249 | `UT-WEB-61` | Kiểm tra admin config đọc cần Master Admin, dùng được admin prefix và che mật khẩu mail. |
+| 250 | `UT-WEB-62` | Kiểm tra admin legacy audit trả nguyên payload từ store sau khi xác thực. |
+| 251 | `UT-WEB-63` | Kiểm tra export master JSON giữ nguyên payload và header download. |
+| 252 | `UT-WEB-64` | Kiểm tra export master CSV giữ thứ tự cột, UTF-8 BOM và serialize trường ảnh. |
+| 253 | `UT-WEB-65` | Kiểm tra export master từ chối format ngoài JSON/CSV. |
+| 254 | `UT-WEB-66` | Kiểm tra tải backup yêu cầu Master Admin và trả file attachment đúng content type. |
+| 255 | `UT-WEB-67` | Kiểm tra ghi state yêu cầu session khi `EnableLogin` bật. |
+| 256 | `UT-WEB-68` | Kiểm tra PUT state chuyển đúng actor/role và trả metadata cùng dữ liệu store. |
+| 257 | `UT-WEB-69` | Kiểm tra sync conflict trả 409 cùng state key và timestamp mong đợi/hiện tại. |
+| 258 | `UT-WEB-70` | Kiểm tra PUT state từ chối JSON không phải object với status 400. |
+| 259 | `UT-WEB-71` | Kiểm tra transaction create vẫn yêu cầu session có quyền dù login toggle đang tắt. |
+| 260 | `UT-WEB-72` | Kiểm tra transaction create từ chối staff không có quyền điều chỉnh tồn. |
+| 261 | `UT-WEB-73` | Kiểm tra transaction create chuyển actor/batch data và trả status 201 cùng summary. |
+| 262 | `UT-WEB-74` | Kiểm tra transaction create ánh xạ product ID không hợp lệ thành 400. |
+| 263 | `UT-WEB-75` | Kiểm tra checkout chuyển đầy đủ order payload và trả order/summary với status 201. |
+| 264 | `UT-WEB-76` | Kiểm tra quick-create giữ actor, payment flags, quick summary và response collections. |
+| 265 | `UT-WEB-77` | Kiểm tra commit order ánh xạ cart không hợp lệ thành status 400. |
+| 266 | `UT-WEB-78` | Kiểm tra bulk create không login dùng direct store path và giữ camelCase request fields. |
+| 267 | `UT-WEB-79` | Kiểm tra bulk create từ chối user thiếu permission khi login bật. |
+| 268 | `UT-WEB-80` | Kiểm tra user có quyền tạo nhưng không quản lý batch gửi request chờ duyệt. |
+| 269 | `UT-WEB-81` | Kiểm tra mode `commit_valid` yêu cầu permission `bulk_order_commit`. |
+| 270 | `UT-WEB-82` | Kiểm tra duplicate bulk request trả conflict code/details và quyền tiếp tục. |
+| 271 | `UT-WEB-83` | Kiểm tra approve bulk request từ chối tài khoản thiếu quyền manager. |
+| 272 | `UT-WEB-84` | Kiểm tra Master Admin duyệt bulk request và trả queue mới. |
+| 273 | `UT-WEB-85` | Kiểm tra reject bulk request chuyển lý do và actor của manager tới store. |
+| 274 | `UT-WEB-86` | Kiểm tra owner xóa request bulk của mình và store nhận cờ manager=false. |
+| 275 | `UT-WEB-87` | Kiểm tra user khác owner không được xóa request bulk. |
+| 276 | `UT-WEB-88` | Kiểm tra owner xử lý bulk request đã duyệt và response trả inventory summary. |
+| 277 | `UT-WEB-89` | Kiểm tra xử lý bulk request không tồn tại trả 400. |
+| 278 | `UT-WEB-90` | Kiểm tra cancel request từ chối khi `EnableLogin` tắt. |
+| 279 | `UT-WEB-91` | Kiểm tra order cancel request lưu actor/request và trả message mail sent. |
+| 280 | `UT-WEB-92` | Kiểm tra purchase cancel request vẫn trả 201 kèm warning khi mail gửi lỗi. |
+| 281 | `UT-WEB-93` | Kiểm tra document cancel approval yêu cầu bật login và permission chuyên biệt. |
+| 282 | `UT-WEB-94` | Kiểm tra approve document cancel trả dữ liệu đồng bộ và summary mới. |
+| 283 | `UT-WEB-95` | Kiểm tra reject document cancel chuyển actor/reason và trả request cập nhật. |
+| 284 | `UT-WEB-96` | Kiểm tra ship order yêu cầu session khi `EnableLogin` bật. |
+| 285 | `UT-WEB-97` | Kiểm tra ship order chuyển actor/ngày giao và trả summary. |
+| 286 | `UT-WEB-98` | Kiểm tra receive purchase chuyển actor/role/ngày nhận và trả status 201. |
+| 287 | `UT-WEB-99` | Kiểm tra receive purchase ánh xạ lỗi nghiệp vụ thành status 400. |
+| 288 | `UT-WEB-100` | Kiểm tra quick-create purchase giữ actor/role, payment flags và response summary. |
+| 289 | `UT-WEB-101` | Kiểm tra mark-paid chuyển payment data cùng actor admin và trả purchase mới. |
+| 290 | `UT-WEB-102` | Kiểm tra purchase payment ánh xạ lỗi validation của store thành 400. |
+| 291 | `UT-WEB-103` | Kiểm tra cart item sync conflict trả 409 và flag conflict legacy. |
+| 292 | `UT-WEB-104` | Kiểm tra cart payment chuyển actor/role và trả cart/carts cập nhật. |
+| 293 | `UT-WEB-105` | Kiểm tra cập nhật HSD dòng phiếu nhập chuyển mode/ngày/actor và trả summary. |
+| 294 | `UT-WEB-106` | Kiểm tra repair phiếu nhập giữ actor và danh sách receipt bị tách. |
+| 295 | `UT-WEB-107` | Kiểm tra điều chỉnh tồn yêu cầu session có quyền chuyên biệt. |
+| 296 | `UT-WEB-108` | Kiểm tra user có quyền điều chỉnh tồn tạo receipt và chuyển actor/reason. |
+| 297 | `UT-WEB-109` | Kiểm tra phiếu trả khách chuyển source fields và actor fallback. |
+| 298 | `UT-WEB-110` | Kiểm tra phiếu trả NCC ánh xạ validation error thành status 400. |
+| 299 | `UT-WEB-111` | Kiểm tra procurement mutation yêu cầu bật login và quyền manager. |
+| 300 | `UT-WEB-112` | Kiểm tra bắt đầu kỳ gom nhập chuyển actor/role và trả lock status. |
+| 301 | `UT-WEB-113` | Kiểm tra conflict khi bắt đầu kỳ gom nhập giữ code và danh sách lỗi. |
+| 302 | `UT-WEB-114` | Kiểm tra kết thúc kỳ và gia hạn lock giữ actor, timeout, message. |
+| 303 | `UT-WEB-115` | Kiểm tra tạo phiếu nhập đơn giữ actor, scope và response. |
+| 304 | `UT-WEB-116` | Kiểm tra tạo phiếu nhập hàng loạt giữ danh sách tạo/bỏ qua và actor. |
+| 305 | `UT-WEB-117` | Kiểm tra cập nhật cấu hình mail chỉ cho Master Admin. |
+| 306 | `UT-WEB-118` | Kiểm tra cấu hình mail lưu file, giữ password khi để trống và không trả secret. |
+| 307 | `UT-WEB-119` | Kiểm tra validation người nhận, cổng SMTP và chế độ TLS/SSL. |
+| 308 | `UT-WEB-120` | Kiểm tra cấu hình Public Web được merge, normalize và persist. |
+| 309 | `UT-WEB-121` | Kiểm tra test mail success trả diagnostics không lộ credential. |
+| 310 | `UT-WEB-122` | Kiểm tra test mail ánh xạ kết quả skipped/failure và không lộ lỗi SMTP. |
+| 311 | `UT-WEB-123` | Kiểm tra các thao tác legacy audit từ chối user thường. |
+| 312 | `UT-WEB-124` | Kiểm tra safe-fix trả message, số lượng sửa và audit. |
+| 313 | `UT-WEB-125` | Kiểm tra liên kết receipt chuyển purchase/receipt code và actor. |
+| 314 | `UT-WEB-126` | Kiểm tra liên kết source ánh xạ validation error thành status 400. |
+| 315 | `UT-WEB-127` | Kiểm tra sửa chứng từ đã khóa từ chối tài khoản không phải Master Admin. |
+| 316 | `UT-WEB-128` | Kiểm tra sửa đơn đã khóa có feature gate và giữ payload/lý do/actor. |
+| 317 | `UT-WEB-129` | Kiểm tra sửa phiếu nhập đã khóa ánh xạ lỗi nghiệp vụ thành status 400. |
+| 318 | `UT-WEB-130` | Kiểm tra hard-delete khách hàng từ chối user không phải Master Admin. |
+| 319 | `UT-WEB-131` | Kiểm tra hard-delete khách hàng chuyển actor và response từ store. |
+| 320 | `UT-WEB-132` | Kiểm tra hard-delete nhà cung cấp ánh xạ lỗi validation thành 400. |
+| 321 | `UT-WEB-133` | Kiểm tra danh sách nhóm Zalo giữ quyền truy cập legacy không cần đăng nhập. |
+| 322 | `UT-WEB-134` | Kiểm tra tạo nhóm Zalo sinh ID và yêu cầu tên nhóm. |
+| 323 | `UT-WEB-135` | Kiểm tra xóa nhóm Zalo giữ kết quả thành công và lỗi đang được sử dụng. |
+| 324 | `UT-WEB-136` | Kiểm tra master data import từ chối user không phải Master Admin. |
+| 325 | `UT-WEB-137` | Kiểm tra import JSON giữ entity type, actor và summary. |
+| 326 | `UT-WEB-138` | Kiểm tra import CSV parse đúng trường số của sản phẩm. |
+| 327 | `UT-WEB-139` | Kiểm tra import từ chối format, danh sách rỗng và CSV thiếu header. |
+| 328 | `UT-WEB-140` | Kiểm tra restore giải mã backup, trả tên backup trước và báo thiếu file. |
+| 329 | `UT-WEB-141` | Kiểm tra Zalo login yêu cầu App ID trừ khi bật mock mode. |
+| 330 | `UT-WEB-142` | Kiểm tra mock OAuth redirect, customer upsert và callback HTML. |
+| 331 | `UT-WEB-143` | Kiểm tra OAuth redirect URI theo proxy prefix và PKCE cookie. |
+| 332 | `UT-WEB-144` | Kiểm tra callback gọi token/profile APIs và lưu customer qua network mock. |
+| 333 | `UT-WEB-145` | Kiểm tra callback báo thiếu code và thiếu cấu hình Zalo. |
+| 334 | `UT-WEB-146` | Kiểm tra CLI mặc định chọn Flask và vẫn hỗ trợ chọn legacy để rollback. |
+| 335 | `UT-WEB-147` | Kiểm tra Waitress giữ subpath prefix cấu hình và hỗ trợ `SCRIPT_NAME` khi proxy strip prefix. |
+| 336 | `UT-WEB-148` | Kiểm tra `APP_URL_PREFIX` được chuẩn hóa và chuyển vào Waitress khi khởi chạy. |
 
 
 

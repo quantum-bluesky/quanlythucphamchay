@@ -12,6 +12,7 @@ Tài liệu này dành cho người cài và vận hành ứng dụng trên Wind
 
 - Windows 10 hoặc Windows 11
 - Python 3.11 trở lên
+- Các dependency runtime trong `requirements.txt` (Flask và Waitress)
 - `PyYAML` cho các script/tooling Python của Codex, nhất là workflow Git Issue
 - Node.js LTS nếu cần chạy test / setup tooling
 - Git để cập nhật mã nguồn
@@ -36,6 +37,12 @@ Script sẽ:
 - chạy `npm install`
 - chạy `npx playwright install chromium`
 - chạy kiểm tra nhanh `python -m py_compile app.py` và `node --check static/app.js`
+
+Backend mặc định dùng Flask chạy bằng Waitress; không dùng Flask development server cho máy phục vụ. Cài runtime dependencies bằng:
+
+```powershell
+python -m pip install -r requirements.txt
+```
 
 Có thể chạy lại 1 hay nhiều lần; các bước setup đều có tính idempotent ở mức vận hành.
 
@@ -101,6 +108,8 @@ Ví dụ chạy để thiết bị khác trong mạng có thể truy cập:
 python app.py --host 0.0.0.0 --port 8000
 ```
 
+Lệnh trên dùng Flask/Waitress. Nếu cần rollback tạm thời về HTTP server cũ, thêm `--http-backend legacy`; có thể đặt `APP_HTTP_BACKEND=legacy` trong môi trường của Scheduled Task để duy trì lựa chọn rollback.
+
 Sau đó:
 
 - Trên máy chủ: mở `http://127.0.0.1:8000` cho Khách hàng, và `http://127.0.0.1:8000/admin` cho Quản trị viên
@@ -122,18 +131,22 @@ Ví dụ hợp lệ:
 https://quantum-home.zapto.org/qltp/
 ```
 
-Miễn là reverse proxy tiếp tục forward các request cùng prefix này về app Python, client sẽ tự suy ra `app root` hiện hành để gọi:
+Khi reverse proxy giữ nguyên prefix trong URL gửi tới Waitress, cấu hình prefix tường minh trước khi chạy app:
 
-- `./static/...`
-- `./api/...`
+```powershell
+$env:APP_URL_PREFIX = "/qltp"
+python app.py
+```
 
-Điều này tránh lỗi asset/API bị rơi về `/static/...` hoặc `/api/...` ở root domain khi app đang nằm dưới subpath như `/qltp/`.
+Waitress sẽ bỏ `/qltp` khỏi `PATH_INFO` và đặt `SCRIPT_NAME=/qltp` cho WSGI. App và trình duyệt tiếp tục dùng đường dẫn tương đối cho `static/*` và `api/*`. Không dựa vào `X-Forwarded-Prefix` tùy ý từ request.
+
+Nếu reverse proxy đã bỏ prefix trước khi chuyển request tới Waitress, để `APP_URL_PREFIX` trống; proxy phải rewrite nhất quán cả HTML, `static/*` và `api/*`.
 
 Lưu ý vận hành:
 
-- nên giữ URL ngoài trình duyệt có dấu `/` ở cuối subpath, ví dụ `/qltp/`
-- nếu reverse proxy có rule rewrite prefix, hãy rewrite đồng nhất cho cả HTML, `static/*` và `api/*`
-- nếu giữ nguyên prefix khi forward vào backend, app vẫn nhận được các route dạng `/qltp/static/...` và `/qltp/api/...`
+- giữ URL công khai có dấu `/` cuối, ví dụ `/qltp/`
+- chỉ đặt `APP_URL_PREFIX` khi request tới Waitress còn nguyên prefix; không đặt đồng thời với proxy đã strip prefix
+- kiểm tra trang public `/qltp/`, admin `/qltp/<admin_path>`, asset và API qua đúng host/subpath sau khi cập nhật cấu hình proxy
 
 ## 7.2. Tài khoản Master Admin
 

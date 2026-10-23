@@ -6,7 +6,7 @@ Trước khi sửa code hoặc chạy test, Agent phải đọc [AGENT_RULES.md]
 
 ## Mục tiêu project
 
-Ứng dụng này là hệ thống quản lý thực phẩm chay chạy bằng Python stdlib + SQLite + SPA frontend.
+Ứng dụng này là hệ thống quản lý thực phẩm chay chạy bằng Flask + Waitress + SQLite + SPA frontend. `InventoryStore` vẫn xử lý truy cập dữ liệu/nghiệp vụ; ORM không dùng. Legacy `http.server` được giữ làm lựa chọn rollback trong giai đoạn parity.
 
 Mục tiêu khi làm việc trong repo này:
 
@@ -40,6 +40,8 @@ Mục tiêu khi làm việc trong repo này:
 - `qltpchay/importer.py`: seed/import sản phẩm ban đầu
 - `qltpchay/store.py`: logic kho, báo cáo, sync state, import/export
 - `qltpchay/http_handler.py`: request handler HTTP
+- `qltpchay/flask_app.py`: Flask app factory và route HTTP runtime
+- `qltpchay/wsgi_server.py`: Waitress WSGI server wrapper cho Windows
 - `app.py`: entrypoint/CLI bootstrap mỏng
 
 ### Module frontend hiện tại
@@ -113,6 +115,8 @@ Chạy app (môi trường test, mặc định dùng `data/system_config.json`):
 python app.py
 ```
 
+Runtime mặc định dùng Flask/Waitress. Để rollback tạm thời sang handler cũ, dùng `python app.py --http-backend legacy` hoặc đặt `APP_HTTP_BACKEND=legacy`.
+
 Chạy app trên môi trường production (dùng `data/system_config.production.json`):
 
 ```powershell
@@ -184,7 +188,7 @@ Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối
 
 ## Nguyên tắc sửa code
 
-- không thêm package runtime ngoài nếu chưa thật cần; app hiện vẫn chạy tốt bằng stdlib
+- không thêm package runtime ngoài nếu chưa thật cần; runtime Flask/Waitress phải được cài từ `requirements.txt`, không cài thêm ORM
 - không đổi schema DB mà bỏ quên migration trong `_initialize_schema()`
 - không phá dữ liệu cũ; mọi cột mới phải có hướng tương thích ngược
 - giữ patch nhỏ, sửa đúng nguồn gốc thay vì workaround ở UI

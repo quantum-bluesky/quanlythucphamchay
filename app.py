@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import sys
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -93,6 +94,13 @@ def build_cli_parser(system_config: dict) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Quản lý tồn kho thực phẩm chay")
     parser.add_argument("--host", default=None, help="Host/IP/domain để bind server")
     parser.add_argument("--port", type=int, default=None, help="Port chạy ứng dụng")
+    parser.add_argument(
+        "--http-backend",
+        choices=("legacy", "flask"),
+        # Issue #182: Flask is the runtime default; legacy remains an explicit rollback path.
+        default=str(os.environ.get("APP_HTTP_BACKEND", "flask")).strip().lower(),
+        help="HTTP server backend (rollback option: legacy)",
+    )
     subparsers = parser.add_subparsers(dest="command")
 
     init_parser = subparsers.add_parser("init", help="Khởi tạo sản phẩm từ file danh sách")
@@ -112,9 +120,58 @@ def build_cli_parser(system_config: dict) -> argparse.ArgumentParser:
     return parser
 
 
-def run_server(system_config: dict, host: str | None = None, port: int | None = None) -> None:
+def run_server(
+    system_config: dict,
+    host: str | None = None,
+    port: int | None = None,
+    backend: str = "legacy",
+) -> None:
     resolved_host = host or str(system_config["server"]["host"])
     resolved_port = int(port or system_config["server"]["port"])
+    from qltpchay.logger import log_always, log_info
+    version = system_config.get("version", "unknown")
+    log_always(f"=== Starting Inventory App v{version} (Environment: {APP_ENV}) ===")
+    log_always(f"Inventory app running at http://{resolved_host}:{resolved_port}")
+    log_always(f"System config file: {CONFIG_PATH}")
+    log_always(f"HTTP backend: {backend}")
+    log_always(f"Master Admin username: {system_config['admin']['username']}")
+    if system_config.get("EnableLogin"):
+        log_always("Login mode: enabled")
+    if system_config.get("debug", {}).get("sync_state"):
+        log_always("Sync debug logging: enabled")
+    if system_config.get("debug", {}).get("file_logging"):
+        log_level = system_config.get("debug", {}).get("log_level", "INFO").upper()
+        log_always(f"File logging: enabled (log_level: {log_level})")
+    if backend == "flask":
+        from qltpchay.flask_app import create_app
+        from qltpchay.wsgi_server import serve_flask_app
+
+        runtime_config = dict(system_config)
+        runtime_config.setdefault("config_path", str(CONFIG_PATH))
+        flask_app = create_app(
+            database_path=DB_PATH,
+            system_config=runtime_config,
+        )
+        # Issue #182: Configure the proxy prefix explicitly; do not trust forwarded headers.
+        url_prefix = str(os.environ.get("APP_URL_PREFIX", "")).strip()
+        if url_prefix:
+            url_prefix = "/" + url_prefix.strip("/")
+            if url_prefix == "/":
+                url_prefix = ""
+        try:
+            serve_flask_app(
+                flask_app,
+                host=resolved_host,
+                port=resolved_port,
+                threads=4,
+                url_prefix=url_prefix,
+            )
+        except KeyboardInterrupt:
+            log_always("Shutting down server...")
+        return
+
+    if backend != "legacy":
+        raise ValueError(f"Unsupported HTTP backend: {backend}")
     store = InventoryStore(DB_PATH)
     store.enable_multiuser_conflict_check = bool(system_config.get("EnableMultiuserConflictCheck", True))
     admin_sessions = AdminSessionManager(
@@ -128,19 +185,6 @@ def run_server(system_config: dict, host: str | None = None, port: int | None = 
         (resolved_host, resolved_port),
         modular_create_handler(store, admin_sessions, system_config=system_config),
     )
-    from qltpchay.logger import log_always, log_info
-    version = system_config.get("version", "unknown")
-    log_always(f"=== Starting Inventory App v{version} (Environment: {APP_ENV}) ===")
-    log_always(f"Inventory app running at http://{resolved_host}:{resolved_port}")
-    log_always(f"System config file: {CONFIG_PATH}")
-    log_always(f"Master Admin username: {system_config['admin']['username']}")
-    if system_config.get("EnableLogin"):
-        log_always("Login mode: enabled")
-    if system_config.get("debug", {}).get("sync_state"):
-        log_always("Sync debug logging: enabled")
-    if system_config.get("debug", {}).get("file_logging"):
-        log_level = system_config.get("debug", {}).get("log_level", "INFO").upper()
-        log_always(f"File logging: enabled (log_level: {log_level})")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -169,10 +213,10 @@ def main() -> int:
         )
 
     if args.command == "serve":
-        run_server(system_config, args.host, args.port)
+        run_server(system_config, args.host, args.port, args.http_backend)
         return 0
 
-    run_server(system_config, args.host, args.port)
+    run_server(system_config, args.host, args.port, args.http_backend)
     return 0
 
 

@@ -210,7 +210,8 @@ test("IT-PROC-01 start batch shows clickable conflict list for overlapping open 
     await expectScreenTitle(page, "Nhập hàng");
     await expect(page.locator("#purchasePanel")).toContainText(supplierName);
     await expect(page.locator("#purchasePanel")).toContainText("IT-PROC-01 draft conflict");
-    runtime.errors = runtime.errors.filter((entry) => !entry.includes("status of 400 (Bad Request)"));
+    // Issue #182: Waitress reports the expected conflict status with an uppercase reason phrase.
+    runtime.errors = runtime.errors.filter((entry) => !/status of 400/i.test(entry));
   } finally {
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
     await request.put("./api/state", {
@@ -396,9 +397,13 @@ test("IT-PROC-02 non-owner receives and pays pre-batch purchase with multiuser c
     await page.locator('[data-purchase-action="mark-paid"]').click();
     await expect(page.locator("#purchasePanel")).toContainText("Đã thanh toán");
 
-    await switchMenu(page, "procurement-planner");
-    await expectScreenTitle(page, "Xử lý nhập thiếu");
-    await expect(page.locator("#procurementExtraPanel")).toBeHidden();
+    // Issue #119: A normal user has no procurement-planner permission; prove the lock stays active via its manager API instead.
+    const statusResponse = await request.get("./api/procurement/status", {
+      headers: { Cookie: managerCookie },
+    });
+    expect(statusResponse.ok()).toBeTruthy();
+    const statusPayload = await statusResponse.json();
+    expect(statusPayload.mode).toBe("batch");
   } finally {
     if (batchStarted) {
       await request.post("./api/procurement/batch/finish", {
