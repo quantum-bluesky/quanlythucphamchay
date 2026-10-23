@@ -1638,6 +1638,84 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json(), {"error": "Không tìm thấy yêu cầu xuất nhanh."})
 
+    def test_ut_web_90_cancel_request_requires_login_configuration(self):
+        app = self.build_app("cancel-request-login-disabled")
+
+        response = app.test_client().post(
+            "/api/orders/order-90/cancel-request",
+            json={"reason": "Nhập nhầm."},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Cần bật EnableLogin để dùng luồng hủy có phê duyệt."},
+        )
+
+    def test_ut_web_91_order_cancel_request_keeps_request_and_mail_success_message(self):
+        app = self.build_app("order-cancel-request")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        request_doc = {
+            "request_id": "cancel-91",
+            "document_type": "order",
+            "document_code": "ORD-91",
+            "requested_by": "staff",
+            "cancel_reason": "Nhập nhầm.",
+        }
+        with patch.object(store, "create_document_cancel_request", return_value=request_doc) as create_request, patch.object(
+            store, "list_document_cancel_requests", return_value=[request_doc]
+        ), patch("qltpchay.flask_app.send_mail_notification", return_value={"sent": True, "skipped": False}) as send_mail:
+            response = client.post(
+                "/control-room/api/orders/order-91/cancel-request",
+                json={"reason": "Nhập nhầm."},
+            )
+
+        self.assertEqual(response.status_code, 201)
+        result = response.get_json()
+        self.assertEqual(result["message"], "Đã gửi yêu cầu hủy đơn chờ phê duyệt.")
+        self.assertEqual(result["notification_message"], "Đã gửi mail thông báo phê duyệt.")
+        self.assertEqual(result["document_cancel_requests"], [request_doc])
+        self.assertEqual(create_request.call_args.kwargs["actor"], "staff")
+        self.assertIn("ORD-91", send_mail.call_args.kwargs["subject"])
+
+    def test_ut_web_92_purchase_cancel_request_preserves_request_when_mail_fails(self):
+        app = self.build_app("purchase-cancel-request")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        store = app.extensions["qltpchay.store"]
+        client = app.test_client()
+        login = client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        request_doc = {"request_id": "cancel-92", "document_type": "purchase"}
+        with patch.object(store, "create_document_cancel_request", return_value=request_doc), patch.object(
+            store, "list_document_cancel_requests", return_value=[request_doc]
+        ), patch(
+            "qltpchay.flask_app.send_mail_notification",
+            return_value={"sent": False, "skipped": False, "reason": "smtp offline"},
+        ):
+            response = client.post(
+                "/api/purchases/purchase-92/cancel-request",
+                json={"reason": "Phiếu trùng."},
+            )
+
+        self.assertEqual(response.status_code, 201)
+        result = response.get_json()
+        self.assertEqual(result["message"], "Đã gửi yêu cầu hủy phiếu nhập chờ phê duyệt.")
+        self.assertEqual(
+            result["notification_warning"],
+            "Không gửi được mail thông báo, nhưng yêu cầu hủy đã được lưu.",
+        )
+        self.assertEqual(result["request"], request_doc)
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

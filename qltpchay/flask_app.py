@@ -30,6 +30,7 @@ from .lunar_calendar import (
     next_preorder_lunar_date,
     solar_to_vietnamese_lunar,
 )
+from .mailer import send_mail_notification
 from .store import BulkOrderRequestDuplicateError, InventoryStore, SyncConflictError
 
 
@@ -1137,6 +1138,84 @@ def create_app(
             },
             "summary": store.get_summary(),
         })
+
+    def submit_document_cancel_request(document_type: str, document_id: str):
+        config = current_app.config["SYSTEM_CONFIG"]
+        if not config.get("EnableLogin"):
+            return jsonify({
+                "error": "Cần bật EnableLogin để dùng luồng hủy có phê duyệt."
+            }), 400
+        auth_error = require_authenticated_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            payload = {}
+        session, _expired = current_app.extensions["qltpchay.admin_sessions"].resolve_session(
+            get_session_token(),
+            touch=False,
+        )
+        store = current_app.extensions["qltpchay.store"]
+        try:
+            request_doc = store.create_document_cancel_request(
+                document_type=document_type,
+                document_id=document_id,
+                reason=payload.get("reason", ""),
+                actor=str((session or {}).get("username") or ""),
+            )
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        document_label = "đơn xuất" if document_type == "order" else "phiếu nhập"
+        subject = (
+            f"Yêu cầu hủy {document_label} "
+            f"{request_doc.get('document_code') or request_doc.get('document_id') or ''}"
+        ).strip()
+        body = "\n".join([
+            "Có yêu cầu hủy chứng từ mới cần phê duyệt.",
+            f"Request: {request_doc.get('request_code') or request_doc.get('request_id') or ''}",
+            f"Loại chứng từ: {document_label}",
+            f"Mã chứng từ: {request_doc.get('document_code') or request_doc.get('document_id') or ''}",
+            f"Người yêu cầu: {request_doc.get('requested_by') or ''}",
+            f"Lý do: {request_doc.get('cancel_reason') or ''}",
+            f"Thời gian: {request_doc.get('created_at') or ''}",
+            "Mở màn Xuất hàng hoặc Nhập hàng trong app để duyệt/từ chối yêu cầu.",
+        ])
+        try:
+            mail_result = send_mail_notification(
+                mail_config=config.get("mail", {}),
+                subject=subject,
+                body=body,
+            )
+        except Exception as error:
+            mail_result = {"sent": False, "skipped": False, "reason": str(error)}
+        message = (
+            "Đã gửi yêu cầu hủy đơn chờ phê duyệt."
+            if document_type == "order"
+            else "Đã gửi yêu cầu hủy phiếu nhập chờ phê duyệt."
+        )
+        response_payload = {
+            "message": message,
+            "request": request_doc,
+            "mail_notification": mail_result,
+            "document_cancel_requests": store.list_document_cancel_requests(limit=30),
+        }
+        if mail_result.get("sent"):
+            response_payload["notification_message"] = "Đã gửi mail thông báo phê duyệt."
+        elif not mail_result.get("skipped"):
+            response_payload["notification_warning"] = (
+                "Không gửi được mail thông báo, nhưng yêu cầu hủy đã được lưu."
+            )
+        return jsonify(response_payload), 201
+
+    @app.post("/api/orders/<document_id>/cancel-request")
+    @app.post(f"{admin_path}/api/orders/<document_id>/cancel-request")
+    def create_order_cancel_request(document_id: str):
+        return submit_document_cancel_request("order", document_id)
+
+    @app.post("/api/purchases/<document_id>/cancel-request")
+    @app.post(f"{admin_path}/api/purchases/<document_id>/cancel-request")
+    def create_purchase_cancel_request(document_id: str):
+        return submit_document_cancel_request("purchase", document_id)
 
     @app.post("/api/orders/bulk-create")
     @app.post(f"{admin_path}/api/orders/bulk-create")

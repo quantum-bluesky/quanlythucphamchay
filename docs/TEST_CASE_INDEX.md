@@ -336,6 +336,9 @@ Mục tiêu:
 | 275 | `UT-WEB-87` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_87_bulk_request_delete_rejects_non_owner` |
 | 276 | `UT-WEB-88` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_88_bulk_request_owner_can_process_approved_request` |
 | 277 | `UT-WEB-89` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_89_bulk_request_process_returns_400_when_missing` |
+| 278 | `UT-WEB-90` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_90_cancel_request_requires_login_configuration` |
+| 279 | `UT-WEB-91` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_91_order_cancel_request_keeps_request_and_mail_success_message` |
+| 280 | `UT-WEB-92` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_92_purchase_cancel_request_preserves_request_when_mail_fails` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 

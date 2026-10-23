@@ -326,6 +326,9 @@ Lưu ý:
 | 275 | `UT-WEB-87` | Kiểm tra user khác owner không được xóa request bulk. |
 | 276 | `UT-WEB-88` | Kiểm tra owner xử lý bulk request đã duyệt và response trả inventory summary. |
 | 277 | `UT-WEB-89` | Kiểm tra xử lý bulk request không tồn tại trả 400. |
+| 278 | `UT-WEB-90` | Kiểm tra cancel request từ chối khi `EnableLogin` tắt. |
+| 279 | `UT-WEB-91` | Kiểm tra order cancel request lưu actor/request và trả message mail sent. |
+| 280 | `UT-WEB-92` | Kiểm tra purchase cancel request vẫn trả 201 kèm warning khi mail gửi lỗi. |
 
 
 

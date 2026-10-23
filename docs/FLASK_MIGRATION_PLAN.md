@@ -359,3 +359,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   login gate và inventory summary; `UT-WEB-86..89` pass. Kết quả:
   `tests.test_flask_app` 89/89 pass, full unit 229/229 pass, `py_compile` và
   `git diff --check` pass; đã chốt thành commit riêng.
+- Đang chuyển yêu cầu hủy order/purchase, giữ EnableLogin gate, lưu request và
+  notification semantics; `UT-WEB-90..92` pass với email boundary mock.
+  Kết quả: `tests.test_flask_app` 92/92 pass, full unit 232/232 pass,
+  `py_compile` và `git diff --check` pass; đã chốt thành commit riêng.

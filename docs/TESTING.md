@@ -118,6 +118,8 @@ Các endpoint approve/reject yêu cầu `order_batch_manage`, giữ actor/reason
 response request cùng queue cập nhật.
 Các endpoint delete/process bulk request giữ quy tắc owner hoặc manager, auth
 gate khi bật login và inventory summary sau khi xử lý.
+Cancel request của đơn/phiếu nhập yêu cầu `EnableLogin`, lưu actor/reason trước,
+gửi mail qua boundary mockable và giữ response 201/warning khi SMTP lỗi.
 
 Chạy riêng nhóm này:
 
