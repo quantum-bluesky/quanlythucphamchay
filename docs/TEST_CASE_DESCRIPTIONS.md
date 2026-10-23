@@ -353,6 +353,12 @@ Lưu ý:
 | 302 | `UT-WEB-114` | Kiểm tra kết thúc kỳ và gia hạn lock giữ actor, timeout, message. |
 | 303 | `UT-WEB-115` | Kiểm tra tạo phiếu nhập đơn giữ actor, scope và response. |
 | 304 | `UT-WEB-116` | Kiểm tra tạo phiếu nhập hàng loạt giữ danh sách tạo/bỏ qua và actor. |
+| 305 | `UT-WEB-117` | Kiểm tra cập nhật cấu hình mail chỉ cho Master Admin. |
+| 306 | `UT-WEB-118` | Kiểm tra cấu hình mail lưu file, giữ password khi để trống và không trả secret. |
+| 307 | `UT-WEB-119` | Kiểm tra validation người nhận, cổng SMTP và chế độ TLS/SSL. |
+| 308 | `UT-WEB-120` | Kiểm tra cấu hình Public Web được merge, normalize và persist. |
+| 309 | `UT-WEB-121` | Kiểm tra test mail success trả diagnostics không lộ credential. |
+| 310 | `UT-WEB-122` | Kiểm tra test mail ánh xạ kết quả skipped/failure và không lộ lỗi SMTP. |
 
 
 

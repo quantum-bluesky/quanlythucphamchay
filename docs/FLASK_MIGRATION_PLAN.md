@@ -385,3 +385,7 @@ admin tùy chỉnh không bị rơi về frontend root.
   `UT-WEB-111..116` kiểm tra login/manager gate, actor, lock status, conflict,
   scope và danh sách tạo/bỏ qua. Kết quả: `tests.test_flask_app` 116/116 pass,
   full unit 256/256 pass, `py_compile` và `git diff --check` pass; chờ commit.
+- Đã chuyển cập nhật mail/Public Web config và test-mail; `UT-WEB-117..122` kiểm
+  tra Master Admin, persistence, bảo toàn password, validation và mock SMTP.
+  Kết quả: `tests.test_flask_app` 122/122 pass, full unit 262/262 pass,
+  `py_compile` và `git diff --check` pass; chờ commit.

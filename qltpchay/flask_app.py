@@ -20,11 +20,16 @@ from .auth import (
     build_port_scoped_cookie_name,
     build_session_cookie_name_candidates,
 )
-from .config import load_system_config
+from .config import (
+    _normalize_mail_config,
+    _normalize_public_web_config,
+    load_system_config,
+    save_system_config,
+)
 from .constants import ADMIN_SESSION_COOKIE, APP_ENV, APP_NAME, CONFIG_PATH, DATA_DIR, STATIC_DIR
 from .helpers import get_product_min_unit, resize_image_bytes
 from .js_asset_versions import JavaScriptAssetVersionManager
-from .logger import log_error
+from .logger import log_error, log_info
 from .lunar_calendar import (
     PREORDER_REMINDER_WINDOW_DAYS,
     next_preorder_lunar_date,
@@ -959,6 +964,162 @@ def create_app(
             return auth_error
         store = current_app.extensions["qltpchay.store"]
         return jsonify(store.get_legacy_data_audit())
+
+    # Issue #182: Keep configuration writes behind Master Admin and persist the selected runtime config.
+    @app.put("/api/admin/mail-config")
+    @app.put(f"{admin_path}/api/admin/mail-config")
+    def update_admin_mail_config():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        config = current_app.config["SYSTEM_CONFIG"]
+        if config is None:
+            return jsonify({"error": "Hệ thống chưa tải cấu hình."}), 500
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Cấu hình mail không hợp lệ."}), 400
+        recipients = payload.get("to_emails", [])
+        if not isinstance(recipients, list):
+            return jsonify({"error": "Danh sách người nhận không hợp lệ."}), 400
+        try:
+            smtp_port = int(payload.get("smtp_port") or 587)
+        except (TypeError, ValueError):
+            return jsonify({"error": "Cổng SMTP phải là số từ 1 đến 65535."}), 400
+        if not 1 <= smtp_port <= 65535:
+            return jsonify({"error": "Cổng SMTP phải là số từ 1 đến 65535."}), 400
+        use_tls = bool(payload.get("use_tls"))
+        use_ssl = bool(payload.get("use_ssl"))
+        if use_tls and use_ssl:
+            return jsonify({"error": "Chỉ chọn một chế độ bảo mật: STARTTLS hoặc SSL/TLS."}), 400
+        mail_config = config.setdefault("mail", {})
+        raw_mail_config = {
+            "enabled": bool(payload.get("enabled")),
+            "smtp_host": str(payload.get("smtp_host") or "").strip(),
+            "smtp_port": smtp_port,
+            "username": str(payload.get("username") or "").strip(),
+            "password": str(payload.get("password") or mail_config.get("password") or ""),
+            "from_email": str(payload.get("from_email") or "").strip(),
+            "to_emails": recipients,
+            "use_tls": use_tls,
+            "use_ssl": use_ssl,
+            "subject_prefix": str(payload.get("subject_prefix") or "").strip(),
+        }
+        normalized = _normalize_mail_config(raw_mail_config, raw_mail_config)
+        config_path = Path(config.get("config_path") or CONFIG_PATH)
+        try:
+            save_system_config({**config, "mail": normalized}, config_path=config_path)
+        except Exception:
+            log_error("Master Admin mail configuration save failed.", exc_info=True)
+            return jsonify({"error": "Không lưu được cấu hình gửi mail."}), 500
+        mail_config.clear()
+        mail_config.update(normalized)
+        actor = current_actor_name() or "unknown"
+        log_info(f"Master Admin {actor} updated mail configuration.")
+        return jsonify({
+            "message": "Đã lưu cấu hình gửi mail.",
+            "mail": _public_mail_config(mail_config),
+            "environment": APP_ENV,
+        })
+
+    @app.put("/api/admin/public-web-config")
+    @app.put(f"{admin_path}/api/admin/public-web-config")
+    def update_admin_public_web_config():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"error": "Cấu hình Public Web không hợp lệ."}), 400
+        config = current_app.config["SYSTEM_CONFIG"]
+        current_public_web = config.get("public_web", {})
+        if not isinstance(current_public_web, dict):
+            current_public_web = {}
+        updated_public_web = {**current_public_web, **payload}
+        normalized = _normalize_public_web_config(updated_public_web)
+        config_path = Path(config.get("config_path") or CONFIG_PATH)
+        try:
+            save_system_config(
+                {**config, "public_web": normalized},
+                config_path=config_path,
+            )
+        except Exception:
+            log_error("Master Admin Public Web configuration save failed.", exc_info=True)
+            return jsonify({"error": "Không lưu được cấu hình Public Web."}), 500
+        config["public_web"] = normalized
+        log_info(f"Master Admin {current_actor_name()} updated Public Web configuration.")
+        return jsonify({
+            "message": "Đã lưu cấu hình Public Web.",
+            "public_web": normalized,
+        })
+
+    @app.post("/api/admin/test-mail")
+    @app.post(f"{admin_path}/api/admin/test-mail")
+    def test_admin_mail():
+        auth_error = require_admin_session()
+        if auth_error is not None:
+            return auth_error
+        mail_config = current_app.config["SYSTEM_CONFIG"].get("mail", {})
+        tested_at = datetime.now().astimezone().isoformat(timespec="seconds")
+        recipients = [
+            str(email or "").strip()
+            for email in (mail_config.get("to_emails") or [])
+            if str(email or "").strip()
+        ]
+        security = (
+            "SSL/TLS" if mail_config.get("use_ssl")
+            else "STARTTLS" if mail_config.get("use_tls")
+            else "Không mã hóa"
+        )
+        diagnostics = {
+            "tested_at": tested_at,
+            "environment": APP_ENV,
+            "smtp_host": str(mail_config.get("smtp_host") or "").strip(),
+            "smtp_port": int(mail_config.get("smtp_port") or 587),
+            "security": security,
+            "from_email": str(mail_config.get("from_email") or "").strip(),
+            "to_emails": recipients,
+            "recipient_count": len(recipients),
+        }
+        try:
+            mail_result = send_mail_notification(
+                mail_config=mail_config,
+                subject="Kiểm tra gửi mail từ Master Admin",
+                body=(
+                    "Đây là email kiểm tra gửi từ màn Master Admin của ứng dụng.\n"
+                    "Nếu nhận được email này, cấu hình gửi mail hiện tại đang hoạt động."
+                ),
+            )
+        except Exception:
+            actor = current_actor_name() or "unknown"
+            log_error(f"Master Admin mail test failed for {actor}.", exc_info=True)
+            return jsonify({
+                "error": "Không gửi được email thử. Hãy kiểm tra cấu hình SMTP và log máy chủ.",
+                "result": {**diagnostics, "status": "failed"},
+            }), 502
+        if mail_result.get("skipped"):
+            reason = mail_result.get("reason")
+            message = (
+                "Gửi mail đang bị tắt trong cấu hình."
+                if reason == "disabled"
+                else "Cấu hình mail còn thiếu máy chủ SMTP, địa chỉ gửi hoặc người nhận."
+            )
+            return jsonify({
+                "error": message,
+                "skipped": True,
+                "result": {**diagnostics, "status": "skipped"},
+            }), 400
+        recipient_count = int(mail_result.get("recipient_count") or 0)
+        actor = current_actor_name() or "unknown"
+        log_info(f"Master Admin {actor} sent a test email to {recipient_count} configured recipient(s).")
+        return jsonify({
+            "message": "Máy chủ SMTP đã nhận email thử.",
+            "recipient_count": recipient_count,
+            "result": {
+                **diagnostics,
+                "status": "sent",
+                "recipient_count": recipient_count,
+            },
+        })
 
     @app.get("/api/admin/export/<entity_type>")
     @app.get(f"{admin_path}/api/admin/export/<entity_type>")

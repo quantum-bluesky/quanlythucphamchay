@@ -2279,6 +2279,173 @@ class FlaskAppFactoryTests(unittest.TestCase):
         self.assertEqual(response.get_json()["skipped"], result["skipped"])
         self.assertEqual(create.call_args.kwargs["actor"], "staff")
 
+    def test_ut_web_117_mail_config_write_requires_master_admin(self):
+        app = self.build_app("mail-config-write-auth")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        client = app.test_client()
+        client.post(
+            "/api/session/login",
+            json={"username": "staff", "password": "staff-test-password"},
+        )
+        denied = client.put("/api/admin/mail-config", json={"smtp_host": "smtp.example.test"})
+        self.assertEqual(denied.status_code, 401)
+        self.assertEqual(denied.get_json(), {"error": "Cần đăng nhập Master Admin."})
+
+        admin = app.test_client()
+        admin.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        with patch("qltpchay.flask_app.save_system_config") as save_config:
+            allowed = admin.put(
+                "/api/admin/mail-config",
+                json={"smtp_host": "smtp.example.test"},
+            )
+        self.assertEqual(allowed.status_code, 200)
+        save_config.assert_called_once()
+
+    def test_ut_web_118_mail_config_preserves_password_and_never_returns_it(self):
+        import json
+
+        app = self.build_app("mail-config-write")
+        config = app.config["SYSTEM_CONFIG"]
+        config["EnableLogin"] = True
+        config["config_path"] = str(self.root / "system-config.json")
+        config["mail"] = {"password": "saved-smtp-secret", "smtp_port": 587}
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+
+        response = client.put(
+            "/control-room/api/admin/mail-config",
+            json={
+                "enabled": True,
+                "smtp_host": "smtp.example.test",
+                "smtp_port": 465,
+                "from_email": "shop@example.test",
+                "to_emails": ["owner@example.test"],
+                "use_tls": False,
+                "use_ssl": True,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["mail"]["has_password"])
+        self.assertNotIn("password", response.get_json()["mail"])
+        with open(config["config_path"], encoding="utf-8") as saved_file:
+            saved_config = json.load(saved_file)
+        self.assertEqual(saved_config["mail"]["password"], "saved-smtp-secret")
+        self.assertEqual(config["mail"]["password"], "saved-smtp-secret")
+
+    def test_ut_web_119_mail_config_rejects_invalid_recipient_port_and_tls(self):
+        app = self.build_app("mail-config-invalid")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.config["SYSTEM_CONFIG"]["config_path"] = str(self.root / "invalid-config.json")
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+
+        invalid_cases = [
+            ({"to_emails": "owner@example.test"}, "Danh sách người nhận không hợp lệ."),
+            ({"smtp_port": 70000}, "Cổng SMTP phải là số từ 1 đến 65535."),
+            ({"smtp_port": "bad"}, "Cổng SMTP phải là số từ 1 đến 65535."),
+            ({"use_tls": True, "use_ssl": True}, "Chỉ chọn một chế độ bảo mật: STARTTLS hoặc SSL/TLS."),
+        ]
+        for payload, expected_error in invalid_cases:
+            with self.subTest(payload=payload):
+                response = client.put("/api/admin/mail-config", json=payload)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.get_json(), {"error": expected_error})
+
+    def test_ut_web_120_public_web_config_merges_normalizes_and_persists(self):
+        import json
+
+        app = self.build_app("public-web-config-write")
+        config = app.config["SYSTEM_CONFIG"]
+        config["EnableLogin"] = True
+        config["config_path"] = str(self.root / "public-web-config.json")
+        config["public_web"] = {"thumbnail_size_mobile": 77, "thumbnail_size_pc": 200}
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+
+        response = client.put(
+            "/control-room/api/admin/public-web-config",
+            json={"thumbnail_size_mobile": "96"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["public_web"], {
+            "thumbnail_size_mobile": 96,
+            "thumbnail_size_pc": 200,
+        })
+        with open(config["config_path"], encoding="utf-8") as saved_file:
+            self.assertEqual(json.load(saved_file)["public_web"], response.get_json()["public_web"])
+
+    def test_ut_web_121_admin_test_mail_reports_success_without_exposing_credentials(self):
+        app = self.build_app("admin-test-mail-success")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.config["SYSTEM_CONFIG"]["mail"] = {
+            "enabled": True,
+            "smtp_host": "smtp.example.test",
+            "smtp_port": 465,
+            "username": "smtp-user",
+            "password": "smtp-secret",
+            "from_email": "shop@example.test",
+            "to_emails": ["owner@example.test"],
+            "use_ssl": True,
+        }
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        with patch(
+            "qltpchay.flask_app.send_mail_notification",
+            return_value={"skipped": False, "recipient_count": 1},
+        ) as send_mail:
+            response = client.post("/control-room/api/admin/test-mail", json={})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["recipient_count"], 1)
+        self.assertEqual(response.get_json()["result"]["status"], "sent")
+        self.assertEqual(response.get_json()["result"]["security"], "SSL/TLS")
+        self.assertNotIn("password", response.get_json()["result"])
+        send_mail.assert_called_once()
+
+    def test_ut_web_122_admin_test_mail_maps_failure_and_skipped_results(self):
+        app = self.build_app("admin-test-mail-result")
+        app.config["SYSTEM_CONFIG"]["EnableLogin"] = True
+        app.config["SYSTEM_CONFIG"]["mail"] = {"enabled": False}
+        client = app.test_client()
+        client.post(
+            "/api/admin/login",
+            json={"username": "test-admin", "password": "test-password"},
+        )
+        with patch(
+            "qltpchay.flask_app.send_mail_notification",
+            return_value={"skipped": True, "reason": "disabled"},
+        ):
+            skipped = client.post("/api/admin/test-mail", json={})
+        self.assertEqual(skipped.status_code, 400)
+        self.assertTrue(skipped.get_json()["skipped"])
+        self.assertEqual(skipped.get_json()["result"]["status"], "skipped")
+
+        with patch(
+            "qltpchay.flask_app.send_mail_notification",
+            side_effect=RuntimeError("SMTP secret detail"),
+        ):
+            failed = client.post("/api/admin/test-mail", json={})
+        self.assertEqual(failed.status_code, 502)
+        self.assertEqual(failed.get_json()["result"]["status"], "failed")
+        self.assertNotIn("SMTP secret detail", failed.get_data(as_text=True))
+
     def test_ut_web_04_public_catalog_json_shape_and_filtering(self):
         app = self.build_app("catalog")
         store = app.extensions["qltpchay.store"]

@@ -132,6 +132,9 @@ Purchase repair preserves detached receipt details, inventory adjustment require
 its dedicated permission, and customer/supplier returns preserve source/error data.
 Procurement mutations require the configured batch manager gate and preserve lock
 actor, conflict payload, draft scope, and created/skipped purchase results.
+Master Admin mail and Public Web configuration writes persist through the injected
+config path, preserve secrets and existing fields; test-mail mocks SMTP and checks
+sent/skipped/failure diagnostics without exposing credentials in the response.
 
 Chạy riêng nhóm này:
 

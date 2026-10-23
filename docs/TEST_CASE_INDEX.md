@@ -363,6 +363,12 @@ Mục tiêu:
 | 302 | `UT-WEB-114` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_114_procurement_batch_finish_and_refresh_preserve_contract` |
 | 303 | `UT-WEB-115` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_115_procurement_single_purchase_draft_preserves_scope_and_actor` |
 | 304 | `UT-WEB-116` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_116_procurement_bulk_draft_returns_created_and_skipped_data` |
+| 305 | `UT-WEB-117` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_117_mail_config_write_requires_master_admin` |
+| 306 | `UT-WEB-118` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_118_mail_config_preserves_password_and_never_returns_it` |
+| 307 | `UT-WEB-119` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_119_mail_config_rejects_invalid_recipient_port_and_tls` |
+| 308 | `UT-WEB-120` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_120_public_web_config_merges_normalizes_and_persists` |
+| 309 | `UT-WEB-121` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_121_admin_test_mail_reports_success_without_exposing_credentials` |
+| 310 | `UT-WEB-122` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_122_admin_test_mail_maps_failure_and_skipped_results` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 
