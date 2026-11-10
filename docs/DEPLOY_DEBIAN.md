@@ -150,3 +150,36 @@ sudo systemctl restart qltp.service
 ```
 
 Khi đã xử lý xong, bỏ `APP_HTTP_BACKEND=legacy` để quay lại Flask/Waitress mặc định, rồi reload và restart service.
+
+## 7. Kịch bản Cập nhật Tự động (Update Script) và Quy trình Triển khai
+
+### 7.1. Phân biệt giữa "Cập nhật Dữ liệu" và "Deploy Mã Nguồn"
+
+- **Cập nhật Dữ liệu (Sản phẩm, Bảng giá, Kho, Đơn hàng)**:
+  - **Không cần restart service hay deploy lại mã nguồn**.
+  - Sử dụng công cụ trung gian `scripts/remote_ops.py` (Pha 1) hoặc giao diện Portal (Pha 2) để đẩy trực tiếp qua REST API lên máy chủ Debian (`https://qts-home.duckdns.org/qltp/`). Dữ liệu được ghi thẳng vào `data/inventory.db` ngay lập tức.
+- **Deploy Mã Nguồn (Codebase Deployment)**:
+  - Chỉ thực hiện khi có code mới (sửa lỗi backend, nâng cấp tính năng giao diện, cập nhật dependencies).
+  - Phải tuân thủ quy trình kiểm thử trước khi restart service.
+
+### 7.2. Lệnh cập nhật tự động trên máy chủ Debian
+
+Kịch bản `scripts/update_qltp.sh` đã được tích hợp các cơ chế bảo vệ an toàn:
+1. Tự động sao lưu database sang `data/backups/inventory_pre_update_<timestamp>.db`.
+2. Tự động kéo code mới nhất từ git branch được chỉ định.
+3. Tự động phát hiện thay đổi `requirements.txt` để cài đặt thêm thư viện vào `.venv`.
+4. Tự động biên dịch kiểm tra cú pháp (`py_compile`) trước khi restart service; nếu phát hiện lỗi code sẽ lập tức dừng lại, không restart service để bảo vệ hệ thống không bị sập.
+5. Restart systemd service và kiểm tra trạng thái hoạt động.
+
+Cú pháp thực thi trên Debian server:
+
+```bash
+# Cập nhật môi trường Test/Staging:
+bash scripts/update_qltp.sh dev qltp_test
+
+# Cập nhật môi trường Production (Chính thức):
+bash scripts/update_qltp.sh master qltp
+
+# Bắt buộc restart service ngay cả khi không có commit mới:
+bash scripts/update_qltp.sh dev qltp --force
+```
