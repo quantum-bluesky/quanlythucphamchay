@@ -111,7 +111,14 @@ await page.getByLabel("Mật khẩu quản trị").fill(password);
 - [ ] Kiểm tra backward compatibility của endpoint, payload, auth, config và SQLite schema; nếu đổi schema, tuân thủ quy trình DB/migration trong `AGENTS.md`.
 - [ ] Cập nhật help/tài liệu liên quan khi đổi workflow; nếu thay client `.js`, cập nhật manifest version theo `AGENTS.md`.
 - [ ] Đã chạy kiểm tra tối thiểu phù hợp theo `AGENTS.md` (`node --check static/app.js`, `python -m py_compile app.py`, và test unit/integration liên quan).
+- [ ] Tuân thủ nghiêm ngặt Quy chuẩn Bảo mật: không commit secret/credential/domain của server thật lên git; mọi thao tác ghi dữ liệu từ xa phải qua bước thẩm định và được user xác nhận.
 
 ## 5. Cập nhật quy tắc
 
 Khi kiến trúc, config test, fixture, schema hoặc runner thay đổi, cập nhật tài liệu này cùng thay đổi code. Chỉ ghi convention như quy tắc hiện hành sau khi xác minh bằng code, config và một test chạy được. Các ví dụ minh họa phải dùng dữ liệu giả và không được chứa secret thật.
+
+## 6. Quy chuẩn Bảo mật Hệ thống và Vận hành An toàn (Security Guidelines)
+
+- **Môi trường Staging vs Production**: Domain và tài khoản trong repository công khai chỉ phục vụ cho việc kiểm thử môi trường Staging/Test. Tuyệt đối không commit thông tin Production (domain, IP, admin credentials) vào git.
+- **Vận hành từ xa (Remote Ops & Agent)**: Khi sử dụng scripts vận hành (`remote_ops.py`), Agent phải bảo vệ thông tin xác thực, không print token/mật khẩu ra console, và chỉ thực thi các thao tác thay đổi dữ liệu sau khi người dùng đã duyệt bảng thẩm định.
+- **Giữ an toàn dữ liệu**: Luôn kiểm tra quyền truy cập của tài khoản trước khi thực hiện các tác vụ can thiệp trực tiếp vào kho hoặc cấu hình hệ thống.

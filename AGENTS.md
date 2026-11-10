@@ -229,6 +229,23 @@ Nếu không chạy được test, phải nói rõ lý do trong báo cáo cuối
   - Khi in chuỗi tiếng Việt hoặc debug ra console, sử dụng `json.dumps(..., ensure_ascii=True)` hoặc cấu hình `sys.stdout.reconfigure(encoding='utf-8')` để tránh lỗi `UnicodeEncodeError`.
 - Khi thao tác với SQLite hoặc file cấu hình, luôn đảm bảo luồng dữ liệu truyền nhận ở định dạng UTF-8.
 
+## Quy chuẩn Bảo mật và Quản lý Bí mật (Security & Secret Management Standard)
+
+- **Cô lập Môi trường Staging và Production**:
+  - Mọi URL/domain (ví dụ `https://qts-home.duckdns.org/qltp/`) và tài khoản/mật khẩu mặc định xuất hiện trong code/script chỉ được coi là cấu hình phục vụ **môi trường Staging / Test**.
+  - **Tuyệt đối KHÔNG commit URL, IP, tên miền, tài khoản hoặc mật khẩu thật của môi trường Production vào git repository công khai**.
+  - Môi trường Production thật sự bắt buộc chạy với `APP_ENV=production`, đọc file `data/system_config.production.json` độc lập ngoài git, và bắt buộc đặt mật khẩu mạnh (tối thiểu 16 ký tự ngẫu nhiên).
+- **Quy tắc Bảo mật cho Agent và Môi trường Trung gian (Áp dụng cho mọi session)**:
+  - Khi chạy các script giao tiếp từ xa (`scripts/remote_ops.py`, `scripts/run-remote-tests.js`), Agent phải ưu tiên đọc URL và thông tin đăng nhập từ biến môi trường (`REMOTE_APP_URL`, `REMOTE_ADMIN_USER`, `REMOTE_ADMIN_PASSWORD`).
+  - Tuyệt đối **không in (print/echo/log) mật khẩu thật, session token hoặc cookie xác thực** ra console, log public hoặc transcript hội thoại.
+  - Mọi hành động đẩy dữ liệu (write/push/mutate) lên server từ xa bắt buộc phải chạy qua bước **Thẩm định (Scrutiny Preview)** và phải được người dùng xác nhận phê duyệt tường minh trước khi gọi API push.
+  - Không được tự ý bypass, gỡ bỏ hoặc tắt tính năng `EnableLogin`, `admin_path`, hoặc quyền hạn kiểm soát trên server đang chạy thật.
+- **Phòng vệ Mạng và Chống Brute-force**:
+  - Trên máy chủ Production, bắt buộc áp dụng cơ chế Rate Limiting (giới hạn tần suất gọi) tại Nginx hoặc backend cho các route đăng nhập (`/api/admin/login`, `/api/session/login`) để chống tấn công dò quét mật khẩu.
+  - Các thao tác can thiệp dữ liệu nhạy cảm (điều chỉnh tồn kho, import/export, sửa chứng từ đã khóa) chỉ cho phép tài khoản có đúng quyền hạn (`Master Admin` hoặc permission tương ứng).
+- **Ví dụ và Tài liệu**:
+  - Mọi file ví dụ cấu hình hoặc tài liệu (`docs/*.md`) chỉ được sử dụng dummy credentials; không bao giờ đưa thông tin định danh hệ thống thật vào tài liệu.
+
 ## Quy ước Git theo Issue
 
 Áp dụng như global rule khi làm việc theo danh sách Issue:
