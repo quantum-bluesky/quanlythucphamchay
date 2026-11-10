@@ -158,6 +158,19 @@ Chạy riêng nhóm này:
 python -m unittest tests.test_flask_app
 ```
 
+### Remote Ops Bridge & Scrutiny
+
+Các test cho cầu nối trung gian vận hành headless và cơ chế thẩm định (Intake & Scrutiny) nằm ở `tests/test_remote_ops.py`:
+- `UT-REMOTE-01`: format bảng markdown hiển thị dữ liệu đối soát.
+- `UT-REMOTE-02`: thẩm định và phân loại sản phẩm mới vs cập nhật khi đối soát với server.
+- `UT-REMOTE-03`: kiểm tra cơ chế cảnh báo rủi ro (giá bán < giá nhập, biến động giá > 30%).
+
+Chạy riêng nhóm này:
+
+```powershell
+python -m unittest tests.test_remote_ops
+```
+
 ### Cách chạy nhanh gọn (Khuyến nghị để tiết kiệm token và giữ console sạch)
 
 Chạy qua wrapper summary (toàn bộ log chi tiết được tự động lưu vào `logs/test-unit-<timestamp>.log`, chỉ in kết quả tóm tắt và lỗi cốt lõi ra console):

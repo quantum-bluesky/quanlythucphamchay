@@ -79,28 +79,21 @@ class JavaScriptAssetVersionManager:
 
     def inject_index_versions(self, html_text: str) -> str:
         # Version both module and classic entry scripts, including public_products.js.
-        versioned_html = INDEX_SCRIPT_RE.sub(
-            lambda match: (
-                f"{match.group('prefix')}"
-                f"{self._append_version_query(
-                    match.group('specifier'),
-                    self.build_version_label(match.group('relative') or match.group('absolute') or 'app.js'),
-                )}"
-                f"{match.group('suffix')}"
-            ),
-            html_text,
-        )
-        return INDEX_STYLESHEET_RE.sub(
-            lambda match: (
-                f"{match.group('prefix')}"
-                f"{self._append_version_query(
-                    match.group('specifier'),
-                    self.build_version_label(match.group('relative') or match.group('absolute') or 'styles.css'),
-                )}"
-                f"{match.group('suffix')}"
-            ),
-            versioned_html,
-        )
+        def _replace_script(match: re.Match[str]) -> str:
+            specifier = match.group("specifier")
+            rel_path = match.group("relative") or match.group("absolute") or "app.js"
+            version_label = self.build_version_label(rel_path)
+            return f"{match.group('prefix')}{self._append_version_query(specifier, version_label)}{match.group('suffix')}"
+
+        versioned_html = INDEX_SCRIPT_RE.sub(_replace_script, html_text)
+
+        def _replace_stylesheet(match: re.Match[str]) -> str:
+            specifier = match.group("specifier")
+            rel_path = match.group("relative") or match.group("absolute") or "styles.css"
+            version_label = self.build_version_label(rel_path)
+            return f"{match.group('prefix')}{self._append_version_query(specifier, version_label)}{match.group('suffix')}"
+
+        return INDEX_STYLESHEET_RE.sub(_replace_stylesheet, versioned_html)
 
     def rewrite_module_imports(self, relative_path: str, source_text: str) -> str:
         current_path = PurePosixPath(self._normalize_relative_path(relative_path))

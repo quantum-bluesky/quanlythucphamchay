@@ -385,6 +385,9 @@ Lưu ý:
 | 334 | `UT-WEB-146` | Kiểm tra CLI mặc định chọn Flask và vẫn hỗ trợ chọn legacy để rollback. |
 | 335 | `UT-WEB-147` | Kiểm tra Waitress giữ subpath prefix cấu hình và hỗ trợ `SCRIPT_NAME` khi proxy strip prefix. |
 | 336 | `UT-WEB-148` | Kiểm tra `APP_URL_PREFIX` được chuẩn hóa và chuyển vào Waitress khi khởi chạy. |
+| 337 | `UT-REMOTE-01` | Kiểm tra format bảng markdown hiển thị dữ liệu đối soát. |
+| 338 | `UT-REMOTE-02` | Kiểm tra cơ chế thẩm định & phân loại sản phẩm mới vs cập nhật đối soát với server. |
+| 339 | `UT-REMOTE-03` | Kiểm tra cơ chế sinh cảnh báo rủi ro (giá bán < giá nhập, biến động giá > 30%). |
 
 
 

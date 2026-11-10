@@ -395,6 +395,9 @@ Mục tiêu:
 | 334 | `UT-WEB-146` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_146_cli_exposes_flask_backend_and_legacy_rollback` |
 | 335 | `UT-WEB-147` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_147_waitress_supports_configured_reverse_proxy_prefix` |
 | 336 | `UT-WEB-148` | `tests/test_flask_app.py` | `python -m unittest tests.test_flask_app.FlaskAppFactoryTests.test_ut_web_148_run_server_passes_normalized_proxy_prefix_to_waitress` |
+| 337 | `UT-REMOTE-01` | `tests/test_remote_ops.py` | `python -m unittest tests.test_remote_ops.TestRemoteOps.test_ut_remote_01_format_table` |
+| 338 | `UT-REMOTE-02` | `tests/test_remote_ops.py` | `python -m unittest tests.test_remote_ops.TestRemoteOps.test_ut_remote_02_preview_scrutiny_new_and_updated_products` |
+| 339 | `UT-REMOTE-03` | `tests/test_remote_ops.py` | `python -m unittest tests.test_remote_ops.TestRemoteOps.test_ut_remote_03_preview_scrutiny_warnings` |
 
 ## 4. Lệnh chạy nhanh theo nhóm
 
