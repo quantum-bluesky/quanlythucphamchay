@@ -86,6 +86,7 @@ class RemoteStoreClient:
         endpoint: str,
         payload: dict[str, Any] | list[Any] | None = None,
         headers: dict[str, str] | None = None,
+        raw_data: bytes | None = None,
     ) -> dict[str, Any]:
         url = self._build_url(endpoint)
         req_headers = {"User-Agent": "RemoteStoreClient/1.0", "Accept": "application/json"}
@@ -93,7 +94,9 @@ class RemoteStoreClient:
             req_headers.update(headers)
 
         data = None
-        if payload is not None:
+        if raw_data is not None:
+            data = raw_data
+        elif payload is not None:
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             req_headers["Content-Type"] = "application/json; charset=utf-8"
 
@@ -269,6 +272,26 @@ class RemoteStoreClient:
             "items": items,
         }
         return self._request("POST", "api/adjustments/inventory", payload=payload)
+
+    def upload_image(self, file_path: str | Path) -> str:
+        """Tải ảnh lên máy chủ qua POST /api/products/images/upload và trả về image URL."""
+        self.ensure_authenticated()
+        p = Path(file_path)
+        if not p.is_file():
+            raise FileNotFoundError(f"Không tìm thấy file ảnh: {file_path}")
+        data = p.read_bytes()
+        res = self._request(
+            "POST",
+            f"api/products/images/upload?filename={urllib.parse.quote(p.name)}",
+            headers={"Content-Type": "application/octet-stream"},
+            raw_data=data,
+        )
+        return res.get("url", "")
+
+    def create_product(self, product_data: dict[str, Any]) -> dict[str, Any]:
+        """Tạo sản phẩm mới qua POST /api/products."""
+        self.ensure_authenticated()
+        return self._request("POST", "api/products", payload=product_data)
 
     def push_quick_purchase(
         self,
