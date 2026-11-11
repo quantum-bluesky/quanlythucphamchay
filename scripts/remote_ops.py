@@ -293,6 +293,11 @@ class RemoteStoreClient:
         self.ensure_authenticated()
         return self._request("POST", "api/products", payload=product_data)
 
+    def update_product(self, product_id: int, product_data: dict[str, Any]) -> dict[str, Any]:
+        """Cập nhật sản phẩm qua PUT /api/products/<id>."""
+        self.ensure_authenticated()
+        return self._request("PUT", f"api/products/{product_id}", payload=product_data)
+
     def push_quick_purchase(
         self,
         supplier_name: str,
