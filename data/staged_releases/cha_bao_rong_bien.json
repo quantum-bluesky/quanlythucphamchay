@@ -1,0 +1,56 @@
+{
+  "release_code": "REL-PROD-CHA-BAO-RONG-BIEN-01",
+  "created_at": "2026-11-12T18:25:00Z",
+  "status": "READY_FOR_PRODUCTION",
+  "product": {
+    "name": "Chả bao rong biển",
+    "category": "Đồ chay đông lạnh",
+    "unit": "gói (2 lạng)",
+    "price": 58000.0,
+    "sale_price": 63000.0,
+    "low_stock_threshold": 5.0,
+    "shelf_life_days": 720.0,
+    "storage_life_days": 7.0,
+    "unit_conversions": [
+      {
+        "from_unit": "kg",
+        "conversion_factor": 5.0
+      }
+    ],
+    "default_purchase_unit": "kg",
+    "default_sale_unit": "gói (2 lạng)",
+    "note": "Chả bao rong biển đạm thực vật cấp đông (quy cách gói 2 lạng).",
+    "is_public": true,
+    "details": "<h3>Giới thiệu sản phẩm</h3>\n<p><strong>Chả bao rong biển</strong> là món chay cao cấp được chế biến hoàn toàn từ đạm thực vật tự nhiên (đậu nành, lúa mì) kết hợp cùng lớp rong biển thơm bùi, mang lại hương vị đậm đà, thanh khiết và giàu dưỡng chất cho bữa ăn thuần chay.</p>\n\n<h3>Thành phần</h3>\n<ul>\n  <li>Đạm đậu nành (Soy protein), đạm lúa mì (Wheat protein).</li>\n  <li>Rong biển tự nhiên, dầu đậu nành, nước sạch.</li>\n  <li>Muối, đường tinh luyện, tiêu, gia vị chay từ bắp.</li>\n  <li><em>Không sử dụng chất bảo quản động vật, đạt chuẩn chứng nhận Halal / Vegan.</em></li>\n</ul>\n\n<h3>Thông tin dinh dưỡng (Nutrition Facts / 100g)</h3>\n<ul>\n  <li><strong>Năng lượng (Calories):</strong> 187 kcal</li>\n  <li><strong>Chất đạm (Protein):</strong> 18.2 g</li>\n  <li><strong>Tổng chất béo (Total Fat):</strong> 7.5 g (Chất béo bão hòa: 2.33 g)</li>\n  <li><strong>Carbohydrate:</strong> 12.1 g (Chất xơ: 7.6 g)</li>\n  <li><strong>Natri (Sodium):</strong> 472 mg</li>\n  <li><strong>Cholesterol:</strong> 0 mg</li>\n</ul>\n\n<h3>Hướng dẫn bảo quản</h3>\n<ul>\n  <li>Bảo quản ở nhiệt độ -18°C (ngăn đông tủ lạnh).</li>\n  <li>Hạn sử dụng: 24 tháng kể từ ngày sản xuất.</li>\n  <li>Sau khi rã đông và mở bao bì, bảo quản ngăn mát và sử dụng hết trong vòng 7 ngày.</li>\n</ul>",
+    "recipe": "<h3>Gợi ý chế biến & Thưởng thức</h3>\n<ol>\n  <li><strong>Rã đông:</strong> Để sản phẩm rã đông tự nhiên trong khoảng 15-20 phút trước khi chế biến.</li>\n  <li><strong>Chiên vàng giòn:</strong> Đun nóng dầu ăn ở lửa vừa, cho chả bao rong biển vào chiên vàng đều 2 mặt đến khi lớp rong biển giòn thơm. Dùng kèm tương ớt, tương cà hoặc sốt me chua ngọt.</li>\n  <li><strong>Kho tiêu / Kho tộ:</strong> Cắt khúc vừa ăn, chiên sơ rồi kho cùng nước tương, tiêu sọ đập dập, ớt hiểm và nước dừa tươi cho đến khi sốt keo sánh.</li>\n  <li><strong>Nấu canh & Lẩu:</strong> Thả vào nồi lẩu nấm, lẩu thái chay hoặc canh chua lá giang để tăng thêm vị ngọt tự nhiên.</li>\n  <li><strong>Dùng kèm:</strong> Rất ngon khi ăn cùng cơm trắng, bún tươi hoặc kẹp bánh mì dưa leo.</li>\n</ol>"
+  },
+  "source_images": [
+    {
+      "local_path": "/home/antigravity/IMG_1274.png",
+      "fallback_url": "https://qts-home.duckdns.org/qltp/images/products/173d09a9afe049c0b140dc5e2ea605af.jpg",
+      "caption": "Món ăn thành phẩm sau chế biến"
+    },
+    {
+      "local_path": "/home/antigravity/IMG_1269.jpeg",
+      "fallback_url": "https://qts-home.duckdns.org/qltp/images/products/1685557ecab0452fb7c492a9d3aa91a6.jpg",
+      "caption": "Bao bì mặt trước"
+    },
+    {
+      "local_path": "/home/antigravity/IMG_1270.jpeg",
+      "fallback_url": "https://qts-home.duckdns.org/qltp/images/products/cf70c2f790cb431f9654e595365d18d2.jpg",
+      "caption": "Bao bì mặt sau & thông tin dinh dưỡng"
+    },
+    {
+      "local_path": "/home/antigravity/IMG_1272.jpeg",
+      "fallback_url": "https://qts-home.duckdns.org/qltp/images/products/d17fe035043d4158a1345fc6f4e84e31.jpg",
+      "caption": "Quy cách túi zip mặt sau"
+    }
+  ],
+  "initial_inventory": {
+    "quantity_kg": 1.0,
+    "quantity_base_units": 5.0,
+    "unit_cost": 58000.0,
+    "total_cost": 290000.0,
+    "supplier_query": "Chị Ngọc anh Hải"
+  }
+}

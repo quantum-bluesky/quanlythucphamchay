@@ -14,6 +14,7 @@ import json
 import os
 import ssl
 import sys
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -25,11 +26,19 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT_DIR / "data" / "system_config.json"
 
 
+def _strip_accents(text: str) -> str:
+    """Loại bỏ dấu tiếng Việt để tìm kiếm mờ không dấu."""
+    if not text:
+        return ""
+    normalized = unicodedata.normalize("NFD", text)
+    return "".join(c for c in normalized if unicodedata.category(c) != "Mn").lower()
+
+
 def load_default_credentials() -> tuple[str, str, str]:
     """Lấy cấu hình URL và thông tin đăng nhập mặc định từ env hoặc system_config.json."""
-    default_url = os.environ.get("REMOTE_APP_URL", "https://qts-home.duckdns.org/qltp/")
-    default_user = os.environ.get("REMOTE_ADMIN_USER", "")
-    default_pass = os.environ.get("REMOTE_ADMIN_PASSWORD", "")
+    default_url = os.environ.get("REMOTE_APP_URL", os.environ.get("PROD_APP_URL", "https://qts-home.duckdns.org/qltp/"))
+    default_user = os.environ.get("REMOTE_ADMIN_USER", os.environ.get("PROD_ADMIN_USER", ""))
+    default_pass = os.environ.get("REMOTE_ADMIN_PASSWORD", os.environ.get("PROD_ADMIN_PASSWORD", ""))
 
     if (not default_user or not default_pass) and CONFIG_PATH.is_file():
         try:
@@ -187,11 +196,34 @@ class RemoteStoreClient:
             if s.get("name", "").strip().lower() == q:
                 return s, []
 
-        # 3. Khớp một phần (partial / contains)
-        matches = [s for s in suppliers if q in s.get("name", "").lower() or q in s.get("phone", "").lower()]
+        # 3. Khớp một phần có dấu (partial / contains có dấu)
+        matches = [
+            s for s in suppliers
+            if q in s.get("name", "").lower() or q in s.get("phone", "").lower() or q in s.get("address", "").lower()
+        ]
         if len(matches) == 1:
             return matches[0], []
-        return None, matches
+        if len(matches) > 1:
+            return None, matches
+
+        # 4. Tìm kiếm mờ không phân biệt dấu và tìm theo từng từ (Fuzzy matching)
+        q_no_acc = _strip_accents(query)
+        fuzzy_matches = []
+        for s in suppliers:
+            s_name_no = _strip_accents(s.get("name", ""))
+            s_addr_no = _strip_accents(s.get("address", ""))
+            s_phone = s.get("phone", "")
+            if q_no_acc in s_name_no or q_no_acc in s_addr_no or q_no_acc in s_phone:
+                fuzzy_matches.append(s)
+                continue
+            # Token search: tất cả các từ trong query có mặt trong tên/địa chỉ
+            tokens = [t for t in q_no_acc.split() if len(t) > 1]
+            if tokens and all(t in s_name_no or t in s_addr_no for t in tokens):
+                fuzzy_matches.append(s)
+
+        if len(fuzzy_matches) == 1:
+            return fuzzy_matches[0], []
+        return None, fuzzy_matches
 
     def preview_scrutiny_products(
         self, new_records: list[dict[str, Any]]
@@ -311,16 +343,27 @@ class RemoteStoreClient:
         }
         return self._request("POST", "api/adjustments/inventory", payload=payload)
 
-    def upload_image(self, file_path: str | Path) -> str:
+    def upload_image(self, file_path_or_url: str | Path) -> str:
         """Tải ảnh lên máy chủ qua POST /api/products/images/upload và trả về image URL."""
         self.ensure_authenticated()
-        p = Path(file_path)
-        if not p.is_file():
-            raise FileNotFoundError(f"Không tìm thấy file ảnh: {file_path}")
-        data = p.read_bytes()
+        s_target = str(file_path_or_url).strip()
+        filename = "image.jpg"
+
+        if s_target.startswith("http://") or s_target.startswith("https://"):
+            req = urllib.request.Request(s_target, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, context=self.ssl_context) as resp:
+                data = resp.read()
+            filename = s_target.split("/")[-1].split("?")[0] or "image.jpg"
+        else:
+            p = Path(s_target)
+            if not p.is_file():
+                raise FileNotFoundError(f"Không tìm thấy file ảnh: {s_target}")
+            data = p.read_bytes()
+            filename = p.name
+
         res = self._request(
             "POST",
-            f"api/products/images/upload?filename={urllib.parse.quote(p.name)}",
+            f"api/products/images/upload?filename={urllib.parse.quote(filename)}",
             headers={"Content-Type": "application/octet-stream"},
             raw_data=data,
         )
@@ -432,6 +475,12 @@ def main():
     # 8. suppliers
     sup_parser = subparsers.add_parser("suppliers", help="Xem danh sách nhà cung cấp trên server")
     sup_parser.add_argument("--search", default="", help="Từ khóa tìm kiếm theo tên hoặc SĐT")
+
+    # 9. deploy-release
+    dep_parser = subparsers.add_parser("deploy-release", help="Triển khai gói sản phẩm bảo lưu lên máy chủ")
+    dep_parser.add_argument("--manifest", default="data/staged_releases/cha_bao_rong_bien.json", help="Đường dẫn file manifest JSON")
+    dep_parser.add_argument("--supplier-id", default="", help="Mã ID nhà cung cấp chính xác trên server đích")
+    dep_parser.add_argument("--supplier-query", default="", help="Tên hoặc từ khóa NCC để đối soát tự động")
 
     args = parser.parse_args()
     if not args.action:
@@ -607,6 +656,91 @@ def main():
                     s.get("address", ""),
                 ])
             print(_format_table(headers, rows))
+
+        elif args.action == "deploy-release":
+            manifest_path = Path(args.manifest)
+            if not manifest_path.is_file():
+                print(f"[!] Không tìm thấy manifest: {manifest_path}", file=sys.stderr)
+                sys.exit(1)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            print(f"[*] Đang chuẩn bị triển khai gói: {manifest.get('release_code')}")
+            print(f"[*] Máy chủ mục tiêu: {client.base_url}")
+
+            client.ensure_authenticated()
+
+            # 1. Đối soát NCC
+            sup_query = args.supplier_query or manifest.get("initial_inventory", {}).get("supplier_query", "")
+            target_sup = None
+            if args.supplier_id:
+                sup, _ = client.resolve_supplier(args.supplier_id)
+                target_sup = sup
+            elif sup_query:
+                sup, matches = client.resolve_supplier(sup_query)
+                if sup:
+                    target_sup = sup
+                elif matches:
+                    print(f"[!] Tìm thấy nhiều NCC khớp với '{sup_query}':")
+                    for m in matches:
+                        print(f"    - ID: {m.get('id')} | Tên: {m.get('name')}")
+                    print("[!] Vui lòng chỉ định chính xác --supplier-id để tránh nhầm lẫn.", file=sys.stderr)
+                    sys.exit(1)
+
+            if not target_sup:
+                print(f"[!] Không tìm thấy NCC khớp với '{args.supplier_id or sup_query}'.", file=sys.stderr)
+                print("[*] Danh sách NCC đang có trên server:")
+                for s in client.get_suppliers():
+                    print(f"    - ID: {s.get('id')} | Tên: {s.get('name')}")
+                sys.exit(1)
+
+            print(f"[+] Đã khớp chính xác NCC: {target_sup.get('name')} (ID: {target_sup.get('id')})")
+
+            # 2. Upload ảnh
+            uploaded_urls = []
+            for item in manifest.get("source_images", []):
+                target_img = item
+                if isinstance(item, dict):
+                    loc = item.get("local_path", "")
+                    if loc and Path(loc).is_file():
+                        target_img = loc
+                    else:
+                        target_img = item.get("fallback_url", "")
+                print(f"[*] Đang tải ảnh: {target_img}...")
+                url = client.upload_image(target_img)
+                uploaded_urls.append(url)
+                print(f"    -> Đã tải thành công: {url}")
+
+            # 3. Tạo sản phẩm
+            prod_payload = dict(manifest.get("product", {}))
+            prod_payload["images"] = uploaded_urls
+            print(f"[*] Đang tạo sản phẩm: {prod_payload.get('name')}...")
+            created_prod = client.create_product(prod_payload)
+            prod_id = created_prod.get("id") or created_prod.get("product_id")
+            print(f"[+] Tạo sản phẩm thành công! ID mới trên server: {prod_id}")
+
+            # 4. Nhập kho ban đầu nếu có
+            init_inv = manifest.get("initial_inventory", {})
+            qty = float(init_inv.get("quantity_base_units", 0))
+            cost = float(init_inv.get("unit_cost", 0))
+            if qty > 0 and cost > 0:
+                print(f"[*] Đang tạo phiếu nhập kho ban đầu ({qty} đơn vị x {cost:,.0f} đ)...")
+                pur_res = client.push_quick_purchase(
+                    supplier_id=target_sup.get("id", ""),
+                    supplier_name=target_sup.get("name", ""),
+                    items=[{"product_id": prod_id, "quantity": qty, "unit_price": cost}],
+                    note=f"Nhập hàng ban đầu cho sản phẩm mới {prod_payload.get('name')}"
+                )
+                pur_id = pur_res.get("document_id") or pur_res.get("id")
+                print(f"[+] Đã tạo phiếu nhập kho thành công! Mã phiếu: {pur_id}")
+
+            print("\n" + "="*50)
+            print("[V] HOÀN TẤT TRIỂN KHAI LÊN SERVER THÀNH CÔNG!")
+            print(f"    - Tên sản phẩm : {prod_payload.get('name')}")
+            print(f"    - ID Sản phẩm  : {prod_id}")
+            print(f"    - Giá bán      : {prod_payload.get('sale_price'):,.0f} đ / {prod_payload.get('unit')}")
+            print(f"    - Nhà cung cấp : {target_sup.get('name')} (Mã: {target_sup.get('id')})")
+            print(f"    - Tồn ban đầu  : {qty} {prod_payload.get('unit')}")
+            print(f"    - Số ảnh đã gắn: {len(uploaded_urls)}")
+            print("="*50 + "\n")
 
     except Exception as exc:
         print(f"\n[!] LỖI THỰC THI: {exc}", file=sys.stderr)

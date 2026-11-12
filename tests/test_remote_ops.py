@@ -133,7 +133,17 @@ class TestRemoteOps(unittest.TestCase):
             self.assertIsNotNone(sup)
             self.assertEqual(sup["id"], "sup_2")
 
-            # 4. Không tìm thấy
+            # 4. Tìm kiếm mờ không dấu (fuzzy non-accent)
+            sup, matches = self.client.resolve_supplier("chi mai")
+            self.assertIsNotNone(sup)
+            self.assertEqual(sup["id"], "sup_2")
+
+            # 5. Token search (tách từ)
+            sup, matches = self.client.resolve_supplier("Lành Mai")
+            self.assertIsNotNone(sup)
+            self.assertEqual(sup["id"], "sup_2")
+
+            # 6. Không tìm thấy
             sup, matches = self.client.resolve_supplier("Không Tồn Tại")
             self.assertIsNone(sup)
             self.assertEqual(len(matches), 0)
