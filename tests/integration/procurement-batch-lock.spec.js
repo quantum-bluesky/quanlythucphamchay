@@ -482,7 +482,7 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
 
     await page.locator(`[data-procurement-action="toggle-row"][data-product-id="${shortageProduct.id}"]`).click();
     await expect(page.locator(`[data-procurement-field="supplier"][data-product-id="${shortageProduct.id}"]`)).toBeVisible();
-    await page.locator(`[data-procurement-field="supplier"][data-product-id="${shortageProduct.id}"]`).fill(supplierName);
+    await page.locator(`[data-procurement-field="supplier"][data-product-id="${shortageProduct.id}"]`).selectOption(supplierName);
 
     await expect(page.locator("#procurementExtraPanel")).toBeVisible();
     await page.locator('#procurementExtraPanel [data-procurement-extra-action="toggle"]').click();
@@ -492,7 +492,7 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
     await expect(extraRow).toBeVisible();
     await extraRow.locator('[data-procurement-extra-select]').check();
     await expect(extraRow).toContainText("Ngoài nhu cầu đơn");
-    await extraRow.locator(`[data-procurement-extra-field="supplierName"][data-product-id="${extraProduct.id}"]`).fill(supplierName);
+    await extraRow.locator(`[data-procurement-extra-field="supplierName"][data-product-id="${extraProduct.id}"]`).selectOption(supplierName);
     await extraRow.locator(`[data-procurement-extra-field="quantity"][data-product-id="${extraProduct.id}"]`).fill("2");
 
     await page.locator("#procurementCreateSelectedButton").click();
@@ -600,7 +600,7 @@ test("IT-PROC-03A planner hides zero-need shortage rows and keeps mobile scroll 
     await supplierInput.scrollIntoViewIfNeeded();
     await page.waitForTimeout(150);
     const beforeScrollY = await page.evaluate(() => window.scrollY);
-    await supplierInput.fill("NCC Hương Sen");
+    await supplierInput.selectOption("NCC Hương Sen");
     await supplierInput.evaluate((element) => element.blur());
     await page.waitForTimeout(250);
     const afterScrollY = await page.evaluate(() => window.scrollY);

@@ -56,9 +56,9 @@ Lưu ý:
 | 34 | `IT-PURSUP-01` | Kiểm tra màn nhập hàng có thể mở phiếu tạm, tạo nhà cung cấp mới rồi quay lại giữ giá trị NCC trên UI dù phiếu nháp rỗng không còn persist xuống DB. |
 | 35 | `IT-PURSUP-02` | Kiểm tra màn nhà cung cấp sửa thông tin NCC mà không ghi đè lịch sử phiếu đã thanh toán. |
 | 36 | `IT-PURSUP-03` | Kiểm tra màn nhập hàng giữ mỗi NCC đúng 1 phiếu nháp riêng, không tạo trùng khi chuyển qua lại giữa các NCC, và khi chọn lại cùng NCC thì app mở lại phiếu nháp sẵn có để nhập tiếp. |
-| 37 | `IT-PURSUP-04` | Kiểm tra phiếu nhập nháp trống có thể `Xóa phiếu` ngay trên UI, đồng thời nút `NCC` trên phiếu `Nháp` vẫn cho sang danh sách NCC để đổi sang nhà cung cấp khác trước khi đặt hàng. |
+| 37 | `IT-PURSUP-04` | Kiểm tra phiếu nhập nháp trống có thể `Xóa phiếu` ngay trên UI, đồng thời nút `+ NCC mới` trên phiếu `Nháp` vẫn cho sang danh sách NCC để đổi sang nhà cung cấp khác trước khi đặt hàng. |
 | 38 | `IT-PURSUP-05` | Kiểm tra màn nhập hàng tự chọn NCC khi mặt hàng thêm vào phiếu chưa có NCC chỉ từng nhập từ một NCC. |
-| 39 | `IT-PURSUP-06` | Kiểm tra màn nhập hàng không tự điền NCC khi mặt hàng có nhiều NCC lịch sử, nhưng datalist NCC ưu tiên NCC có lịch sử nhập nhiều hơn. |
+| 39 | `IT-PURSUP-06` | Kiểm tra màn nhập hàng không tự điền NCC khi mặt hàng có nhiều NCC lịch sử, nhưng danh sách lựa chọn NCC ưu tiên NCC có lịch sử nhập nhiều hơn. |
 | 40 | `IT-PURSUP-07` | Kiểm tra màn nhập hàng cảnh báo khi một mặt hàng đang nằm ở phiếu mở của NCC khác, mở được danh sách phiếu liên quan để review, và vẫn cho user giữ nguyên hiện trạng nếu muốn. |
 | 41 | `IT-PURSUP-08` | Kiểm tra `Nhập lại` từ phiếu `Đã nhập kho` tạo được phiếu nháp mới cùng NCC, ghi chú, giảm giá và dòng hàng, nhưng reset `Mã lô`, `HSD` và `NSX` để nhập lại theo lô mới. |
 | 119 | `IT-PURSUP-09` | Kiểm tra phiếu nhập `Đã nhập kho` vẫn sửa được `Ghi chú` tới trước khi `Đã thanh toán`, rồi khóa lại sau khi phiếu chuyển sang `Đã thanh toán`. |

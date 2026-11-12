@@ -456,11 +456,23 @@ export function registerPurchasesControllerEvents(contract) {
     if (!event.target.closest("#quickPurchasePanel")) {
       return;
     }
+    const quickSupplierSelect = dom.quickPurchasePanel.querySelector("#quickPurchaseSupplierInput");
+    if (event.target === quickSupplierSelect && quickSupplierSelect?.value === "__new__") {
+      quickSupplierSelect.value = state.quickPurchaseDraft?.supplierText || "";
+      actions.beginSupplierCreateFromPurchase();
+      return;
+    }
     syncQuickPurchaseDraftFromInputs();
     renderers.renderQuickPurchasePanel();
   });
 
   dom.purchaseSupplierInput.addEventListener("change", () => {
+    if (dom.purchaseSupplierInput.value === "__new__") {
+      const currentPurchase = queries.getActivePurchase();
+      dom.purchaseSupplierInput.value = currentPurchase?.supplierName || state.pendingPurchaseSupplierName || "";
+      actions.beginSupplierCreateFromPurchase();
+      return;
+    }
     if (queries.getSkipNextPurchaseSupplierChangePersist() || state.pendingPurchaseSupplierFlow) {
       actions.setSkipNextPurchaseSupplierChangePersist(false);
       return;

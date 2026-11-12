@@ -36,6 +36,8 @@ export function createPurchasesUi(deps) {
     getLatestDocumentCancelRequest,
     getPendingDocumentCancelRequest,
     canApproveDocumentCancelRequests,
+    normalizeText = (value) => String(value || "").trim().toLowerCase(),
+    getActiveSuppliers = () => (state.suppliers || []).filter((s) => !s.deletedAt && !s.deleted_at),
     isSearchResultMode,
     paginateItems,
     renderPagination,
@@ -255,6 +257,12 @@ export function createPurchasesUi(deps) {
       0,
     );
     const lastResult = draft.lastResult || null;
+    const activeSuppliers = getActiveSuppliers();
+    const draftSupplierText = String(draft.supplierText || "").trim();
+    const currentSupplierExists = activeSuppliers.some((s) => normalizeText(s.name) === normalizeText(draftSupplierText));
+    const extraQuickOption = draftSupplierText && !currentSupplierExists
+      ? `<option value="${escapeHtml(draftSupplierText)}" selected>${escapeHtml(draftSupplierText)} (Hiện tại)</option>`
+      : "";
     dom.quickPurchasePanel.innerHTML = `
       <div class="subheading">
         <div>
@@ -266,7 +274,12 @@ export function createPurchasesUi(deps) {
       <div class="quick-doc-grid">
         <label>
           <span>Nhà cung cấp</span>
-          <input id="quickPurchaseSupplierInput" type="text" list="supplierOptions" maxlength="120" placeholder="Chọn hoặc nhập NCC mới" value="${escapeHtml(String(draft.supplierText || ""))}" ${disableEditAttr}>
+          <select id="quickPurchaseSupplierInput" class="form-select" ${disableEditAttr}>
+            <option value="">-- Chọn nhà cung cấp --</option>
+            <option value="__new__">+ Thêm nhà cung cấp mới...</option>
+            ${extraQuickOption}
+            ${activeSuppliers.map((s) => `<option value="${escapeHtml(s.name)}" ${normalizeText(s.name) === normalizeText(draftSupplierText) ? "selected" : ""}>${escapeHtml(s.name)}${s.phone ? ` - ${escapeHtml(s.phone)}` : ""}</option>`).join("")}
+          </select>
         </label>
         <label>
           <span>Ngày nhập</span>

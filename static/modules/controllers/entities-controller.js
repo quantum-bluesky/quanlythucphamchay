@@ -265,7 +265,7 @@ export function registerEntitiesControllerEvents(contract) {
         actions.switchMenu("purchases");
         window.setTimeout(() => {
           dom.purchaseSupplierInput?.focus();
-          dom.purchaseSupplierInput?.select();
+          dom.purchaseSupplierInput?.select?.();
         }, 30);
         actions.showToast("Đã lưu nhà cung cấp và áp dụng cho phiếu nhập.");
         return;

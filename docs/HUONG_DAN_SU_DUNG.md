@@ -425,7 +425,7 @@ Màn này có 2 phần:
 17. Nếu có khuyến mại cho cả phiếu, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
 18. Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; nếu phiếu đang trống thì app chỉ giữ trạng thái mở tạm trên màn hình
 19. Nếu đổi ý ngay lúc phiếu nháp còn trống, có thể bấm `Xóa phiếu` để đóng phiếu nháp tạm mà không cần lưu xuống DB
-20. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, chỉ khi phiếu còn `Nháp` mới bấm được `NCC` để mở form nhà cung cấp với tên đang nhập; nếu muốn đổi sang NCC khác đã có sẵn thì cũng dùng chính nút này để sang danh sách NCC và chọn lại
+20. Nhà cung cấp được chọn từ danh sách dropdown các NCC có sẵn trong danh bạ (tránh nhập sai chính tả). Nếu cần thêm NCC mới, chọn `+ Thêm nhà cung cấp mới...` trong danh sách hoặc bấm nút `+ NCC mới` bên cạnh để mở form tạo nhanh NCC; lưu xong app tự động chọn NCC mới đó cho phiếu
 21. Lưu xong app sẽ quay lại phiếu nhập và điền sẵn NCC đó
 22. Chỉ khi phiếu đã có `Nhà cung cấp`, app mới cho bấm `Đã đặt hàng`
 23. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`; từ lúc này phiếu vẫn còn chỉnh được nếu nhà cung cấp yêu cầu đổi số lượng hoặc giá, nhưng không còn được đổi NCC
@@ -448,7 +448,7 @@ Màn này có 2 phần:
 
 Ngay trong màn `Nhập hàng` có thêm card `Xử lý nhanh` dành cho tình huống hàng đã nhận xong rồi mới ghi vào app:
 
-1. Nhập hoặc chọn nhà cung cấp
+1. Chọn nhà cung cấp từ danh sách có sẵn (hoặc chọn `+ Thêm nhà cung cấp mới...` để tạo nhanh)
 2. Chọn `Ngày nhập`
 3. Thêm từng mặt hàng với `SL` và `Giá nhập`
 4. Chọn `Đã nhập hàng` hoặc `Chỉ đặt hàng`
@@ -534,7 +534,7 @@ Màn này dùng khi cần gom nhu cầu nhập định kỳ, ví dụ cuối th�
 10. Gõ tên vào ô lọc nếu cần, rồi tick chọn nhanh ngay trên dòng sản phẩm muốn nhập thêm. Khi tick, dòng đó sẽ bung sẵn ô NCC, số lượng, giá nhập, giảm KM và ghi chú.
 11. Mỗi dòng thêm tay sẽ có badge `Ngoài nhu cầu đơn`; các dòng này không tham gia tính `Cần nhập`, nhưng vẫn được gom vào phiếu batch theo NCC.
 12. Trên tablet/desktop có thể nhập thêm `Giá nhập` và `Giảm KM`; khi nhiều dòng cùng NCC, giảm giá sẽ được gom vào phiếu của NCC đó.
-13. Nếu NCC chưa có trong danh bạ, app sẽ hỏi để chuyển sang màn `Nhà cung cấp` tạo mới. Lưu xong app quay lại planner để chọn tiếp.
+13. Nếu NCC chưa có trong danh bạ, chọn `+ Thêm NCC mới...` trong dropdown NCC để chuyển sang màn `Nhà cung cấp` tạo mới. Lưu xong app quay lại planner để chọn tiếp.
 14. Bấm `Tạo phiếu đã chọn`; các dòng shortage và các dòng `Ngoài nhu cầu đơn` hợp lệ cùng NCC sẽ được gom vào cùng một phiếu nhập nháp.
 15. Nếu khối `Phiếu liên quan có thể gộp` xuất hiện, bạn có thể tick nhiều phiếu rồi bấm `Gộp đơn`; app chỉ cho gộp khi toàn bộ đều là phiếu nhập cùng NCC hoặc toàn bộ đều là phiếu xuất cùng KH.
 16. Bấm `Review phiếu` để mở detail các phiếu vừa tạo; dùng `Trước / Sau` để chuyển giữa các phiếu trong list và bấm `Lưu chi tiết` nếu cần sửa thêm.

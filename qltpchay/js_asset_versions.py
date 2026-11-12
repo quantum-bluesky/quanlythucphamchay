@@ -78,29 +78,19 @@ class JavaScriptAssetVersionManager:
         return f"./static/{normalized}?v={self.build_version_label(normalized)}"
 
     def inject_index_versions(self, html_text: str) -> str:
-        versioned_html = INDEX_MODULE_SCRIPT_RE.sub(
-            lambda match: (
-                f"{match.group('prefix')}"
-                f"{self._append_version_query(
-                    match.group('specifier'),
-                    self.build_version_label(match.group('relative') or match.group('absolute') or 'app.js'),
-                )}"
-                f"{match.group('suffix')}"
-            ),
-            html_text,
-            count=1,
-        )
-        return INDEX_STYLESHEET_RE.sub(
-            lambda match: (
-                f"{match.group('prefix')}"
-                f"{self._append_version_query(
-                    match.group('specifier'),
-                    self.build_version_label(match.group('relative') or match.group('absolute') or 'styles.css'),
-                )}"
-                f"{match.group('suffix')}"
-            ),
-            versioned_html,
-        )
+        def replace_module(match: re.Match[str]) -> str:
+            label = self.build_version_label(match.group('relative') or match.group('absolute') or 'app.js')
+            versioned = self._append_version_query(match.group('specifier'), label)
+            return f"{match.group('prefix')}{versioned}{match.group('suffix')}"
+
+        versioned_html = INDEX_MODULE_SCRIPT_RE.sub(replace_module, html_text, count=1)
+
+        def replace_stylesheet(match: re.Match[str]) -> str:
+            label = self.build_version_label(match.group('relative') or match.group('absolute') or 'styles.css')
+            versioned = self._append_version_query(match.group('specifier'), label)
+            return f"{match.group('prefix')}{versioned}{match.group('suffix')}"
+
+        return INDEX_STYLESHEET_RE.sub(replace_stylesheet, versioned_html)
 
     def rewrite_module_imports(self, relative_path: str, source_text: str) -> str:
         current_path = PurePosixPath(self._normalize_relative_path(relative_path))

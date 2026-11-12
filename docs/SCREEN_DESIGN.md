@@ -238,12 +238,12 @@ Liên kết detail hiện có:
   - phiếu nhập hiện hành
   - danh sách phiếu
   - filter hiện phiếu đã hủy / đã thanh toán
-  - nút `NCC`
+  - nút `+ NCC mới`
 - nguyên tắc UI:
   - phiếu đã hủy mặc định ẩn để list gọn hơn; user chỉ bật lại khi cần tra cứu
   - khi user chọn một phiếu trong danh sách, panel phiếu nhập hiện hành đóng vai trò detail panel riêng: có `Previous / Next`, `Đóng`, metadata đầy đủ và danh sách dòng hàng hiện trọn vẹn
   - ngay trên từng card gợi ý nhập phải có ô `SL` để đổi nhanh số lượng trước khi bấm `+ Phiếu`
-  - card `Xử lý nhanh nhập hàng` phải nằm ngay trong màn `purchases`, mobile-first, cho nhập `NCC / ngày nhập / ghi chú / mặt hàng`, chọn `Đã nhập hàng` hoặc `Chỉ đặt hàng`, có checkbox `Đã thanh toán luôn`; sau khi lưu phải khóa form ở trạng thái `Đã tạo phiếu` và hiện summary với CTA `Tiếp tục nhập nhanh / Xem phiếu / Về danh sách` để tránh tạo trùng
+  - card `Xử lý nhanh nhập hàng` phải nằm ngay trong màn `purchases`, mobile-first, cho chọn NCC từ danh sách dropdown (kèm tùy chọn thêm mới) / ngày nhập / ghi chú / mặt hàng, chọn `Đã nhập hàng` hoặc `Chỉ đặt hàng`, có checkbox `Đã thanh toán luôn`; sau khi lưu phải khóa form ở trạng thái `Đã tạo phiếu` và hiện summary với CTA `Tiếp tục nhập nhanh / Xem phiếu / Về danh sách` để tránh tạo trùng
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
   - action `Giá chung` trong editor giá nhập phải hiện message confirm trước khi cập nhật giá nhập mặc định của mặt hàng
@@ -256,17 +256,17 @@ Liên kết detail hiện có:
   - nếu shortage từ màn xuất hàng đã được cover bởi phiếu `draft/ordered` hiện có, màn nhập hàng chỉ mở lại phiếu liên quan khi user xác nhận; không tự tạo thêm phiếu trùng
   - nếu khi chọn mặt hàng vào phiếu mà mặt hàng đó đang nằm ở phiếu `draft/ordered` của NCC khác, UI phải hiện cảnh báo và cho user chọn mở danh sách các phiếu liên quan để review; từ danh sách này user có thể mở từng phiếu để dồn lại về một NCC hoặc giữ nguyên hiện trạng
   - mỗi nhà cung cấp chỉ giữ tối đa 1 phiếu `draft`; nếu user chọn lại đúng NCC đã có nháp thì màn nhập hàng phải mở lại phiếu đó để nhập tiếp, còn nếu chọn NCC khác thì phải giữ nguyên phiếu cũ và mở nháp riêng cho NCC mới
-  - khi phiếu `draft` chưa có NCC, thêm mặt hàng vào phiếu được phép tự chọn NCC nếu lịch sử nhập thực tế của mặt hàng chỉ có 1 NCC; nếu có nhiều NCC thì datalist của ô NCC phải ưu tiên NCC có tổng số lượng/số lần nhập mặt hàng đó cao hơn
+  - khi phiếu `draft` chưa có NCC, thêm mặt hàng vào phiếu được phép tự chọn NCC nếu lịch sử nhập thực tế của mặt hàng chỉ có 1 NCC; nếu có nhiều NCC thì dropdown chọn NCC phải ưu tiên NCC có tổng số lượng/số lần nhập mặt hàng đó cao hơn
   - nếu sau khi review mà một mặt hàng vẫn còn đang nằm ở nhiều NCC mở khác nhau thì UI chỉ cần giữ cảnh báo ngắn cho user biết tình trạng hiện tại, không bắt buộc phải chặn tiếp
   - phiếu `draft` đang trống vẫn phải cho `Xóa phiếu` ngay trên UI dù chưa persist xuống DB
   - nút `Nhập kho` chỉ hiện khi phiếu đã ở trạng thái `Đã đặt`; phiếu `Nháp` vẫn còn chỉnh sửa được nhưng chưa cho nhập kho
   - khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `Nháp/Đã đặt`; user khác chỉ được tiếp tục `Nhập kho` với phiếu không phải batch đã `Đã đặt` trước lúc batch hiện tại bắt đầu, rồi đi tiếp `Đã thanh toán`
   - màn này phải có cảnh báo active lock riêng để user biết ai đang giữ batch mode và vì sao phiếu `Nháp/Đã đặt` đang bị siết quyền
   - nếu chưa có `Nhà cung cấp`, button `Đã đặt hàng` và `Nhập kho` phải bị khóa; UI cần hiện cảnh báo ngắn để user biết thiếu dữ liệu gì
-  - ô NCC và nút `NCC` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
+  - dropdown chọn NCC và nút `+ NCC mới` chỉ bật khi phiếu đang là `Nháp`; từ `Đã đặt` trở đi phải disable trên cả desktop và mobile
   - thanh chọn nhiều phiếu ở list nhập hàng có thêm nút `Đặt hàng`; action này chuyển nhanh các phiếu `draft` hợp lệ sang `ordered` và giữ nguyên phiếu lỗi để user xử lý tiếp
   - list phiếu nhập cho phép tick nhiều phiếu `draft/ordered` cùng NCC để mở preview `gộp đơn`; nếu khác NCC thì app báo lỗi và không điều hướng
-  - khi phiếu còn `Nháp`, bấm nút `NCC` từ một phiếu đã có NCC vẫn phải cho sang danh sách NCC để đổi sang NCC khác, không được kẹt ở chế độ sửa NCC hiện tại
+  - khi phiếu còn `Nháp`, chọn NCC từ dropdown danh bạ hoặc bấm nút `+ NCC mới` để sang form tạo mới NCC, lưu xong quay lại chọn ngay
   - nếu bỏ trống `Mã lô`, app tự sinh batch code khi nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` để FEFO vẫn có mốc hạn
   - sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, chỉ cho sửa `Ghi chú`, `Giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; không mở khóa lại số lượng, giá, mã lô, NCC hay cấu trúc dòng nhập
   - phiếu `received/paid` có action `Nhập lại` để tạo nhanh phiếu nháp mới với cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đó đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có thay vì tạo draft thứ hai
@@ -328,7 +328,7 @@ Liên kết detail hiện có:
   - các dòng chọn cùng NCC phải gom vào cùng một phiếu nhập batch draft
   - planner có thể hiện thêm khối `Phiếu liên quan có thể gộp`; khối này chỉ cho gộp cùng loại phiếu, nghĩa là toàn bộ là phiếu nhập cùng NCC hoặc toàn bộ là phiếu xuất cùng KH
   - extra rows vẫn được gom chung vào phiếu batch theo NCC với shortage rows, nhưng không tạo assignment shortage
-  - nếu NCC chưa tồn tại, app hỏi chuyển sang màn `suppliers` để tạo NCC mới rồi quay lại planner
+  - nếu NCC chưa tồn tại trong danh bạ, dropdown cho phép chọn `+ Thêm NCC mới...` để chuyển sang màn `suppliers` tạo NCC mới rồi quay lại planner
   - nếu sản phẩm đã được gán vào một phiếu nhập batch mở, dòng planner phải hiện mã phiếu/NCC đang xử lý thay vì cho tạo trùng
   - cảnh báo `Sau nhập vẫn dưới ngưỡng` chỉ hiện sau khi dòng đã được tick và có số lượng dự kiến; đây là cảnh báo tồn kho, không phải lỗi chặn tạo phiếu
   - trên mobile, action phụ giữ trong card; không thêm quá nhiều nút trực tiếp vào header

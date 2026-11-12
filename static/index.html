@@ -587,7 +587,9 @@
           <div class="sales-customer-form">
             <label>
               <span>Nhà cung cấp / ghi chú nguồn hàng</span>
-              <input id="purchaseSupplierInput" type="text" list="supplierOptions" maxlength="120" placeholder="Ví dụ: Chợ đầu mối, NCC Minh Tâm">
+              <select id="purchaseSupplierInput" class="form-select">
+                <option value="">-- Chọn nhà cung cấp --</option>
+              </select>
             </label>
             <label>
               <span>Ghi chú phiếu nhập</span>
@@ -597,7 +599,7 @@
           <div class="inline-menu-actions">
             <button type="button" id="createPurchaseDraftButton" class="ghost-button compact-button">Tạo phiếu</button>
             <button type="button" id="togglePurchasePanelButton" class="ghost-button compact-button">Thu gọn phiếu nhập</button>
-            <button type="button" class="ghost-button compact-button" data-go-menu="suppliers">NCC</button>
+            <button type="button" class="ghost-button compact-button" data-go-menu="suppliers">+ NCC mới</button>
           </div>
           <div class="inline-menu-actions purchase-shortcut-actions">
             <button type="button" class="ghost-button compact-button" data-purchase-shortcut="orders">Danh sách phiếu</button>

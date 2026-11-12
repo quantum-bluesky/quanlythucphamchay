@@ -1120,6 +1120,8 @@ function getPurchasesUi() {
       formatCurrency,
       formatDate,
       escapeHtml,
+      normalizeText,
+      getActiveSuppliers,
       getPriceWarningAlerts,
       renderPriceWarningMarkup,
       mobileQuery,
@@ -1424,7 +1426,8 @@ function fillSupplierForm(supplier = {}) {
 }
 
 function beginSupplierCreateFromPurchase() {
-  const pendingName = purchaseSupplierInput?.value?.trim() || "";
+  const rawPendingName = purchaseSupplierInput?.value?.trim() || "";
+  const pendingName = rawPendingName === "__new__" ? "" : rawPendingName;
   const existingSupplier = pendingName
     ? getActiveSuppliers().find((supplier) => normalizeText(supplier.name) === normalizeText(pendingName))
     : null;
@@ -3851,6 +3854,12 @@ function renderProcurementReviewPanel() {
     (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitCost || item.unit_cost || 0),
     0
   );
+  const activeSuppliers = getActiveSuppliers();
+  const currentSupplierName = String(purchase.supplierName || "").trim();
+  const currentExists = activeSuppliers.some((s) => normalizeText(s.name) === normalizeText(currentSupplierName));
+  const extraReviewOption = currentSupplierName && !currentExists
+    ? `<option value="${escapeHtml(currentSupplierName)}" selected>${escapeHtml(currentSupplierName)} (Hiện tại)</option>`
+    : "";
   procurementReviewPanel.innerHTML = `
     <div class="subheading">
       <div>
@@ -3866,7 +3875,13 @@ function renderProcurementReviewPanel() {
       </div>
     </div>
     <div class="procurement-review-grid">
-      <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(purchase.supplierName || "")}" data-procurement-review-field="supplier"></label>
+      <label><span>Nhà cung cấp</span>
+        <select data-procurement-review-field="supplier" class="form-select">
+          <option value="">-- Chọn nhà cung cấp --</option>
+          ${extraReviewOption}
+          ${activeSuppliers.map((s) => `<option value="${escapeHtml(s.name)}" ${normalizeText(s.name) === normalizeText(currentSupplierName) ? "selected" : ""}>${escapeHtml(s.name)}${s.phone ? ` - ${escapeHtml(s.phone)}` : ""}</option>`).join("")}
+        </select>
+      </label>
       <label><span>Giảm KM phiếu</span><input type="number" min="0" step="1000" value="${escapeHtml(purchase.discountAmount || 0)}" data-procurement-review-field="discount"></label>
       <label class="wide-field"><span>Ghi chú</span><input type="text" value="${escapeHtml(purchase.note || "")}" data-procurement-review-field="note"></label>
     </div>
@@ -3909,6 +3924,7 @@ function renderProcurementExtraPanel(canEditBatch) {
     return;
   }
   procurementExtraPanel.hidden = false;
+  const activeSuppliers = getActiveSuppliers();
   const extraRows = Array.isArray(state.procurementPlanner.extraRows) ? state.procurementPlanner.extraRows : [];
   const bodyHidden = !state.procurementPlanner.extraExpanded;
   const extraSearchTerm = String(state.procurementPlanner.extraSearchTerm || "");
@@ -3944,7 +3960,12 @@ function renderProcurementExtraPanel(canEditBatch) {
             const inputBlock = isSelected ? `
               <div data-price-warning-group data-price-warning-mode="edit">
                 <div class="procurement-input-grid">
-                  <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(selectedRow?.supplierName || "")}" data-procurement-extra-field="supplierName" data-product-id="${escapeHtml(candidate.productId)}"></label>
+                  <label><span>Nhà cung cấp</span>
+                    <select data-procurement-extra-field="supplierName" data-product-id="${escapeHtml(candidate.productId)}" class="form-select">
+                      <option value="">-- Chọn nhà cung cấp --</option>
+                      ${activeSuppliers.map((s) => `<option value="${escapeHtml(s.name)}" ${normalizeText(s.name) === normalizeText(selectedRow?.supplierName || "") ? "selected" : ""}>${escapeHtml(s.name)}${s.phone ? ` - ${escapeHtml(s.phone)}` : ""}</option>`).join("")}
+                    </select>
+                  </label>
                   <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(selectedRow?.quantity || "1")}" data-procurement-extra-field="quantity" data-product-id="${escapeHtml(candidate.productId)}"></label>
                   <label class="desktop-only-field" data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(selectedRow?.unitCost || String(product?.price ?? 0))}" data-procurement-extra-field="unitCost" data-product-id="${escapeHtml(candidate.productId)}" data-price-warning-input="purchase"></label>
                   <label class="desktop-only-field"><span>Giảm KM</span><input type="number" min="0" step="1000" value="${escapeHtml(selectedRow?.discountAmount || "0")}" data-procurement-extra-field="discountAmount" data-product-id="${escapeHtml(candidate.productId)}"></label>
@@ -4121,6 +4142,7 @@ function renderProcurementPlanner() {
     return;
   }
 
+  const activeSuppliers = getActiveSuppliers();
   procurementPlannerList.innerHTML = mergePanelMarkup + visibleRows.map((row) => {
     const assignment = row.assignment || null;
     const selection = getProcurementSelection(row.product_id);
@@ -4140,7 +4162,12 @@ function renderProcurementPlanner() {
       ? `
         <div data-price-warning-group data-price-warning-mode="edit">
           <div class="procurement-input-grid">
-            <label><span>Nhà cung cấp</span><input type="text" list="supplierOptions" value="${escapeHtml(selection.supplierName || "")}" data-procurement-field="supplier" data-product-id="${escapeHtml(row.product_id)}"></label>
+            <label><span>Nhà cung cấp</span>
+              <select data-procurement-field="supplier" data-product-id="${escapeHtml(row.product_id)}" class="form-select">
+                <option value="">-- Chọn nhà cung cấp --</option>
+                ${activeSuppliers.map((s) => `<option value="${escapeHtml(s.name)}" ${normalizeText(s.name) === normalizeText(selection.supplierName || "") ? "selected" : ""}>${escapeHtml(s.name)}${s.phone ? ` - ${escapeHtml(s.phone)}` : ""}</option>`).join("")}
+              </select>
+            </label>
             <label><span>Số lượng</span><input type="number" min="0.01" step="0.01" value="${escapeHtml(selection.quantity || row.required_purchase || "")}" data-procurement-field="quantity" data-product-id="${escapeHtml(row.product_id)}"></label>
             <label class="desktop-only-field" data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${escapeHtml(selection.unitCost || row.unit_cost || 0)}" data-procurement-field="unitCost" data-product-id="${escapeHtml(row.product_id)}" data-price-warning-input="purchase"></label>
             <label class="desktop-only-field"><span>Giảm KM</span><input type="number" min="0" step="1000" value="${escapeHtml(selection.discountAmount || 0)}" data-procurement-field="discountAmount" data-product-id="${escapeHtml(row.product_id)}"></label>
@@ -5335,7 +5362,7 @@ function renderSupplierOptions() {
   const priorityMap = new Map(prioritizedSupplierNames.map((name, index) => [name, index]));
   const activeSuppliers = getActiveSuppliers();
   const originalIndexMap = new Map(activeSuppliers.map((supplier, index) => [supplier.id || supplier.name, index]));
-  supplierOptions.innerHTML = activeSuppliers
+  const sortedSuppliers = activeSuppliers
     .slice()
     .sort((left, right) => {
       const leftPriority = priorityMap.get(normalizeText(left.name));
@@ -5344,9 +5371,31 @@ function renderSupplierOptions() {
         return (leftPriority ?? Number.MAX_SAFE_INTEGER) - (rightPriority ?? Number.MAX_SAFE_INTEGER);
       }
       return (originalIndexMap.get(left.id || left.name) || 0) - (originalIndexMap.get(right.id || right.name) || 0);
-    })
-    .map((supplier) => `<option value="${escapeHtml(supplier.name)}"></option>`)
-    .join("");
+    });
+
+  if (supplierOptions) {
+    supplierOptions.innerHTML = sortedSuppliers
+      .map((supplier) => `<option value="${escapeHtml(supplier.name)}"></option>`)
+      .join("");
+  }
+
+  if (purchaseSupplierInput) {
+    const supplierEditable = canEditPurchaseSupplier(activePurchase);
+    const targetSupplierName = activePurchase?.supplierName || (supplierEditable ? state.pendingPurchaseSupplierName : "") || "";
+    const exists = sortedSuppliers.some((s) => normalizeText(s.name) === normalizeText(targetSupplierName));
+    const extraOption = targetSupplierName && !exists
+      ? `<option value="${escapeHtml(targetSupplierName)}">${escapeHtml(targetSupplierName)} (Hiện tại)</option>`
+      : "";
+
+    purchaseSupplierInput.innerHTML = `
+      <option value="">-- Chọn nhà cung cấp --</option>
+      <option value="__new__">+ Thêm nhà cung cấp mới...</option>
+      ${extraOption}
+      ${sortedSuppliers.map((s) => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}${s.phone ? ` - ${escapeHtml(s.phone)}` : ""}</option>`).join("")}
+    `;
+    purchaseSupplierInput.value = targetSupplierName;
+    purchaseSupplierInput.disabled = Boolean(activePurchase) && !supplierEditable;
+  }
 }
 
 function renderProducts() {

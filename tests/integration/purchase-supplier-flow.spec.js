@@ -195,13 +195,11 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
 
     await page.locator("#createPurchaseDraftButton").click();
     await page.waitForTimeout(300);
-    await page.locator("#purchaseSupplierInput").fill(supplierName);
     await page.locator(".purchases-panel [data-go-menu=\"suppliers\"]").click();
 
     await expectScreenTitle(page, "Nhà cung cấp");
     await expect(page.locator("#supplierFormSection")).not.toHaveClass(/is-collapsed/);
-    await expect(page.locator("#supplierNameInput")).toHaveValue(supplierName);
-
+    await page.locator("#supplierNameInput").fill(supplierName);
     await page.locator("#supplierPhoneInput").fill(supplierPhone);
     await page.locator("#supplierAddressInput").fill("Dia chi test issue 38");
     await page.locator("#supplierNoteInput").fill("Tao moi tu man hinh nhap hang");
@@ -242,6 +240,38 @@ test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the exis
   const originalState = await fetchSyncState(request, userCookie);
 
   try {
+    const now = new Date().toISOString();
+    const seedResponse = await request.put("/api/state", {
+      headers: { Cookie: userCookie },
+      data: {
+        customers: originalState.customers,
+        suppliers: [
+          ...(originalState.suppliers || []),
+          {
+            id: `supplier_draft_a_${timestamp}`,
+            name: supplierA,
+            phone: "",
+            address: "",
+            note: "",
+            createdAt: now,
+            updatedAt: now,
+          },
+          {
+            id: `supplier_draft_b_${timestamp}`,
+            name: supplierB,
+            phone: "",
+            address: "",
+            note: "",
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+        carts: originalState.carts,
+        purchases: originalState.purchases,
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
@@ -265,7 +295,7 @@ test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the exis
     expect(productTwoName).toBeTruthy();
     expect(productTwoName).not.toBe(productOneName);
 
-    await page.locator("#purchaseSupplierInput").fill(supplierA);
+    await page.locator("#purchaseSupplierInput").selectOption(supplierA);
     await page.locator("#purchaseNoteInput").click();
     await page.waitForTimeout(250);
     await purchaseSuggestions.nth(0).locator('[data-purchase-suggestion-action="add"]').click();
@@ -275,7 +305,7 @@ test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the exis
     await page.waitForTimeout(250);
     await expect(page.locator("#purchaseSupplierInput")).toHaveValue("");
 
-    await page.locator("#purchaseSupplierInput").fill(supplierB);
+    await page.locator("#purchaseSupplierInput").selectOption(supplierB);
     await page.locator("#purchaseNoteInput").click();
     await page.waitForTimeout(250);
     const secondProductSuggestion = page.locator("#purchaseSuggestionList .sales-product-row", { hasText: productTwoName }).first();
@@ -297,7 +327,7 @@ test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the exis
     await page.waitForTimeout(250);
     await expect(page.locator("#purchaseSupplierInput")).toHaveValue("");
 
-    await page.locator("#purchaseSupplierInput").fill(supplierA);
+    await page.locator("#purchaseSupplierInput").selectOption(supplierA);
     await page.locator("#purchaseNoteInput").click();
     await page.waitForTimeout(250);
     await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierA);
@@ -379,7 +409,7 @@ test("IT-PURSUP-04 empty purchase draft can be deleted and supplier button can s
 
     await page.locator("#createPurchaseDraftButton").click();
     await page.waitForTimeout(250);
-    await page.locator("#purchaseSupplierInput").fill(supplierA);
+    await page.locator("#purchaseSupplierInput").selectOption(supplierA);
     await page.locator("#purchaseNoteInput").click();
     await page.waitForTimeout(250);
 
@@ -392,7 +422,7 @@ test("IT-PURSUP-04 empty purchase draft can be deleted and supplier button can s
 
     await page.locator("#createPurchaseDraftButton").click();
     await page.waitForTimeout(250);
-    await page.locator("#purchaseSupplierInput").fill(supplierA);
+    await page.locator("#purchaseSupplierInput").selectOption(supplierA);
     await page.locator("#purchaseNoteInput").click();
     await page.waitForTimeout(250);
     await page.locator('.purchases-panel [data-go-menu="suppliers"]').click();
