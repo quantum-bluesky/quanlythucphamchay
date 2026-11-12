@@ -143,5 +143,40 @@ test("UI-ACCEPTANCE-01 multi-unit conversion, default units, name bugfix, and au
     await expect(unitCostInput).toHaveValue("5000");
   }
 
+  // 4. Test Direct Inventory Adjustment (Chỉnh tồn trực tiếp):
+  // When filling product name (without "- id"), unit select must show full base unit (cái (gốc)) and conversion units
+  await switchMenu(page, "inventory");
+  const quickPanel = page.locator("#quickPanel");
+  if (!(await quickPanel.isVisible())) {
+    await page.locator("#quickPanelToggle").click();
+    await expect(quickPanel).toBeVisible();
+  }
+
+  const lookupInput = page.locator("#productLookupInput");
+  const unitSelect = page.locator("#productLookupUnitSelect");
+  await expect(lookupInput).toBeVisible();
+  await expect(unitSelect).toBeVisible();
+
+  // Test typing product name directly (without "- id")
+  await lookupInput.fill(testProductName);
+  await lookupInput.dispatchEvent("input");
+  await expect(unitSelect.locator("option").first()).toHaveText("cái (gốc)");
+  await expect(unitSelect.locator("option[value='10']")).toHaveText("thùng (1=10)");
+  await expect(unitSelect.locator("option[value='30']")).toHaveText("kg (1=30)");
+
+  // Test clearing input resets to placeholder
+  await lookupInput.fill("");
+  await lookupInput.dispatchEvent("input");
+  await expect(unitSelect.locator("option").first()).toHaveText("Đơn vị (gốc)");
+
+  // Test selecting prefilled product from inventory list
+  const invRow = page.locator("#productGrid .product-card", { hasText: testProductName }).first();
+  if (await invRow.isVisible()) {
+    const adjustBtn = invRow.locator('[data-product-action="toggle-expand"]');
+    if (await adjustBtn.isVisible()) {
+      await adjustBtn.click();
+    }
+  }
+
   expectNoRuntimeErrors(runtime);
 });

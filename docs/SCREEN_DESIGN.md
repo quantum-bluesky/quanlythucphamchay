@@ -76,6 +76,7 @@ Liên kết detail hiện có:
   - mode `Ưu tiên nhập/xử lý` hiển thị thêm điểm ưu tiên trên card
   - mode `Hạn còn ít` hiển thị theo HSD thật của lô gần nhất nếu có; chỉ fallback về ước tính sản phẩm khi chưa có lô nào có HSD
   - nếu user có quyền direct adjust, panel `Chỉnh tồn trực tiếp` trên mobile/ tablet portrait phải ưu tiên nằm sát đầu màn hình, tự mở được ngay khi vào màn, khi thu gọn không để thừa khoảng trắng và khi mở phải cuộn tới hết form mà không bị dock nổi che phần nhập liệu hay action
+  - ở panel `Chỉnh tồn trực tiếp`, dropdown đơn vị phải hiển thị rõ ràng đơn vị gốc của sản phẩm đã chọn (ví dụ `túi /2 lạng (gốc)`, `gói/2 lạng (gốc)`, `kg (gốc)`...) và các đơn vị quy đổi (nếu có) khi gõ hoặc chọn sản phẩm, tránh để placeholder chung chung làm admin nhập sai số lượng
   - phần detail của từng card sản phẩm phải có nút/link `Xem lịch sử` để mở sang màn mới và chọn sẵn sản phẩm tương ứng
   - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết thiếu hàng sẽ đi qua planner batch thay vì flow nhập thiếu nhanh
 

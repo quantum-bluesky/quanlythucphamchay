@@ -21,26 +21,75 @@ export function registerInventoryControllerEvents(contract) {
     return false;
   };
 
-  dom.productLookupInput.addEventListener("input", (event) => {
-    if (!dom.productLookupUnitSelect) return;
-    const text = event.target.value;
-    if (!text) {
-      dom.productLookupUnitSelect.innerHTML = '<option value="1">Đơn vị (gốc)</option>';
-      return;
-    }
+  const resolveProductFromLookup = (rawText) => {
+    const text = String(rawText || "").trim();
+    if (!text) return null;
+
     const parts = text.split("-");
     const idStr = parts[parts.length - 1];
-    if (!idStr) return;
-    const id = parseInt(idStr.trim(), 10);
-    if (!id) return;
-    const product = state.products.find(p => p.id === id);
-    if (product) {
-      dom.productLookupUnitSelect.innerHTML = `
-        <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}">${utils.escapeHtml(product.unit)} (gốc)</option>
-        ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}">${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
-      `;
+    const parsedId = parseInt(idStr?.trim(), 10);
+    if (parsedId) {
+      const p = state.products.find((item) => item.id === parsedId);
+      if (p) return p;
     }
-  });
+
+    if (queries.resolveProductFromText) {
+      try {
+        const p = queries.resolveProductFromText(text);
+        if (p) return p;
+      } catch (_) {}
+    }
+
+    const norm = utils.normalizeLookup ? utils.normalizeLookup(text) : text.toLowerCase().trim();
+    const exact = state.products.find((p) => (utils.normalizeLookup ? utils.normalizeLookup(p.name) : p.name.toLowerCase().trim()) === norm);
+    if (exact) return exact;
+
+    const matches = state.products.filter((p) => (utils.normalizeLookup ? utils.normalizeLookup(p.name) : p.name.toLowerCase().trim()).includes(norm));
+    if (matches.length === 1) return matches[0];
+
+    return null;
+  };
+
+  const updateProductLookupUnitSelect = (productOrText) => {
+    if (!dom.productLookupUnitSelect) return;
+    let product = null;
+    if (productOrText && typeof productOrText === "object" && productOrText.id) {
+      product = productOrText;
+    } else {
+      product = resolveProductFromLookup(productOrText !== undefined ? productOrText : dom.productLookupInput?.value);
+    }
+
+    const escape = utils.escapeHtml || ((str) => String(str ?? ""));
+
+    if (product && product.unit) {
+      const currentSelectedFactor = dom.productLookupUnitSelect.value;
+      const baseUnitLabel = `${escape(product.unit)} (gốc)`;
+      const conversionOptions = (product.unit_conversions || []).map((conv) => (
+        `<option value="${conv.conversion_factor}" data-unit-name="${escape(conv.from_unit)}">${escape(conv.from_unit)} (1=${conv.conversion_factor})</option>`
+      )).join("");
+
+      dom.productLookupUnitSelect.innerHTML = `
+        <option value="1" data-unit-name="${escape(product.unit)}">${baseUnitLabel}</option>
+        ${conversionOptions}
+      `;
+      if (currentSelectedFactor && dom.productLookupUnitSelect.querySelector(`option[value="${currentSelectedFactor}"]`)) {
+        dom.productLookupUnitSelect.value = currentSelectedFactor;
+      }
+    } else {
+      dom.productLookupUnitSelect.innerHTML = '<option value="1">Đơn vị (gốc)</option>';
+    }
+  };
+
+  if (dom.productLookupInput) {
+    dom.productLookupInput.addEventListener("input", (event) => {
+      updateProductLookupUnitSelect(event.target.value);
+    });
+    dom.productLookupInput.addEventListener("change", (event) => {
+      updateProductLookupUnitSelect(event.target.value);
+    });
+  }
+
+  updateProductLookupUnitSelect();
 
   dom.quickTransactionForm.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-transaction]");
@@ -56,40 +105,10 @@ export function registerInventoryControllerEvents(contract) {
         return;
       }
 
-      let product = null;
-      const parts = rawText.split("-");
-      const idStr = parts[parts.length - 1];
-      const parsedId = parseInt(idStr?.trim(), 10);
-      if (parsedId) {
-        product = state.products.find((p) => p.id === parsedId);
-      }
-
-      if (!product && queries.resolveProductFromText) {
-        try {
-          product = queries.resolveProductFromText(rawText);
-        } catch (err) {
-          actions.showToast(err.message, true);
-          return;
-        }
-      }
-
+      const product = resolveProductFromLookup(rawText);
       if (!product) {
-        const keyword = utils.normalizeLookup ? utils.normalizeLookup(rawText) : rawText.toLowerCase().trim();
-        const exact = state.products.find((p) => (utils.normalizeLookup ? utils.normalizeLookup(p.name) : p.name.toLowerCase().trim()) === keyword);
-        if (exact) {
-          product = exact;
-        } else {
-          const matches = state.products.filter((p) => (utils.normalizeLookup ? utils.normalizeLookup(p.name) : p.name.toLowerCase().trim()).includes(keyword));
-          if (matches.length === 1) {
-            product = matches[0];
-          } else if (matches.length === 0) {
-            actions.showToast("Không tìm thấy sản phẩm phù hợp.", true);
-            return;
-          } else {
-            actions.showToast("Có nhiều sản phẩm khớp. Hãy gõ cụ thể hơn.", true);
-            return;
-          }
-        }
+        actions.showToast("Không tìm thấy sản phẩm phù hợp.", true);
+        return;
       }
 
       // Issue #176: round 6 chữ số để loại float noise từ SUM REAL trong SQLite

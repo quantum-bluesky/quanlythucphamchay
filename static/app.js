@@ -35,6 +35,7 @@ import {
   inventoryReceiptSubmitButton,
   inventoryReceiptClearButton,
   productLookupInput,
+  productLookupUnitSelect,
   productOptions,
   quickTransactionForm,
   quickClearAllStockButton,
@@ -6664,6 +6665,8 @@ function prefillProduct(productId) {
   }
 
   productLookupInput.value = product.name;
+  productLookupInput.dispatchEvent(new Event("input", { bubbles: true }));
+  productLookupInput.dispatchEvent(new Event("change", { bubbles: true }));
   switchMenu("inventory");
   openQuickPanel();
   quantityInput.focus();
@@ -6687,6 +6690,8 @@ async function submitTransaction(transactionType, productText, quantity, note = 
   quantityInput.value = "";
   noteInput.value = "";
   productLookupInput.value = product.name;
+  productLookupInput.dispatchEvent(new Event("input", { bubbles: true }));
+  productLookupInput.dispatchEvent(new Event("change", { bubbles: true }));
   await refreshData();
   showToast(data.message);
 }
@@ -7290,6 +7295,7 @@ registerInventoryControllerEvents({
     quickTransactionForm,
     quickClearAllStockButton,
     productLookupInput,
+    productLookupUnitSelect,
     quantityInput,
     noteInput,
     productGrid,
@@ -7371,6 +7377,7 @@ registerInventoryControllerEvents({
     syncPriceWarningGroups,
     formatQuantity,
     normalizeLookup,
+    escapeHtml,
   },
 });
 

@@ -316,14 +316,17 @@ export function createPurchasesUi(deps) {
         <label>
           <span>Đơn vị</span>
           <select id="quickPurchaseUnitSelect" ${disableEditAttr}>
-            <option value="1" data-unit-name="${escapeHtml(draft.unitName || "")}">Đơn vị (gốc)</option>
             ${(() => {
               const text = String(draft.productText || "").trim();
-              if (!text) return "";
+              if (!text) return '<option value="1" data-unit-name="">Đơn vị (gốc)</option>';
               const normalizedText = utils.normalizeLookup(text);
               const exactMatch = state.products.find(p => utils.normalizeLookup(p.name) === normalizedText);
-              if (!exactMatch) return "";
-              return (exactMatch.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${escapeHtml(conv.from_unit)}" ${draft.conversionFactor == conv.conversion_factor ? "selected" : ""}>${escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("");
+              const baseUnit = exactMatch?.unit || draft.unitName || "";
+              const baseLabel = baseUnit ? `${escapeHtml(baseUnit)} (gốc)` : "Đơn vị (gốc)";
+              const baseOption = `<option value="1" data-unit-name="${escapeHtml(baseUnit)}" ${(!draft.conversionFactor || draft.conversionFactor == 1) ? "selected" : ""}>${baseLabel}</option>`;
+              if (!exactMatch) return baseOption;
+              const conversions = (exactMatch.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${escapeHtml(conv.from_unit)}" ${draft.conversionFactor == conv.conversion_factor ? "selected" : ""}>${escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("");
+              return baseOption + conversions;
             })()}
           </select>
         </label>
