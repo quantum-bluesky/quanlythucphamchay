@@ -155,6 +155,44 @@ class RemoteStoreClient:
         res = self._request("GET", "api/products")
         return res.get("summary", {}) if isinstance(res, dict) else {}
 
+    def get_suppliers(self) -> list[dict[str, Any]]:
+        """Lấy danh sách các nhà cung cấp đang hoạt động trên hệ thống."""
+        self.ensure_authenticated()
+        state = self._request("GET", "api/state")
+        raw_suppliers = state.get("suppliers", []) if isinstance(state, dict) else []
+        return [
+            s for s in raw_suppliers
+            if not s.get("deleted_at") and not s.get("deletedAt")
+        ]
+
+    def resolve_supplier(self, query: str) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+        """
+        Tìm nhà cung cấp theo ID hoặc tên:
+        - Nếu khớp chính xác ID hoặc tên: trả về (supplier, [])
+        - Nếu tìm thấy nhiều kết quả gần đúng: trả về (None, matches)
+        - Nếu không tìm thấy: trả về (None, [])
+        """
+        suppliers = self.get_suppliers()
+        q = query.strip().lower()
+        if not q:
+            return None, suppliers
+
+        # 1. Khớp chính xác ID
+        for s in suppliers:
+            if s.get("id") == query.strip():
+                return s, []
+
+        # 2. Khớp chính xác Tên (không phân biệt hoa thường)
+        for s in suppliers:
+            if s.get("name", "").strip().lower() == q:
+                return s, []
+
+        # 3. Khớp một phần (partial / contains)
+        matches = [s for s in suppliers if q in s.get("name", "").lower() or q in s.get("phone", "").lower()]
+        if len(matches) == 1:
+            return matches[0], []
+        return None, matches
+
     def preview_scrutiny_products(
         self, new_records: list[dict[str, Any]]
     ) -> dict[str, Any]:
@@ -300,18 +338,21 @@ class RemoteStoreClient:
 
     def push_quick_purchase(
         self,
-        supplier_name: str,
-        items: list[dict[str, Any]],
+        supplier_name: str = "",
+        supplier_id: str = "",
+        items: list[dict[str, Any]] | None = None,
         note: str = "Tạo phiếu nhập từ Agent Portal",
     ) -> dict[str, Any]:
         """
         Tạo và commit phiếu nhập hàng trực tiếp qua POST /api/purchases/quick-create.
         items: [{"product_id": int, "quantity": float, "unit_price": float}]
+        Ưu tiên dùng supplier_id để tránh nhầm lẫn hoặc tạo trùng lặp.
         """
         self.ensure_authenticated()
         payload = {
+            "supplier_id": supplier_id,
             "supplier_name": supplier_name,
-            "items": items,
+            "items": items or [],
             "note": note,
         }
         return self._request("POST", "api/purchases/quick-create", payload=payload)
@@ -387,6 +428,10 @@ def main():
     # 7. push-order
     ord_parser = subparsers.add_parser("push-order", help="Đẩy đơn hàng xuất kho")
     ord_parser.add_argument("file_or_json", help="File JSON chứa customer_name, items, note")
+
+    # 8. suppliers
+    sup_parser = subparsers.add_parser("suppliers", help="Xem danh sách nhà cung cấp trên server")
+    sup_parser.add_argument("--search", default="", help="Từ khóa tìm kiếm theo tên hoặc SĐT")
 
     args = parser.parse_args()
     if not args.action:
@@ -524,6 +569,7 @@ def main():
             raw_input = args.file_or_json.strip()
             data = json.load(open(raw_input, "r", encoding="utf-8")) if os.path.isfile(raw_input) else json.loads(raw_input)
             res = client.push_quick_purchase(
+                supplier_id=data.get("supplier_id", ""),
                 supplier_name=data.get("supplier_name", "Nhà cung cấp chung"),
                 items=data.get("items", []),
                 note=data.get("note", "Nhập hàng từ Agent Portal"),
@@ -540,6 +586,27 @@ def main():
                 payment_status=data.get("payment_status", "paid"),
             )
             print(f"[+] Tạo đơn hàng thành công! Mã đơn: {res.get('document_id') or res.get('id')}")
+
+        elif args.action == "suppliers":
+            suppliers = client.get_suppliers()
+            kw = args.search.strip().lower()
+            if kw:
+                suppliers = [
+                    s for s in suppliers
+                    if kw in s.get("name", "").lower() or kw in s.get("phone", "").lower() or kw in s.get("address", "").lower()
+                ]
+            print(f"\n[+] Tìm thấy {len(suppliers)} nhà cung cấp trên hệ thống:")
+            headers = ["STT", "ID", "Tên nhà cung cấp", "Số điện thoại", "Địa chỉ"]
+            rows = []
+            for idx, s in enumerate(suppliers, start=1):
+                rows.append([
+                    str(idx),
+                    s.get("id", ""),
+                    s.get("name", ""),
+                    s.get("phone", ""),
+                    s.get("address", ""),
+                ])
+            print(_format_table(headers, rows))
 
     except Exception as exc:
         print(f"\n[!] LỖI THỰC THI: {exc}", file=sys.stderr)

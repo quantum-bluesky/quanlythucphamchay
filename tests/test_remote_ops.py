@@ -103,6 +103,41 @@ class TestRemoteOps(unittest.TestCase):
             self.assertTrue(any("Giá nhập thay đổi mạnh" in w for w in report["warnings"]))
             self.assertTrue(any("Giá bán thay đổi mạnh" in w for w in report["warnings"]))
 
+    def test_ut_remote_04_get_and_resolve_suppliers(self):
+        mock_state = {
+            "suppliers": [
+                {"id": "sup_1", "name": "Âu Lạc", "phone": "0901234567", "deleted_at": None},
+                {"id": "sup_2", "name": "Chị Mai An Lành", "phone": "0912345678", "deleted_at": None},
+                {"id": "sup_deleted", "name": "NCC Cũ", "phone": "", "deleted_at": "2026-01-01"},
+            ]
+        }
+        with patch.object(self.client, "ensure_authenticated"), \
+             patch.object(self.client, "_request", return_value=mock_state):
+            suppliers = self.client.get_suppliers()
+            self.assertEqual(len(suppliers), 2)
+            self.assertEqual(suppliers[0]["id"], "sup_1")
+
+        with patch.object(self.client, "get_suppliers", return_value=mock_state["suppliers"][:2]):
+            # 1. Khớp chính xác ID
+            sup, matches = self.client.resolve_supplier("sup_2")
+            self.assertIsNotNone(sup)
+            self.assertEqual(sup["name"], "Chị Mai An Lành")
+
+            # 2. Khớp chính xác Tên (case-insensitive)
+            sup, matches = self.client.resolve_supplier("ÂU LẠC")
+            self.assertIsNotNone(sup)
+            self.assertEqual(sup["id"], "sup_1")
+
+            # 3. Khớp một phần
+            sup, matches = self.client.resolve_supplier("mai an")
+            self.assertIsNotNone(sup)
+            self.assertEqual(sup["id"], "sup_2")
+
+            # 4. Không tìm thấy
+            sup, matches = self.client.resolve_supplier("Không Tồn Tại")
+            self.assertIsNone(sup)
+            self.assertEqual(len(matches), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
