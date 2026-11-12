@@ -6,11 +6,15 @@ on:
       supplier_query:
         description: "Tên hoặc từ khóa tìm kiếm NCC (Fuzzy search)"
         required: false
-        default: "Chị Ngọc anh Hải"
+        default: "Tình Nguyệt"
       supplier_id:
         description: "Mã ID NCC chính xác trên Production (nếu muốn chỉ định rõ)"
         required: false
         default: ""
+      allow_create_supplier:
+        description: "Tự động tạo NCC nếu chưa có trên hệ thống"
+        required: false
+        default: "true"
       manifest:
         description: "Đường dẫn file manifest cần triển khai"
         required: false
@@ -37,7 +41,13 @@ jobs:
           REMOTE_ADMIN_USER: ${{ secrets.PROD_ADMIN_USER || vars.PROD_ADMIN_USER }}
           REMOTE_ADMIN_PASSWORD: ${{ secrets.PROD_ADMIN_PASSWORD }}
         run: |
+          ALLOW_CREATE_FLAG=""
+          if [ "${{ github.event.inputs.allow_create_supplier }}" = "true" ]; then
+            ALLOW_CREATE_FLAG="--allow-create-supplier"
+          fi
           python scripts/remote_ops.py deploy-release \
             --manifest "${{ github.event.inputs.manifest }}" \
             --supplier-id "${{ github.event.inputs.supplier_id }}" \
-            --supplier-query "${{ github.event.inputs.supplier_query }}"
+            --supplier-query "${{ github.event.inputs.supplier_query }}" \
+            $ALLOW_CREATE_FLAG
+

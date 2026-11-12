@@ -481,6 +481,7 @@ def main():
     dep_parser.add_argument("--manifest", default="data/staged_releases/cha_bao_rong_bien.json", help="Đường dẫn file manifest JSON")
     dep_parser.add_argument("--supplier-id", default="", help="Mã ID nhà cung cấp chính xác trên server đích")
     dep_parser.add_argument("--supplier-query", default="", help="Tên hoặc từ khóa NCC để đối soát tự động")
+    dep_parser.add_argument("--allow-create-supplier", action="store_true", help="Cho phép tự động tạo NCC mới nếu chưa có trên server")
 
     args = parser.parse_args()
     if not args.action:
@@ -686,11 +687,15 @@ def main():
                     sys.exit(1)
 
             if not target_sup:
-                print(f"[!] Không tìm thấy NCC khớp với '{args.supplier_id or sup_query}'.", file=sys.stderr)
-                print("[*] Danh sách NCC đang có trên server:")
-                for s in client.get_suppliers():
-                    print(f"    - ID: {s.get('id')} | Tên: {s.get('name')}")
-                sys.exit(1)
+                if args.allow_create_supplier and sup_query:
+                    print(f"[*] NCC '{sup_query}' chưa có trên hệ thống. Sẽ tự động tạo mới theo yêu cầu.")
+                    target_sup = {"id": "", "name": sup_query.strip()}
+                else:
+                    print(f"[!] Không tìm thấy NCC khớp với '{args.supplier_id or sup_query}'.", file=sys.stderr)
+                    print("[*] Danh sách NCC đang có trên server:")
+                    for s in client.get_suppliers():
+                        print(f"    - ID: {s.get('id')} | Tên: {s.get('name')}")
+                    sys.exit(1)
 
             print(f"[+] Đã khớp chính xác NCC: {target_sup.get('name')} (ID: {target_sup.get('id')})")
 
