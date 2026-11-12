@@ -1,4 +1,5 @@
 const { test, expect } = require("@playwright/test");
+const { testRuntimeConfig } = require("./support/test-config");
 const {
   attachRuntimeTracking,
   autoLoginProcurementManager,
@@ -43,12 +44,12 @@ function stripProcurementBatchTestPurchases(state) {
 }
 
 async function cleanupProcurementBatchTestPurchases(request, cookie) {
-  await request.post("/api/procurement/batch/finish", {
+  await request.post("./api/procurement/batch/finish", {
     headers: { Cookie: cookie },
     data: {},
   }).catch(() => null);
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: cookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: cookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const currentState = await stateResponse.json();
   const targetPurchases = (currentState.purchases || []).filter((purchase) => {
@@ -66,7 +67,7 @@ async function cleanupProcurementBatchTestPurchases(request, cookie) {
       continue;
     }
     const action = status === "draft" ? "delete" : "cancel";
-    const response = await request.post("/api/purchases/repair", {
+    const response = await request.post("./api/purchases/repair", {
       headers: { Cookie: cookie },
       data: {
         purchase_id: purchase.id,
@@ -79,7 +80,7 @@ async function cleanupProcurementBatchTestPurchases(request, cookie) {
 }
 
 async function restoreStateAfterTest(request, cookie, restoredState) {
-  const finalStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: cookie } });
+  const finalStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: cookie } });
   expect(finalStateResponse.ok()).toBeTruthy();
   const finalState = await finalStateResponse.json();
   const cleanPurchases = (finalState.purchases || []).filter((purchase) => {
@@ -93,7 +94,7 @@ async function restoreStateAfterTest(request, cookie, restoredState) {
     return !(isTemporary && ["draft", "ordered"].includes(status));
   });
 
-  const response = await request.put("/api/state", {
+  const response = await request.put("./api/state", {
     headers: { Cookie: cookie },
     data: {
       customers: restoredState.customers,
@@ -121,11 +122,11 @@ test("IT-PROC-01 start batch shows clickable conflict list for overlapping open 
   const managerCookie = await autoLoginProcurementManagerRequest(request);
   const timestamp = Date.now();
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
   const restoredState = stripProcurementBatchTestPurchases(originalState);
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: managerCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: managerCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -179,7 +180,7 @@ test("IT-PROC-01 start batch shows clickable conflict list for overlapping open 
   try {
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
 
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         purchases: [...(restoredState.purchases || []), ...purchases],
@@ -187,7 +188,7 @@ test("IT-PROC-01 start batch shows clickable conflict list for overlapping open 
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginProcurementManager(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -209,10 +210,11 @@ test("IT-PROC-01 start batch shows clickable conflict list for overlapping open 
     await expectScreenTitle(page, "Nhập hàng");
     await expect(page.locator("#purchasePanel")).toContainText(supplierName);
     await expect(page.locator("#purchasePanel")).toContainText("IT-PROC-01 draft conflict");
-    runtime.errors = runtime.errors.filter((entry) => !entry.includes("status of 400 (Bad Request)"));
+    // Issue #182: Waitress reports the expected conflict status with an uppercase reason phrase.
+    runtime.errors = runtime.errors.filter((entry) => !/status of 400/i.test(entry));
   } finally {
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         customers: restoredState.customers,
@@ -226,14 +228,16 @@ test("IT-PROC-01 start batch shows clickable conflict list for overlapping open 
   expectNoRuntimeErrors(runtime);
 });
 
-test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during active batch", async ({ page, request }) => {
+test("IT-PROC-02 non-owner receives and pays pre-batch purchase with multiuser conflict check enabled", async ({ page, request }) => {
+  // #Issue119: Exercise both status transitions under the enabled conflict-check configuration.
+  expect(testRuntimeConfig.EnableMultiuserConflictCheck).toBe(true);
   const runtime = attachRuntimeTracking(page);
   const managerCookie = await autoLoginProcurementManagerRequest(request);
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
   const restoredState = stripProcurementBatchTestPurchases(originalState);
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: managerCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: managerCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const openPurchaseProductIds = new Set(
@@ -302,7 +306,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
   try {
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
 
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         purchases: [...(restoredState.purchases || []), seededBatchPurchase, seededPrebatchManualPurchase],
@@ -310,7 +314,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    const orderedSeedResponse = await request.put("/api/state", {
+    const orderedSeedResponse = await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         purchases: [
@@ -319,6 +323,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
           {
             ...seededPrebatchManualPurchase,
             status: "ordered",
+            orderedAt: prebatchOrderedAt,
             updatedAt: prebatchOrderedAt,
           },
         ],
@@ -327,7 +332,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     const orderedSeedPayload = await orderedSeedResponse.json();
     expect(orderedSeedResponse.ok(), JSON.stringify(orderedSeedPayload)).toBeTruthy();
 
-    const startResponse = await request.post("/api/procurement/batch/start", {
+    const startResponse = await request.post("./api/procurement/batch/start", {
       headers: { Cookie: managerCookie },
       data: {},
     });
@@ -335,7 +340,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     expect(startResponse.ok(), JSON.stringify(startPayload)).toBeTruthy();
     batchStarted = true;
 
-    const ownerUpdatedStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
+    const ownerUpdatedStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
     expect(ownerUpdatedStateResponse.ok()).toBeTruthy();
     const ownerUpdatedState = await ownerUpdatedStateResponse.json();
     const ownerUpdatedPurchases = (ownerUpdatedState.purchases || []).map((purchase) => (
@@ -343,7 +348,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
         ? { ...purchase, note: "IT-PROC-02 owner updated note after batch started" }
         : purchase
     ));
-    const ownerUpdatedResponse = await request.put("/api/state", {
+    const ownerUpdatedResponse = await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         purchases: ownerUpdatedPurchases,
@@ -353,7 +358,7 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     expect(ownerUpdatedResponse.ok(), JSON.stringify(ownerUpdatedPayload)).toBeTruthy();
 
     await page.context().clearCookies();
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
     await switchMenu(page, "purchases");
@@ -386,23 +391,28 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
     await expect(page.locator("#purchasePanel")).toContainText(prebatchSupplierName);
     await expect(page.locator('[data-purchase-action="receive"]')).toBeEnabled();
     await page.locator('[data-purchase-action="receive"]').click();
+    await page.getByRole("button", { name: "Xác nhận nhập kho" }).click();
     await expect(page.locator("#purchasePanel")).toContainText("Đã nhập kho");
     await expect(page.locator('[data-purchase-action="mark-paid"]')).toBeEnabled();
     await page.locator('[data-purchase-action="mark-paid"]').click();
     await expect(page.locator("#purchasePanel")).toContainText("Đã thanh toán");
 
-    await switchMenu(page, "procurement-planner");
-    await expectScreenTitle(page, "Xử lý nhập thiếu");
-    await expect(page.locator("#procurementExtraPanel")).toBeHidden();
+    // Issue #119: A normal user has no procurement-planner permission; prove the lock stays active via its manager API instead.
+    const statusResponse = await request.get("./api/procurement/status", {
+      headers: { Cookie: managerCookie },
+    });
+    expect(statusResponse.ok()).toBeTruthy();
+    const statusPayload = await statusResponse.json();
+    expect(statusPayload.mode).toBe("batch");
   } finally {
     if (batchStarted) {
-      await request.post("/api/procurement/batch/finish", {
+      await request.post("./api/procurement/batch/finish", {
         headers: { Cookie: managerCookie },
         data: {},
       }).catch(() => null);
     }
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         customers: restoredState.customers,
@@ -419,11 +429,11 @@ test("IT-PROC-02 non-owner sees purchase draft ordered structure locked during a
 test("IT-PROC-03 owner can add extra product rows and review mixed batch purchase in one supplier draft", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const managerCookie = await autoLoginProcurementManagerRequest(request);
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
   const restoredState = stripProcurementBatchTestPurchases(originalState);
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: managerCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: managerCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const shortageProduct = (productsPayload.products || []).find((product) => product.name === "Chả quế chay");
@@ -437,7 +447,7 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
   try {
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
 
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         suppliers: [
@@ -468,7 +478,7 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginProcurementManager(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -505,13 +515,13 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
     await expect(page.locator('#procurementReviewPanel [data-procurement-review-action="open"]')).toHaveCount(1);
   } finally {
     if (batchStarted) {
-      await request.post("/api/procurement/batch/finish", {
+      await request.post("./api/procurement/batch/finish", {
         headers: { Cookie: managerCookie },
         data: {},
       }).catch(() => null);
     }
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         customers: restoredState.customers,
@@ -528,11 +538,11 @@ test("IT-PROC-03 owner can add extra product rows and review mixed batch purchas
 test("IT-PROC-03A planner hides zero-need shortage rows and keeps mobile scroll after supplier change", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
   const managerCookie = await autoLoginProcurementManagerRequest(request);
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
   const restoredState = stripProcurementBatchTestPurchases(originalState);
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: managerCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: managerCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const zeroNeedProduct = (productsPayload.products || []).find((product) => product.name === "Bò lát xào");
@@ -545,7 +555,7 @@ test("IT-PROC-03A planner hides zero-need shortage rows and keeps mobile scroll 
   try {
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
 
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         customers: restoredState.customers,
@@ -573,7 +583,7 @@ test("IT-PROC-03A planner hides zero-need shortage rows and keeps mobile scroll 
     expect(seedResponse.ok(), JSON.stringify(seedPayload)).toBeTruthy();
 
     await page.setViewportSize({ width: 390, height: 480 });
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginProcurementManager(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -608,13 +618,13 @@ test("IT-PROC-03A planner hides zero-need shortage rows and keeps mobile scroll 
     await expect(zeroNeedRow).toContainText("Ngoài nhu cầu đơn");
   } finally {
     if (batchStarted) {
-      await request.post("/api/procurement/batch/finish", {
+      await request.post("./api/procurement/batch/finish", {
         headers: { Cookie: managerCookie },
         data: {},
       }).catch(() => null);
     }
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         customers: restoredState.customers,
@@ -635,7 +645,7 @@ test("IT-PROC-04 leaving procurement flow prompts to finish batch and offers sta
   try {
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
 
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginProcurementManager(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -685,7 +695,7 @@ test("IT-PROC-04 leaving procurement flow prompts to finish batch and offers sta
     await expect(activeLockBanner).toContainText("Kỳ gom nhập đang active lock");
     await expect(activeLockBanner).toContainText("Xử lý nhập thiếu");
 
-    const batchStatusResponse = await request.get("/api/procurement/status", {
+    const batchStatusResponse = await request.get("./api/procurement/status", {
       headers: { Cookie: managerCookie },
     });
     expect(batchStatusResponse.ok()).toBeTruthy();
@@ -709,7 +719,7 @@ test("IT-PROC-04 leaving procurement flow prompts to finish batch and offers sta
     expect(exitToast).toContain("Đã kết thúc kỳ gom nhập trước khi rời flow xử lý nhập thiếu.");
     batchStarted = false;
 
-    const statusResponse = await request.get("/api/procurement/status", {
+    const statusResponse = await request.get("./api/procurement/status", {
       headers: { Cookie: managerCookie },
     });
     expect(statusResponse.ok()).toBeTruthy();
@@ -717,7 +727,7 @@ test("IT-PROC-04 leaving procurement flow prompts to finish batch and offers sta
     expect(statusPayload.mode).toBe("daily");
   } finally {
     if (batchStarted) {
-      await request.post("/api/procurement/batch/finish", {
+      await request.post("./api/procurement/batch/finish", {
         headers: { Cookie: managerCookie },
         data: {},
       }).catch(() => null);
@@ -731,11 +741,11 @@ test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales doc
   test.setTimeout(90000);
   const runtime = attachRuntimeTracking(page);
   const managerCookie = await autoLoginProcurementManagerRequest(request);
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: managerCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
   const restoredState = stripProcurementBatchTestPurchases(originalState);
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: managerCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: managerCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const openPurchaseProductIds = new Set(
@@ -760,7 +770,7 @@ test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales doc
   try {
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
 
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         customers: restoredState.customers,
@@ -813,7 +823,7 @@ test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales doc
     const seedPayload = await seedResponse.json();
     expect(seedResponse.ok(), JSON.stringify(seedPayload)).toBeTruthy();
 
-    const startResponse = await request.post("/api/procurement/batch/start", {
+    const startResponse = await request.post("./api/procurement/batch/start", {
       headers: { Cookie: managerCookie },
       data: {},
     });
@@ -821,7 +831,7 @@ test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales doc
     expect(startResponse.ok(), JSON.stringify(startPayload)).toBeTruthy();
     batchStarted = true;
 
-    await gotoWithRetry(page, "/");
+    await gotoWithRetry(page, "/admin");
     await page.waitForLoadState("networkidle");
     await autoLoginProcurementManager(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -846,13 +856,13 @@ test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales doc
     await expect(page.locator("[data-procurement-merge-panel]")).toBeVisible();
   } finally {
     if (batchStarted) {
-      await request.post("/api/procurement/batch/finish", {
+      await request.post("./api/procurement/batch/finish", {
         headers: { Cookie: managerCookie },
         data: {},
       }).catch(() => null);
     }
     await cleanupProcurementBatchTestPurchases(request, managerCookie);
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: managerCookie },
       data: {
         customers: restoredState.customers,
@@ -865,3 +875,6 @@ test("IT-PROC-05 procurement planner blocks merging mixed purchase and sales doc
 
   expectNoRuntimeErrors(runtime);
 });
+
+
+

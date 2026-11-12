@@ -27,7 +27,18 @@ Nếu phát hiện sai sau khi chứng từ đã xử lý
 
 Nếu cần can thiệp đặc biệt
   -> Master Admin hoặc user có quyền điều chỉnh tồn khi chỉ cần sửa chênh lệch kho
+
+Nếu Master Admin phát hiện sai trên đơn đã xuất hoặc phiếu nhập đã nhận nhưng chưa thanh toán
+  -> dùng `Sửa Admin`, nhập lý do và xác nhận
+  -> backend đối soát số lượng hàng còn trong lô, ghi giao dịch điều chỉnh tồn và audit
+  -> giữ khách hàng/nhà cung cấp của chứng từ gốc; chứng từ đã thanh toán không được sửa
 ```
+
+### Danh mục công khai và nhắc đặt trước
+
+- API danh mục công khai trả ngày âm lịch Việt Nam và số ngày còn lại đến mùng 1 hoặc 15 tiếp theo, tính theo UTC+7.
+- Trang danh mục chỉ hiện lời nhắc trong 7 ngày trước mùng 1 hoặc 15 và đúng ngày đó; nội dung nêu ngày âm lịch hiện tại, ngày mục tiêu và nhắc khách đặt trước mặt hàng cần chuẩn bị. Dải nhắc được ghim khi cuộn trên điện thoại.
+- Đây là lời nhắc chung, còn thời gian đặt trước cụ thể vẫn theo ghi chú của từng sản phẩm.
 
 ## 2. Luồng tồn kho
 
@@ -53,6 +64,8 @@ Nếu cần can thiệp đặc biệt
 
 ## 3. Luồng bán hàng
 
+- Đơn do khách gửi từ web public được lưu là đơn online ở trạng thái nháp. Khi server state thay đổi, backend page tự tải state theo cơ chế đồng bộ hiện có; nếu có đơn online mới hoặc đơn nháp được khách bổ sung, header báo chuông để nhân viên vào `Đơn hàng` xử lý. Thông báo chưa xem được giữ ở trình duyệt qua lần tải lại và được xóa khi mở danh sách đơn.
+
 ### Bước 1: Mở giỏ theo khách
 
 - chọn khách có sẵn hoặc gõ tên mới
@@ -73,7 +86,7 @@ Nếu cần can thiệp đặc biệt
 - sửa giá bán riêng cho đơn
 - nhập hoặc sửa `ghi chú phiếu xuất` ở cấp toàn đơn
 - sửa địa chỉ giao riêng của đơn
-- có thể nhập thêm `giảm giá khuyến mại` cho toàn đơn; app tự tính lại số tiền cần thu
+- có thể nhập thêm `giảm giá khuyến mại` cho toàn đơn hoặc giảm giá riêng theo từng dòng sản phẩm; app tự tính lại thành tiền dòng, tạm tính, khuyến mại và số tiền cần thu
 - nếu cần, cập nhật luôn giá bán mặc định nhưng UI phải hỏi confirm trước khi áp dụng
 - trong lúc đơn còn `draft` hoặc `committed`, vẫn có thể thêm bớt dòng và chỉnh số lượng/giá; chỉ sau `completed` mới khóa nội dung
 - từ `committed` trở đi, khách hàng của đơn bị khóa và không được đổi nữa
@@ -100,6 +113,7 @@ Nếu cần can thiệp đặc biệt
 ### Bước 5: Xuất hàng
 
 - chỉ nhận đơn `committed`
+- khi bấm `Xuất hàng`, app mở modal xác nhận cho phép chọn `Ngày xuất hàng` (mặc định hôm nay YYYY-MM-DD); hệ thống gán mốc thời gian xuất này vào `completed_at` của đơn và ngày giao dịch `created_at` trong sổ kho
 - nếu đủ tồn thực tế:
   - tạo xuất kho
   - trừ kho theo FEFO từ lô có HSD sớm nhất trước
@@ -122,7 +136,7 @@ Nếu cần can thiệp đặc biệt
 - đơn `committed` vẫn cho sửa dòng hàng, địa chỉ giao, ghi chú và giảm giá; không đổi được khách, không được xóa
 - đơn `draft/committed` cùng khách vẫn có thể đi vào flow `gộp đơn`; hệ thống giữ lại một phiếu đích rồi chuyển các phiếu nguồn sang `cancelled`
 - khi gộp nhiều phiếu xuất cùng khách, phiếu đích sẽ hợp nhất `ghi chú phiếu xuất` theo danh sách duy nhất ngăn bằng ` | `
-- đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; ngoại lệ trước thanh toán là vẫn cho sửa `ghi chú phiếu xuất` và `giảm giá khuyến mại` của toàn đơn
+- đơn đã `completed` không sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao; trước thanh toán vẫn cho sửa `giảm giá khuyến mại`; riêng `ghi chú phiếu xuất` có thể sửa ở mọi trạng thái
 - nếu đơn đã `completed/paid` bị nhập nhầm, user phải tạo `Yêu cầu hủy` có lý do; quản lý/Admin duyệt xong thì app mới chuyển đơn sang `cancelled`, hoàn lại tồn theo đúng lô đã xuất và loại trừ doanh thu/giá vốn của đơn ra khỏi báo cáo
 
 ### Luồng xử lý nhanh xuất hàng
@@ -196,7 +210,7 @@ Nếu cần can thiệp đặc biệt
 - sửa số lượng, giá nhập, mã lô và HSD của từng dòng; mặc định nhập trực tiếp HSD, hoặc có thể chuyển sang nhập gián tiếp bằng `Ngày sản xuất` để app tự tính HSD theo thời gian bảo quản
 - nếu cùng một sản phẩm về nhiều lô khác nhau thì tách thành nhiều dòng riêng
 - bắt buộc có nhà cung cấp trước khi chuyển phiếu sang `ordered`
-- có thể nhập thêm `giảm giá khuyến mại` cho toàn phiếu để phản ánh số tiền thực trả NCC
+- có thể nhập thêm `giảm giá khuyến mại` cho toàn phiếu hoặc giảm giá riêng cho từng dòng sản phẩm để phản ánh số tiền thực trả NCC
 - phiếu nhập có thể được in từ lúc còn `draft` cho tới khi `paid`; ở list phiếu, nút `In` được ẩn khi phiếu đã thanh toán để giao diện gọn hơn
 - có thể đổi giá nhập mặc định nhưng UI phải hỏi confirm trước khi áp dụng
 - nếu mở luồng tạo NCC khi phiếu chưa có mặt hàng, app chỉ giữ giá trị NCC trên UI để quay lại tiếp tục nhập hàng, không lưu phiếu nháp rỗng xuống DB; nếu phiếu đang là `draft` và đã có NCC thì bấm nút `NCC` vẫn phải cho chọn NCC khác
@@ -224,14 +238,14 @@ ordered -> cancelled
 - các metadata legacy khác như thiếu `paid_at`, thiếu `received_at` raw DB, hoặc thiếu `source_code` của phiếu nhập sinh ra từ đơn thiếu hàng phải đi qua khối `Legacy Audit` ở `Master Admin`
 - `Legacy Audit` chỉ auto-fix các mốc thời gian chắc chắn; các thao tác gắn `receipt_code` hoặc `đơn nguồn` luôn cần admin xác nhận thủ công
 - chỉ `received` mới được `paid`
-- `received` chỉ còn cho sửa `ghi chú`, `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem hoàn toàn
+- `received` chỉ còn cho sửa `giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; riêng `ghi chú` có thể sửa ở mọi trạng thái; từ `paid` / `cancelled` trở đi chuyển sang chỉ xem đối với các field còn lại
 - nếu phiếu `received/paid` bị nhập nhầm, user phải tạo `Yêu cầu hủy` có lý do; chỉ quản lý/Admin mới được duyệt, và khi duyệt app sẽ rút lại đúng lượng đã nhập từ lô gốc nếu chưa bị dùng mất, đồng thời loại chi phí mua của phiếu ra khỏi báo cáo
 - với user mới, các phiếu `received/paid` còn được gom thêm ở màn `payments` để nhìn nhóm phiếu cần trả tiền riêng
 - từ phiếu `received/paid`, có thể bấm `Nhập lại` để tạo nhanh một phiếu nháp mới cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có để không tạo draft thứ hai
 - khi `Nhập lại`, app chỉ sao chép nội dung đặt hàng; metadata lô như `batchCode`, `expiryDate`, `manufactureDate` phải reset về trống để nhập lại theo lô mới
 - flow `gộp đơn` phiếu nhập giữ lại một phiếu đích, dồn tất cả dòng hàng và giảm giá vào phiếu đó, hợp nhất `ghi chú` theo danh sách duy nhất ngăn bằng ` | `, rồi chuyển các phiếu nguồn sang `cancelled`
 - khi Batch procurement mode đang bật, chỉ người giữ khóa batch hoặc `Master Admin` mới được tạo mới, sửa cấu trúc, đổi NCC, đổi giảm giá, hủy hoặc xóa phiếu `draft/ordered`; user khác chỉ được đi tiếp `ordered -> received` nếu phiếu không phải batch và đã `ordered` trước lúc lock hiện tại được acquire, rồi mới đi tiếp `received -> paid`
-- trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận
+- trước mọi thao tác đổi trạng thái hoặc xóa hẳn chứng từ nháp như `draft -> completed`, `draft -> ordered`, `ordered -> received`, `received -> paid`, chuyển sang `cancelled` hoặc xóa phiếu được phép xóa, UI phải hiện message confirm trước khi ghi nhận; riêng thao tác `ordered -> received` (Nhập kho) và `committed -> completed` (Xuất hàng) sẽ mở modal xác nhận kèm input chọn ngày (mặc định hôm nay YYYY-MM-DD) để lưu chính xác ngày nhập/xuất kho thực tế
 
 ### Luồng xử lý nhanh nhập hàng
 
@@ -252,7 +266,9 @@ ordered -> cancelled
 - audit/history phải ghi rõ `Tạo bằng Xử lý nhanh nhập hàng`, người thực hiện, thời gian thực hiện và các bước tự động đã chạy
 - sau khi lưu thành công, card hiển thị summary `mã phiếu / số mặt hàng / tổng tiền / trạng thái / thanh toán` cùng CTA `Tiếp tục nhập nhanh / Xem phiếu / Về danh sách`
 - shortcut hiện có trong card:
-  - `Lấy từ phiếu đang mở`
+  - `Lấy từ phiếu đang mở`:
+    - Nếu phiếu đang mở là `draft` hoặc `ordered`: tải toàn bộ thông tin (NCC, ngày, giảm giá, các dòng hàng kèm đơn vị quy đổi, lô/HSD) vào xử lý nhanh và liên kết để cập nhật vào phiếu này. Trên giao diện hiển thị banner thông tin phiếu kèm nút `Nhập thành phiếu mới` để người dùng có thể tách độc lập nếu muốn.
+    - Nếu phiếu đang mở đã là `received`, `paid` hoặc `cancelled`: hỏi xác nhận người dùng để tạo bản sao mới độc lập (clone) nhằm nhập tiếp đợt hàng mới mà không làm thay đổi phiếu cũ.
   - `Thêm hàng mới`
 
 ## 4A. Luồng quản lý thanh toán đơn giản
@@ -349,10 +365,80 @@ ordered -> cancelled
 ### Sản phẩm
 
 - thêm mới
+- cấu hình Đơn vị cơ sở (`base_unit`), Đơn vị nhập mặc định (`default_purchase_unit`), Đơn vị bán mặc định (`default_sale_unit`)
+- cấu hình bảng Quy đổi đơn vị (`product_unit_conversion`) cho từng sản phẩm
+- Đơn public và đơn xuất mặc định ghi số lượng, đơn vị, giá theo `default_sale_unit`; phiếu nhập mặc định dùng `default_purchase_unit`. Cả hai vẫn quy lượng tồn về `base_unit`.
 - sửa giá nhập / giá bán mặc định
 - soft delete khi ngừng bán
 - xem audit lịch sử sản phẩm
 - khai báo hạn dùng / thời gian bảo quản theo ngày để làm fallback khi lô chưa có HSD thật
+
+### 7A. Luồng quy đổi đa đơn vị tính (Multi-Unit Conversion)
+
+- **Nguyên tắc Base Unit**:
+  - Mỗi sản phẩm có một `Đơn vị cơ sở` (Base Unit) cố định (ví dụ: `hũ`, `gói`, `lạng`...).
+  - Mọi biến động kho, số lượng tồn kho vật lý và sổ kho (Ledger) luôn luôn được tính toán và lưu trữ theo Đơn vị cơ sở.
+- **Quy đổi linh hoạt theo từng sản phẩm**:
+  - Không dùng tỷ lệ quy đổi chung cho toàn hệ thống vì mỗi loại thực phẩm có quy cách đóng gói khác nhau (vd: 1 thùng = 12 hũ đối với Nấm kho, nhưng 1 thùng = 24 lon đối với Nước sâm).
+  - Từng sản phẩm có thể định nghĩa nhiều đơn vị quy đổi (`from_unit`) với hệ số quy đổi ra đơn vị cơ sở (`conversion_factor`) kèm giá bán và giá nhập riêng biệt.
+- **Bảo toàn số lượng khi đổi đơn vị trên giao diện**:
+  - Khi người dùng đổi đơn vị tính trong giỏ hàng hoặc phiếu nhập:
+    $$\text{base\_quantity} = \text{old\_quantity} \times \text{old\_factor}$$
+    $$\text{new\_quantity} = \text{round}\left(\frac{\text{base\_quantity}}{\text{new\_factor}}, 4\right)$$
+  - Issue 133: `old_factor` là hệ số đang dùng trong editor, không lấy lại hệ số của lần lưu trước. Lượng cơ sở được giữ riêng trong suốt lượt đổi đơn vị; số hiển thị làm tròn 4 chữ số không được dùng để tính nối tiếp gây tích lũy sai số. Nếu làm tròn thành 0 thì giữ số dương chưa làm tròn. Khi sửa ô số lượng, lượng cơ sở được tính lại theo đơn vị hiện hành.
+  - Lưu dòng đơn xuất `draft/committed` dùng `POST /api/carts/item`, chỉ ghi dòng thuộc đúng đơn được chỉ định; không dùng thay thế toàn collection `carts`. Server kiểm tra số lượng/giá hữu hạn, hệ số thuộc cấu hình sản phẩm hoặc snapshot của dòng, lượng cơ sở khớp số hiển thị theo độ chính xác 4 chữ số.
+  - Một transaction khóa ghi, kiểm tra trạng thái/phiên bản đơn, UPDATE một dòng + thời điểm cập nhật đơn, ghi audit và làm mới cache sync. Không đổi trạng thái, khách hàng, các dòng khác hoặc tồn kho/ledger. Đơn đã chốt vẫn được sửa dòng theo rule hiện có; xuất hàng vẫn kiểm tra tồn qua API trạng thái.
+  - Xung đột dùng `updatedAt` của đúng đơn, tôn trọng `EnableMultiuserConflictCheck`; đơn khác thay đổi không làm vô hiệu phiên bản này. Đơn `completed/cancelled` bị từ chối ở API lưu dòng; quyền sửa Admin vẫn đi qua luồng bypass riêng.
+  - Khi chuẩn hóa collection phục vụ UI, giữ nguyên header và dòng của đơn đã khóa, kể cả tên khách trống hoặc dòng số lượng 0 trong dữ liệu cũ.
+  - Khi lưu dòng, giữ lượng cơ sở cùng snapshot đơn vị; tải lại trang vẫn chọn đúng đơn vị và đổi về đơn vị cũ được.
+  - Đơn giá tự động được điền theo bảng giá của đơn vị mới được chọn.
+  - `line_total = input_quantity × unit_price/unit_cost`: tiền dùng số lượng và giá của đơn vị đang chọn; nhập/xuất tồn dùng `quantity = input_quantity × conversion_factor` theo đơn vị cơ sở.
+- **Bảo toàn lịch sử chứng từ (Snapshotting)**:
+  - Trên từng dòng chi tiết của đơn hàng (`cart_items`), phiếu nhập (`purchase_items`) và phiếu kho (`inventory_receipt_items`), hệ thống lưu snapshot:
+    - `input_quantity`: Số lượng theo đơn vị người dùng nhập.
+    - `input_unit`: Tên đơn vị người dùng đã chọn tại thời điểm thao tác.
+    - `conversion_factor`: Hệ số quy đổi tại thời điểm tạo/chốt dòng hàng.
+    - `unit_price` / `unit_cost`: Đơn giá tại thời điểm tạo dòng hàng.
+  - Khi danh mục sản phẩm sau này có thay đổi tỉ lệ quy đổi (ví dụ nhà sản xuất đổi quy cách 1 thùng từ 12 lên 14), các chứng từ đã phát sinh trong quá khứ vẫn giữ nguyên giá trị lịch sử và số lượng tồn kho đã trừ/cộng.
+
+### 7B. Luồng chuyển đổi đơn vị cơ sở sản phẩm (Change Base Unit)
+
+- **Quyền hạn**: Chỉ Master Admin (hoặc người dùng có quyền quản trị) mới được phép thực hiện chuyển đổi đơn vị cơ sở.
+- **Mục tiêu nghiệp vụ**:
+  - Cho phép điều chỉnh đơn vị cơ sở (Base Unit) của sản phẩm từ một đơn vị này sang đơn vị khác (ví dụ: `gói/hộp/cái` $\rightarrow$ `lạng/kg` hoặc ngược lại) ngay cả khi sản phẩm đã phát sinh giao dịch xuất/nhập/tồn kho.
+  - Bảo toàn 100% giá trị tồn kho, tính toàn vẹn của sổ cái, số liệu các lô hàng và các đơn/phiếu đang mở.
+- **Công thức chuyển đổi toán học**:
+  - Tỷ lệ chuyển đổi: $1\ \text{đơn vị cũ} = K\ \text{đơn vị mới}$ (với $K > 0$).
+  - Giá nhập chuẩn mới: $\text{price}_{\text{new}} = \text{round}\left(\frac{\text{price}_{\text{old}}}{K}, 4\right)$
+  - Giá bán chuẩn mới: $\text{sale\_price}_{\text{new}} = \text{round}\left(\frac{\text{sale\_price}_{\text{old}}}{K}, 4\right)$
+  - Ngưỡng tồn cảnh báo mới: $\text{threshold}_{\text{new}} = \text{round}(\text{threshold}_{\text{old}} \times K, 4)$
+  - Biến động sổ kho (`transactions`): $\text{quantity} = \text{round}(\text{quantity} \times K, 4)$
+  - Lô hàng tồn kho (`inventory_batches`):
+    - $\text{initial\_quantity} = \text{round}(\text{initial\_quantity} \times K, 4)$
+    - $\text{remaining\_quantity} = \text{round}(\text{remaining\_quantity} \times K, 4)$
+    - $\text{unit\_cost} = \text{round}\left(\frac{\text{unit\_cost}}{K}, 4\right)$
+    - Tổng giá trị lô hàng $\text{valuation} = \text{remaining\_quantity} \times \text{unit\_cost}$ được bảo toàn.
+  - Phân bổ lô (`inventory_batch_allocations`): $\text{quantity} = \text{round}(\text{quantity} \times K, 4)$
+  - Chi tiết phiếu kho (`inventory_receipt_items`):
+    - $\text{quantity} = \text{round}(\text{quantity} \times K, 4)$
+    - $\text{unit\_amount} = \text{round}\left(\frac{\text{unit\_amount}}{K}, 4\right)$
+    - $\text{stock\_after} = \text{round}(\text{stock\_after} \times K, 4)$
+    - $\text{conversion\_factor} = \text{round}(\text{conversion\_factor} \times K, 4)$
+  - Giỏ hàng chờ xuất (`cart_items` thuộc đơn `draft/committed`):
+    - $\text{quantity} = \text{round}(\text{quantity} \times K, 4)$
+    - $\text{conversion\_factor} = \text{round}(\text{conversion\_factor} \times K, 4)$
+    - Nếu dòng hàng trước đây nhập theo đơn vị cơ sở cũ mà chưa lưu `input_unit`, tự động fallback sang tên đơn vị cũ để không làm biến dạng số lượng nhập của người dùng.
+  - Phiếu nhập chờ (`purchase_items` thuộc phiếu `draft/ordered`):
+    - Tương tự giỏ hàng chờ: $\text{quantity} = \text{round}(\text{quantity} \times K, 4)$, $\text{conversion\_factor} = \text{round}(\text{conversion\_factor} \times K, 4)$, fallback `input_unit`.
+  - Phân bổ gom hàng (`procurement_assignments`): $\text{assigned\_quantity} = \text{round}(\text{assigned\_quantity} \times K, 4)$
+  - Bảng quy đổi đơn vị phụ (`product_unit_conversion`):
+    - Các đơn vị phụ khác hiện có: $\text{conversion\_factor}_{\text{new}} = \text{round}(\text{conversion\_factor}_{\text{old}} \times K, 4)$
+    - Nếu đơn vị phụ trùng với đơn vị mới: tắt kích hoạt (`is_active = 0`).
+    - Nếu chọn `add_old_unit_to_conversions`: thêm hoặc kích hoạt lại đơn vị cũ thành đơn vị quy đổi phụ với hệ số $K$.
+- **Tính nguyên tử và Audit**:
+  - Toàn bộ quá trình chuyển đổi thực thi trong một Database Transaction duy nhất.
+  - Tự động làm mới cache đồng bộ đa máy (`_refresh_sync_collection_cache` cho `carts` và `purchases`).
+  - Ghi vết hành động vào Audit Log hệ thống với action `change_base_unit`.
 
 ### Khách hàng
 
@@ -395,6 +481,8 @@ ordered -> cancelled
   - export/import master data
   - backup database
   - restore database
+  - cấu hình SMTP runtime được tải và chỉnh sửa từ màn Master Admin; màn hình ghi rõ môi trường, cho tải lại cấu hình và báo lỗi đăng nhập/quyền nếu API từ chối; khi lưu, mật khẩu để trống sẽ giữ mật khẩu hiện có, mật khẩu mới sẽ thay giá trị cũ, API không trả password
+  - test gửi email tới danh sách người nhận đã lưu; thao tác chỉ dành cho Master Admin, xác nhận trước khi gửi, không tạo dữ liệu nghiệp vụ; màn hình thể hiện thời điểm, môi trường, máy chủ, người gửi/nhận và kết quả SMTP
 
 ## 11. Rule business cốt lõi
 

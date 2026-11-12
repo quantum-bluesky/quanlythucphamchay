@@ -113,20 +113,29 @@ export function createSyncRuntimeHelpers(deps) {
     );
   }
 
-  function shouldAutoRefresh() {
+  // #Issue173: Thêm throttle tối thiểu giữa các lần check cập nhật ngầm để tránh spam request dồn dập
+  const REMOTE_CHECK_THROTTLE_MS = 3500;
+  let lastRemoteCheckAt = 0;
+
+  function shouldAutoRefresh(options = {}) {
+    const { force = false } = options;
     if (state.admin?.enableLogin && !state.admin?.authenticated) return false;
     if (document.hidden || getIsRefreshingState() || getAutoRefreshInFlight() || getPersistScheduled() || pendingPersistCollections.size) return false;
     if (hasInteractiveInputFocus()) return false;
+    if (!force && Date.now() - lastRemoteCheckAt < REMOTE_CHECK_THROTTLE_MS) return false;
     return true;
   }
 
-  async function checkForRemoteUpdates() {
-    if (!shouldAutoRefresh()) return false;
+  async function checkForRemoteUpdates(options = {}) {
+    if (!shouldAutoRefresh(options)) return false;
     setAutoRefreshInFlight(true);
+    lastRemoteCheckAt = Date.now();
     try {
       const runtimeVersion = await apiRequest("/api/runtime-version", {
         sessionActivity: "passive",
       });
+      // #Issue173: Sau khi check thành công, reset lại timer 8s để chu kỳ mới bắt đầu từ thời điểm này, tránh bị dồn request sát nhau
+      startAutoRefreshLoop();
       if (!getLatestRuntimeVersion()) {
         setLatestRuntimeVersion(normalizeRuntimeVersion(runtimeVersion));
         return false;
@@ -292,7 +301,12 @@ export function createSyncRuntimeHelpers(deps) {
           try { await refreshData(); } catch {}
           return;
         }
-        showToast(`Lưu đồng bộ thất bại: ${error.message}`, true);
+        const isDesync = error?.message && error.message.includes("purchase_already_received_desync:");
+        if (isDesync) {
+          showToast("Phiếu nhập này đã được xử lý. Dữ liệu vừa tự tải lại. Vui lòng kiểm tra lại.", true);
+        } else {
+          showToast(`Lưu đồng bộ thất bại: ${error?.message || "Lỗi không xác định"}`, true);
+        }
         try { await refreshData(); } catch {}
       } finally {
         releaseQueuedPersistBusyLock();

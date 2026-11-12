@@ -1,3 +1,4 @@
+import * as utils from "../utils.js";
 export function createSalesUi(deps) {
   const {
     state,
@@ -49,13 +50,7 @@ export function createSalesUi(deps) {
   }
 
   function canEditCartNote(cart) {
-    return Boolean(
-      cart && (
-        cart.status === "draft"
-        || cart.status === "committed"
-        || (cart.status === "completed" && cart.paymentStatus !== "paid")
-      )
-    );
+    return Boolean(cart);
   }
 
   function canPrintCartDocument(cart) {
@@ -252,6 +247,8 @@ export function createSalesUi(deps) {
       noteActionAttribute = "",
       itemsCollapsed = false,
       itemToggleActionAttribute = "",
+      detailCollapsed = false,
+      detailToggleActionAttribute = "",
     } = options;
     const statusMeta = getCartStatusMeta(cart);
     const detailRows = getCartDetailRows(cart);
@@ -262,6 +259,8 @@ export function createSalesUi(deps) {
             ${itemToggleActionAttribute ? `<div class="detail-toggle-row"><strong>Mặt hàng trong đơn</strong><button type="button" class="ghost-button compact-button" ${itemToggleActionAttribute}>${itemsCollapsed ? "Mở mặt hàng" : "Thu gọn mặt hàng"}</button></div>` : ""}
             <div class="document-detail-items">${cart.items.map((item) => {
               const product = getProductById(item.productId);
+              const factor = Number(item.conversionFactor ?? item.conversion_factor ?? 1) || 1;
+              const convertedPurchasePrice = (product?.price ?? 0) * factor;
               const linePriceAlerts = getPriceWarningAlerts({
                 purchasePrice: product?.price ?? 0,
                 salePrice: item.unitPrice,
@@ -273,8 +272,9 @@ export function createSalesUi(deps) {
                 <strong>${escapeHtml(formatCurrency(item.lineTotal))}</strong>
               </div>
               <div class="document-detail-item-meta">
-                <span>SL ${escapeHtml(formatQuantity(item.quantity))} ${escapeHtml(item.unit)}</span>
-                <span>Giá bán ${escapeHtml(formatCurrency(item.unitPrice))}</span>
+                <span>SL ${escapeHtml(formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity))} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)}</span>
+                <span>Giá bán ${escapeHtml(formatCurrency(item.unitPrice))}${product ? ` | Nhập ${escapeHtml(formatCurrency(convertedPurchasePrice))}` : ""}</span>
+                ${Number(item.discountAmount || item.discount_amount || 0) > 0 ? `<span>| Giảm: -${escapeHtml(formatCurrency(item.discountAmount || item.discount_amount || 0))}</span>` : ""}
                 ${renderPriceWarningMarkup(linePriceAlerts, "view")}
               </div>
             </article>
@@ -287,21 +287,28 @@ export function createSalesUi(deps) {
     const shipAddressMarkup = shipAddressActionAttribute ? renderCartShipAddressEditor(cart, shipAddressActionAttribute) : "";
     const noteMarkup = noteActionAttribute ? renderCartNoteEditor(cart, noteActionAttribute) : "";
     const discountEditorMarkup = discountActionAttribute ? renderCartDiscountEditor(cart, discountActionAttribute) : "";
-    return `
-      <div class="document-detail-block">
-        <div class="report-list document-detail-list">
+    const detailMarkup = `
+        <div class="report-list document-detail-list ${detailCollapsed ? "is-collapsed" : ""}">
           <article class="report-card">
             <div class="report-card-head">
-              <strong>Detail phiếu xuất</strong>
-              <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}</span>
+              <div>
+                <strong>Detail phiếu xuất</strong>
+                <span class="status-pill ${escapeHtml(statusMeta.statusClass)}">${escapeHtml(statusMeta.label)}</span>
+              </div>
+              ${detailToggleActionAttribute ? `<button type="button" class="secondary-button compact-button" ${detailToggleActionAttribute}>${detailCollapsed ? "Mở detail" : "Thu gọn detail"}</button>` : ""}
             </div>
-            ${detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
+            ${detailCollapsed ? "" : detailRows.map((row) => `<div class="report-card-row"><span>${escapeHtml(row.label)}</span><span>${escapeHtml(row.value)}</span></div>`).join("")}
           </article>
         </div>
+    `;
+
+    return `
+      <div class="document-detail-block">
+        ${itemsMarkup}
+        ${detailMarkup}
         ${shipAddressMarkup}
         ${noteMarkup}
         ${discountEditorMarkup}
-        ${itemsMarkup}
       </div>
     `;
   }
@@ -345,6 +352,8 @@ export function createSalesUi(deps) {
         includeItems: true,
         itemsCollapsed: state.orderDetailItemsCollapsed,
         itemToggleActionAttribute: 'data-order-detail-action="toggle-items"',
+        detailCollapsed: state.orderDetailMetaCollapsed ?? true,
+        detailToggleActionAttribute: 'data-order-detail-action="toggle-detail-meta"',
         shipAddressActionAttribute: 'data-order-detail-action="save-ship-address"',
         noteActionAttribute: 'data-order-detail-action="save-note"',
         discountActionAttribute: 'data-order-detail-action="save-discount"',
@@ -353,7 +362,7 @@ export function createSalesUi(deps) {
       ${renderCartCostWarning(selectedCart)}
       <div class="detail-panel-actions">
         ${allowOpen ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="open" data-cart-id="${selectedCart.id}">${mobileQuery.matches ? "Mở" : "Tiếp tục xử lý"}</button>` : ""}
-        ${allowPrint ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="print" data-cart-id="${selectedCart.id}">In</button>` : ""}
+        ${allowPrint ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="print" data-cart-id="${selectedCart.id}">In</button><button type="button" class="ghost-button compact-button" data-order-detail-action="copy-text" data-cart-id="${selectedCart.id}">Copy</button>` : ""}
         <button type="button" class="ghost-button compact-button" data-order-detail-action="history" data-cart-id="${selectedCart.id}">Lịch sử</button>
         ${allowRepeat ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="repeat" data-cart-id="${selectedCart.id}">Xuất lại</button>` : ""}
         ${selectedCart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-order-detail-action="commit" data-cart-id="${selectedCart.id}">Chốt đơn</button>` : ""}
@@ -361,6 +370,7 @@ export function createSalesUi(deps) {
         ${allowMarkPaid ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="mark-paid" data-cart-id="${selectedCart.id}">Đã thanh toán</button>` : ""}
         ${allowReturn ? `<button type="button" class="ghost-button compact-button" data-order-detail-action="customer-return" data-cart-id="${selectedCart.id}">Trả hàng</button>` : ""}
         ${["draft", "committed"].includes(selectedCart.status) ? `<button type="button" class="secondary-button compact-button" data-order-detail-action="cancel" data-cart-id="${selectedCart.id}">Hủy</button>` : ""}
+        ${state.admin?.isAdmin && state.admin?.enableAdminLockedEdit && selectedCart.status === "completed" && selectedCart.paymentStatus !== "paid" ? `<button type="button" class="danger-button compact-button" data-order-detail-action="admin-edit" data-cart-id="${selectedCart.id}" title="Master Admin sửa đơn bypass">Sửa Admin</button>` : ""}
         ${canDeleteCart(selectedCart) ? `<button type="button" class="danger-button compact-button" data-order-detail-action="delete" data-cart-id="${selectedCart.id}">Xóa</button>` : ""}
       </div>
       ${getCustomerReturnEditorMarkup(selectedCart)}
@@ -407,6 +417,7 @@ export function createSalesUi(deps) {
                 <div class="line-actions">
                   <button type="button" class="ghost-button compact-button" data-cart-action="merge-open-existing" data-cart-id="${cart.id}">Mở đơn này</button>
                   <button type="button" class="ghost-button compact-button" data-cart-action="merge-print-existing" data-cart-id="${cart.id}">In</button>
+                  <button type="button" class="ghost-button compact-button" data-cart-action="merge-copy-text-existing" data-cart-id="${cart.id}">Copy</button>
                 </div>
               </article>
             `;
@@ -439,19 +450,25 @@ export function createSalesUi(deps) {
     const isLockedAfterSave = Boolean(draft.lastResult);
     const isSubmitting = Boolean(draft.submitting);
     const disableEditAttr = isLockedAfterSave || isSubmitting ? "disabled" : "";
-    const totalAmount = items.reduce(
-      (sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)),
+    const subtotal = items.reduce(
+      (sum, item) => sum + Math.max(0, (Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitPrice || 0)) - Number(item.discountAmount ?? item.discount_amount ?? 0)),
       0,
     );
+    const totalAmount = Math.max(0, subtotal - Number(draft.discountAmount || 0));
     const lastResult = draft.lastResult || null;
+    const isCollapsed = Boolean(draft.panelCollapsed);
     dom.quickSalePanel.innerHTML = `
-      <div class="subheading">
+      <div class="subheading" style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div>
           <p class="panel-kicker">Xử lý nhanh</p>
           <h3>Xuất hàng 1 lần lưu</h3>
           <p class="panel-note">Dùng cho ca đã xuất xong rồi mới ghi vào app cuối ngày. Không thay flow chuẩn hiện tại.</p>
         </div>
+        <button type="button" class="ghost-button compact-button" data-quick-sale-action="toggle-panel" style="margin-top: 1rem;">
+          ${isCollapsed ? "Mở rộng" : "Thu gọn"}
+        </button>
       </div>
+      ${isCollapsed ? "" : `
       <div class="quick-doc-grid">
         <label>
           <span>Khách hàng</span>
@@ -461,20 +478,38 @@ export function createSalesUi(deps) {
           <span>Ngày xuất</span>
           <input id="quickSaleDateInput" type="date" value="${escapeHtml(String(draft.documentDate || ""))}" ${disableEditAttr}>
         </label>
+        <label>
+          <span>Giảm KM</span>
+          <input id="quickSaleDiscountInput" type="number" min="0" step="1000" placeholder="Số tiền giảm" value="${escapeHtml(String(draft.discountAmount || ""))}" ${disableEditAttr}>
+        </label>
         <label class="quick-doc-note">
           <span>Ghi chú</span>
           <input id="quickSaleNoteInput" type="text" maxlength="160" placeholder="Ví dụ: Ghi cuối ngày, khách đã nhận đủ" value="${escapeHtml(String(draft.note || ""))}" ${disableEditAttr}>
         </label>
       </div>
       <div class="quick-doc-shortcuts">
-        <button type="button" class="ghost-button compact-button" data-quick-sale-action="use-active-cart" ${disableEditAttr}>Lấy từ đơn đang mở</button>
-        <button type="button" class="ghost-button compact-button" data-quick-sale-action="open-products" ${disableEditAttr}>Thêm hàng mới</button>
+        <button type="button" class="ghost-button compact-button" data-quick-sale-action="use-active-cart">Lấy từ đơn đang mở</button>
+        <button type="button" class="ghost-button compact-button" data-quick-sale-action="open-products">Thêm hàng mới</button>
         ${customer?.address ? `<span class="quick-doc-hint">Địa chỉ gợi ý: ${escapeHtml(customer.address)}</span>` : ""}
       </div>
       <div class="quick-doc-line-entry" data-price-warning-group data-price-warning-mode="edit">
         <label>
           <span>Sản phẩm</span>
           <input id="quickSaleProductInput" type="text" list="productOptions" placeholder="Tìm sản phẩm để thêm nhanh" value="${escapeHtml(String(draft.productText || ""))}" ${disableEditAttr}>
+        </label>
+        <label>
+          <span>Đơn vị</span>
+          <select id="quickSaleUnitSelect" ${disableEditAttr}>
+            <option value="1" data-unit-name="${escapeHtml(draft.unitName || "")}">Đơn vị (gốc)</option>
+            ${(() => {
+              const text = String(draft.productText || "").trim();
+              if (!text) return "";
+              const normalizedText = utils.normalizeLookup(text);
+              const exactMatch = state.products.find(p => utils.normalizeLookup(p.name) === normalizedText);
+              if (!exactMatch) return "";
+              return (exactMatch.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${escapeHtml(conv.from_unit)}" ${draft.conversionFactor == conv.conversion_factor ? "selected" : ""}>${escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("");
+            })()}
+          </select>
         </label>
         <label>
           <span>SL</span>
@@ -484,6 +519,10 @@ export function createSalesUi(deps) {
           <span>Giá bán</span>
           <input id="quickSaleUnitPriceInput" type="number" min="0" step="1000" value="${escapeHtml(String(draft.unitPrice || ""))}" data-price-warning-input="sale" ${disableEditAttr}>
         </label>
+        <label>
+          <span>Giảm dòng</span>
+          <input id="quickSaleLineDiscountInput" type="number" min="0" step="1000" placeholder="0" value="${escapeHtml(String(draft.lineDiscount || ""))}" ${disableEditAttr}>
+        </label>
         <div class="quick-doc-line-actions">
           <button type="button" class="primary-button" data-quick-sale-action="add-item" ${disableEditAttr}>+ Thêm hàng</button>
         </div>
@@ -492,16 +531,16 @@ export function createSalesUi(deps) {
         ${items.length ? items.map((item, index) => {
           const product = getProductById(item.productId);
           const currentStock = Number(product?.current_stock || 0);
-          const quantity = Number(item.quantity || 0);
+          const quantity = Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0);
           const isOver = quantity > currentStock;
           return `
             <article class="quick-doc-item ${isOver ? "is-warning" : ""}">
               <div>
                 <strong>${escapeHtml(item.productName || product?.name || `SP #${item.productId}`)}</strong>
-                <div class="cart-line-note">SL ${escapeHtml(formatQuantity(quantity))} • Giá ${escapeHtml(formatCurrency(item.unitPrice || 0))} • Tồn hiện tại ${escapeHtml(formatQuantity(currentStock))}</div>
+                <div class="cart-line-note">SL ${escapeHtml(formatQuantity(quantity))} • Giá ${escapeHtml(formatCurrency(item.unitPrice || 0))}${Number(item.discountAmount || item.discount_amount || 0) > 0 ? ` • Giảm: -${escapeHtml(formatCurrency(item.discountAmount || item.discount_amount || 0))}` : ""} • Tồn hiện tại ${escapeHtml(formatQuantity(currentStock))}</div>
               </div>
               <div class="quick-doc-item-actions">
-                <strong>${escapeHtml(formatCurrency(quantity * Number(item.unitPrice || 0)))}</strong>
+                <strong>${escapeHtml(formatCurrency(Math.max(0, quantity * Number(item.unitPrice || 0) - Number(item.discountAmount || item.discount_amount || 0))))}</strong>
                 <button type="button" class="ghost-button compact-button" data-quick-sale-action="remove-item" data-item-index="${index}" ${disableEditAttr}>Bỏ</button>
               </div>
             </article>
@@ -537,10 +576,15 @@ export function createSalesUi(deps) {
           </div>
         </article>
       ` : ""}
+      `}
     `;
   }
 
   function renderActiveCartPanel() {
+    // #Issue133: Move the existing line editor, preserving its references and event handlers on rerender.
+    if (dom.selectedCartSection && dom.activeCartPanel.contains(dom.selectedCartSection)) {
+      dom.activeCartPanel.after(dom.selectedCartSection);
+    }
     const compact = mobileQuery.matches;
     const cart = getActiveCart();
     if (!cart) {
@@ -553,9 +597,11 @@ export function createSalesUi(deps) {
     }
     const statusMeta = getCartStatusMeta(cart);
     const canPrint = canPrintCartDocument(cart);
-    const noteText = cart.status === "committed"
-      ? "Đơn đã chốt: khóa khách hàng, vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới khi xuất. Nếu cần làm đơn khác riêng hẳn, bấm `Tạo đơn mới`."
-      : "Đơn nháp: có thể chọn khách, sửa dòng hàng, địa chỉ giao và giảm giá trước khi chốt. Nếu không muốn dùng lại đơn cũ, bấm `Tạo đơn mới`.";
+    const noteText = cart._adminEditMode
+      ? "Chế độ Master Admin sửa đơn đã xuất: Có thể thêm, bỏ, thay mặt hàng và sửa số lượng, giá. Khách hàng của đơn không đổi được."
+      : cart.status === "committed"
+        ? "Đơn đã chốt: khóa khách hàng, vẫn cho sửa địa chỉ giao, dòng hàng và giảm giá cho tới khi xuất. Nếu cần làm đơn khác riêng hẳn, bấm `Tạo đơn mới`."
+        : "Đơn nháp: có thể chọn khách, sửa dòng hàng, địa chỉ giao và giảm giá trước khi chốt. Nếu không muốn dùng lại đơn cũ, bấm `Tạo đơn mới`.";
     if (state.activeCartPanelCollapsed) {
       dom.activeCartPanel.innerHTML = `
         <article class="active-cart-card is-collapsed">
@@ -576,7 +622,6 @@ export function createSalesUi(deps) {
       return;
     }
 
-    const detailButtonLabel = state.activeCartDetailExpanded ? (compact ? "Ẩn detail" : "Thu gọn detail") : "Detail";
     const shipAddressMarkup = renderCartShipAddressEditor(cart, 'data-cart-action="save-ship-address"');
     const noteMarkup = renderCartNoteEditor(cart, 'data-cart-action="save-note"');
     const discountMarkup = renderCartDiscountEditor(cart, 'data-cart-action="save-discount"');
@@ -601,42 +646,49 @@ export function createSalesUi(deps) {
         </div>
         ${renderCartMergePreview(cart)}
         ${renderCartCostWarning(cart)}
-        ${state.activeCartDetailExpanded ? renderCartDocumentDetail(cart, {
+        ${renderCartDocumentDetail(cart, {
           shipAddressActionAttribute: 'data-cart-action="save-ship-address"',
           noteActionAttribute: 'data-cart-action="save-note"',
           discountActionAttribute: 'data-cart-action="save-discount"',
-        }) : `${shipAddressMarkup}${noteMarkup}${discountMarkup}`}
+          detailCollapsed: !state.activeCartDetailExpanded,
+          detailToggleActionAttribute: 'data-cart-action="toggle-detail"',
+        })}
+        <div data-cart-lines-host></div>
         <div class="cart-toolbar">
           <button type="button" class="ghost-button" data-cart-action="create-new">Tạo đơn mới</button>
-          <button type="button" class="ghost-button" data-cart-action="toggle-detail">${detailButtonLabel}</button>
-          ${canPrint ? `<button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In phiếu"}</button>` : ""}
-          ${cart.status === "draft"
-            ? `<button type="button" class="primary-button" data-cart-action="commit" ${cart.itemCount ? "" : "disabled"}>${compact ? "Chốt" : "Chốt đơn"}</button>`
-            : `<button type="button" class="primary-button" data-cart-action="ship" ${cart.itemCount ? "" : "disabled"}>${compact ? "Xuất" : "Xuất hàng"}</button>`}
+          ${canPrint ? `<button type="button" class="ghost-button" data-cart-action="print">${compact ? "In" : "In phiếu"}</button><button type="button" class="ghost-button" data-cart-action="copy-text">${compact ? "Copy" : "Copy text"}</button>` : ""}
+          ${cart._adminEditMode
+            ? `<button type="button" class="primary-button" data-cart-action="admin-bypass-save" ${cart.itemCount ? "" : "disabled"}>Lưu (Admin Bypass)</button>`
+            : cart.status === "draft"
+              ? `<button type="button" class="primary-button" data-cart-action="commit" ${cart.itemCount ? "" : "disabled"}>${compact ? "Chốt" : "Chốt đơn"}</button>`
+              : `<button type="button" class="primary-button" data-cart-action="ship" ${cart.itemCount ? "" : "disabled"}>${compact ? "Xuất" : "Xuất hàng"}</button>`}
           <button type="button" class="secondary-button" data-cart-action="cancel">${compact ? "Hủy" : "Hủy đơn"}</button>
           ${canDeleteCart(cart) ? `<button type="button" class="danger-button" data-cart-action="delete">${compact ? "Xóa" : "Xóa giỏ"}</button>` : ""}
         </div>
       </article>
     `;
+    dom.activeCartPanel.querySelector("[data-cart-lines-host]")?.append(dom.selectedCartSection);
   }
 
   function renderSalesProductList() {
     const activeCart = getActiveCart();
     const selectedProductIds = new Set((activeCart?.items || []).map((item) => Number(item.productId)));
     const filtered = state.products.filter((product) => {
-      const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
+      const text = utils.normalizeText(`${product.name} ${product.category} ${product.unit}`);
       const isSelected = selectedProductIds.has(Number(product.id));
       const isExpandedSelected = isSelected && state.expandedSalesProductId === Number(product.id);
       const keepVisibleSelected = isSelected && state.visibleSelectedSalesProductId === Number(product.id);
-      return text.includes(state.salesSearchTerm.toLowerCase()) && (!isSelected || isExpandedSelected || keepVisibleSelected);
+      return text.includes(utils.normalizeText(state.salesSearchTerm)) && (!isSelected || isExpandedSelected || keepVisibleSelected);
     });
     dom.salesProductList.classList.toggle("is-compact-search", isSearchResultMode("salesProducts"));
 
     const notice = !activeCart
       ? '<article class="inline-alert warning">Chưa mở đơn hàng. Hãy chọn khách và bấm "Mở giỏ hàng" trước khi chọn sản phẩm.</article>'
-      : activeCart.status === "committed"
-        ? '<article class="inline-alert warning">Đơn đã chốt: không đổi được khách hàng, nhưng vẫn có thể điều chỉnh dòng hàng cho tới khi xuất.</article>'
-        : "";
+        : activeCart._adminEditMode
+        ? '<article class="inline-alert warning">Chế độ Master Admin sửa đơn đã xuất: Có thể thêm, bỏ, thay mặt hàng và sửa số lượng, giá. Khách hàng của đơn không đổi được.</article>'
+        : activeCart.status === "committed"
+          ? '<article class="inline-alert warning">Đơn đã chốt: không đổi được khách hàng, nhưng vẫn có thể điều chỉnh dòng hàng cho tới khi xuất.</article>'
+          : "";
     if (!filtered.length) {
       dom.salesProductList.innerHTML = `${notice}<div class="empty-state">${activeCart?.items?.length ? "Các mặt hàng đang khớp đã được chuyển lên phần giỏ hiện hành phía trên; chỉ dòng đang thao tác bằng nút ... mới được giữ lại ở danh sách dưới." : "Không có mặt hàng phù hợp."}</div>`;
       return;
@@ -671,7 +723,7 @@ export function createSalesUi(deps) {
               <button type="button" class="ghost-button compact-button" data-sales-inline-action="toggle-detail" data-product-id="${product.id}">...</button>
             </div>
             ${expandedInline ? (inCart
-              ? `<div class="sales-inline-detail" data-price-warning-group data-price-warning-mode="edit" data-price-warning-purchase="${escapeHtml(product.price)}"><div class="sales-inline-editor"><label class="sales-inline-qty"><span>SL</span><input type="number" min="0.01" step="0.01" value="${cartItem.quantity}" data-sales-inline-qty="${cartItem.id}"></label></div><label class="price-field" data-price-warning-field="sale"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${cartItem.unitPrice}" data-sales-inline-price="${cartItem.id}" data-price-warning-input="sale"></label><div class="line-actions"><button type="button" class="ghost-button compact-button" data-sales-inline-action="save" data-item-id="${cartItem.id}">Lưu</button><button type="button" class="ghost-button compact-button" data-sales-inline-action="update-default-price" data-product-id="${product.id}" data-item-id="${cartItem.id}">Giá chung</button></div></div><div data-price-warning-host>${renderPriceWarningMarkup(productPriceAlerts, "edit")}</div>`
+              ? `<div class="sales-inline-detail" data-price-warning-group data-price-warning-mode="edit" data-price-warning-purchase="${escapeHtml(product.price)}"><div class="sales-inline-editor">  <label class="sales-inline-unit">    <span>Đơn vị</span>    <select data-sales-inline-unit="${cartItem.id}">      <option value="1" data-unit-name="${escapeHtml(product.unit)}" ${(!cartItem.conversionFactor || cartItem.conversionFactor == 1) ? "selected" : ""}>${escapeHtml(product.unit)} (gốc)</option>      ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${escapeHtml(conv.from_unit)}" ${cartItem.conversionFactor == conv.conversion_factor ? "selected" : ""}>${escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}    </select>  </label>  <label class="sales-inline-qty">    <span>SL</span>    <input type="number" min="0.01" step="0.01" value="${cartItem.inputQuantity || cartItem.quantity}" data-sales-inline-qty="${cartItem.id}">  </label></div><label class="price-field" data-price-warning-field="sale"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${cartItem.unitPrice}" data-sales-inline-price="${cartItem.id}" data-price-warning-input="sale"></label><div class="line-actions"><button type="button" class="ghost-button compact-button" data-sales-inline-action="save" data-item-id="${cartItem.id}">Lưu</button><button type="button" class="ghost-button compact-button" data-sales-inline-action="update-default-price" data-product-id="${product.id}" data-item-id="${cartItem.id}">Giá chung</button></div></div><div data-price-warning-host>${renderPriceWarningMarkup(productPriceAlerts, "edit")}</div>`
               : `<div class="sales-inline-detail"><div class="cart-line-note">Tick chọn sản phẩm để đưa vào đơn, sau đó nhập số lượng và giá bán chi tiết tại đây.</div></div>`)
             : ""}
           </article>
@@ -699,6 +751,8 @@ export function createSalesUi(deps) {
     dom.cartItemsList.innerHTML = cart.items
       .map((item) => {
         const product = getProductById(item.productId);
+        const factor = Number(item.conversionFactor ?? item.conversion_factor ?? 1) || 1;
+        const convertedPurchasePrice = (product?.price ?? 0) * factor;
         const linePriceAlerts = getPriceWarningAlerts({
           purchasePrice: product?.price ?? 0,
           salePrice: item.unitPrice,
@@ -709,24 +763,32 @@ export function createSalesUi(deps) {
             <div class="cart-item-header cart-item-header-compact">
               <div class="cart-item-primary">
                 <strong class="cart-item-name">${escapeHtml(item.productName)}</strong>
-                <div class="cart-line-note">SL ${formatQuantity(item.quantity)} ${escapeHtml(item.unit)} | Giá bán ${formatCurrency(item.unitPrice)} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
+                <div class="cart-line-note">SL ${formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity)} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)} | Giá bán ${formatCurrency(item.unitPrice)}${product ? ` | Nhập ${formatCurrency(convertedPurchasePrice)}` : ""}${Number(item.discountAmount || item.discount_amount || 0) > 0 ? ` | Giảm: -${formatCurrency(item.discountAmount || item.discount_amount || 0)}` : ""} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
               </div>
               <div class="cart-item-summary">
                 <strong>${escapeHtml(formatCurrency(item.lineTotal))}</strong>
                 <button type="button" class="ghost-button compact-button" data-cart-item-action="toggle-detail" data-item-id="${item.id}">...</button>
               </div>
             </div>
-            <div class="cart-line-note cart-item-collapsed-meta">Tồn kho hiện tại ${formatQuantity(product?.current_stock || 0)} ${escapeHtml(item.unit)}</div>
+            <div class="cart-line-note cart-item-collapsed-meta">Tồn kho hiện tại ${formatQuantity(product?.current_stock || 0)} ${escapeHtml(product?.unit || item.unit)}</div>
             ${expandedItem ? `<div class="cart-item-controls" data-price-warning-group data-price-warning-mode="edit" data-price-warning-purchase="${escapeHtml(product?.price ?? 0)}">
               <div class="cart-item-edit-grid">
-                <label class="price-field"><span>Số lượng</span><input class="qty-input" type="number" min="0.01" step="0.01" value="${item.quantity}" data-qty-input="${item.id}"></label>
+                <label class="price-field"><span>Số lượng</span><input class="qty-input" type="number" min="0.01" step="0.01" value="${(item.inputQuantity ?? item.input_quantity) || item.quantity}" data-qty-input="${item.id}"></label>
+                <label class="price-field">
+                  <span>Đơn vị</span>
+                  <select class="unit-select" data-cart-unit-input="${item.id}">
+                    <option value="1" data-unit-name="${escapeHtml(product?.unit || item.unit)}" data-sale-price="${product?.sale_price || 0}" ${(!(item.conversionFactor ?? item.conversion_factor) || (item.conversionFactor ?? item.conversion_factor) == 1) && (!(item.inputUnit ?? item.input_unit) || (item.inputUnit ?? item.input_unit) === (product?.unit || item.unit)) ? "selected" : ""}>${escapeHtml(product?.unit || item.unit)} (gốc)</option>
+                    ${(product?.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${escapeHtml(conv.from_unit)}" data-sale-price="${conv.sale_price || ((product?.sale_price || 0) * conv.conversion_factor)}" ${(item.conversionFactor ?? item.conversion_factor) == conv.conversion_factor && (item.inputUnit ?? item.input_unit) === conv.from_unit ? "selected" : ""}>${escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
+                  </select>
+                </label>
                 <label class="price-field" data-price-warning-field="sale"><span>Giá bán</span><input class="price-input-small" type="number" min="0" step="1000" value="${item.unitPrice}" data-price-input="${item.id}" data-price-warning-input="sale"></label>
+                <label class="price-field"><span>Giảm giá</span><input class="price-input-small" type="number" min="0" step="1000" value="${item.discountAmount || item.discount_amount || 0}" data-discount-input="${item.id}" data-item-discount-input="${item.id}" placeholder="0"></label>
               </div>
               <div data-price-warning-host>${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>
               <div class="cart-line-pricing">
                 <div class="line-actions">
                   <button type="button" class="ghost-button compact-button" data-cart-item-action="save" data-item-id="${item.id}">Lưu dòng</button>
-                  <button type="button" class="ghost-button compact-button" data-cart-item-action="update-default-price" data-product-id="${item.productId}" data-item-id="${item.id}">Giá chung</button>
+                  ${cart._adminEditMode ? "" : `<button type="button" class="ghost-button compact-button" data-cart-item-action="update-default-price" data-product-id="${item.productId}" data-item-id="${item.id}">Giá chung</button>`}
                   <button type="button" class="danger-button compact-button" data-cart-item-action="remove" data-item-id="${item.id}">Bỏ khỏi đơn</button>
                 </div>
               </div>
@@ -810,11 +872,12 @@ export function createSalesUi(deps) {
             ${allowOpen
               ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="open" data-queue-action="open" data-cart-id="${cart.id}">${compact ? "Mở" : "Tiếp tục xử lý"}</button>`
               : ""}
-            ${allowListPrint ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button>` : ""}
+            ${allowListPrint ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="print" data-queue-action="print" data-cart-id="${cart.id}">In</button><button type="button" class="ghost-button compact-button" data-cart-list-action="copy-text" data-queue-action="copy-text" data-cart-id="${cart.id}">Copy</button>` : ""}
             <button type="button" class="ghost-button compact-button" data-queue-action="toggle-detail" data-cart-id="${cart.id}">${detailButtonLabel}</button>
             ${showExpandedCardActions && allowRepeat ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="repeat" data-queue-action="repeat" data-cart-id="${cart.id}">Xuất lại</button>` : ""}
             ${showExpandedCardActions && cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="paid" data-queue-action="mark-paid" data-cart-id="${cart.id}">Đã thanh toán</button>` : ""}
             ${showExpandedCardActions && allowReturn ? `<button type="button" class="ghost-button compact-button" data-cart-list-action="customer-return" data-queue-action="customer-return" data-cart-id="${cart.id}">Trả hàng</button>` : ""}
+            ${showExpandedCardActions && state.admin?.isAdmin && state.admin?.enableAdminLockedEdit && cart.status === "completed" && cart.paymentStatus !== "paid" ? `<button type="button" class="danger-button compact-button" data-cart-list-action="admin-edit" data-queue-action="admin-edit" data-cart-id="${cart.id}" title="Master Admin sửa đơn bypass">Sửa Admin</button>` : ""}
             ${showExpandedCardActions && cart.status === "draft" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="commit" data-queue-action="commit" data-cart-id="${cart.id}">Chốt đơn</button>` : ""}
             ${showExpandedCardActions && cart.status === "committed" ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="ship" data-queue-action="ship" data-cart-id="${cart.id}">Xuất hàng</button>` : ""}
             ${showExpandedCardActions && ["draft", "committed"].includes(cart.status) ? `<button type="button" class="secondary-button compact-button" data-cart-list-action="cancel" data-queue-action="cancel" data-cart-id="${cart.id}">Hủy</button>` : ""}

@@ -1,13 +1,15 @@
 # Quản lý nhanh đồ thực phẩm chay
 
-Ứng dụng web nhẹ để theo dõi tồn kho cá nhân cho thực phẩm chay đông lạnh. Hệ thống dùng Python chuẩn và SQLite, không cần cài thêm package ngoài.
+Ứng dụng web nhẹ để theo dõi tồn kho thực phẩm chay đông lạnh. Backend dùng Flask, Waitress và SQLite; không dùng ORM.
 
-App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/qltp/`; client sẽ tự suy ra `app root` để gọi `static/*` và `api/*` theo đường dẫn hiện hành thay vì khóa cứng ở `/`.
+App hỗ trợ chạy sau reverse proxy ở subpath, ví dụ `https://domain/qltp/`. Nếu proxy giữ prefix khi forward, đặt `APP_URL_PREFIX=/qltp` để Waitress chuyển prefix thành WSGI `SCRIPT_NAME`; nếu proxy đã strip prefix, để biến này trống. Xem hướng dẫn [deploy Windows](docs/DEPLOY_WINDOWS.md#71-chạy-sau-reverse-proxy-ở-subpath) hoặc [cài đặt Debian](docs/DEPLOY_DEBIAN.md).
 
 ## Tài liệu
 
 - Deploy Windows: [docs/DEPLOY_WINDOWS.md](docs/DEPLOY_WINDOWS.md)
+- Deploy Debian: [docs/DEPLOY_DEBIAN.md](docs/DEPLOY_DEBIAN.md)
 - Hướng dẫn sử dụng: [docs/HUONG_DAN_SU_DUNG.md](docs/HUONG_DAN_SU_DUNG.md)
+- Tài liệu tham chiếu API: [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
 - Bảng thuật ngữ Anh - Việt: [docs/TERM_GLOSSARY.md](docs/TERM_GLOSSARY.md)
 - Design màn hình chung: [docs/SCREEN_DESIGN.md](docs/SCREEN_DESIGN.md)
 - Design database: [docs/DB_DESIGN.md](docs/DB_DESIGN.md)
@@ -99,6 +101,9 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 
 ## Tính năng chính
 
+- Trang danh mục thực phẩm công khai chỉ lấy các mặt hàng đang bật `Hiển thị trên Web (Public)` và hiển thị `Có sẵn / Sắp hết / Sắp về / Hết hàng`; `Sắp hết` dùng đúng ngưỡng tồn của từng mặt hàng đã cấu hình trong màn `Sản phẩm`, nếu số lượng tồn kho nhỏ hơn đơn vị nhỏ nhất của mặt hàng thì trên trang web public được xem là hết hàng.
+- Đơn public và đơn xuất mặc định tính số lượng, đơn vị, giá theo `Đơn vị bán mặc định`; phiếu nhập mặc định tính theo `Đơn vị nhập mặc định`. Tồn kho vẫn quy về `Đơn vị cơ sở`.
+- Trang danh mục thực phẩm công khai chỉ lấy các mặt hàng đang bật `Hiển thị trên Web (Public)` và hiển thị `Có sẵn / Sắp hết / Sắp về / Hết hàng`; `Sắp hết` dùng đúng ngưỡng tồn của từng mặt hàng đã cấu hình trong màn `Sản phẩm`, nếu số lượng tồn kho nhỏ hơn đơn vị nhỏ nhất của mặt hàng thì trên trang web public được xem là hết hàng. Trang này chỉ ghim lời nhắc ngày âm lịch khi còn tối đa 7 ngày tới mùng 1 hoặc 15 âm lịch (UTC+7), kể cả đúng ngày đó.
 - Dashboard tồn kho hiển thị toàn bộ sản phẩm và cảnh báo sắp hết
 - Màn tồn kho có dropdown sắp xếp trong khu vực phân trang để xem theo tên, tồn cao, giá trị tồn, ưu tiên nhập/xử lý hoặc hạn còn ít
 - Quản lý tồn kho theo lô còn hàng; card tồn kho có thể hiện các lô active, mã lô, HSD gần nhất và số lượng còn lại theo từng lô
@@ -106,6 +111,10 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Màn tồn kho có nút `Lịch sử biến động` để mở màn đối chiếu nhập/xuất theo từng sản phẩm; trong detail từng mặt hàng có thêm nút `Xem lịch sử` để mở nhanh đúng sản phẩm đang kiểm tra
 - Màn `Lịch sử biến động sản phẩm` cho lọc theo `Sản phẩm / Từ ngày / Đến ngày / Loại biến động / Sắp xếp ngày / Từ khóa`, tính `Tồn đầu kỳ / Tổng nhập / Tổng xuất / Tồn cuối kỳ / Tồn hệ thống / Chênh lệch`, mặc định hiện giao dịch mới hơn trước nhưng vẫn giữ running balance ổn định theo `ngày -> created_at -> id`; nếu tài khoản có quyền điều chỉnh tồn thì có thêm CTA `Phiếu DC` cho đúng sản phẩm đang xem
 - Tồn kho liên kết trực tiếp với đơn chờ xuất và phiếu chờ nhập, thay cho nhập/xuất nhanh thủ công
+- Quản lý **đa đơn vị tính & quy đổi theo từng sản phẩm** (ví dụ: thùng, hộp, gói, lạng...): hỗ trợ đơn vị bán mặc định, đơn vị nhập mặc định, giá bán/giá nhập riêng theo đơn vị quy đổi, tự động quy đổi số lượng và đơn giá khi chọn mua/nhập hàng. Tồn kho dùng số lượng cơ sở; thành tiền dòng dùng số lượng theo đơn vị đang chọn nhân giá của đơn vị đó.
+- Trên đơn xuất nháp/đã chốt, `Lưu dòng` chỉ gửi và cập nhật đúng dòng của đơn đang mở qua API riêng; không gửi lại toàn bộ giỏ hàng. Các dòng nằm trong khối đơn, phía trên nhóm nút chuyển trạng thái.
+- Khi đổi đơn vị qua lại trong giỏ xuất hoặc phiếu nhập, app giữ nguyên lượng cơ sở kể cả khi số hiển thị phải làm tròn; chỉ sửa ô số lượng mới thay đổi lượng hàng. Đơn vị đã chọn được giữ sau khi lưu và tải lại trang.
+- Dành riêng cho Admin: Hỗ trợ **chuyển đổi đơn vị chính (Base Unit)** của sản phẩm đã phát sinh giao dịch/tồn kho sang đơn vị mới (ví dụ từ gói sang lạng, kg sang lạng...), tự động quy đổi đồng bộ tồn kho, các lô hàng (batches), đơn giá, ngưỡng cảnh báo, giỏ hàng chờ xuất, phiếu chờ nhập và đơn vị phụ; bảo toàn 100% giá trị tồn kho.
 - Quản lý riêng `giá nhập` và `giá bán mặc định` của sản phẩm
 - Ở các màn đang sửa giá/mặt hàng, app sẽ hiện cảnh báo nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng; ở các màn chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
 - Khi bấm `Giá chung` để đẩy `giá nhập` hoặc `giá bán` hiện tại lên giá mặc định của mặt hàng, app luôn hiện hộp xác nhận trước để tránh cập nhật nhầm trên mobile
@@ -131,12 +140,13 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Khối `Giỏ hiện hành` ở màn xuất hàng hiển thị từng dòng đã chọn dưới dạng card gọn 2 dòng; bấm `...` trên từng card để mở detail sửa số lượng, giá bán hoặc bỏ khỏi giỏ
 - Màn `Tạo đơn xuất hàng` có thêm nút `Tạo đơn mới` ngay cạnh ô khách hàng và trong khối `Giỏ hiện hành`; nếu đang mở đơn cũ hoặc đang ở khối chọn/gộp đơn thì app sẽ hỏi confirm rồi reset form sang một đơn nháp trắng, không tự dồn vào draft cũ
 - Phiếu xuất có thêm `ghi chú phiếu xuất` ở cấp toàn phiếu; ghi chú này được lưu trong DB, hiện ở detail/bản in và còn sửa được tới trước khi đơn đã thanh toán
-- Phiếu xuất và phiếu nhập có thêm `giảm giá khuyến mại` ở cấp toàn phiếu; app tự tính `Tạm tính / Giảm KM / Cần thanh toán` ngay trên panel, detail và bản in
+- Phiếu xuất và phiếu nhập hỗ trợ `giảm giá khuyến mại` cấp toàn phiếu lẫn giảm giá riêng theo từng dòng sản phẩm; app tự tính thành tiền từng dòng, `Tạm tính / Giảm KM / Cần thanh toán` ngay trên panel, detail, bản in và copy text
 - Nếu `Cần thanh toán` của phiếu xuất đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app sẽ hiện cảnh báo trước khi `Chốt đơn` hoặc `Xuất hàng`
-- Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Xuất hàng`, `Đã thanh toán`, `Đã đặt hàng`, `Nhập kho`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm
+- Trước các thao tác đổi trạng thái hoặc xóa phiếu như `Đã thanh toán`, `Đã đặt hàng`, `Hủy`, `Xóa`, app sẽ hiện message confirm để tránh bấm nhầm; riêng thao tác `Xuất hàng` và `Nhập kho` sẽ mở modal xác nhận kèm ô chọn ngày (mặc định hôm nay YYYY-MM-DD) để lưu chính xác ngày xuất/nhập thực tế
 - Ở màn `Nhập hàng`, có thể tick nhiều phiếu rồi bấm `Đặt hàng` để chuyển nhanh các phiếu nháp hợp lệ sang `Đã đặt hàng`; phiếu thiếu NCC hoặc không còn sửa được sẽ được giữ nguyên và app báo lại theo từng phiếu
 - Ở màn `Đơn hàng`, có thể tick nhiều phiếu `Nháp/Chốt đơn` cùng khách để mở flow `Gộp đơn`; hệ thống sẽ chặn nếu chọn khác khách
 - Ở màn `Đơn hàng`, có thể tick nhiều phiếu rồi bấm `Chốt đơn` để xử lý hàng loạt các đơn nháp hợp lệ; đơn thiếu hàng hoặc không còn ở trạng thái nháp sẽ được giữ nguyên và app báo lại theo từng phiếu
+- Đơn online mới hoặc được khách bổ sung trên trang public hiện chuông kèm số chưa xem ở header quản lý; bấm chuông để mở danh sách `Đơn hàng`. App kiểm tra khi trang đang mở và khi quay lại tab.
 - Khi một action đang lưu thay đổi lên server, app sẽ phủ `Loading` toàn màn hình và khóa tạm các thao tác khác cho tới khi trạng thái mới được cập nhật xong, để tránh bấm chồng nhiều action liên tiếp
 - Khi chốt đơn bị thiếu hàng, app vẫn cho chốt nếu phần thiếu đã được cover đủ bởi phiếu nhập `Đã đặt`; nếu mới chỉ có phiếu `Nháp` hoặc vẫn thiếu số lượng thì app sẽ báo trước khi tạo/cập nhật phiếu nhập và cho mở lại phiếu liên quan khi người dùng xác nhận cần chỉnh
 - Màn `Xử lý nhập thiếu` cho phép bật kỳ gom nhập định kỳ, gom nhu cầu của cả đơn nháp và đơn đã chốt theo từng mặt hàng để tạo phiếu nhập batch
@@ -168,14 +178,15 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Có kiểm tra xung đột khi nhiều máy cùng lưu `giỏ nháp` hoặc `phiếu nhập nháp`; app sẽ chặn ghi đè và yêu cầu tải dữ liệu mới nhất trước khi lưu tiếp
 - Trên mobile, menu nổi, ô tìm kiếm nhanh và cụm nút điều hướng sẽ tự thu vào mép màn hình khi chạm ra ngoài; chạm vào phần mép còn lộ ra để mở lại
 - Trên PC/tablet, menu nghiệp vụ mặc định thu gọn; hover hoặc bấm `Mở menu` để bung ra nhanh, và menu sẽ tự gọn lại khi rê chuột hoặc bấm ra ngoài
-- In nhanh phiếu xuất cho khách và phiếu nhập cho NCC từ lúc còn `Nháp` cho tới `Đã thanh toán`; ở list phiếu, nút `In` được ẩn khi phiếu đã thanh toán để giữ giao diện gọn hơn
+- In nhanh và copy text phiếu xuất cho khách và phiếu nhập cho NCC từ lúc còn `Nháp` cho tới `Đã thanh toán`; hiển thị đúng theo đơn vị đã chọn trong phiếu kèm số lượng cơ sở (nếu không phải đơn vị trọng lượng) và thành tiền = số lượng (theo đơn vị) × giá 1 đơn vị; copy phiếu nhập có lựa chọn kèm giá nhập
+- Ở list phiếu, nút `In` được ẩn khi phiếu đã thanh toán để giữ giao diện gọn hơn
 - Giao diện theo menu nghiệp vụ riêng cho tồn kho, tạo đơn, đơn hàng, khách hàng và sản phẩm
 - Các màn chọn đối tượng đều có ô tìm kiếm/gõ tên để thao tác nhanh trên điện thoại
 - Quản lý nhập hàng với phiếu nhập nháp, trạng thái đặt hàng/nhập kho và gợi ý sản phẩm cần nhập
 - Phiếu nhập bắt buộc có nhà cung cấp trước khi chuyển sang `Đã đặt hàng` hoặc `Nhập kho`
 - Ở màn `Nhập hàng`, có thể tick nhiều phiếu `Nháp/Đã đặt` cùng NCC để mở flow `Gộp đơn`; hệ thống sẽ chặn nếu chọn khác NCC
 - Cùng thanh chọn nhiều phiếu ở màn `Nhập hàng` có thêm nút `Đặt hàng` để đẩy nhanh loạt phiếu nháp đủ điều kiện sang trạng thái `Đã đặt hàng`
-- Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Ghi chú` và `Giảm giá khuyến mại`; app không mở khóa lại số lượng, giá, mã lô, NCC hay cấu trúc dòng nhập
+- Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, user thông thường chỉ sửa được `Ghi chú`, `Giảm giá khuyến mại` và metadata HSD/NSX; Master Admin có thể dùng `Sửa Admin` để thêm/xóa/thay mặt hàng hoặc sửa số lượng/giá. Thao tác bắt buộc nhập lý do và xác nhận, cập nhật tồn kho/lịch sử/audit; nhà cung cấp vẫn không đổi được
 - Mỗi dòng nhập có thể khai báo riêng `Mã lô` và `Hạn dùng`; có thể nhập HSD trực tiếp hoặc nhập gián tiếp qua `Ngày sản xuất` để app tự tính `HSD = NSX + thời gian bảo quản`; nếu cùng một sản phẩm về nhiều lô khác nhau có thể tách nhanh bằng nút `+ Lô`
 - Nếu để trống `Hạn dùng`, khi `Nhập kho` app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` của sản phẩm
 - Nếu phiếu nhập được tạo từ một đơn đang thiếu hàng, app giữ liên kết nguồn đơn riêng trong metadata phiếu; ô ghi chú vẫn để trống để user tự nhập
@@ -189,8 +200,8 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Có audit log Phase D cho thay đổi trạng thái đơn/phiếu, thay đổi giá chung và lưu người thao tác để truy vết
 - Báo cáo nhập xuất theo tháng, tách riêng `hoàn khách`, `trả NCC`, `điều chỉnh tồn`, có thêm khối audit chứng từ để tra cứu ngay trong màn `Báo cáo`
 - Khối audit chứng từ ở màn `Báo cáo` hỗ trợ tìm theo mã phiếu và mã tham chiếu nguồn để đối chiếu nhanh
-- Quản lý khách hàng có thêm số liên lạc, địa chỉ ship và link Zalo
-- Màn Khách hàng trên mobile được nén còn khoảng 3 dòng mỗi card để thấy nhiều khách hơn; dòng cuối ưu tiên số liên lạc và action ngắn
+- Quản lý khách hàng có thêm số liên lạc, địa chỉ ship, link Zalo (tự sinh từ SĐT dạng `https://zalo.me/sđt`, cho phép chỉnh sửa), ảnh đại diện (Avatar), Zalo ID (chỉ đọc, tự động kiểm tra chống trùng lặp) và Nhóm Zalo
+- Màn Khách hàng trên mobile được nén gọn kèm ảnh đại diện và link chat Zalo nhanh để tiện liên hệ; dòng cuối ưu tiên số liên lạc và action ngắn
 - Màn Khách hàng và Nhà cung cấp ưu tiên hiển thị danh sách; form tạo/sửa được thu gọn và chỉ mở khi bấm `Thêm mới` hoặc `Sửa`; khi chọn một card sẽ mở panel detail riêng có `Previous / Next` và `Đóng`
 - Màn Đơn hàng và danh sách Phiếu nhập dùng pattern `list là chính, detail mở riêng`: chọn card để mở detail đầy đủ, giữ nguyên bộ lọc/search hiện tại, có `Previous / Next` để chuyển nhanh trong danh sách đang xem
 - Ở màn Đơn hàng, danh sách mặt hàng trong detail mặc định thu gọn để màn mobile gọn hơn; ở màn Phiếu nhập, detail vẫn hiện trọn danh sách dòng hàng để rà phiếu nhanh
@@ -210,6 +221,7 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 - Nếu cùng một domain chạy nhiều instance app ở các port khác nhau như `:4000` và `:9999`, session login sẽ được tách riêng theo từng port để không tự đá nhau
 - Có module `Master Admin` để export/import file master (JSON/CSV) và backup/restore toàn bộ database
 - `Master Admin` có thêm khối `Legacy Audit` để quét DB đang dùng, áp dụng các backfill an toàn và cho admin gắn lại `receipt_code` / `đơn nguồn` cho record legacy còn dang dở
+- `Master Admin` có thể xem và sửa cấu hình SMTP, gồm mật khẩu, rồi gửi email thử; màn hình hiện môi trường đang dùng, trạng thái tải cấu hình, kết quả, SMTP, người gửi/nhận và thời điểm. Có thể tải lại cấu hình nếu chưa thấy thông tin; mật khẩu đã lưu không hiển thị, để trống ô mật khẩu để giữ nguyên. Email chỉ gửi tới danh sách nhận đã cấu hình và API chỉ cho phép Master Admin gọi.
 - Timeout phiên tách riêng trong config: `session_timeout_minutes` cho user thường và `admin_session_timeout_minutes` cho admin; khi không có thao tác đủ lâu thì phiên sẽ tự hết hạn và quay về trạng thái cần login, không hiện dialog gia hạn phiên
 - Chỉ `Master Admin` hoặc user có permission `inventory_adjust_manage` mới được chỉnh tồn kho trực tiếp ngoài quy trình đơn nhập / đơn xuất, và phải nhập lý do điều chỉnh để lưu audit; trên mobile/tablet, panel chỉnh tồn được ưu tiên mở sát đầu màn hình, bản thu gọn không để thừa khoảng trắng và khi mở vẫn có khoảng cuộn an toàn để không bị thanh nổi che field hoặc button
 - Luồng Phase B đã có UI ngay trong app: `Phiếu DC` ở màn tồn kho, còn `Phiếu trả hàng khách` và `Phiếu trả NCC` chỉ mở trong detail của đúng đơn/phiếu nguồn để tránh bấm nhầm
@@ -224,7 +236,10 @@ Quy ước này giúp khi tách Issue song song, team UI chỉ bám `ui/*`, team
 python app.py
 ```
 
-Sau đó mở trình duyệt tại `http://127.0.0.1:8000`.
+App sẽ chạy ở cổng 4000 theo cấu hình `data/system_config.json`.
+Sau đó mở trình duyệt tại `http://127.0.0.1:4000` cho cửa hàng (khách hàng) hoặc `http://127.0.0.1:4000/admin` cho trang quản trị.
+
+Backend mặc định là Flask/Waitress. Nếu cần rollback tạm thời, chạy `python app.py --http-backend legacy` hoặc đặt `APP_HTTP_BACKEND=legacy` trước khi khởi động.
 
 Dữ liệu nghiệp vụ được lưu trong `data\inventory.db`. Nếu nhiều máy cùng mở vào cùng một địa chỉ app/server thì sẽ dùng chung một nguồn dữ liệu.
 
@@ -286,6 +301,8 @@ Ví dụ:
   }
 }
 ```
+
+**Lưu ý cổng và bảo mật SMTP:** `use_ssl=true` khiến app mở kết nối `SMTP_SSL` ngay từ đầu; khi bật SSL, `use_tls` không được áp dụng. Vì vậy, nếu dùng cổng `587`, hãy đặt `use_ssl=false` và `use_tls=true` để dùng STARTTLS. Nếu dùng SSL/TLS ngay khi kết nối, hãy chọn cổng `465` và đặt `use_ssl=true`. Với Gmail, dùng một trong hai cặp `587 + STARTTLS` hoặc `465 + SSL/TLS`.
 
 Muốn đổi tài khoản user/admin, bật `EnableLogin`, cấp thêm permission như `document_cancel_approve`, cấu hình mail SMTP cho luồng `Yêu cầu hủy`, đổi timeout phiên rảnh, hoặc đổi base phân trang thì sửa trực tiếp `system_config.json`. App không tự ghi đè lại các giá trị này trong lúc đang chạy.
 
@@ -441,10 +458,23 @@ Acceptance automation theo checklist:
 npm run test:acceptance
 ```
 
+Kiểm thử trên môi trường Remote / Staging (an toàn cho dữ liệu thật):
+
+```powershell
+# Chạy smoke test nhanh (Public + Login)
+npm run test:staging:smoke -- https://qts-home.duckdns.org/qltp/
+
+# Chạy readonly test (toàn bộ UI hiển thị, cuộn, sort, phân trang)
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/
+```
+
+Chi tiết xem tại [docs/TESTING.md (Mục 2.3)](docs/TESTING.md#23-test-trên-môi-trường-staging--remote-server).
+
 Suite integration sẽ:
 
-- tự dựng server test riêng trên `fixture DB` tạm
-- không dùng `data\inventory.db` đang vận hành
+- tự dựng server test riêng trên `fixture DB` tạm khi chạy local
+- không dùng `data\inventory.db` đang vận hành khi chạy local
+- hỗ trợ trỏ trực tiếp vào remote server/staging an toàn qua runner chuyên dụng
 - kiểm tra các màn chính, điều hướng, refresh, và luồng `Master Admin`
 - có thêm bộ acceptance automation bám checklist ở `docs/ACCEPTANCE_CHECKLIST.md`
 
@@ -469,7 +499,7 @@ UI tương ứng:
 Quy tắc workflow vẫn giữ nguyên:
 
 - không sửa ngược đơn đã chốt
-- không sửa ngược phiếu đã nhập kho / đã thanh toán
+- user thông thường không sửa ngược mặt hàng của phiếu đã nhập kho; Master Admin chỉ được sửa phiếu chưa thanh toán qua `Sửa Admin`, có lý do, xác nhận và đối soát tồn kho/audit
 - không mở quyền `Master Admin` để xóa hoặc hủy ngược các chứng từ đã khóa
 
 API tra cứu audit chứng từ Phase B:

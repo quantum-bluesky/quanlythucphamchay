@@ -43,6 +43,20 @@ Nếu gặp các trạng thái hoặc thuật ngữ tiếng Anh như `draft`, `o
 - `NCC`: Nhà cung cấp
 - `KH`: Khách hàng
 
+## 2.2. Trạng thái hàng trên trang danh mục công khai
+
+Trang danh mục thực phẩm công khai hiển thị bốn trạng thái:
+
+- `Có sẵn`: tồn kho đang cao hơn ngưỡng của mặt hàng và đạt từ đơn vị nhỏ nhất trở lên.
+- `Sắp hết`: tồn kho vẫn còn (đạt từ đơn vị nhỏ nhất trở lên) nhưng đã bằng hoặc thấp hơn ngưỡng cấu hình tại màn `Sản phẩm`.
+- `Sắp về`: hiện đã hết (tồn bằng 0 hoặc nhỏ hơn đơn vị nhỏ nhất) nhưng có phiếu nhập đang chờ về.
+- `Hết hàng`: hiện đã hết (tồn bằng 0 hoặc nhỏ hơn đơn vị nhỏ nhất của mặt hàng) và chưa có lượng hàng chờ nhập.
+
+Muốn ẩn riêng một mặt hàng khỏi trang công khai, vào màn `Sản phẩm`, mở sửa chi tiết, bỏ chọn `Hiển thị trên Web (Public)` rồi lưu. Bật lại tùy chọn này để mặt hàng xuất hiện trở lại.
+
+Khi khách chọn sản phẩm trên web, số lượng và đơn vị hiển thị theo `Đơn vị bán mặc định` đã cấu hình ở sản phẩm. Khi đơn về màn quản trị, dòng hàng giữ đơn vị và giá bán theo đơn vị đó; số lượng tồn kho vẫn được quy về `Đơn vị cơ sở`.
+Trang công khai chỉ hiện dải nhắc ngày âm lịch trong 7 ngày trước mùng 1 hoặc 15 âm lịch và đúng ngày đó, theo giờ Việt Nam (UTC+7). Dải nhắc cho biết ngày âm lịch hiện tại, ngày sắp tới và được ghim ở đầu màn hình khi cuộn trên điện thoại. Khách nên xem ghi chú của từng mặt hàng để biết cần đặt trước bao lâu.
+
 ## 3. Luồng làm việc hằng ngày
 
 ### Luồng A: Kiểm tra tồn kho đầu ngày
@@ -73,6 +87,7 @@ Lưu ý:
 - user thường không chỉnh tăng/giảm tồn trực tiếp ở màn này nữa
 - chỉ `Master Admin` hoặc user có permission `inventory_adjust_manage` mới có chế độ chỉnh tồn trực tiếp và sẽ thấy cảnh báo rõ khi dùng
 - khi dùng chế độ chỉnh tồn trực tiếp, bắt buộc phải nhập lý do để lưu vào lịch sử và audit
+- trong panel `Chỉnh tồn trực tiếp`, Admin có thể bấm nút `Xuất tất cả` để nhanh chóng xuất toàn bộ lượng tồn hiện tại của mặt hàng đã chọn và đưa tồn kho về 0 (hệ thống có hộp thoại xác nhận trước khi thực hiện)
 - trên mobile/tablet portrait, panel `Chỉnh tồn trực tiếp` được ưu tiên nằm sát đầu màn hình, tự mở sẵn khi vào màn tồn kho; khi thu gọn không để thừa khoảng trắng và khi mở vẫn chừa khoảng cuộn an toàn để không bị thanh nổi che mất field hay button thao tác
 - sort `Ưu tiên nhập/xử lý` dùng sức bán đã chuẩn hóa theo ngưỡng tồn và mức thiếu hàng, không so sánh thô theo số lượng tuyệt đối giữa các sản phẩm
 - sort `Hạn còn ít` ưu tiên theo HSD thật của từng lô còn hàng; nếu mặt hàng chưa có lô nào có HSD thì app mới fallback về ước tính từ metadata sản phẩm
@@ -154,24 +169,31 @@ Các mặt hàng đã chọn sẽ được gom vào khối `Giỏ hiện hành` 
 
 Nếu đang cần thao tác ngay trên card sản phẩm ở danh sách phía dưới, bấm `...` trên đúng dòng đang sửa; app sẽ giữ lại card đó thay vì tự ẩn mất.
 
-### Bước 3: Sửa số lượng và giá bán
+### Bước 3: Sửa đơn vị, số lượng và giá bán
 
 Trong `Giỏ hiện hành`:
 
-1. Mỗi mặt hàng đã chọn hiển thị dưới dạng card gọn 2 dòng
-2. Bấm `...` trên card để mở detail chỉnh sửa
-3. Gõ trực tiếp số lượng
-4. Gõ giá bán cho khách
-5. Bấm `Lưu dòng`
-6. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung`; app sẽ mở popup confirm trước, chỉ khi chọn `Xác nhận` mới cập nhật
-7. Nếu không cần dòng hàng đó nữa, bấm `Bỏ khỏi giỏ`
-8. Nếu có khuyến mại cho cả đơn, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
-9. Nếu cần gửi trước cho khách, có thể bấm `In` ngay từ lúc đơn còn `Nháp`
+1. Mỗi mặt hàng đã chọn hiển thị dưới dạng card gọn 2 dòng kèm đơn vị tính đã chọn (mặc định ưu tiên `Đơn vị bán mặc định` của sản phẩm).
+2. Bấm `...` trên card để mở detail chỉnh sửa.
+3. **Chọn Đơn vị tính**: Bấm vào dropdown đơn vị để chuyển đổi giữa Đơn vị cơ sở và các Đơn vị quy đổi (vd: `hũ` $\leftrightarrow$ `thùng`).
+   - Khi đổi đơn vị: Hệ thống **tự động tính lại số lượng** để bảo toàn số lượng cơ sở thực tế ($\text{SL mới} = \text{SL cũ} \times \text{hệ số cũ} / \text{hệ số mới}$).
+   - Có thể đổi đơn vị qua lại nhiều lần: ví dụ `10 cái → 0,5 hộp (20 cái) → 10 cái`. Số lẻ hiển thị được làm tròn nhưng app giữ lượng cơ sở để không cộng dồn sai số; nếu sửa số lượng thì lần đổi tiếp theo dùng lượng vừa sửa. Áp dụng cả cho dòng phiếu nhập; bấm `Lưu dòng` để giữ đơn vị khi tải lại trang.
+   - Đồng thời hệ thống **tự động cập nhật đơn giá bán** theo bảng giá của đơn vị mới được chọn.
+   - Thành tiền dòng được tính bằng **số lượng đang hiển thị × giá bán của đơn vị đang chọn**; lượng trừ kho vẫn là lượng đã quy đổi về đơn vị cơ sở.
+4. Gõ trực tiếp số lượng nếu cần điều chỉnh.
+5. Gõ giá bán cho khách nếu muốn áp dụng giá tùy chỉnh riêng cho đơn này.
+6. Bấm `Lưu dòng`: app chỉ gửi dòng vừa sửa cùng mã đơn và phiên bản đơn. Khi lưu xong, số lượng/giá được cập nhật từ server; nếu đơn đã bị máy khác sửa thì app báo xung đột, cần tải lại đơn và kiểm tra trước khi lưu lại.
+7. Các dòng hàng nằm trong khối đơn, phía trên các nút `Chốt/Xuất/Hủy`, để kiểm tra từng dòng trước khi chuyển trạng thái.
+7. Nếu muốn đổi luôn `giá bán mặc định` của sản phẩm cho các đơn sau, bấm `Giá chung`; app sẽ mở popup confirm trước, chỉ khi chọn `Xác nhận` mới cập nhật.
+8. Nếu không cần dòng hàng đó nữa, bấm `Bỏ khỏi giỏ`.
+9. Nếu có khuyến mại, có thể nhập giảm giá riêng cho từng dòng sản phẩm hoặc nhập `Giảm giá khuyến mại` chung cho cả đơn; app sẽ tự tính lại thành tiền từng dòng, `Tạm tính / Giảm KM / Cần thanh toán`.
+10. Nếu cần gửi trước cho khách, có thể bấm `In` ngay từ lúc đơn còn `Nháp`.
 
 Lưu ý:
 
 - tại các chỗ đang sửa giá, app sẽ hiện cảnh báo ngay nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng
 - ở các màn chỉ xem, app chỉ gắn nhãn cảnh báo ngắn trên dòng hoặc mặt hàng liên quan
+- khi xuất hàng: Tồn kho được quy đổi và trừ chính xác theo đơn vị cơ sở (`base_unit`), bảo đảm số lượng tồn kho vật lý không bao giờ bị lệch.
 
 ### Bước 4: Chốt đơn
 
@@ -189,7 +211,7 @@ Nếu đủ hàng:
 - hệ thống giữ hàng logic cho đơn này nhưng chưa trừ kho thật
 - đơn chuyển sang trạng thái `Chốt đơn`
 - khóa khách hàng của đơn, không cho xóa phiếu
-- vẫn cho sửa dòng hàng, địa chỉ giao, `Ghi chú phiếu xuất` và `Giảm giá khuyến mại` cho tới trước khi xuất hàng
+- vẫn cho sửa dòng hàng, địa chỉ giao và `Giảm giá khuyến mại` cho tới trước khi xuất hàng; riêng `Ghi chú phiếu xuất` có thể sửa ở mọi trạng thái
 - vẫn có thể in / gửi phiếu cho khách; app cũng cho in từ lúc đơn còn `Nháp`
 - nếu đã nhập `Giảm giá khuyến mại`, số `Cần thanh toán` trên phiếu và bản in sẽ là số đã trừ khuyến mại
 - nếu `Cần thanh toán` đang thấp hơn tổng `giá nhập mặc định` của các dòng hàng, app sẽ hiện thêm cảnh báo xác nhận trước khi chốt để bạn rà lại giá bán
@@ -206,9 +228,10 @@ Xuất hàng
 
 Nếu đủ hàng:
 
-- hệ thống mới trừ kho ở bước này
+- khi bấm `Xuất hàng`, app mở hộp thoại xác nhận cho phép chọn `Ngày xuất hàng` (mặc định là ngày hôm nay `YYYY-MM-DD` theo giờ máy); bạn có thể giữ nguyên hôm nay hoặc chọn lùi ngày xuất thực tế
+- hệ thống mới trừ kho ở bước này và ghi nhận ngày xuất theo mốc thời gian bạn chọn
 - đơn chuyển sang trạng thái `Đã xuất hàng`
-- không tự in phiếu nữa; nếu cần in thì bấm `In`
+- không tự in phiếu nữa; nếu cần in thì bấm `In` hoặc bấm `Copy text` để lấy nội dung text theo đúng đơn vị đã chọn kèm số lượng cơ sở (nếu không phải đơn vị trọng lượng) và thành tiền = số lượng (theo đơn vị) × giá 1 đơn vị
 - nếu sau khi rà lại mà `Cần thanh toán` vẫn thấp hơn tổng `giá nhập mặc định`, app sẽ hỏi xác nhận thêm một lần trước khi xuất hàng
 
 Nếu thiếu hàng:
@@ -276,6 +299,8 @@ Lưu ý:
 
 ## 5. Luồng xem lại và hoàn tất đơn hàng
 
+Khi khách gửi đơn từ trang public, hoặc bổ sung mặt hàng vào đơn nháp online, thanh header của trang quản lý sẽ bật chuông và hiện số đơn chưa xem. Trang đang mở tự kiểm tra dữ liệu định kỳ; khi quay lại tab, app cũng kiểm tra cập nhật. Bấm chuông để mở danh sách `Đơn hàng`; số báo được giữ qua lần tải lại trang đến khi mở danh sách.
+
 Vào menu:
 
 ```text
@@ -305,7 +330,7 @@ Dùng màn này để:
 - `Hủy`: dùng khi khách không lấy nữa
 - `Yêu cầu hủy`: dùng khi đơn đã `Đã xuất hàng` nhưng phát hiện nhập nhầm; bắt buộc nhập lý do để gửi quản lý/Admin duyệt
 - `Xóa`: chỉ áp dụng cho giỏ nháp tạo nhầm; đơn đã chốt phải giữ lại lịch sử
-- `Lưu ghi chú`: cập nhật ghi chú riêng của phiếu xuất khi đơn chưa thanh toán
+- `Lưu ghi chú`: cập nhật ghi chú riêng của phiếu xuất
 - `Lưu giảm giá`: chỉnh lại tổng khuyến mại của cả đơn khi đơn chưa thanh toán
 - `Lưu địa chỉ giao`: cập nhật địa chỉ giao riêng của đơn cho tới trước khi đã xuất hàng
 
@@ -316,8 +341,8 @@ Lưu ý:
 - một khách có thể có nhiều đơn `Chốt đơn`; khi mở đơn mới cho khách mà khách chưa có đơn nháp nhưng đang có đơn đã chốt, app sẽ hiện khối chọn để `Mở đơn đã chốt` hoặc `Tạo đơn mới`
 - nếu đang mở đơn ở màn `Tạo đơn xuất hàng` mà muốn tách hẳn ra một đơn khác, bấm `Tạo đơn mới`; app sẽ hỏi trước khi reset form hiện tại nhưng vẫn giữ nguyên đơn cũ trong danh sách để mở lại sau
 - đơn đã `Chốt đơn` không đổi được khách hàng và không được xóa, nhưng vẫn hủy được nếu khách không lấy nữa
-- đơn đã `Đã xuất hàng` sẽ không còn cho sửa trực tiếp mặt hàng, số lượng, giá hay địa chỉ giao
-- trước khi `Đã thanh toán`, vẫn được sửa riêng `Ghi chú phiếu xuất` của cả đơn
+- đơn đã `Đã xuất hàng` không cho user thông thường sửa mặt hàng, số lượng, giá hay địa chỉ giao; Master Admin có thể dùng `Sửa Admin` trên đơn chưa thanh toán để thêm/xóa/thay mặt hàng hoặc sửa số lượng/giá. Cần nhập lý do và xác nhận; tồn kho, lịch sử và audit được cập nhật, còn khách hàng không đổi được
+- riêng `Ghi chú phiếu xuất` của cả đơn có thể sửa trực tiếp ở mọi trạng thái
 - nếu khách cần mua lại gần giống một đơn cũ, bấm `Xuất lại`; app sẽ tạo một đơn nháp mới với cùng khách hàng, địa chỉ giao, giảm giá khuyến mại và các dòng hàng của phiếu đã chọn. Nếu khách đó đã có đơn nháp sẵn thì app sẽ hỏi có dồn thêm vào đơn nháp hiện có hay tạo nháp mới riêng
 - trước khi `Đã thanh toán`, vẫn được sửa riêng `Giảm giá khuyến mại` của cả đơn; riêng địa chỉ giao chỉ được sửa tới trước `Đã xuất hàng`
 - nếu đã chốt đơn rồi mới phát hiện sai, nên xử lý bằng luồng điều chỉnh mới thay vì sửa ngược đơn cũ
@@ -337,19 +362,22 @@ Vào menu:
 5. Quản lý khách hàng
 ```
 
-Thông tin nên lưu:
+Thông tin quản lý:
 
 - tên khách hàng
 - số liên lạc
 - địa chỉ ship
-- link Zalo
+- link Zalo (hệ thống tự động sinh `https://zalo.me/sđt` khi nhập số liên lạc, cho phép tùy chỉnh link Zalo riêng nếu cần)
+- link Avatar (ảnh đại diện từ Zalo hoặc link tùy chọn, có hiển thị xem trước)
+- Zalo ID (chỉ đọc, tự động liên kết khi khách đăng nhập Zalo; hệ thống chặn không cho phép trùng Zalo ID giữa các khách)
+- nhóm Zalo (chi nhánh)
 
 ### Cách dùng
 
-1. Mở màn là thấy ngay danh sách khách hàng để tìm nhanh
-2. Chạm vào một khách trong list để mở panel detail riêng; panel này hiện đủ liên hệ, địa chỉ ship, link Zalo và có `Previous / Next` để chuyển nhanh giữa các khách đang hiện trên list
+1. Mở màn là thấy ngay danh sách khách hàng kèm ảnh đại diện và link chat Zalo để tìm nhanh
+2. Chạm vào một khách trong list để mở panel detail riêng; panel này hiện đủ liên hệ, địa chỉ ship, link Zalo (bấm mở chat), ảnh đại diện, Zalo ID và có `Previous / Next` để chuyển nhanh giữa các khách đang hiện trên list
 3. Khi cần tạo mới, bấm `Thêm mới` để mở form
-4. Điền thông tin rồi bấm `Lưu khách hàng`
+4. Điền thông tin rồi bấm `Lưu khách hàng` (khi gõ số liên lạc, ô Link Zalo sẽ tự cập nhật dạng `https://zalo.me/sđt`)
 5. Khi cần sửa, bấm `Sửa`; form sẽ tự mở ra với dữ liệu hiện tại
 6. Khi cần mở giỏ hàng nhanh cho khách, bấm `Mở giỏ`
 7. Nếu muốn xem lại phiếu hàng của khách, bấm badge `giỏ chờ` hoặc `đơn`; nếu khách chỉ có 1 phiếu thì app sẽ mở thẳng detail của phiếu đó ở màn `Quản lý đơn hàng`
@@ -357,6 +385,7 @@ Thông tin nên lưu:
 Khuyến nghị:
 
 - luôn lưu số liên lạc và địa chỉ ship cho khách thường xuyên đặt hàng
+- sử dụng link Zalo để liên hệ và trao đổi đơn hàng nhanh chóng với khách
 
 ## 7. Luồng quản lý sản phẩm
 
@@ -369,9 +398,23 @@ Vào menu:
 Màn này dùng để:
 
 - thêm mặt hàng mới
+- thiết lập **Đơn vị cơ sở** (Base Unit), **Đơn vị nhập mặc định**, **Đơn vị bán mặc định**
+- cấu hình bảng **Quy đổi đơn vị** cho từng sản phẩm (ví dụ: 1 thùng = 12 hũ, 1 hộp = 5 lạng, 1 gói = 6 chiếc...) kèm giá nhập và giá bán riêng theo từng đơn vị quy đổi
 - sửa tên / loại / đơn vị / giá nhập / giá bán mặc định / ngưỡng cảnh báo / hạn dùng / thời gian bảo quản
+- thêm nhiều ảnh sản phẩm và nhập thông tin chi tiết, hướng dẫn sử dụng, bảo quản, cách chế biến dưới dạng HTML
 - xóa mặt hàng chưa có giao dịch
 - xem lịch sử thay đổi giá/trạng thái liên quan và lọc theo người thao tác, khoảng ngày
+
+### Cách thiết lập đơn vị và quy đổi đơn vị
+
+1. **Đơn vị cơ sở (Base Unit)**: Là đơn vị chuẩn duy nhất dùng để quản lý số lượng tồn kho vật lý và tính toán biến động sổ kho của sản phẩm.
+2. **Đơn vị nhập mặc định & Đơn vị bán mặc định**: Đơn khách đặt trên web và đơn xuất mặc định tính theo Đơn vị bán; phiếu nhập mặc định tính theo Đơn vị nhập. Dòng chứng từ lưu số lượng, đơn vị, hệ số và giá tại thời điểm lập; tồn kho luôn quy về Đơn vị cơ sở.
+3. **Thêm quy đổi đơn vị**:
+   - Trong form chi tiết sản phẩm, tại khối `Quy đổi đơn vị`, bấm `+ Thêm quy đổi`.
+   - Nhập `Đơn vị quy đổi` (ví dụ: `thùng`, `hộp`, `gói`...).
+   - Nhập `Hệ số quy đổi`: Số lượng đơn vị cơ sở tương ứng trong 1 đơn vị quy đổi (ví dụ: `12` hũ / thùng).
+   - Nhập `Giá bán` và `Giá nhập` theo đơn vị quy đổi (nếu để trống, hệ thống sẽ tự quy đổi từ giá gốc theo hệ số).
+   - Bấm `Lưu sản phẩm` hoặc `Lưu chi tiết`.
 
 ### Cách sửa nhanh
 
@@ -390,6 +433,28 @@ Lưu ý:
 
 - khi sửa giá nhập hoặc giá bán mặc định, app sẽ hiện cảnh báo ngay nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng
 - ở danh sách chỉ xem, các mặt hàng có giá đáng chú ý sẽ được gắn nhãn cảnh báo ngắn để rà nhanh
+- nếu muốn nhập nhiều ảnh, cấu hình đơn vị quy đổi và thông tin chi tiết (hướng dẫn sử dụng, chế biến...), chọn `Sửa chi tiết` thay vì `Sửa nhanh`. Form chi tiết sẽ được mở ra để bạn thao tác trọn vẹn.
+- ở các màn hình khác (Đơn hàng, Nhập hàng, Tồn kho...), có thể click trực tiếp vào tên sản phẩm (được gạch dưới) để mở popup hiển thị toàn bộ ảnh, thông tin chi tiết, đơn vị quy đổi và hướng dẫn sử dụng của sản phẩm đó.
+
+### Chuyển đổi đơn vị chính của sản phẩm (Dành riêng cho Admin)
+
+Khi một sản phẩm đã phát sinh giao dịch hoặc đã lưu tồn kho theo một đơn vị cũ (ví dụ: `gói`, `hộp`, `kg`...) và Admin muốn đổi sang đơn vị chuẩn khác (ví dụ: từ `gói` sang `lạng` hoặc từ `kg` sang `lạng`), hệ thống cung cấp tính năng **Đổi ĐV chính** an toàn và nhất quán:
+
+1. **Điều kiện sử dụng**: Chỉ tài khoản có quyền Quản trị (Admin) mới có quyền thực hiện.
+2. **Cách thao tác**:
+   - Trong danh sách sản phẩm, bấm nút `Đổi ĐV chính` (hoặc mở form Sửa chi tiết sản phẩm và bấm `Đổi đơn vị chính (Admin)`).
+   - Hộp thoại **Chuyển đổi đơn vị chính của sản phẩm** xuất hiện, hiển thị rõ tên sản phẩm, đơn vị chính hiện tại, tồn kho hiện tại, giá nhập/bán gốc và tổng giá trị tồn kho.
+   - Nhập **Đơn vị chính mới** (có thể chọn gợi ý nhanh như: `kg`, `lạng`, `gói`, `hộp`, `chai`, `chiếc`...).
+   - Chọn chiều quy đổi và nhập tỷ lệ:
+     - `1 [đơn vị cũ] = [K] [đơn vị mới]` (ví dụ: 1 gói = 5 lạng, K = 5).
+     - Hoặc `1 [đơn vị mới] = [K] [đơn vị cũ]` (ví dụ: 1 kg = 10 lạng, K = 10).
+   - Tùy chọn `Thêm đơn vị cũ vào bảng quy đổi đơn vị phụ`: Nếu tích chọn (mặc định), đơn vị cũ sẽ tự động được đưa vào danh sách đơn vị quy đổi phụ với hệ số tương ứng để nhân viên vẫn có thể chọn nhập/bán theo đơn vị cũ khi cần.
+   - Xem trước kết quả tính toán trực quan (Live preview): Tồn kho mới, Giá nhập mới, Giá bán mới, Ngưỡng cảnh báo mới và Tổng giá trị tồn kho không đổi.
+   - Bấm **Xác nhận chuyển đổi đơn vị**.
+3. **Cơ chế đảm bảo an toàn dữ liệu**:
+   - Toàn bộ tồn kho vật lý, các lô hàng (batches), phân bổ lô (allocations), các dòng trong giỏ hàng chờ xuất (draft carts) và phiếu chờ nhập (purchase drafts) đều được tự động quy đổi đồng bộ.
+   - Giá trị tồn kho thực tế và tổng tiền của các giỏ hàng/phiếu nhập được bảo toàn chính xác 100%.
+   - Thao tác được ghi vết chi tiết vào Audit Log với hành động `change_base_unit`.
 
 ## 8. Luồng nhập hàng
 
@@ -416,13 +481,17 @@ Màn này có 2 phần:
 8. Chọn nhà cung cấp nếu app không tự chọn hoặc bạn muốn nhập NCC khác
 9. Ghi chú phiếu nếu cần
 10. Mỗi NCC sẽ giữ 1 phiếu nháp riêng: nếu bạn chọn lại đúng NCC đã có phiếu nháp thì app mở lại phiếu đó để nhập tiếp và báo đang tiếp tục trên phiếu nháp hiện có; nếu chọn NCC khác thì phiếu cũ được giữ nguyên và app mở một phiếu nháp riêng cho NCC mới
-11. Sửa trực tiếp số lượng, giá nhập, `Mã lô` và thông tin `Hạn dùng` của từng dòng
+11. Sửa trực tiếp **Đơn vị nhập**, **Số lượng**, **Giá nhập**, `Mã lô` và thông tin `Hạn dùng` của từng dòng:
+    - Mặc định ưu tiên `Đơn vị nhập mặc định` của sản phẩm.
+    - Khi đổi đơn vị nhập quy đổi (vd: `hũ` sang `thùng`), hệ thống **tự động tính lại số lượng** để bảo toàn số lượng cơ sở thực tế và **tự động cập nhật đơn giá nhập** tương ứng.
+    - Thành tiền dòng bằng **số lượng theo đơn vị nhập đang chọn × giá nhập của đơn vị đó**; lượng cộng kho và giá vốn tồn được quy về đơn vị cơ sở.
+    - Khi `Nhập kho`: Số lượng được tự động quy về đơn vị cơ sở (`base_unit`) để cộng chính xác vào tồn kho vật lý.
 12. Nếu `giá nhập < 1.000đ`, app sẽ hiện cảnh báo ngay dưới dòng đang sửa; ở các chỗ chỉ xem thì app chỉ gắn nhãn cảnh báo ngắn
 13. Với mỗi dòng, mặc định app để cách nhập HSD là nhập trực tiếp `Hạn dùng`; nếu muốn nhập gián tiếp thì đổi sang `Ngày sản xuất` để app tự tính `HSD = NSX + thời gian bảo quản`
 14. Nếu cùng một sản phẩm về nhiều lô khác nhau, bấm `+ Lô` để nhân dòng đó thành dòng mới rồi nhập lại `Mã lô` / `HSD` hoặc `NSX` riêng
 15. Bấm `Lưu dòng` nếu có chỉnh
 16. Nếu muốn đổi luôn `giá nhập mặc định` của sản phẩm cho các phiếu sau, bấm `Giá chung`; app sẽ mở popup confirm trước, chỉ khi chọn `Xác nhận` mới cập nhật
-17. Nếu có khuyến mại cho cả phiếu, nhập thêm `Giảm giá khuyến mại`; app sẽ tự tính lại `Tạm tính / Giảm KM / Cần thanh toán`
+17. Nếu có khuyến mại, có thể nhập giảm giá riêng cho từng dòng sản phẩm hoặc nhập `Giảm giá khuyến mại` chung cho cả phiếu; app sẽ tự tính lại thành tiền từng dòng, `Tạm tính / Giảm KM / Cần thanh toán` để đối chiếu tiền thực trả NCC.
 18. Phiếu nhập nháp chỉ được lưu thật sau khi đã có ít nhất một mặt hàng; nếu phiếu đang trống thì app chỉ giữ trạng thái mở tạm trên màn hình
 19. Nếu đổi ý ngay lúc phiếu nháp còn trống, có thể bấm `Xóa phiếu` để đóng phiếu nháp tạm mà không cần lưu xuống DB
 20. Nếu đang gõ tên nhà cung cấp chưa có trong danh bạ, chỉ khi phiếu còn `Nháp` mới bấm được `NCC` để mở form nhà cung cấp với tên đang nhập; nếu muốn đổi sang NCC khác đã có sẵn thì cũng dùng chính nút này để sang danh sách NCC và chọn lại
@@ -431,13 +500,13 @@ Màn này có 2 phần:
 23. Khi đã gửi đặt hàng, bấm `Đã đặt hàng`; từ lúc này phiếu vẫn còn chỉnh được nếu nhà cung cấp yêu cầu đổi số lượng hoặc giá, nhưng không còn được đổi NCC
 24. Ngay trong danh sách phiếu nhập, có thể tick nhiều phiếu rồi bấm `Đặt hàng` để chuyển nhanh các phiếu nháp hợp lệ sang `Đã đặt hàng`; phiếu thiếu NCC hoặc không còn sửa được sẽ được giữ nguyên và app báo lại theo từng phiếu
 25. Cũng trong danh sách đó, có thể tick nhiều phiếu `Nháp/Đã đặt` cùng NCC rồi bấm `Gộp đơn`; nếu khác NCC, app sẽ báo lỗi và giữ nguyên màn hiện tại
-25. Khi hàng về thực tế và phiếu đã là `Đã đặt`, bấm `Nhập kho`
+25. Khi hàng về thực tế và phiếu đã là `Đã đặt`, bấm `Nhập kho`. App sẽ mở hộp thoại xác nhận cho phép chọn `Ngày nhập hàng` (mặc định hôm nay `YYYY-MM-DD` theo giờ máy); bạn có thể giữ nguyên hôm nay hoặc chọn lùi ngày nhập kho thực tế
 26. Nếu chưa có `Nhà cung cấp`, app cũng sẽ chặn luôn bước `Nhập kho`
 27. Nếu bỏ trống `Mã lô`, app sẽ tự sinh mã lô lúc nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang giá trị tự tính `ngày nhập kho + thời gian bảo quản`
 28. Chỉ sau khi phiếu đã ở trạng thái `Đã nhập kho`, mới bấm `Đã thanh toán`
-29. Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, vẫn được sửa `Ghi chú`, `Giảm giá khuyến mại` và cập nhật lại `Hạn dùng` hoặc `Ngày sản xuất`; app không mở khóa lại số lượng, giá, mã lô hay NCC
+29. Sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, user thông thường chỉ sửa được `Giảm giá khuyến mại`, `Hạn dùng`/`Ngày sản xuất` và `Ghi chú`. Master Admin có thể dùng `Sửa Admin` để thêm, xóa, thay mặt hàng hoặc sửa số lượng/giá; cần nhập lý do và xác nhận. App cập nhật tồn kho, giữ lịch sử biến động và ghi audit; nhà cung cấp không đổi được.
 30. Nếu cần nhập lại gần giống một phiếu cũ đã `Đã nhập kho` hoặc `Đã thanh toán`, bấm `Nhập lại`; app sẽ tạo nhanh một phiếu nháp mới với cùng NCC, ghi chú, giảm giá và các dòng hàng. Nếu NCC đó đang có phiếu nháp sẵn thì app sẽ dồn thêm vào phiếu nháp hiện có để giữ đúng rule mỗi NCC tối đa một phiếu nháp
-31. Có thể bấm `In` để in phiếu gửi NCC từ lúc phiếu còn `Nháp` cho tới `Đã thanh toán`; ở list phiếu, nút `In` không hiện khi phiếu đã thanh toán nên nếu cần in lại thì mở detail của phiếu
+31. Có thể bấm `In` để in phiếu gửi NCC hoặc `Copy text` để sao chép nội dung dạng text từ lúc phiếu còn `Nháp` cho tới `Đã thanh toán`; nội dung lấy đúng theo đơn vị chọn trong phiếu kèm số lượng cơ sở (nếu không phải đơn vị trọng lượng) và thành tiền = số lượng (theo đơn vị) × giá 1 đơn vị. Khi copy phiếu nhập có thêm câu hỏi lựa chọn copy kèm giá nhập và thành tiền như phiếu xuất; ở list phiếu, nút `In` không hiện khi phiếu đã thanh toán nên nếu cần in lại thì mở detail của phiếu
 32. Khi `Nhập lại`, app chỉ sao chép các dòng hàng và thông tin mức phiếu; `Mã lô`, `HSD` và `Ngày sản xuất` sẽ để trống để bạn nhập lại theo lô hàng mới
 33. Nếu gặp phiếu cũ bị lệch trạng thái, ví dụ thực tế đã dính `Đã thanh toán` nhưng không có mốc `Nhập kho` hợp lệ hoặc ngoài màn hình lại đang hiện như `Nháp`, đó là dữ liệu lỗi; có thể bấm `Hủy phiếu` hoặc `Xóa phiếu` để dọn lỗi ngay, app sẽ không khôi phục lại thành `Nháp`
 34. Khi mở detail phiếu, xem thêm khối `Ngày xử lý và mã phiếu` để đối chiếu `Ngày tạo`, `Nhập kho`, `Thanh toán` và `Cập nhật cuối`
@@ -488,7 +557,7 @@ Lưu ý:
 - chỉ `Nháp` mới được đổi nhà cung cấp; từ `Đã đặt` trở đi ô NCC và nút `NCC` sẽ bị khóa
 - ngoại lệ: nếu app nhận diện một phiếu `Đã đặt` trên DB cũ đang bị lỗi dữ liệu, ví dụ thiếu NCC hoặc marker trạng thái lệch, app sẽ mở lại thao tác sửa NCC hoặc xóa/hủy để cứu phiếu đó
 - khi xuất kho hoặc trả NCC, app sẽ tự trừ theo FEFO từ lô có HSD sớm nhất; nếu lô chưa có HSD thì hệ thống để sau các lô có HSD
-- phiếu đã `Đã nhập kho` vẫn cho cập nhật lại `Ghi chú`, `Hạn dùng` hoặc `Ngày sản xuất` của từng dòng và sửa `Giảm giá khuyến mại`; từ `Đã thanh toán` hoặc `Đã hủy` trở đi mới chuyển sang chế độ chỉ xem hoàn toàn
+- phiếu đã `Đã nhập kho` vẫn cho cập nhật lại `Hạn dùng` hoặc `Ngày sản xuất` của từng dòng và sửa `Giảm giá khuyến mại`; riêng `Ghi chú` có thể sửa ở mọi trạng thái; từ `Đã thanh toán` hoặc `Đã hủy` trở đi mới chuyển sang chế độ chỉ xem đối với các mục còn lại
 - phiếu đã `Đã nhập kho` hoặc `Đã thanh toán` không cho hủy trực tiếp; nếu nhập nhầm phải mở `Detail`, bấm `Yêu cầu hủy`, nhập lý do và chờ quản lý/Admin duyệt
 - khi yêu cầu hủy phiếu nhập được duyệt, app sẽ chuyển phiếu sang `Đã hủy`, rút lại đúng số hàng đã nhập từ các lô gốc nếu lô đó chưa bị dùng mất, đồng thời loại trừ chi phí mua của phiếu ra khỏi báo cáo
 - các nút đổi trạng thái và xóa phiếu đều có thêm bước confirm trước khi app ghi nhận thay đổi
@@ -847,6 +916,9 @@ Màn này có 3 nhóm chức năng:
   - tách phần `fix an toàn` có thể auto backfill timestamp
   - liệt kê các record còn phải admin review thủ công
   - cho gắn lại `receipt_code` hoặc `đơn nguồn` nếu đã đối chiếu chắc chắn
+- Khối `Kiểm tra gửi mail` tải cấu hình runtime và hiển thị môi trường đang dùng. Nếu chưa thấy thông tin, xem trạng thái tải cấu hình, đăng nhập lại bằng Master Admin nếu phiên hết hạn hoặc bấm `Tải lại cấu hình`. Có thể sửa máy chủ SMTP, cổng, tài khoản, mật khẩu, địa chỉ gửi/nhận, chế độ bảo mật và tiền tố tiêu đề. Mật khẩu đã lưu không hiển thị; để trống ô mật khẩu để giữ nguyên hoặc nhập mật khẩu mới để thay đổi. Bấm `Lưu cấu hình mail` trước khi gửi thử.
+- Chọn cổng và bảo mật SMTP theo cặp tương thích: cổng `587` dùng `STARTTLS` (`use_tls=true`, `use_ssl=false`); cổng `465` dùng `SSL/TLS` ngay khi kết nối (`use_ssl=true`). Khi `use_ssl=true`, app dùng `SMTP_SSL` và bỏ qua `use_tls`. Với Gmail, dùng `587 + STARTTLS` hoặc `465 + SSL/TLS`; không ghép cổng `587` với `use_ssl=true`.
+- Nút gửi email thử gửi tới toàn bộ người nhận đã lưu sau khi xác nhận; màn hình hiển thị trạng thái gửi, thời điểm, môi trường, máy chủ SMTP, người gửi và người nhận. Trạng thái SMTP đã nhận có nghĩa máy chủ chấp nhận email; kiểm tra hộp thư đến hoặc thư rác để xác nhận email đã tới.
 - trạng thái phiên: nút `Login` / `Logout` nằm ở thanh header nổi; khi đã login sẽ hiện tên user bên cạnh
 - khi đã login, dropdown `Chuyển quyền...` nằm cạnh `Logout`; chọn nhóm quyền khác sẽ đăng xuất phiên hiện tại, quay về màn login và bắt buộc nhập lại mật khẩu trước khi đổi quyền
 

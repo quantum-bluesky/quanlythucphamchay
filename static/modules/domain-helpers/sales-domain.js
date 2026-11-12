@@ -28,12 +28,14 @@ export function createSalesDomainHelpers(deps) {
     return state.carts.find((cart) => cart.id === cartId) || null;
   }
 
-  function isEditableCartStatus(status) {
-    return ["draft", "committed"].includes(String(status || "").trim());
+  function isEditableCartStatus(cartOrStatus) {
+    const status = typeof cartOrStatus === "object" ? cartOrStatus?.status : cartOrStatus;
+    const isEditMode = typeof cartOrStatus === "object" ? (cartOrStatus?._adminEditMode || cartOrStatus?._adminEditingOrderId) : false;
+    return ["draft", "committed"].includes(String(status || "").trim()) || Boolean(isEditMode);
   }
 
   function getActiveCart() {
-    return state.carts.find((cart) => cart.id === state.activeCartId && isEditableCartStatus(cart.status)) || null;
+    return state.carts.find((cart) => cart.id === state.activeCartId && (isEditableCartStatus(cart) || cart._adminEditMode)) || null;
   }
 
   function getDraftCarts() {
@@ -53,13 +55,22 @@ export function createSalesDomainHelpers(deps) {
       cart && (
         cart.status === "draft" ||
         cart.status === "committed" ||
-        (cart.status === "completed" && cart.paymentStatus !== "paid")
+        (cart.status === "completed" && cart.paymentStatus !== "paid") ||
+        cart._adminEditMode ||
+        cart._adminEditingOrderId
       )
     );
   }
 
   function canEditCartNote(cart) {
-    return canEditCartDiscount(cart);
+    return Boolean(
+      cart && (
+        cart.status === "draft" ||
+        cart.status === "committed" ||
+        (cart.status === "completed" && cart.paymentStatus !== "paid") ||
+        cart._adminEditMode
+      )
+    );
   }
 
   function getCartCostWarning(cart) {
@@ -86,12 +97,28 @@ export function createSalesDomainHelpers(deps) {
   }
 
   function decorateCart(cart) {
+    // #Issue133: Decorating the full sync collection must not rewrite locked history.
+    const preserveHistory = ["cancelled", "completed"].includes(cart.status) && !cart._adminEditMode;
     const items = Array.isArray(cart.items)
       ? cart.items
           .map((item) => {
             const product = getProductById(item.productId);
             const quantity = Number(item.quantity);
+            const inputQuantity = Number(item.inputQuantity ?? item.input_quantity ?? quantity);
             const unitPrice = Number(item.unitPrice);
+            const itemGross = Number.isFinite(inputQuantity * unitPrice) ? Number((inputQuantity * unitPrice).toFixed(2)) : 0;
+            const rawItemDiscount = Number(item.discountAmount ?? item.discount_amount ?? 0);
+            const itemDiscount = Number.isFinite(rawItemDiscount) ? Math.max(0, Math.min(rawItemDiscount, itemGross)) : 0;
+            const lineTotal = Number(Math.max(0, itemGross - itemDiscount).toFixed(2));
+            if (preserveHistory) {
+              return {
+                ...item,
+                unit: item.unit || product?.unit || "",
+                discountAmount: itemDiscount,
+                discount_amount: itemDiscount,
+                lineTotal,
+              };
+            }
             if (!Number.isFinite(quantity) || quantity <= 0) return null;
             if (!Number.isFinite(unitPrice) || unitPrice < 0) return null;
             return {
@@ -100,9 +127,16 @@ export function createSalesDomainHelpers(deps) {
               productName: product?.name || item.productName || "Sản phẩm",
               unit: product?.unit || item.unit || "",
               quantity,
+              // #Issue133: Preserve the unit snapshot through decoration, saving and server sync.
+              inputQuantity,
+              inputUnit: item.inputUnit ?? item.input_unit ?? product?.unit ?? item.unit ?? "",
+              conversionFactor: Number(item.conversionFactor ?? item.conversion_factor ?? 1),
               unitPrice,
               note: item.note || "",
-              lineTotal: Number((quantity * unitPrice).toFixed(2)),
+              // #Issue167: Line item discount and net line total
+              discountAmount: itemDiscount,
+              discount_amount: itemDiscount,
+              lineTotal,
             };
           })
           .filter(Boolean)
@@ -116,7 +150,8 @@ export function createSalesDomainHelpers(deps) {
       : 0;
     const totalAmount = Math.max(0, subtotalAmount - discountAmount);
 
-    return {
+    const decorated = {
+      ...cart,
       id: cart.id || createId("cart"),
       customerId: cart.customerId || "",
       customerName: cart.customerName || "Khách lẻ",
@@ -141,6 +176,17 @@ export function createSalesDomainHelpers(deps) {
       cancelledAt: cart.cancelledAt || null,
       paidAt: cart.paidAt || null,
       orderCode: cart.orderCode || "",
+    };
+    if (!preserveHistory) return decorated;
+    // Keep original header/line values (including blank customer names and zero lines).
+    // Presentation totals can be recomputed without changing the server's lock snapshot.
+    return {
+      ...cart,
+      items,
+      itemCount: items.length,
+      totalQuantity: decorated.totalQuantity,
+      subtotalAmount: decorated.subtotalAmount,
+      totalAmount: Number(Math.max(0, subtotalAmount - (Number.isFinite(rawDiscountAmount) ? rawDiscountAmount : 0)).toFixed(2)),
     };
   }
 
@@ -168,9 +214,9 @@ export function createSalesDomainHelpers(deps) {
 
   function setActiveCart(cartId) {
     const cart = getCartById(cartId);
-    if (!cart || !isEditableCartStatus(cart.status)) return;
+    if (!cart || (!isEditableCartStatus(cart) && !cart._adminEditMode)) return;
     state.activeCartId = cart.id;
-    state.activeCartPanelCollapsed = mobileQuery.matches;
+    state.activeCartPanelCollapsed = false;
     state.activeCartDetailExpanded = false;
     state.pendingCartMergeCustomerId = "";
     state.pendingCartMergeCustomerName = "";
@@ -647,13 +693,26 @@ export function createSalesDomainHelpers(deps) {
       const exists = currentCart.items.some((item) => item.productId === product.id);
       let nextItems = currentCart.items;
       if (checked && !exists) {
+        const defaultSaleUnit = product.default_sale_unit || product.unit;
+        let factor = 1.0;
+        let salePrice = Number(product.sale_price ?? product.price ?? 0);
+        if (defaultSaleUnit && defaultSaleUnit !== product.unit && product.unit_conversions) {
+          const conv = product.unit_conversions.find(c => c.from_unit === defaultSaleUnit);
+          if (conv) {
+            factor = Number(conv.conversion_factor) || 1.0;
+            salePrice = Number(conv.sale_price) || (salePrice * factor);
+          }
+        }
         nextItems = [...currentCart.items, {
           id: createId("item"),
           productId: product.id,
           productName: product.name,
           unit: product.unit,
-          quantity: 1,
-          unitPrice: Number(product.sale_price ?? product.price ?? 0),
+          input_unit: defaultSaleUnit,
+          input_quantity: 1,
+          conversion_factor: factor,
+          quantity: factor,
+          unitPrice: salePrice,
           note: "",
         }];
       }
@@ -672,7 +731,7 @@ export function createSalesDomainHelpers(deps) {
     if (!checked && state.visibleSelectedSalesProductId === product.id) {
       state.visibleSelectedSalesProductId = null;
     }
-    saveAndRenderAll(["carts"]);
+    saveAndRenderAll(cart._adminEditMode ? [] : ["carts"]);
   }
 
   function updateCartItem(itemId, changes) {
@@ -683,7 +742,7 @@ export function createSalesDomainHelpers(deps) {
       items: currentCart.items.map((item) => item.id !== itemId ? item : { ...item, ...changes }),
       updatedAt: nowIso(),
     }));
-    saveAndRenderAll(["carts"]);
+    saveAndRenderAll(cart._adminEditMode ? [] : ["carts"]);
   }
 
   function removeCartItem(itemId) {
@@ -704,7 +763,7 @@ export function createSalesDomainHelpers(deps) {
     if (removedItem && state.expandedSalesProductId === removedItem.productId) {
       state.expandedSalesProductId = null;
     }
-    saveAndRenderAll(["carts"]);
+    saveAndRenderAll(cart._adminEditMode ? [] : ["carts"]);
   }
 
   function getDraftDemandByProductId() {

@@ -1,0 +1,14 @@
+[Unit]
+Description=Python app autostart service
+After=network.target
+
+[Service]
+Type=simple
+User=quan
+WorkingDirectory=/home/quan/quanlythucphamchay
+ExecStart=/usr/bin/python3 /home/quan/quanlythucphamchay/app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,3 +1,4 @@
+import * as utils from "../utils.js";
 export function createProductsUi(deps) {
   const {
     state,
@@ -32,9 +33,10 @@ export function createProductsUi(deps) {
 
   function renderProductManageList() {
     const compact = dom.mobileQuery.matches;
+    const isAdmin = Boolean(state.admin?.isAdmin);
     const filtered = state.products.filter((product) => {
-      const text = `${product.name} ${product.category} ${product.unit}`.toLowerCase();
-      return text.includes(state.productManageSearchTerm.toLowerCase());
+      const text = utils.normalizeText(`${product.name} ${product.category} ${product.unit}`);
+      return text.includes(utils.normalizeText(state.productManageSearchTerm));
     });
     dom.productManageList.classList.toggle("is-compact-search", isSearchResultMode("productManage"));
 
@@ -66,12 +68,14 @@ export function createProductsUi(deps) {
           ? `
             <div class="product-manage-compact">
               <div class="product-manage-left">
-                <div class="product-row-name">${escapeHtml(product.name)}</div>
+                <div class="product-row-name"><span class="product-name-link" data-product-detail-trigger="${product.id}">${escapeHtml(product.name)}</span></div>
+                ${product.note ? `<div class="product-row-note" style="font-size: 0.8rem; color: #e65100; font-style: italic; margin-top: 1px;">📝 ${escapeHtml(product.note)}</div>` : ""}
                 <div class="product-row-meta">
                   <span>${escapeHtml(product.category)}</span>
                 </div>
                 <div class="row-actions product-manage-actions">
-                  <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy sửa" : "Sửa"}</button>
+                  <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy" : "Sửa nhanh"}</button>
+                  <button type="button" class="primary-button compact-button" data-product-manage-action="edit-full" data-product-id="${product.id}">Sửa chi tiết</button>
                   <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>Xóa</button>
                 </div>
               </div>
@@ -93,11 +97,12 @@ export function createProductsUi(deps) {
         return `
           <article class="product-row ${product.is_low_stock ? "low-stock" : ""}">
             ${compact
-              ? compactLayout
-              : `
+            ? compactLayout
+            : `
                 <div class="product-row-head">
                   <div>
-                    <div class="product-row-name">${escapeHtml(product.name)}</div>
+                    <div class="product-row-name"><span class="product-name-link" data-product-detail-trigger="${product.id}">${escapeHtml(product.name)}</span></div>
+                    ${product.note ? `<div class="product-row-note" style="font-size: 0.8rem; color: #e65100; font-style: italic; margin-top: 1px;">📝 ${escapeHtml(product.note)}</div>` : ""}
                     <div class="product-row-meta">
                       <span>${escapeHtml(product.category)}</span>
                     </div>
@@ -114,7 +119,8 @@ export function createProductsUi(deps) {
                 </div>
                 <div class="cart-line-note">${product.current_stock > 0 ? `Còn ${formatQuantity(product.current_stock)} ${escapeHtml(product.unit)}.` : "Có thể ngừng bán."}</div>
                 <div class="row-actions">
-                  <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy sửa" : "Sửa"}</button>
+                  <button type="button" class="ghost-button compact-button" data-product-manage-action="${isEditing ? "cancel" : "edit"}" data-product-id="${product.id}">${isEditing ? "Hủy" : "Sửa nhanh"}</button>
+                  <button type="button" class="primary-button compact-button" data-product-manage-action="edit-full" data-product-id="${product.id}">Sửa chi tiết</button>
                   <button type="button" class="danger-button compact-button" data-product-manage-action="delete" data-product-id="${product.id}" ${product.current_stock > 0 ? "disabled" : ""}>Ngừng bán / Xóa</button>
                 </div>
               `}
@@ -129,8 +135,8 @@ export function createProductsUi(deps) {
                   <div data-price-warning-host>${renderPriceWarningMarkup(priceAlerts, "edit")}</div>
                 </div>
                 <label class="inline-labeled-field"><span>Ngưỡng</span><input type="number" min="0.01" step="0.01" value="${product.low_stock_threshold}" data-manage-input="low_stock_threshold" data-product-id="${product.id}" placeholder="Ngưỡng"></label>
-                <label class="inline-labeled-field"><span>Hạn dùng</span><input type="number" min="0.01" step="1" value="${product.shelf_life_days ?? ""}" data-manage-input="shelf_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>
-                <label class="inline-labeled-field"><span>Bảo quản</span><input type="number" min="0.01" step="1" value="${product.storage_life_days ?? ""}" data-manage-input="storage_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>
+                <label class="inline-labeled-field"><span>Hạn dùng</span><input type="number" min="0" step="any" value="${product.shelf_life_days ?? ""}" data-manage-input="shelf_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>
+                <label class="inline-labeled-field"><span>Bảo quản</span><input type="number" min="0" step="any" value="${product.storage_life_days ?? ""}" data-manage-input="storage_life_days" data-product-id="${product.id}" placeholder="Ngày"></label>
                 <div class="row-actions">
                   <button type="button" class="primary-button compact-button" data-product-manage-action="save-inline" data-product-id="${product.id}">Lưu nhanh</button>
                 </div>

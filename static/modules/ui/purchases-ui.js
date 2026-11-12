@@ -1,3 +1,4 @@
+import * as utils from "../utils.js";
 export function createPurchasesUi(deps) {
   const {
     state,
@@ -13,6 +14,7 @@ export function createPurchasesUi(deps) {
     getProductById,
     getSupplierByName,
     canEditPurchase,
+    canEditPurchaseNote,
     canEditPurchaseExpiryMetadata,
     canEditPurchaseDiscount,
     canEditPurchaseSupplier,
@@ -250,19 +252,39 @@ export function createPurchasesUi(deps) {
     const isLockedAfterSave = Boolean(draft.lastResult);
     const isSubmitting = Boolean(draft.submitting);
     const disableEditAttr = isLockedAfterSave || isSubmitting ? "disabled" : "";
-    const totalAmount = items.reduce(
-      (sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitCost || 0)),
+    const subtotal = items.reduce(
+      (sum, item) => sum + Math.max(0, (Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitCost || 0)) - Number(item.discountAmount ?? item.discount_amount ?? 0)),
       0,
     );
+    const totalAmount = Math.max(0, subtotal - Number(draft.discountAmount || 0));
     const lastResult = draft.lastResult || null;
+    const isCollapsed = Boolean(draft.panelCollapsed);
     dom.quickPurchasePanel.innerHTML = `
-      <div class="subheading">
+      <div class="subheading" style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div>
           <p class="panel-kicker">Xử lý nhanh</p>
           <h3>Nhập hàng 1 lần lưu</h3>
           <p class="panel-note">Dùng cho trường hợp hàng đã nhận xong trong ngày, chỉ cần ghi lại nhanh và vẫn giữ đủ lịch sử nhập kho.</p>
         </div>
+        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="toggle-panel" style="margin-top: 1rem;">
+          ${isCollapsed ? "Mở rộng" : "Thu gọn"}
+        </button>
       </div>
+      ${isCollapsed ? "" : `
+      ${draft.targetPurchaseId ? (() => {
+        const targetPurchase = (state.purchases || []).find((p) => String(p.id) === String(draft.targetPurchaseId));
+        const targetCode = targetPurchase?.receiptCode || targetPurchase?.id || draft.targetPurchaseId;
+        const targetStatus = targetPurchase?.status === "ordered" ? "Đã đặt" : "Nháp";
+        return `
+          <div class="inline-alert info quick-doc-target-banner" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem;">
+            <div>
+              <span>Đang xử lý cho phiếu: <strong>${escapeHtml(targetCode)}</strong></span>
+              <span class="status-pill ${targetPurchase?.status === "ordered" ? "draft" : "warning"}" style="margin-left: 0.5rem;">${escapeHtml(targetStatus)}</span>
+            </div>
+            <button type="button" class="ghost-button compact-button" data-quick-purchase-action="clear-target" title="Tách thành phiếu mới" ${disableEditAttr}>Nhập thành phiếu mới</button>
+          </div>
+        `;
+      })() : ""}
       <div class="quick-doc-grid">
         <label>
           <span>Nhà cung cấp</span>
@@ -272,14 +294,18 @@ export function createPurchasesUi(deps) {
           <span>Ngày nhập</span>
           <input id="quickPurchaseDateInput" type="date" value="${escapeHtml(String(draft.documentDate || ""))}" ${disableEditAttr}>
         </label>
+        <label>
+          <span>Giảm KM</span>
+          <input id="quickPurchaseDiscountInput" type="number" min="0" step="1000" placeholder="Số tiền giảm" value="${escapeHtml(String(draft.discountAmount || ""))}" ${disableEditAttr}>
+        </label>
         <label class="quick-doc-note">
           <span>Ghi chú</span>
           <input id="quickPurchaseNoteInput" type="text" maxlength="160" placeholder="Ví dụ: Ghi cuối ngày, đã nhận đủ" value="${escapeHtml(String(draft.note || ""))}" ${disableEditAttr}>
         </label>
       </div>
       <div class="quick-doc-shortcuts">
-        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="use-active-purchase" ${disableEditAttr}>Lấy từ phiếu đang mở</button>
-        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="open-products" ${disableEditAttr}>Thêm hàng mới</button>
+        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="use-active-purchase">Lấy từ phiếu đang mở</button>
+        <button type="button" class="ghost-button compact-button" data-quick-purchase-action="open-products">Thêm hàng mới</button>
         ${supplier?.note ? `<span class="quick-doc-hint">Gợi ý: ${escapeHtml(supplier.note)}</span>` : ""}
       </div>
       <div class="quick-doc-line-entry" data-price-warning-group data-price-warning-mode="edit">
@@ -288,12 +314,30 @@ export function createPurchasesUi(deps) {
           <input id="quickPurchaseProductInput" type="text" list="productOptions" placeholder="Tìm sản phẩm để nhập nhanh" value="${escapeHtml(String(draft.productText || ""))}" ${disableEditAttr}>
         </label>
         <label>
+          <span>Đơn vị</span>
+          <select id="quickPurchaseUnitSelect" ${disableEditAttr}>
+            <option value="1" data-unit-name="${escapeHtml(draft.unitName || "")}">Đơn vị (gốc)</option>
+            ${(() => {
+              const text = String(draft.productText || "").trim();
+              if (!text) return "";
+              const normalizedText = utils.normalizeLookup(text);
+              const exactMatch = state.products.find(p => utils.normalizeLookup(p.name) === normalizedText);
+              if (!exactMatch) return "";
+              return (exactMatch.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${escapeHtml(conv.from_unit)}" ${draft.conversionFactor == conv.conversion_factor ? "selected" : ""}>${escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("");
+            })()}
+          </select>
+        </label>
+        <label>
           <span>SL</span>
           <input id="quickPurchaseQuantityInput" type="number" min="0.01" step="0.01" value="${escapeHtml(String(draft.quantity || "1"))}" ${disableEditAttr}>
         </label>
         <label data-price-warning-field="purchase">
           <span>Giá nhập</span>
           <input id="quickPurchaseUnitCostInput" type="number" min="0" step="1000" value="${escapeHtml(String(draft.unitCost || ""))}" data-price-warning-input="purchase" ${disableEditAttr}>
+        </label>
+        <label>
+          <span>Giảm dòng</span>
+          <input id="quickPurchaseLineDiscountInput" type="number" min="0" step="1000" placeholder="0" value="${escapeHtml(String(draft.lineDiscount || ""))}" ${disableEditAttr}>
         </label>
         <div class="quick-doc-line-actions">
           <button type="button" class="primary-button" data-quick-purchase-action="add-item" ${disableEditAttr}>+ Thêm hàng</button>
@@ -306,10 +350,10 @@ export function createPurchasesUi(deps) {
             <article class="quick-doc-item">
               <div>
                 <strong>${escapeHtml(item.productName || product?.name || `SP #${item.productId}`)}</strong>
-                <div class="cart-line-note">SL ${escapeHtml(formatQuantity(item.quantity || 0))} • Giá nhập ${escapeHtml(formatCurrency(item.unitCost || 0))}</div>
+                <div class="cart-line-note">SL ${escapeHtml(formatQuantity(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0))} • Giá nhập ${escapeHtml(formatCurrency(item.unitCost || 0))}${Number(item.discountAmount || item.discount_amount || 0) > 0 ? ` • Giảm: -${escapeHtml(formatCurrency(item.discountAmount || item.discount_amount || 0))}` : ""}</div>
               </div>
               <div class="quick-doc-item-actions">
-                <strong>${escapeHtml(formatCurrency(Number(item.quantity || 0) * Number(item.unitCost || 0)))}</strong>
+                <strong>${escapeHtml(formatCurrency(Math.max(0, Number(item.inputQuantity ?? item.input_quantity ?? item.quantity ?? 0) * Number(item.unitCost || 0) - Number(item.discountAmount || item.discount_amount || 0))))}</strong>
                 <button type="button" class="ghost-button compact-button" data-quick-purchase-action="remove-item" data-item-index="${index}" ${disableEditAttr}>Bỏ</button>
               </div>
             </article>
@@ -325,7 +369,7 @@ export function createPurchasesUi(deps) {
         <div class="quick-doc-footer-actions">
           <div class="stat-chip"><span>Số dòng</span><strong>${escapeHtml(String(items.length))}</strong></div>
           <div class="stat-chip"><span>Tổng tiền</span><strong>${escapeHtml(formatCurrency(totalAmount))}</strong></div>
-          <button type="button" class="primary-button" data-quick-purchase-action="submit" ${isLockedAfterSave || isSubmitting ? "disabled" : ""}>${isSubmitting ? "Đang lưu..." : isLockedAfterSave ? "Đã tạo phiếu" : "Lưu nhập nhanh"}</button>
+          <button type="button" class="primary-button" data-quick-purchase-action="submit" ${isLockedAfterSave || isSubmitting ? "disabled" : ""}>${isSubmitting ? "Đang lưu..." : isLockedAfterSave ? (draft.targetPurchaseId ? "Đã cập nhật" : "Đã tạo phiếu") : (draft.targetPurchaseId ? "Lưu vào phiếu đang mở" : "Lưu nhập nhanh")}</button>
         </div>
       </div>
       ${lastResult ? `
@@ -345,6 +389,7 @@ export function createPurchasesUi(deps) {
           </div>
         </article>
       ` : ""}
+      `}
     `;
   }
 
@@ -360,6 +405,23 @@ export function createPurchasesUi(deps) {
         </label>
         <div class="line-actions">
           <button type="button" class="ghost-button compact-button" data-purchase-action="save-discount" data-purchase-id="${purchase.id}">Lưu giảm giá</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPurchaseNoteEditor(purchase) {
+    if (!canEditPurchaseNote(purchase)) {
+      return "";
+    }
+    return `
+      <div class="document-discount-editor">
+        <label class="price-field">
+          <span>Ghi chú phiếu nhập</span>
+          <input type="text" maxlength="160" value="${escapeHtml(String(purchase.note || ""))}" data-purchase-note-input="${purchase.id}">
+        </label>
+        <div class="line-actions">
+          <button type="button" class="ghost-button compact-button" data-purchase-action="save-note" data-purchase-id="${purchase.id}">Lưu ghi chú</button>
         </div>
       </div>
     `;
@@ -411,8 +473,10 @@ export function createPurchasesUi(deps) {
     }
     if (dom.purchaseSupplierMenuButton) {
       dom.purchaseSupplierMenuButton.textContent = mobileQuery.matches ? "NCC" : "Nhà cung cấp";
-      dom.purchaseSupplierMenuButton.disabled = Boolean(purchase) && !purchaseSupplierEditable;
-      dom.purchaseSupplierMenuButton.title = purchase && !purchaseSupplierEditable
+      // #Issue 172: Không khóa nút NCC khi phiếu đã nhận/đã trả để người dùng mở danh bạ chọn NCC tạo đơn mới
+      const isSupplierMenuLocked = structureLocked || Boolean(purchase && (purchase.status === "ordered" || purchase._adminEditMode));
+      dom.purchaseSupplierMenuButton.disabled = isSupplierMenuLocked;
+      dom.purchaseSupplierMenuButton.title = isSupplierMenuLocked
         ? (
           structureLocked
             ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được sửa phiếu nhập nháp hoặc đã đặt."
@@ -462,6 +526,7 @@ export function createPurchasesUi(deps) {
       { label: "Cập nhật cuối", value: formatDate(purchase.updatedAt) || "Chưa có" },
     ].filter(Boolean);
     const selectedItemsMarkup = purchase.items.length ? purchase.items.map((item) => {
+      const product = getProductById(item.productId);
       const linePriceAlerts = getPriceWarningAlerts({ purchasePrice: item.unitCost });
       const expiryMeta = resolvePurchaseItemExpiryMeta(purchase, item);
       const isManufactureMode = expiryMeta.isManufactureMode;
@@ -478,20 +543,32 @@ export function createPurchasesUi(deps) {
             ? `Nếu để trống HSD, app dùng giá trị tự tính ${escapeHtml(expiryMeta.fallbackExpiryDate || "Chưa có")} = ngày nhập kho + ${escapeHtml(String(expiryMeta.storageLifeDays))} ngày.`
             : "Nhập HSD trực tiếp nếu đã có thông tin chính xác của lô."
         );
+      const expandedItem = Boolean(state.expandedSelectedPurchaseItemId && String(state.expandedSelectedPurchaseItemId) === String(item.id));
       return `
-        <article class="cart-item">
-          <div class="cart-item-header">
-            <div>
-              <strong>${escapeHtml(item.productName)}</strong>
-              <div class="cart-line-note">${formatQuantity(item.quantity)} ${escapeHtml(item.unit)} | Giá nhập ${formatCurrency(item.unitCost)} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
+        <article class="cart-item ${expandedItem ? "is-expanded" : "is-collapsed"}">
+          <div class="cart-item-header cart-item-header-compact">
+            <div class="cart-item-primary">
+              <strong class="cart-item-name">${escapeHtml(item.productName)}</strong>
+              <div class="cart-line-note">SL ${formatQuantity((item.inputQuantity ?? item.input_quantity) || item.quantity)} ${escapeHtml((item.inputUnit ?? item.input_unit) || item.unit)} | Giá nhập ${formatCurrency(item.unitCost)}${Number(item.discountAmount || item.discount_amount || 0) > 0 ? ` | Giảm: -${formatCurrency(item.discountAmount || item.discount_amount || 0)}` : ""} ${renderPriceWarningMarkup(linePriceAlerts, "view")}</div>
               ${(item.batchCode || expiryMeta.effectiveExpiryDate) ? `<div class="cart-line-note">${item.batchCode ? `Lô ${escapeHtml(item.batchCode)}` : "Lô tự sinh"}${expiryMeta.effectiveExpiryDate ? ` • HSD ${escapeHtml(expiryMeta.effectiveExpiryDate)}` : ""}${expiryMeta.usesReceivedFallback ? " • tự tính" : ""}${isManufactureMode ? " • từ NSX" : ""}</div>` : ""}
             </div>
-            <strong>${formatCurrency(item.lineTotal)}</strong>
+            <div class="cart-item-summary">
+              <strong>${formatCurrency(item.lineTotal)}</strong>
+              <button type="button" class="ghost-button compact-button" data-purchase-item-action="toggle-detail" data-purchase-item-id="${item.id}">...</button>
+            </div>
           </div>
-          <div data-price-warning-group data-price-warning-mode="edit">
+          ${expandedItem ? `<div class="cart-item-controls" data-price-warning-group data-price-warning-mode="edit">
             <div class="purchase-inline-grid">
-              <label class="price-field"><span>Số lượng nhập</span><input type="number" min="0.01" step="0.01" value="${item.quantity}" data-purchase-qty-input="${item.id}" ${purchaseEditable ? "" : "disabled"}></label>
+              <label class="price-field"><span>Số lượng nhập</span><input type="number" min="0.01" step="0.01" value="${(item.inputQuantity ?? item.input_quantity) || item.quantity}" data-purchase-qty-input="${item.id}" ${purchaseEditable ? "" : "disabled"}></label>
+              <label class="price-field">
+                <span>Đơn vị</span>
+                <select data-purchase-unit-input="${item.id}" ${purchaseEditable ? "" : "disabled"}>
+                  <option value="1" data-unit-name="${escapeHtml(product?.unit || item.unit)}" data-price="${product?.price || 0}" ${(!(item.conversionFactor ?? item.conversion_factor) || (item.conversionFactor ?? item.conversion_factor) == 1) && (!(item.inputUnit ?? item.input_unit) || (item.inputUnit ?? item.input_unit) === (product?.unit || item.unit)) ? "selected" : ""}>${escapeHtml(product?.unit || item.unit)} (gốc)</option>
+                  ${(product?.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${escapeHtml(conv.from_unit)}" data-price="${conv.price || ((product?.price || 0) * conv.conversion_factor)}" ${(item.conversionFactor ?? item.conversion_factor) == conv.conversion_factor && (item.inputUnit ?? item.input_unit) === conv.from_unit ? "selected" : ""}>${escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
+                </select>
+              </label>
               <label class="price-field" data-price-warning-field="purchase"><span>Giá nhập</span><input type="number" min="0" step="1000" value="${item.unitCost}" data-purchase-cost-input="${item.id}" data-price-warning-input="purchase" ${purchaseEditable ? "" : "disabled"}></label>
+              <label class="price-field"><span>Giảm giá</span><input type="number" min="0" step="1000" value="${item.discountAmount || item.discount_amount || 0}" data-purchase-discount-item-input="${item.id}" ${purchaseEditable ? "" : "disabled"} placeholder="0"></label>
               <label class="price-field"><span>Mã lô</span><input type="text" maxlength="80" value="${escapeHtml(item.batchCode || "")}" data-purchase-batch-input="${item.id}" ${purchaseEditable ? "" : "disabled"} placeholder="Tùy chọn"></label>
               <label class="price-field">
                 <span>Cách nhập HSD</span>
@@ -510,9 +587,10 @@ export function createPurchasesUi(deps) {
               </label>
             </div>
             <div data-price-warning-host>${renderPriceWarningMarkup(linePriceAlerts, "edit")}</div>
-          </div>
-          <div class="cart-line-note" data-purchase-expiry-hint="${item.id}">${editorHint}</div>
-          ${purchaseExpiryEditable ? `<div class="line-actions"><button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">${purchase.status === "received" ? "Cập nhật HSD" : "Lưu dòng"}</button>${purchaseEditable ? `<button type="button" class="ghost-button compact-button" data-purchase-item-action="clone-lot" data-purchase-item-id="${item.id}">+ Lô</button><button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button><button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button><button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>` : ""}</div>` : ""}
+            <div class="cart-line-note" data-purchase-expiry-hint="${item.id}">${editorHint}</div>
+            ${purchaseExpiryEditable ? `<div class="line-actions"><button type="button" class="ghost-button compact-button" data-purchase-item-action="save" data-purchase-item-id="${item.id}">${purchase.status === "received" ? "Cập nhật HSD" : "Lưu dòng"}</button>${purchaseEditable && !purchase._adminEditMode ? `<button type="button" class="ghost-button compact-button" data-purchase-item-action="clone-lot" data-purchase-item-id="${item.id}">+ Lô</button><button type="button" class="ghost-button compact-button" data-purchase-item-action="update-default-cost" data-purchase-item-id="${item.id}" data-product-id="${item.productId}">Giá chung</button><button type="button" class="ghost-button compact-button" data-purchase-item-action="add-one" data-purchase-item-id="${item.id}">+1</button><button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ</button>` : ""}</div>` : ""}
+            ${purchase._adminEditMode && purchaseEditable ? `<div class="line-actions"><button type="button" class="danger-button compact-button" data-purchase-item-action="remove" data-purchase-item-id="${item.id}">Loại bỏ mặt hàng</button></div>` : ""}
+          </div>` : ""}
         </article>
       `;
     }).join("") : '<div class="empty-state">Phiếu nhập đang trống.</div>';
@@ -544,6 +622,7 @@ export function createPurchasesUi(deps) {
         </div>
         ${renderPurchaseMergePreview(purchase)}
         ${renderPurchaseDiscountEditor(purchase)}
+        ${renderPurchaseNoteEditor(purchase)}
         <div class="document-detail-toggle-row">
           <button type="button" class="ghost-button compact-button" data-purchase-action="toggle-detail">${state.purchaseDetailExpanded ? "Ẩn detail" : "Detail"}</button>
         </div>
@@ -563,7 +642,8 @@ export function createPurchasesUi(deps) {
         ${procurementBatchReadOnly && ["draft", "ordered"].includes(purchase.status) ? `<article class="inline-alert warning">Batch mode đang bật. Bạn chỉ được xem phiếu nháp/đã đặt này; tạo mới, đổi NCC, sửa dòng, đổi giảm giá, hủy hoặc xóa chỉ dành cho người giữ khóa batch hoặc Master Admin. Bước Nhập kho chỉ còn mở cho phiếu không phải batch và đã được Đã đặt trước khi kỳ gom hiện tại bắt đầu.</article>` : ""}
         ${purchaseConflictWarnings.length ? `<article class="inline-alert warning"><strong>Cảnh báo NCC theo mặt hàng:</strong> ${purchaseConflictWarnings.map((entry) => `${escapeHtml(entry.productName)} đang có phiếu chờ ở ${escapeHtml(joinSupplierNames(entry.otherSupplierNames))}${entry.hasMultiSupplierOpenState ? `; hiện đang có ${escapeHtml(String(entry.openPurchaseCount))} phiếu mở cho mặt hàng này.` : "."}`).join(" ")}</article>` : ""}
         ${repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đang ở trạng thái lỗi dữ liệu: marker xử lý và trạng thái hiện tại không còn khớp nhau. Có thể hủy hoặc xóa để dọn dữ liệu lỗi, app sẽ không khôi phục lại thành nháp.</article>` : ""}
-        ${purchaseLocked && !repairableInvalidPurchase ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
+        ${purchaseLocked && !repairableInvalidPurchase && !purchase._adminEditMode ? `<article class="inline-alert warning">Phiếu này đã khóa theo workflow hiện tại. Muốn sửa sai, hãy tạo chứng từ điều chỉnh mới thay vì sửa ngược phiếu cũ.</article>` : ""}
+        ${purchase._adminEditMode ? `<article class="inline-alert warning"><strong>Chế độ Master Admin sửa phiếu đã nhận:</strong> Có thể thêm, bỏ, thay mặt hàng và sửa số lượng, giá. Nhà cung cấp của phiếu không đổi được.</article>` : ""}
         ${renderPurchaseCancelRequestPanel(purchase)}
         <section class="selected-items-shell ${state.selectedPurchaseItemsCollapsed ? "is-collapsed" : ""}">
           <div class="subheading selected-items-heading">
@@ -577,11 +657,12 @@ export function createPurchasesUi(deps) {
           <div class="cart-items-list selected-items-body" ${state.selectedPurchaseItemsCollapsed ? "hidden" : ""}>${selectedItemsMarkup}</div>
         </section>
         <div class="cart-toolbar">
-          ${canPrintPurchase ? `<button type="button" class="ghost-button" data-purchase-action="print">In phiếu</button>` : ""}
+          ${canPrintPurchase ? `<button type="button" class="ghost-button" data-purchase-action="print">In phiếu</button><button type="button" class="ghost-button" data-purchase-action="copy-text">Copy text</button>` : ""}
           ${purchase.status === "draft" ? `<button type="button" class="ghost-button" data-purchase-action="mark-ordered" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Đã đặt hàng</button>` : ""}
-          ${canReceivePurchase(purchase) ? `<button type="button" class="primary-button" data-purchase-action="receive" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Nhập kho</button>` : ""}
+          ${purchase._adminEditMode ? `<button type="button" class="primary-button" data-purchase-action="admin-bypass-save" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Lưu (Admin Bypass)</button>` : canReceivePurchase(purchase) ? `<button type="button" class="primary-button" data-purchase-action="receive" ${(purchase.items.length && purchaseHasSupplier) ? "" : "disabled"}>Nhập kho</button>` : ""}
           ${purchase.status !== "paid" ? `<button type="button" class="ghost-button" data-purchase-action="mark-paid" ${canMarkPurchasePaid(purchase) ? "" : "disabled"}>Đã thanh toán</button>` : ""}
           ${canRepeatPurchase ? `<button type="button" class="ghost-button" data-purchase-action="repeat" ${repeatPurchaseDisabled ? "disabled" : ""} title="${repeatPurchaseDisabled ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo lại phiếu nhập." : ""}">Nhập lại</button>` : ""}
+          ${state.admin?.isAdmin && state.admin?.enableAdminLockedEdit && purchase.status === "received" ? `<button type="button" class="danger-button" data-purchase-action="admin-edit" title="Master Admin sửa phiếu bypass">Sửa Admin</button>` : ""}
           ${purchaseCancellable ? `<button type="button" class="secondary-button" data-purchase-action="cancel">Hủy phiếu</button>` : ""}
           ${canDeletePurchase(purchase) ? `<button type="button" class="danger-button" data-purchase-action="delete">Xóa phiếu</button>` : ""}
         </div>
@@ -594,8 +675,8 @@ export function createPurchasesUi(deps) {
     const activePurchase = getActivePurchase();
     const selectedProductIds = new Set((activePurchase?.items || []).map((item) => Number(item.productId)));
     const filtered = getPurchaseSuggestions().filter((entry) => {
-      const text = `${entry.product.name} ${entry.product.category}`.toLowerCase();
-      return text.includes(state.purchaseSearchTerm.toLowerCase()) && !selectedProductIds.has(Number(entry.product.id));
+      const text = utils.normalizeText(`${entry.product.name} ${entry.product.category}`);
+      return text.includes(utils.normalizeText(state.purchaseSearchTerm)) && !selectedProductIds.has(Number(entry.product.id));
     });
     dom.purchaseSuggestionList.classList.toggle("is-compact-search", isSearchResultMode("purchaseSuggestions"));
     if (!filtered.length) {
@@ -688,8 +769,9 @@ export function createPurchasesUi(deps) {
         <div class="queue-actions">
           ${canMergePurchase(purchase) ? `<label class="toggle-inline" data-purchase-list-action="toggle-merge-select" data-purchase-id="${purchase.id}"><input type="checkbox" data-purchase-list-action="toggle-merge-select" data-purchase-id="${purchase.id}" ${selectedMergeIds.some((purchaseId) => String(purchaseId) === String(purchase.id)) ? "checked" : ""}><span>Chọn</span></label>` : ""}
           <button type="button" class="ghost-button compact-button" data-purchase-list-action="open" data-purchase-id="${purchase.id}">Mở</button>
-          ${canShowPurchaseListPrintAction(purchase) ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="print" data-purchase-id="${purchase.id}">In</button>` : ""}
+          ${canShowPurchaseListPrintAction(purchase) ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="print" data-purchase-id="${purchase.id}">In</button><button type="button" class="ghost-button compact-button" data-purchase-list-action="copy-text" data-purchase-id="${purchase.id}">Copy</button>` : ""}
           ${["received", "paid"].includes(String(purchase.status || "").trim()) ? `<button type="button" class="ghost-button compact-button" data-purchase-list-action="repeat" data-purchase-id="${purchase.id}" ${repeatPurchaseDisabled ? "disabled" : ""} title="${repeatPurchaseDisabled ? "Batch mode đang bật. Chỉ người giữ khóa batch hoặc Master Admin mới được tạo lại phiếu nhập." : ""}">Nhập lại</button>` : ""}
+          ${state.admin?.isAdmin && state.admin?.enableAdminLockedEdit && ["received", "paid"].includes(String(purchase.status || "").trim()) && purchase.status !== "paid" ? `<button type="button" class="danger-button compact-button" data-purchase-list-action="admin-edit" data-purchase-id="${purchase.id}" title="Master Admin sửa phiếu bypass">Sửa Admin</button>` : ""}
         </div>
       </article>
     `;

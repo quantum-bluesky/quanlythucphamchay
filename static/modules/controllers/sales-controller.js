@@ -1,3 +1,5 @@
+import { convertUnitQuantity, getUnitQuantityBase } from "../unit-quantity-editor.js";
+
 export function registerSalesControllerEvents(contract) {
   const {
     state,
@@ -140,9 +142,13 @@ export function registerSalesControllerEvents(contract) {
     state.quickSaleDraft.customerText = String(dom.quickSalePanel.querySelector("#quickSaleCustomerInput")?.value || "").trim();
     state.quickSaleDraft.documentDate = String(dom.quickSalePanel.querySelector("#quickSaleDateInput")?.value || "").trim();
     state.quickSaleDraft.note = String(dom.quickSalePanel.querySelector("#quickSaleNoteInput")?.value || "").trim();
+    state.quickSaleDraft.discountAmount = String(dom.quickSalePanel.querySelector("#quickSaleDiscountInput")?.value || "").trim();
     state.quickSaleDraft.productText = String(dom.quickSalePanel.querySelector("#quickSaleProductInput")?.value || "").trim();
     state.quickSaleDraft.quantity = String(dom.quickSalePanel.querySelector("#quickSaleQuantityInput")?.value || "").trim() || "1";
     state.quickSaleDraft.unitPrice = String(dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput")?.value || "").trim();
+    state.quickSaleDraft.lineDiscount = String(dom.quickSalePanel.querySelector("#quickSaleLineDiscountInput")?.value || "").trim();
+    state.quickSaleDraft.conversionFactor = String(dom.quickSalePanel.querySelector("#quickSaleUnitSelect")?.value || "1").trim();
+    state.quickSaleDraft.unitName = dom.quickSalePanel.querySelector("#quickSaleUnitSelect")?.options?.[dom.quickSalePanel.querySelector("#quickSaleUnitSelect").selectedIndex]?.dataset?.unitName || "";
     const selectedStatus = dom.quickSalePanel.querySelector('input[name="quickSaleFinalStatus"]:checked');
     state.quickSaleDraft.finalStatus = selectedStatus?.value || "completed";
     state.quickSaleDraft.markPaid = Boolean(dom.quickSalePanel.querySelector("#quickSaleMarkPaidInput")?.checked);
@@ -170,7 +176,9 @@ export function registerSalesControllerEvents(contract) {
       actions.showToast("Chọn đúng sản phẩm để thêm vào xuất nhanh.", true);
       return;
     }
-    const quantity = Number(draft.quantity || 0);
+    const inputQuantity = Number(draft.quantity || 0);
+    const conversionFactor = Number(draft.conversionFactor || 1);
+    const quantity = inputQuantity * conversionFactor;
     const unitPrice = Number(draft.unitPrice || product.sale_price || 0);
     if (!Number.isFinite(quantity) || quantity <= 0) {
       actions.showToast("Số lượng phải lớn hơn 0.", true);
@@ -180,10 +188,22 @@ export function registerSalesControllerEvents(contract) {
       actions.showToast("Giá bán không hợp lệ.", true);
       return;
     }
+    const lineDiscount = Math.max(0, Number(draft.lineDiscount || 0));
+    if (!Number.isFinite(lineDiscount) || lineDiscount < 0) {
+      actions.showToast("Giảm giá dòng không hợp lệ.", true);
+      return;
+    }
+    const grossTotal = inputQuantity * unitPrice;
+    if (lineDiscount > grossTotal) {
+      actions.showToast("Giảm giá dòng không được vượt quá thành tiền.", true);
+      return;
+    }
     const existing = (draft.items || []).find((item) => Number(item.productId) === Number(product.id));
     if (existing) {
       existing.quantity = Number((Number(existing.quantity || 0) + quantity).toFixed(2));
+      existing.inputQuantity = Number((Number(existing.inputQuantity || 0) + inputQuantity).toFixed(2));
       existing.unitPrice = Number(unitPrice.toFixed(2));
+      existing.discountAmount = Number(((existing.discountAmount || 0) + lineDiscount).toFixed(2));
       existing.productName = product.name;
     } else {
       draft.items.push({
@@ -191,11 +211,16 @@ export function registerSalesControllerEvents(contract) {
         productName: product.name,
         quantity: Number(quantity.toFixed(2)),
         unitPrice: Number(unitPrice.toFixed(2)),
+        discountAmount: lineDiscount,
+        inputQuantity: inputQuantity,
+        inputUnit: draft.unitName || product.unit,
+        conversionFactor: conversionFactor,
       });
     }
     draft.productText = "";
     draft.quantity = "1";
     draft.unitPrice = "";
+    draft.lineDiscount = "";
     draft.lastResult = null;
     renderers.renderQuickSalePanel();
     utils.syncPriceWarningGroup(dom.quickSalePanel?.querySelector("[data-price-warning-group]"));
@@ -234,13 +259,19 @@ export function registerSalesControllerEvents(contract) {
     renderers.renderQuickSalePanel();
     try {
       const data = await actions.createQuickSaleDocument({
+        target_cart_id: draft.targetCartId || "",
         customer_name: draft.customerText,
         document_date: draft.documentDate,
         note: draft.note,
+        discount_amount: Number(draft.discountAmount || 0),
         items: draft.items.map((item) => ({
           product_id: item.productId,
           quantity: item.quantity,
           unit_price: item.unitPrice,
+          discount_amount: Number(item.discountAmount || item.discount_amount || 0),
+          input_quantity: item.inputQuantity,
+          input_unit: item.inputUnit,
+          conversion_factor: item.conversionFactor,
         })),
         final_status: draft.finalStatus,
         mark_paid: Boolean(draft.markPaid && draft.finalStatus === "completed"),
@@ -308,6 +339,101 @@ export function registerSalesControllerEvents(contract) {
     }
   });
 
+  dom.quickSalePanel?.addEventListener("input", (event) => {
+    if (event.target.id === "quickSaleProductInput") {
+      const select = dom.quickSalePanel.querySelector("#quickSaleUnitSelect");
+      if (!select) return;
+      const text = event.target.value;
+      if (!text) {
+        select.innerHTML = '<option value="1">Đơn vị (gốc)</option>';
+        return;
+      }
+      const parts = text.split("-");
+      const idStr = parts[parts.length - 1];
+      if (!idStr) return;
+      const id = parseInt(idStr.trim(), 10);
+      if (!id) return;
+      const product = state.products.find(p => p.id === id);
+      if (product) {
+        const defaultUnit = product.default_sale_unit || product.unit;
+        select.innerHTML = `
+          <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}" data-sale-price="${product.sale_price || 0}" ${defaultUnit === product.unit ? "selected" : ""}>${utils.escapeHtml(product.unit)} (gốc)</option>
+          ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}" data-sale-price="${conv.sale_price || ((product.sale_price || 0) * conv.conversion_factor)}" ${defaultUnit === conv.from_unit ? "selected" : ""}>${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
+        `;
+        const selectedOption = select.options[select.selectedIndex] || select.options[0];
+        const unitPriceInput = dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput");
+        if (unitPriceInput && selectedOption) {
+          unitPriceInput.value = selectedOption.dataset.salePrice || product.sale_price || 0;
+          if (state.quickSaleDraft) {
+            state.quickSaleDraft.unitPrice = unitPriceInput.value;
+            state.quickSaleDraft.conversionFactor = selectedOption.value;
+            state.quickSaleDraft.unitName = selectedOption.dataset.unitName;
+          }
+        }
+      }
+    } else if (event.target.id === "quickSaleUnitSelect") {
+      const select = event.target;
+      const option = select.options[select.selectedIndex];
+      if (option) {
+        const oldFactor = parseFloat(state.quickSaleDraft?.conversionFactor || 1) || 1;
+        const newFactor = parseFloat(option.value) || 1;
+        const qtyInput = dom.quickSalePanel.querySelector("#quickSaleQuantityInput");
+        if (qtyInput) {
+          const curQty = parseFloat(qtyInput.value) || 0;
+          if (curQty > 0) {
+            const baseQty = curQty * oldFactor;
+            const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
+            qtyInput.value = newQty;
+            if (state.quickSaleDraft) {
+              state.quickSaleDraft.quantity = String(newQty);
+            }
+          }
+        }
+        const unitPriceInput = dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput");
+        if (unitPriceInput && option.dataset.salePrice) {
+          unitPriceInput.value = option.dataset.salePrice;
+          if (state.quickSaleDraft) {
+            state.quickSaleDraft.unitPrice = option.dataset.salePrice;
+            state.quickSaleDraft.conversionFactor = option.value;
+            state.quickSaleDraft.unitName = option.dataset.unitName;
+          }
+        }
+      }
+    }
+  });
+
+  dom.quickSalePanel?.addEventListener("change", (event) => {
+    if (event.target.id === "quickSaleUnitSelect") {
+      const select = event.target;
+      const option = select.options[select.selectedIndex];
+      if (option) {
+        const oldFactor = parseFloat(state.quickSaleDraft?.conversionFactor || 1) || 1;
+        const newFactor = parseFloat(option.value) || 1;
+        const qtyInput = dom.quickSalePanel.querySelector("#quickSaleQuantityInput");
+        if (qtyInput) {
+          const curQty = parseFloat(qtyInput.value) || 0;
+          if (curQty > 0) {
+            const baseQty = curQty * oldFactor;
+            const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
+            qtyInput.value = newQty;
+            if (state.quickSaleDraft) {
+              state.quickSaleDraft.quantity = String(newQty);
+            }
+          }
+        }
+        const unitPriceInput = dom.quickSalePanel.querySelector("#quickSaleUnitPriceInput");
+        if (unitPriceInput && option.dataset.salePrice) {
+          unitPriceInput.value = option.dataset.salePrice;
+          if (state.quickSaleDraft) {
+            state.quickSaleDraft.unitPrice = option.dataset.salePrice;
+            state.quickSaleDraft.conversionFactor = option.value;
+            state.quickSaleDraft.unitName = option.dataset.unitName;
+          }
+        }
+      }
+    }
+  });
+
   dom.quickSalePanel?.addEventListener("click", async (event) => {
     const actionButton = event.target.closest("[data-quick-sale-action]");
     if (!actionButton) {
@@ -315,6 +441,11 @@ export function registerSalesControllerEvents(contract) {
     }
     const action = actionButton.dataset.quickSaleAction;
     try {
+      if (action === "toggle-panel") {
+        state.quickSaleDraft.panelCollapsed = !state.quickSaleDraft.panelCollapsed;
+        renderers.renderQuickSalePanel();
+        return;
+      }
       if (action === "add-item") {
         addQuickSaleItem();
         return;
@@ -355,7 +486,25 @@ export function registerSalesControllerEvents(contract) {
         return;
       }
       if (action === "use-active-cart") {
-        actions.cloneActiveCartIntoQuickSaleDraft();
+        const cart = queries.getActiveCart();
+        if (!cart) return;
+
+        if (cart.status === "cancelled") {
+          actions.showToast("Đơn đã hủy không thể chọn để xử lý xuất nhanh.", true);
+          return;
+        }
+
+        let editTarget = false;
+        if (cart.status === "completed") {
+          const shouldClone = window.confirm("Đơn đã xuất kho không thể sửa trực tiếp. Bạn có muốn TẠO MỚI một bản sao để tiếp tục xuất nhanh không?");
+          if (!shouldClone) return;
+          editTarget = false;
+          actions.showToast("Đang TẠO MỚI một đơn xuất dựa trên đơn đang mở.");
+        } else {
+          editTarget = true;
+        }
+
+        actions.cloneActiveCartIntoQuickSaleDraft({ editTarget });
         renderers.renderQuickSalePanel();
         return;
       }
@@ -519,7 +668,8 @@ export function registerSalesControllerEvents(contract) {
       discountAmount: Number(discountAmount.toFixed(2)),
       updatedAt: utils.nowIso(),
     }));
-    actions.saveAndRenderAll(persist ? ["carts"] : []);
+    // #Issue37: Avoid bypassing the audited locked-order endpoint while editing a completed cart.
+    actions.saveAndRenderAll(persist && !cart._adminEditMode ? ["carts"] : []);
     if (!silent) {
       actions.showToast("Đã lưu giảm giá khuyến mại.");
     }
@@ -544,7 +694,8 @@ export function registerSalesControllerEvents(contract) {
       note,
       updatedAt: utils.nowIso(),
     }));
-    actions.saveAndRenderAll(persist ? ["carts"] : []);
+    // #Issue37: Include locked-order notes in the audited bypass save, not generic state sync.
+    actions.saveAndRenderAll(persist && !cart._adminEditMode ? ["carts"] : []);
     if (!silent) {
       actions.showToast("Đã lưu ghi chú phiếu xuất.");
     }
@@ -643,7 +794,8 @@ export function registerSalesControllerEvents(contract) {
     const cart = visibleOrders.find((entry) => entry.id === cartId) || null;
     state.expandedOrderId = cart ? cartId : null;
     if (resetItems) {
-      state.orderDetailItemsCollapsed = true;
+      state.orderDetailItemsCollapsed = false;
+      state.orderDetailMetaCollapsed = true;
     }
     if (cart) {
       actions.setPaginationPageForItem("orders", visibleOrders, cartId);
@@ -689,15 +841,13 @@ export function registerSalesControllerEvents(contract) {
   dom.salesProductList.addEventListener("change", (event) => {
     const checkbox = event.target.closest("[data-pick-product]");
     if (!checkbox) {
-      const qtyInput = event.target.closest("[data-sales-inline-qty]");
-      if (!qtyInput) return;
-      try {
-        const quantity = Number(qtyInput.value);
-        if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
-        actions.updateCartItem(qtyInput.dataset.salesInlineQty, { quantity: Number(quantity.toFixed(2)) });
-        renderers.renderSalesProductList();
-      } catch (error) {
-        actions.showToast(error.message, true);
+      // #Issue133: Editing stays local until Save; blur must not send all carts.
+      const unitSelect = event.target.closest("[data-sales-inline-unit]");
+      if (unitSelect) {
+        const item = queries.getActiveCart()?.items.find(entry => entry.id === unitSelect.dataset.salesInlineUnit);
+        if (!item) return;
+        const qtyInput = dom.salesProductList.querySelector(`[data-sales-inline-qty="${item.id}"]`);
+        convertUnitQuantity(qtyInput, Number(item.conversionFactor || 1), Number(unitSelect.value || 1), item);
       }
       return;
     }
@@ -774,12 +924,20 @@ export function registerSalesControllerEvents(contract) {
     if (actionButton.dataset.salesInlineAction === "save") {
       const qtyInput = dom.salesProductList.querySelector(`[data-sales-inline-qty="${actionButton.dataset.itemId}"]`);
       const priceInput = dom.salesProductList.querySelector(`[data-sales-inline-price="${actionButton.dataset.itemId}"]`);
+      const unitSelect = dom.salesProductList.querySelector(`[data-sales-inline-unit="${actionButton.dataset.itemId}"]`);
       try {
-        const quantity = Number(qtyInput?.value);
+        const inputQuantity = Number(qtyInput?.value);
         const unitPrice = Number(priceInput?.value);
-        if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
+        if (!Number.isFinite(inputQuantity) || inputQuantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
         if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new Error("Giá bán không hợp lệ.");
-        actions.updateCartItem(actionButton.dataset.itemId, { quantity: Number(quantity.toFixed(2)), unitPrice });
+        const item = activeCart.items.find(entry => entry.id === actionButton.dataset.itemId);
+        const option = unitSelect?.selectedOptions[0];
+        const conversionFactor = Number(option?.value || item?.conversionFactor || 1);
+        await actions.saveCartItem(actionButton.dataset.itemId, {
+          quantity: Number(getUnitQuantityBase(qtyInput, conversionFactor, item).toFixed(4)),
+          inputQuantity, inputUnit: option?.dataset.unitName || item?.inputUnit || item?.unit,
+          conversionFactor, unitPrice,
+        });
         renderers.renderSalesProductList();
         renderers.renderCartItems();
         renderers.renderActiveCartPanel();
@@ -827,6 +985,28 @@ export function registerSalesControllerEvents(contract) {
     syncPriceWarningFromInput(warningInput);
   });
 
+  dom.cartItemsList.addEventListener("change", (event) => {
+    const unitSelect = event.target.closest("[data-cart-unit-input]");
+    if (!unitSelect) return;
+    const itemId = unitSelect.dataset.cartUnitInput;
+    const cart = queries.getActiveCart();
+    const item = cart?.items.find(i => String(i.id) === String(itemId));
+    if (!item) return;
+    const option = unitSelect.options[unitSelect.selectedIndex];
+    if (!option) return;
+
+    const oldFactor = parseFloat((item.conversionFactor ?? item.conversion_factor) || 1) || 1;
+    const newFactor = parseFloat(option.value) || 1;
+    const qtyInput = dom.cartItemsList.querySelector(`[data-qty-input="${itemId}"]`);
+    const priceInput = dom.cartItemsList.querySelector(`[data-price-input="${itemId}"], [data-price-input-cart="${itemId}"]`);
+
+    // #Issue133: Subsequent changes use the current editor factor, not the saved line factor.
+    convertUnitQuantity(qtyInput, oldFactor, newFactor, item);
+    if (priceInput && option.dataset.salePrice) {
+      priceInput.value = option.dataset.salePrice;
+    }
+  });
+
   dom.cartItemsList.addEventListener("click", async (event) => {
     const lineButton = event.target.closest("[data-line-action], [data-cart-item-action]");
     if (!lineButton) return;
@@ -847,12 +1027,29 @@ export function registerSalesControllerEvents(contract) {
     if (lineAction === "save") {
       const qtyInput = dom.cartItemsList.querySelector(`[data-qty-input="${lineButton.dataset.itemId}"]`);
       const priceInput = dom.cartItemsList.querySelector(`[data-price-input-cart="${lineButton.dataset.itemId}"], [data-price-input="${lineButton.dataset.itemId}"]`);
+      const discountInput = dom.cartItemsList.querySelector(`[data-discount-input="${lineButton.dataset.itemId}"], [data-item-discount-input="${lineButton.dataset.itemId}"]`);
+      const unitSelect = dom.cartItemsList.querySelector(`[data-cart-unit-input="${lineButton.dataset.itemId}"]`);
       try {
-        const quantity = Number(qtyInput?.value);
+        const inputQuantity = Number(qtyInput?.value);
         const unitPrice = Number(priceInput?.value);
-        if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
+        const discountAmount = Math.max(0, Number(discountInput?.value || 0));
+        if (!Number.isFinite(inputQuantity) || inputQuantity <= 0) throw new Error("Số lượng phải lớn hơn 0.");
         if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new Error("Giá bán không hợp lệ.");
-        actions.updateCartItem(lineButton.dataset.itemId, { quantity: Number(quantity.toFixed(2)), unitPrice });
+        if (!Number.isFinite(discountAmount) || discountAmount < 0) throw new Error("Khuyến mại không hợp lệ.");
+
+        const selectedOption = unitSelect?.options[unitSelect?.selectedIndex];
+        const conversionFactor = selectedOption ? (parseFloat(selectedOption.value) || 1.0) : 1.0;
+        const inputUnit = selectedOption?.dataset.unitName || (selectedOption?.textContent || "").trim();
+        const baseQuantity = Number(getUnitQuantityBase(qtyInput, conversionFactor, queries.getActiveCart()?.items.find((item) => item.id === lineButton.dataset.itemId)).toFixed(4));
+
+        await actions.saveCartItem(lineButton.dataset.itemId, {
+          inputQuantity,
+          inputUnit,
+          conversionFactor,
+          quantity: baseQuantity,
+          unitPrice,
+          discountAmount,
+        });
         renderers.renderCartItems();
         renderers.renderSalesProductList();
         renderers.renderActiveCartPanel();
@@ -889,9 +1086,10 @@ export function registerSalesControllerEvents(contract) {
     if (event.key !== "Enter") return;
     const qtyInput = event.target.closest("[data-qty-input]");
     const priceInput = event.target.closest("[data-price-input-cart], [data-price-input]");
-    if (!qtyInput && !priceInput) return;
+    const discountInput = event.target.closest("[data-discount-input], [data-item-discount-input]");
+    if (!qtyInput && !priceInput && !discountInput) return;
     event.preventDefault();
-    const itemId = qtyInput?.dataset.qtyInput || priceInput?.dataset.priceInputCart || priceInput?.dataset.priceInput;
+    const itemId = qtyInput?.dataset.qtyInput || priceInput?.dataset.priceInputCart || priceInput?.dataset.priceInput || discountInput?.dataset.discountInput || discountInput?.dataset.itemDiscountInput;
     const saveButton = dom.cartItemsList.querySelector(`[data-line-action="save"][data-item-id="${itemId}"], [data-cart-item-action="save"][data-item-id="${itemId}"]`);
     saveButton?.click();
   });
@@ -912,6 +1110,10 @@ export function registerSalesControllerEvents(contract) {
     }
     if (button.dataset.cartAction === "merge-print-existing") {
       actions.printCart(button.dataset.cartId);
+      return;
+    }
+    if (button.dataset.cartAction === "merge-copy-text-existing") {
+      actions.copyCartText(button.dataset.cartId);
       return;
     }
     if (button.dataset.cartAction === "merge-create-new") {
@@ -996,6 +1198,10 @@ export function registerSalesControllerEvents(contract) {
       actions.printCart(cart.id);
       return;
     }
+    if (button.dataset.cartAction === "copy-text") {
+      actions.copyCartText(cart.id);
+      return;
+    }
     if (button.dataset.cartAction === "save-discount") {
       saveCartDiscount(cart.id, dom.activeCartPanel);
       return;
@@ -1031,22 +1237,53 @@ export function registerSalesControllerEvents(contract) {
       if (!saveCartEditorsBeforeStatusChange(cart.id, dom.activeCartPanel)) {
         return;
       }
-      if (!confirmCartStatusAction(cart, "ship")) {
-        return;
-      }
       const latestCart = queries.getActiveCart() || cart;
       if (!confirmCartCostWarning(latestCart, "Xuất hàng")) {
         return;
       }
+      // Issue 169: Cho phép chọn ngày xuất khi chuyển sang Đã xuất hàng
+      let shipDate = "";
+      if (typeof actions.promptDocumentActionDate === "function") {
+        const label = getCartDisplayName(cart);
+        const chosenDate = await actions.promptDocumentActionDate({
+          kicker: "Xác nhận xuất hàng",
+          title: `Xuất hàng: ${label}`,
+          message: `Đơn sẽ chuyển sang Đã xuất hàng và tồn kho sẽ bị trừ ngay theo các dòng hiện tại.`,
+          dateLabel: "Ngày xuất hàng:",
+          confirmText: "Xác nhận xuất hàng",
+        });
+        if (!chosenDate) {
+          return;
+        }
+        shipDate = chosenDate;
+      } else if (!confirmCartStatusAction(cart, "ship")) {
+        return;
+      }
       try {
         await actions.flushPendingPersistCollections();
-        await actions.shipActiveCart();
+        await actions.shipActiveCart({ shipDate });
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+    if (button.dataset.cartAction === "admin-bypass-save") {
+      try {
+        await actions.flushPendingPersistCollections();
+        await actions.saveAdminBypassCart();
       } catch (error) {
         actions.showToast(error.message, true);
       }
       return;
     }
     if (button.dataset.cartAction === "cancel") {
+      if (cart._adminEditMode) {
+        delete cart._adminEditMode;
+        delete cart._adminEditReason;
+        await actions.refreshData(); // discard local modifications
+        actions.saveAndRenderAll();
+        return;
+      }
       if (!confirmCartStatusAction(cart, "cancel")) {
         return;
       }
@@ -1140,6 +1377,21 @@ export function registerSalesControllerEvents(contract) {
       actions.printCart(cart.id);
       return;
     }
+    if (action === "copy-text") {
+      actions.copyCartText(cart.id);
+      return;
+    }
+    if (action === "admin-edit") {
+      const reason = window.prompt("Lý do Master Admin sửa đơn đã khóa (bắt buộc):");
+      if (!reason || !reason.trim()) return;
+      try {
+        await actions.flushPendingPersistCollections();
+        actions.beginAdminEditCart(cart.id, reason.trim());
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (action === "history") {
       try {
         await actions.openCartAuditHistory(cart.id);
@@ -1204,16 +1456,31 @@ export function registerSalesControllerEvents(contract) {
       if (!saveCartEditorsBeforeStatusChange(cart.id, dom.cartQueueList)) {
         return;
       }
-      if (!confirmCartStatusAction(cart, "ship")) {
-        return;
-      }
       const latestCart = queries.getCartById(button.dataset.cartId) || cart;
       if (!confirmCartCostWarning(latestCart, "Xuất hàng")) {
         return;
       }
+      // Issue 169: Cho phép chọn ngày xuất khi chuyển sang Đã xuất hàng
+      let shipDate = "";
+      if (typeof actions.promptDocumentActionDate === "function") {
+        const label = getCartDisplayName(cart);
+        const chosenDate = await actions.promptDocumentActionDate({
+          kicker: "Xác nhận xuất hàng",
+          title: `Xuất hàng: ${label}`,
+          message: `Đơn sẽ chuyển sang Đã xuất hàng và tồn kho sẽ bị trừ ngay theo các dòng hiện tại.`,
+          dateLabel: "Ngày xuất hàng:",
+          confirmText: "Xác nhận xuất hàng",
+        });
+        if (!chosenDate) {
+          return;
+        }
+        shipDate = chosenDate;
+      } else if (!confirmCartStatusAction(cart, "ship")) {
+        return;
+      }
       try {
         await actions.flushPendingPersistCollections();
-        await actions.shipCart(cart.id);
+        await actions.shipCart(cart.id, { shipDate });
       } catch (error) {
         actions.showToast(error.message, true);
       }
@@ -1347,6 +1614,14 @@ export function registerSalesControllerEvents(contract) {
       actions.focusOrderDetailPanel();
       return;
     }
+    if (action === "toggle-detail-meta") {
+      // Default to true if undefined, so flipping it makes it false (visible)
+      const current = state.orderDetailMetaCollapsed ?? true;
+      state.orderDetailMetaCollapsed = !current;
+      renderers.renderCartQueue();
+      actions.focusOrderDetailPanel();
+      return;
+    }
     const cart = queries.getCartById(cartId);
     if (!cart) return;
     if (action === "open") {
@@ -1363,6 +1638,21 @@ export function registerSalesControllerEvents(contract) {
     }
     if (action === "print") {
       actions.printCart(cart.id);
+      return;
+    }
+    if (action === "copy-text") {
+      actions.copyCartText(cart.id);
+      return;
+    }
+    if (action === "admin-edit") {
+      const reason = window.prompt("Lý do Master Admin sửa đơn đã khóa (bắt buộc):");
+      if (!reason) return;
+      try {
+        await actions.flushPendingPersistCollections();
+        actions.beginAdminEditCart(cart.id, reason);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
       return;
     }
     if (action === "history") {
@@ -1421,12 +1711,29 @@ export function registerSalesControllerEvents(contract) {
     }
     if (action === "ship") {
       if (!saveCartEditorsBeforeStatusChange(cart.id, dom.orderDetailPanel)) return;
-      if (!confirmCartStatusAction(cart, "ship")) return;
       const latestCart = queries.getCartById(cart.id) || cart;
       if (!confirmCartCostWarning(latestCart, "Xuất hàng")) return;
+      // Issue 169: Cho phép chọn ngày xuất khi chuyển sang Đã xuất hàng
+      let shipDate = "";
+      if (typeof actions.promptDocumentActionDate === "function") {
+        const label = getCartDisplayName(cart);
+        const chosenDate = await actions.promptDocumentActionDate({
+          kicker: "Xác nhận xuất hàng",
+          title: `Xuất hàng: ${label}`,
+          message: `Đơn sẽ chuyển sang Đã xuất hàng và tồn kho sẽ bị trừ ngay theo các dòng hiện tại.`,
+          dateLabel: "Ngày xuất hàng:",
+          confirmText: "Xác nhận xuất hàng",
+        });
+        if (!chosenDate) {
+          return;
+        }
+        shipDate = chosenDate;
+      } else if (!confirmCartStatusAction(cart, "ship")) {
+        return;
+      }
       try {
         await actions.flushPendingPersistCollections();
-        await actions.shipCart(cart.id);
+        await actions.shipCart(cart.id, { shipDate });
       } catch (error) {
         actions.showToast(error.message, true);
       }

@@ -2,10 +2,11 @@
 
 ## Mục tiêu
 
-Project có 2 lớp test:
+Project có các lớp test:
 
 - `unit test` cho logic backend nhỏ
-- `integration test` cho toàn bộ giao diện và API theo luồng nghiệp vụ thật
+- `integration test` cho toàn bộ giao diện và API theo luồng nghiệp vụ thật (chạy trên fixture DB tạm local)
+- `remote / staging test` cho kiểm thử trực tiếp trên server thật/môi trường staging/LAN (`smoke`, `readonly`, `full`)
 
 Ngoài ra có thêm `acceptance checklist` để kiểm soát case bàn giao:
 
@@ -13,6 +14,7 @@ Ngoài ra có thêm `acceptance checklist` để kiểm soát case bàn giao:
 - automation bundle: `npm run test:acceptance`
 - mapping mã test: `docs/TEST_CASE_INDEX.md`
 - mô tả ngắn test case: `docs/TEST_CASE_DESCRIPTIONS.md`
+- hướng dẫn test staging/remote: mục [2.3. Test trên môi trường Staging / Remote Server](#23-test-trên-môi-trường-staging--remote-server)
 
 ## 0. Setup tool trước khi test
 
@@ -39,7 +41,154 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 
 
 ## 1. Unit test
 
-Chạy:
+### Flask migration factory
+
+Các test mới cho app factory Flask nằm trong `tests/test_flask_app.py` và chạy cùng
+`unittest`. Cài dependencies theo `requirements.txt` vào đúng Python environment
+trước khi chạy; không cài vào Python global chỉ để chạy test. Factory nhận DB,
+system config và asset manifest tường minh. Test dùng DB/manifest/thư mục ảnh ở
+`tempfile`; `testing=True` sẽ từ chối các đường dẫn runtime trong `data/` và bắt
+buộc nhận system config test tường minh. Runtime factory chỉ đọc config theo
+`APP_ENV` khi được gọi. Test admin dùng `admin_path` riêng và xác nhận trang admin
+khác trang public root.
+Session/admin login, port-scoped cookie, status payload và logout hiện có test Flask
+riêng; admin login phải từ chối tài khoản user thường.
+`UT-WEB-13` cũng gửi HTTP request qua WSGI server loopback thật để kiểm tra
+admin/public routing ngoài Flask test client.
+`UT-WEB-147` kiểm tra Waitress với prefix được cấu hình rõ và WSGI
+`SCRIPT_NAME` khi reverse proxy đã strip prefix; test dùng DB trong thư mục tạm.
+`UT-WEB-148` xác nhận `APP_URL_PREFIX` được chuẩn hóa rồi chuyển vào Waitress.
+`UT-WEB-14` so sánh nguyên payload session status của Flask với legacy HTTP
+handler trên cùng config và session manager.
+Route `GET /api/public/products` đã có kiểm tra schema, lọc sản phẩm public,
+thông tin âm lịch và settings lấy từ config injected. `GET /api/public/orders` có
+kiểm thử contract cho phản hồi 400 khi thiếu thông tin tra cứu. Exception Flask
+được kiểm tra dùng `qltpchay.logger` với stack trace trong server log, còn response
+500 không chứa chi tiết nội bộ.
+`POST /api/public/orders` kiểm tra tạo đơn online qua `InventoryStore`, yêu cầu
+Zalo theo config injected, ánh xạ lỗi validation sang 400, lỗi bất ngờ sang JSON
+500 an toàn và hỗ trợ alias theo admin prefix.
+`GET /api/products` giữ response gồm danh sách và summary, áp dụng `EnableLogin`
+và nhận session qua cookie hiện hành; request passive không gia hạn session.
+`GET /api/products/deleted` và `GET /api/products/history` dùng cùng auth gate,
+giữ schema response và bộ lọc actor/date/limit hiện có.
+`GET /api/product-movements` giữ các bộ lọc ngày/loại/keyword và ánh xạ đầu vào
+không hợp lệ thành status 400.
+`GET /api/receipts/history` và `GET /api/transactions` giữ wrapper JSON và chuyển
+limit cùng các bộ lọc lịch sử sang `InventoryStore`.
+`GET /api/orders/<id>/history` và `GET /api/purchases/<id>/history` giữ response
+document/history, giới hạn truy vấn và status 400 nếu chứng từ không tồn tại.
+`GET /api/runtime-version` bổ sung app/debug/pagination metadata hiện hành;
+`GET /api/reports/monthly` chuyển các bộ lọc tháng/ngày và trả 400 nếu tham số
+tháng không hợp lệ.
+`GET /api/procurement/status` giữ lock timeout, config công khai, quyền quản lý
+batch và nhận diện lock owner từ session hiện tại.
+`GET /api/procurement/planner` giữ scope, yêu cầu `EnableLogin` theo config,
+kiểm tra quyền quản lý và ánh xạ scope không hợp lệ thành 400.
+`GET /api/state` tổng hợp metadata, sản phẩm, giao dịch, procurement, request
+pending và sync collections; test xác nhận `transaction_limit` và auth gate.
+`POST /api/products`, `PUT /api/products/<id>` và `DELETE /api/products/<id>`
+chuyển CRUD sản phẩm qua Flask, giữ response tạo/cập nhật/xóa mềm, actor session,
+trạng thái public rõ ràng và ánh xạ validation thành 400.
+Các endpoint `PUT /api/products/<id>/price`,
+`PUT /api/products/<id>/sale-price` và `POST /api/products/<id>/restore` giữ
+cập nhật riêng giá nhập/giá bán và khôi phục sản phẩm đã xóa mềm.
+`POST /api/products/<id>/change-base-unit` chỉ cho Master Admin, kể cả khi
+`EnableLogin` tắt; hỗ trợ cả admin prefix cấu hình và alias `/api/admin`.
+`DELETE /api/admin/products/<id>/hard` giữ auth gate login + Master Admin và
+response xóa hẳn trực tiếp từ `InventoryStore`.
+`POST /api/products/images/upload` giữ hợp đồng raw binary, lọc extension,
+ghi dưới image root của app và trả URL dùng được qua static image route.
+`GET /api/orders/bulk-requests/<id>/history` và
+`GET /api/document-cancel-requests/<id>/history` giữ payload request/history,
+limit và status 400 khi không tìm thấy request.
+Admin read routes cho public web config, mail config và legacy audit bắt buộc
+Master Admin; mail config chỉ trả cờ `has_password`, tuyệt đối không lộ mật khẩu.
+`GET /api/admin/export/<entity>` giữ JSON/CSV download contract, UTF-8 BOM cho
+CSV, tên file attachment và validation format.
+`GET /api/admin/backup` yêu cầu Master Admin và trả file từ backup service dưới
+dạng attachment `application/octet-stream`.
+`PUT /api/state` áp dụng login gate, actor/role session, contract metadata trong
+response, conflict payload `409`, validation payload `400` và admin prefix alias.
+`POST /api/transactions` luôn yêu cầu session admin hoặc quyền
+`inventory_adjust_manage`, giữ actor username, các trường batch/expiry và response
+201; lỗi đầu vào từ chối bằng 400.
+`POST /api/orders/checkout`, `/api/orders/quick-create` và `/api/orders/commit`
+giữ response tạo/chốt đơn, quick summary, actor username và lỗi validation 400.
+`POST /api/orders/bulk-create` giữ permission riêng cho create/commit, luồng
+approval request, alias camelCase, duplicate response `409` và allow-duplicates.
+Các endpoint approve/reject yêu cầu `order_batch_manage`, giữ actor/reason và
+response request cùng queue cập nhật.
+Các endpoint delete/process bulk request giữ quy tắc owner hoặc manager, auth
+gate khi bật login và inventory summary sau khi xử lý.
+Cancel request của đơn/phiếu nhập yêu cầu `EnableLogin`, lưu actor/reason trước,
+gửi mail qua boundary mockable và giữ response 201/warning khi SMTP lỗi.
+Approve/reject document-cancel request yêu cầu `document_cancel_approve`, giữ
+response sync state + summary khi approve và actor/reason khi reject.
+Ship order/receive purchase áp dụng auth gate hệ thống, giữ actor/role, ngày giao
+dịch, response schema và status khác nhau; lỗi nghiệp vụ trả 400.
+Quick purchase, mark-paid và purchase payment giữ response/actor/role, payment
+metadata và validation status.
+Cart item updates preserve conflict `409`, cart payment passes session actor/role,
+and received purchase expiry preserves date/actor fields in its response.
+Purchase repair preserves detached receipt details, inventory adjustment requires
+its dedicated permission, and customer/supplier returns preserve source/error data.
+Procurement mutations require the configured batch manager gate and preserve lock
+actor, conflict payload, draft scope, and created/skipped purchase results.
+Master Admin mail and Public Web configuration writes persist through the injected
+config path, preserve secrets and existing fields; test-mail mocks SMTP and checks
+sent/skipped/failure diagnostics without exposing credentials in the response.
+Legacy audit repair and purchase receipt/source linking remain Master Admin-only
+and preserve actor, audit entries, updated purchase lists, and validation errors.
+Locked order/purchase edits require Master Admin and the feature gate, then pass the
+locked document snapshot and edit reason through to the store with actor context.
+Hard-delete customer/supplier endpoints require Master Admin and preserve actor,
+store deletion results, and validation errors.
+Zalo group list/create/delete preserve the legacy unauthenticated API contract,
+custom admin-prefix aliases, generated IDs, and deletion validation errors.
+Master import accepts JSON/CSV with entity/header/record validation; database restore
+forwards decoded backup bytes to the store and remains covered with a temporary test
+app and mocked restore boundary.
+Zalo OAuth start/callback preserves redirect URI, PKCE cookie, mock mode, customer
+upsert and callback HTML; token/profile HTTP calls are mocked in tests.
+
+Chạy riêng nhóm này:
+
+```powershell
+python -m unittest tests.test_flask_app
+```
+
+### Remote Ops Bridge & Scrutiny
+
+Các test cho cầu nối trung gian vận hành headless và cơ chế thẩm định (Intake & Scrutiny) nằm ở `tests/test_remote_ops.py`:
+- `UT-REMOTE-01`: format bảng markdown hiển thị dữ liệu đối soát.
+- `UT-REMOTE-02`: thẩm định và phân loại sản phẩm mới vs cập nhật khi đối soát với server.
+- `UT-REMOTE-03`: kiểm tra cơ chế cảnh báo rủi ro (giá bán < giá nhập, biến động giá > 30%).
+
+Chạy riêng nhóm này:
+
+```powershell
+python -m unittest tests.test_remote_ops
+```
+
+### Cách chạy nhanh gọn (Khuyến nghị để tiết kiệm token và giữ console sạch)
+
+Chạy qua wrapper summary (toàn bộ log chi tiết được tự động lưu vào `logs/test-unit-<timestamp>.log`, chỉ in kết quả tóm tắt và lỗi cốt lõi ra console):
+
+```powershell
+python scripts/run_tests_summary.py unit
+# hoặc qua npm:
+npm run test:unit:summary
+```
+
+Khi cần chạy 1 file hoặc case cụ thể qua summary runner:
+
+```powershell
+python scripts/run_tests_summary.py unit tests/test_global_id.py
+python scripts/run_tests_summary.py unit tests.test_app.InventoryStoreTests.test_ut_db_01_create_product_and_stock_summary
+```
+
+### Cách chạy truyền thống (in toàn bộ log ra console)
 
 ```powershell
 python -m unittest discover -s tests
@@ -78,6 +227,8 @@ Phù hợp khi sửa:
 
 Integration test dùng `Playwright`.
 
+Playwright và integration server dùng chung cấu hình test tại `tests/integration/test_runtime_config.json`. Server integration không đọc config runtime test/production; nó khởi tạo config fixture riêng, dùng tài khoản test, bật mock Zalo và ghi SQLite cùng manifest asset JS vào thư mục tạm. Khi đổi admin path, sửa cấu hình test này hoặc truyền `TEST_ADMIN_PATH` cho cả runner; không sửa URL admin rải rác trong từng test. UI test phải dùng `openAdminPage(page)` trong `tests/integration/support/ui.js`, helper này xác nhận form admin tải thành công trước khi test login.
+
 ### Cài dependency test
 
 ```powershell
@@ -93,6 +244,42 @@ npx playwright install chromium
 ```
 
 ### Chạy toàn bộ suite
+
+Playwright mặc định chạy server fixture bằng backend legacy để giữ đường đối chứng. Để chạy cùng suite trên Flask/Waitress, đặt biến môi trường trước lệnh:
+
+```powershell
+$env:PLAYWRIGHT_BACKEND = "flask"
+npm run test:integration
+Remove-Item Env:PLAYWRIGHT_BACKEND
+```
+
+Runner tạo SQLite fixture riêng trong thư mục tạm cho cả hai backend; không dùng `data/inventory.db`.
+
+#### Cách chạy nhanh gọn (Khuyến nghị để tiết kiệm token context cho Agent và giữ console sạch)
+
+Toàn bộ raw log tiến trình browser và server được tự động chuyển vào `logs/test-integration-<timestamp>.log`:
+
+```powershell
+python scripts/run_tests_summary.py integration
+# hoặc qua npm:
+npm run test:integration:summary
+```
+
+Chạy với bộ lọc grep qua summary runner:
+
+```powershell
+python scripts/run_tests_summary.py integration --grep "ACC-SALE"
+```
+
+Chạy toàn bộ cả Unit test lẫn Integration test tuần tự:
+
+```powershell
+python scripts/run_tests_summary.py all
+# hoặc qua npm:
+npm run test:summary
+```
+
+#### Cách chạy truyền thống (in chi tiết từng case ra console)
 
 Trên Linux/dev server đã có virtualenv `.venv`, activate trước để `playwright.config.js` tìm được lệnh `python` đúng:
 
@@ -198,6 +385,95 @@ npm run test:cases -- -Target unit -ExcludeCode UT-DB
 ```powershell
 npm run test:cases -- -Target all -ExcludeCode UT-DB
 ```
+
+## 2.3. Test trên môi trường Staging / Remote Server
+
+Ngoài việc chạy test trên server fixture tạm local (`127.0.0.1:8130`), hệ thống hỗ trợ chạy kiểm thử trực tiếp lên server thật: **Staging**, **Pre-production**, **Remote Server** (qua domain/reverse proxy như Nginx, SWAG, duckdns), hoặc **máy khác trong mạng LAN**.
+
+### Cơ chế hoạt động
+
+- Khi truyền URL từ xa, Playwright sẽ tự động tắt `webServer` local tạm (`webServer: undefined`) và dùng URL đó làm `PLAYWRIGHT_BASE_URL`.
+- Runner `scripts/run-remote-tests.js` tự động gửi request đến `<URL>/api/session/status` để lấy cấu hình `admin_path` thực tế của server đích (ví dụ: `admin`, `qlht`,...), sau đó truyền biến môi trường `TEST_ADMIN_PATH` vào Playwright test.
+- Hỗ trợ đầy đủ các môi trường triển khai dưới subpath (ví dụ: `https://qts-home.duckdns.org/qltp/` hoặc `https://domain.com/ttchay/`).
+
+### Các cấp độ test (Test Levels)
+
+| Cấp độ (Level) | Mục đích | Bộ test thực thi | Mức an toàn dữ liệu |
+| :--- | :--- | :--- | :--- |
+| **`smoke`** | Kiểm tra khói / Health-check giao diện nhanh sau khi deploy | `public-product-list.spec.js`, `login.spec.js` | **100% An toàn** (không ghi DB) |
+| **`readonly`** | Kiểm tra toàn bộ UI đọc dữ liệu, cuộn, overlay, phân trang, sort | `public-product-list.spec.js`, `login.spec.js`, `detail-scroll.spec.js`, `ui-feedback-layering.spec.js`, `inventory-sort.spec.js`, `pagination-settings.spec.js` | **100% An toàn** (chỉ đọc, không tạo/sửa chứng từ) |
+| **`full`** | Kiểm thử hồi quy toàn bộ nghiệp vụ (Phase A, B, C, gom đơn, duyệt hủy, thanh toán...) | Toàn bộ integration test suite (`tests/integration/*.spec.js`) | **Chỉ dùng cho server test/staging** (sẽ tạo/sửa dữ liệu nghiệp vụ) |
+
+### Cú pháp lệnh chạy
+
+Cú pháp tổng quát:
+```powershell
+npm run test:staging:<level> -- <URL> [playwright-options]
+# hoặc dùng alias
+npm run test:remote:<level> -- <URL> [playwright-options]
+```
+
+#### 1. Kiểm tra nhanh (Smoke test)
+Chạy kiểm tra trang public và luồng đăng nhập tài khoản:
+```powershell
+npm run test:staging:smoke -- https://qts-home.duckdns.org/qltp/
+# Hoặc alias
+npm run test:remote:smoke -- https://qts-home.duckdns.org/qltp/
+```
+
+#### 2. Kiểm tra chỉ đọc (Readonly test - Khuyến nghị cho Staging/Production)
+Kiểm tra chi tiết hiển thị, cuộn, sắp xếp, phân trang mà không lo làm bẩn hay sai lệch dữ liệu:
+```powershell
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/
+# Hoặc alias
+npm run test:remote:readonly -- https://qts-home.duckdns.org/qltp/
+```
+
+#### 3. Chạy có giao diện trình duyệt (Headed mode)
+Thêm cờ `--headed` vào cuối lệnh để quan sát trực tiếp browser thao tác trên màn hình:
+```powershell
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/ --headed
+```
+
+#### 4. Lọc chạy theo mã test case cụ thể (--grep)
+Ví dụ chỉ chạy các test kiểm tra đăng nhập (`IT-LOG`):
+```powershell
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/ --grep "IT-LOG"
+```
+Hoặc kiểm tra sắp xếp tồn kho:
+```powershell
+npm run test:staging:readonly -- https://qts-home.duckdns.org/qltp/ --grep "IT-INV-SORT"
+```
+
+#### 5. Kiểm thử máy trong mạng LAN (Máy B test vào Máy A)
+- **Trên máy A (chạy server)**: Cho phép lắng nghe từ mạng ngoài:
+  ```powershell
+  python app.py --host 0.0.0.0 --port 4000
+  ```
+- **Trên máy B (chạy test)**: Trỏ test vào IP của máy A:
+  ```powershell
+  npm run test:remote:smoke -- http://192.168.1.10:4000/
+  npm run test:remote:readonly -- http://192.168.1.10:4000/
+  ```
+
+### Lưu ý quan trọng khi test Remote / Staging
+
+1. **Dấu slash `/` ở cuối URL**:
+   - Khi server chạy với subpath (như `/qltp/` hay `/ttchay/`), **bắt buộc phải có dấu gạch chéo `/` ở cuối URL**.
+   - Đúng: `https://qts-home.duckdns.org/qltp/`
+   - Sai: `https://qts-home.duckdns.org/qltp` (có thể khiến trình duyệt phân giải sai đường dẫn API tương đối như `./api/...` về root domain).
+2. **Chứng chỉ SSL / HTTPS**:
+   - Runner đã cấu hình `rejectUnauthorized: false` khi gọi API detect `admin_path`, và Playwright tự động hỗ trợ chứng chỉ SSL tự ký hoặc domain DuckDNS mà không bị chặn lỗi chứng chỉ.
+3. **Xem kết quả & Báo cáo lỗi**:
+   - Kết quả từng test case (PASS / FAIL / TIMEOUT) hiển thị ngay trên màn hình dòng lệnh.
+   - Khi có case bị lỗi (FAIL), Playwright tự động lưu ảnh chụp màn hình (screenshot) và execution trace vào thư mục:
+     ```text
+     test-results/playwright/
+     ```
+   - Có thể mở file trace để xem chi tiết từng action:
+     ```powershell
+     npx playwright show-trace test-results/playwright/<tên_thư_mục_test>/trace.zip
+     ```
 
 ## Integration suite đang kiểm tra gì
 
@@ -328,6 +604,8 @@ Case mới cho Phase A:
 - `UT-SYNC-04`: backend chặn `draft -> paid` ở đơn hàng, cho `draft -> cancelled`, cho `completed -> paid`, rồi khóa hẳn nhánh mở lại/hạ trạng thái sau khi đã `cancelled/paid`
 - `UT-SYNC-05`: backend khóa `customerId/customerName` từ lúc đơn ở `committed`, vẫn cho sửa `ship_address` và thêm dòng hàng trước khi xuất, đồng thời chặn đổi `committed -> completed` qua sync thẳng
 - `UT-ORD-15`: backend `commit_cart_order()` không trừ kho, còn `ship_cart_order()` mới trừ kho và chuyển đơn sang `completed`
+- `UT-ORD-19`: backend `ship_cart_order()` nhận và lưu chính xác mốc thời gian ngày xuất tùy chỉnh vào `completed_at` của đơn và `created_at` của giao dịch xuất kho
+- `UT-PUR-02`: backend `receive_purchase()` nhận và lưu chính xác mốc thời gian ngày nhập tùy chỉnh vào `received_at` của phiếu nhập và lô hàng `inventory_batches`
 - `UT-ORD-17`: backend bulk order chỉ commit các đơn hợp lệ, giữ đơn lỗi ở `draft`, lưu audit batch và replay an toàn theo `request_id`
 - `UT-AUTH-09`: phân quyền route bulk order phải tách rõ giữa quyền `tạo nhiều đơn` và quyền `chốt nhiều đơn`
 - `UT-DB-18`: backend nhận diện phiếu nhập `ordered` nhưng thiếu NCC là dữ liệu lỗi có thể repair để không khóa chết UI trên DB cũ
@@ -338,7 +616,8 @@ Case mới cho Phase A:
 - `UT-PROC-01`: backend chỉ cho một người giữ khóa kỳ gom nhập active
 - `UT-PROC-02`: backend planner gom nhu cầu thiếu và chặn một sản phẩm thiếu bị gán vào nhiều phiếu nhập batch mở
 - `UT-PROC-03`: backend tạo batch nhiều dòng và gom các mặt hàng cùng NCC vào một phiếu nhập batch draft
-- `UT-PROC-04`: backend khóa tạo/sửa phiếu `draft/ordered` trên màn `Nhập hàng` cho user không giữ khóa batch, nhưng vẫn cho tiếp bước `received/paid` cả ở nhánh sync state lẫn action trực tiếp từng phiếu
+- `UT-PROC-04`: backend khóa tạo/sửa phiếu `draft/ordered` trên màn `Nhập hàng` cho user không giữ khóa batch, nhưng vẫn cho tiếp bước `received/paid` với phiếu thường đặt trước batch; đồng thời kiểm tra action theo từng phiếu không bị xung đột với collection sync.
+- `IT-PROC-02`: giao diện cho user không giữ khóa nhận rồi thanh toán phiếu thường đã đặt trước batch; test khẳng định `EnableMultiuserConflictCheck=true`, phiếu batch khác không chặn hai action này, và xác minh batch lock còn hoạt động qua API manager (user thường không có quyền mở planner).
 - `UT-PROC-05`: assignment batch tự release khi phiếu batch bị hủy hoặc đã chuyển sang `received`
 - `UT-PROC-07`: batch create hỗ trợ mixed lines `shortage + extra`, vẫn gom đúng theo NCC và chỉ tạo assignment cho dòng shortage
 - `UT-PROC-08`: extra row cùng sản phẩm với shortage row phải merge vào cùng phiếu batch/NCC đang xử lý, không tạo extra assignment
@@ -384,6 +663,23 @@ Case regression shortcut tồn kho:
 
 - `IT-INV-02`: từ màn `Tồn kho`, bấm `Nhập` khi đang có phiếu nhập `Đã đặt` mở sẵn vẫn phải mở/tạo phiếu nháp phù hợp, không chèn mặt hàng vào phiếu `ordered` đang active
 
+Case regression danh mục công khai:
+
+- `UT-AUTH-16`: API public phải trả cờ `is_low_stock` theo ngưỡng tồn của sản phẩm.
+- `UT-AUTH-17`: bỏ bật `is_public` qua API cập nhật phải lưu được trạng thái và loại sản phẩm khỏi danh mục công khai.
+- `IT-PUB-01`: Public ProductList phải nạp JS kèm version cache-busting và phân biệt đúng `Có sẵn / Sắp hết / Sắp về / Hết hàng`.
+- `IT-PUB-02`: sửa chi tiết sản phẩm phải bỏ chọn/lưu được `Hiển thị trên Web (Public)`, ẩn khỏi danh mục public và đọc lại đúng checkbox.
+- `IT-PUB-03`: Public ProductList phải xác định đúng trạng thái hết hàng khi tồn kho nhỏ hơn đơn vị nhỏ nhất (theo quy đổi hoặc cơ sở).
+- `UT-LUN-01` đến `UT-LUN-03`: chuyển đổi ngày âm lịch Việt Nam qua ngày Tết, tháng nhuận và kiểm tra input không hợp lệ.
+- `IT-PUB-04`: danh mục công khai hiển thị lời nhắc ngày âm lịch và giữ lời nhắc trong viewport khi cuộn.
+- `IT-PUB-05`: API danh mục công khai trả ngày âm lịch, ngày mục tiêu mùng 1/15 và cờ hiển thị nhất quán với số ngày còn lại.
+- `IT-PUB-06`: danh mục công khai ẩn dải nhắc khi còn hơn 7 ngày tới mùng 1 hoặc 15 âm lịch.
+- `UT-LUN-04` và `UT-LUN-05`: bộ tính ngày mục tiêu trả đúng số ngày đến mùng 1/15, bao gồm trường hợp mục tiêu là hôm nay, và từ chối input không hợp lệ.
+
+Case hồi quy thông báo đơn online:
+
+- `IT-ORDER-01`: khách gửi đơn mới qua API public thì backend tự đồng bộ, hiện số chưa xem ở chuông; số báo còn sau khi tải lại và được xóa khi mở danh sách `Đơn hàng`.
+
 Case mới cho Issue 70:
 
 - `UT-INVSORT-01`: product metadata hạn dùng/bảo quản và metric ưu tiên tồn kho được chuẩn hóa đúng, không tính nhầm trả NCC hoặc điều chỉnh tồn vào demand
@@ -396,6 +692,21 @@ Case mới cho Issue 153 (Tách cấu hình check multiuser conflict):
 
 - `UT-SYNC-02B`: bỏ qua kiểm tra xung đột đồng thời khi `EnableMultiuserConflictCheck` cấu hình tắt (`False`)
 
+Case mới cho Issue 174 (Nút xóa nhanh cho các ô list input):
+
+- `IT-LIST-01`: kiểm tra nút xóa nhanh (clear button) tự động hiển thị khi gõ chữ và xóa trắng ô nhập khi bấm trên các ô nhập dạng list input (có liên kết datalist).
+
+Case mới cho Issue 175 (Nút Xuất tất cả ở màn Tồn kho):
+
+- `IT-INV-03`: kiểm tra nút `Xuất tất cả` ở form Chỉnh tồn trực tiếp màn Tồn kho: yêu cầu quyền Admin, báo lỗi khi chưa chọn sản phẩm hoặc sản phẩm hết hàng, hiển thị confirm dialog và xuất toàn bộ tồn kho để giảm tồn về 0 sau khi xác nhận.
+
+## Issue 37: Master Admin sửa chứng từ đã khóa
+
+- `UT-ADM-EDIT-01..05` trong `tests/test_app.py`: quyền/lý do/trạng thái thanh toán; điều chỉnh sổ tồn của đơn đã xuất và phiếu đã nhận; thay mặt hàng; giữ nguyên khách/NCC; chặn giảm hàng đã bị tiêu thụ; xóa mặt hàng nhập còn nguyên tồn và vẫn hủy được phiếu nhập sau đó.
+- `IT-ADM-EDIT-01` trong `tests/integration/test-admin-edit.spec.js`: tạo phiếu nhập đã nhận và đơn đã xuất qua API quick-create để sinh ledger hợp lệ, mở đúng route admin bằng `openAdminPage`, sửa ghi chú qua chế độ Master Admin, rồi kiểm tra response và dữ liệu đã lưu qua API state.
+- Chạy unit tập trung: `python -m unittest tests.test_app.InventoryStoreTests.test_ut_admin_edit_01_locked_purchase_success_and_ledger_adjustment tests.test_app.InventoryStoreTests.test_ut_admin_edit_02_locked_order_success_and_ledger_adjustment tests.test_app.InventoryStoreTests.test_ut_admin_edit_03_role_and_reason_validation tests.test_app.InventoryStoreTests.test_ut_admin_edit_04_item_changes_and_customer_supplier_immutability tests.test_app.InventoryStoreTests.test_ut_admin_edit_05_remove_unused_received_purchase_item_updates_ledger`.
+- Chạy browser integration: `node node_modules/@playwright/test/cli.js test tests/integration/test-admin-edit.spec.js --grep IT-ADM-EDIT-01` (gọi runner cục bộ trực tiếp, không cần `npx` global).
+
 ## Lưu ý
 
 - App runtime thật vẫn chỉ cần `Python stdlib + SQLite`
@@ -406,3 +717,28 @@ Case mới cho Issue 153 (Tách cấu hình check multiuser conflict):
 - Nếu thêm/sửa/xóa mã test, hãy cập nhật đồng thời `docs/TEST_CASE_INDEX.md` và `docs/TEST_CASE_DESCRIPTIONS.md`
 - Việc bổ sung tài liệu test phải được ghi trực tiếp vào repo để dùng lại cho mọi máy và mọi session, không chỉ nhắc tạm trong một lần làm việc
 - Nếu cần điều tra lỗi sync nhiều máy, có thể bật `debug.sync_state=true` trong `data/system_config.json` để xem log `/api/state` ở console server và browser
+
+## Regression Issue 133: đổi đơn vị qua lại
+
+Chạy `npm run test:integration -- tests/integration/unit-quantity-roundtrip.spec.js`.
+
+- `IT-UNIT-01`: giỏ xuất; `IT-UNIT-02`: phiếu nhập. Sau khi chọn 2 đơn vị quy đổi, mỗi ca còn xác nhận UI hiển thị thành tiền bằng 2 × giá của đơn vị quy đổi.
+- Cả hai chạy trên viewport mobile và DB fixture tạm: đổi lặp giữa hệ số 1, 20, 3, 0.5; bảo toàn lượng cơ sở khi làm tròn; sửa số lượng rồi đổi tiếp; lưu, tải lại và đổi về đơn vị gốc.
+- Kiểm tra API state giữ lượng cơ sở và snapshot đơn vị, kể cả lưu khi số hiển thị là `0.3333`.
+
+### Issue 133: lưu riêng dòng đơn xuất và vị trí nút chuyển trạng thái
+
+- `IT-UNIT-03` trong `tests/integration/unit-quantity-roundtrip.spec.js`: seed đơn nháp và lịch sử đơn đã hủy/đã xuất có khách trống, dòng SL=0; lưu dòng nháp qua `POST /api/carts/item`, kiểm tra không gửi collection `carts`/`purchases` hoặc PUT state. Xác nhận các đơn lịch sử không đổi và API từ chối sửa đơn đã hủy. Kiểm tra editor nằm trong panel đơn, phía trên toolbar trạng thái trên viewport mobile.
+- `UT-UNIT-01..07` trong `tests/test_cart_item_update.py`: ngoài kiểm tra lưu riêng dòng và snapshot đơn vị, xác nhận tiền nhập/xuất dùng số lượng theo đơn vị được chọn; tồn kho dùng số lượng cơ sở; giá vốn lô nhập được quy về giá cơ sở.
+- Chạy backend tập trung: `python -m unittest discover -s tests -p test_cart_item_update.py`.
+
+### Issue 177: Chuyển đổi đơn vị chính của sản phẩm dành cho Admin
+
+- `UT-BASEUNIT-01..07` trong `tests/test_change_base_unit.py`: kiểm tra chuyển đổi đơn vị cơ sở (Base Unit) của sản phẩm, bao gồm tính toán lại tỷ lệ giá nhập/giá bán, ngưỡng tồn, biến động sổ kho (`transactions`), lô hàng (`inventory_batches`), phân bổ lô (`inventory_batch_allocations`), chi tiết phiếu kho (`inventory_receipt_items`), giỏ hàng chờ xuất (`cart_items`), phiếu nhập chờ (`purchase_items`), thang quy đổi đơn vị phụ (`product_unit_conversion`), bảo toàn tính hai chiều (reversibility), kiểm tra validation và quyền Admin ở API `POST /api/products/<id>/change-base-unit`.
+- Chạy backend tập trung: `python -m unittest tests/test_change_base_unit.py`.
+
+### Test email trong Master Admin
+
+- `UT-AUTH-18`: API đọc/sửa cấu hình mail chỉ cho Master Admin gọi, giữ password khi trường nhập trống, cho phép cập nhật password nhưng không trả password; mock SMTP để không gửi email thật.
+- `ACC-ADM-04`: test UI trong `tests/integration/admin.spec.js` mock API để xác nhận cấu hình được tải lên form, môi trường tải được báo, nút tải lại nạp lại cấu hình, password được che, lưu cấu hình, confirm, kết quả và thông tin SMTP/người nhận/thời điểm hiển thị; không gửi email thật.
+

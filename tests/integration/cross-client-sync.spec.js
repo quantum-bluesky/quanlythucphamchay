@@ -6,7 +6,9 @@ const {
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
+  openAdminPage,
   switchMenu,
+  waitForAppReady,
 } = require("./support/ui");
 
 function formatQuantity(value) {
@@ -21,7 +23,7 @@ function formatMoney(value) {
 test("ACC-SYNC-01 create-order screen auto refreshes stock and price after changes from another client", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  await page.goto("/");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -38,7 +40,7 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
 
   const adminCookie = await autoLoginAdminRequest(request);
   expect(adminCookie).toBeTruthy();
-  const productsResponse = await request.get("/api/products", {
+  const productsResponse = await request.get("./api/products", {
     headers: {
       Cookie: adminCookie,
     },
@@ -57,7 +59,7 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
   await expect(productRow).toContainText(`Giá nhập ${formatMoney(originalPrice)}`);
 
   try {
-    const stockResponse = await request.post("/api/transactions", {
+    const stockResponse = await request.post("./api/transactions", {
       headers: {
         Cookie: adminCookie,
       },
@@ -70,7 +72,7 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
     });
     expect(stockResponse.ok()).toBeTruthy();
 
-    const priceResponse = await request.put(`/api/products/${product.id}/price`, {
+    const priceResponse = await request.put(`./api/products/${product.id}/price`, {
       headers: {
         Cookie: adminCookie,
       },
@@ -86,7 +88,7 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
     await expect(productRow).toContainText(`Tồn ${formatQuantity(updatedStock)} gói`, { timeout: 12000 });
     await expect(productRow).toContainText(`Giá nhập ${formatMoney(updatedPrice)}`, { timeout: 12000 });
   } finally {
-    await request.put(`/api/products/${product.id}/price`, {
+    await request.put(`./api/products/${product.id}/price`, {
       headers: {
         Cookie: adminCookie,
       },
@@ -94,7 +96,7 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
         price: originalPrice,
       },
     });
-    await request.post("/api/transactions", {
+    await request.post("./api/transactions", {
       headers: {
         Cookie: adminCookie,
       },
@@ -110,3 +112,42 @@ test("ACC-SYNC-01 create-order screen auto refreshes stock and price after chang
   await collectToast(page, runtime, "cross-client-sync");
   expectNoRuntimeErrors(runtime);
 });
+
+test("IT-ORDER-01 public online order shows a persistent bell notice in the admin page", async ({ page, request }) => {
+  const runtime = attachRuntimeTracking(page);
+  await openAdminPage(page);
+  await autoLoginUser(page, request);
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
+
+  const productsResponse = await request.get("./api/public/products");
+  expect(productsResponse.ok()).toBeTruthy();
+  const productsPayload = await productsResponse.json();
+  const product = (productsPayload.products || []).find((entry) => entry.id);
+  expect(product).toBeTruthy();
+
+  const orderResponse = await request.post("./api/public/orders", {
+    data: {
+      customer_name: "Khách kiểm tra thông báo Issue 181",
+      customer_phone: `090${String(Date.now()).slice(-7)}`,
+      zalo_id: `issue181-${Date.now()}`,
+      items: [{ product_id: product.id, quantity: 1 }],
+    },
+  });
+  expect(orderResponse.status()).toBe(201);
+
+  const noticeButton = page.locator("#onlineOrderNoticeButton");
+  await expect(noticeButton).toBeVisible();
+  await expect(page.locator("#onlineOrderNoticeCount")).toHaveText("1", { timeout: 15000 });
+
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForAppReady(page);
+  await expect(page.locator("#onlineOrderNoticeCount")).toHaveText("1");
+  await page.locator("#onlineOrderNoticeButton").click();
+  await expectScreenTitle(page, "Đơn hàng");
+  await expect(page.locator("#onlineOrderNoticeCount")).toBeEmpty();
+  expectNoRuntimeErrors(runtime);
+});
+
+
+

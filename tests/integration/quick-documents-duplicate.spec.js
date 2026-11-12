@@ -10,20 +10,20 @@ const {
 } = require("./support/ui");
 
 async function fetchState(request, cookie) {
-  const response = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   return response.json();
 }
 
 async function fetchProducts(request, cookie) {
-  const response = await request.get("/api/products", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/products", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.products || [];
 }
 
 async function createQuickPurchase(request, cookie, payload) {
-  const response = await request.post("/api/purchases/quick-create", {
+  const response = await request.post("./api/purchases/quick-create", {
     headers: { Cookie: cookie },
     data: payload,
   });
@@ -93,13 +93,21 @@ test("ACC-QUICK-06 quick import and export lock the saved form to prevent duplic
     mark_paid: false,
   });
 
-  await page.goto("/");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
 
   await switchMenu(page, "create-order");
   await expectScreenTitle(page, "Tạo đơn xuất hàng");
+  const quickSaleTab = page.locator('[data-sales-tab="quick"]');
+  if (await quickSaleTab.isVisible()) {
+    await quickSaleTab.click();
+  }
+  const quickSaleToggle = page.locator('[data-quick-sale-action="toggle-panel"]');
+  if (await quickSaleToggle.isVisible() && (await quickSaleToggle.textContent()).trim() === "Mở rộng") {
+    await quickSaleToggle.click();
+  }
   await waitForProductOption(page, product.name);
   await page.locator("#quickSaleCustomerInput").fill(saleCustomerName);
   await addQuickSaleLine(page, product.name, 2, unitPrice);
@@ -118,6 +126,14 @@ test("ACC-QUICK-06 quick import and export lock the saved form to prevent duplic
 
   await switchMenu(page, "purchases");
   await expectScreenTitle(page, "Nhập hàng");
+  const quickPurchaseTab = page.locator('[data-purchase-tab="quick"]');
+  if (await quickPurchaseTab.isVisible()) {
+    await quickPurchaseTab.click();
+  }
+  const quickPurchaseToggle = page.locator('[data-quick-purchase-action="toggle-panel"]');
+  if (await quickPurchaseToggle.isVisible() && (await quickPurchaseToggle.textContent()).trim() === "Mở rộng") {
+    await quickPurchaseToggle.click();
+  }
   await waitForProductOption(page, product.name);
   await page.locator("#quickPurchaseSupplierInput").fill(purchaseSupplierName);
   await addQuickPurchaseLine(page, product.name, 3, unitCost);
@@ -135,3 +151,6 @@ test("ACC-QUICK-06 quick import and export lock the saved form to prevent duplic
   expect(countByName(latestState.purchases, purchaseSupplierName, "supplierName")).toBe(1);
   expectNoRuntimeErrors(runtime);
 });
+
+
+

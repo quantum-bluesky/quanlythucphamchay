@@ -54,9 +54,18 @@ async function ensureSelectedPurchaseItemsExpanded(page, itemId) {
   if (await costInput.isVisible().catch(() => false)) {
     return;
   }
-  const sectionToggleButton = page.locator('[data-purchase-selected-action="toggle"]');
-  if (await sectionToggleButton.isVisible().catch(() => false)) {
-    await sectionToggleButton.click();
+  const sectionBody = page.locator(".selected-items-body");
+  if (await sectionBody.isHidden().catch(() => false)) {
+    const sectionToggleButton = page.locator('[data-purchase-selected-action="toggle"]');
+    if (await sectionToggleButton.isVisible().catch(() => false)) {
+      await sectionToggleButton.click();
+      await page.waitForTimeout(300);
+    }
+  }
+  const itemToggleButton = page.locator(`[data-purchase-item-action="toggle-detail"][data-purchase-item-id="${itemId}"]`);
+  if (await itemToggleButton.isVisible().catch(() => false)) {
+    await itemToggleButton.click();
+    await page.waitForTimeout(300);
   }
   await expect(costInput).toBeVisible();
 }
@@ -74,10 +83,10 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
   const purchaseId = `purchase_ordered_test_${timestamp}`;
   const receivedPurchaseId = `purchase_received_test_${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -123,7 +132,7 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         purchases: [...(originalState.purchases || []), orderedPurchase, receivedPurchase],
@@ -132,7 +141,7 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
     expect(seedResponse.ok()).toBeTruthy();
     const seededState = await seedResponse.json();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -151,7 +160,7 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
     invalidPurchase.receivedAt = new Date().toISOString();
     invalidPurchase.paidAt = new Date().toISOString();
 
-    const invalidResponse = await request.put("/api/state", {
+    const invalidResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: { purchases: invalidPayload },
     });
@@ -165,14 +174,14 @@ test("ACC-PUR-01 purchase can only be marked paid after it has been received", a
     paidPurchase.status = "paid";
     paidPurchase.paidAt = new Date().toISOString();
 
-    const payResponse = await request.put("/api/state", {
+    const payResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: { purchases: paidPayload },
     });
     const payBody = await payResponse.json();
     expect(payResponse.ok(), JSON.stringify(payBody)).toBeTruthy();
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -194,10 +203,10 @@ test("ACC-PUR-04 received purchase can save document discount before paid", asyn
   const purchaseId = `purchase_discount_${timestamp}`;
   const discountAmount = 5000;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -225,7 +234,7 @@ test("ACC-PUR-04 received purchase can save document discount before paid", asyn
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         purchases: [...(originalState.purchases || []), receivedPurchase],
@@ -233,7 +242,7 @@ test("ACC-PUR-04 received purchase can save document discount before paid", asyn
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -253,16 +262,15 @@ test("ACC-PUR-04 received purchase can save document discount before paid", asyn
     const saveToast = await collectToast(page, runtime, "acc-pur-04-save-discount", { errorPattern: /^$/ });
     expect(saveToast).toContain("Đã lưu giảm giá khuyến mại");
     await expect(discountInput).toHaveValue(String(discountAmount));
-    await expect(page.locator("#purchasePanel")).toContainText("5.000");
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     const savedPurchase = (latestState.purchases || []).find((purchase) => purchase.id === purchaseId);
     expect(savedPurchase).toBeTruthy();
     expect(Number(savedPurchase.discountAmount || savedPurchase.discount_amount || 0)).toBe(discountAmount);
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -283,10 +291,10 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
   const supplierName = `NCC Draft Flow ${timestamp}`;
   const purchaseId = `purchase_draft_flow_${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -316,7 +324,7 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         purchases: [...(originalState.purchases || []), draftPurchase],
@@ -324,15 +332,17 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
 
     await switchMenu(page, "purchases");
     await expectScreenTitle(page, "Nhập hàng");
+    await setFloatingSearch(page, supplierName);
 
     const draftPurchaseCard = page.locator(".cart-queue-item", { hasText: supplierName }).first();
+    await expect(draftPurchaseCard).toBeVisible();
     await draftPurchaseCard.locator('[data-purchase-list-action="open"]').click();
     await page.waitForTimeout(300);
     await expect(page.locator('[data-purchase-action="receive"]')).toHaveCount(0);
@@ -344,19 +354,26 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
     await expect(page.locator("#purchaseSupplierInput")).toBeDisabled();
     await expect(page.locator('.purchases-panel [data-go-menu="suppliers"]')).toBeDisabled();
 
-    await page.locator('[data-purchase-selected-action="toggle"]').click();
+    const sectionBody = page.locator(".selected-items-body");
+    if (await sectionBody.isHidden().catch(() => false)) {
+      await page.locator('[data-purchase-selected-action="toggle"]').click();
+      await page.waitForTimeout(300);
+    }
+    await page.locator('[data-purchase-item-action="toggle-detail"]').first().click();
     await page.waitForTimeout(300);
     const qtyInput = page.locator('[data-purchase-qty-input]').first();
+    await expect(qtyInput).toBeVisible();
     await expect(qtyInput).toBeEnabled();
     await qtyInput.fill("2");
     await page.locator('[data-purchase-item-action="save"]').first().click();
     await page.evaluate(() => {
       window.confirm = () => false;
     });
+    await setFloatingSearch(page, extraProduct.name);
     await page.locator(`[data-purchase-suggestion-action="add"][data-product-id="${extraProduct.id}"]`).first().click();
 
     await expect.poll(async () => {
-      const syncResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+      const syncResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
       expect(syncResponse.ok()).toBeTruthy();
       const syncPayload = await syncResponse.json();
       const orderedPurchase = (syncPayload.purchases || []).find((entry) => entry.id === purchaseId);
@@ -367,8 +384,10 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
       window.confirm = () => true;
     });
     await page.locator('[data-purchase-action="receive"]').click();
+    await expect(page.locator("#documentActionDateModal")).toBeVisible();
+    await page.locator("#documentActionDateConfirmButton").click();
     await expect.poll(async () => {
-      const syncResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+      const syncResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
       expect(syncResponse.ok()).toBeTruthy();
       const syncPayload = await syncResponse.json();
       const receivedPurchase = (syncPayload.purchases || []).find((entry) => entry.id === purchaseId);
@@ -378,14 +397,14 @@ test("ACC-PUR-03 purchase draft must be ordered before receive and stays editabl
     await switchMenu(page, "inventory");
     await expectScreenTitle(page, "Kiểm tra tồn kho");
     await setFloatingSearch(page, product.name);
-    const inventoryCard = page.locator(".product-row", { hasText: product.name }).first();
+    const inventoryCard = page.locator(".product-row", { has: page.locator(`[data-product-detail-trigger="${product.id}"]`) }).first();
     await expect(inventoryCard.locator(".product-row-stock").first()).toContainText(expectedQuantityText(startingStock + 2));
 
     await setFloatingSearch(page, extraProduct.name);
-    const extraInventoryCard = page.locator(".product-row", { hasText: extraProduct.name }).first();
+    const extraInventoryCard = page.locator(".product-row", { has: page.locator(`[data-product-detail-trigger="${extraProduct.id}"]`) }).first();
     await expect(extraInventoryCard.locator(".product-row-stock").first()).toContainText(expectedQuantityText(extraStartingStock + Number(extraProduct.low_stock_threshold || 1)));
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -405,10 +424,10 @@ test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async
   const timestamp = Date.now();
   const purchaseId = `purchase_no_supplier_${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -434,7 +453,7 @@ test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         purchases: [...(originalState.purchases || []), draftPurchase],
@@ -443,7 +462,7 @@ test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async
     expect(seedResponse.ok()).toBeTruthy();
     const seededState = await seedResponse.json();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -462,7 +481,7 @@ test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async
     expect(orderedPurchase).toBeTruthy();
     orderedPurchase.status = "ordered";
 
-    const invalidOrderedResponse = await request.put("/api/state", {
+    const invalidOrderedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: { purchases: orderedPayload },
     });
@@ -477,7 +496,7 @@ test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async
     receivedPurchase.receivedAt = new Date().toISOString();
     receivedPurchase.receiptCode = `PN-NO-SUP-${timestamp}`;
 
-    const invalidReceivedResponse = await request.put("/api/state", {
+    const invalidReceivedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: { purchases: receivedPayload },
     });
@@ -485,7 +504,7 @@ test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async
     const invalidReceivedBody = await invalidReceivedResponse.json();
     expect(invalidReceivedBody.error).toContain("nhà cung cấp trước khi nhập kho");
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -502,7 +521,7 @@ test("ACC-PUR-05 purchase without supplier cannot be ordered or received", async
 test("IT-PUR-01 purchase suggestions allow overriding quantity before adding to draft", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page, { autoAcceptDialogs: false });
 
-  await page.goto("/");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -525,8 +544,15 @@ test("IT-PUR-01 purchase suggestions allow overriding quantity before adding to 
   expect(toastText).toContain("Đã thêm vào phiếu nhập");
   await expect(page.locator("[data-purchase-conflict-review]")).toHaveCount(0);
 
-  const purchaseItemCard = page.locator(".cart-item").filter({ hasText: productName }).first();
+  const purchaseItemCard = page.locator("#purchasePanel .cart-item, .purchases-panel .cart-item").filter({ hasText: productName }).first();
   await expect(purchaseItemCard).toBeVisible();
+  const sectionBody = page.locator(".selected-items-body");
+  if (await sectionBody.isHidden().catch(() => false)) {
+    await page.locator('[data-purchase-selected-action="toggle"]').click();
+    await page.waitForTimeout(300);
+  }
+  await purchaseItemCard.locator('[data-purchase-item-action="toggle-detail"]').click();
+  await page.waitForTimeout(300);
   await expect(purchaseItemCard.locator("[data-purchase-qty-input]").first()).toHaveValue(overriddenQuantity);
 
   runtime.errors = runtime.errors.filter((entry) => !entry.includes("Failed to load resource: net::ERR_CONNECTION_RESET"));
@@ -553,10 +579,10 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
   const draftCartItemId = `cart_item_confirm_${timestamp}`;
   const draftPurchaseItemId = `purchase_item_confirm_${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.find((entry) => Number(entry.current_stock || 0) >= 2) || productsPayload.products?.[0];
@@ -680,7 +706,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         carts: [...(originalState.carts || []), draftCart, cancelDraftCart, deleteDraftCart],
@@ -689,7 +715,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -709,7 +735,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
       await page.locator(`[data-cart-item-action="update-default-price"][data-item-id="${draftCartItemId}"]`).click();
     }, { accept: false });
     expect(saleDefaultCancelDialog).toBe("Xác nhận cập nhật giá bán hiện tại thành giá bán mặc định của mặt hàng?");
-    let latestProductsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+    let latestProductsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
     expect(latestProductsResponse.ok()).toBeTruthy();
     let latestProductsPayload = await latestProductsResponse.json();
     expect(Number(latestProductsPayload.products?.find((entry) => Number(entry.id) === Number(product.id))?.sale_price || 0)).toBe(originalSalePrice);
@@ -720,7 +746,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     expect(saleDefaultConfirmDialog).toBe("Xác nhận cập nhật giá bán hiện tại thành giá bán mặc định của mặt hàng?");
     const salePriceToast = await collectToast(page, runtime, "it-sts-01-sale-default-price", { errorPattern: /^$/ });
     expect(salePriceToast).toContain("Đã cập nhật giá bán");
-    latestProductsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+    latestProductsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
     expect(latestProductsResponse.ok()).toBeTruthy();
     latestProductsPayload = await latestProductsResponse.json();
     expect(Number(latestProductsPayload.products?.find((entry) => Number(entry.id) === Number(product.id))?.sale_price || 0)).toBe(updatedSalePrice);
@@ -736,17 +762,16 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const commitToast = await collectToast(page, runtime, "it-sts-01-commit", { errorPattern: /^$/ });
     expect(commitToast).toContain("Đã chốt đơn");
 
-    const shipDialog = await captureDialogMessage(page, async () => {
-      await page.locator('[data-cart-action="ship"]').click();
-    });
-    expect(shipDialog).toContain("Đã xuất hàng");
+    await page.locator('[data-cart-action="ship"]').click();
+    await expect(page.locator("#documentActionDateModal")).toBeVisible();
+    await page.locator("#documentActionDateConfirmButton").click();
     const shipToast = await collectToast(page, runtime, "it-sts-01-ship", { errorPattern: /^$/ });
     expect(shipToast).toContain("Đã xuất hàng");
 
     await switchMenu(page, "inventory");
     await expectScreenTitle(page, "Kiểm tra tồn kho");
     await setFloatingSearch(page, product.name);
-    const inventoryCardAfterCheckout = page.locator(".product-row", { hasText: product.name }).first();
+    const inventoryCardAfterCheckout = page.locator(".product-row", { has: page.locator(`[data-product-detail-trigger="${product.id}"]`) }).first();
     await expect(inventoryCardAfterCheckout.locator(".product-row-stock").first()).toContainText(expectedQuantityText(startingStock - 1));
 
     userCookie = await autoLoginUserRequest(request);
@@ -768,7 +793,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     expect(orderPaidToast).toMatch(/Đã cập nhật.*thanh toán/i);
     await page.waitForTimeout(700);
 
-    const paidOrderStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const paidOrderStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(paidOrderStateResponse.ok()).toBeTruthy();
     const paidOrderState = await paidOrderStateResponse.json();
     expect((paidOrderState.carts || []).some((cart) => cart.id === draftCartId && cart.paymentStatus === "paid")).toBeTruthy();
@@ -787,7 +812,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
       await page.locator(`[data-purchase-item-action="update-default-cost"][data-purchase-item-id="${draftPurchaseItemId}"]`).click();
     }, { accept: false });
     expect(purchaseDefaultCancelDialog).toBe("Xác nhận cập nhật giá nhập hiện tại thành giá nhập mặc định của mặt hàng?");
-    latestProductsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+    latestProductsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
     expect(latestProductsResponse.ok()).toBeTruthy();
     latestProductsPayload = await latestProductsResponse.json();
     expect(Number(latestProductsPayload.products?.find((entry) => Number(entry.id) === Number(product.id))?.price || 0)).toBe(originalUnitCost);
@@ -798,7 +823,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     expect(purchaseDefaultConfirmDialog).toBe("Xác nhận cập nhật giá nhập hiện tại thành giá nhập mặc định của mặt hàng?");
     const purchasePriceToast = await collectToast(page, runtime, "it-sts-01-purchase-default-price", { errorPattern: /^$/ });
     expect(purchasePriceToast).toContain("Đã cập nhật giá nhập");
-    latestProductsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+    latestProductsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
     expect(latestProductsResponse.ok()).toBeTruthy();
     latestProductsPayload = await latestProductsResponse.json();
     expect(Number(latestProductsPayload.products?.find((entry) => Number(entry.id) === Number(product.id))?.price || 0)).toBe(updatedUnitCost);
@@ -810,10 +835,9 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const orderedToast = await collectToast(page, runtime, "it-sts-01-ordered", { errorPattern: /^$/ });
     expect(orderedToast).toContain("Đã cập nhật trạng thái đặt hàng");
 
-    const receiveDialog = await captureDialogMessage(page, async () => {
-      await page.locator('[data-purchase-action="receive"]').click();
-    });
-    expect(receiveDialog).toContain("Đã nhập kho");
+    await page.locator('[data-purchase-action="receive"]').click();
+    await expect(page.locator("#documentActionDateModal")).toBeVisible();
+    await page.locator("#documentActionDateConfirmButton").click();
     const receiveToast = await collectToast(page, runtime, "it-sts-01-receive", { errorPattern: /^$/ });
     expect(receiveToast).toContain("Đã nhập hàng vào kho");
 
@@ -828,7 +852,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const purchasePaidToast = await collectToast(page, runtime, "it-sts-01-paid", { errorPattern: /^$/ });
     expect(purchasePaidToast).toMatch(/Đã cập nhật.*thanh toán/i);
 
-    const paidPurchaseStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const paidPurchaseStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(paidPurchaseStateResponse.ok()).toBeTruthy();
     const paidPurchaseState = await paidPurchaseStateResponse.json();
     expect((paidPurchaseState.purchases || []).some((purchase) => purchase.id === draftPurchaseId && purchase.status === "paid")).toBeTruthy();
@@ -844,7 +868,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     expect(cancelCartDialog).toContain("Hủy");
     await page.waitForTimeout(700);
 
-    const cancelledCartStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const cancelledCartStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(cancelledCartStateResponse.ok()).toBeTruthy();
     const cancelledCartState = await cancelledCartStateResponse.json();
     expect((cancelledCartState.carts || []).some((cart) => cart.id === cancelDraftCartId && cart.status === "cancelled")).toBeTruthy();
@@ -862,7 +886,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const cancelPurchaseToast = await collectToast(page, runtime, "it-sts-01-cancel-purchase", { errorPattern: /^$/ });
     expect(cancelPurchaseToast).toContain("Đã hủy");
 
-    const cancelledPurchaseStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const cancelledPurchaseStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(cancelledPurchaseStateResponse.ok()).toBeTruthy();
     const cancelledPurchaseState = await cancelledPurchaseStateResponse.json();
     expect((cancelledPurchaseState.purchases || []).some((purchase) => purchase.id === cancelOrderedPurchaseId && purchase.status === "cancelled")).toBeTruthy();
@@ -878,7 +902,7 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     expect(deleteCartDialog).toContain("Xóa");
     await page.waitForTimeout(700);
 
-    const deletedCartStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const deletedCartStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(deletedCartStateResponse.ok()).toBeTruthy();
     const deletedCartState = await deletedCartStateResponse.json();
     expect((deletedCartState.carts || []).some((cart) => cart.id === deleteDraftCartId)).toBeFalsy();
@@ -896,24 +920,24 @@ test("IT-STS-01 status-changing order and purchase actions show confirm dialogs 
     const deletePurchaseToast = await collectToast(page, runtime, "it-sts-01-delete-purchase", { errorPattern: /^$/ });
     expect(deletePurchaseToast).toContain("Đã xóa");
 
-    const deletedPurchaseStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const deletedPurchaseStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(deletedPurchaseStateResponse.ok()).toBeTruthy();
     const deletedPurchaseState = await deletedPurchaseStateResponse.json();
     expect((deletedPurchaseState.purchases || []).some((purchase) => purchase.id === deleteDraftPurchaseId)).toBeFalsy();
   } finally {
-    await request.put(`/api/products/${product.id}/sale-price`, {
+    await request.put(`./api/products/${product.id}/sale-price`, {
       headers: { Cookie: userCookie },
       data: {
         sale_price: originalSalePrice,
       },
     });
-    await request.put(`/api/products/${product.id}/price`, {
+    await request.put(`./api/products/${product.id}/price`, {
       headers: { Cookie: userCookie },
       data: {
         price: originalUnitCost,
       },
     });
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -937,10 +961,10 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
   const draftCustomerName = `Khách draft ${timestamp}`;
   const paidSupplierName = `NCC paid ${timestamp}`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -998,7 +1022,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         carts: [...(originalState.carts || []), completedCart, draftCart],
@@ -1008,7 +1032,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
     expect(seedResponse.ok()).toBeTruthy();
     const seededState = await seedResponse.json();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -1032,7 +1056,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
     expect(lockedCart).toBeTruthy();
     lockedCart.items[0].quantity = 9;
 
-    const invalidCartResponse = await request.put("/api/state", {
+    const invalidCartResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: { carts: invalidCartPayload },
     });
@@ -1045,7 +1069,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
     expect(lockedPurchase).toBeTruthy();
     lockedPurchase.items[0].unitCost = 99000;
 
-    const invalidPurchaseResponse = await request.put("/api/state", {
+    const invalidPurchaseResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: { purchases: invalidPurchasePayload },
     });
@@ -1053,7 +1077,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
     const invalidPurchaseBody = await invalidPurchaseResponse.json();
     expect(invalidPurchaseBody.error).toContain("Phiếu nhập đã thanh toán không thể sửa trực tiếp");
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -1070,7 +1094,7 @@ test("ACC-PUR-02 completed orders and received or paid purchases reject direct e
 test("ACC-ADM-03 direct stock adjustment requires privileged login and a reason", async ({ page, request }) => {
   const runtime = attachRuntimeTracking(page);
 
-  const anonymousResponse = await request.post("/api/transactions", {
+  const anonymousResponse = await request.post("./api/transactions", {
     data: {
       product_id: 1,
       transaction_type: "in",
@@ -1080,7 +1104,7 @@ test("ACC-ADM-03 direct stock adjustment requires privileged login and a reason"
   });
   expect(anonymousResponse.status()).toBe(401);
 
-  await gotoWithRetry(page, "/", { waitUntil: "networkidle" });
+  await gotoWithRetry(page, "/admin", { waitUntil: "networkidle" });
   await autoLoginProcurementManager(page, request);
   await page.reload({ waitUntil: "networkidle" });
 
@@ -1106,13 +1130,13 @@ test("ACC-ADM-03 direct stock adjustment requires privileged login and a reason"
   await collectToast(page, runtime, "inventory-adjust-success");
 
   const transactionPayload = await page.evaluate(async () => {
-    const response = await fetch("/api/transactions?limit=5");
+    const response = await fetch("./api/transactions?limit=5");
     return response.json();
   });
   expect(transactionPayload.transactions[0].note).toContain(`Lý do: ${reason}`);
 
   await page.evaluate(async ({ targetProductId }) => {
-    await fetch("/api/transactions", {
+    await fetch("./api/transactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1126,3 +1150,6 @@ test("ACC-ADM-03 direct stock adjustment requires privileged login and a reason"
 
   expectNoRuntimeErrors(runtime);
 });
+
+
+

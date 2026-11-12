@@ -229,6 +229,7 @@ async function bootBootstrap() {
       headers: { "X-Session-Activity": "passive" },
     });
     updateVersionLabel(payload);
+    window.__QLTPCHAY_BOOTSTRAP_SESSION = payload;
     if (!payload?.enable_login || payload?.authenticated) {
       await loadFullApplication();
       return;

@@ -39,20 +39,20 @@ async function captureDialog(page, trigger, { value = undefined, accept = true }
 }
 
 async function fetchSyncState(request, cookie) {
-  const response = await request.get("/api/state?transaction_limit=24", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/state?transaction_limit=24", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   return response.json();
 }
 
 async function fetchProducts(request, cookie) {
-  const response = await request.get("/api/products", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/products", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.products || [];
 }
 
 async function createQuickPurchase(request, cookie, payload) {
-  const response = await request.post("/api/purchases/quick-create", {
+  const response = await request.post("./api/purchases/quick-create", {
     headers: { Cookie: cookie },
     data: payload,
   });
@@ -61,7 +61,7 @@ async function createQuickPurchase(request, cookie, payload) {
 }
 
 async function createQuickSale(request, cookie, payload) {
-  const response = await request.post("/api/orders/quick-create", {
+  const response = await request.post("./api/orders/quick-create", {
     headers: { Cookie: cookie },
     data: payload,
   });
@@ -113,7 +113,7 @@ test("ACC-CANCEL-01 user can request cancel and manager can approve for complete
   });
   expect(purchasePayload.purchase.status).toBe("received");
 
-  await page.goto("/");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -154,7 +154,7 @@ test("ACC-CANCEL-01 user can request cancel and manager can approve for complete
   const managerPage = await managerContext.newPage();
   const managerRuntime = attachRuntimeTracking(managerPage, { autoAcceptDialogs: false });
   try {
-    await managerPage.goto("/");
+    await managerPage.goto("/admin");
     await managerPage.waitForLoadState("networkidle");
     await autoLoginProcurementManager(managerPage, request);
     await managerPage.reload({ waitUntil: "networkidle" });
@@ -206,3 +206,6 @@ test("ACC-CANCEL-01 user can request cancel and manager can approve for complete
   expectNoRuntimeErrors(runtime);
   expectNoRuntimeErrors(managerRuntime);
 });
+
+
+

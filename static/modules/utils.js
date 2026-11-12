@@ -16,6 +16,15 @@ export function formatCurrency(value) {
   return currencyFormatter.format(Number(value || 0));
 }
 
+export function normalizeLookup(value) {
+  if (!value) return "";
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 export function formatDate(value) {
   if (!value) {
     return "";
@@ -171,5 +180,11 @@ export function renderOverflowMenu(items = []) {
 }
 
 export function normalizeText(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
 }

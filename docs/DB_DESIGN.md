@@ -68,6 +68,12 @@ Nguồn: `CREATE TABLE IF NOT EXISTS products` trong `qltpchay/store.py`.
 - `low_stock_threshold`: REAL, ngưỡng cảnh báo sắp hết
 - `shelf_life_days`: REAL nullable, hạn dùng chuẩn theo số ngày
 - `storage_life_days`: REAL nullable, thời gian bảo quản ước tính theo số ngày
+- `images`: TEXT nullable, JSON array các URL ảnh sản phẩm
+- `details`: TEXT nullable, chuỗi HTML hướng dẫn/thông tin chi tiết sản phẩm
+- `recipe`: TEXT nullable, chuỗi HTML hướng dẫn chế biến / công thức món ăn
+- `note`: TEXT nullable, chuỗi ghi chú sản phẩm hiển thị khi đặt hàng
+- `default_purchase_unit`: TEXT nullable, đơn vị nhập hàng mặc định (fallback về `unit`)
+- `default_sale_unit`: TEXT nullable, đơn vị bán hàng mặc định (fallback về `unit`)
 - `is_deleted`: INTEGER, soft delete flag
 - `deleted_at`: TEXT, thời điểm xóa mềm
 - `created_at`: TEXT, timestamp ISO
@@ -79,6 +85,37 @@ Nguồn: `CREATE TABLE IF NOT EXISTS products` trong `qltpchay/store.py`.
 - không lưu tồn kho tĩnh; tồn hiện tại được tính từ `transactions`
 - hỗ trợ ngừng bán bằng `is_deleted = 1` thay vì xóa cứng
 - `shelf_life_days` và `storage_life_days` là metadata fallback ở cấp sản phẩm khi lô chưa có HSD thật, không thay thế dữ liệu tồn theo lô
+
+### Bổ sung Issue 133: snapshot đơn vị khi đồng bộ
+
+- Không đổi schema. Luồng đọc `cart_items`/`purchase_items` phải SELECT đủ `input_quantity`, `input_unit`, `conversion_factor`; luồng ghi sync phiếu nhập cũng lưu đủ ba cột như giỏ xuất.
+- API state dùng `inputQuantity`, `inputUnit`, `conversionFactor`; frontend giữ các trường này khi chuẩn hóa dòng và vẫn đọc được tên snake_case của dữ liệu cũ.
+- `quantity` của dòng giỏ xuất và `inputQuantity` trả về tối đa 4 chữ số thập phân để khớp editor.
+- API `POST /api/carts/item` không đổi schema: dùng `BEGIN IMMEDIATE`, đọc đúng đơn và kiểm tra phiên bản `carts.updated_at`, cập nhật `cart_items WHERE cart_id = ? AND id = ?`, rồi cập nhật timestamp của đúng đơn với độ chính xác microsecond. Audit và cache `app_state.carts` cùng transaction; không DELETE/INSERT lại toàn bộ các đơn. Cache có thể đọc toàn collection, nhưng các bản ghi nghiệp vụ của đơn khác không bị ghi lại.
+- Server chỉ trả đơn đã cập nhật. Client tải lại state/version bằng GET sau khi lưu, không nâng version collection trên một bản sao dữ liệu chưa được refresh. Lượng cơ sở `quantity` được giữ độc lập với số hiển thị làm tròn khi đổi đơn vị.
+
+## 4A. Bảng `product_unit_conversion`
+
+Nguồn: `CREATE TABLE IF NOT EXISTS product_unit_conversion` trong `qltpchay/store.py`.
+
+### Cột
+
+- `id`: INTEGER PK AUTOINCREMENT
+- `product_id`: INTEGER FK tới `products.id`
+- `from_unit`: TEXT NOT NULL, tên đơn vị quy đổi (vd: thùng, hộp, lốc)
+- `conversion_factor`: REAL NOT NULL, hệ số quy đổi ra đơn vị gốc (vd: 24)
+- `price`: REAL NOT NULL DEFAULT 0, giá nhập riêng theo đơn vị này
+- `sale_price`: REAL NOT NULL DEFAULT 0, giá bán riêng theo đơn vị này
+- `is_active`: INTEGER NOT NULL DEFAULT 1, cờ trạng thái kích hoạt
+- `created_at`: TEXT, timestamp ISO
+- `updated_at`: TEXT, timestamp ISO
+
+### Vai trò nghiệp vụ
+
+- lưu cấu hình đơn vị phụ/quy đổi cho từng sản phẩm
+- cung cấp giá nhập và giá bán tự động khi người dùng chọn đơn vị quy đổi lúc tạo đơn bán hoặc phiếu nhập hàng
+- `cart_items`/`purchase_items` giữ `quantity` theo đơn vị cơ sở và `input_quantity` theo đơn vị được chọn. Thành tiền chứng từ dùng `input_quantity × unit_price/unit_cost`; giá vốn lô nhập được quy về cơ sở bằng `unit_cost / conversion_factor`.
+- tồn kho thực tế luôn được quy đổi và quản lý theo đơn vị gốc (`base_unit`)
 
 ## 5. Bảng `transactions`
 
@@ -169,7 +206,8 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 
 ### `customers`
 
-- `id`, `name`, `phone`, `address`, `zalo_url`
+- `id`, `name`, `phone`, `address`, `zalo_url`, `avatar_url`, `zalo_id`, `zalo_group_id`
+- Unique index: `idx_customers_zalo_id` trên `zalo_id` khi `zalo_id` không rỗng và chưa bị xóa (`deleted_at IS NULL`)
 - `created_at`, `updated_at`, `deleted_at`
 
 ### `suppliers`
@@ -213,6 +251,10 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `id`, `cart_id`
   - `product_id`, `product_name`
   - `quantity`, `unit_price`, `note`, `sort_order`
+  - `input_quantity`: REAL, số lượng theo đơn vị người dùng nhập khi chọn mua
+  - `input_unit`: TEXT, đơn vị tính người dùng chọn khi đặt hàng
+  - `conversion_factor`: REAL, hệ số quy đổi ra đơn vị cơ bản
+  - `discount_amount`: REAL NOT NULL DEFAULT 0, tiền khuyến mại / giảm giá riêng cho từng dòng sản phẩm
 
 ### `bulk_order_batches`
 
@@ -339,6 +381,10 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `source_kind`: `shortage` hoặc `extra`
   - `source_note`: ghi chú nhẹ cho dòng `extra`, mặc định có thể là `Ngoài nhu cầu đơn`
   - `quantity`, `unit_cost`
+  - `input_quantity`: REAL, số lượng theo đơn vị người dùng nhập khi lập phiếu nhập
+  - `input_unit`: TEXT, đơn vị tính người dùng chọn khi nhập hàng
+  - `conversion_factor`: REAL, hệ số quy đổi ra đơn vị cơ bản
+  - `discount_amount`: REAL NOT NULL DEFAULT 0, tiền khuyến mại / giảm giá riêng cho từng dòng sản phẩm
   - `batch_code`
   - `expiry_input_mode`: `direct`, `manufacture`, hoặc `received_fallback`
   - `manufacture_date`
@@ -368,6 +414,8 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
 - `inventory_adjustment` được tái dùng cho cả chỉnh tồn trực tiếp lẫn bút toán đảo khi duyệt hủy chứng từ
 - với hủy đơn đã xuất, `source_type = sale_cancellation` và `source_code = order_code`
 - với hủy phiếu nhập đã nhận, `source_type = purchase_cancellation` và `source_code = receipt_code` của phiếu nguồn
+- với Master Admin sửa đơn đã xuất, `source_type = admin_edit_reversal` và `source_code = order_code`; với phiếu nhập đã nhận, `source_type = admin_edit_purchase` và `source_code = receipt_code` nguồn
+- các điều chỉnh do Admin Edit vẫn ghi trong `transactions`, `inventory_batch_allocations` và `inventory_receipts`; liên kết chứng từ trên lịch sử biến động trỏ về đơn/phiếu nguồn. Thêm dòng nhập tạo lô và receipt line gắn với phiếu gốc để việc hủy phiếu sau này còn đối soát được
 
 ### `inventory_receipt_items`
 
@@ -377,6 +425,9 @@ Nguồn: `CREATE TABLE IF NOT EXISTS app_state` trong `qltpchay/store.py`.
   - `product_id`, `product_name`, `unit`
   - `transaction_type`
   - `quantity`
+  - `input_quantity`: REAL, số lượng theo đơn vị người dùng nhập
+  - `input_unit`: TEXT, đơn vị tính người dùng chọn
+  - `conversion_factor`: REAL, hệ số quy đổi ra đơn vị cơ bản
   - `unit_amount`, `line_total`
   - `stock_after`
   - `transaction_id`, `purchase_item_id`
@@ -489,6 +540,7 @@ Schema được migrate inline trong `initialize_schema()` bằng:
 - thêm `is_deleted`
 - thêm `deleted_at`
 - thêm `shelf_life_days` và `storage_life_days` vào `products`
+- thêm `images` và `details` vào `products`
 - thêm `actor` vào `audit_logs`
 - thêm bảng quan hệ cho `customers/suppliers/carts/purchases`
 - thêm `discount_amount` vào `carts`, `purchases`, `inventory_receipts`

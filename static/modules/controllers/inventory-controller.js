@@ -21,16 +21,118 @@ export function registerInventoryControllerEvents(contract) {
     return false;
   };
 
+  dom.productLookupInput.addEventListener("input", (event) => {
+    if (!dom.productLookupUnitSelect) return;
+    const text = event.target.value;
+    if (!text) {
+      dom.productLookupUnitSelect.innerHTML = '<option value="1">Đơn vị (gốc)</option>';
+      return;
+    }
+    const parts = text.split("-");
+    const idStr = parts[parts.length - 1];
+    if (!idStr) return;
+    const id = parseInt(idStr.trim(), 10);
+    if (!id) return;
+    const product = state.products.find(p => p.id === id);
+    if (product) {
+      dom.productLookupUnitSelect.innerHTML = `
+        <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}">${utils.escapeHtml(product.unit)} (gốc)</option>
+        ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}">${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
+      `;
+    }
+  });
+
   dom.quickTransactionForm.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-transaction]");
     if (!button) return;
+
+    // Issue #175: Xuất tất cả để giảm tồn kho về 0 cho mặt hàng đã chọn (chỉ dành cho Admin)
+    if (button.dataset.transaction === "clear-all") {
+      if (!requireInventoryAdjustAccess()) return;
+
+      const rawText = (dom.productLookupInput?.value || "").trim();
+      if (!rawText) {
+        actions.showToast("Vui lòng chọn sản phẩm cần xuất tất cả.", true);
+        return;
+      }
+
+      let product = null;
+      const parts = rawText.split("-");
+      const idStr = parts[parts.length - 1];
+      const parsedId = parseInt(idStr?.trim(), 10);
+      if (parsedId) {
+        product = state.products.find((p) => p.id === parsedId);
+      }
+
+      if (!product && queries.resolveProductFromText) {
+        try {
+          product = queries.resolveProductFromText(rawText);
+        } catch (err) {
+          actions.showToast(err.message, true);
+          return;
+        }
+      }
+
+      if (!product) {
+        const keyword = utils.normalizeLookup ? utils.normalizeLookup(rawText) : rawText.toLowerCase().trim();
+        const exact = state.products.find((p) => (utils.normalizeLookup ? utils.normalizeLookup(p.name) : p.name.toLowerCase().trim()) === keyword);
+        if (exact) {
+          product = exact;
+        } else {
+          const matches = state.products.filter((p) => (utils.normalizeLookup ? utils.normalizeLookup(p.name) : p.name.toLowerCase().trim()).includes(keyword));
+          if (matches.length === 1) {
+            product = matches[0];
+          } else if (matches.length === 0) {
+            actions.showToast("Không tìm thấy sản phẩm phù hợp.", true);
+            return;
+          } else {
+            actions.showToast("Có nhiều sản phẩm khớp. Hãy gõ cụ thể hơn.", true);
+            return;
+          }
+        }
+      }
+
+      // Issue #176: round 6 chữ số để loại float noise từ SUM REAL trong SQLite
+      // (ví dụ product.current_stock = 0.010000000000000009 sau khi xuất 0.99 từ 1.0)
+      const currentStock = Math.round(Number(product.current_stock || 0) * 1e6) / 1e6;
+
+      if (currentStock <= 0) {
+        const formattedStock = utils.formatQuantity ? utils.formatQuantity(currentStock) : String(currentStock);
+        actions.showToast(`Mặt hàng "${product.name}" hiện không có tồn kho để xuất (tồn: ${formattedStock}).`, true);
+        return;
+      }
+
+      const formattedStock = utils.formatQuantity ? utils.formatQuantity(currentStock) : String(currentStock);
+      const confirmed = window.confirm(`Xác nhận xuất tất cả ${formattedStock} ${product.unit} của mặt hàng "${product.name}" để giảm tồn kho về 0?`);
+      if (!confirmed) return;
+
+      const note = (dom.noteInput?.value || "").trim();
+      const reason = note || "Xuất tất cả để giảm tồn về 0";
+
+      try {
+        await actions.submitTransaction(
+          "out",
+          product.name,
+          currentStock,
+          note,
+          {
+            directAdjustment: true,
+            adjustmentReason: reason,
+          }
+        );
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
+
     if (!dom.quickTransactionForm.reportValidity()) return;
 
     try {
       await actions.submitTransaction(
         button.dataset.transaction,
         dom.productLookupInput.value,
-        dom.quantityInput.value,
+        Number(dom.quantityInput.value) * Number(dom.productLookupUnitSelect ? dom.productLookupUnitSelect.value : 1),
         dom.noteInput.value,
         {
           directAdjustment: true,

@@ -3,9 +3,12 @@ __pycache__/
 *.pyc
 data/*
 !data/js_asset_versions.json
+!data/staged_releases/
+!data/staged_releases/**
 node_modules/
 playwright-report/
 test-results/
 .venv/
 .tmp/
 site/*
+logs/*

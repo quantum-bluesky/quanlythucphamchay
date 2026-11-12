@@ -11,12 +11,14 @@ from .constants import (
 )
 
 TRUTHY_VALUES = {"1", "true", "yes", "on"}
-DEFAULT_APP_VERSION = "2.3.1"
+DEFAULT_APP_VERSION = "3.38.0"
 DEFAULT_SYSTEM_SESSION_TIMEOUT_MINUTES = 360
 DEFAULT_ADMIN_SESSION_TIMEOUT_MINUTES = 30
 DEFAULT_ITEMS_PER_PAGE = 10
 DEFAULT_DOCUMENTS_PER_PAGE = 10
 DEFAULT_PROCUREMENT_BATCH_LOCK_TIMEOUT_MINUTES = 180
+DEFAULT_PUBLIC_WEB_THUMBNAIL_SIZE_MOBILE_PX = 120
+DEFAULT_PUBLIC_WEB_THUMBNAIL_SIZE_PC_PX = 240
 DEFAULT_NORMAL_USERS = [
     {
         "username": "staff",
@@ -131,6 +133,24 @@ def _normalize_procurement_config(raw_procurement, defaults: dict | None = None)
     }
 
 
+def _normalize_public_web_config(raw_public_web, defaults: dict | None = None) -> dict:
+    defaults = defaults or {
+        "thumbnail_size_mobile": DEFAULT_PUBLIC_WEB_THUMBNAIL_SIZE_MOBILE_PX,
+        "thumbnail_size_pc": DEFAULT_PUBLIC_WEB_THUMBNAIL_SIZE_PC_PX,
+    }
+    raw_public_web = raw_public_web if isinstance(raw_public_web, dict) else {}
+    return {
+        "thumbnail_size_mobile": _normalize_timeout_minutes(
+            raw_public_web.get("thumbnail_size_mobile", defaults["thumbnail_size_mobile"]),
+            defaults["thumbnail_size_mobile"]
+        ),
+        "thumbnail_size_pc": _normalize_timeout_minutes(
+            raw_public_web.get("thumbnail_size_pc", defaults["thumbnail_size_pc"]),
+            defaults["thumbnail_size_pc"]
+        ),
+    }
+
+
 def _normalize_mail_config(raw_mail, defaults: dict | None = None) -> dict:
     defaults = defaults or DEFAULT_MAIL_CONFIG
     raw_mail = raw_mail if isinstance(raw_mail, dict) else {}
@@ -159,15 +179,44 @@ def _normalize_mail_config(raw_mail, defaults: dict | None = None) -> dict:
     }
 
 
+DEFAULT_ZALO_LOGIN_CONFIG = {
+    "app_id": "",
+    "secret_key": "",
+    "mock_test_mode": False,
+    "require_zalo_login": True,
+    "require_zalo_group_to_order": False,
+    "seller_zalo_url": "",
+    "order_note_shipping": "Chưa bao gồm chi phí vận chuyển",
+    "zalo_confirm_template": "Chào shop, mình vừa đặt đơn hàng trên web. Mã đơn: {order_id}. Nhờ shop kiểm tra và xác nhận đơn giúp mình nhé!",
+}
+
+
+def _normalize_zalo_login_config(raw_zalo, defaults: dict | None = None) -> dict:
+    defaults = defaults or DEFAULT_ZALO_LOGIN_CONFIG
+    raw_zalo = raw_zalo if isinstance(raw_zalo, dict) else {}
+    return {
+        "app_id": str(raw_zalo.get("app_id") or defaults.get("app_id", "")).strip(),
+        "secret_key": str(raw_zalo.get("secret_key") or defaults.get("secret_key", "")).strip(),
+        "mock_test_mode": bool(raw_zalo.get("mock_test_mode", defaults.get("mock_test_mode", False))),
+        "require_zalo_login": bool(raw_zalo.get("require_zalo_login", defaults.get("require_zalo_login", True))),
+        "require_zalo_group_to_order": bool(raw_zalo.get("require_zalo_group_to_order", defaults.get("require_zalo_group_to_order", False))),
+        "seller_zalo_url": str(raw_zalo.get("seller_zalo_url") or defaults.get("seller_zalo_url", "")).strip(),
+        "order_note_shipping": str(raw_zalo.get("order_note_shipping") or defaults.get("order_note_shipping", "Chưa bao gồm chi phí vận chuyển")).strip(),
+        "zalo_confirm_template": str(raw_zalo.get("zalo_confirm_template") or defaults.get("zalo_confirm_template", "")).strip(),
+    }
+
+
 def build_default_system_config(*, use_env_seed: bool) -> dict:
     config = {
         "version": DEFAULT_APP_VERSION,
+        "admin_path": "/admin",
         "server": {
             "host": DEFAULT_HOST,
             "port": DEFAULT_PORT,
         },
         "EnableLogin": False,
         "EnableMultiuserConflictCheck": True,
+        "EnableAdminLockedEdit": False,
         "session_timeout_minutes": DEFAULT_SYSTEM_SESSION_TIMEOUT_MINUTES,
         "admin_session_timeout_minutes": DEFAULT_ADMIN_SESSION_TIMEOUT_MINUTES,
         "admin": {
@@ -177,6 +226,8 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
         "users": [dict(user) for user in DEFAULT_NORMAL_USERS],
         "debug": {
             "sync_state": False,
+            "file_logging": False,
+            "log_level": "INFO",
         },
         "pagination": {
             "items_per_page": DEFAULT_ITEMS_PER_PAGE,
@@ -184,8 +235,11 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
         },
         "procurement": _normalize_procurement_config({}),
         "mail": _normalize_mail_config({}),
+        "public_web": _normalize_public_web_config({}),
+        "zalo_login": _normalize_zalo_login_config({}),
     }
     if use_env_seed:
+        config["admin_path"] = os.environ.get("APP_ADMIN_PATH", "/admin")
         config["server"]["host"] = os.environ.get("APP_HOST", DEFAULT_HOST)
         try:
             config["server"]["port"] = int(os.environ.get("APP_PORT", str(DEFAULT_PORT)))
@@ -194,6 +248,7 @@ def build_default_system_config(*, use_env_seed: bool) -> dict:
         config["admin"]["username"] = os.environ.get("MASTER_ADMIN_USERNAME", DEFAULT_ADMIN_USERNAME)
         config["admin"]["password"] = os.environ.get("MASTER_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
         config["EnableLogin"] = _parse_env_flag("APP_ENABLE_LOGIN", False)
+        config["EnableAdminLockedEdit"] = _parse_env_flag("APP_ENABLE_ADMIN_LOCKED_EDIT", False)
         config["session_timeout_minutes"] = _normalize_timeout_minutes(
             os.environ.get("APP_SESSION_TIMEOUT_MINUTES", DEFAULT_SYSTEM_SESSION_TIMEOUT_MINUTES),
             DEFAULT_SYSTEM_SESSION_TIMEOUT_MINUTES,
@@ -228,6 +283,7 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
     defaults = build_default_system_config(use_env_seed=False)
     config = {
         "version": str(raw_config.get("version") or defaults["version"]).strip(),
+        "admin_path": str(raw_config.get("admin_path") or defaults.get("admin_path", "/admin")).strip(),
         "server": {
             "host": str(raw_config.get("server", {}).get("host") or defaults["server"]["host"]).strip(),
             "port": defaults["server"]["port"],
@@ -235,6 +291,9 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         "EnableLogin": bool(raw_config.get("EnableLogin", defaults["EnableLogin"])),
         "EnableMultiuserConflictCheck": bool(
             raw_config.get("EnableMultiuserConflictCheck", defaults["EnableMultiuserConflictCheck"])
+        ),
+        "EnableAdminLockedEdit": bool(
+            raw_config.get("EnableAdminLockedEdit", defaults["EnableAdminLockedEdit"])
         ),
         "session_timeout_minutes": _normalize_timeout_minutes(
             raw_config.get("session_timeout_minutes", defaults["session_timeout_minutes"]),
@@ -251,6 +310,8 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         "users": _normalize_users(raw_config.get("users", defaults["users"])),
         "debug": {
             "sync_state": bool(raw_config.get("debug", {}).get("sync_state", defaults["debug"]["sync_state"])),
+            "file_logging": bool(raw_config.get("debug", {}).get("file_logging", defaults["debug"].get("file_logging", False))),
+            "log_level": str(raw_config.get("debug", {}).get("log_level", defaults["debug"].get("log_level", "INFO"))).upper(),
         },
         "pagination": {
             "items_per_page": _normalize_page_size(
@@ -269,6 +330,14 @@ def load_system_config(config_path: Path = CONFIG_PATH) -> dict:
         "mail": _normalize_mail_config(
             raw_config.get("mail", {}),
             defaults["mail"],
+        ),
+        "public_web": _normalize_public_web_config(
+            raw_config.get("public_web", {}),
+            defaults["public_web"],
+        ),
+        "zalo_login": _normalize_zalo_login_config(
+            raw_config.get("zalo_login", {}),
+            defaults["zalo_login"],
         ),
     }
 

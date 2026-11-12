@@ -11,6 +11,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 from qltpchay.auth import SessionManager
 from qltpchay.config import load_system_config
@@ -27,6 +28,7 @@ class AuthHttpTests(unittest.TestCase):
         os.close(manifest_fd)
         Path(manifest_file).unlink(missing_ok=True)
         self.asset_versions_path = Path(manifest_file)
+        self.test_config_path = self.db_path.with_suffix(".config.json")
         self.store = InventoryStore(self.db_path)
         self.server = None
         self.server_thread = None
@@ -43,10 +45,12 @@ class AuthHttpTests(unittest.TestCase):
         for suffix in ("", "-wal", "-shm"):
             self.db_path.with_name(self.db_path.name + suffix).unlink(missing_ok=True)
         self.asset_versions_path.unlink(missing_ok=True)
+        self.test_config_path.unlink(missing_ok=True)
 
     def _start_server(self, system_config: dict) -> None:
         system_config = dict(system_config)
         system_config.setdefault("asset_versions_path", str(self.asset_versions_path))
+        system_config.setdefault("config_path", str(self.test_config_path))
         self.session_manager = SessionManager(
             admin=system_config["admin"],
             users=system_config.get("users", []),
@@ -432,11 +436,15 @@ class AuthHttpTests(unittest.TestCase):
         app_version = str(runtime_config["version"])
         config = {
             **runtime_config,
+            "admin_path": "admin",
             "asset_versions_path": str(self.asset_versions_path),
         }
         self._start_server(config)
 
-        html_status, html_body, html_headers = self._request_text("GET", "/")
+        admin_path = str(config.get("admin_path", "/admin")).lower()
+        if not admin_path.startswith("/"):
+            admin_path = "/" + admin_path
+        html_status, html_body, html_headers = self._request_text("GET", admin_path)
         self.assertEqual(html_status, 200)
         self.assertNotIn("<base ", html_body)
         self.assertIn(f'./static/bootstrap.js?v={app_version}.', html_body)
@@ -476,6 +484,74 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(manifest["app_version"], app_version)
         self.assertIn("app.js", manifest["files"])
         self.assertIn("styles.css", manifest["files"])
+
+    def test_ut_auth_16_public_products_expose_internal_low_stock_status(self) -> None:
+        product = self.store.create_product(
+            name="Mặt hàng public sắp hết",
+            category="Đồ chay",
+            unit="gói",
+            low_stock_threshold=5,
+        )
+        self.store.create_transaction(product["id"], "in", 3, "Seed tồn dưới ngưỡng")
+        self._start_server(
+            {
+                "EnableLogin": True,
+                "session_timeout_minutes": 360,
+                "admin_session_timeout_minutes": 30,
+                "admin": {"username": "masteradmin", "password": "admin12345"},
+                "users": [],
+                "debug": {"sync_state": False},
+            }
+        )
+
+        status, payload, _ = self._request_json("GET", "/api/public/products")
+
+        self.assertEqual(status, 200)
+        public_product = next(item for item in payload["products"] if item["id"] == product["id"])
+        self.assertEqual(public_product["current_stock"], 3.0)
+        self.assertTrue(public_product["is_low_stock"])
+
+    def test_ut_auth_17_product_update_can_hide_item_from_public_catalog(self) -> None:
+        product = self.store.create_product(
+            name="Mặt hàng cần ẩn khỏi web",
+            category="Đồ chay",
+            unit="gói",
+            price=12000,
+            sale_price=15000,
+            low_stock_threshold=5,
+        )
+        self._start_server(
+            {
+                "EnableLogin": False,
+                "session_timeout_minutes": 360,
+                "admin_session_timeout_minutes": 30,
+                "admin": {"username": "masteradmin", "password": "admin12345"},
+                "users": [],
+                "debug": {"sync_state": False},
+            }
+        )
+
+        update_status, update_payload, _ = self._request_json(
+            "PUT",
+            f"/api/products/{product['id']}",
+            payload={
+                "name": product["name"],
+                "category": product["category"],
+                "unit": product["unit"],
+                "price": product["price"],
+                "sale_price": product["sale_price"],
+                "low_stock_threshold": product["low_stock_threshold"],
+                "is_public": False,
+            },
+        )
+
+        self.assertEqual(update_status, 200)
+        self.assertFalse(update_payload["product"]["is_public"])
+        self.assertFalse(self.store.get_product_by_id(product["id"])["is_public"])
+
+        public_status, public_payload, _ = self._request_json("GET", "/api/public/products")
+        self.assertEqual(public_status, 200)
+        self.assertNotIn(product["id"], [item["id"] for item in public_payload["products"]])
 
     def test_ut_auth_07_session_cookie_is_scoped_per_request_port(self) -> None:
         config = {
@@ -538,19 +614,23 @@ class AuthHttpTests(unittest.TestCase):
         runtime_config = load_system_config()
         config = {
             **runtime_config,
+            "admin_path": "admin",
             "EnableLogin": False,
             "asset_versions_path": str(self.asset_versions_path),
         }
         self._start_server(config)
 
-        stripped_proxy_html_status, stripped_proxy_html_body, _ = self._request_text("GET", "/")
+        admin_path = str(config.get("admin_path", "/admin")).lower()
+        if not admin_path.startswith("/"):
+            admin_path = "/" + admin_path
+        stripped_proxy_html_status, stripped_proxy_html_body, _ = self._request_text("GET", admin_path)
         self.assertEqual(stripped_proxy_html_status, 200)
         self.assertNotIn("<base ", stripped_proxy_html_body)
         self.assertIn("./static/bootstrap.js?v=", stripped_proxy_html_body)
 
-        html_status, html_body, _ = self._request_text("GET", "/qltp")
+        html_status, html_body, _ = self._request_text("GET", f"/qltp{admin_path}")
         self.assertEqual(html_status, 200)
-        self.assertIn('<base href="/qltp/">', html_body)
+        self.assertNotIn("<base ", html_body)
         self.assertIn("./static/bootstrap.js?v=", html_body)
 
         js_status, js_body, _ = self._request_text("GET", "/qltp/static/app.js")
@@ -1186,6 +1266,133 @@ class AuthHttpTests(unittest.TestCase):
         self.assertEqual(approve_status, 200)
         self.assertEqual(approve_payload["request"]["status"], "processed")
         self.assertTrue(any(cart["id"] == sale_result["cart"]["id"] and cart["status"] == "cancelled" for cart in approve_payload["carts"]))
+
+    def test_ut_auth_18_admin_mail_config_and_test_mail_require_master_admin(self) -> None:
+        config = {
+            "EnableLogin": True,
+            "session_timeout_minutes": 360,
+            "admin_session_timeout_minutes": 30,
+            "admin": {"username": "masteradmin", "password": "admin12345"},
+            "users": [{"username": "staff", "password": "staff12345", "permissions": []}],
+            "debug": {"sync_state": False},
+            "mail": {
+                "enabled": True,
+                "smtp_host": "smtp.test.invalid",
+                "smtp_port": 587,
+                "username": "sender@test.invalid",
+                "password": "test-secret",
+                "from_email": "sender@test.invalid",
+                "to_emails": ["recipient@test.invalid"],
+                "use_tls": True,
+                "use_ssl": False,
+            },
+        }
+        self._start_server(config)
+
+        _, _, staff_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "staff", "password": "staff12345"},
+        )
+        staff_cookie = self._extract_cookie(staff_login_headers)
+        _, _, admin_login_headers = self._request_json(
+            "POST",
+            "/api/session/login",
+            payload={"username": "masteradmin", "password": "admin12345"},
+        )
+        admin_cookie = self._extract_cookie(admin_login_headers)
+
+        denied_config_status, _, _ = self._request_json(
+            "GET",
+            "/api/admin/mail-config",
+            cookie=staff_cookie,
+        )
+        self.assertEqual(denied_config_status, 401)
+        config_status, config_payload, _ = self._request_json(
+            "GET",
+            "/api/admin/mail-config",
+            cookie=admin_cookie,
+        )
+        self.assertEqual(config_status, 200)
+        self.assertEqual(config_payload["mail"]["smtp_host"], "smtp.test.invalid")
+        self.assertTrue(config_payload["mail"]["has_password"])
+        self.assertNotIn("password", config_payload["mail"])
+
+        mail_update = {
+            "enabled": True,
+            "smtp_host": "smtp.updated.invalid",
+            "smtp_port": 465,
+            "username": "sender-updated@test.invalid",
+            "password": "",
+            "from_email": "sender-updated@test.invalid",
+            "to_emails": ["new-recipient@test.invalid"],
+            "use_tls": False,
+            "use_ssl": True,
+            "subject_prefix": "[Updated]",
+        }
+        denied_update_status, _, _ = self._request_json(
+            "POST",
+            "/api/admin/mail-config",
+            payload=mail_update,
+            cookie=staff_cookie,
+        )
+        self.assertEqual(denied_update_status, 401)
+        saved_status, saved_payload, _ = self._request_json(
+            "POST",
+            "/api/admin/mail-config",
+            payload=mail_update,
+            cookie=admin_cookie,
+        )
+        self.assertEqual(saved_status, 200)
+        self.assertTrue(saved_payload["mail"]["has_password"])
+        self.assertNotIn("password", saved_payload["mail"])
+        saved_config = json.loads(self.test_config_path.read_text(encoding="utf-8"))
+        self.assertEqual(saved_config["mail"]["password"], "test-secret")
+
+        mail_update["password"] = "updated-secret"
+        saved_status, saved_payload, _ = self._request_json(
+            "POST",
+            "/api/admin/mail-config",
+            payload=mail_update,
+            cookie=admin_cookie,
+        )
+        self.assertEqual(saved_status, 200)
+        self.assertNotIn("password", saved_payload["mail"])
+        saved_config = json.loads(self.test_config_path.read_text(encoding="utf-8"))
+        self.assertEqual(saved_config["mail"]["password"], "updated-secret")
+
+        with patch("qltpchay.http_handler.send_mail_notification") as send_mail:
+            send_mail.return_value = {"sent": True, "skipped": False, "recipient_count": 1}
+            denied_status, _, _ = self._request_json(
+                "POST",
+                "/api/admin/test-mail",
+                payload={},
+                cookie=staff_cookie,
+            )
+            self.assertEqual(denied_status, 401)
+            send_mail.assert_not_called()
+
+            success_status, success_payload, _ = self._request_json(
+                "POST",
+                "/api/admin/test-mail",
+                payload={},
+                cookie=admin_cookie,
+            )
+
+        self.assertEqual(success_status, 200)
+        self.assertEqual(success_payload["recipient_count"], 1)
+        self.assertEqual(success_payload["result"]["recipient_count"], 1)
+        self.assertEqual(success_payload["result"]["environment"], "test")
+        self.assertEqual(success_payload["result"]["smtp_host"], "smtp.updated.invalid")
+        self.assertEqual(success_payload["result"]["smtp_port"], 465)
+        self.assertEqual(success_payload["result"]["security"], "SSL/TLS")
+        self.assertEqual(success_payload["result"]["from_email"], "sender-updated@test.invalid")
+        self.assertEqual(success_payload["result"]["to_emails"], ["new-recipient@test.invalid"])
+        self.assertTrue(success_payload["result"]["tested_at"])
+        self.assertNotIn("password", success_payload["result"])
+        self.assertNotIn("username", success_payload["result"])
+        self.assertEqual(send_mail.call_args.kwargs["mail_config"]["password"], "updated-secret")
+        self.assertEqual(send_mail.call_args.kwargs["mail_config"]["smtp_host"], "smtp.updated.invalid")
 
     def test_ut_auth_13_pending_bulk_order_request_delete_allows_owner_and_manager_only(self) -> None:
         config = {

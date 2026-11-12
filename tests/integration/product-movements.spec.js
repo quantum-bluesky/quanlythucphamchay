@@ -13,7 +13,7 @@ const {
 async function seedProductMovementFixture(request) {
   const adminCookie = await autoLoginAdminRequest(request);
   const productName = `IT MOV ${Date.now()}`;
-  const createProductResponse = await request.post("/api/products", {
+  const createProductResponse = await request.post("./api/products", {
     headers: { Cookie: adminCookie },
     data: {
       name: productName,
@@ -29,7 +29,7 @@ async function seedProductMovementFixture(request) {
   const product = createProductPayload.product || createProductPayload;
   expect(product?.id).toBeTruthy();
 
-  const stockInResponse = await request.post("/api/transactions", {
+  const stockInResponse = await request.post("./api/transactions", {
     headers: { Cookie: adminCookie },
     data: {
       product_id: product.id,
@@ -41,7 +41,7 @@ async function seedProductMovementFixture(request) {
   });
   expect(stockInResponse.ok()).toBeTruthy();
 
-  const stockOutResponse = await request.post("/api/transactions", {
+  const stockOutResponse = await request.post("./api/transactions", {
     headers: { Cookie: adminCookie },
     data: {
       product_id: product.id,
@@ -61,7 +61,7 @@ test("IT-MOV-01 inventory detail opens product movement screen with the selected
   const { productName } = await seedProductMovementFixture(request);
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -90,7 +90,7 @@ test("IT-MOV-02 product movement screen stays readable on mobile", async ({ page
   const { productName } = await seedProductMovementFixture(request);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -141,7 +141,7 @@ test("IT-MOV-03 product movement screen defaults to descending and supports asce
   const { productName } = await seedProductMovementFixture(request);
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginUser(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -175,7 +175,7 @@ test("IT-MOV-04 product movement screen opens inventory adjustment receipt for t
   const { productName } = await seedProductMovementFixture(request);
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/");
+  await page.goto(process.env.TEST_ADMIN_PATH || "admin");
   await page.waitForLoadState("networkidle");
   await autoLoginProcurementManager(page, request);
   await page.reload({ waitUntil: "networkidle" });
@@ -199,3 +199,6 @@ test("IT-MOV-04 product movement screen opens inventory adjustment receipt for t
 
   expectNoRuntimeErrors(runtime);
 });
+
+
+

@@ -1,3 +1,5 @@
+import { convertUnitQuantity, getUnitQuantityBase } from "../unit-quantity-editor.js";
+
 export function registerPurchasesControllerEvents(contract) {
   const {
     state,
@@ -8,7 +10,12 @@ export function registerPurchasesControllerEvents(contract) {
     utils,
   } = contract;
 
-  function selectPurchaseDocument(purchaseId, { focus = true, expandDetail = !dom.mobileQuery.matches } = {}) {
+  // #Issue 172: Helper chuẩn hóa tên nhà cung cấp để đối chiếu
+  const normalizeSupplierName = (value) =>
+    (utils?.normalizeLookup ? utils.normalizeLookup(value) : String(value || "").trim().toLowerCase());
+  const isDraftPurchase = queries.isDraftPurchase || ((purchase) => Boolean(purchase && (purchase.status || "draft") === "draft"));
+
+  function selectPurchaseDocument(purchaseId, { focus = true, expandDetail = false } = {}) {
     const visiblePurchases = queries.getVisiblePurchases();
     const purchase = state.purchases.find((entry) => entry.id === purchaseId) || null;
     if (!purchase) {
@@ -104,9 +111,13 @@ export function registerPurchasesControllerEvents(contract) {
     state.quickPurchaseDraft.supplierText = String(dom.quickPurchasePanel.querySelector("#quickPurchaseSupplierInput")?.value || "").trim();
     state.quickPurchaseDraft.documentDate = String(dom.quickPurchasePanel.querySelector("#quickPurchaseDateInput")?.value || "").trim();
     state.quickPurchaseDraft.note = String(dom.quickPurchasePanel.querySelector("#quickPurchaseNoteInput")?.value || "").trim();
+    state.quickPurchaseDraft.discountAmount = String(dom.quickPurchasePanel.querySelector("#quickPurchaseDiscountInput")?.value || "").trim();
     state.quickPurchaseDraft.productText = String(dom.quickPurchasePanel.querySelector("#quickPurchaseProductInput")?.value || "").trim();
     state.quickPurchaseDraft.quantity = String(dom.quickPurchasePanel.querySelector("#quickPurchaseQuantityInput")?.value || "").trim() || "1";
     state.quickPurchaseDraft.unitCost = String(dom.quickPurchasePanel.querySelector("#quickPurchaseUnitCostInput")?.value || "").trim();
+    state.quickPurchaseDraft.lineDiscount = String(dom.quickPurchasePanel.querySelector("#quickPurchaseLineDiscountInput")?.value || "").trim();
+    state.quickPurchaseDraft.conversionFactor = String(dom.quickPurchasePanel.querySelector("#quickPurchaseUnitSelect")?.value || "1").trim();
+    state.quickPurchaseDraft.unitName = dom.quickPurchasePanel.querySelector("#quickPurchaseUnitSelect")?.options?.[dom.quickPurchasePanel.querySelector("#quickPurchaseUnitSelect").selectedIndex]?.dataset?.unitName || "";
     const selectedStatus = dom.quickPurchasePanel.querySelector('input[name="quickPurchaseFinalStatus"]:checked');
     state.quickPurchaseDraft.finalStatus = selectedStatus?.value || "received";
     state.quickPurchaseDraft.markPaid = Boolean(dom.quickPurchasePanel.querySelector("#quickPurchaseMarkPaidInput")?.checked);
@@ -134,7 +145,9 @@ export function registerPurchasesControllerEvents(contract) {
       actions.showToast("Chọn đúng sản phẩm để thêm vào nhập nhanh.", true);
       return;
     }
-    const quantity = Number(draft.quantity || 0);
+    const inputQuantity = Number(draft.quantity || 0);
+    const conversionFactor = Number(draft.conversionFactor || 1);
+    const quantity = inputQuantity * conversionFactor;
     const unitCost = Number(draft.unitCost || product.price || 0);
     if (!Number.isFinite(quantity) || quantity <= 0) {
       actions.showToast("Số lượng phải lớn hơn 0.", true);
@@ -144,10 +157,22 @@ export function registerPurchasesControllerEvents(contract) {
       actions.showToast("Giá nhập không hợp lệ.", true);
       return;
     }
+    const lineDiscount = Math.max(0, Number(draft.lineDiscount || 0));
+    if (!Number.isFinite(lineDiscount) || lineDiscount < 0) {
+      actions.showToast("Giảm giá dòng không hợp lệ.", true);
+      return;
+    }
+    const grossTotal = inputQuantity * unitCost;
+    if (lineDiscount > grossTotal) {
+      actions.showToast("Giảm giá dòng không được vượt quá thành tiền.", true);
+      return;
+    }
     const existing = (draft.items || []).find((item) => Number(item.productId) === Number(product.id));
     if (existing) {
       existing.quantity = Number((Number(existing.quantity || 0) + quantity).toFixed(2));
+      existing.inputQuantity = Number((Number(existing.inputQuantity || 0) + inputQuantity).toFixed(2));
       existing.unitCost = Number(unitCost.toFixed(2));
+      existing.discountAmount = Number(((existing.discountAmount || 0) + lineDiscount).toFixed(2));
       existing.productName = product.name;
     } else {
       draft.items.push({
@@ -155,17 +180,23 @@ export function registerPurchasesControllerEvents(contract) {
         productName: product.name,
         quantity: Number(quantity.toFixed(2)),
         unitCost: Number(unitCost.toFixed(2)),
+        discountAmount: lineDiscount,
+        inputQuantity: inputQuantity,
+        inputUnit: draft.unitName || product.unit,
+        conversionFactor: conversionFactor,
       });
     }
     draft.productText = "";
     draft.quantity = "1";
     draft.unitCost = "";
+    draft.lineDiscount = "";
     draft.lastResult = null;
     renderers.renderQuickPurchasePanel();
     utils.syncPriceWarningGroup(dom.quickPurchasePanel?.querySelector("[data-price-warning-group]"));
     dom.quickPurchasePanel?.querySelector("#quickPurchaseProductInput")?.focus();
   }
 
+  // #Issue 171: Sửa lỗi nhập hàng xử lý nhanh ko nhập được đơn đang mở
   async function submitQuickPurchase() {
     syncQuickPurchaseDraftFromInputs();
     const draft = state.quickPurchaseDraft || {};
@@ -191,20 +222,42 @@ export function registerPurchasesControllerEvents(contract) {
     draft.submitting = true;
     renderers.renderQuickPurchasePanel();
     try {
+      if (typeof actions.flushPendingPersistCollections === "function") {
+        await actions.flushPendingPersistCollections();
+      }
+      let targetPurchaseId = String(draft.targetPurchaseId || "").trim();
+      if (targetPurchaseId) {
+        const targetPurchase = (state.purchases || []).find((p) => String(p.id) === targetPurchaseId);
+        if (targetPurchase && typeof queries.isUnsavedEmptyDraftPurchase === "function" && queries.isUnsavedEmptyDraftPurchase(targetPurchase)) {
+          targetPurchaseId = "";
+        }
+      }
       const data = await actions.createQuickPurchaseDocument({
         supplier_name: draft.supplierText,
         document_date: draft.documentDate,
         note: draft.note,
+        discount_amount: Number(draft.discountAmount || 0),
         items: draft.items.map((item) => ({
           product_id: item.productId,
           quantity: item.quantity,
           unit_cost: item.unitCost,
+          discount_amount: Number(item.discountAmount || item.discount_amount || 0),
+          input_quantity: item.inputQuantity ?? item.quantity,
+          input_unit: item.inputUnit ?? "",
+          conversion_factor: Number(item.conversionFactor || 1),
+          batch_code: String(item.batchCode || item.batch_code || "").trim(),
+          expiry_input_mode: item.expiryInputMode || item.expiry_input_mode || "direct",
+          manufacture_date: item.manufactureDate || item.manufacture_date || "",
+          expiry_date: item.expiryDate || item.expiry_date || "",
         })),
         final_status: draft.finalStatus,
         mark_paid: Boolean(draft.markPaid && draft.finalStatus === "received"),
+        target_purchase_id: targetPurchaseId,
       });
       state.quickPurchaseDraft.lastResult = data.quick_summary || null;
       actions.showToast(data.message || "Đã lưu nhập nhanh.");
+    } catch (error) {
+      actions.showToast(error.message || "Lỗi lưu phiếu nhập nhanh.", true);
     } finally {
       state.quickPurchaseDraft.submitting = false;
       renderers.renderQuickPurchasePanel();
@@ -339,9 +392,37 @@ export function registerPurchasesControllerEvents(contract) {
       discountAmount: Number(discountAmount.toFixed(2)),
       updatedAt: utils.nowIso(),
     }));
-    actions.saveAndRenderAll(persist ? ["purchases"] : []);
+    // #Issue37: Keep Master Admin discounts pending for the audited bypass endpoint.
+    actions.saveAndRenderAll(persist && !purchase._adminEditMode ? ["purchases"] : []);
     if (!silent) {
       actions.showToast("Đã lưu giảm giá khuyến mại.");
+    }
+    return true;
+  }
+
+  function savePurchaseNote(purchaseId, inputSelectorRoot, options = {}) {
+    const { silent = false, persist = true } = options;
+    const purchase = queries.getActivePurchase()?.id === purchaseId
+      ? queries.getActivePurchase()
+      : state.purchases.find((entry) => entry.id === purchaseId) || null;
+    if (!purchase) {
+      actions.showToast("Không tìm thấy phiếu nhập.", true);
+      return false;
+    }
+    if (!queries.canEditPurchaseNote(purchase)) {
+      actions.showToast("Không thể sửa ghi chú.", true);
+      return false;
+    }
+    const noteInput = inputSelectorRoot.querySelector(`[data-purchase-note-input="${purchase.id}"]`);
+    const note = String(noteInput?.value || "").trim();
+    actions.updatePurchase(purchase.id, () => ({
+      note: note,
+      updatedAt: utils.nowIso(),
+    }));
+    // #Issue37: Keep Master Admin notes pending for the audited bypass endpoint.
+    actions.saveAndRenderAll(persist && !purchase._adminEditMode ? ["purchases"] : []);
+    if (!silent) {
+      actions.showToast("Đã lưu ghi chú.");
     }
     return true;
   }
@@ -380,9 +461,12 @@ export function registerPurchasesControllerEvents(contract) {
       actions.showToast("Đã lưu phiếu nhập nháp.");
     } else {
       actions.saveAndRenderAll();
-      actions.showToast("Đã mở phiếu nhập nháp tạm. Thêm mặt hàng để lưu.");
+      actions.showToast("Đã mở phiếu nhập nháp tạm. Nhập nhà cung cấp hoặc thêm mặt hàng để lưu.");
     }
-    actions.focusPurchaseSuggestions();
+    // #Issue 172: Focus vào ô NCC sau khi tạo phiếu mới để người dùng chọn NCC
+    if (dom.purchaseSupplierInput) {
+      dom.purchaseSupplierInput.focus();
+    }
   });
 
   dom.togglePurchasePanelButton.addEventListener("click", () => {
@@ -393,6 +477,101 @@ export function registerPurchasesControllerEvents(contract) {
     }
   });
 
+  dom.quickPurchasePanel?.addEventListener("input", (event) => {
+    if (event.target.id === "quickPurchaseProductInput") {
+      const select = dom.quickPurchasePanel.querySelector("#quickPurchaseUnitSelect");
+      if (!select) return;
+      const text = event.target.value;
+      if (!text) {
+        select.innerHTML = '<option value="1">Đơn vị (gốc)</option>';
+        return;
+      }
+      const parts = text.split("-");
+      const idStr = parts[parts.length - 1];
+      if (!idStr) return;
+      const id = parseInt(idStr.trim(), 10);
+      if (!id) return;
+      const product = state.products.find(p => p.id === id);
+      if (product) {
+        const defaultUnit = product.default_purchase_unit || product.unit;
+        select.innerHTML = `
+          <option value="1" data-unit-name="${utils.escapeHtml(product.unit)}" data-price="${product.price || 0}" ${defaultUnit === product.unit ? "selected" : ""}>${utils.escapeHtml(product.unit)} (gốc)</option>
+          ${(product.unit_conversions || []).map(conv => `<option value="${conv.conversion_factor}" data-unit-name="${utils.escapeHtml(conv.from_unit)}" data-price="${conv.price || ((product.price || 0) * conv.conversion_factor)}" ${defaultUnit === conv.from_unit ? "selected" : ""}>${utils.escapeHtml(conv.from_unit)} (1=${conv.conversion_factor})</option>`).join("")}
+        `;
+        const selectedOption = select.options[select.selectedIndex] || select.options[0];
+        const unitCostInput = dom.quickPurchasePanel.querySelector("#quickPurchaseUnitCostInput");
+        if (unitCostInput && selectedOption) {
+          unitCostInput.value = selectedOption.dataset.price || product.price || 0;
+          if (state.quickPurchaseDraft) {
+            state.quickPurchaseDraft.unitCost = unitCostInput.value;
+            state.quickPurchaseDraft.conversionFactor = selectedOption.value;
+            state.quickPurchaseDraft.unitName = selectedOption.dataset.unitName;
+          }
+        }
+      }
+    } else if (event.target.id === "quickPurchaseUnitSelect") {
+      const select = event.target;
+      const option = select.options[select.selectedIndex];
+      if (option) {
+        const oldFactor = parseFloat(state.quickPurchaseDraft?.conversionFactor || 1) || 1;
+        const newFactor = parseFloat(option.value) || 1;
+        const qtyInput = dom.quickPurchasePanel.querySelector("#quickPurchaseQuantityInput");
+        if (qtyInput) {
+          const curQty = parseFloat(qtyInput.value) || 0;
+          if (curQty > 0) {
+            const baseQty = curQty * oldFactor;
+            const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
+            qtyInput.value = newQty;
+            if (state.quickPurchaseDraft) {
+              state.quickPurchaseDraft.quantity = String(newQty);
+            }
+          }
+        }
+        const unitCostInput = dom.quickPurchasePanel.querySelector("#quickPurchaseUnitCostInput");
+        if (unitCostInput && option.dataset.price) {
+          unitCostInput.value = option.dataset.price;
+          if (state.quickPurchaseDraft) {
+            state.quickPurchaseDraft.unitCost = option.dataset.price;
+            state.quickPurchaseDraft.conversionFactor = option.value;
+            state.quickPurchaseDraft.unitName = option.dataset.unitName;
+          }
+        }
+      }
+    }
+  });
+
+  dom.quickPurchasePanel?.addEventListener("change", (event) => {
+    if (event.target.id === "quickPurchaseUnitSelect") {
+      const select = event.target;
+      const option = select.options[select.selectedIndex];
+      if (option) {
+        const oldFactor = parseFloat(state.quickPurchaseDraft?.conversionFactor || 1) || 1;
+        const newFactor = parseFloat(option.value) || 1;
+        const qtyInput = dom.quickPurchasePanel.querySelector("#quickPurchaseQuantityInput");
+        if (qtyInput) {
+          const curQty = parseFloat(qtyInput.value) || 0;
+          if (curQty > 0) {
+            const baseQty = curQty * oldFactor;
+            const newQty = Math.round((baseQty / newFactor) * 10000) / 10000;
+            qtyInput.value = newQty;
+            if (state.quickPurchaseDraft) {
+              state.quickPurchaseDraft.quantity = String(newQty);
+            }
+          }
+        }
+        const unitCostInput = dom.quickPurchasePanel.querySelector("#quickPurchaseUnitCostInput");
+        if (unitCostInput && option.dataset.price) {
+          unitCostInput.value = option.dataset.price;
+          if (state.quickPurchaseDraft) {
+            state.quickPurchaseDraft.unitCost = option.dataset.price;
+            state.quickPurchaseDraft.conversionFactor = option.value;
+            state.quickPurchaseDraft.unitName = option.dataset.unitName;
+          }
+        }
+      }
+    }
+  });
+
   dom.quickPurchasePanel?.addEventListener("click", async (event) => {
     const actionButton = event.target.closest("[data-quick-purchase-action]");
     if (!actionButton) {
@@ -400,6 +579,11 @@ export function registerPurchasesControllerEvents(contract) {
     }
     const action = actionButton.dataset.quickPurchaseAction;
     try {
+      if (action === "toggle-panel") {
+        state.quickPurchaseDraft.panelCollapsed = !state.quickPurchaseDraft.panelCollapsed;
+        renderers.renderQuickPurchasePanel();
+        return;
+      }
       if (action === "add-item") {
         addQuickPurchaseItem();
         return;
@@ -430,7 +614,7 @@ export function registerPurchasesControllerEvents(contract) {
         }
         state.activePurchaseId = documentId;
         state.purchasePanelCollapsed = false;
-        state.purchaseDetailExpanded = true;
+        state.purchaseDetailExpanded = false;
         actions.saveAndRenderAll();
         actions.focusPurchasePanel();
         return;
@@ -439,8 +623,40 @@ export function registerPurchasesControllerEvents(contract) {
         actions.focusPurchaseOrders();
         return;
       }
+      // #Issue 171: Sửa lỗi nhập hàng xử lý nhanh ko nhập được đơn đang mở
+      if (action === "clear-target" || action === "detach-target") {
+        if (state.quickPurchaseDraft) {
+          state.quickPurchaseDraft.targetPurchaseId = null;
+          renderers.renderQuickPurchasePanel();
+          actions.showToast("Đã chuyển sang chế độ tạo phiếu nhập mới độc lập.");
+        }
+        return;
+      }
       if (action === "use-active-purchase") {
-        actions.cloneActivePurchaseIntoQuickPurchaseDraft();
+        const purchase = queries.getActivePurchase();
+        if (!purchase) {
+          actions.showToast("Chưa có phiếu nhập nào đang mở để lấy nhanh.", true);
+          return;
+        }
+
+        let editTarget = false;
+        if (purchase.status === "cancelled") {
+          const shouldClone = window.confirm("Phiếu đã hủy không thể sửa trực tiếp. Bạn có muốn TẠO MỚI một bản sao để tiếp tục nhập nhanh không?");
+          if (!shouldClone) return;
+          editTarget = false;
+          actions.showToast("Đang TẠO MỚI một phiếu nhập dựa trên phiếu đang mở.");
+        } else if (purchase.status === "received" || purchase.status === "paid") {
+          const shouldClone = window.confirm("Phiếu đã hoàn tất nhập kho không thể sửa trực tiếp. Bạn có muốn TẠO MỚI một bản sao để tiếp tục nhập nhanh không?");
+          if (!shouldClone) return;
+          editTarget = false;
+          actions.showToast("Đang TẠO MỚI một phiếu nhập dựa trên phiếu đang mở.");
+        } else {
+          editTarget = true;
+          const displayLabel = purchase.receiptCode || purchase.id;
+          actions.showToast(`Đã lấy thông tin từ phiếu đang mở (${displayLabel}) để xử lý nhanh.`);
+        }
+
+        actions.cloneActivePurchaseIntoQuickPurchaseDraft({ editTarget });
         renderers.renderQuickPurchasePanel();
         return;
       }
@@ -466,16 +682,40 @@ export function registerPurchasesControllerEvents(contract) {
       return;
     }
     const purchase = queries.getActivePurchase();
-    if (!purchase) return;
-    if (!queries.canEditPurchaseSupplier(purchase)) {
-      actions.showToast("Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp.", true);
-      renderers.renderPurchasePanel();
+    const supplierValue = dom.purchaseSupplierInput.value.trim();
+
+    // #Issue 172: Khi chưa có phiếu hoặc phiếu hiện tại không phải draft (ví dụ received, paid, cancelled, ordered):
+    // nếu người dùng nhập/chọn NCC mới khác phiếu cũ -> tự động mở/tạo phiếu nháp mới cho NCC đó
+    if (!purchase || !queries.canEditPurchaseSupplier(purchase)) {
+      if (supplierValue && (!purchase || normalizeSupplierName(purchase.supplierName) !== normalizeSupplierName(supplierValue))) {
+        const result = actions.applySupplierToActiveDraft(supplierValue, {
+          note: dom.purchaseNoteInput.value.trim(),
+        });
+        actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
+        actions.showToast(`Đã mở phiếu nhập nháp cho nhà cung cấp: ${supplierValue}.`);
+        actions.focusPurchaseSuggestions();
+        return;
+      }
+      if (purchase && !queries.canEditPurchaseSupplier(purchase)) {
+        actions.showToast("Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp.", true);
+        renderers.renderPurchasePanel();
+        return;
+      }
       return;
     }
-    const result = actions.applySupplierToActiveDraft(dom.purchaseSupplierInput.value.trim(), {
+
+    const result = actions.applySupplierToActiveDraft(supplierValue, {
       note: dom.purchaseNoteInput.value.trim(),
     });
     actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
+  });
+
+  // #Issue 172: Bổ sung xử lý phím Enter trên ô nhập nhà cung cấp
+  dom.purchaseSupplierInput.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    dom.purchaseSupplierInput.blur();
+    actions.focusPurchaseSuggestions();
   });
 
   dom.purchaseNoteInput.addEventListener("change", () => {
@@ -490,7 +730,8 @@ export function registerPurchasesControllerEvents(contract) {
       supplierName: dom.purchaseSupplierInput.value.trim(),
       note: dom.purchaseNoteInput.value.trim(),
     }));
-    actions.saveAndRenderAll(["purchases"]);
+    // #Issue37: Keep Master Admin edits local until the audited bypass endpoint saves them.
+    actions.saveAndRenderAll(purchase._adminEditMode ? [] : ["purchases"]);
   });
 
   dom.purchaseSupplierMenuButton?.addEventListener("pointerdown", () => {
@@ -501,12 +742,6 @@ export function registerPurchasesControllerEvents(contract) {
     event.preventDefault();
     event.stopPropagation();
     actions.setSkipNextPurchaseSupplierChangePersist(false);
-    const purchase = queries.getActivePurchase();
-    if (purchase && !queries.canEditPurchaseSupplier(purchase)) {
-      actions.showToast("Chỉ phiếu nháp hoặc phiếu lỗi chưa nhập kho mới được đổi nhà cung cấp.", true);
-      renderers.renderPurchasePanel();
-      return;
-    }
     actions.beginSupplierCreateFromPurchase();
   });
 
@@ -641,6 +876,16 @@ export function registerPurchasesControllerEvents(contract) {
           return;
         }
       }
+
+      // #Issue 172: Đảm bảo nếu ô NCC đang có giá trị mà phiếu nháp chưa có NCC thì đồng bộ trước khi thêm hàng
+      const pendingInputSupplier = String(dom.purchaseSupplierInput?.value || "").trim();
+      const currentActivePurchase = queries.getActivePurchase();
+      if (pendingInputSupplier && currentActivePurchase && isDraftPurchase(currentActivePurchase) && !queries.hasPurchaseSupplier(currentActivePurchase)) {
+        actions.applySupplierToActiveDraft(pendingInputSupplier, {
+          note: dom.purchaseNoteInput?.value?.trim() || "",
+        });
+      }
+
       const result = actions.addSuggestionToPurchase(button.dataset.productId, quantity, product?.price || 0);
       state.purchasePanelCollapsed = false;
       renderers.renderPurchasePanel();
@@ -674,15 +919,52 @@ export function registerPurchasesControllerEvents(contract) {
   });
 
   dom.purchasePanel.addEventListener("change", (event) => {
-    const modeInput = event.target.closest("[data-purchase-expiry-mode-input]");
+    const target = event.target;
+    const itemId = target.dataset.purchaseQtyInput || target.dataset.purchaseCostInput || target.dataset.purchaseBatchInput || target.dataset.purchaseExpiryModeInput || target.dataset.purchaseExpiryInput || target.dataset.purchaseManufactureInput;
+    if (itemId) {
+      const purchase = queries.getActivePurchase();
+      const item = purchase?.items.find((i) => i.id === itemId);
+      if (item) {
+        if (target.dataset.purchaseQtyInput) item.quantity = target.value;
+        if (target.dataset.purchaseCostInput) item.unitCost = target.value;
+        if (target.dataset.purchaseBatchInput) item.batchCode = target.value;
+        if (target.dataset.purchaseExpiryModeInput) item.expiryInputMode = target.value;
+        if (target.dataset.purchaseExpiryInput) item.expiryDate = target.value;
+        if (target.dataset.purchaseManufactureInput) item.manufactureDate = target.value;
+      }
+    }
+
+    const modeInput = target.closest("[data-purchase-expiry-mode-input]");
     if (modeInput) {
       updatePurchaseExpiryEditorState(modeInput.dataset.purchaseExpiryModeInput);
       return;
     }
-    const dateInput = event.target.closest("[data-purchase-expiry-input], [data-purchase-manufacture-input]");
+    const dateInput = target.closest("[data-purchase-expiry-input], [data-purchase-manufacture-input]");
     if (dateInput) {
-      const itemId = dateInput.dataset.purchaseExpiryInput || dateInput.dataset.purchaseManufactureInput;
-      updatePurchaseExpiryEditorState(itemId);
+      const dateItemId = dateInput.dataset.purchaseExpiryInput || dateInput.dataset.purchaseManufactureInput;
+      updatePurchaseExpiryEditorState(dateItemId);
+    }
+  });
+
+  dom.purchasePanel?.addEventListener("change", (event) => {
+    const unitSelect = event.target.closest("[data-purchase-unit-input]");
+    if (!unitSelect) return;
+    const itemId = unitSelect.dataset.purchaseUnitInput;
+    const purchase = queries.getActivePurchase();
+    const item = purchase?.items.find(i => String(i.id) === String(itemId));
+    if (!item) return;
+    const option = unitSelect.options[unitSelect.selectedIndex];
+    if (!option) return;
+
+    const oldFactor = parseFloat((item.conversionFactor ?? item.conversion_factor) || 1) || 1;
+    const newFactor = parseFloat(option.value) || 1;
+    const qtyInput = dom.purchasePanel.querySelector(`[data-purchase-qty-input="${itemId}"]`);
+    const costInput = dom.purchasePanel.querySelector(`[data-purchase-cost-input="${itemId}"]`);
+
+    // #Issue133: Subsequent changes use the current editor factor, not the saved line factor.
+    convertUnitQuantity(qtyInput, oldFactor, newFactor, item);
+    if (costInput && option.dataset.price) {
+      costInput.value = option.dataset.price;
     }
   });
 
@@ -703,15 +985,21 @@ export function registerPurchasesControllerEvents(contract) {
       }
       if (panelButton.dataset.purchasePanelAction === "create") {
         state.purchaseDetailExpanded = false;
-        const purchase = actions.createPurchaseDraftIfMissing();
+        const purchase = actions.createPurchaseDraftIfMissing({
+          preferredSupplierName: "",
+          preferBlankWhenActiveHasSupplier: true,
+        });
         if (purchase.items.length > 0) {
           actions.saveAndRenderAll(["purchases"]);
           actions.showToast("Đã lưu phiếu nhập nháp.");
         } else {
           actions.saveAndRenderAll();
-          actions.showToast("Đã mở phiếu nhập nháp tạm. Thêm mặt hàng để lưu.");
+          actions.showToast("Đã mở phiếu nhập nháp tạm. Nhập nhà cung cấp hoặc thêm mặt hàng để lưu.");
         }
-        actions.focusPurchaseSuggestions();
+        if (dom.purchaseSupplierInput) {
+          dom.purchaseSupplierInput.focus();
+        }
+        return;
       }
       return;
     }
@@ -727,13 +1015,21 @@ export function registerPurchasesControllerEvents(contract) {
         actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
         return;
       }
-      if (itemAction !== "save" && !canEditStructure) {
+      if (itemAction !== "save" && itemAction !== "toggle-detail" && !canEditStructure) {
         actions.showToast("Phiếu nhập đã khóa, không thể sửa trực tiếp.", true);
+        return;
+      }
+      if (itemAction === "toggle-detail") {
+        const itemId = itemButton.dataset.purchaseItemId;
+        state.expandedSelectedPurchaseItemId = String(state.expandedSelectedPurchaseItemId || "") === String(itemId || "") ? null : itemId;
+        renderers.renderPurchasePanel();
         return;
       }
       if (itemAction === "save") {
         const qtyInput = dom.purchasePanel.querySelector(`[data-purchase-qty-input="${itemButton.dataset.purchaseItemId}"]`);
         const costInput = dom.purchasePanel.querySelector(`[data-purchase-cost-input="${itemButton.dataset.purchaseItemId}"]`);
+        const discountItemInput = dom.purchasePanel.querySelector(`[data-purchase-discount-item-input="${itemButton.dataset.purchaseItemId}"]`);
+        const unitSelect = dom.purchasePanel.querySelector(`[data-purchase-unit-input="${itemButton.dataset.purchaseItemId}"]`);
         const batchInput = dom.purchasePanel.querySelector(`[data-purchase-batch-input="${itemButton.dataset.purchaseItemId}"]`);
         const expiryModeInput = dom.purchasePanel.querySelector(`[data-purchase-expiry-mode-input="${itemButton.dataset.purchaseItemId}"]`);
         const expiryInput = dom.purchasePanel.querySelector(`[data-purchase-expiry-input="${itemButton.dataset.purchaseItemId}"]`);
@@ -753,7 +1049,7 @@ export function registerPurchasesControllerEvents(contract) {
             return;
           }
         }
-        if (purchase.status === "received") {
+        if (purchase.status === "received" && !purchase._adminEditMode) {
           try {
             const data = await actions.apiRequest("/api/purchases/received-item-expiry", {
               method: "POST",
@@ -775,9 +1071,10 @@ export function registerPurchasesControllerEvents(contract) {
           }
           return;
         }
-        const quantity = Number(qtyInput?.value);
+        const inputQuantity = Number(qtyInput?.value);
         const unitCost = Number(costInput?.value);
-        if (!Number.isFinite(quantity) || quantity <= 0) {
+        const discountAmount = Math.max(0, Number(discountItemInput?.value || 0));
+        if (!Number.isFinite(inputQuantity) || inputQuantity <= 0) {
           actions.showToast("Số lượng nhập phải lớn hơn 0.", true);
           return;
         }
@@ -785,11 +1082,26 @@ export function registerPurchasesControllerEvents(contract) {
           actions.showToast("Giá nhập không hợp lệ.", true);
           return;
         }
+        if (!Number.isFinite(discountAmount) || discountAmount < 0) {
+          actions.showToast("Khuyến mại không hợp lệ.", true);
+          return;
+        }
+
+        const selectedOption = unitSelect?.options[unitSelect?.selectedIndex];
+        const conversionFactor = selectedOption ? (parseFloat(selectedOption.value) || 1.0) : 1.0;
+        const inputUnit = selectedOption?.dataset.unitName || (selectedOption?.textContent || "").trim();
+        const baseQuantity = Number(getUnitQuantityBase(qtyInput, conversionFactor, sourceItem).toFixed(4));
+
         actions.updatePurchase(purchase.id, (currentPurchase) => ({
           items: currentPurchase.items.map((item) => item.id === itemButton.dataset.purchaseItemId ? {
             ...item,
-            quantity: Number(quantity.toFixed(2)),
+            inputQuantity,
+            inputUnit,
+            conversionFactor,
+            quantity: baseQuantity,
             unitCost,
+            discountAmount,
+            discount_amount: discountAmount,
             batchCode: String(batchInput?.value || "").trim(),
             expiryInputMode,
             manufactureDate: expiryInputMode === "manufacture" ? manufactureDate : "",
@@ -798,7 +1110,7 @@ export function registerPurchasesControllerEvents(contract) {
           supplierName: dom.purchaseSupplierInput.value.trim(),
           note: dom.purchaseNoteInput.value.trim(),
         }));
-        actions.saveAndRenderAll(["purchases"]);
+        actions.saveAndRenderAll(purchase._adminEditMode ? [] : ["purchases"]);
         actions.showToast("Đã lưu dòng nhập hàng.");
         return;
       }
@@ -859,7 +1171,7 @@ export function registerPurchasesControllerEvents(contract) {
         supplierName: dom.purchaseSupplierInput.value.trim(),
         note: dom.purchaseNoteInput.value.trim(),
       }));
-      actions.saveAndRenderAll(["purchases"]);
+      actions.saveAndRenderAll(purchase._adminEditMode ? [] : ["purchases"]);
       return;
     }
 
@@ -917,12 +1229,23 @@ export function registerPurchasesControllerEvents(contract) {
       actions.printPurchase(purchase.id);
       return;
     }
+    if (actionButton.dataset.purchaseAction === "copy-text") {
+      actions.copyPurchaseText(purchase.id);
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "collapse") {
       state.purchasePanelCollapsed = true;
       renderers.renderPurchasePanel();
       return;
     }
     if (actionButton.dataset.purchaseAction === "delete") {
+      if (purchase._adminEditMode) {
+        delete purchase._adminEditMode;
+        delete purchase._adminEditReason;
+        await actions.refreshData();
+        actions.saveAndRenderAll();
+        return;
+      }
       if (!queries.canDeletePurchase(purchase)) {
         actions.showToast("Chỉ được xóa hẳn phiếu nhập nháp hoặc phiếu lỗi chưa nhập kho.", true);
         return;
@@ -972,7 +1295,23 @@ export function registerPurchasesControllerEvents(contract) {
       await persistPurchaseStatusChange("Đã cập nhật trạng thái đặt hàng.");
       return;
     }
+    if (actionButton.dataset.purchaseAction === "admin-bypass-save") {
+      try {
+        await actions.flushPendingPersistCollections();
+        await actions.saveAdminBypassPurchase();
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "cancel") {
+      if (purchase._adminEditMode) {
+        delete purchase._adminEditMode;
+        delete purchase._adminEditReason;
+        await actions.refreshData(); // discard local modifications
+        actions.saveAndRenderAll();
+        return;
+      }
       if (!queries.canCancelPurchase(purchase)) {
         actions.showToast("Phiếu nhập đã khóa, không thể hủy trực tiếp.", true);
         return;
@@ -1061,7 +1400,7 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       try {
-        await actions.flushPendingPersistCollections();
+        // #Issue119: Payment is saved for this document; flushing the whole collection lets unrelated batch-locked purchases block it.
         const data = await actions.updatePurchasePaymentDetails(latestPurchase.id);
         state.activePurchaseId = latestPurchase.id;
         actions.showToast(data.message);
@@ -1074,6 +1413,10 @@ export function registerPurchasesControllerEvents(contract) {
       savePurchaseDiscount(actionButton.dataset.purchaseId || purchase.id, dom.purchasePanel);
       return;
     }
+    if (actionButton.dataset.purchaseAction === "save-note") {
+      savePurchaseNote(actionButton.dataset.purchaseId || purchase.id, dom.purchasePanel);
+      return;
+    }
     if (actionButton.dataset.purchaseAction === "supplier-return") {
       try {
         state.purchaseDetailExpanded = true;
@@ -1083,6 +1426,15 @@ export function registerPurchasesControllerEvents(contract) {
       } catch (error) {
         actions.showToast(error.message, true);
       }
+      return;
+    }
+    if (actionButton.dataset.purchaseAction === "admin-edit") {
+      const reason = window.prompt("Lý do sửa phiếu (bắt buộc):");
+      if (!reason || !reason.trim()) {
+        actions.showToast("Cần nhập lý do sửa phiếu.", true);
+        return;
+      }
+      actions.beginAdminEditPurchase(purchase.id, reason.trim());
       return;
     }
     if (actionButton.dataset.purchaseAction === "repeat") {
@@ -1112,16 +1464,32 @@ export function registerPurchasesControllerEvents(contract) {
         return;
       }
       const latestPurchase = queries.getActivePurchase() || purchase;
-      if (!confirmPurchaseStatusAction(purchase, "receive")) {
+      // Issue 169: Cho phép chọn ngày nhập khi chuyển trạng thái sang đã nhập hàng
+      let receivedDate = "";
+      if (typeof actions.promptDocumentActionDate === "function") {
+        const label = getPurchaseDisplayName(purchase);
+        const chosenDate = await actions.promptDocumentActionDate({
+          kicker: "Xác nhận nhập kho",
+          title: `Nhập kho: ${label}`,
+          message: `App sẽ cộng tồn kho ngay theo các dòng hiện tại và chuyển phiếu sang Đã nhập kho.`,
+          dateLabel: "Ngày nhập hàng:",
+          confirmText: "Xác nhận nhập kho",
+        });
+        if (!chosenDate) {
+          return;
+        }
+        receivedDate = chosenDate;
+      } else if (!confirmPurchaseStatusAction(purchase, "receive")) {
         return;
       }
       try {
-        await actions.flushPendingPersistCollections();
+        // #Issue119: Receipt is saved for this document; flushing the whole collection lets unrelated batch-locked purchases block it.
         const data = await actions.apiRequest("/api/purchases/receive", {
           method: "POST",
           body: JSON.stringify({
             purchase_id: latestPurchase.id,
             discount_amount: latestPurchase.discountAmount || 0,
+            received_date: receivedDate,
           }),
         });
         await actions.refreshData();
@@ -1140,7 +1508,8 @@ export function registerPurchasesControllerEvents(contract) {
     const expiryInput = event.target.closest("[data-purchase-expiry-input]");
     const manufactureInput = event.target.closest("[data-purchase-manufacture-input]");
     const discountInput = event.target.closest("[data-purchase-discount-input]");
-    if (!qtyInput && !costInput && !expiryInput && !manufactureInput && !discountInput) return;
+    const noteInput = event.target.closest("[data-purchase-note-input]");
+    if (!qtyInput && !costInput && !expiryInput && !manufactureInput && !discountInput && !noteInput) return;
     event.preventDefault();
     if (discountInput) {
       const purchaseId = discountInput.dataset.purchaseDiscountInput || "";
@@ -1148,8 +1517,15 @@ export function registerPurchasesControllerEvents(contract) {
       saveButton?.click();
       return;
     }
+    if (noteInput) {
+      const purchaseId = noteInput.dataset.purchaseNoteInput || "";
+      const saveButton = dom.purchasePanel.querySelector(`[data-purchase-action="save-note"][data-purchase-id="${purchaseId}"]`);
+      saveButton?.click();
+      return;
+    }
     const itemId = qtyInput?.dataset.purchaseQtyInput
       || costInput?.dataset.purchaseCostInput
+      || event.target.closest("[data-purchase-discount-item-input]")?.dataset.purchaseDiscountItemInput
       || expiryInput?.dataset.purchaseExpiryInput
       || manufactureInput?.dataset.purchaseManufactureInput;
     const saveButton = dom.purchasePanel.querySelector(`[data-purchase-item-action="save"][data-purchase-item-id="${itemId}"]`);
@@ -1262,6 +1638,19 @@ export function registerPurchasesControllerEvents(contract) {
     }
     if (button.dataset.purchaseListAction === "print") {
       actions.printPurchase(button.dataset.purchaseId);
+      return;
+    }
+    if (button.dataset.purchaseListAction === "copy-text") {
+      actions.copyPurchaseText(button.dataset.purchaseId);
+      return;
+    }
+    if (button.dataset.purchaseListAction === "admin-edit") {
+      const reason = window.prompt("Lý do sửa phiếu (bắt buộc):");
+      if (!reason || !reason.trim()) {
+        actions.showToast("Cần nhập lý do sửa phiếu.", true);
+        return;
+      }
+      actions.beginAdminEditPurchase(button.dataset.purchaseId, reason.trim());
       return;
     }
     if (button.dataset.purchaseListAction === "repeat") {

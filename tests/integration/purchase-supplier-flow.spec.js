@@ -22,13 +22,13 @@ async function setFloatingSearch(page, term) {
 }
 
 async function fetchSyncState(request, cookie) {
-  const response = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   return response.json();
 }
 
 async function fetchProducts(request, cookie) {
-  const response = await request.get("/api/products", { headers: { Cookie: cookie } });
+  const response = await request.get("./api/products", { headers: { Cookie: cookie } });
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   return payload.products || [];
@@ -36,7 +36,7 @@ async function fetchProducts(request, cookie) {
 
 async function createBackupSnapshot(request) {
   const adminCookie = await autoLoginAdminRequest(request);
-  const response = await request.get("/api/admin/backup", {
+  const response = await request.get("./api/admin/backup", {
     headers: { Cookie: adminCookie },
   });
   expect(response.ok()).toBeTruthy();
@@ -51,7 +51,7 @@ async function restoreBackupSnapshot(request, snapshot, page = null) {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
       const adminCookie = await autoLoginAdminRequest(request);
-      const response = await request.post("/api/admin/restore", {
+      const response = await request.post("./api/admin/restore", {
         headers: { Cookie: adminCookie },
         data: {
           content_base64: snapshot.toString("base64"),
@@ -180,12 +180,12 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
   const userCookie = await autoLoginUserRequest(request);
   const snapshot = await createBackupSnapshot(request);
 
-  const stateResponseAuthed = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponseAuthed = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponseAuthed.ok()).toBeTruthy();
   const originalState = await stateResponseAuthed.json();
 
   try {
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -215,7 +215,7 @@ test("IT-PURSUP-01 purchases screen can create a new supplier and apply it back 
     });
     expect(toastText).toContain("Đã lưu nhà cung cấp");
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     expect((latestState.suppliers || []).some((supplier) => supplier.name === supplierName)).toBeTruthy();
@@ -242,7 +242,7 @@ test("IT-PURSUP-03 purchases keep separate draft per supplier and reuse the exis
   const originalState = await fetchSyncState(request, userCookie);
 
   try {
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -338,7 +338,7 @@ test("IT-PURSUP-04 empty purchase draft can be deleted and supplier button can s
   const originalState = await fetchSyncState(request, userCookie);
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -369,7 +369,7 @@ test("IT-PURSUP-04 empty purchase draft can be deleted and supplier button can s
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -455,7 +455,7 @@ test("IT-PURSUP-08 purchases can repeat a received purchase into a new draft wit
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -466,7 +466,7 @@ test("IT-PURSUP-08 purchases can repeat a received purchase into a new draft wit
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -484,6 +484,8 @@ test("IT-PURSUP-08 purchases can repeat a received purchase into a new draft wit
     await expect(page.locator("#purchaseSupplierInput")).toHaveValue(supplierName);
     await expect(page.locator("#purchaseNoteInput")).toHaveValue(receivedPurchase.note);
     await expect(page.locator('[data-purchase-discount-input]')).toHaveValue(String(discountAmount));
+    await page.locator('[data-purchase-item-action="toggle-detail"]').first().click();
+    await page.waitForTimeout(300);
     await expect(page.locator('[data-purchase-qty-input]').first()).toHaveValue("3");
     await expect(page.locator('[data-purchase-cost-input]').first()).toHaveValue(String(Number(receivedPurchase.items[0].unitCost)));
     await expect(page.locator('[data-purchase-batch-input]').first()).toHaveValue("");
@@ -555,7 +557,7 @@ test("IT-PURSUP-09 received purchase note stays editable until paid", async ({ p
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -566,7 +568,7 @@ test("IT-PURSUP-09 received purchase note stays editable until paid", async ({ p
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -615,10 +617,10 @@ test("IT-PURSUP-10 purchases merge only open receipts of the same supplier and c
   const sameSupplierName = `NCC gộp ${timestamp}`;
   const otherSupplierName = `NCC gộp ${timestamp} khác`;
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -694,7 +696,7 @@ test("IT-PURSUP-10 purchases merge only open receipts of the same supplier and c
   }
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         purchases: [orderedPurchase, draftPurchase, otherPurchase, ...(originalState.purchases || [])],
@@ -702,7 +704,7 @@ test("IT-PURSUP-10 purchases merge only open receipts of the same supplier and c
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -744,7 +746,7 @@ test("IT-PURSUP-10 purchases merge only open receipts of the same supplier and c
     const mergeToast = await collectToast(page, runtime, "it-pursup-10-merge", { errorPattern: /^$/ });
     expect(mergeToast).toContain("Đã gộp các phiếu nhập đã chọn vào phiếu hiện hành.");
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     const mergedOrderedPurchase = (latestState.purchases || []).find((purchase) => purchase.id === orderedPurchase.id);
@@ -762,7 +764,7 @@ test("IT-PURSUP-10 purchases merge only open receipts of the same supplier and c
     expect(untouchedOtherPurchase).toBeTruthy();
     expect(untouchedOtherPurchase.status).toBe("draft");
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -783,10 +785,10 @@ test("IT-PURSUP-11 purchases screen can bulk mark selected drafts ordered and ke
   const supplierName = `NCC bulk order ${timestamp}`;
   const searchTerm = String(timestamp);
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
-  const productsResponse = await request.get("/api/products", { headers: { Cookie: userCookie } });
+  const productsResponse = await request.get("./api/products", { headers: { Cookie: userCookie } });
   expect(productsResponse.ok()).toBeTruthy();
   const productsPayload = await productsResponse.json();
   const product = productsPayload.products?.[0];
@@ -830,7 +832,7 @@ test("IT-PURSUP-11 purchases screen can bulk mark selected drafts ordered and ke
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         purchases: [validPurchase, invalidPurchase, ...(originalState.purchases || [])],
@@ -838,7 +840,7 @@ test("IT-PURSUP-11 purchases screen can bulk mark selected drafts ordered and ke
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -858,7 +860,7 @@ test("IT-PURSUP-11 purchases screen can bulk mark selected drafts ordered and ke
     const bulkOrderToast = await collectToast(page, runtime, "it-pursup-11-bulk-order", { errorPattern: /^$/ });
     expect(bulkOrderToast).toContain("Đã chuyển 1 phiếu sang Đã đặt hàng.");
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     const latestValidPurchase = (latestState.purchases || []).find((purchase) => purchase.id === validPurchase.id);
@@ -869,7 +871,7 @@ test("IT-PURSUP-11 purchases screen can bulk mark selected drafts ordered and ke
     await expect(page.locator("#purchaseOrderList .inline-alert.warning")).toContainText("1 phiếu nhập đang được chọn");
     await expect(invalidCheckbox).toBeChecked();
   } finally {
-    await request.put("/api/state", {
+    await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -890,11 +892,20 @@ test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical
   const userCookie = await autoLoginUserRequest(request);
   const snapshot = await createBackupSnapshot(request);
   const originalState = await fetchSyncState(request, userCookie);
-  const products = await fetchProducts(request, userCookie);
-  const candidateProducts = products.filter((product) =>
+  let products = await fetchProducts(request, userCookie);
+  let candidateProducts = products.filter((product) =>
     !hasActualPurchaseHistory(originalState, product.id)
     && !hasAnyOpenPurchaseReference(originalState, product.id)
   );
+  if (candidateProducts.length === 0) {
+    const createRes = await request.post("./admin/api/products", {
+      headers: { Cookie: userCookie },
+      data: { name: `SP Auto Supplier ${timestamp}`, category: "Thực phẩm", unit: "gói", price: 20000, sale_price: 25000 },
+    });
+    const createdData = await createRes.json();
+    products = await fetchProducts(request, userCookie);
+    candidateProducts = [createdData.product || products[products.length - 1]];
+  }
   expect(candidateProducts.length).toBeGreaterThanOrEqual(1);
   const uniqueProduct = products.find((product) =>
     product.name === "Bò kho"
@@ -904,7 +915,7 @@ test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical
   const uniqueSupplier = `NCC unique ${timestamp}`;
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -930,7 +941,7 @@ test("IT-PURSUP-05 purchase supplier suggestions auto-select the only historical
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -977,7 +988,7 @@ test("IT-PURSUP-06 purchase supplier suggestions prioritize multiple historical 
   const highPrioritySupplier = `NCC high ${timestamp}`;
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -1005,7 +1016,7 @@ test("IT-PURSUP-06 purchase supplier suggestions prioritize multiple historical 
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -1051,7 +1062,7 @@ test("IT-PURSUP-07 purchases warn and review open receipts when one product is p
   expect(targetProduct).toBeTruthy();
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -1079,7 +1090,7 @@ test("IT-PURSUP-07 purchases warn and review open receipts when one product is p
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -1141,7 +1152,7 @@ test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid pur
   const userCookie = await autoLoginUserRequest(request);
   const snapshot = await createBackupSnapshot(request);
 
-  const stateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+  const stateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
   expect(stateResponse.ok()).toBeTruthy();
   const originalState = await stateResponse.json();
 
@@ -1167,7 +1178,7 @@ test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid pur
   };
 
   try {
-    const seedResponse = await request.put("/api/state", {
+    const seedResponse = await request.put("./api/state", {
       headers: { Cookie: userCookie },
       data: {
         customers: originalState.customers,
@@ -1178,7 +1189,7 @@ test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid pur
     });
     expect(seedResponse.ok()).toBeTruthy();
 
-    await page.goto("/");
+    await page.goto(process.env.TEST_ADMIN_PATH || "admin");
     await page.waitForLoadState("networkidle");
     await autoLoginUser(page, request);
     await page.reload({ waitUntil: "networkidle" });
@@ -1197,7 +1208,7 @@ test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid pur
     });
     expect(toastText).toContain("Đã lưu nhà cung cấp");
 
-    const latestStateResponse = await request.get("/api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
+    const latestStateResponse = await request.get("./api/state?transaction_limit=16", { headers: { Cookie: userCookie } });
     expect(latestStateResponse.ok()).toBeTruthy();
     const latestState = await latestStateResponse.json();
     expect((latestState.suppliers || []).some((supplier) => supplier.name === renamedSupplier)).toBeTruthy();
@@ -1208,3 +1219,6 @@ test("IT-PURSUP-02 suppliers screen can edit supplier without rewriting paid pur
 
   expectNoRuntimeErrors(runtime);
 });
+
+
+

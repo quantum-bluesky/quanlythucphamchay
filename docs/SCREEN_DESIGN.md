@@ -35,9 +35,20 @@ Liên kết detail hiện có:
 - popup/help phải đóng được và có liên kết qua lại giữa các màn liên quan
 - luồng chính ưu tiên thao tác nhanh cho cửa hàng nhỏ
 - với action có ghi dữ liệu lên server hoặc đồng bộ SQLite/state, UI phải hiện loading overlay toàn cục và khóa tạm thao tác còn lại cho tới khi trạng thái mới render xong để tránh bấm chồng
+- khi có đơn nháp online mới hoặc được khách bổ sung, thanh header sau đăng nhập hiển thị chuông kèm số chưa xem; bấm chuông mở màn `Đơn hàng`. Số báo được lưu trong trình duyệt đến khi người dùng mở danh sách.
 - khi Batch procurement mode còn active lock, các màn liên quan như `inventory`, `create-order`, `orders`, `purchases`, `suppliers`, `procurement-planner` phải hiện cảnh báo ngắn cho biết owner của lock, thời điểm hết hạn gần nhất và impact chính trên màn hiện tại
 
 ## 2. Danh sách màn hình
+
+### `public-products` - Danh mục thực phẩm công khai
+
+- card sản phẩm hiển thị đúng một badge trong `Có sẵn / Sắp hết / Sắp về / Hết hàng`
+- chỉ hiển thị sản phẩm có `is_public=true`; trạng thái này được chỉnh bằng checkbox `Hiển thị trên Web (Public)` trong form sửa chi tiết màn `Sản phẩm`
+- `Sắp hết` chỉ áp dụng khi hàng còn tồn (tồn kho >= đơn vị nhỏ nhất của mặt hàng) và backend xác định tồn đã bằng hoặc thấp hơn `ngưỡng sắp hết` của mặt hàng
+- khi tồn bằng `0` hoặc nhỏ hơn đơn vị nhỏ nhất của mặt hàng, ưu tiên `Sắp về` nếu có lượng nhập đang mở; nếu không thì hiển thị `Hết hàng`
+- client dùng cờ `is_low_stock` từ API để đồng nhất với rule tại màn `Sản phẩm`, không tự tính một ngưỡng riêng
+- số lượng và đơn vị trên trang public dùng `Đơn vị bán mặc định`; đơn gửi lên được chốt thành snapshot theo đơn vị và giá bán của đơn vị đó, còn tồn kho vẫn quy về `Đơn vị cơ sở`
+- chỉ hiện lời nhắc ngày âm lịch khi còn từ 0 đến 7 ngày tới mùng 1 hoặc 15 tiếp theo theo giờ UTC+7; khi hiện, cho biết ngày âm lịch hiện tại và ngày mục tiêu, đồng thời ghim dải nhắc ở mép trên khi cuộn trên mobile
 
 ### `inventory` - Kiểm tra tồn kho
 
@@ -96,7 +107,7 @@ Liên kết detail hiện có:
 - mục tiêu:
   - chọn khách
   - thêm mặt hàng vào giỏ
-  - chỉnh số lượng/giá bán
+  - chọn đơn vị tính (cơ sở / quy đổi) và chỉnh số lượng/giá bán
   - chốt đơn
 - thành phần chính:
   - khu chọn khách
@@ -110,12 +121,15 @@ Liên kết detail hiện có:
   - nút `...` luôn hiện trên card sản phẩm để toggle detail
   - hàng đã chọn được gom lên trên dưới dạng card trong khối `Giỏ hiện hành`
   - hàng đã chọn mặc định ẩn khỏi danh sách dưới để tránh sót; riêng dòng mà user chủ động bấm `...` thì được giữ lại ở danh sách dưới trong lúc thao tác
-  - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp số lượng/giá bán
+  - khối `Giỏ hiện hành` hiển thị card gọn mặc định chỉ 2 dòng; bấm `...` trên từng card để mở detail input trực tiếp đơn vị tính, số lượng và giá bán
+  - Issue 133 bổ sung: trong panel đơn mở rộng, thứ tự là thông tin đơn/metadata → các dòng hàng chỉnh sửa → nhóm nút chuyển trạng thái. Giữ nguyên DOM của editor khi render lại để không mất listener hoặc tạo trùng ID. Trên editor sản phẩm phụ, nhập số lượng chỉ thay đổi form; nút `Lưu` mới ghi dòng qua API riêng.
+  - Issue 133: đổi đơn vị liên tiếp sử dụng hệ số hiện hành của ô nhập và lượng cơ sở chưa làm tròn; lưu/mở lại dòng phải giữ snapshot đơn vị. Quy tắc này áp dụng cho cả giỏ xuất và phiếu nhập.
+  - **Dropdown chọn Đơn vị tính**: Trên từng dòng hàng trong giỏ, cho phép chọn giữa Đơn vị cơ sở và các Đơn vị quy đổi đã cấu hình cho sản phẩm đó (mặc định chọn `Đơn vị bán mặc định`). Khi người dùng đổi đơn vị, UI tự động quy đổi lại số lượng và tự động cập nhật đơn giá theo bảng giá của đơn vị mới. Thành tiền = số lượng hiển thị theo đơn vị đang chọn × đơn giá của đơn vị đó; tồn kho vẫn dùng số lượng cơ sở. Khi In hoặc Copy text phiếu, số lượng hiển thị theo đơn vị đã chọn kèm số lượng cơ sở nếu khác đơn vị cơ sở và không phải đơn vị trọng lượng, thành tiền tính theo số lượng đơn vị × giá 1 đơn vị.
   - card `Xử lý nhanh xuất hàng` phải nằm ngay trong màn `create-order`, mobile-first, cho nhập `khách / ngày xuất / ghi chú / mặt hàng`, chọn `Đã xuất hàng` hoặc `Chỉ chốt đơn`, có checkbox `Đã thanh toán luôn`; sau khi lưu phải khóa form ở trạng thái `Đã tạo phiếu` và hiện summary với CTA `Tiếp tục xuất nhanh / Xem phiếu / Về danh sách` để tránh tạo trùng
   - action `Giá chung` trong editor giá bán phải hiện message confirm trước khi cập nhật giá bán mặc định của mặt hàng để tránh bấm nhầm trên mobile
   - với mọi chỗ đang sửa giá bán theo mặt hàng, nếu `giá xuất < giá nhập` của 1 mặt hàng thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
-  - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu, không phải per-line
-  - `Detail` của phiếu xuất phải hiện thêm `Ghi chú` trong metadata; nếu đơn chưa thanh toán thì detail cho sửa và lưu lại ghi chú này
+  - khối `Giỏ hiện hành` và detail đơn phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; hỗ trợ giảm giá khuyến mại cấp toàn phiếu lẫn giảm giá riêng theo từng dòng sản phẩm
+  - `Detail` của phiếu xuất phải hiện thêm `Ghi chú` trong metadata; detail luôn cho phép sửa và lưu lại ghi chú này ở mọi trạng thái
   - nếu `Cần thanh toán` thấp hơn tổng `giá nhập mặc định` của các dòng hàng, panel phải hiện cảnh báo ngắn và trước `Chốt đơn`/`Xuất hàng` phải hỏi xác nhận thêm
   - từ màn `orders`, user có thể tick nhiều phiếu `draft/committed` cùng khách để mở preview `gộp đơn`; nếu khác khách thì giữ nguyên list và báo lỗi thân thiện
   - khối `Giỏ hiện hành` có thêm button `Detail` để bung metadata phiếu xuất mà không chuyển màn
@@ -123,7 +137,7 @@ Liên kết detail hiện có:
   - detail đơn phải có thêm `Địa chỉ giao`; field này là snapshot riêng của đơn và cho sửa tới trước khi `Đã xuất hàng`
   - không dùng cụm nút tăng giảm nhanh trong `Giỏ hiện hành` để tránh rối trên mobile
   - sau khi đơn đã `Chốt đơn`, app khóa khách hàng nhưng vẫn cho sửa dòng hàng, địa chỉ giao, `Ghi chú phiếu xuất` và `Giảm giá khuyến mại`
-  - sau khi đơn đã `Đã xuất hàng` nhưng chưa `Đã thanh toán`, chỉ còn cho sửa `Ghi chú phiếu xuất` và `Giảm giá khuyến mại`; không mở khóa lại dòng hàng
+  - sau khi đơn đã `Đã xuất hàng` nhưng chưa `Đã thanh toán`, user thông thường chỉ sửa `Giảm giá khuyến mại` và `Ghi chú phiếu xuất`; Master Admin có action `Sửa Admin` để thêm/xóa/thay mặt hàng hoặc sửa số lượng/giá, kèm lý do và xác nhận; khách hàng không đổi được
   - khi mở đơn mới cho khách đang có đơn `Chốt đơn`, panel phải hiện lựa chọn `Mở đơn đã chốt` hoặc `Tạo đơn mới`
   - khi user chủ động bấm `Tạo đơn mới`, UI phải hỏi confirm nếu form hiện tại đang có dữ liệu hoặc đang ở preview đơn cũ, rồi reset toàn bộ editor về một draft trắng riêng; không reuse draft cũ và không tự gộp vào preview đang mở
   - khi chốt đơn, hệ thống được phép tính thêm phần hàng đã nằm trong phiếu nhập `Đã đặt`; chỉ khi phần thiếu còn lại chưa được `Đã đặt` cover đủ thì app mới báo trước khi tạo/cập nhật phiếu nhập
@@ -164,6 +178,8 @@ Liên kết detail hiện có:
 
 ### `orders` - Quản lý đơn hàng
 
+- đơn mới/đơn nháp được khách bổ sung từ web public được phát hiện qua đồng bộ state hiện có; chuông header báo số đơn chưa xem và dẫn thẳng tới màn này
+
 - mục tiêu:
   - xem đơn nháp và đơn đã chốt
   - theo dõi đơn đã xuất hàng
@@ -192,7 +208,7 @@ Liên kết detail hiện có:
   - card/detail của đơn `completed/paid` có thêm action `Yêu cầu hủy`; UI bắt buộc nhập lý do, hiển thị trạng thái `chờ duyệt / bị từ chối / đã xử lý`, và nếu user có quyền `document_cancel_approve` thì phải có CTA `Duyệt / Từ chối` ngay trong detail
   - action `Trả hàng` chỉ hiện trong detail của đơn `completed`; không đặt form hay button trả hàng độc lập ở ngoài list để tránh bấm nhầm
   - trên mobile, `Chốt đơn`, `Xuất hàng` và các action phụ vẫn nằm trong khối detail mở rộng để tránh quá tải nút trực tiếp
-  - các nút đổi trạng thái hoặc xóa phiếu như `Chốt đơn`, `Xuất hàng`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật
+  - các nút đổi trạng thái hoặc xóa phiếu như `Chốt đơn`, `Đã thanh toán`, `Hủy`, `Xóa` phải hiện message confirm trước khi app cập nhật; riêng thao tác `Xuất hàng` sẽ mở modal xác nhận kèm input chọn ngày xuất hàng (mặc định hôm nay YYYY-MM-DD) để lưu chính xác ngày xuất kho thực tế
   - khi kỳ gom nhập còn active lock, màn này phải hiện cảnh báo cho biết các case thiếu hàng sẽ được xử lý tập trung ở planner batch
 
 ### `customers` - Quản lý khách hàng
@@ -202,12 +218,12 @@ Liên kết detail hiện có:
   - mở nhanh giỏ hàng cho khách
 - thành phần chính:
   - search khách hàng
-  - danh sách khách
-  - form tạo/sửa thu gọn
+  - danh sách khách kèm Avatar và link Zalo chat nhanh
+  - form tạo/sửa gồm: Tên khách hàng, Số liên lạc, Địa chỉ ship, Link Zalo (tự đồng bộ từ SĐT, có thể sửa), Link Avatar (kèm preview ảnh), Zalo ID (chỉ đọc), Nhóm Zalo (Chi nhánh)
 - nguyên tắc UI:
-  - trên mobile, card khách nên giữ ở khoảng 3 dòng để ưu tiên mật độ danh sách
+  - trên mobile, card khách giữ gọn, hiển thị ảnh đại diện và link Zalo chat nhanh
   - dòng cuối của card mobile ưu tiên `số liên lạc` và các action ngắn cùng hàng để thấy được nhiều khách hơn
-  - detail của khách mở ở panel riêng khi user chọn card; panel này hiện đủ liên hệ/ship/Zalo, có `Previous / Next` theo danh sách đang lọc và có nút `Đóng`
+  - detail của khách mở ở panel riêng khi user chọn card; panel này hiện đủ liên hệ/ship/Zalo (link bấm mở chat), ảnh Avatar, Zalo ID (nếu có), có `Previous / Next` theo danh sách đang lọc và có nút `Đóng`
   - badge `giỏ chờ` hoặc `đơn` trên card là link nội bộ sang màn `orders`; nếu chỉ có 1 phiếu liên quan thì app mở thẳng detail phiếu đó
 
 ### `products` - Quản lý sản phẩm
@@ -215,16 +231,27 @@ Liên kết detail hiện có:
 - mục tiêu:
   - sửa nhanh danh mục và giá
   - thêm mới sản phẩm
+  - cấu hình Đơn vị cơ sở, Đơn vị mặc định (bán/nhập) và danh sách Quy đổi đơn vị
   - xem lịch sử sản phẩm
 - thành phần chính:
   - search sản phẩm
   - danh sách edit inline
-  - khối `Thêm sản phẩm`
+  - khối `Thêm sản phẩm` / `Sửa chi tiết`
+  - khối `Quy đổi đơn vị`: bảng cấu hình các đơn vị quy đổi (Đơn vị, Hệ số quy đổi ra đơn vị gốc, Giá bán, Giá nhập, Nút xóa/thêm)
+  - các trường chọn `Đơn vị bán mặc định` và `Đơn vị nhập mặc định`
   - khối `Lịch sử sản phẩm`
   - filter audit theo actor/date
   - card lịch sử ghi rõ field thay đổi, giá trị cũ/mới, actor và thời gian
   - field `Hạn dùng (ngày)` và `Bảo quản (ngày)` để làm metadata fallback cho sort hạn còn lại khi lô chưa có HSD thật
   - khi sửa giá nhập/giá bán mặc định, nếu `giá nhập < 1.000đ` hoặc `giá xuất < giá nhập` cho 1 mặt hàng thì phải hiện message cảnh báo ngay tại vùng edit; ở list/view chỉ gắn nhãn cảnh báo ngắn
+  - **Nút & Modal Chuyển đổi đơn vị chính (Dành cho Admin)**:
+    - Button `Đổi ĐV chính` trên từng card sản phẩm (chỉ hiển thị khi đăng nhập với quyền Admin) và button `Đổi đơn vị chính (Admin)` trong form sửa chi tiết sản phẩm.
+    - Modal `#changeBaseUnitModal` hiển thị thông tin sản phẩm: Tên sản phẩm, Đơn vị chính hiện tại, Tồn kho hiện tại, Giá nhập/Giá bán gốc, Tổng giá trị tồn kho.
+    - Input nhập tên Đơn vị chính mới kèm datalist gợi ý (`kg`, `lạng`, `gói`, `hộp`, `chai`, `chiếc`...).
+    - Radio lựa chọn hướng quy đổi linh hoạt hai chiều: $1\ \text{cũ} = K\ \text{mới}$ hoặc $1\ \text{mới} = K\ \text{cũ}$, cùng input nhập tỷ lệ $K > 0$.
+    - Checkbox tùy chọn đưa đơn vị cũ vào bảng quy đổi đơn vị phụ (mặc định bật).
+    - Khối xem trước trực quan (Live preview) tự động tính toán lại và hiển thị: Tồn kho mới, Giá nhập mới, Giá bán mới, Ngưỡng cảnh báo mới và Tổng giá trị tồn kho bảo toàn.
+    - Các nút hành động: `Hủy` và `Xác nhận chuyển đổi đơn vị`.
 
 ### `purchases` - Quản lý nhập hàng
 
@@ -235,7 +262,7 @@ Liên kết detail hiện có:
   - search phiếu nhập
   - card `Xử lý nhanh nhập hàng`
   - gợi ý nhập
-  - phiếu nhập hiện hành
+  - phiếu nhập hiện hành (chọn đơn vị nhập, tự động tính lại số lượng và đơn giá nhập khi đổi đơn vị)
   - danh sách phiếu
   - filter hiện phiếu đã hủy / đã thanh toán
   - nút `NCC`
@@ -246,9 +273,10 @@ Liên kết detail hiện có:
   - card `Xử lý nhanh nhập hàng` phải nằm ngay trong màn `purchases`, mobile-first, cho nhập `NCC / ngày nhập / ghi chú / mặt hàng`, chọn `Đã nhập hàng` hoặc `Chỉ đặt hàng`, có checkbox `Đã thanh toán luôn`; sau khi lưu phải khóa form ở trạng thái `Đã tạo phiếu` và hiện summary với CTA `Tiếp tục nhập nhanh / Xem phiếu / Về danh sách` để tránh tạo trùng
   - hàng đã thêm vào phiếu được gom lên tóm tắt phía trên
   - hàng đã thêm ẩn khỏi danh sách gợi ý phía dưới
+  - **Dropdown chọn Đơn vị nhập**: Trên từng dòng nhập hàng, cho phép chuyển đổi giữa Đơn vị cơ sở và các Đơn vị quy đổi (mặc định chọn `Đơn vị nhập mặc định`). Khi đổi đơn vị, UI tự động tính lại số lượng để bảo toàn lượng hàng nhập cơ sở và tự động điền đơn giá nhập theo đơn vị đó. Thành tiền = số lượng theo đơn vị nhập đang chọn × giá nhập của đơn vị đó; tồn kho và giá vốn lô được quy về đơn vị cơ sở. Khi In hoặc Copy text phiếu, số lượng hiển thị theo đơn vị nhập đã chọn kèm số lượng cơ sở nếu khác đơn vị cơ sở và không phải đơn vị trọng lượng; khi copy text có lựa chọn kèm giá nhập & tính tiền như phiếu xuất.
   - action `Giá chung` trong editor giá nhập phải hiện message confirm trước khi cập nhật giá nhập mặc định của mặt hàng
   - với mọi chỗ đang sửa giá nhập theo mặt hàng, nếu `giá nhập < 1.000đ` thì phải hiện message cảnh báo ngay tại editor; ở chỗ chỉ xem thì chỉ gắn nhãn cảnh báo ngắn
-  - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; giảm giá là field cấp toàn phiếu để đối chiếu số tiền thực trả NCC
+  - phiếu nhập hiện hành phải hiển thị `Tạm tính / Giảm KM / Cần thanh toán`; hỗ trợ giảm giá khuyến mại cấp toàn phiếu lẫn giảm giá riêng theo từng dòng sản phẩm để đối chiếu số tiền thực trả NCC
   - mỗi dòng nhập cần có input `Mã lô` và phần nhập HSD hỗ trợ 2 mode: nhập trực tiếp `Hạn dùng` hoặc nhập gián tiếp `Ngày sản xuất`; mode mặc định là nhập trực tiếp HSD, còn mode gián tiếp sẽ tự tính `HSD = NSX + thời gian bảo quản`
   - metadata phiếu nhập được bung/thu gọn bằng button `Detail` thay vì badge tĩnh để phần đầu phiếu gọn hơn
   - phiếu nhập được phép `In` từ lúc còn `Nháp` cho tới `Đã thanh toán`; ở list chỉ hiện nút `In` tới trước khi phiếu đã thanh toán, còn phiếu đã thanh toán thì in lại từ detail
@@ -268,14 +296,14 @@ Liên kết detail hiện có:
   - list phiếu nhập cho phép tick nhiều phiếu `draft/ordered` cùng NCC để mở preview `gộp đơn`; nếu khác NCC thì app báo lỗi và không điều hướng
   - khi phiếu còn `Nháp`, bấm nút `NCC` từ một phiếu đã có NCC vẫn phải cho sang danh sách NCC để đổi sang NCC khác, không được kẹt ở chế độ sửa NCC hiện tại
   - nếu bỏ trống `Mã lô`, app tự sinh batch code khi nhập kho; nếu bỏ trống `Hạn dùng`, app có thể fallback sang HSD tự tính `ngày nhập kho + thời gian bảo quản` để FEFO vẫn có mốc hạn
-  - sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, chỉ cho sửa `Ghi chú`, `Giảm giá khuyến mại` và metadata HSD/NSX của từng dòng; không mở khóa lại số lượng, giá, mã lô, NCC hay cấu trúc dòng nhập
+  - sau khi phiếu đã `Đã nhập kho` nhưng chưa `Đã thanh toán`, user thông thường chỉ sửa `Ghi chú`, `Giảm giá khuyến mại` và metadata HSD/NSX; Master Admin có action `Sửa Admin` để thêm/xóa/thay mặt hàng hoặc sửa số lượng/giá, kèm lý do và xác nhận; NCC không đổi được
   - phiếu `received/paid` có action `Nhập lại` để tạo nhanh phiếu nháp mới với cùng NCC, ghi chú, giảm giá và các dòng hàng; nếu NCC đó đã có phiếu `draft` thì app dồn thêm vào phiếu nháp hiện có thay vì tạo draft thứ hai
   - phiếu `received/paid` có thêm action `Yêu cầu hủy`; UI bắt buộc nhập lý do, hiển thị trạng thái request hủy và cho user có quyền `document_cancel_approve` duyệt/từ chối ngay trong detail
   - preview `gộp đơn` của phiếu nhập tái sử dụng panel chi tiết hiện hành, giữ lại phiếu ưu tiên `ordered` trước `draft`, rồi mới xét phiếu đang mở và thời điểm cập nhật
   - khi `Nhập lại`, metadata theo lô như `Mã lô`, `Hạn dùng`, `Ngày sản xuất` phải được reset về trống để user nhập lại theo lô hàng mới
   - ngoài action nhanh `Đã thanh toán` ở màn nhập hàng, các phiếu `received/paid` còn phải xuất hiện đúng ở màn `payments` để user mới rà nhóm phiếu cần trả tiền riêng
   - action `Trả NCC` chỉ hiện trong detail của phiếu `received/paid`; không đặt form hay button trả NCC độc lập ở ngoài list để tránh nhầm với thao tác mở phiếu nhập
-  - các nút đổi trạng thái hoặc xóa phiếu như `Đã đặt hàng`, `Nhập kho`, `Đã thanh toán`, `Hủy phiếu`, `Xóa phiếu` phải hiện message confirm trước khi app cập nhật
+  - các nút đổi trạng thái hoặc xóa phiếu như `Đã đặt hàng`, `Đã thanh toán`, `Hủy phiếu`, `Xóa phiếu` phải hiện message confirm trước khi app cập nhật; riêng thao tác `Nhập kho` sẽ mở modal xác nhận kèm input chọn ngày nhập hàng (mặc định hôm nay YYYY-MM-DD) để lưu chính xác ngày nhập kho thực tế
 - tài liệu detail:
   - [PHIEU_DISPLAY_DESIGN.md](PHIEU_DISPLAY_DESIGN.md)
 
@@ -382,6 +410,8 @@ Liên kết detail hiện có:
   - header session có tên user, dropdown `Chuyển quyền...` và nút `Logout`
   - export/import master
   - backup/restore database
+  - khối `Kiểm tra gửi mail` tải cấu hình SMTP runtime khi mở màn, ghi rõ môi trường đã tải, cho phép tải lại nếu cần và hiển thị lỗi đăng nhập/quyền khi API từ chối; cho phép sửa và lưu host, cổng, tài khoản, mật khẩu, địa chỉ gửi/nhận, bảo mật và tiền tố tiêu đề; mật khẩu đã lưu không được trả về hoặc điền vào form
+  - nút gửi email thử có trạng thái đang gửi/thành công/thất bại và chi tiết môi trường, máy chủ SMTP, bảo mật/cổng, người gửi, người nhận, thời điểm chạy
   - panel `Legacy Audit` gồm:
     - summary card số lượng anomaly
     - khối `fix an toàn`
@@ -390,6 +420,7 @@ Liên kết detail hiện có:
 - nguyên tắc UI:
   - chọn account nhanh chỉ hiển thị type quyền cố định trong dropdown; không gọi API lấy list user, không lộ username trong option label/value, không lưu hoặc tự điền password
   - khi switch sang nhóm quyền khác từ header, app phải logout phiên hiện tại và yêu cầu nhập lại password trước khi chuyển quyền
+  - thao tác test mail yêu cầu xác nhận, chỉ gửi tới danh sách nhận đã lưu; mật khẩu để trống giữ giá trị hiện có, nhập mật khẩu mới để thay đổi
 
 ### `about` - About ứng dụng
 

@@ -1,9 +1,12 @@
 import hashlib
 import json
+import math
+from qltpchay.logger import log_info, log_error
 import re
 import secrets
 import shutil
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -17,6 +20,7 @@ from .helpers import (
     extract_price_from_note,
     month_key,
     normalize_key,
+    optimize_html_embedded_images,
     parse_date_key,
     parse_non_negative_decimal,
     parse_month_key,
@@ -124,6 +128,36 @@ class BulkOrderRequestDuplicateError(ValueError):
 
 
 class InventoryStore:
+
+    def get_zalo_groups(self) -> list[dict]:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT * FROM zalo_groups ORDER BY created_at ASC").fetchall()
+            return [dict(row) for row in rows]
+
+    def upsert_zalo_group(self, group_id: str, name: str, zalo_url: str = "", is_active: int = 1) -> dict:
+        now = utc_now_iso()
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM zalo_groups WHERE id = ?", (group_id,)).fetchone()
+            if row:
+                connection.execute(
+                    "UPDATE zalo_groups SET name = ?, zalo_url = ?, is_active = ?, updated_at = ? WHERE id = ?",
+                    (name, zalo_url, is_active, now, group_id)
+                )
+            else:
+                connection.execute(
+                    "INSERT INTO zalo_groups(id, name, zalo_url, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)",
+                    (group_id, name, zalo_url, is_active, now, now)
+                )
+            row = connection.execute("SELECT * FROM zalo_groups WHERE id = ?", (group_id,)).fetchone()
+            return dict(row)
+
+    def delete_zalo_group(self, group_id: str) -> None:
+        with self._connect() as connection:
+            count = connection.execute("SELECT COUNT(*) FROM customers WHERE zalo_group_id = ? AND deleted_at IS NULL", (group_id,)).fetchone()[0]
+            if count > 0:
+                raise ValueError(f"Khong th? xoa nhom Zalo nay vi ?ang co {count} khach hang thu?c nhom.")
+            connection.execute("DELETE FROM zalo_groups WHERE id = ?", (group_id,))
+
     SYNC_COLLECTION_KEYS = ("customers", "suppliers", "carts", "purchases")
 
     def __init__(self, db_path: Path):
@@ -134,7 +168,12 @@ class InventoryStore:
 
         try:
             self._initialize_schema()
-        except sqlite3.OperationalError:
+        except sqlite3.OperationalError as e:
+            from .logger import log_error
+            log_error(f"Error initializing schema: {e}", exc_info=True)
+            from .constants import APP_ENV
+            if APP_ENV == "production" or APP_ENV == "Production":
+                raise
             # Some sandboxes block OS temp folders. Fall back to a workspace-local file.
             fallback_root = DATA_DIR / "_sandbox_db"
             fallback_root.mkdir(parents=True, exist_ok=True)
@@ -147,6 +186,16 @@ class InventoryStore:
         connection = sqlite3.connect(str(self.db_path))
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
+        # 1. Bật WAL mode
+        connection.execute("PRAGMA journal_mode = WAL;")
+        # 2. Giảm sync cưỡng bức xuống đĩa
+        connection.execute("PRAGMA synchronous = NORMAL;")
+        # 3. Bảng tạm và file tạm chạy trên RAM
+        connection.execute("PRAGMA temp_store = MEMORY;")
+        # 4. Tăng cache bộ nhớ (khoảng 16MB đến 32MB trên RAM)
+        connection.execute("PRAGMA cache_size = -32000;")
+        # 5. Tự động checkpoint dồn log WAL khi đạt 1000 trang
+        connection.execute("PRAGMA wal_autocheckpoint = 1000;")
         try:
             yield connection
             connection.commit()
@@ -162,6 +211,7 @@ class InventoryStore:
                 """
                 CREATE TABLE IF NOT EXISTS products (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    global_id TEXT UNIQUE,
                     name TEXT NOT NULL COLLATE NOCASE UNIQUE,
                     category TEXT NOT NULL,
                     unit TEXT NOT NULL,
@@ -170,7 +220,14 @@ class InventoryStore:
                     low_stock_threshold REAL NOT NULL DEFAULT 5,
                     shelf_life_days REAL,
                     storage_life_days REAL,
+                    images TEXT NOT NULL DEFAULT '[]',
+                    details TEXT NOT NULL DEFAULT '',
+                    recipe TEXT NOT NULL DEFAULT '',
+                    note TEXT NOT NULL DEFAULT '',
+                    default_purchase_unit TEXT,
+                    default_sale_unit TEXT,
                     is_deleted INTEGER NOT NULL DEFAULT 0,
+                    is_public INTEGER NOT NULL DEFAULT 1,
                     deleted_at TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
@@ -304,6 +361,9 @@ class InventoryStore:
                     phone TEXT NOT NULL DEFAULT '',
                     address TEXT NOT NULL DEFAULT '',
                     zalo_url TEXT NOT NULL DEFAULT '',
+                    avatar_url TEXT NOT NULL DEFAULT '',
+                    zalo_id TEXT,
+                    zalo_group_id TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     deleted_at TEXT
@@ -311,6 +371,15 @@ class InventoryStore:
 
                 CREATE INDEX IF NOT EXISTS idx_customers_name
                 ON customers(name COLLATE NOCASE);
+
+                CREATE TABLE IF NOT EXISTS zalo_groups (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    zalo_url TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
 
                 CREATE TABLE IF NOT EXISTS suppliers (
                     id TEXT PRIMARY KEY,
@@ -359,6 +428,10 @@ class InventoryStore:
                     unit_price REAL NOT NULL DEFAULT 0,
                     note TEXT NOT NULL DEFAULT '',
                     sort_order INTEGER NOT NULL DEFAULT 0,
+                    input_quantity REAL,
+                    input_unit TEXT,
+                    conversion_factor REAL,
+                    discount_amount REAL NOT NULL DEFAULT 0,
                     FOREIGN KEY (cart_id) REFERENCES carts(id) ON DELETE CASCADE
                 );
 
@@ -404,6 +477,10 @@ class InventoryStore:
                     manufacture_date TEXT,
                     expiry_date TEXT,
                     sort_order INTEGER NOT NULL DEFAULT 0,
+                    input_quantity REAL,
+                    input_unit TEXT,
+                    conversion_factor REAL,
+                    discount_amount REAL NOT NULL DEFAULT 0,
                     FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE
                 );
 
@@ -525,11 +602,43 @@ class InventoryStore:
 
                 CREATE INDEX IF NOT EXISTS idx_procurement_assignments_purchase
                 ON procurement_assignments(purchase_id, status, id);
+
+                CREATE TABLE IF NOT EXISTS product_unit_conversion (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    product_id INTEGER NOT NULL,
+                    from_unit TEXT NOT NULL,
+                    conversion_factor REAL NOT NULL,
+                    price REAL,
+                    sale_price REAL,
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_product_unit_conversion_product
+                ON product_unit_conversion(product_id, is_active);
                 """
             )
             columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(products)").fetchall()
             }
+            if "global_id" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN global_id TEXT"
+                )
+                products_without_global_id = connection.execute(
+                    "SELECT id FROM products WHERE global_id IS NULL OR global_id = ''"
+                ).fetchall()
+                for row in products_without_global_id:
+                    gid = f"prd_{uuid.uuid4().hex}"
+                    connection.execute(
+                        "UPDATE products SET global_id = ? WHERE id = ?",
+                        (gid, row["id"])
+                    )
+                connection.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_products_global_id ON products(global_id)"
+                )
             if "price" not in columns:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN price REAL NOT NULL DEFAULT 0"
@@ -557,10 +666,80 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE products ADD COLUMN storage_life_days REAL"
                 )
+            if "images" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN images TEXT NOT NULL DEFAULT '[]'"
+                )
+            if "details" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN details TEXT NOT NULL DEFAULT ''"
+                )
+            if "is_public" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1"
+                )
+            if "recipe" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN recipe TEXT NOT NULL DEFAULT ''"
+                )
+            if "note" not in columns:
+                connection.execute(
+                    "ALTER TABLE products ADD COLUMN note TEXT NOT NULL DEFAULT ''"
+                )
             now = utc_now_iso()
+            transaction_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(transactions)").fetchall()
+            }
+            if "transaction_type" not in transaction_columns:
+                connection.execute(
+                    "ALTER TABLE transactions ADD COLUMN transaction_type TEXT NOT NULL DEFAULT 'in'"
+                )
+                if "type" in transaction_columns:
+                    connection.execute(
+                        "UPDATE transactions SET transaction_type = type WHERE type IS NOT NULL"
+                    )
+
             audit_columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(audit_logs)").fetchall()
             }
+            customer_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(customers)").fetchall()
+            }
+            if "zalo_id" not in customer_columns:
+                connection.execute(
+                    "ALTER TABLE customers ADD COLUMN zalo_id TEXT NOT NULL DEFAULT ''"
+                )
+            if "avatar_url" not in customer_columns:
+                connection.execute(
+                    "ALTER TABLE customers ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''"
+                )
+            if "zalo_group_id" not in customer_columns:
+                connection.execute(
+                    "ALTER TABLE customers ADD COLUMN zalo_group_id TEXT"
+                )
+            # Data cleanup for legacy incorrect storage
+            connection.execute(
+                """
+                UPDATE customers
+                SET avatar_url = zalo_url,
+                    zalo_url = CASE 
+                        WHEN phone != '' AND phone NOT LIKE 'Zalo:%' THEN 'https://zalo.me/' || REPLACE(phone, ' ', '')
+                        ELSE ''
+                    END
+                WHERE (zalo_url LIKE 'https://s120%' OR zalo_url LIKE '%-ava-talk%') AND avatar_url = ''
+                """
+            )
+            connection.execute(
+                """
+                UPDATE customers
+                SET phone = ''
+                WHERE phone LIKE 'Zalo:%'
+                """
+            )
+            connection.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_zalo_id ON customers(zalo_id) WHERE zalo_id IS NOT NULL AND zalo_id != '' AND deleted_at IS NULL"
+            )
+            
             if "actor" not in audit_columns:
                 connection.execute(
                     "ALTER TABLE audit_logs ADD COLUMN actor TEXT NOT NULL DEFAULT ''"
@@ -734,6 +913,14 @@ class InventoryStore:
                 connection.execute(
                     "ALTER TABLE inventory_batches ADD COLUMN source_transaction_id INTEGER"
                 )
+            
+            customer_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(customers)").fetchall()
+            }
+            if customer_columns and "zalo_id" not in customer_columns:
+                connection.execute(
+                    "ALTER TABLE customers ADD COLUMN zalo_id TEXT NOT NULL DEFAULT ''"
+                )
             for key in self.SYNC_COLLECTION_KEYS:
                 connection.execute(
                     """
@@ -743,8 +930,95 @@ class InventoryStore:
                     (key, now),
                 )
             self._migrate_legacy_sync_state_if_needed(connection)
+            self._migrate_schema_columns(connection)
             self._backfill_receipts_from_transactions_if_needed(connection)
             self._backfill_batches_from_transactions_if_needed(connection)
+
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS zalo_groups (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    zalo_url TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                """
+            )
+            try:
+                connection.execute("ALTER TABLE customers ADD COLUMN zalo_group_id TEXT")
+            except Exception:
+                pass
+
+    def _migrate_schema_columns(self, connection: sqlite3.Connection) -> None:
+        # 1. products default units
+        try:
+            connection.execute("ALTER TABLE products ADD COLUMN default_purchase_unit TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            connection.execute("ALTER TABLE products ADD COLUMN default_sale_unit TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            connection.execute(
+                """
+                UPDATE products
+                SET default_purchase_unit = unit
+                WHERE default_purchase_unit IS NULL OR TRIM(default_purchase_unit) = ''
+                """
+            )
+            connection.execute(
+                """
+                UPDATE products
+                SET default_sale_unit = unit
+                WHERE default_sale_unit IS NULL OR TRIM(default_sale_unit) = ''
+                """
+            )
+        except sqlite3.OperationalError:
+            pass
+
+        # 2. product_unit_conversion prices
+        try:
+            connection.execute("ALTER TABLE product_unit_conversion ADD COLUMN price REAL")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            connection.execute("ALTER TABLE product_unit_conversion ADD COLUMN sale_price REAL")
+        except sqlite3.OperationalError:
+            pass
+
+        # 3. cart_items, purchase_items, inventory_receipt_items conversion fields
+        for table in ["cart_items", "purchase_items", "inventory_receipt_items"]:
+            try:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN input_quantity REAL")
+            except sqlite3.OperationalError:
+                pass
+            try:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN input_unit TEXT")
+            except sqlite3.OperationalError:
+                pass
+            try:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN conversion_factor REAL")
+            except sqlite3.OperationalError:
+                pass
+            try:
+                connection.execute(
+                    f"UPDATE {table} SET input_quantity = quantity, conversion_factor = 1.0 WHERE input_quantity IS NULL"
+                )
+            except sqlite3.OperationalError:
+                pass
+
+        # 4. Issue 167: cart_items, purchase_items discount_amount
+        for table in ["cart_items", "purchase_items"]:
+            try:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
 
     def _migrate_legacy_sync_state_if_needed(self, connection: sqlite3.Connection) -> None:
         for state_key in self.SYNC_COLLECTION_KEYS:
@@ -1220,7 +1494,11 @@ class InventoryStore:
             Decimal(str(row["remaining_quantity"] or 0))
             for row in available_batches
         )
-        if quantity > total_available:
+        # Issue #176: Dùng epsilon tolerance để bỏ qua float noise nhỏ (< 0.000001);
+        # ví dụ frontend gửi 0.010000000000000009 (từ SUM REAL) trong khi
+        # inventory_batches.remaining_quantity lưu đúng 0.01 -> so sánh naive sẽ raise lỗi sai.
+        _EPSILON = Decimal("0.000001")
+        if quantity > total_available + _EPSILON:
             if clean_preferred_batch_code:
                 raise ValueError(
                     f"Lô {clean_preferred_batch_code} không đủ tồn để trừ theo phiếu hiện tại."
@@ -1364,6 +1642,32 @@ class InventoryStore:
             created_at=created_at,
         )
 
+    
+    def _build_unit_conversions_map(self, connection: sqlite3.Connection, product_ids: list[int]) -> dict[int, list[dict]]:
+        if not product_ids:
+            return {}
+        placeholders = ",".join("?" for _ in product_ids)
+        rows = connection.execute(
+            f"SELECT id, product_id, from_unit, conversion_factor, price, sale_price, is_active FROM product_unit_conversion WHERE product_id IN ({placeholders}) AND is_active = 1",
+            product_ids,
+        ).fetchall()
+        result = {}
+        for row in rows:
+            pid = int(row["product_id"])
+            if pid not in result:
+                result[pid] = []
+            unit_str = str(row["from_unit"])
+            result[pid].append({
+                "id": int(row["id"]),
+                "from_unit": unit_str,
+                "input_unit": unit_str,
+                "unit": unit_str,
+                "conversion_factor": float(row["conversion_factor"]),
+                "price": float(row["price"] or 0),
+                "sale_price": float(row["sale_price"] or 0),
+            })
+        return result
+
     def _build_batch_map_for_products(
         self,
         connection: sqlite3.Connection,
@@ -1479,12 +1783,24 @@ class InventoryStore:
 
     def _serialize_customer_row(self, row: sqlite3.Row) -> dict:
         deleted_at = row["deleted_at"]
+        keys = row.keys()
+        avatar_val = row["avatar_url"] if "avatar_url" in keys and row["avatar_url"] else ""
+        zalo_id_val = row["zalo_id"] if "zalo_id" in keys and row["zalo_id"] else ""
+        zalo_url_val = row["zalo_url"] or ""
         return {
             "id": row["id"],
             "name": row["name"],
-            "phone": row["phone"],
-            "address": row["address"],
-            "zaloUrl": row["zalo_url"],
+            "phone": row["phone"] or "",
+            "address": row["address"] or "",
+            "zaloUrl": zalo_url_val,
+            "zalo_url": zalo_url_val,
+            "avatar_url": avatar_val,
+            "avatarUrl": avatar_val,
+            "zalo_id": zalo_id_val,
+            "zaloId": zalo_id_val,
+            "zalo_group_id": row["zalo_group_id"] if "zalo_group_id" in keys else None,
+            "group_name": row["group_name"] if "group_name" in keys else None,
+            "group_zalo_url": row["group_zalo_url"] if "group_zalo_url" in keys else None,
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
             "deletedAt": deleted_at,
@@ -1511,10 +1827,15 @@ class InventoryStore:
             "productId": int(row["product_id"] or 0),
             "product_id": int(row["product_id"] or 0),
             "productName": row["product_name"] or "",
-            "quantity": round(float(row["quantity"] or 0), 2),
+            "quantity": round(float(row["quantity"] or 0), 4),
             "unitPrice": round(float(row["unit_price"] or 0), 2),
             "unit_price": round(float(row["unit_price"] or 0), 2),
             "note": row["note"] or "",
+            "inputQuantity": round(float(row["input_quantity"] or 0), 4) if "input_quantity" in row.keys() and row["input_quantity"] is not None else None,
+            "inputUnit": row["input_unit"] if "input_unit" in row.keys() else None,
+            "conversionFactor": float(row["conversion_factor"]) if "conversion_factor" in row.keys() and row["conversion_factor"] is not None else 1.0,
+            "discountAmount": round(float(row["discount_amount"] or 0), 2) if "discount_amount" in row.keys() and row["discount_amount"] is not None else 0.0,
+            "discount_amount": round(float(row["discount_amount"] or 0), 2) if "discount_amount" in row.keys() and row["discount_amount"] is not None else 0.0,
         }
 
     def _find_active_customer_by_name(
@@ -1527,11 +1848,12 @@ class InventoryStore:
             return None
         row = connection.execute(
             """
-            SELECT id, name, phone, address, zalo_url, created_at, updated_at, deleted_at
-            FROM customers
-            WHERE deleted_at IS NULL
-              AND name = ? COLLATE NOCASE
-            ORDER BY datetime(updated_at) DESC, id
+            SELECT c.*, g.name as group_name, g.zalo_url as group_zalo_url
+            FROM customers c
+            LEFT JOIN zalo_groups g ON c.zalo_group_id = g.id
+            WHERE c.deleted_at IS NULL
+              AND c.name = ? COLLATE NOCASE
+            ORDER BY datetime(c.updated_at) DESC, c.id
             LIMIT 1
             """,
             (clean_customer_name,),
@@ -1551,10 +1873,11 @@ class InventoryStore:
         if clean_customer_id:
             row = connection.execute(
                 """
-                SELECT id, name, phone, address, zalo_url, created_at, updated_at, deleted_at
-                FROM customers
-                WHERE id = ?
-                  AND deleted_at IS NULL
+                SELECT c.*, g.name as group_name, g.zalo_url as group_zalo_url
+                FROM customers c
+                LEFT JOIN zalo_groups g ON c.zalo_group_id = g.id
+                WHERE c.id = ?
+                  AND c.deleted_at IS NULL
                 """,
                 (clean_customer_id,),
             ).fetchone()
@@ -1700,6 +2023,11 @@ class InventoryStore:
         cart_items: list[dict] = []
         for product_id, grouped_item in grouped_items.items():
             product = self._get_product_or_raise(connection, product_id)
+            # Issue online order pricing: public clients only submit product and quantity.
+            # Use the server-side default sale price when no positive line price is supplied.
+            unit_price = float(grouped_item.get("unit_price") or 0)
+            if unit_price <= 0:
+                unit_price = float(product["sale_price"] or product["price"] or 0)
             cart_items.append(
                 {
                     "id": f"cart_item_{secrets.token_hex(6)}",
@@ -1708,8 +2036,13 @@ class InventoryStore:
                     "productName": str(product["name"] or "").strip(),
                     "product_name": str(product["name"] or "").strip(),
                     "quantity": round(float(grouped_item["quantity"]), 2),
-                    "unitPrice": round(float(grouped_item["unit_price"]), 2),
-                    "unit_price": round(float(grouped_item["unit_price"]), 2),
+                    "inputQuantity": round(float(grouped_item.get("input_quantity", grouped_item["quantity"])), 4),
+                    "inputUnit": str(grouped_item.get("input_unit") or product["unit"] or "").strip(),
+                    "conversionFactor": float(grouped_item.get("conversion_factor") or 1),
+                    "unitPrice": round(unit_price, 2),
+                    "unit_price": round(unit_price, 2),
+                    "discountAmount": round(float(grouped_item.get("discount_amount") or grouped_item.get("discountAmount") or 0), 2),
+                    "discount_amount": round(float(grouped_item.get("discount_amount") or grouped_item.get("discountAmount") or 0), 2),
                     "note": str(grouped_item.get("note") or "").strip(),
                 }
             )
@@ -1726,8 +2059,8 @@ class InventoryStore:
         for index, item in enumerate(items):
             connection.execute(
                 """
-                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order)
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor, discount_amount)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
@@ -1738,6 +2071,10 @@ class InventoryStore:
                     float(item.get("unitPrice") or item.get("unit_price") or 0),
                     str(item.get("note") or "").strip(),
                     index,
+                    float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
+                    str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
+                    float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
+                    float(item.get("discountAmount") or item.get("discount_amount") or 0),
                 ),
             )
 
@@ -1751,6 +2088,7 @@ class InventoryStore:
             existing_item = merged_items.get(product_id)
             if existing_item:
                 existing_item["quantity"] += incoming_item["quantity"]
+                existing_item["input_quantity"] += incoming_item["input_quantity"]
                 existing_item["unit_price"] = incoming_item["unit_price"]
                 if incoming_item.get("note"):
                     existing_item["note"] = incoming_item["note"]
@@ -1784,6 +2122,11 @@ class InventoryStore:
             "manufacture_date": row["manufacture_date"] or "",
             "expiryDate": row["expiry_date"] or "",
             "expiry_date": row["expiry_date"] or "",
+            "inputQuantity": round(float(row["input_quantity"] or 0), 4) if "input_quantity" in row.keys() and row["input_quantity"] is not None else None,
+            "inputUnit": row["input_unit"] if "input_unit" in row.keys() else None,
+            "conversionFactor": float(row["conversion_factor"]) if "conversion_factor" in row.keys() and row["conversion_factor"] is not None else 1.0,
+            "discountAmount": round(float(row["discount_amount"] or 0), 2) if "discount_amount" in row.keys() and row["discount_amount"] is not None else 0.0,
+            "discount_amount": round(float(row["discount_amount"] or 0), 2) if "discount_amount" in row.keys() and row["discount_amount"] is not None else 0.0,
         }
 
     @staticmethod
@@ -1794,14 +2137,28 @@ class InventoryStore:
     def _get_cart_subtotal_amount(cls, cart: dict) -> Decimal:
         subtotal = Decimal("0")
         for item in cart.get("items") or []:
-            subtotal += Decimal(str(item.get("quantity") or 0)) * Decimal(str(item.get("unitPrice") or item.get("unit_price") or 0))
+            pricing_quantity = item.get("inputQuantity")
+            if pricing_quantity is None:
+                pricing_quantity = item.get("input_quantity")
+            if pricing_quantity is None:
+                pricing_quantity = item.get("quantity") or 0
+            line_gross = Decimal(str(pricing_quantity)) * Decimal(str(item.get("unitPrice") or item.get("unit_price") or 0))
+            line_discount = Decimal(str(item.get("discountAmount", item.get("discount_amount", 0)) or 0))
+            subtotal += max(Decimal("0"), line_gross - line_discount)
         return subtotal
 
     @classmethod
     def _get_purchase_subtotal_amount(cls, purchase: dict) -> Decimal:
         subtotal = Decimal("0")
         for item in purchase.get("items") or []:
-            subtotal += Decimal(str(item.get("quantity") or 0)) * Decimal(str(item.get("unitCost") or item.get("unit_cost") or 0))
+            pricing_quantity = item.get("inputQuantity")
+            if pricing_quantity is None:
+                pricing_quantity = item.get("input_quantity")
+            if pricing_quantity is None:
+                pricing_quantity = item.get("quantity") or 0
+            line_gross = Decimal(str(pricing_quantity)) * Decimal(str(item.get("unitCost") or item.get("unit_cost") or 0))
+            line_discount = Decimal(str(item.get("discountAmount", item.get("discount_amount", 0)) or 0))
+            subtotal += max(Decimal("0"), line_gross - line_discount)
         return subtotal
 
     @classmethod
@@ -1881,7 +2238,7 @@ class InventoryStore:
     @staticmethod
     def _normalize_document_created_mode(value) -> str:
         clean_mode = str(value or "normal").strip() or "normal"
-        return clean_mode if clean_mode in {"normal", "quick_import", "quick_export"} else "normal"
+        return clean_mode if clean_mode in {"normal", "quick_import", "quick_export", "online"} else "normal"
 
     @staticmethod
     def _normalize_quick_sale_final_status(value) -> str:
@@ -1965,9 +2322,10 @@ class InventoryStore:
         if state_key == "customers":
             rows = connection.execute(
                 """
-                SELECT id, name, phone, address, zalo_url, created_at, updated_at, deleted_at
-                FROM customers
-                ORDER BY datetime(updated_at) DESC, name COLLATE NOCASE, id
+                SELECT c.*, g.name as group_name, g.zalo_url as group_zalo_url
+                FROM customers c
+                LEFT JOIN zalo_groups g ON c.zalo_group_id = g.id
+                ORDER BY datetime(c.updated_at) DESC, c.name COLLATE NOCASE, c.id
                 """
             ).fetchall()
             return [self._serialize_customer_row(row) for row in rows]
@@ -1994,7 +2352,8 @@ class InventoryStore:
             ).fetchall()
             item_rows = connection.execute(
                 """
-                SELECT id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order
+                SELECT id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order,
+                       input_quantity, input_unit, conversion_factor, discount_amount
                 FROM cart_items
                 ORDER BY cart_id, sort_order, id
                 """
@@ -2076,7 +2435,8 @@ class InventoryStore:
                 """
                 SELECT
                     id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
-                    expiry_input_mode, manufacture_date, expiry_date, sort_order
+                    expiry_input_mode, manufacture_date, expiry_date, sort_order,
+                    input_quantity, input_unit, conversion_factor, discount_amount
                 FROM purchase_items
                 ORDER BY purchase_id, sort_order, id
                 """
@@ -2161,22 +2521,45 @@ class InventoryStore:
         records: list[dict],
     ) -> None:
         if state_key == "customers":
+            seen_zalo_ids = {}
+            for record in records:
+                z_id = str(record.get("zalo_id") or record.get("zaloId") or "").strip()
+                c_name = str(record.get("name") or "").strip()
+                if z_id and not record.get("deletedAt") and not record.get("deleted_at"):
+                    if z_id in seen_zalo_ids:
+                        prev_name = seen_zalo_ids[z_id]
+                        raise ValueError(f"Không thể lưu: Khách hàng '{c_name}' và '{prev_name}' có cùng Zalo ID '{z_id}'.")
+                    seen_zalo_ids[z_id] = c_name
+
             connection.execute("DELETE FROM customers")
             for record in records:
                 name = str(record.get("name") or "").strip()
                 if not name:
                     continue
+                phone = str(record.get("phone") or "").strip()
+                if phone.startswith("Zalo:"):
+                    phone = ""
+                zalo_url = str(record.get("zaloUrl") or record.get("zalo_url") or "").strip()
+                if not zalo_url and phone:
+                    zalo_url = f"https://zalo.me/{phone.replace(' ', '')}"
+                avatar_url = str(record.get("avatar_url") or record.get("avatarUrl") or "").strip()
+                zalo_id = str(record.get("zalo_id") or record.get("zaloId") or "").strip()
+                zalo_group_id = str(record.get("zalo_group_id") or record.get("zaloGroupId") or "").strip() or None
+
                 connection.execute(
                     """
-                    INSERT INTO customers(id, name, phone, address, zalo_url, created_at, updated_at, deleted_at)
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO customers(id, name, phone, address, zalo_url, avatar_url, zalo_id, zalo_group_id, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(record.get("id") or f"customer_{secrets.token_hex(6)}"),
                         name,
-                        str(record.get("phone") or "").strip(),
+                        phone,
                         str(record.get("address") or "").strip(),
-                        str(record.get("zaloUrl") or record.get("zalo_url") or "").strip(),
+                        zalo_url,
+                        avatar_url,
+                        zalo_id,
+                        zalo_group_id,
                         str(record.get("createdAt") or record.get("created_at") or utc_now_iso()),
                         str(record.get("updatedAt") or record.get("updated_at") or record.get("createdAt") or utc_now_iso()),
                         record.get("deletedAt") or record.get("deleted_at"),
@@ -2249,8 +2632,8 @@ class InventoryStore:
                 for index, item in enumerate(record.get("items") or []):
                     connection.execute(
                         """
-                        INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order)
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor, discount_amount)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
@@ -2261,6 +2644,10 @@ class InventoryStore:
                             float(item.get("unitPrice") or item.get("unit_price") or 0),
                             str(item.get("note") or "").strip(),
                             index,
+                            float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
+                            str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
+                            float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
+                            float(item.get("discountAmount") or item.get("discount_amount") or 0),
                         ),
                     )
             return
@@ -2331,9 +2718,10 @@ class InventoryStore:
                         """
                         INSERT INTO purchase_items(
                             id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
-                            expiry_input_mode, manufacture_date, expiry_date, sort_order
+                            expiry_input_mode, manufacture_date, expiry_date, sort_order,
+                            input_quantity, input_unit, conversion_factor, discount_amount
                         )
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),
@@ -2349,6 +2737,11 @@ class InventoryStore:
                             expiry_metadata["manufacture_date"],
                             expiry_metadata["expiry_date"],
                             index,
+                            # Issue133: Sync must retain the same unit snapshot as cart lines.
+                            float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
+                            str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
+                            float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
+                            float(item.get("discountAmount") or item.get("discount_amount") or 0),
                         ),
                     )
             return
@@ -2459,9 +2852,10 @@ class InventoryStore:
     ) -> sqlite3.Row:
         product = connection.execute(
             """
+            -- #Issue180: Shared product lookup must include configured sale and purchase units.
             SELECT
-                id, name, category, unit, price, sale_price, low_stock_threshold,
-                shelf_life_days, storage_life_days, is_deleted, deleted_at
+                id, name, category, unit, price, sale_price, default_sale_unit, default_purchase_unit, low_stock_threshold,
+                shelf_life_days, storage_life_days, is_public, is_deleted, deleted_at
             FROM products
             WHERE id = ?
             """,
@@ -2663,15 +3057,17 @@ class InventoryStore:
         }
 
     def _get_stock_for_product(self, connection: sqlite3.Connection, product_id: int) -> Decimal:
+        # Issue #176: Dùng ROUND 6 chữ số trong SQL để loại bỏ float noise từ SUM REAL;
+        # ví dụ 1.0 - 0.99 trong SQLite REAL cho 0.010000000000000009 thay vì 0.01.
         row = connection.execute(
             """
             SELECT COALESCE(
-                SUM(
+                ROUND(SUM(
                     CASE
                         WHEN transaction_type = 'in' THEN quantity
                         ELSE -quantity
                     END
-                ),
+                ), 6),
                 0
             ) AS current_stock
             FROM transactions
@@ -2686,6 +3082,7 @@ class InventoryStore:
             sql = """
                 SELECT
                     p.id,
+                    p.global_id,
                     p.name,
                     p.category,
                     p.unit,
@@ -2694,10 +3091,25 @@ class InventoryStore:
                     p.low_stock_threshold,
                     p.shelf_life_days,
                     p.storage_life_days,
+                    p.is_public,
                     p.is_deleted,
                     p.deleted_at,
                     p.created_at,
                     p.updated_at,
+                    p.images,
+                    p.details,
+                    p.recipe,
+                    p.note,
+                    p.default_purchase_unit,
+                    p.default_sale_unit,
+                    COALESCE(
+                        (SELECT SUM(pi.quantity)
+                         FROM purchase_items pi
+                         JOIN purchases pur ON pi.purchase_id = pur.id
+                         WHERE pi.product_id = p.id AND pur.status = 'ordered'
+                        ),
+                        0
+                    ) AS incoming_open_purchases,
                     COALESCE(
                         SUM(
                             CASE
@@ -2719,6 +3131,20 @@ class InventoryStore:
             """
             rows = connection.execute(sql, params).fetchall()
             return self._serialize_product_rows(connection, rows)
+
+    # Issue 8: Thống kê số lượng đã bán theo từng mặt hàng phục vụ sắp xếp sản phẩm ưa thích
+    def get_product_sales_stats(self) -> dict[int, float]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT ci.product_id, COALESCE(SUM(ci.quantity), 0) AS total_sold
+                FROM cart_items ci
+                JOIN carts c ON ci.cart_id = c.id
+                WHERE c.status != 'cancelled'
+                GROUP BY ci.product_id
+                """
+            ).fetchall()
+            return {int(row["product_id"]): float(row["total_sold"]) for row in rows}
 
     def get_summary(self) -> dict:
         products = self.get_products()
@@ -2783,6 +3209,8 @@ class InventoryStore:
     def _format_product_audit_value(value) -> str:
         if value is None:
             return "(trống)"
+        if isinstance(value, bool):
+            return "Bật" if value else "Tắt"
         if isinstance(value, (int, float)) and not isinstance(value, bool):
             return f"{float(value):g}"
         clean_text = str(value).strip()
@@ -2800,11 +3228,15 @@ class InventoryStore:
             ("low_stock_threshold", "Ngưỡng cảnh báo"),
             ("shelf_life_days", "Hạn dùng (ngày)"),
             ("storage_life_days", "Bảo quản (ngày)"),
+            ("is_public", "Hiển thị trên Web (Public)"),
         )
         changes: list[str] = []
         for field_name, label in field_specs:
             previous_value = current_product[field_name]
             next_value = next_values[field_name]
+            if field_name == "is_public":
+                previous_value = bool(previous_value)
+                next_value = bool(next_value)
             if previous_value == next_value:
                 continue
             changes.append(
@@ -2825,7 +3257,16 @@ class InventoryStore:
         sale_price: str | int | float | None = None,
         shelf_life_days: str | int | float | None = None,
         storage_life_days: str | int | float | None = None,
+        images: list[str] | None = None,
+        details: str = "",
+        recipe: str = "",
+        note: str = "",
+        is_public: bool = True,
         actor: str = "",
+        global_id: str | None = None,
+        unit_conversions: list[dict] | None = None,
+        default_purchase_unit: str | None = None,
+        default_sale_unit: str | None = None,
     ) -> dict:
         (
             clean_name,
@@ -2847,34 +3288,43 @@ class InventoryStore:
             storage_life_days,
         )
         now = utc_now_iso()
+        clean_images = json.dumps([str(img).strip() for img in (images or []) if str(img).strip()], ensure_ascii=False)
+        clean_details = optimize_html_embedded_images(str(details or "").strip(), max_dim=1024)
+        clean_recipe = optimize_html_embedded_images(str(recipe or "").strip(), max_dim=1024)
+        clean_note = str(note or "").strip()
+        clean_default_purchase_unit = str(default_purchase_unit).strip() if default_purchase_unit and str(default_purchase_unit).strip() else clean_unit
+        clean_default_sale_unit = str(default_sale_unit).strip() if default_sale_unit and str(default_sale_unit).strip() else clean_unit
+        gid = str(global_id).strip() if global_id and str(global_id).strip() else f"prd_{uuid.uuid4().hex}"
 
         with self._connect() as connection:
             try:
                 cursor = connection.execute(
                     """
-                    INSERT INTO products(
-                        name,
-                        category,
-                        unit,
-                        price,
-                        sale_price,
-                        low_stock_threshold,
-                        shelf_life_days,
-                        storage_life_days,
-                        created_at,
-                        updated_at
+                    INSERT INTO products (
+                        global_id, name, category, unit, low_stock_threshold,
+                        price, sale_price, shelf_life_days, storage_life_days,
+                        images, details, recipe, note, default_purchase_unit, default_sale_unit, is_public,
+                        created_at, updated_at
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
+                        gid,
                         clean_name,
                         clean_category,
                         clean_unit,
+                        threshold,
                         parsed_price,
                         parsed_sale_price,
-                        float(threshold),
                         parsed_shelf_life_days,
                         parsed_storage_life_days,
+                        clean_images,
+                        clean_details,
+                        clean_recipe,
+                        clean_note,
+                        clean_default_purchase_unit,
+                        clean_default_sale_unit,
+                        1 if is_public else 0,
                         now,
                         now,
                     ),
@@ -2889,6 +3339,21 @@ class InventoryStore:
                 raise ValueError("Tên sản phẩm đã tồn tại.") from exc
 
             product_id = cursor.lastrowid
+            if unit_conversions:
+                for conv in unit_conversions:
+                    connection.execute(
+                        "INSERT INTO product_unit_conversion(product_id, from_unit, conversion_factor, price, sale_price, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            product_id,
+                            str(conv.get("from_unit", conv.get("input_unit", ""))).strip(),
+                            float(conv.get("conversion_factor", 1.0)),
+                            float(conv.get("price", 0.0)),
+                            float(conv.get("sale_price", 0.0)),
+                            1,
+                            now,
+                            now,
+                        )
+                    )
             self._record_audit(
                 connection,
                 entity_type="product",
@@ -3028,7 +3493,17 @@ class InventoryStore:
         sale_price: str | int | float | None = None,
         shelf_life_days: str | int | float | None = None,
         storage_life_days: str | int | float | None = None,
+        images: list[str] | None = None,
+        details: str | None = None,
+        recipe: str | None = None,
+        note: str | None = None,
+        is_public: bool | None = None,
         actor: str = "",
+        allow_deleted: bool = False,
+        global_id: str | None = None,
+        unit_conversions: list[dict] | None = None,
+        default_purchase_unit: str | None = None,
+        default_sale_unit: str | None = None,
     ) -> dict:
         (
             clean_name,
@@ -3050,36 +3525,54 @@ class InventoryStore:
             storage_life_days,
         )
         now = utc_now_iso()
+        
+        next_values = {
+            "name": clean_name,
+            "category": clean_category,
+            "unit": clean_unit,
+            "low_stock_threshold": threshold,
+            "price": parsed_price,
+            "sale_price": parsed_sale_price,
+            "shelf_life_days": parsed_shelf_life_days,
+            "storage_life_days": parsed_storage_life_days,
+        }
+        if images is not None:
+            next_values["images"] = json.dumps([str(img).strip() for img in images if str(img).strip()], ensure_ascii=False)
+        if details is not None:
+            next_values["details"] = optimize_html_embedded_images(str(details).strip(), max_dim=1024)
+        if recipe is not None:
+            next_values["recipe"] = optimize_html_embedded_images(str(recipe).strip(), max_dim=1024)
+        if note is not None:
+            next_values["note"] = str(note).strip()
+        if default_purchase_unit is not None:
+            next_values["default_purchase_unit"] = str(default_purchase_unit).strip() or clean_unit
+        if default_sale_unit is not None:
+            next_values["default_sale_unit"] = str(default_sale_unit).strip() or clean_unit
+        if is_public is not None:
+            next_values["is_public"] = 1 if is_public else 0
+        if global_id is not None:
+            next_values["global_id"] = str(global_id).strip()
 
         with self._connect() as connection:
-            current_product = self._get_product_or_raise(connection, int(product_id))
+            current_product = self._get_product_or_raise(connection, int(product_id), allow_deleted=allow_deleted)
             try:
+                updates = []
+                values = []
+                for k, v in next_values.items():
+                    updates.append(f"{k} = ?")
+                    values.append(v)
+                
+                updates.append("updated_at = ?")
+                values.append(now)
+                values.append(int(product_id))
+
                 connection.execute(
-                    """
+                    f"""
                     UPDATE products
-                    SET name = ?,
-                        category = ?,
-                        unit = ?,
-                        price = ?,
-                        sale_price = ?,
-                        low_stock_threshold = ?,
-                        shelf_life_days = ?,
-                        storage_life_days = ?,
-                        updated_at = ?
+                    SET {", ".join(updates)}
                     WHERE id = ?
                     """,
-                    (
-                        clean_name,
-                        clean_category,
-                        clean_unit,
-                        parsed_price,
-                        parsed_sale_price,
-                        threshold,
-                        parsed_shelf_life_days,
-                        parsed_storage_life_days,
-                        now,
-                        int(product_id),
-                    ),
+                    values,
                 )
             except sqlite3.IntegrityError as exc:
                 deleted_match = connection.execute(
@@ -3100,8 +3593,28 @@ class InventoryStore:
                     "low_stock_threshold": threshold,
                     "shelf_life_days": parsed_shelf_life_days,
                     "storage_life_days": parsed_storage_life_days,
+                    # Audit the public visibility change even when it is the only edited field.
+                    "is_public": bool(next_values.get("is_public", current_product["is_public"])),
                 },
             )
+            if unit_conversions is not None:
+                connection.execute("UPDATE product_unit_conversion SET is_active = 0, updated_at = ? WHERE product_id = ?", (now, int(product_id)))
+                for conv in unit_conversions:
+                    unit_name = str(conv.get("from_unit", conv.get("input_unit", ""))).strip()
+                    factor = float(conv.get("conversion_factor", 1.0))
+                    price = float(conv.get("price", 0.0))
+                    sale_price = float(conv.get("sale_price", 0.0))
+                    existing = connection.execute("SELECT id FROM product_unit_conversion WHERE product_id = ? AND from_unit = ?", (int(product_id), unit_name)).fetchone()
+                    if existing:
+                        connection.execute(
+                            "UPDATE product_unit_conversion SET conversion_factor = ?, price = ?, sale_price = ?, is_active = 1, updated_at = ? WHERE id = ?",
+                            (factor, price, sale_price, now, existing["id"])
+                        )
+                    else:
+                        connection.execute(
+                            "INSERT INTO product_unit_conversion(product_id, from_unit, conversion_factor, price, sale_price, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                            (int(product_id), unit_name, factor, price, sale_price, 1, now, now)
+                        )
             self._record_audit(
                 connection,
                 entity_type="product",
@@ -3112,7 +3625,7 @@ class InventoryStore:
                 message=audit_message,
             )
 
-        return self.get_product_by_id(int(product_id))
+        return self.get_product_by_id(int(product_id), allow_deleted=allow_deleted)
 
     def delete_product(self, product_id: int, actor: str = "") -> dict:
         with self._connect() as connection:
@@ -3154,6 +3667,228 @@ class InventoryStore:
                 "impacts": impacts,
             }
 
+    def change_product_base_unit(
+        self,
+        product_id: int | str,
+        new_unit: str,
+        conversion_rate: float | int | str,
+        *,
+        add_old_unit_to_conversions: bool = True,
+        default_purchase_unit: str | None = None,
+        default_sale_unit: str | None = None,
+        actor: str = "",
+    ) -> dict:
+        """
+        #Issue 177: Chuyển đổi đơn vị chính (Base Unit) của sản phẩm.
+        conversion_rate: Tỷ lệ K sao cho 1 đơn vị cũ = K đơn vị mới.
+        Ví dụ: 1 gói = 2 lạng => K = 2.0.
+        Toàn bộ transactions, batches, allocations, open carts/purchases, receipt items
+        và bảng quy đổi đơn vị phụ sẽ được cập nhật đồng thời trong 1 transaction an toàn.
+        """
+        clean_new_unit = str(new_unit or "").strip()
+        if not clean_new_unit:
+            raise ValueError("Đơn vị chính mới không được để trống.")
+
+        try:
+            k_factor = float(conversion_rate)
+        except (ValueError, TypeError):
+            raise ValueError("Tỷ lệ quy đổi không hợp lệ.")
+
+        if k_factor <= 0:
+            raise ValueError("Tỷ lệ quy đổi phải lớn hơn 0.")
+
+        with self._connect() as connection:
+            product = dict(self._get_product_or_raise(connection, int(product_id), allow_deleted=True))
+            old_unit = str(product["unit"] or "").strip()
+            if old_unit.lower() == clean_new_unit.lower():
+                raise ValueError(f"Đơn vị chính mới '{clean_new_unit}' trùng với đơn vị hiện tại.")
+
+            now = utc_now_iso()
+            old_price = float(product.get("price") or 0.0)
+            old_sale_price = float(product.get("sale_price") or 0.0)
+            old_threshold = float(product.get("low_stock_threshold") or 0.0)
+            old_stock = float(self._get_stock_for_product(connection, int(product_id)))
+
+            new_price = round(old_price / k_factor, 4)
+            new_sale_price = round(old_sale_price / k_factor, 4)
+            new_threshold = round(old_threshold * k_factor, 4)
+            new_stock = round(old_stock * k_factor, 4)
+
+            # Xác định đơn vị mua/bán mặc định mới
+            target_purchase_unit = str(default_purchase_unit or "").strip()
+            if not target_purchase_unit or target_purchase_unit.lower() == old_unit.lower():
+                target_purchase_unit = clean_new_unit
+            target_sale_unit = str(default_sale_unit or "").strip()
+            if not target_sale_unit or target_sale_unit.lower() == old_unit.lower():
+                target_sale_unit = clean_new_unit
+
+            # 1. Cập nhật products
+            connection.execute(
+                """
+                UPDATE products
+                SET unit = ?, price = ?, sale_price = ?, low_stock_threshold = ?,
+                    default_purchase_unit = ?, default_sale_unit = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (clean_new_unit, new_price, new_sale_price, new_threshold,
+                 target_purchase_unit, target_sale_unit, now, int(product_id)),
+            )
+
+            # 2. Cập nhật transactions (lịch sử xuất nhập kho)
+            connection.execute(
+                """
+                UPDATE transactions
+                SET quantity = ROUND(quantity * ?, 4)
+                WHERE product_id = ?
+                """,
+                (k_factor, int(product_id)),
+            )
+
+            # 3. Cập nhật inventory_batches (lô hàng & giá vốn lô)
+            connection.execute(
+                """
+                UPDATE inventory_batches
+                SET initial_quantity = ROUND(initial_quantity * ?, 4),
+                    remaining_quantity = ROUND(remaining_quantity * ?, 4),
+                    unit_cost = ROUND(unit_cost / ?, 4),
+                    updated_at = ?
+                WHERE product_id = ?
+                """,
+                (k_factor, k_factor, k_factor, now, int(product_id)),
+            )
+
+            # 4. Cập nhật phân bổ lô inventory_batch_allocations
+            connection.execute(
+                """
+                UPDATE inventory_batch_allocations
+                SET quantity = ROUND(quantity * ?, 4)
+                WHERE product_id = ?
+                """,
+                (k_factor, int(product_id)),
+            )
+
+            # 5. Cập nhật inventory_receipt_items
+            connection.execute(
+                """
+                UPDATE inventory_receipt_items
+                SET quantity = ROUND(quantity * ?, 4),
+                    unit_amount = ROUND(unit_amount / ?, 4),
+                    stock_after = ROUND(stock_after * ?, 4),
+                    conversion_factor = CASE
+                        WHEN conversion_factor IS NOT NULL THEN ROUND(conversion_factor * ?, 6)
+                        ELSE conversion_factor
+                    END
+                WHERE product_id = ?
+                """,
+                (k_factor, k_factor, k_factor, k_factor, int(product_id)),
+            )
+
+            # 6. Cập nhật cart_items (giỏ hàng xuất)
+            connection.execute(
+                """
+                UPDATE cart_items
+                SET quantity = ROUND(quantity * ?, 4),
+                    conversion_factor = ROUND(COALESCE(conversion_factor, 1.0) * ?, 6),
+                    input_unit = CASE
+                        WHEN input_unit IS NULL OR TRIM(input_unit) = '' THEN ?
+                        ELSE input_unit
+                    END
+                WHERE product_id = ?
+                """,
+                (k_factor, k_factor, old_unit, int(product_id)),
+            )
+
+            # 7. Cập nhật purchase_items (phiếu nhập hàng)
+            connection.execute(
+                """
+                UPDATE purchase_items
+                SET quantity = ROUND(quantity * ?, 4),
+                    conversion_factor = ROUND(COALESCE(conversion_factor, 1.0) * ?, 6),
+                    input_unit = CASE
+                        WHEN input_unit IS NULL OR TRIM(input_unit) = '' THEN ?
+                        ELSE input_unit
+                    END
+                WHERE product_id = ?
+                """,
+                (k_factor, k_factor, old_unit, int(product_id)),
+            )
+
+            # 8. Cập nhật procurement_assignments
+            connection.execute(
+                """
+                UPDATE procurement_assignments
+                SET assigned_quantity = ROUND(assigned_quantity * ?, 4)
+                WHERE product_id = ?
+                """,
+                (k_factor, int(product_id)),
+            )
+
+            # 9. Cập nhật bảng product_unit_conversion
+            connection.execute(
+                """
+                UPDATE product_unit_conversion
+                SET conversion_factor = ROUND(conversion_factor * ?, 6),
+                    updated_at = ?
+                WHERE product_id = ? AND LOWER(from_unit) != LOWER(?)
+                """,
+                (k_factor, now, int(product_id), clean_new_unit),
+            )
+            connection.execute(
+                """
+                UPDATE product_unit_conversion
+                SET is_active = 0, updated_at = ?
+                WHERE product_id = ? AND LOWER(from_unit) = LOWER(?)
+                """,
+                (now, int(product_id), clean_new_unit),
+            )
+
+            # Nếu add_old_unit_to_conversions: thêm/bật đơn vị cũ làm đơn vị quy đổi phụ
+            if add_old_unit_to_conversions:
+                existing_old = connection.execute(
+                    "SELECT id FROM product_unit_conversion WHERE product_id = ? AND LOWER(from_unit) = LOWER(?)",
+                    (int(product_id), old_unit),
+                ).fetchone()
+                if existing_old:
+                    connection.execute(
+                        """
+                        UPDATE product_unit_conversion
+                        SET conversion_factor = ?, price = ?, sale_price = ?, is_active = 1, updated_at = ?
+                        WHERE id = ?
+                        """,
+                        (round(k_factor, 6), old_price, old_sale_price, now, existing_old["id"]),
+                    )
+                else:
+                    connection.execute(
+                        """
+                        INSERT INTO product_unit_conversion(product_id, from_unit, conversion_factor, price, sale_price, is_active, created_at, updated_at)
+                        VALUES(?, ?, ?, ?, ?, 1, ?, ?)
+                        """,
+                        (int(product_id), old_unit, round(k_factor, 6), old_price, old_sale_price, now, now),
+                    )
+
+            # 10. Refresh sync cache cho carts & purchases
+            self._refresh_sync_collection_cache(connection, "carts", updated_at=now)
+            self._refresh_sync_collection_cache(connection, "purchases", updated_at=now)
+
+            # 11. Ghi audit log
+            audit_message = (
+                f"#Issue 177: Chuyển đổi đơn vị chính từ '{old_unit}' sang '{clean_new_unit}' "
+                f"(tỷ lệ 1 {old_unit} = {k_factor} {clean_new_unit}). "
+                f"Tồn kho: {old_stock} {old_unit} -> {new_stock} {clean_new_unit}. "
+                f"Giá nhập: {old_price} -> {new_price}. Giá bán: {old_sale_price} -> {new_sale_price}."
+            )
+            self._record_audit(
+                connection,
+                entity_type="product",
+                entity_id=product_id,
+                entity_name=product["name"],
+                action="change_base_unit",
+                actor=actor,
+                message=audit_message,
+            )
+
+        return self.get_product_by_id(int(product_id), allow_deleted=True)
+
     def restore_product(self, product_id: int, actor: str = "") -> dict:
         with self._connect() as connection:
             product = self._get_product_or_raise(connection, int(product_id), allow_deleted=True)
@@ -3186,6 +3921,52 @@ class InventoryStore:
                 message="Khôi phục sản phẩm về danh mục đang dùng.",
             )
         return self.get_product_by_id(int(product_id))
+
+    def hard_delete_product(self, product_id: int, actor: str = "") -> dict:
+        with self._connect() as connection:
+            product = self._get_product_or_raise(connection, int(product_id), allow_deleted=True)
+            try:
+                connection.execute("DELETE FROM products WHERE id = ?", (int(product_id),))
+                connection.execute("DELETE FROM audit_logs WHERE entity_type = 'product' AND entity_id = ?", (str(product_id),))
+            except sqlite3.IntegrityError:
+                raise ValueError("Không thể xóa hẳn vì sản phẩm đã phát sinh giao dịch/chứng từ.")
+            return {
+                "product_id": int(product_id),
+                "product_name": product["name"],
+                "message": "Đã xóa hẳn sản phẩm khỏi hệ thống."
+            }
+
+    def hard_delete_customer(self, customer_id: str, actor: str = "") -> dict:
+        clean_id = str(customer_id).strip()
+        with self._connect() as connection:
+            customer = connection.execute("SELECT id, name FROM customers WHERE id = ?", (clean_id,)).fetchone()
+            if not customer:
+                raise ValueError("Khách hàng không tồn tại.")
+            if connection.execute("SELECT 1 FROM carts WHERE customer_id = ? LIMIT 1", (clean_id,)).fetchone():
+                raise ValueError("Không thể xóa hẳn vì khách hàng đã phát sinh đơn hàng.")
+            connection.execute("DELETE FROM customers WHERE id = ?", (clean_id,))
+            connection.execute("DELETE FROM audit_logs WHERE entity_type = 'customer' AND entity_id = ?", (clean_id,))
+            return {
+                "customer_id": clean_id,
+                "customer_name": customer["name"],
+                "message": "Đã xóa hẳn khách hàng khỏi hệ thống."
+            }
+
+    def hard_delete_supplier(self, supplier_id: str, actor: str = "") -> dict:
+        clean_id = str(supplier_id).strip()
+        with self._connect() as connection:
+            supplier = connection.execute("SELECT id, name FROM suppliers WHERE id = ?", (clean_id,)).fetchone()
+            if not supplier:
+                raise ValueError("Nhà cung cấp không tồn tại.")
+            if connection.execute("SELECT 1 FROM purchases WHERE supplier_id = ? LIMIT 1", (clean_id,)).fetchone():
+                raise ValueError("Không thể xóa hẳn vì nhà cung cấp đã phát sinh phiếu nhập.")
+            connection.execute("DELETE FROM suppliers WHERE id = ?", (clean_id,))
+            connection.execute("DELETE FROM audit_logs WHERE entity_type = 'supplier' AND entity_id = ?", (clean_id,))
+            return {
+                "supplier_id": clean_id,
+                "supplier_name": supplier["name"],
+                "message": "Đã xóa hẳn nhà cung cấp khỏi hệ thống."
+            }
 
     def get_deleted_products(self) -> list[dict]:
         return [product for product in self.get_products(include_deleted=True) if product["is_deleted"]]
@@ -3368,12 +4149,12 @@ class InventoryStore:
                     (key, now_str),
                 )
 
-    def get_product_by_id(self, product_id: int) -> dict:
+    def get_product_by_id(self, product_id: int, *, allow_deleted: bool = False) -> dict:
         with self._connect() as connection:
-            row = connection.execute(
-                """
+            query = """
                 SELECT
                     p.id,
+                    p.global_id,
                     p.name,
                     p.category,
                     p.unit,
@@ -3382,10 +4163,23 @@ class InventoryStore:
                     p.low_stock_threshold,
                     p.shelf_life_days,
                     p.storage_life_days,
+                    p.is_public,
                     p.is_deleted,
                     p.deleted_at,
                     p.created_at,
                     p.updated_at,
+                    p.images,
+                    p.details,
+                    p.recipe,
+                    p.note,
+                    COALESCE(
+                        (SELECT SUM(pi.quantity)
+                         FROM purchase_items pi
+                         JOIN purchases pur ON pi.purchase_id = pur.id
+                         WHERE pi.product_id = p.id AND pur.status = 'ordered'
+                        ),
+                        0
+                    ) AS incoming_open_purchases,
                     COALESCE(
                         SUM(
                             CASE
@@ -3397,11 +4191,13 @@ class InventoryStore:
                     ) AS current_stock
                 FROM products p
                 LEFT JOIN transactions t ON t.product_id = p.id
-                WHERE p.id = ? AND p.is_deleted = 0
-                GROUP BY p.id
-                """,
-                (product_id,),
-            ).fetchone()
+                WHERE p.id = ?
+            """
+            if not allow_deleted:
+                query += " AND p.is_deleted = 0"
+            query += " GROUP BY p.id"
+            
+            row = connection.execute(query, (product_id,)).fetchone()
             if not row:
                 raise ValueError("Sản phẩm không tồn tại.")
             return self._serialize_product_rows(connection, [row])[0]
@@ -3533,12 +4329,12 @@ class InventoryStore:
     ) -> dict:
         clean_source_type = str(source_type or "").strip()
         clean_source_code = str(source_code or "").strip()
-        if clean_source_type == "sale_cancellation" and clean_source_code:
+        if clean_source_type in {"sale_cancellation", "admin_edit_reversal"} and clean_source_code:
             return {
                 "document_code": clean_source_code,
                 "document_type": "order",
             }
-        if clean_source_type == "purchase_cancellation" and clean_source_code:
+        if clean_source_type in {"purchase_cancellation", "admin_edit_purchase"} and clean_source_code:
             return {
                 "document_code": clean_source_code,
                 "document_type": "purchase",
@@ -3866,22 +4662,45 @@ class InventoryStore:
         for raw_item in raw_items:
             product_id = int(raw_item.get("product_id") or raw_item.get("productId") or 0)
             quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
+            input_quantity = parse_positive_decimal(
+                raw_item.get("inputQuantity") or raw_item.get("input_quantity") or raw_item.get("quantity"),
+                "Số lượng theo đơn vị bán",
+            )
+            conversion_factor = parse_positive_decimal(
+                raw_item.get("conversionFactor") or raw_item.get("conversion_factor") or 1,
+                "Hệ số quy đổi",
+            )
+            input_unit = str(raw_item.get("inputUnit") or raw_item.get("input_unit") or raw_item.get("unit") or "").strip()
+            if round(input_quantity * conversion_factor, 4) != round(quantity, 4):
+                raise ValueError("Số lượng bán và số lượng cơ sở không khớp hệ số quy đổi.")
             unit_price = parse_non_negative_decimal(
                 raw_item.get("unit_price") or raw_item.get("unitPrice") or 0,
                 "Giá bán",
+            )
+            discount_amount = parse_non_negative_decimal(
+                raw_item.get("discount_amount") or raw_item.get("discountAmount") or 0,
+                "Khuyến mại dòng",
             )
             item_note = str(raw_item.get("note") or "").strip()
             existing = grouped_items.get(product_id)
             if existing:
                 existing["quantity"] += quantity
+                existing["input_quantity"] += input_quantity
+                existing["discount_amount"] = existing.get("discount_amount", Decimal("0")) + discount_amount
                 existing["unit_price"] = unit_price
+                existing["conversion_factor"] = conversion_factor
+                existing["input_unit"] = input_unit
                 if item_note:
                     existing["note"] = item_note
                 continue
             grouped_items[product_id] = {
                 "product_id": product_id,
                 "quantity": quantity,
+                "input_quantity": input_quantity,
+                "conversion_factor": conversion_factor,
+                "input_unit": input_unit,
                 "unit_price": unit_price,
+                "discount_amount": discount_amount,
                 "note": item_note,
             }
         return grouped_items
@@ -3997,7 +4816,8 @@ class InventoryStore:
         subtotal_amount = Decimal("0")
         total_quantity = Decimal("0")
         for item in grouped_items.values():
-            subtotal_amount += item["quantity"] * item["unit_price"]
+            item_discount = item.get("discount_amount", Decimal("0"))
+            subtotal_amount += max(Decimal("0"), item["input_quantity"] * item["unit_price"] - item_discount)
         validated_discount_amount = self._validate_discount_amount(
             discount_amount,
             subtotal_amount,
@@ -4007,11 +4827,15 @@ class InventoryStore:
         transactions = []
         for product_id, item in grouped_items.items():
             product = products_by_id[product_id]
-            line_total = item["quantity"] * item["unit_price"]
+            line_item_discount = item.get("discount_amount", Decimal("0"))
+            line_total = max(Decimal("0"), item["input_quantity"] * item["unit_price"] - line_item_discount)
             total_quantity += item["quantity"]
             base_transaction_note = (
-                f"Đơn {order_code} | Khách: {clean_customer_name} | Giá bán: {float(item['unit_price']):.0f}"
+                f"Đơn {order_code} | Khách: {clean_customer_name} | Giá bán: {float(item['unit_price']):.0f} "
+                f"| Thành tiền: {float(line_total):.2f}"
             )
+            if line_item_discount > 0:
+                base_transaction_note += f" | Giảm KM dòng: {float(line_item_discount):.0f}"
             if validated_discount_amount > 0:
                 base_transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
             if clean_note:
@@ -4123,7 +4947,8 @@ class InventoryStore:
             raise ValueError("Không tìm thấy đơn hàng.")
         item_rows = connection.execute(
             """
-            SELECT id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order
+            SELECT id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order,
+                       input_quantity, input_unit, conversion_factor, discount_amount
             FROM cart_items
             WHERE cart_id = ?
             ORDER BY sort_order, id
@@ -4604,7 +5429,7 @@ class InventoryStore:
             grouped_items = self._group_sale_items(order_payload.get("items") or [])
             if not grouped_items:
                 raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
-            subtotal = sum(item["quantity"] * item["unit_price"] for item in grouped_items.values())
+            subtotal = sum(item["input_quantity"] * item["unit_price"] for item in grouped_items.values())
             discount_amount = self._validate_discount_amount(
                 order_payload.get("discount_amount", order_payload.get("discountAmount", 0)),
                 subtotal,
@@ -4679,12 +5504,23 @@ class InventoryStore:
                     unit_price = round(float(raw_item.get("unit_price") or raw_item.get("unitPrice") or 0), 2)
                 except (TypeError, ValueError):
                     unit_price = 0.0
+                try:
+                    input_quantity = round(float(raw_item.get("input_quantity") or raw_item.get("inputQuantity") or quantity), 4)
+                except (TypeError, ValueError):
+                    input_quantity = quantity
+                try:
+                    conversion_factor = round(float(raw_item.get("conversion_factor", raw_item.get("conversionFactor", 1)) or 1), 6)
+                except (TypeError, ValueError):
+                    conversion_factor = 1.0
                 prepared_items.append(
                     {
                         "product_id": product_id,
                         "product_name": str(raw_item.get("product_name") or raw_item.get("productName") or "").strip(),
                         "unit": str(raw_item.get("unit") or "").strip(),
                         "quantity": quantity,
+                        "input_quantity": input_quantity,
+                        "input_unit": str(raw_item.get("input_unit") or raw_item.get("inputUnit") or raw_item.get("unit") or "").strip(),
+                        "conversion_factor": conversion_factor,
                         "unit_price": unit_price,
                         "note": str(raw_item.get("note") or "").strip(),
                     }
@@ -4698,7 +5534,7 @@ class InventoryStore:
             try:
                 subtotal_amount = round(float(order_payload.get("subtotal_amount", order_payload.get("subtotalAmount", 0)) or 0), 2)
             except (TypeError, ValueError):
-                subtotal_amount = round(sum(item["quantity"] * item["unit_price"] for item in prepared_items), 2)
+                subtotal_amount = round(sum(item["input_quantity"] * item["unit_price"] for item in prepared_items), 2)
             prepared_order = {
                 "client_order_id": str(
                     order_payload.get("client_order_id")
@@ -4762,7 +5598,7 @@ class InventoryStore:
             or self._get_cart_ship_address(existing_cart)
         )
         clean_note = str(raw_order.get("note") or "").strip() or str(existing_cart.get("note") or "").strip()
-        subtotal = sum(item["quantity"] * item["unit_price"] for item in grouped_items.values())
+        subtotal = sum(item["input_quantity"] * item["unit_price"] for item in grouped_items.values())
         validated_discount_amount = self._validate_discount_amount(
             raw_order.get("discount_amount", raw_order.get("discountAmount", 0)),
             subtotal,
@@ -5696,7 +6532,8 @@ class InventoryStore:
                 (
                     entry["transaction_id"],
                     round(
-                        entry["quantity"] * float(extract_price_from_note(entry["note"], "out") or 0),
+                        float(extract_labeled_price(entry["note"], "Thành tiền") or 0)
+                        or entry["quantity"] * float(extract_price_from_note(entry["note"], "out") or 0),
                         2,
                     ),
                 )
@@ -5726,7 +6563,8 @@ class InventoryStore:
             quantity = round(float(entry["quantity"] or 0), 2)
             unit_price = round(float(extract_price_from_note(entry["note"], "out") or product["sale_price"] or 0), 2)
             unit_cost = round(float(extract_cost_from_note(entry["note"]) or product["price"] or 0), 2)
-            revenue_line_total = round(max(0.0, quantity * unit_price - transaction_revenue_allocations.get(entry["transaction_id"], 0.0)), 2)
+            gross_line_total = float(extract_labeled_price(entry["note"], "Thành tiền") or quantity * unit_price)
+            revenue_line_total = round(max(0.0, gross_line_total - transaction_revenue_allocations.get(entry["transaction_id"], 0.0)), 2)
             original_allocations = self._load_transaction_batch_allocations(
                 connection,
                 int(entry["transaction_id"]),
@@ -6175,7 +7013,7 @@ class InventoryStore:
         clean_ship_address = str(raw_order.get("ship_address") or raw_order.get("shipAddress") or "").strip() or str(resolved_customer.get("address") or "").strip()
         clean_note = str(raw_order.get("note") or "").strip()
         subtotal = sum(
-            item["quantity"] * item["unit_price"]
+            item["input_quantity"] * item["unit_price"]
             for item in grouped_items.values()
         )
         validated_discount_amount = self._validate_discount_amount(
@@ -6328,6 +7166,264 @@ class InventoryStore:
             "discount_amount": sale_result["discount_amount"],
             "total_amount": sale_result["total_amount"],
         }
+
+    def create_online_order(
+        self,
+        *,
+        customer_name: str,
+        customer_phone: str = "",
+        customer_address: str = "",
+        zalo_id: str = "",
+        avatar_url: str = "",
+        note: str = "",
+        items: list[dict],
+        force_new_order: bool = False,
+    ) -> dict:
+        clean_name = str(customer_name or "").strip()
+        clean_phone = str(customer_phone or "").strip()
+        clean_address = str(customer_address or "").strip()
+        clean_zalo_id = str(zalo_id or "").strip()
+        clean_avatar_url = str(avatar_url or "").strip()
+        clean_note = str(note or "").strip()
+        if not clean_name and not clean_phone and not clean_zalo_id:
+            raise ValueError("Cần ít nhất Tên hoặc Số điện thoại để chốt đơn.")
+        if not clean_name:
+            clean_name = f"Khách vãng lai ({clean_phone or clean_zalo_id})"
+        if not items:
+            raise ValueError("Giỏ hàng đang trống.")
+
+        now = utc_now_iso()
+
+        with self._connect() as connection:
+            # #Issue180: Public quantities and prices are interpreted using the product's configured sale unit.
+            configured_sale_items = []
+            for raw_item in items:
+                product_id = int(raw_item.get("product_id") or raw_item.get("productId") or 0)
+                product = self._get_product_or_raise(connection, product_id)
+                input_quantity = parse_positive_decimal(
+                    raw_item.get("inputQuantity") or raw_item.get("input_quantity") or raw_item.get("quantity"),
+                    "Số lượng theo đơn vị bán",
+                )
+                sale_unit = str(product["default_sale_unit"] or product["unit"] or "").strip()
+                factor = 1.0
+                sale_price = float(product["sale_price"] or product["price"] or 0)
+                if sale_unit and sale_unit != str(product["unit"] or ""):
+                    conversion = connection.execute(
+                        "SELECT conversion_factor, sale_price FROM product_unit_conversion WHERE product_id = ? AND from_unit = ? AND is_active = 1 LIMIT 1",
+                        (product_id, sale_unit),
+                    ).fetchone()
+                    if conversion:
+                        factor = float(conversion["conversion_factor"] or 1)
+                        sale_price = float(conversion["sale_price"] or (sale_price * factor))
+                    else:
+                        sale_unit = str(product["unit"] or "")
+                configured_sale_items.append({
+                    "product_id": product_id,
+                    "quantity": float(input_quantity) * factor,
+                    "input_quantity": float(input_quantity),
+                    "input_unit": sale_unit or str(product["unit"] or ""),
+                    "conversion_factor": factor,
+                    "unit_price": sale_price,
+                    "note": raw_item.get("note") or "",
+                })
+            grouped_items = self._group_sale_items(configured_sale_items)
+
+            existing_customer = None
+            if clean_zalo_id:
+                row = connection.execute(
+                    "SELECT * FROM customers WHERE zalo_id = ? AND deleted_at IS NULL LIMIT 1", 
+                    (clean_zalo_id,)
+                ).fetchone()
+                if row:
+                    existing_customer = self._serialize_customer_row(row)
+            
+            if not existing_customer and clean_phone:
+                row = connection.execute(
+                    "SELECT * FROM customers WHERE phone = ? AND deleted_at IS NULL LIMIT 1", 
+                    (clean_phone,)
+                ).fetchone()
+                if row:
+                    existing_customer = self._serialize_customer_row(row)
+                    
+            if not existing_customer:
+                existing_customer = self._find_active_customer_by_name(connection, clean_name)
+            
+            if not existing_customer:
+                customer_id = f"customer_{secrets.token_hex(6)}"
+                default_zalo_url = f"https://zalo.me/{clean_phone.replace(' ', '')}" if clean_phone else ""
+                connection.execute(
+                    """
+                    INSERT INTO customers(id, name, phone, address, zalo_url, avatar_url, zalo_id, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                    """,
+                    (customer_id, clean_name, clean_phone, clean_address, default_zalo_url, clean_avatar_url, clean_zalo_id, now, now)
+                )
+            else:
+                customer_id = existing_customer["id"]
+                updates = []
+                params = []
+                if clean_name and clean_name != existing_customer.get("name"):
+                    updates.append("name = ?")
+                    params.append(clean_name)
+                if clean_phone and clean_phone != existing_customer.get("phone"):
+                    updates.append("phone = ?")
+                    params.append(clean_phone)
+                    if not existing_customer.get("zaloUrl") or str(existing_customer.get("zaloUrl", "")).startswith("https://zalo.me/"):
+                        updates.append("zalo_url = ?")
+                        params.append(f"https://zalo.me/{clean_phone.replace(' ', '')}")
+                if clean_address and clean_address != existing_customer.get("address"):
+                    updates.append("address = ?")
+                    params.append(clean_address)
+                if clean_zalo_id and not existing_customer.get("zalo_id"):
+                    updates.append("zalo_id = ?")
+                    params.append(clean_zalo_id)
+                if clean_avatar_url and not existing_customer.get("avatar_url"):
+                    updates.append("avatar_url = ?")
+                    params.append(clean_avatar_url)
+                if updates:
+                    updates.append("updated_at = ?")
+                    params.append(now)
+                    params.append(customer_id)
+                    connection.execute(f"UPDATE customers SET {', '.join(updates)} WHERE id = ?", params)
+                clean_name = clean_name or existing_customer["name"]
+
+            # Kiểm tra xem khách đã có đơn online nào đang pending (draft) chưa (nếu không yêu cầu tách đơn riêng)
+            existing_cart_row = None
+            if not force_new_order:
+                existing_cart_row = connection.execute(
+                    "SELECT id, discount_amount, note, ship_address FROM carts WHERE customer_id = ? AND created_mode = 'online' AND status = 'draft' ORDER BY created_at DESC LIMIT 1",
+                    (customer_id,)
+                ).fetchone()
+
+            if existing_cart_row:
+                cart_id = existing_cart_row["id"]
+                # Lấy items cũ
+                existing_items_rows = connection.execute(
+                    "SELECT * FROM cart_items WHERE cart_id = ? ORDER BY sort_order, id",
+                    (cart_id,)
+                ).fetchall()
+                # #Issue180: Keep existing order line snapshots intact when new lines use another configured unit.
+                cart_items = [self._serialize_cart_item_row(row) for row in existing_items_rows]
+                new_cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
+                for new_item in new_cart_items:
+                    matching_item = next((
+                        old_item for old_item in cart_items
+                        if int(old_item.get("productId") or old_item.get("product_id") or 0) == int(new_item["productId"])
+                        and str(old_item.get("inputUnit") or old_item.get("input_unit") or "") == str(new_item["inputUnit"])
+                        and float(old_item.get("conversionFactor") or old_item.get("conversion_factor") or 1) == float(new_item["conversionFactor"])
+                        and float(old_item.get("unitPrice") or old_item.get("unit_price") or 0) == float(new_item["unitPrice"])
+                    ), None)
+                    if matching_item:
+                        next_quantity = round(float(matching_item.get("quantity") or 0) + float(new_item["quantity"]), 4)
+                        next_input_quantity = round(
+                            float(matching_item.get("inputQuantity") or matching_item.get("input_quantity") or 0)
+                            + float(new_item["inputQuantity"]),
+                            4,
+                        )
+                        matching_item["quantity"] = next_quantity
+                        matching_item["inputQuantity"] = next_input_quantity
+                        matching_item["input_quantity"] = next_input_quantity
+                    else:
+                        cart_items.append(new_item)
+                
+                # Nối ghi chú
+                new_note = existing_cart_row["note"] or ""
+                if clean_note and clean_note not in new_note:
+                    new_note = (new_note + f"\n{clean_note}").strip()
+                
+                # Cập nhật thông tin giỏ hàng
+                connection.execute(
+                    "UPDATE carts SET updated_at = ?, note = ?, ship_address = ? WHERE id = ?",
+                    (now, new_note, clean_address or existing_cart_row["ship_address"], cart_id)
+                )
+                self._replace_cart_items(connection, cart_id=cart_id, items=cart_items)
+                
+                created_cart = self._get_cart_document(connection, cart_id)
+                self._record_cart_change_history(
+                    connection,
+                    previous=None, # Giữ đơn giản
+                    current=created_cart,
+                    actor="Public Customer",
+                    created_at=now,
+                    note_prefix="Gộp thêm sản phẩm vào đơn hàng online",
+                )
+            else:
+                cart_id = f"cart_{secrets.token_hex(6)}"
+                cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
+                
+                discount_amount = 0
+                connection.execute(
+                    """
+                    INSERT INTO carts(
+                        id, customer_id, customer_name, created_mode, status, payment_status, note, discount_amount, ship_address,
+                        created_at, updated_at, payment_method, payment_note, order_code
+                    )
+                    VALUES(?, ?, ?, 'online', 'draft', 'unpaid', ?, ?, ?, ?, ?, '', '', '')
+                    """,
+                    (
+                        cart_id, customer_id, clean_name, clean_note, discount_amount, clean_address, now, now
+                    ),
+                )
+                self._replace_cart_items(connection, cart_id=cart_id, items=cart_items)
+                created_cart = self._get_cart_document(connection, cart_id)
+                self._record_cart_change_history(
+                    connection,
+                    previous=None,
+                    current=created_cart,
+                    actor="Public Customer",
+                    created_at=now,
+                    note_prefix="Tạo đơn hàng online",
+                )
+            
+            self._refresh_sync_collection_cache(connection, "customers", updated_at=now)
+            self._refresh_sync_collection_cache(connection, "carts", updated_at=now)
+
+            log_info(f"Nghiệp vụ: Khách hàng {clean_name} ({clean_phone}/{clean_zalo_id}) đặt hàng online thành công (ID: {cart_id})")
+            return {
+                "message": "Đã ghi nhận đơn hàng.",
+                "cart": created_cart,
+            }
+
+    def get_public_orders(self, *, phone: str = "", zalo_id: str = "") -> list[dict]:
+        clean_phone = str(phone or "").strip()
+        clean_zalo_id = str(zalo_id or "").strip()
+        if not clean_phone and not clean_zalo_id:
+            return []
+            
+        with self._connect() as connection:
+            if clean_zalo_id:
+                rows = connection.execute(
+                    """
+                    SELECT c.* 
+                    FROM carts c
+                    JOIN customers cust ON c.customer_id = cust.id
+                    WHERE cust.zalo_id = ? AND c.created_mode = 'online'
+                    ORDER BY c.created_at DESC
+                    """,
+                    (clean_zalo_id,)
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """
+                    SELECT c.* 
+                    FROM carts c
+                    JOIN customers cust ON c.customer_id = cust.id
+                    WHERE cust.phone = ? AND c.created_mode = 'online'
+                    ORDER BY c.created_at DESC
+                    """,
+                    (clean_phone,)
+                ).fetchall()
+            
+            result = []
+            for row in rows:
+                cart = dict(row)
+                items_rows = connection.execute(
+                    "SELECT * FROM cart_items WHERE cart_id = ?",
+                    (cart["id"],)
+                ).fetchall()
+                cart["items"] = [self._serialize_cart_item_row(r) for r in items_rows]
+                result.append(cart)
+            return result
 
     def bulk_create_orders(
         self,
@@ -6640,12 +7736,23 @@ class InventoryStore:
                 "committed_at": committed_cart.get("committedAt") or now,
             }
 
-    def ship_cart_order(self, cart_id: str, *, actor: str = "") -> dict:
+    # Issue 169: Cho phép chọn ngày xuất khi chuyển trạng thái sang đã xuất hàng
+    def ship_cart_order(
+        self,
+        cart_id: str,
+        *,
+        actor: str = "",
+        shipped_at: str = "",
+        ship_date: str = "",
+    ) -> dict:
         clean_cart_id = str(cart_id or "").strip()
         if not clean_cart_id:
             raise ValueError("Thiếu cart_id.")
 
-        now = utc_now_iso()
+        effective_at = (
+            self._normalize_document_event_at(shipped_at or ship_date, "Ngày xuất")
+            or utc_now_iso()
+        )
         with self._connect() as connection:
             cart = self._get_cart_document(connection, clean_cart_id)
             if str(cart.get("status") or "") != "committed":
@@ -6672,7 +7779,7 @@ class InventoryStore:
                 grouped_items=grouped_items,
                 products_by_id=products_by_id,
                 current_stock_by_id=current_stock_by_id,
-                created_at=now,
+                created_at=effective_at,
                 note=str(cart.get("note") or "").strip(),
                 discount_amount=cart.get("discountAmount") or cart.get("discount_amount") or 0,
             )
@@ -6685,7 +7792,7 @@ class InventoryStore:
                     completed_at = ?
                 WHERE id = ?
                 """,
-                (now, now, clean_cart_id),
+                (effective_at, effective_at, clean_cart_id),
             )
             self._record_audit(
                 connection,
@@ -6706,9 +7813,9 @@ class InventoryStore:
                 before_status="committed",
                 after_status="completed",
                 note="Xuất hàng hoàn tất.",
-                created_at=now,
+                created_at=effective_at,
             )
-            carts = self._refresh_sync_collection_cache(connection, "carts", updated_at=now)
+            carts = self._refresh_sync_collection_cache(connection, "carts", updated_at=effective_at)
             completed_cart = next((entry for entry in carts if str(entry.get("id")) == clean_cart_id), None)
             if not completed_cart:
                 raise ValueError("Không tìm thấy đơn vừa xuất hàng.")
@@ -6717,7 +7824,7 @@ class InventoryStore:
                 "order": {
                     "order_code": order_code,
                     "customer_name": clean_customer_name,
-                    "created_at": now,
+                    "created_at": effective_at,
                     "transactions": sale_result["transactions"],
                     "total_quantity": sale_result["total_quantity"],
                     "subtotal_amount": sale_result["subtotal_amount"],
@@ -6747,13 +7854,26 @@ class InventoryStore:
         for raw_item in items:
             product_id = int(raw_item.get("product_id", 0))
             quantity = parse_positive_decimal(raw_item.get("quantity"), "Số lượng")
+            input_quantity = parse_positive_decimal(
+                raw_item.get("input_quantity") or raw_item.get("inputQuantity") or raw_item.get("quantity"),
+                "Số lượng theo đơn vị nhập",
+            )
+            conversion_factor = parse_positive_decimal(
+                raw_item.get("conversion_factor") or raw_item.get("conversionFactor") or 1,
+                "Hệ số quy đổi",
+            )
+            if round(input_quantity * conversion_factor, 4) != round(quantity, 4):
+                raise ValueError("Số lượng nhập và số lượng cơ sở không khớp hệ số quy đổi.")
             unit_cost = parse_non_negative_decimal(raw_item.get("unit_cost", 0), "Giá nhập")
             parsed_items.append(
                 {
                     "purchase_item_id": str(raw_item.get("purchase_item_id") or raw_item.get("purchaseItemId") or raw_item.get("id") or "").strip(),
                     "product_id": product_id,
                     "quantity": quantity,
+                    "input_quantity": input_quantity,
+                    "conversion_factor": conversion_factor,
                     "unit_cost": unit_cost,
+                    "discount_amount": parse_non_negative_decimal(raw_item.get("discount_amount") or raw_item.get("discountAmount") or 0, "Khuyến mại dòng"),
                     "product_name": str(raw_item.get("product_name") or raw_item.get("productName") or "").strip(),
                     "batch_code": str(raw_item.get("batch_code") or raw_item.get("batchCode") or "").strip(),
                     "expiry_input_mode": raw_item.get("expiry_input_mode") or raw_item.get("expiryInputMode") or "direct",
@@ -6766,7 +7886,7 @@ class InventoryStore:
         receipt_suffix = hashlib.sha1(f"{clean_supplier_name}-{clean_note}-{now}".encode("utf-8")).hexdigest()[:6]
         receipt_code = f"PN-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{receipt_suffix}"
         normalized_items: list[dict] = []
-        grouped_items: dict[tuple[int, str, str, str, str], dict] = {}
+        grouped_items: dict[tuple[int, str, str, str, str, Decimal, Decimal], dict] = {}
         for raw_item in parsed_items:
             product_id = int(raw_item["product_id"])
             product = self._get_product_or_raise(connection, product_id)
@@ -6781,7 +7901,10 @@ class InventoryStore:
                 "product_id": product_id,
                 "product_name": str(raw_item.get("product_name") or product["name"]).strip() or str(product["name"]),
                 "quantity": raw_item["quantity"],
+                "input_quantity": raw_item["input_quantity"],
+                "conversion_factor": raw_item["conversion_factor"],
                 "unit_cost": raw_item["unit_cost"],
+                "discount_amount": raw_item["discount_amount"],
                 "batch_code": str(raw_item.get("batch_code") or "").strip(),
                 "expiry_input_mode": expiry_metadata["expiry_input_mode"],
                 "manufacture_date": expiry_metadata["manufacture_date"],
@@ -6796,11 +7919,14 @@ class InventoryStore:
                 normalized_item["expiry_input_mode"],
                 normalized_item["manufacture_date"] or "",
                 normalized_item["expiry_date"] or "",
+                normalized_item["conversion_factor"],
+                normalized_item["unit_cost"],
             )
             existing = grouped_items.get(item_key)
             if existing:
                 existing["quantity"] += normalized_item["quantity"]
-                existing["unit_cost"] = normalized_item["unit_cost"]
+                existing["input_quantity"] += normalized_item["input_quantity"]
+                existing["discount_amount"] += normalized_item["discount_amount"]
             else:
                 grouped_items[item_key] = normalized_item
         normalized_items.extend(grouped_items.values())
@@ -6808,12 +7934,13 @@ class InventoryStore:
         transactions = []
         subtotal_amount = Decimal("0")
         total_quantity = Decimal("0")
+        subtotal_amount = sum(
+            max(Decimal("0"), item["input_quantity"] * item["unit_cost"] - item.get("discount_amount", Decimal("0")))
+            for item in normalized_items
+        )
         validated_discount_amount = self._validate_discount_amount(
             discount_amount,
-            sum(
-                item["quantity"] * item["unit_cost"]
-                for item in normalized_items
-            ),
+            subtotal_amount,
             "Giảm giá khuyến mại phiếu nhập",
         )
         receipt_id = self._insert_inventory_receipt(
@@ -6829,8 +7956,9 @@ class InventoryStore:
         for line_index, item in enumerate(normalized_items, start=1):
             product_id = int(item["product_id"])
             product = self._get_product_or_raise(connection, product_id)
-            line_total = item["quantity"] * item["unit_cost"]
-            subtotal_amount += line_total
+            item_discount = item.get("discount_amount", Decimal("0"))
+            line_total = max(Decimal("0"), item["input_quantity"] * item["unit_cost"] - item_discount)
+            base_unit_cost = item["unit_cost"] / item["conversion_factor"]
             total_quantity += item["quantity"]
             resolved_batch_code = self._resolve_batch_code(
                 item.get("batch_code", ""),
@@ -6841,6 +7969,8 @@ class InventoryStore:
             transaction_note = f"Phiếu nhập {receipt_code}"
             if clean_supplier_name:
                 transaction_note += f" | NCC: {clean_supplier_name}"
+            if item_discount > 0:
+                transaction_note += f" | Giảm KM dòng: {float(item_discount):.0f}"
             if validated_discount_amount > 0:
                 transaction_note += f" | Giảm giá KM: {validated_discount_amount:.0f}"
             if clean_note:
@@ -6863,7 +7993,7 @@ class InventoryStore:
                 connection,
                 product=product,
                 quantity=item["quantity"],
-                unit_cost=item["unit_cost"],
+                unit_cost=base_unit_cost,
                 received_at=now,
                 source_receipt_code=receipt_code,
                 source_receipt_type="purchase",
@@ -6877,7 +8007,7 @@ class InventoryStore:
 
             connection.execute(
                 "UPDATE products SET price = ?, updated_at = ? WHERE id = ?",
-                (float(item["unit_cost"]), now, product_id),
+                (float(base_unit_cost), now, product_id),
             )
 
             current_stock = self._get_stock_for_product(connection, product_id)
@@ -6889,6 +8019,7 @@ class InventoryStore:
                     "unit": product["unit"],
                     "quantity": float(item["quantity"]),
                     "unit_cost": float(item["unit_cost"]),
+                    "base_unit_cost": round(float(base_unit_cost), 2),
                     "line_total": round(float(line_total), 2),
                     "current_stock": round(float(current_stock), 2),
                     "batch_code": created_batch["batch_code"],
@@ -6905,7 +8036,7 @@ class InventoryStore:
                 unit=product["unit"],
                 transaction_type="in",
                 quantity=round(float(item["quantity"]), 2),
-                unit_amount=round(float(item["unit_cost"]), 2),
+                unit_amount=round(float(base_unit_cost), 2),
                 line_total=round(float(line_total), 2),
                 stock_after=round(float(current_stock), 2),
                 transaction_id=cursor.lastrowid,
@@ -7016,6 +8147,8 @@ class InventoryStore:
                     "product_id": item.get("productId") or item.get("product_id"),
                     "product_name": item.get("productName") or item.get("product_name") or "",
                     "quantity": item.get("quantity"),
+                    "input_quantity": item.get("inputQuantity", item.get("input_quantity", item.get("quantity"))),
+                    "conversion_factor": item.get("conversionFactor", item.get("conversion_factor", 1)),
                     "unit_cost": item.get("unitCost", item.get("unit_cost", 0)),
                     "batch_code": item.get("batchCode") or item.get("batch_code") or "",
                     "expiry_input_mode": item.get("expiryInputMode") or item.get("expiry_input_mode") or "direct",
@@ -7080,6 +8213,7 @@ class InventoryStore:
             "purchase": self._get_purchase_document(connection, clean_purchase_id),
         }
 
+    # Issue 169: Cho phép chọn ngày nhập khi chuyển trạng thái sang đã nhập hàng
     def receive_purchase(
         self,
         purchase_id: str,
@@ -7087,11 +8221,17 @@ class InventoryStore:
         discount_amount=None,
         actor_username: str = "",
         actor_role: str = "",
+        received_at: str = "",
+        received_date: str = "",
     ) -> dict:
         clean_purchase_id = str(purchase_id or "").strip()
         if not clean_purchase_id:
             raise ValueError("Thiếu mã phiếu nhập cần nhập kho.")
 
+        effective_at = (
+            self._normalize_document_event_at(received_at or received_date, "Ngày nhập")
+            or utc_now_iso()
+        )
         actor = str(actor_username or "").strip()
         with self._connect() as connection:
             result = self._receive_purchase_in_connection(
@@ -7101,7 +8241,7 @@ class InventoryStore:
                 actor=actor,
                 actor_username=actor_username,
                 actor_role=actor_role,
-                received_at=utc_now_iso(),
+                received_at=effective_at,
             )
             canonical = self._refresh_sync_collection_cache(
                 connection,
@@ -7116,6 +8256,85 @@ class InventoryStore:
             "purchase": purchase,
             "purchases": canonical,
         }
+
+    def update_cart_item(self, cart_id: str, item_id: str, payload: dict, *, actor: str = "") -> dict:
+        """#Issue133: Save one existing line atomically; never replace the carts collection."""
+        allowed_fields = {"cart_id", "item_id", "expected_updated_at", "quantity", "input_quantity", "input_unit", "conversion_factor", "unit_price", "discount_amount", "discountAmount"}
+        if set(payload) - allowed_fields:
+            raise ValueError("API lưu dòng chỉ nhận dữ liệu của một dòng hàng.")
+        clean_cart_id = str(cart_id or "").strip()
+        clean_item_id = str(item_id or "").strip()
+        expected = str(payload.get("expected_updated_at") or "").strip()
+        if not clean_cart_id or not clean_item_id or not expected:
+            raise ValueError("Thiếu mã đơn, mã dòng hoặc phiên bản đơn cần lưu.")
+
+        def decimal_field(key, label, *, allow_zero=False):
+            try:
+                value = Decimal(str(payload.get(key)))
+            except Exception as exc:
+                raise ValueError(f"{label} không hợp lệ.") from exc
+            if not value.is_finite() or not math.isfinite(float(value)) or value < 0 or (not allow_zero and float(value) == 0):
+                raise ValueError(f"{label} không hợp lệ.")
+            return value
+
+        quantity = decimal_field("quantity", "Số lượng cơ sở")
+        input_quantity = decimal_field("input_quantity", "Số lượng nhập")
+        factor = decimal_field("conversion_factor", "Hệ số quy đổi")
+        price = decimal_field("unit_price", "Giá bán", allow_zero=True)
+        discount_amount = parse_non_negative_decimal(
+            payload.get("discount_amount", payload.get("discountAmount", 0)) or 0,
+            "Khuyến mại dòng",
+        )
+        if discount_amount > input_quantity * price:
+            raise ValueError("Khuyến mại dòng không được lớn hơn thành tiền của sản phẩm.")
+        unit = str(payload.get("input_unit") or "").strip()
+        try:
+            quantities_match = round(quantity / factor, 4) == round(input_quantity, 4)
+        except ArithmeticError as exc:
+            raise ValueError("Số lượng hoặc hệ số quy đổi vượt phạm vi tính toán.") from exc
+        if not quantities_match:
+            raise ValueError("Số lượng nhập và số lượng cơ sở không khớp hệ số quy đổi.")
+
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            previous = self._get_cart_document(connection, clean_cart_id)
+            if previous["status"] not in {"draft", "committed"}:
+                raise ValueError("Chỉ được lưu dòng của đơn nháp hoặc đã chốt; đơn đã xuất/đã hủy đã khóa.")
+            if self.enable_multiuser_conflict_check and expected != previous["updatedAt"]:
+                raise SyncConflictError("carts", expected, previous["updatedAt"])
+            item = next((entry for entry in previous["items"] if entry["id"] == clean_item_id), None)
+            if item is None:
+                raise ValueError("Dòng hàng không thuộc đơn đang mở.")
+            product = self._get_product_or_raise(connection, item["productId"])
+            base_unit = str(product["unit"] or "")
+            # Accept the historical snapshot or a currently configured unit; never trust a client factor alone.
+            valid_units = {(base_unit, Decimal(1))}
+            valid_units.add((str(item.get("inputUnit") or base_unit), Decimal(str(item.get("conversionFactor") or 1))))
+            for row in connection.execute(
+                "SELECT from_unit, conversion_factor FROM product_unit_conversion WHERE product_id = ? AND is_active = 1",
+                (item["productId"],),
+            ):
+                valid_units.add((str(row["from_unit"]), Decimal(str(row["conversion_factor"]))))
+            if (unit, factor) not in valid_units:
+                raise ValueError("Đơn vị hoặc hệ số quy đổi không hợp lệ cho mặt hàng này.")
+            updated_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+            connection.execute(
+                """UPDATE cart_items SET quantity = ?, unit_price = ?, discount_amount = ?, input_quantity = ?, input_unit = ?, conversion_factor = ?
+                   WHERE cart_id = ? AND id = ?""",
+                (float(quantity), float(price), float(discount_amount), float(input_quantity), unit, float(factor), clean_cart_id, clean_item_id),
+            )
+            connection.execute("UPDATE carts SET updated_at = ? WHERE id = ?", (updated_at, clean_cart_id))
+            current = self._get_cart_document(connection, clean_cart_id)
+            self._validate_cart_workflow_locks([previous], [current])
+            self._record_cart_change_history(connection, previous=previous, current=current, actor=actor, created_at=updated_at)
+            self._record_audit(
+                connection, entity_type="cart", entity_id=clean_cart_id,
+                entity_name=str(current.get("orderCode") or clean_cart_id), action="edit-item", actor=actor,
+                message=f"Lưu dòng {clean_item_id}: SL {input_quantity} {unit}, hệ số {factor}, SL cơ sở {quantity}, giá {price}, giảm KM {discount_amount}.",
+            )
+            self._refresh_sync_collection_cache(connection, "carts", updated_at=updated_at)
+        log_info(f"Saved cart item: cart_id={clean_cart_id}, item_id={clean_item_id}, actor={actor}")
+        return {"message": "Đã lưu dòng.", "cart": current}
 
     def update_cart_payment(
         self,
@@ -7401,11 +8620,13 @@ class InventoryStore:
         document_date: str = "",
         note: str = "",
         items: list[dict] | None = None,
+        discount_amount: float = 0,
         final_status: str = "completed",
         mark_paid: bool = False,
         payment_method: str = "",
         payment_note: str = "",
         actor_username: str = "",
+        target_cart_id: str = "",
     ) -> dict:
         clean_final_status = self._normalize_quick_sale_final_status(final_status)
         if mark_paid and clean_final_status != "completed":
@@ -7413,6 +8634,7 @@ class InventoryStore:
         effective_at = self._normalize_document_event_at(document_date, "Ngày xuất") or utc_now_iso()
         clean_note = str(note or "").strip()
         clean_actor = str(actor_username or "").strip()
+        clean_target_cart_id = str(target_cart_id or "").strip()
         with self._connect() as connection:
             resolved_customer = self._ensure_customer_for_bulk_order(
                 connection,
@@ -7424,26 +8646,54 @@ class InventoryStore:
             if not grouped_items:
                 raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
             cart_items = self._build_cart_items_from_grouped_sale_items(connection, grouped_items)
-            cart_id = f"cart_{secrets.token_hex(6)}"
-            connection.execute(
-                """
-                INSERT INTO carts(
-                    id, customer_id, customer_name, created_mode, status, payment_status, payment_method, payment_note,
-                    note, discount_amount, ship_address, created_at, updated_at,
-                    committed_at, completed_at, cancelled_at, paid_at, order_code
+            
+            if clean_target_cart_id:
+                try:
+                    existing_cart = self._get_cart_document(connection, clean_target_cart_id)
+                    existing_status = str(existing_cart.get("status") or "").strip()
+                    if existing_status in {"completed", "cancelled"}:
+                        raise ValueError("Không thể ghi đè lên đơn đã xuất hàng hoặc đã hủy.")
+                    cart_id = clean_target_cart_id
+                    connection.execute(
+                        """
+                        UPDATE carts
+                        SET customer_id = ?, customer_name = ?, note = ?, discount_amount = ?, ship_address = ?, updated_at = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            str(resolved_customer.get("id") or "").strip(),
+                            str(resolved_customer.get("name") or "").strip(),
+                            clean_note,
+                            float(discount_amount or 0),
+                            str(resolved_customer.get("address") or "").strip(),
+                            effective_at,
+                            cart_id,
+                        ),
+                    )
+                except ValueError as e:
+                    raise ValueError(str(e))
+            else:
+                cart_id = f"cart_{secrets.token_hex(6)}"
+                connection.execute(
+                    """
+                    INSERT INTO carts(
+                        id, customer_id, customer_name, created_mode, status, payment_status, payment_method, payment_note,
+                        note, discount_amount, ship_address, created_at, updated_at,
+                        committed_at, completed_at, cancelled_at, paid_at, order_code
+                    )
+                    VALUES(?, ?, ?, 'quick_export', 'draft', 'unpaid', '', '', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, '')
+                    """,
+                    (
+                        cart_id,
+                        str(resolved_customer.get("id") or "").strip(),
+                        str(resolved_customer.get("name") or "").strip(),
+                        clean_note,
+                        float(discount_amount or 0),
+                        str(resolved_customer.get("address") or "").strip(),
+                        effective_at,
+                        effective_at,
+                    ),
                 )
-                VALUES(?, ?, ?, 'quick_export', 'draft', 'unpaid', '', '', ?, 0, ?, ?, ?, NULL, NULL, NULL, NULL, '')
-                """,
-                (
-                    cart_id,
-                    str(resolved_customer.get("id") or "").strip(),
-                    str(resolved_customer.get("name") or "").strip(),
-                    clean_note,
-                    str(resolved_customer.get("address") or "").strip(),
-                    effective_at,
-                    effective_at,
-                ),
-            )
             self._replace_cart_items(connection, cart_id=cart_id, items=cart_items)
             created_cart = self._get_cart_document(connection, cart_id)
             self._validate_cart_workflow_locks([], [created_cart])
@@ -7452,39 +8702,49 @@ class InventoryStore:
                 entity_type="cart",
                 entity_id=cart_id,
                 entity_name=str(created_cart.get("orderCode") or cart_id).strip(),
-                action="create",
+                action="update" if clean_target_cart_id else "create",
                 actor=clean_actor,
-                message="Tạo đơn bằng Xử lý nhanh xuất hàng.",
+                message="Sửa đơn bằng Xử lý nhanh xuất hàng." if clean_target_cart_id else "Tạo đơn bằng Xử lý nhanh xuất hàng.",
             )
             self._record_cart_change_history(
                 connection,
-                previous=None,
+                previous=existing_cart if clean_target_cart_id else None,
                 current=created_cart,
                 actor=clean_actor,
                 created_at=effective_at,
-                note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
             )
 
             current_cart = created_cart
             order_payload = None
             if clean_final_status in {"committed", "completed"}:
-                current_cart = self._commit_cart_order_in_connection(
-                    connection,
-                    cart_id,
-                    actor=clean_actor,
-                    committed_at=effective_at,
-                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
-                )
+                if not (clean_target_cart_id and existing_status == "committed"):
+                    current_cart = self._commit_cart_order_in_connection(
+                        connection,
+                        cart_id,
+                        actor=clean_actor,
+                        committed_at=effective_at,
+                        history_note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
+                    )
             if clean_final_status == "completed":
                 ship_result = self._ship_cart_order_in_connection(
                     connection,
                     cart_id,
                     actor=clean_actor,
                     shipped_at=effective_at,
-                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                    history_note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
                 )
                 current_cart = ship_result["cart"]
                 order_payload = ship_result["order"]
+            elif clean_target_cart_id and existing_status == "committed":
+                grouped_items = self._group_sale_items(cart_items)
+                shortages = self._collect_committed_availability_shortages(
+                    connection,
+                    grouped_items,
+                    exclude_cart_id=clean_target_cart_id,
+                )
+                if shortages:
+                    raise ValueError(shortages[0]["message"])
             if mark_paid:
                 current_cart = self._apply_cart_payment_in_connection(
                     connection,
@@ -7495,7 +8755,7 @@ class InventoryStore:
                     payment_note=payment_note,
                     actor=clean_actor,
                     updated_at=effective_at,
-                    history_note_prefix="Tạo bằng Xử lý nhanh xuất hàng",
+                    history_note_prefix="Sửa bằng Xử lý nhanh xuất hàng" if clean_target_cart_id else "Tạo bằng Xử lý nhanh xuất hàng",
                 )
 
             customers = self._refresh_sync_collection_cache(connection, "customers", updated_at=effective_at)
@@ -7518,12 +8778,14 @@ class InventoryStore:
         document_date: str = "",
         note: str = "",
         items: list[dict] | None = None,
+        discount_amount: float = 0,
         final_status: str = "received",
         mark_paid: bool = False,
         payment_method: str = "",
         payment_note: str = "",
         actor_username: str = "",
         actor_role: str = "",
+        target_purchase_id: str = "",
     ) -> dict:
         clean_final_status = self._normalize_quick_purchase_final_status(final_status)
         if mark_paid and clean_final_status != "received":
@@ -7531,6 +8793,7 @@ class InventoryStore:
         effective_at = self._normalize_document_event_at(document_date, "Ngày nhập") or utc_now_iso()
         clean_note = str(note or "").strip()
         clean_actor = str(actor_username or "").strip()
+        clean_target_purchase_id = str(target_purchase_id or "").strip()
         with self._connect() as connection:
             resolved_supplier = self._ensure_supplier_for_quick_purchase(
                 connection,
@@ -7541,25 +8804,82 @@ class InventoryStore:
             raw_items = items or []
             if not raw_items:
                 raise ValueError("Phiếu nhập phải có ít nhất một mặt hàng.")
-            purchase_id = f"purchase_{secrets.token_urlsafe(8)}"
-            connection.execute(
-                """
-                INSERT INTO purchases(
-                    id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note,
-                    source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
-                    ordered_at, received_at, cancelled_at, paid_at, receipt_code
+            
+            # #Issue 171: Sửa lỗi nhập hàng xử lý nhanh ko nhập được đơn đang mở
+            existing_purchase = None
+            existing_status = ""
+            if clean_target_purchase_id:
+                try:
+                    existing_purchase = self._get_purchase_document(connection, clean_target_purchase_id)
+                except Exception:
+                    existing_purchase = None
+
+                if existing_purchase:
+                    existing_status = str(existing_purchase.get("status") or "").strip()
+                    if existing_status in {"received", "cancelled"}:
+                        raise ValueError("Không thể ghi đè lên phiếu đã nhập kho hoặc đã hủy.")
+                    purchase_id = clean_target_purchase_id
+                    connection.execute(
+                        """
+                        UPDATE purchases
+                        SET supplier_id = ?, supplier_name = ?, note = ?, discount_amount = ?, updated_at = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            str(resolved_supplier.get("id") or "").strip(),
+                            str(resolved_supplier.get("name") or "").strip(),
+                            clean_note,
+                            float(discount_amount or 0),
+                            effective_at,
+                            purchase_id,
+                        )
+                    )
+                    connection.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
+                else:
+                    # #Issue 171: Nếu đơn nháp client-side chưa được đồng bộ xuống DB, tạo mới bản ghi với ID này
+                    purchase_id = clean_target_purchase_id
+                    connection.execute(
+                        """
+                        INSERT INTO purchases(
+                            id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note,
+                            source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
+                            ordered_at, received_at, cancelled_at, paid_at, receipt_code
+                        )
+                        VALUES(?, ?, ?, 'quick_import', ?, '', '', '', '', '', 'draft', ?, ?, ?, '', NULL, NULL, NULL, '')
+                        """,
+                        (
+                            purchase_id,
+                            str(resolved_supplier.get("id") or "").strip(),
+                            str(resolved_supplier.get("name") or "").strip(),
+                            clean_note,
+                            float(discount_amount or 0),
+                            effective_at,
+                            effective_at,
+                        ),
+                    )
+            else:
+                purchase_id = f"purchase_{secrets.token_urlsafe(8)}"
+                existing_purchase = None
+                existing_status = ""
+                connection.execute(
+                    """
+                    INSERT INTO purchases(
+                        id, supplier_id, supplier_name, created_mode, note, payment_method, payment_note,
+                        source_type, source_code, source_name, status, discount_amount, created_at, updated_at,
+                        ordered_at, received_at, cancelled_at, paid_at, receipt_code
+                    )
+                    VALUES(?, ?, ?, 'quick_import', ?, '', '', '', '', '', 'draft', ?, ?, ?, '', NULL, NULL, NULL, '')
+                    """,
+                    (
+                        purchase_id,
+                        str(resolved_supplier.get("id") or "").strip(),
+                        str(resolved_supplier.get("name") or "").strip(),
+                        clean_note,
+                        float(discount_amount or 0),
+                        effective_at,
+                        effective_at,
+                    ),
                 )
-                VALUES(?, ?, ?, 'quick_import', ?, '', '', '', '', '', 'draft', 0, ?, ?, '', NULL, NULL, NULL, '')
-                """,
-                (
-                    purchase_id,
-                    str(resolved_supplier.get("id") or "").strip(),
-                    str(resolved_supplier.get("name") or "").strip(),
-                    clean_note,
-                    effective_at,
-                    effective_at,
-                ),
-            )
             normalized_items: list[dict] = []
             for index, raw_item in enumerate(raw_items):
                 product_id = int(raw_item.get("productId") or raw_item.get("product_id") or 0)
@@ -7569,6 +8889,40 @@ class InventoryStore:
                     raw_item.get("unitCost", raw_item.get("unit_cost", 0)),
                     "Giá nhập",
                 )
+                item_discount = parse_non_negative_decimal(
+                    raw_item.get("discountAmount", raw_item.get("discount_amount", 0)),
+                    "Khuyến mại dòng",
+                )
+                raw_input_qty = raw_item.get("inputQuantity", raw_item.get("input_quantity"))
+                raw_input_unit = raw_item.get("inputUnit", raw_item.get("input_unit"))
+                raw_conv_factor = raw_item.get("conversionFactor", raw_item.get("conversion_factor"))
+                # #Issue180: Fill omitted purchase unit snapshots from the product's configured default.
+                default_purchase_unit = str(product["default_purchase_unit"] or product["unit"] or "").strip()
+                input_unit = str(raw_input_unit or default_purchase_unit).strip()
+                conversion = None
+                if input_unit and input_unit != str(product["unit"] or ""):
+                    conversion = connection.execute(
+                        "SELECT conversion_factor, price FROM product_unit_conversion WHERE product_id = ? AND from_unit = ? AND is_active = 1 LIMIT 1",
+                        (product_id, input_unit),
+                    ).fetchone()
+                if raw_input_unit is None and input_unit != str(product["unit"] or "") and not conversion:
+                    input_unit = str(product["unit"] or "")
+                input_factor = (
+                    float(raw_conv_factor)
+                    if raw_conv_factor is not None
+                    else float(conversion["conversion_factor"] or 1) if conversion else 1.0
+                )
+                raw_unit_cost = raw_item.get("unitCost", raw_item.get("unit_cost"))
+                if raw_unit_cost is None:
+                    unit_cost = parse_non_negative_decimal(
+                        (conversion["price"] or (float(product["price"] or 0) * input_factor))
+                        if conversion else product["price"] or 0,
+                        "Giá nhập",
+                    )
+                input_qty = parse_positive_decimal(
+                    raw_input_qty if raw_input_qty is not None else quantity,
+                    "Số lượng theo đơn vị nhập",
+                )
                 normalized_items.append(
                     {
                         "id": str(raw_item.get("id") or f"purchase_item_{secrets.token_urlsafe(8)}"),
@@ -7576,13 +8930,17 @@ class InventoryStore:
                         "productName": str(product["name"] or "").strip(),
                         "sourceKind": "extra",
                         "sourceNote": "Tạo bằng Xử lý nhanh nhập hàng",
-                        "quantity": round(float(quantity), 2),
+                        "quantity": round(float(input_qty) * input_factor, 2),
                         "unitCost": round(float(unit_cost), 2),
+                        "discountAmount": round(float(item_discount), 2),
                         "batchCode": str(raw_item.get("batchCode") or raw_item.get("batch_code") or "").strip(),
                         "expiryInputMode": raw_item.get("expiryInputMode") or raw_item.get("expiry_input_mode") or "direct",
                         "manufactureDate": raw_item.get("manufactureDate") or raw_item.get("manufacture_date") or "",
                         "expiryDate": raw_item.get("expiryDate") or raw_item.get("expiry_date") or "",
                         "sortOrder": index,
+                        "inputQuantity": round(float(input_qty), 4),
+                        "inputUnit": input_unit or str(product["unit"] or ""),
+                        "conversionFactor": input_factor,
                     }
                 )
             for index, item in enumerate(normalized_items):
@@ -7590,9 +8948,10 @@ class InventoryStore:
                     """
                     INSERT INTO purchase_items(
                         id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
-                        expiry_input_mode, manufacture_date, expiry_date, sort_order
+                        expiry_input_mode, manufacture_date, expiry_date, sort_order, discount_amount,
+                        input_quantity, input_unit, conversion_factor
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         item["id"],
@@ -7608,6 +8967,10 @@ class InventoryStore:
                         item["manufactureDate"] or None,
                         item["expiryDate"] or None,
                         index,
+                        item["discountAmount"],
+                        item["inputQuantity"],
+                        item["inputUnit"],
+                        item["conversionFactor"],
                     ),
                 )
             created_purchase = self._get_purchase_document(connection, purchase_id)
@@ -7616,70 +8979,71 @@ class InventoryStore:
                 entity_type="purchase",
                 entity_id=purchase_id,
                 entity_name=purchase_id,
-                action="create",
+                action="update" if clean_target_purchase_id else "create",
                 actor=clean_actor,
-                message="Tạo phiếu bằng Xử lý nhanh nhập hàng.",
+                message="Sửa phiếu bằng Xử lý nhanh nhập hàng." if clean_target_purchase_id else "Tạo phiếu bằng Xử lý nhanh nhập hàng.",
             )
             self._record_purchase_change_history(
                 connection,
-                previous=None,
+                previous=existing_purchase if clean_target_purchase_id else None,
                 current=created_purchase,
                 actor=clean_actor,
                 created_at=effective_at,
-                note_prefix="Tạo bằng Xử lý nhanh nhập hàng",
+                note_prefix="Sửa bằng Xử lý nhanh nhập hàng" if clean_target_purchase_id else "Tạo bằng Xử lý nhanh nhập hàng",
             )
 
             current_purchase = created_purchase
             receipt_payload = None
             if clean_final_status in {"ordered", "received"}:
-                ordered_preview = {
-                    **created_purchase,
-                    "status": "ordered",
-                    "orderedAt": effective_at,
-                    "ordered_at": effective_at,
-                    "updatedAt": effective_at,
-                    "updated_at": effective_at,
-                }
-                self._validate_purchase_workflow_locks(
-                    connection,
-                    [],
-                    [ordered_preview],
-                    actor_username=actor_username,
-                    actor_role=actor_role,
-                )
-                connection.execute(
-                    """
-                    UPDATE purchases
-                    SET status = 'ordered',
-                        updated_at = ?,
-                        ordered_at = ?
-                    WHERE id = ?
-                    """,
-                    (effective_at, effective_at, purchase_id),
-                )
-                ordered_purchase = self._get_purchase_document(connection, purchase_id)
-                self._record_audit(
-                    connection,
-                    entity_type="purchase",
-                    entity_id=purchase_id,
-                    entity_name=purchase_id,
-                    action="status-change",
-                    actor=clean_actor,
-                    message="Trạng thái phiếu nhập đổi từ draft sang ordered.",
-                )
-                self._record_entity_change(
-                    connection,
-                    entity_type="purchase",
-                    entity_id=purchase_id,
-                    entity_code=purchase_id,
-                    action="status-change",
-                    actor=clean_actor,
-                    before_status="draft",
-                    after_status="ordered",
-                    note="Tạo bằng Xử lý nhanh nhập hàng. Đặt hàng.",
-                    created_at=effective_at,
-                )
-                current_purchase = ordered_purchase
+                if not (clean_target_purchase_id and existing_status == "ordered"):
+                    ordered_preview = {
+                        **created_purchase,
+                        "status": "ordered",
+                        "orderedAt": effective_at,
+                        "ordered_at": effective_at,
+                        "updatedAt": effective_at,
+                        "updated_at": effective_at,
+                    }
+                    self._validate_purchase_workflow_locks(
+                        connection,
+                        [],
+                        [ordered_preview],
+                        actor_username=actor_username,
+                        actor_role=actor_role,
+                    )
+                    connection.execute(
+                        """
+                        UPDATE purchases
+                        SET status = 'ordered',
+                            updated_at = ?,
+                            ordered_at = ?
+                        WHERE id = ?
+                        """,
+                        (effective_at, effective_at, purchase_id),
+                    )
+                    ordered_purchase = self._get_purchase_document(connection, purchase_id)
+                    self._record_audit(
+                        connection,
+                        entity_type="purchase",
+                        entity_id=purchase_id,
+                        entity_name=purchase_id,
+                        action="status-change",
+                        actor=clean_actor,
+                        message="Trạng thái phiếu nhập đổi từ draft sang ordered.",
+                    )
+                    self._record_entity_change(
+                        connection,
+                        entity_type="purchase",
+                        entity_id=purchase_id,
+                        entity_code=purchase_id,
+                        action="status-change",
+                        actor=clean_actor,
+                        before_status="draft",
+                        after_status="ordered",
+                        note=("Sửa bằng Xử lý nhanh nhập hàng. Đặt hàng." if clean_target_purchase_id else "Tạo bằng Xử lý nhanh nhập hàng. Đặt hàng."),
+                        created_at=effective_at,
+                    )
+                    current_purchase = ordered_purchase
             if clean_final_status == "received":
                 receive_result = self._receive_purchase_in_connection(
                     connection,
@@ -7794,7 +9158,8 @@ class InventoryStore:
                 """
                 SELECT
                     id, purchase_id, product_id, product_name, quantity, unit_cost, batch_code,
-                    expiry_input_mode, manufacture_date, expiry_date, sort_order
+                    expiry_input_mode, manufacture_date, expiry_date, sort_order,
+                    input_quantity, input_unit, conversion_factor
                 FROM purchase_items
                 WHERE purchase_id = ?
                 ORDER BY sort_order, id
@@ -9042,6 +10407,20 @@ class InventoryStore:
         if not items:
             raise ValueError("Phiếu trả hàng khách đang trống.")
 
+        if clean_source_type and clean_source_code:
+            with self._connect() as connection:
+                existing = connection.execute(
+                    """
+                    SELECT receipt_code FROM inventory_receipts
+                    WHERE source_type = ? AND source_code = ? AND receipt_type = 'customer_return'
+                    """,
+                    (clean_source_type, clean_source_code),
+                ).fetchone()
+                if existing:
+                    raise ValueError(
+                        f"Chứng từ {clean_source_code} đã có phiếu trả hàng ({existing['receipt_code']}). Không thể trả hàng nhiều lần."
+                    )
+
         grouped_items: dict[tuple[int, str, str], dict] = {}
         for raw_item in items:
             product_id = int(raw_item.get("product_id", 0))
@@ -9210,6 +10589,20 @@ class InventoryStore:
             raise ValueError("Nhà cung cấp là bắt buộc.")
         if not items:
             raise ValueError("Phiếu trả NCC đang trống.")
+
+        if clean_source_type and clean_source_code:
+            with self._connect() as connection:
+                existing = connection.execute(
+                    """
+                    SELECT receipt_code FROM inventory_receipts
+                    WHERE source_type = ? AND source_code = ? AND receipt_type = 'supplier_return'
+                    """,
+                    (clean_source_type, clean_source_code),
+                ).fetchone()
+                if existing:
+                    raise ValueError(
+                        f"Chứng từ {clean_source_code} đã có phiếu trả NCC ({existing['receipt_code']}). Không thể trả hàng nhiều lần."
+                    )
 
         grouped_items: dict[tuple[int, str], dict] = {}
         for raw_item in items:
@@ -9449,11 +10842,13 @@ class InventoryStore:
         product_ids = [int(row["id"]) for row in rows]
         metric_map = self._build_product_metric_map(connection, product_ids)
         batch_map = self._build_batch_map_for_products(connection, product_ids)
+        unit_map = self._build_unit_conversions_map(connection, product_ids)
         return [
             self._serialize_product_row(
                 row,
                 metric_map.get(int(row["id"]), {}),
                 batch_map.get(int(row["id"]), []),
+                unit_map.get(int(row["id"]), []),
             )
             for row in rows
         ]
@@ -9463,6 +10858,7 @@ class InventoryStore:
         row: sqlite3.Row,
         metrics: dict | None = None,
         lots: list[dict] | None = None,
+        unit_conversions: list[dict] | None = None,
     ) -> dict:
         metrics = metrics or {}
         lots = lots or []
@@ -9497,6 +10893,12 @@ class InventoryStore:
         expiry_basis = "unknown"
         next_expiry_date = ""
         known_expiry_lots = [lot for lot in lots if lot.get("expiry_date")]
+        
+        try:
+            images = json.loads(row["images"]) if "images" in row.keys() else []
+        except (json.JSONDecodeError, KeyError):
+            images = []
+            
         if known_expiry_lots:
             earliest_lot = known_expiry_lots[0]
             estimated_remaining_days = earliest_lot.get("days_to_expiry")
@@ -9520,6 +10922,7 @@ class InventoryStore:
                 expiry_basis = "storage_life"
         return {
             "id": row["id"],
+            "global_id": row["global_id"] if "global_id" in row.keys() else None,
             "name": row["name"],
             "category": row["category"],
             "unit": row["unit"],
@@ -9529,6 +10932,7 @@ class InventoryStore:
             "shelf_life_days": shelf_life_days,
             "storage_life_days": storage_life_days,
             "current_stock": current_stock,
+            "incoming_open_purchases": float(row["incoming_open_purchases"]) if "incoming_open_purchases" in row.keys() else 0.0,
             "inventory_value": round(current_stock * price, 2),
             "sales_6m_total": sales_6m_total,
             "sales_6m_avg": sales_6m_avg,
@@ -9547,6 +10951,15 @@ class InventoryStore:
             "lots": lots,
             "has_unknown_expiry_lots": any(not lot.get("expiry_date") for lot in lots),
             "is_low_stock": current_stock <= threshold,
+            "images": images,
+            "details": row["details"] if "details" in row.keys() else "",
+            "recipe": row["recipe"] if "recipe" in row.keys() else "",
+            "unit_conversions": unit_conversions or [],
+            "default_purchase_unit": str(row["default_purchase_unit"]).strip() if "default_purchase_unit" in row.keys() and row["default_purchase_unit"] else row["unit"],
+            "default_sale_unit": str(row["default_sale_unit"]).strip() if "default_sale_unit" in row.keys() and row["default_sale_unit"] else row["unit"],
+            "note": row["note"] if "note" in row.keys() else "",
+            # Consumers need the persisted flag both to restore the edit checkbox and to filter public products.
+            "is_public": bool(row["is_public"]) if "is_public" in row.keys() else True,
             "is_deleted": bool(row["is_deleted"]),
             "deleted_at": row["deleted_at"],
             "created_at": row["created_at"],
@@ -9808,7 +11221,8 @@ class InventoryStore:
             SELECT
                 p.id, p.name, p.category, p.unit, p.price, p.sale_price,
                 p.low_stock_threshold, p.shelf_life_days, p.storage_life_days,
-                p.is_deleted, p.deleted_at, p.created_at, p.updated_at,
+                p.is_public, p.is_deleted, p.deleted_at, p.created_at, p.updated_at,
+                COALESCE((SELECT SUM(pi.quantity) FROM purchase_items pi JOIN purchases pur ON pi.purchase_id = pur.id WHERE pi.product_id = p.id AND pur.status = 'ordered'), 0) AS incoming_open_purchases,
                 COALESCE(SUM(CASE WHEN t.transaction_type = 'in' THEN t.quantity ELSE -t.quantity END), 0) AS current_stock
             FROM products p
             LEFT JOIN transactions t ON t.product_id = p.id
@@ -10190,9 +11604,9 @@ class InventoryStore:
                     """
                     INSERT INTO purchase_items(
                         id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
-                        expiry_input_mode, manufacture_date, expiry_date, sort_order
+                        expiry_input_mode, manufacture_date, expiry_date, sort_order, discount_amount
                     )
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, '', 'direct', NULL, NULL, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, '', 'direct', NULL, NULL, ?, 0)
                     """,
                     (
                         f"purchase_item_{secrets.token_urlsafe(8)}",
@@ -10217,7 +11631,7 @@ class InventoryStore:
                 next_discount = Decimal(str(current_purchase["discount_amount"] or 0)) + line_discount
                 next_subtotal = connection.execute(
                     """
-                    SELECT COALESCE(SUM(quantity * unit_cost), 0) AS subtotal
+                    SELECT COALESCE(SUM(COALESCE(input_quantity, quantity) * unit_cost), 0) AS subtotal
                     FROM purchase_items
                     WHERE purchase_id = ?
                     """,
@@ -11136,8 +12550,6 @@ class InventoryStore:
                     raise ValueError("Đơn hàng đã thanh toán không thể sửa ngược trạng thái.")
                 if previous_payment_status == "paid" and self._get_cart_discount_amount(previous) != self._get_cart_discount_amount(cart):
                     raise ValueError("Đơn hàng đã thanh toán không thể sửa giảm giá khuyến mại.")
-                if previous_payment_status == "paid" and self._get_cart_note(previous) != self._get_cart_note(cart):
-                    raise ValueError("Đơn hàng đã thanh toán không thể sửa ghi chú.")
             elif previous_status == "cancelled":
                 if next_status != "cancelled":
                     raise ValueError("Giỏ hàng đã hủy không thể mở lại hoặc sửa trực tiếp.")
@@ -11145,8 +12557,6 @@ class InventoryStore:
                     raise ValueError("Giỏ hàng đã hủy không thể sửa trực tiếp.")
                 if self._get_cart_discount_amount(previous) != self._get_cart_discount_amount(cart):
                     raise ValueError("Giỏ hàng đã hủy không thể sửa giảm giá khuyến mại.")
-                if self._get_cart_note(previous) != self._get_cart_note(cart):
-                    raise ValueError("Giỏ hàng đã hủy không thể sửa ghi chú.")
                 if next_payment_status != previous_payment_status:
                     raise ValueError("Giỏ hàng đã hủy không thể đổi trạng thái thanh toán.")
 
@@ -11182,7 +12592,6 @@ class InventoryStore:
             return False
         lock_started_at = self._parse_iso_datetime(active_lock.get("acquired_at") or "")
         purchase_ordered_at = self._resolve_purchase_ordered_at_for_batch_check(previous_purchase)
-        print(f"[DEBUG_LOCK] lock_started_at={lock_started_at}, purchase_ordered_at={purchase_ordered_at}", flush=True)
         if not lock_started_at or not purchase_ordered_at or purchase_ordered_at >= lock_started_at:
             return False
         if self._snapshot_purchase_for_receive_lock(previous_purchase or {}) != self._snapshot_purchase_for_receive_lock(next_purchase or {}):
@@ -11232,9 +12641,9 @@ class InventoryStore:
 
             if previous_status == "received":
                 if next_status not in {"received", "paid"}:
-                    raise ValueError("Phiếu nhập đã nhập kho không thể hạ trạng thái hoặc mở lại nháp.")
+                    raise ValueError("purchase_already_received_desync: Phiếu nhập đã nhập kho không thể hạ trạng thái hoặc mở lại nháp.")
                 if self._snapshot_purchase_for_receive_lock(previous) != self._snapshot_purchase_for_receive_lock(purchase):
-                    raise ValueError("Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
+                    raise ValueError("purchase_already_received_desync: Phiếu nhập đã nhập kho không thể sửa trực tiếp. Hãy dùng chứng từ điều chỉnh mới.")
                 if next_status == "received":
                     continue
 
@@ -11364,7 +12773,6 @@ class InventoryStore:
         return {
             "supplierId": str(purchase.get("supplierId") or ""),
             "supplierName": str(purchase.get("supplierName") or ""),
-            "note": str(purchase.get("note") or ""),
             "sourceType": str(purchase.get("sourceType") or purchase.get("source_type") or ""),
             "sourceCode": str(purchase.get("sourceCode") or purchase.get("source_code") or ""),
             "sourceName": str(purchase.get("sourceName") or purchase.get("source_name") or ""),
@@ -11447,8 +12855,9 @@ class InventoryStore:
         raise ValueError("Loại dữ liệu master không hợp lệ.")
 
     def _import_products_master(self, records: list[dict], *, actor: str = "") -> dict:
-        summary = {"created": 0, "updated": 0, "restored": 0, "skipped": 0}
+        summary = {"created": 0, "updated": 0, "restored": 0, "deleted": 0, "skipped": 0}
         products = self.get_products(include_deleted=True)
+        by_global_id = {product["global_id"]: product for product in products if product.get("global_id")}
         by_name = {normalize_key(product["name"]): product for product in products}
 
         for record in records:
@@ -11459,15 +12868,37 @@ class InventoryStore:
             threshold = record.get("low_stock_threshold", 5)
             shelf_life_days = record.get("shelf_life_days")
             storage_life_days = record.get("storage_life_days")
+
+            raw_images = str(record.get("images") or "").strip()
+            if raw_images:
+                try:
+                    images = json.loads(raw_images)
+                    if not isinstance(images, list):
+                        images = [raw_images]
+                except json.JSONDecodeError:
+                    images = [raw_images]
+            else:
+                images = []
+
+            details = str(record.get("details") or "").strip()
+            recipe = str(record.get("recipe") or "").strip()
+            note = str(record.get("note") or "").strip()
+            is_deleted_str = str(record.get("is_deleted") or "").strip().lower()
+            wants_deleted = is_deleted_str in ("1", "true", "yes")
+
+            global_id = str(record.get("global_id") or "").strip()
+
             if not name:
                 summary["skipped"] += 1
                 continue
 
-            existing = by_name.get(normalize_key(name))
+            existing = None
+            if global_id and global_id in by_global_id:
+                existing = by_global_id[global_id]
+            elif normalize_key(name) in by_name:
+                existing = by_name[normalize_key(name)]
+
             if existing:
-                if existing.get("is_deleted"):
-                    self.restore_product(existing["id"], actor=actor)
-                    summary["restored"] += 1
                 self.update_product(
                     existing["id"],
                     name=name,
@@ -11478,10 +12909,20 @@ class InventoryStore:
                     low_stock_threshold=threshold,
                     shelf_life_days=shelf_life_days,
                     storage_life_days=storage_life_days,
+                    images=images,
+                    details=details,
+                    recipe=recipe,
+                    note=note,
+                    is_public=bool(record.get("is_public", 1)),
                     actor=actor,
+                    allow_deleted=True,
+                    global_id=global_id if global_id else None,
                 )
                 summary["updated"] += 1
-                by_name[normalize_key(name)] = self.get_product_by_id(existing["id"])
+                updated_prod = self.get_product_by_id(existing["id"], allow_deleted=True)
+                by_name[normalize_key(name)] = updated_prod
+                if updated_prod.get("global_id"):
+                    by_global_id[updated_prod["global_id"]] = updated_prod
             else:
                 created = self.create_product(
                     name=name,
@@ -11492,32 +12933,62 @@ class InventoryStore:
                     low_stock_threshold=threshold,
                     shelf_life_days=shelf_life_days,
                     storage_life_days=storage_life_days,
+                    images=images,
+                    details=details,
+                    recipe=recipe,
+                    note=note,
+                    is_public=bool(record.get("is_public", 1)),
                     actor=actor,
+                    global_id=global_id,
                 )
+                if wants_deleted:
+                    self.delete_product(created["id"], actor=actor)
+                    summary["deleted"] += 1
                 summary["created"] += 1
                 by_name[normalize_key(name)] = created
+                if created.get("global_id"):
+                    by_global_id[created["global_id"]] = created
 
         return summary
 
     def _import_sync_master(self, state_key: str, records: list[dict], *, actor: str = "") -> dict:
         existing = self._get_sync_collection(state_key)
-        active_items = {normalize_key(item.get("name")): item for item in existing if item.get("name")}
+        final_items_by_id = {}
+        final_items_by_name = {}
+        for item in existing:
+            if item.get("id"):
+                final_items_by_id[item["id"]] = item
+            elif item.get("name"):
+                final_items_by_name[normalize_key(item["name"])] = item
+
         summary = {"created": 0, "updated": 0, "restored": 0, "skipped": 0}
 
         for record in records:
             name = str(record.get("name") or "").strip()
+            record_id = str(record.get("id") or "").strip()
+            
             if not name:
                 summary["skipped"] += 1
                 continue
-            normalized = normalize_key(name)
-            previous = active_items.get(normalized)
+                
+            previous = None
+            if record_id and record_id in final_items_by_id:
+                previous = final_items_by_id[record_id]
+            elif normalize_key(name) in final_items_by_name:
+                previous = final_items_by_name[normalize_key(name)]
+            elif not record_id:
+                for item in final_items_by_id.values():
+                    if normalize_key(item.get("name")) == normalize_key(name):
+                        previous = item
+                        break
+
             payload = {
                 **(previous or {}),
                 **record,
-                "id": (previous or {}).get("id") or record.get("id") or f"{state_key}_{secrets.token_hex(6)}",
+                "id": (previous or {}).get("id") or record_id or f"{state_key}_{secrets.token_hex(6)}",
                 "name": name,
-                "deletedAt": None,
-                "deleted_at": None,
+                "deletedAt": record.get("deletedAt") or record.get("deleted_at") or None,
+                "deleted_at": record.get("deletedAt") or record.get("deleted_at") or None,
                 "updatedAt": utc_now_iso(),
             }
             if not previous:
@@ -11527,9 +12998,12 @@ class InventoryStore:
                 if previous.get("deletedAt") or previous.get("deleted_at"):
                     summary["restored"] += 1
                 summary["updated"] += 1
-            active_items[normalized] = payload
+                
+            final_items_by_id[payload["id"]] = payload
+            if previous and not previous.get("id") and previous.get("name") and normalize_key(previous["name"]) in final_items_by_name:
+                del final_items_by_name[normalize_key(previous["name"])]
 
-        merged = list(active_items.values())
+        merged = list(final_items_by_id.values()) + list(final_items_by_name.values())
         payload = {state_key: merged}
         if actor:
             payload["actor"] = actor
@@ -11663,7 +13137,7 @@ class InventoryStore:
                 SELECT
                     c.order_code,
                     c.discount_amount,
-                    COALESCE(SUM(ci.quantity * ci.unit_price), 0) AS subtotal_amount
+                    COALESCE(SUM(COALESCE(ci.input_quantity, ci.quantity) * ci.unit_price), 0) AS subtotal_amount
                 FROM carts c
                 LEFT JOIN cart_items ci ON ci.cart_id = c.id
                 WHERE c.order_code != ''
@@ -11748,7 +13222,7 @@ class InventoryStore:
                     sale_rows_by_order_code.setdefault(order_code, []).append(
                         (
                             row_index,
-                            round(quantity * float(extract_price_from_note(note, "out") or row["sale_price"] or 0), 2),
+                            round(float(extract_labeled_price(note, "Thành tiền") or quantity * float(extract_price_from_note(note, "out") or row["sale_price"] or 0)), 2),
                         )
                     )
             elif transaction_kind == "purchase":
@@ -12200,3 +13674,855 @@ class InventoryStore:
                 "end_date": parsed_end.isoformat() if parsed_end else "",
             },
         }
+    def _admin_edit_locked_order_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        cart: dict,
+        admin_edit_reason: str,
+        actor: str,
+        processed_at: str,
+    ) -> dict:
+        cart_id = str(cart.get("id") or "").strip()
+        previous_cart = self._get_cart_document(connection, cart_id)
+        if str(previous_cart.get("status") or "") != "completed":
+            raise ValueError("Chỉ đơn hàng đã xuất kho mới được sửa qua chế độ Admin Edit.")
+        if str(previous_cart.get("paymentStatus") or "") == "paid":
+            raise ValueError("Đơn hàng đã thanh toán không thể sửa.")
+        
+        # Admin Edit restrictions: customer cannot change, products cannot be added/removed
+        if str(cart.get("customerId") or "").strip() != str(previous_cart.get("customerId") or "").strip() or \
+           str(cart.get("customerName") or "").strip() != str(previous_cart.get("customerName") or "").strip():
+            raise ValueError("Chế độ Admin Edit không được phép thay đổi khách hàng của đơn đã xuất.")
+
+        new_items = cart.get("items") or []
+        if not isinstance(new_items, list) or not new_items:
+            raise ValueError("Đơn hàng phải có ít nhất một mặt hàng.")
+        for item in new_items:
+            try:
+                qty = float(item.get("quantity") or 0)
+                product_id = int(item.get("productId") or item.get("product_id") or 0)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Mặt hàng hoặc số lượng không hợp lệ.") from exc
+            if product_id <= 0 or not math.isfinite(qty) or qty <= 0:
+                raise ValueError("Số lượng mặt hàng phải lớn hơn 0.")
+
+        order_transactions = self._validate_order_cancellation_target(connection, previous_cart)
+        order_code = str(previous_cart.get("orderCode") or cart_id).strip()
+        customer_name = str(previous_cart.get("customerName") or "").strip()
+        discount_amount = round(float(previous_cart.get("discountAmount") or previous_cart.get("discount_amount") or 0), 2)
+        transaction_revenue_allocations = self._allocate_discount_amounts(
+            [
+                (
+                    entry["transaction_id"],
+                    round(
+                        float(extract_labeled_price(entry["note"], "Thành tiền") or 0)
+                        or entry["quantity"] * float(extract_price_from_note(entry["note"], "out") or 0),
+                        2,
+                    ),
+                )
+                for entry in order_transactions
+            ],
+            discount_amount,
+        )
+
+        receipt_suffix = hashlib.sha1(f"{order_code}-{processed_at}-{admin_edit_reason}".encode("utf-8")).hexdigest()[:6]
+        receipt_code = f"AD-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{receipt_suffix}"
+        receipt_id = self._insert_inventory_receipt(
+            connection,
+            receipt_code=receipt_code,
+            receipt_type="inventory_adjustment",
+            customer_name=customer_name,
+            source_type="admin_edit_reversal",
+            source_code=order_code,
+            actor=actor,
+            reason=admin_edit_reason,
+            note=f"Hoàn trả tồn kho cũ do Admin sửa đơn xuất.",
+            created_at=processed_at,
+        )
+
+        for entry in order_transactions:
+            product = self._get_product_or_raise(connection, int(entry["product_id"]), allow_deleted=True)
+            quantity = round(float(entry["quantity"] or 0), 2)
+            unit_price = round(float(extract_price_from_note(entry["note"], "out") or product["sale_price"] or 0), 2)
+            gross_line_total = float(extract_labeled_price(entry["note"], "Thành tiền") or quantity * unit_price)
+            revenue_line_total = round(max(0.0, gross_line_total - transaction_revenue_allocations.get(entry["transaction_id"], 0.0)), 2)
+            original_allocations = self._load_transaction_batch_allocations(
+                connection,
+                int(entry["transaction_id"]),
+                direction="out",
+            )
+            transaction_note = (
+                f"Phiếu điều chỉnh {receipt_code} | Hủy lô gốc đơn: {order_code} | Khách: {customer_name} "
+                f"| Lý do sửa: {admin_edit_reason} | Yêu cầu bởi Master Admin"
+            )
+            cursor = connection.execute(
+                """
+                INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at)
+                VALUES(?, 'in', ?, ?, ?)
+                """,
+                (int(product["id"]), quantity, transaction_note, processed_at),
+            )
+            self._restore_inventory_batches_from_allocations(
+                connection,
+                allocations=original_allocations,
+                transaction_id=int(cursor.lastrowid),
+                created_at=processed_at,
+                product_id=int(product["id"]),
+            )
+            transaction_note = " | ".join(
+                part
+                for part in (
+                    transaction_note,
+                    self._format_batch_allocations_note(original_allocations, prefix="Hoàn về lô gốc"),
+                )
+                if part
+            )
+            connection.execute(
+                "UPDATE transactions SET note = ? WHERE id = ?",
+                (transaction_note, int(cursor.lastrowid)),
+            )
+            current_stock = round(float(self._get_stock_for_product(connection, int(product["id"]))), 2)
+            self._insert_inventory_receipt_item(
+                connection,
+                receipt_id=receipt_id,
+                product_id=int(product["id"]),
+                product_name=str(product["name"]),
+                unit=str(product["unit"]),
+                transaction_type="in",
+                quantity=quantity,
+                unit_amount=unit_price,
+                line_total=revenue_line_total,
+                stock_after=current_stock,
+                transaction_id=int(cursor.lastrowid),
+            )
+
+        # Cập nhật carts và cart_items
+        new_discount_amount = self._get_cart_discount_amount(cart)
+        new_items = cart.get("items") or []
+        connection.execute(
+            """
+            UPDATE carts
+            SET customer_id = ?,
+                customer_name = ?,
+                note = ?,
+                discount_amount = ?,
+                ship_address = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                str(cart.get("customerId") or "").strip(),
+                str(cart.get("customerName") or "").strip(),
+                str(cart.get("note") or "").strip(),
+                new_discount_amount,
+                str(cart.get("shipAddress") or cart.get("ship_address") or "").strip(),
+                processed_at,
+                cart_id,
+            ),
+        )
+        connection.execute("DELETE FROM cart_items WHERE cart_id = ?", (cart_id,))
+        for index, item in enumerate(new_items):
+            connection.execute(
+                """
+                INSERT INTO cart_items(id, cart_id, product_id, product_name, quantity, unit_price, note, sort_order, input_quantity, input_unit, conversion_factor, discount_amount)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(item.get("id") or f"cart_item_{secrets.token_hex(6)}"),
+                    cart_id,
+                    int(item.get("productId") or item.get("product_id") or 0),
+                    str(item.get("productName") or item.get("product_name") or "").strip(),
+                    float(item.get("quantity") or 0),
+                    float(item.get("unitPrice") or item.get("unit_price") or 0),
+                    str(item.get("note") or "").strip(),
+                    index,
+                    float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
+                    str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
+                    float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
+                    float(item.get("discountAmount") or item.get("discount_amount") or 0),
+                ),
+            )
+
+        grouped_items = self._group_sale_items(new_items)
+        products_by_id, current_stock_by_id = self._validate_sale_items_against_physical_stock(
+            connection,
+            grouped_items,
+        )
+        sale_result = self._create_sale_transactions_for_order(
+            connection,
+            order_code=order_code,
+            customer_name=str(cart.get("customerName") or "").strip(),
+            grouped_items=grouped_items,
+            products_by_id=products_by_id,
+            current_stock_by_id=current_stock_by_id,
+            created_at=processed_at,
+            note=str(cart.get("note") or "").strip(),
+            discount_amount=new_discount_amount,
+            created_mode=previous_cart.get("createdMode") or "normal",
+        )
+
+        current_cart = self._get_cart_document(connection, cart_id)
+        self._record_cart_change_history(
+            connection,
+            previous=previous_cart,
+            current=current_cart,
+            actor=actor,
+            created_at=processed_at,
+            note_prefix=f"Admin sửa đơn xuất đã hoàn thành (Lý do: {admin_edit_reason})",
+        )
+        self._record_audit(
+            connection,
+            entity_type="cart",
+            entity_id=cart_id,
+            entity_name=order_code,
+            action="admin_edit",
+            actor=actor,
+            message=f"Admin sửa đơn đã khóa. Lý do: {admin_edit_reason}",
+        )
+        return {
+            "document_type": "order",
+            "document_id": cart_id,
+            "document_code": order_code,
+            "status": "completed",
+            "receipt_code": receipt_code,
+            "cart": current_cart,
+        }
+
+    def _admin_edit_locked_purchase_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        purchase: dict,
+        admin_edit_reason: str,
+        actor: str,
+        processed_at: str,
+    ) -> dict:
+        purchase_id = str(purchase.get("id") or "").strip()
+        previous_purchase = self._get_purchase_document(connection, purchase_id)
+        if str(previous_purchase.get("status") or "") != "received":
+            raise ValueError("Chỉ phiếu nhập đã nhận hàng mới được sửa qua chế độ Admin Edit.")
+        if str(previous_purchase.get("paidAt") or previous_purchase.get("paid_at") or ""):
+            raise ValueError("Phiếu nhập đã thanh toán không thể sửa.")
+        
+        # #Issue37: Keep supplier immutable while allowing Master Admin to edit purchase lines.
+        if str(purchase.get("supplierId") or "").strip() != str(previous_purchase.get("supplierId") or "").strip() or \
+           str(purchase.get("supplierName") or "").strip() != str(previous_purchase.get("supplierName") or "").strip():
+            raise ValueError("Chế độ Admin Edit không được phép thay đổi nhà cung cấp của phiếu đã nhận.")
+
+        new_items = purchase.get("items") or []
+        if not isinstance(new_items, list) or not new_items:
+            raise ValueError("Phiếu nhập phải có ít nhất một mặt hàng.")
+        new_items_by_id: dict[str, dict] = {}
+        legacy_matched_ids: set[str] = set()
+        for item in new_items:
+            if not isinstance(item, dict):
+                raise ValueError("Dòng mặt hàng không hợp lệ.")
+            item_id = str(item.get("id") or "").strip()
+            try:
+                product_id = int(item.get("productId") or item.get("product_id") or 0)
+                qty = float(item.get("quantity") or 0)
+                input_qty = float(item.get("inputQuantity") or item.get("input_quantity") or qty)
+                factor = float(item.get("conversionFactor") or item.get("conversion_factor") or 1)
+                unit_cost = float(item.get("unitCost") or item.get("unit_cost") or item.get("unitPrice") or item.get("unit_price") or 0)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Mặt hàng hoặc thông số nhập không hợp lệ.") from exc
+            item_discount = float(
+                self._parse_discount_amount_value(
+                    item.get("discountAmount", item.get("discount_amount", 0)),
+                    "Khuyến mại dòng nhập",
+                )
+            )
+            if not item_id:
+                # #Issue37: Older admin clients omit line ids; reuse a matching original id when possible.
+                matching_old_item = next(
+                    (
+                        old_item for old_item in (previous_purchase.get("items") or [])
+                        if str(old_item.get("id") or "").strip() not in legacy_matched_ids
+                        and int(old_item.get("productId") or old_item.get("product_id") or 0) == product_id
+                    ),
+                    None,
+                )
+                item_id = str(matching_old_item.get("id") or "").strip() if matching_old_item else ""
+                if item_id:
+                    legacy_matched_ids.add(item_id)
+                else:
+                    item_id = f"purchase_item_{secrets.token_hex(6)}"
+                item["id"] = item_id
+            if item_id in new_items_by_id:
+                raise ValueError("Mã dòng nhập không hợp lệ hoặc bị trùng.")
+            if product_id <= 0 or not all(math.isfinite(value) for value in (qty, input_qty, factor, unit_cost, item_discount)):
+                raise ValueError("Mặt hàng hoặc thông số nhập không hợp lệ.")
+            if qty <= 0 or input_qty <= 0 or factor <= 0 or unit_cost < 0:
+                raise ValueError("Số lượng, hệ số quy đổi hoặc giá nhập không hợp lệ.")
+            if round(input_qty * factor, 4) != round(qty, 4):
+                raise ValueError("Số lượng nhập và số lượng cơ sở không khớp hệ số quy đổi.")
+            # #Issue37: Preserve the same non-negative line-discount validation used by regular purchase flows.
+            item["discountAmount"] = item_discount
+            self._get_product_or_raise(connection, product_id, allow_deleted=True)
+            new_items_by_id[item_id] = item
+        
+        receipt_code = str(previous_purchase.get("receiptCode") or previous_purchase.get("receipt_code") or purchase_id).strip()
+        
+        # We need the original receipt row
+        receipt_row = connection.execute(
+            """
+            SELECT id
+            FROM inventory_receipts
+            WHERE receipt_type = 'purchase' AND receipt_code = ?
+            LIMIT 1
+            """,
+            (receipt_code,),
+        ).fetchone()
+        if not receipt_row:
+            raise ValueError("Không tìm thấy phiếu nhập kho gốc.")
+        receipt_id = int(receipt_row["id"])
+
+        old_items_rows = connection.execute(
+            """
+            SELECT id, product_id, quantity, unit_amount, line_total, transaction_id, batch_id,
+                   purchase_item_id, batch_code, expiry_date
+            FROM inventory_receipt_items
+            WHERE receipt_id = ?
+            """,
+            (receipt_id,),
+        ).fetchall()
+        
+        old_item_map: dict[str, dict] = {}
+        old_receipt_rows_by_product: dict[int, list[dict]] = {}
+        for row in old_items_rows:
+            mapped = {
+                "receipt_item_id": int(row["id"]),
+                "product_id": int(row["product_id"]),
+                "quantity": float(row["quantity"] or 0),
+                "unit_amount": float(row["unit_amount"] or 0),
+                "line_total": float(row["line_total"] or 0),
+                "transaction_id": int(row["transaction_id"]) if row["transaction_id"] is not None else None,
+                "batch_id": int(row["batch_id"]) if row["batch_id"] is not None else None,
+                "purchase_item_id": str(row["purchase_item_id"] or "").strip(),
+                "batch_code": str(row["batch_code"] or "").strip(),
+                "expiry_date": str(row["expiry_date"] or "").strip(),
+            }
+            if mapped["purchase_item_id"]:
+                old_item_map[mapped["purchase_item_id"]] = mapped
+            old_receipt_rows_by_product.setdefault(mapped["product_id"], []).append(mapped)
+
+        # #Issue37: Legacy receipt rows may not have a purchase_item_id; pair those by product once.
+        used_receipt_item_ids = {entry["receipt_item_id"] for entry in old_item_map.values()}
+        for old_item in previous_purchase.get("items") or []:
+            item_id = str(old_item.get("id") or "").strip()
+            if item_id in old_item_map:
+                continue
+            product_id = int(old_item.get("productId") or old_item.get("product_id") or 0)
+            fallback = next(
+                (row for row in old_receipt_rows_by_product.get(product_id, []) if row["receipt_item_id"] not in used_receipt_item_ids),
+                None,
+            )
+            if fallback:
+                old_item_map[item_id] = fallback
+                used_receipt_item_ids.add(fallback["receipt_item_id"])
+
+        new_items = purchase.get("items") or []
+        # Update purchases table
+        new_discount_amount = self._get_purchase_discount_amount(purchase)
+        supplier_id = str(purchase.get("supplierId") or "").strip()
+        supplier_name = str(purchase.get("supplierName") or "").strip()
+        note = str(purchase.get("note") or "").strip()
+
+        connection.execute(
+            """
+            UPDATE purchases
+            SET supplier_id = ?,
+                supplier_name = ?,
+                note = ?,
+                discount_amount = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (supplier_id, supplier_name, note, new_discount_amount, processed_at, purchase_id),
+        )
+        # Re-insert purchase_items
+        connection.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
+        for index, item in enumerate(new_items):
+            product_id = int(item.get("productId") or item.get("product_id") or 0)
+            product = self._get_product_or_raise(connection, product_id, allow_deleted=True)
+            expiry_metadata = self._resolve_purchase_item_expiry_metadata(
+                raw_item=item,
+                product=product,
+                received_at=previous_purchase.get("receivedAt") or previous_purchase.get("received_at") or processed_at,
+            )
+            unit_cost = float(item.get("unitCost") or item.get("unit_cost") or item.get("unitPrice") or item.get("unit_price") or 0)
+            connection.execute(
+                """
+                INSERT INTO purchase_items(
+                    id, purchase_id, product_id, product_name, source_kind, source_note, quantity, unit_cost, batch_code,
+                    expiry_input_mode, manufacture_date, expiry_date, sort_order, input_quantity, input_unit, conversion_factor, discount_amount
+                )
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(item.get("id") or f"purchase_item_{secrets.token_hex(6)}"),
+                    purchase_id,
+                    product_id,
+                    str(item.get("productName") or item.get("product_name") or product.get("name") or "").strip(),
+                    str(item.get("sourceKind") or item.get("source_kind") or "shortage").strip() or "shortage",
+                    str(item.get("sourceNote") or item.get("source_note") or "").strip(),
+                    float(item.get("quantity") or 0),
+                    unit_cost,
+                    str(item.get("batchCode") or item.get("batch_code") or "").strip(),
+                    expiry_metadata["expiry_input_mode"],
+                    expiry_metadata["manufacture_date"],
+                    expiry_metadata["expiry_date"],
+                    index,
+                    float(item.get("inputQuantity") or item.get("input_quantity") or item.get("quantity") or 0),
+                    str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or "").strip(),
+                    float(item.get("conversionFactor") or item.get("conversion_factor") or 1.0),
+                    float(item.get("discountAmount") or item.get("discount_amount") or 0),
+                ),
+            )
+
+        # #Issue37: Reconcile each original line against its stable purchase_item id so added,
+        # removed, and replaced products update stock, batches, the receipt snapshot, and audit atomically.
+        connection.execute(
+            "UPDATE inventory_receipts SET supplier_id = ?, supplier_name = ?, discount_amount = ? WHERE id = ?",
+            (supplier_id, supplier_name, new_discount_amount, receipt_id),
+        )
+        old_purchase_items_by_id = {
+            str(item.get("id") or "").strip(): item
+            for item in (previous_purchase.get("items") or [])
+            if str(item.get("id") or "").strip()
+        }
+        matched_new_ids: set[str] = set()
+        adjustment_receipt_id: int | None = None
+
+        def record_stock_adjustment(*, product, item, quantity: float, direction: str, batch_id: int, batch_code: str, expiry_date: str, unit_cost: float) -> int:
+            nonlocal adjustment_receipt_id
+            if adjustment_receipt_id is None:
+                suffix = hashlib.sha1(f"{receipt_code}-{processed_at}-{admin_edit_reason}".encode("utf-8")).hexdigest()[:6]
+                adjustment_code = f"AD-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{suffix}"
+                adjustment_receipt_id = self._insert_inventory_receipt(
+                    connection,
+                    receipt_code=adjustment_code,
+                    receipt_type="inventory_adjustment",
+                    supplier_name=supplier_name,
+                    source_type="admin_edit_purchase",
+                    source_code=receipt_code,
+                    actor=actor,
+                    reason=admin_edit_reason,
+                    note=f"Điều chỉnh tồn khi Master Admin sửa phiếu nhập {receipt_code}.",
+                    created_at=processed_at,
+                )
+            direction_label = "giảm" if direction == "out" else "tăng"
+            note_str = (
+                f"Phiếu điều chỉnh | Admin sửa {direction_label} phiếu nhập {receipt_code} "
+                f"| NCC: {supplier_name} | Giá nhập: {unit_cost:.2f} | Lý do: {admin_edit_reason}"
+            )
+            cursor = connection.execute(
+                "INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at) VALUES(?, ?, ?, ?, ?)",
+                (int(product["id"]), direction, round(quantity, 2), note_str, processed_at),
+            )
+            self._insert_inventory_batch_allocation(
+                connection,
+                batch_id=batch_id,
+                transaction_id=int(cursor.lastrowid),
+                product_id=int(product["id"]),
+                quantity=quantity,
+                direction=direction,
+                created_at=processed_at,
+            )
+            current_stock = round(float(self._get_stock_for_product(connection, int(product["id"]))), 2)
+            self._insert_inventory_receipt_item(
+                connection,
+                receipt_id=adjustment_receipt_id,
+                product_id=int(product["id"]),
+                product_name=str(product["name"]),
+                unit=str(product["unit"]),
+                transaction_type=direction,
+                quantity=round(quantity, 2),
+                unit_amount=round(unit_cost, 2),
+                line_total=round(quantity * unit_cost, 2),
+                stock_after=current_stock,
+                transaction_id=int(cursor.lastrowid),
+                batch_id=batch_id,
+                batch_code=batch_code,
+                expiry_date=expiry_date or None,
+            )
+            return int(cursor.lastrowid)
+
+        for item_id, old_item in old_purchase_items_by_id.items():
+            old_product_id = int(old_item.get("productId") or old_item.get("product_id") or 0)
+            old_product = self._get_product_or_raise(connection, old_product_id, allow_deleted=True)
+            old = old_item_map.get(item_id)
+            if old is None:
+                raise ValueError(f"Không tìm thấy dòng receipt gốc của {old_product['name']}.")
+            candidate = new_items_by_id.get(item_id)
+            is_same_product = bool(
+                candidate
+                and int(candidate.get("productId") or candidate.get("product_id") or 0) == old_product_id
+            )
+            if is_same_product:
+                matched_new_ids.add(item_id)
+            new_qty = float(candidate.get("quantity") or 0) if is_same_product else 0.0
+            input_qty = float(candidate.get("inputQuantity") or candidate.get("input_quantity") or new_qty) if is_same_product else 0.0
+            factor = float(candidate.get("conversionFactor") or candidate.get("conversion_factor") or 1) if is_same_product else 1.0
+            unit_cost = float(candidate.get("unitCost") or candidate.get("unit_cost") or candidate.get("unitPrice") or candidate.get("unit_price") or 0) if is_same_product else 0.0
+            base_unit_cost = unit_cost / factor if is_same_product else float(old.get("unit_amount") or 0)
+            item_discount = float(candidate.get("discountAmount") or candidate.get("discount_amount") or 0) if is_same_product else 0.0
+            line_total = max(0.0, input_qty * unit_cost - item_discount) if is_same_product else 0.0
+            expiry_meta = self._resolve_purchase_item_expiry_metadata(
+                raw_item=candidate or {},
+                product=old_product,
+                received_at=previous_purchase.get("receivedAt") or previous_purchase.get("received_at") or processed_at,
+            ) if is_same_product else {
+                "expiry_date": old.get("expiry_date") or "",
+                "manufacture_date": "",
+                "expiry_input_mode": "direct",
+            }
+            batch_id = old.get("batch_id")
+            if not batch_id:
+                batch_row = connection.execute(
+                    "SELECT id FROM inventory_batches WHERE source_receipt_code = ? AND product_id = ? ORDER BY id LIMIT 1",
+                    (receipt_code, old_product_id),
+                ).fetchone()
+                batch_id = int(batch_row["id"]) if batch_row else None
+            if not batch_id:
+                raise ValueError(f"Không tìm thấy lô hàng gốc của {old_product['name']}.")
+
+            old_qty = float(old.get("quantity") or 0)
+            delta = round(new_qty - old_qty, 2)
+            batch_row = connection.execute(
+                "SELECT remaining_quantity, initial_quantity FROM inventory_batches WHERE id = ?",
+                (batch_id,),
+            ).fetchone()
+            if not batch_row:
+                raise ValueError(f"Không tìm thấy lô hàng gốc của {old_product['name']}.")
+            if delta < 0:
+                decrease = round(-delta, 2)
+                remaining = float(batch_row["remaining_quantity"] or 0)
+                if remaining < decrease:
+                    used_quantity = old_qty - remaining
+                    raise ValueError(
+                        f"Mặt hàng {old_product['name']} đã được xuất một phần ({used_quantity:g} đã xuất). "
+                        f"Không thể giảm xuống {new_qty:g}."
+                    )
+                connection.execute(
+                    "UPDATE inventory_batches SET initial_quantity = initial_quantity - ?, remaining_quantity = remaining_quantity - ?, unit_cost = ?, batch_code = ?, expiry_date = ?, updated_at = ? WHERE id = ?",
+                    (
+                        decrease,
+                        decrease,
+                        base_unit_cost,
+                        str(candidate.get("batchCode") or candidate.get("batch_code") or old.get("batch_code") or "") if candidate else old.get("batch_code") or "",
+                        expiry_meta.get("expiry_date") or None,
+                        processed_at,
+                        batch_id,
+                    ),
+                )
+                record_stock_adjustment(
+                    product=old_product,
+                    item=old_item,
+                    quantity=decrease,
+                    direction="out",
+                    batch_id=batch_id,
+                    batch_code=old.get("batch_code") or "",
+                    expiry_date=old.get("expiry_date") or "",
+                    unit_cost=base_unit_cost,
+                )
+            elif delta > 0:
+                increase = round(delta, 2)
+                connection.execute(
+                    "UPDATE inventory_batches SET initial_quantity = initial_quantity + ?, remaining_quantity = remaining_quantity + ?, unit_cost = ?, batch_code = ?, expiry_date = ?, updated_at = ? WHERE id = ?",
+                    (
+                        increase,
+                        increase,
+                        base_unit_cost,
+                        str(candidate.get("batchCode") or candidate.get("batch_code") or old.get("batch_code") or "") if candidate else old.get("batch_code") or "",
+                        expiry_meta.get("expiry_date") or None,
+                        processed_at,
+                        batch_id,
+                    ),
+                )
+                record_stock_adjustment(
+                    product=old_product,
+                    item=candidate or old_item,
+                    quantity=increase,
+                    direction="in",
+                    batch_id=batch_id,
+                    batch_code=str(candidate.get("batchCode") or candidate.get("batch_code") or old.get("batch_code") or "") if candidate else old.get("batch_code") or "",
+                    expiry_date=str(expiry_meta.get("expiry_date") or ""),
+                    unit_cost=base_unit_cost,
+                )
+            else:
+                connection.execute(
+                    "UPDATE inventory_batches SET unit_cost = ?, batch_code = ?, expiry_date = ?, updated_at = ? WHERE id = ?",
+                    (
+                        base_unit_cost,
+                        str(candidate.get("batchCode") or candidate.get("batch_code") or old.get("batch_code") or "") if candidate else old.get("batch_code") or "",
+                        expiry_meta.get("expiry_date") or None,
+                        processed_at,
+                        batch_id,
+                    ),
+                )
+
+            if is_same_product:
+                connection.execute(
+                    """UPDATE inventory_receipt_items
+                       SET product_name = ?, unit = ?, quantity = ?, unit_amount = ?, line_total = ?,
+                           purchase_item_id = ?, batch_code = ?, expiry_date = ?, input_quantity = ?, input_unit = ?, conversion_factor = ?
+                       WHERE id = ?""",
+                    (
+                        str(candidate.get("productName") or candidate.get("product_name") or old_product["name"]).strip(),
+                        str(old_product["unit"]),
+                        new_qty,
+                        base_unit_cost,
+                        line_total,
+                        item_id,
+                        str(candidate.get("batchCode") or candidate.get("batch_code") or old.get("batch_code") or "").strip(),
+                        expiry_meta.get("expiry_date") or None,
+                        input_qty,
+                        str(candidate.get("inputUnit") or candidate.get("input_unit") or candidate.get("unit") or old_product["unit"]).strip(),
+                        factor,
+                        old["receipt_item_id"],
+                    ),
+                )
+            else:
+                # Keep the original ledger line as a zero-value history row; the new adjustment transaction records its reversal.
+                connection.execute(
+                    "UPDATE inventory_receipt_items SET quantity = 0, line_total = 0, purchase_item_id = '' WHERE id = ?",
+                    (old["receipt_item_id"],),
+                )
+
+        # #Issue37: New or replacement products get their own purchase ledger row and FEFO batch.
+        for item in new_items:
+            item_id = str(item.get("id") or "").strip()
+            if item_id in matched_new_ids:
+                continue
+            product_id = int(item.get("productId") or item.get("product_id") or 0)
+            product = self._get_product_or_raise(connection, product_id, allow_deleted=True)
+            quantity = float(item.get("quantity") or 0)
+            input_quantity = float(item.get("inputQuantity") or item.get("input_quantity") or quantity)
+            factor = float(item.get("conversionFactor") or item.get("conversion_factor") or 1)
+            unit_cost = float(item.get("unitCost") or item.get("unit_cost") or item.get("unitPrice") or item.get("unit_price") or 0)
+            base_unit_cost = unit_cost / factor
+            item_discount = float(item.get("discountAmount") or item.get("discount_amount") or 0)
+            line_total = max(0.0, input_quantity * unit_cost - item_discount)
+            expiry_meta = self._resolve_purchase_item_expiry_metadata(
+                raw_item=item,
+                product=product,
+                received_at=previous_purchase.get("receivedAt") or previous_purchase.get("received_at") or processed_at,
+            )
+            batch_code = str(item.get("batchCode") or item.get("batch_code") or "").strip()
+            transaction_note = (
+                f"Phiếu nhập {receipt_code} | Master Admin thêm mặt hàng | NCC: {supplier_name} "
+                f"| Giá nhập: {unit_cost:.2f} | Lý do: {admin_edit_reason}"
+            )
+            cursor = connection.execute(
+                "INSERT INTO transactions(product_id, transaction_type, quantity, note, created_at) VALUES(?, 'in', ?, ?, ?)",
+                (product_id, quantity, transaction_note, processed_at),
+            )
+            batch = self._create_inventory_batch(
+                connection,
+                product=product,
+                quantity=Decimal(str(quantity)),
+                unit_cost=Decimal(str(base_unit_cost)),
+                received_at=processed_at,
+                source_receipt_code=receipt_code,
+                source_receipt_type="purchase",
+                source_transaction_id=int(cursor.lastrowid),
+                transaction_id=int(cursor.lastrowid),
+                batch_code=batch_code,
+                expiry_date=expiry_meta.get("expiry_date"),
+                note=note,
+                fallback_batch_code=f"{receipt_code}-AD-{item_id[-6:]}",
+            )
+            current_stock = round(float(self._get_stock_for_product(connection, product_id)), 2)
+            self._insert_inventory_receipt_item(
+                connection,
+                receipt_id=receipt_id,
+                product_id=product_id,
+                product_name=str(item.get("productName") or item.get("product_name") or product["name"]).strip(),
+                unit=str(product["unit"]),
+                transaction_type="in",
+                quantity=quantity,
+                unit_amount=base_unit_cost,
+                line_total=line_total,
+                stock_after=current_stock,
+                transaction_id=int(cursor.lastrowid),
+                purchase_item_id=item_id,
+                batch_id=int(batch["id"]),
+                batch_code=batch["batch_code"],
+                expiry_date=batch["expiry_date"] or None,
+            )
+            connection.execute(
+                "UPDATE inventory_receipt_items SET input_quantity = ?, input_unit = ?, conversion_factor = ? WHERE transaction_id = ?",
+                (
+                    input_quantity,
+                    str(item.get("inputUnit") or item.get("input_unit") or item.get("unit") or product["unit"]).strip(),
+                    factor,
+                    int(cursor.lastrowid),
+                ),
+            )
+
+        current_purchase = self._get_purchase_document(connection, purchase_id)
+        self._record_purchase_change_history(
+            connection,
+            previous=previous_purchase,
+            current=current_purchase,
+            actor=actor,
+            created_at=processed_at,
+            note_prefix=f"Admin sửa phiếu nhập đã nhận (Lý do: {admin_edit_reason})",
+        )
+        self._record_audit(
+            connection,
+            entity_type="purchase",
+            entity_id=purchase_id,
+            entity_name=receipt_code,
+            action="admin_edit",
+            actor=actor,
+            message=f"Admin sửa phiếu nhập đã khóa. Lý do: {admin_edit_reason}",
+        )
+        return {
+            "document_type": "purchase",
+            "document_id": purchase_id,
+            "document_code": receipt_code,
+            "status": "received",
+            "purchase": current_purchase,
+        }
+    def admin_edit_locked_order(
+        self,
+        cart_id: str,
+        cart_payload: dict,
+        *,
+        admin_edit_reason: str,
+        actor_username: str = "",
+        actor_role: str = "",
+    ) -> dict:
+        clean_cart_id = str(cart_id or "").strip()
+        if not clean_cart_id:
+            raise ValueError("Thiếu cart_id.")
+        clean_reason = str(admin_edit_reason or "").strip()
+        if not clean_reason:
+            raise ValueError("Bắt buộc phải nhập lý do khi sửa đơn hàng đã khóa.")
+        if str(actor_role or "") != "admin":
+            raise ValueError("Chỉ Master Admin mới có quyền thực hiện thao tác này.")
+            
+        actor = str(actor_username or "").strip()
+        now = utc_now_iso()
+        
+        with self._connect() as connection:
+            result = self._admin_edit_locked_order_in_connection(
+                connection,
+                cart=cart_payload,
+                admin_edit_reason=clean_reason,
+                actor=actor,
+                processed_at=now,
+            )
+            canonical = self._refresh_sync_collection_cache(
+                connection,
+                "carts",
+                updated_at=now,
+            )
+        
+        return {
+            "message": "Sửa đơn hàng đã xuất kho thành công.",
+            "cart": result["cart"],
+            "carts": canonical,
+        }
+
+    def admin_edit_locked_purchase(
+        self,
+        purchase_id: str,
+        purchase_payload: dict,
+        *,
+        admin_edit_reason: str,
+        actor_username: str = "",
+        actor_role: str = "",
+    ) -> dict:
+        clean_purchase_id = str(purchase_id or "").strip()
+        if not clean_purchase_id:
+            raise ValueError("Thiếu purchase_id.")
+        clean_reason = str(admin_edit_reason or "").strip()
+        if not clean_reason:
+            raise ValueError("Bắt buộc phải nhập lý do khi sửa phiếu nhập đã khóa.")
+        if str(actor_role or "") != "admin":
+            raise ValueError("Chỉ Master Admin mới có quyền thực hiện thao tác này.")
+            
+        actor = str(actor_username or "").strip()
+        now = utc_now_iso()
+        
+        with self._connect() as connection:
+            result = self._admin_edit_locked_purchase_in_connection(
+                connection,
+                purchase=purchase_payload,
+                admin_edit_reason=clean_reason,
+                actor=actor,
+                processed_at=now,
+            )
+            canonical = self._refresh_sync_collection_cache(
+                connection,
+                "purchases",
+                updated_at=now,
+            )
+        
+        return {
+            "message": "Sửa phiếu nhập kho thành công.",
+            "purchase": result["purchase"],
+            "purchases": canonical,
+        }
+
+    def upsert_zalo_customer(self, zalo_id: str, name: str, phone: str = "", avatar_url: str = "") -> dict:
+        if not zalo_id:
+            raise ValueError("zalo_id is required")
+        clean_zalo_id = str(zalo_id).strip()
+        clean_name = str(name or "").strip() or "Khách Zalo"
+        clean_phone = str(phone or "").strip()
+        if clean_phone.startswith("Zalo:"):
+            clean_phone = ""
+        clean_avatar_url = str(avatar_url or "").strip()
+        default_zalo_url = f"https://zalo.me/{clean_phone.replace(' ', '')}" if clean_phone else ""
+        now = utc_now_iso()
+
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM customers WHERE zalo_id = ? AND deleted_at IS NULL",
+                (clean_zalo_id,)
+            ).fetchone()
+            
+            if not row and clean_name:
+                row = connection.execute(
+                    "SELECT * FROM customers WHERE name = ? COLLATE NOCASE AND (zalo_id IS NULL OR zalo_id = '') AND deleted_at IS NULL ORDER BY datetime(updated_at) DESC LIMIT 1",
+                    (clean_name,)
+                ).fetchone()
+
+            if row:
+                # Update existing
+                existing_phone = row["phone"] if row["phone"] and not str(row["phone"]).startswith("Zalo:") else ""
+                final_phone = clean_phone or existing_phone
+                existing_zalo_url = row["zalo_url"] if row["zalo_url"] and not str(row["zalo_url"]).startswith("https://s120") and not "-ava-talk" in str(row["zalo_url"]) else ""
+                final_zalo_url = existing_zalo_url or (f"https://zalo.me/{final_phone.replace(' ', '')}" if final_phone else "")
+                final_avatar_url = clean_avatar_url or (row["avatar_url"] if "avatar_url" in row.keys() else "")
+                
+                connection.execute(
+                    """
+                    UPDATE customers 
+                    SET name = ?, phone = ?, zalo_url = ?, avatar_url = ?, zalo_id = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (clean_name, final_phone, final_zalo_url, final_avatar_url, clean_zalo_id, now, row["id"])
+                )
+                customer_id = row["id"]
+            else:
+                # Insert new
+                import secrets
+                customer_id = f"customer_{secrets.token_hex(6)}"
+                connection.execute(
+                    """
+                    INSERT INTO customers(id, name, phone, address, zalo_url, avatar_url, zalo_id, created_at, updated_at, deleted_at)
+                    VALUES(?, ?, ?, '', ?, ?, ?, ?, ?, NULL)
+                    """,
+                    (customer_id, clean_name, clean_phone, default_zalo_url, clean_avatar_url, clean_zalo_id, now, now)
+                )
+            
+            canonical = self._refresh_sync_collection_cache(connection, "customers", updated_at=now)
+            
+            row = connection.execute("SELECT c.*, g.name as group_name, g.zalo_url as group_zalo_url FROM customers c LEFT JOIN zalo_groups g ON c.zalo_group_id = g.id WHERE c.id = ?", (customer_id,)).fetchone()
+            return self._serialize_customer_row(row)

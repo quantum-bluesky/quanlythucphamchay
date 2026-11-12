@@ -8,17 +8,38 @@ import json
 import mimetypes
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, parse_qsl, urlparse
+from qltpchay.logger import log_error, log_info
+from qltpchay.lunar_calendar import PREORDER_REMINDER_WINDOW_DAYS, next_preorder_lunar_date, solar_to_vietnamese_lunar
 
 from .auth import build_port_scoped_cookie_name, build_session_cookie_name_candidates, parse_cookie_header
-from .constants import ADMIN_SESSION_COOKIE, APP_NAME, JS_ASSET_VERSIONS_PATH, STATIC_DIR
+from . import constants as constants
+from . import helpers
+from .constants import ADMIN_SESSION_COOKIE, APP_NAME, DATA_DIR, JS_ASSET_VERSIONS_PATH, STATIC_DIR
+from .config import DEFAULT_APP_VERSION, _normalize_mail_config, save_system_config as persist_system_config
 from .js_asset_versions import JavaScriptAssetVersionManager
 from .mailer import send_mail_notification
 from .store import BulkOrderRequestDuplicateError, ProcurementBatchStartConflictError, SyncConflictError
+
+
+def _public_mail_config(mail_config: dict | None) -> dict:
+    config = mail_config if isinstance(mail_config, dict) else {}
+    return {
+        "enabled": bool(config.get("enabled")),
+        "smtp_host": str(config.get("smtp_host") or ""),
+        "smtp_port": int(config.get("smtp_port") or 587),
+        "username": str(config.get("username") or ""),
+        "has_password": bool(config.get("password")),
+        "from_email": str(config.get("from_email") or ""),
+        "to_emails": [str(email or "").strip() for email in (config.get("to_emails") or []) if str(email or "").strip()],
+        "use_tls": bool(config.get("use_tls")),
+        "use_ssl": bool(config.get("use_ssl")),
+        "subject_prefix": str(config.get("subject_prefix") or ""),
+    }
 
 
 def create_handler(store, admin_sessions, system_config: dict | None = None):
@@ -29,7 +50,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
     procurement_config = (system_config or {}).get("procurement", {})
     mail_config = (system_config or {}).get("mail", {})
     auth_enabled = bool((system_config or {}).get("EnableLogin"))
-    app_version = str((system_config or {}).get("version") or "").strip() or "2.3.1"
+    app_version = str((system_config or {}).get("version") or "").strip() or DEFAULT_APP_VERSION
     asset_versions_path = Path((system_config or {}).get("asset_versions_path") or JS_ASSET_VERSIONS_PATH)
     js_asset_versions = JavaScriptAssetVersionManager(
         static_root=STATIC_DIR,
@@ -148,21 +169,54 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return "/"
             if parsed_path.endswith("/favicon.ico"):
                 return "/favicon.ico"
-            for marker in ("/static/", "/api/"):
-                marker_index = parsed_path.find(marker)
+                
+            lower_path = parsed_path.lower()
+            for marker in ("/static/", "/api/", "/images/"):
+                marker_index = lower_path.find(marker)
                 if marker_index >= 0:
                     return parsed_path[marker_index:]
+                    
+            if "/productlist" in lower_path:
+                return "/ProductList"
+                
+            admin_path = str((system_config or {}).get("admin_path", "/admin")).lower()
+            if not admin_path.startswith("/"):
+                admin_path = "/" + admin_path
+
+            if lower_path.endswith(admin_path) or lower_path.endswith(admin_path + "/"):
+                return admin_path
+                
             last_segment = parsed_path.rsplit("/", 1)[-1]
             if not last_segment or "." not in last_segment:
                 return "/"
             return parsed_path
 
         def do_GET(self) -> None:
+            log_info(f"GET {self.path}")
+            try:
+                self._do_GET_internal()
+            except Exception as e:
+                log_error(f"Error in do_GET for {self.path}: {e}", exc_info=True)
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Lỗi hệ thống nội bộ."})
+
+        def _do_GET_internal(self) -> None:
             parsed = urlparse(self.path)
             route = self._normalize_route_path(parsed.path)
 
             if route == "/":
+                self._serve_static_file("public_products.html", request_path=parsed.path)
+                return
+
+            admin_path = str((system_config or {}).get("admin_path", "/admin")).lower()
+            if not admin_path.startswith("/"):
+                admin_path = "/" + admin_path
+
+            if route.lower() == admin_path:
                 self._serve_static_file("index.html", request_path=parsed.path)
+                return
+
+            if route.lower() == "/productlist":
+                self._serve_static_file("public_products.html", request_path=parsed.path)
                 return
 
             if route == "/favicon.ico":
@@ -174,12 +228,288 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 self._serve_static_file(route.removeprefix("/static/"))
                 return
 
+            if route.startswith("/images/"):
+                self._serve_static_file(route.removeprefix("/images/"), base_dir=constants.DATA_DIR / "images")
+                return
+
             if route == "/api/session/status":
                 self._send_json(HTTPStatus.OK, self._get_session_status_payload())
                 return
 
+
+            if route == "/api/admin/zalo-groups":
+                self._send_json(HTTPStatus.OK, {"zalo_groups": store.get_zalo_groups()})
+                return
             if route == "/api/admin/status":
                 self._send_json(HTTPStatus.OK, self._get_session_status_payload())
+                return
+
+            if route == "/api/public/products":
+                # Issue 179: Tính ngày âm lịch theo múi giờ Việt Nam để nhắc khách đặt trước.
+                vietnam_now = datetime.now(timezone(timedelta(hours=7)))
+                lunar_day, lunar_month, lunar_year, is_leap_month = solar_to_vietnamese_lunar(vietnam_now.date())
+                days_until_reminder, reminder_day, reminder_month, reminder_year, reminder_is_leap_month = next_preorder_lunar_date(vietnam_now.date())
+                all_products = store.get_products()
+                sales_stats = store.get_product_sales_stats()
+                public_products = [
+                    {
+                        "id": p["id"],
+                        "name": p["name"],
+                        "category": p["category"],
+                        "unit": p["unit"],
+                        # #Issue180: Public catalog displays and orders using the configured sale unit.
+                        "default_sale_unit": p.get("default_sale_unit") or p["unit"],
+                        "sale_price": p["sale_price"],
+                        "current_stock": p.get("current_stock", 0),
+                        # Public stock badges must use the same threshold rule as internal product screens.
+                        "is_low_stock": bool(p.get("is_low_stock", False)),
+                        "incoming_open_purchases": p.get("incoming_open_purchases", 0),
+                        "sold_count": sales_stats.get(p["id"], 0),
+                        "images": p["images"],
+                        "details": p["details"],
+                        "recipe": p.get("recipe", ""),
+                        "note": p.get("note", ""),
+                        # Issue 169: Cung cấp đơn vị quy đổi và đơn vị nhỏ nhất để so sánh hết hàng
+                        "unit_conversions": p.get("unit_conversions", []),
+                        "min_unit": helpers.get_product_min_unit(p),
+                    }
+                    for p in all_products
+                    if p.get("is_public", 1) and not p.get("is_deleted", 0)
+                ]
+                from qltpchay.config import load_system_config
+                current_sys_config = load_system_config()
+                public_web_config = current_sys_config.get("public_web", {})
+                zalo_config = current_sys_config.get("zalo_login", {})
+
+                self._send_json(HTTPStatus.OK, {
+                    "products": public_products,
+                    "lunar_calendar": {
+                        "day": lunar_day,
+                        "month": lunar_month,
+                        "year": lunar_year,
+                        "is_leap_month": is_leap_month,
+                        "days_until_reminder": days_until_reminder,
+                        "show_preorder_reminder": days_until_reminder <= PREORDER_REMINDER_WINDOW_DAYS,
+                        "reminder_window_days": PREORDER_REMINDER_WINDOW_DAYS,
+                        "next_reminder": {
+                            "day": reminder_day,
+                            "month": reminder_month,
+                            "year": reminder_year,
+                            "is_leap_month": reminder_is_leap_month,
+                        },
+                    },
+                    "settings": {
+                        **public_web_config,
+                        "require_zalo_login": bool(zalo_config.get("require_zalo_login", True)),
+                        "seller_zalo_url": str(zalo_config.get("seller_zalo_url", "")).strip(),
+                        "order_note_shipping": str(zalo_config.get("order_note_shipping", "Chưa bao gồm chi phí vận chuyển")).strip(),
+                        "zalo_confirm_template": str(zalo_config.get("zalo_confirm_template", "")).strip(),
+                    }
+                })
+                return
+
+            if route == "/api/public/orders":
+                query = parse_qs(parsed.query)
+                phone = str(query.get("phone", [""])[0]).strip()
+                zalo_id = str(query.get("zalo_id", [""])[0]).strip()
+                if not phone and not zalo_id:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Cần số điện thoại hoặc Zalo ID để tra cứu."})
+                    return
+                orders = store.get_public_orders(phone=phone, zalo_id=zalo_id)
+                self._send_json(HTTPStatus.OK, {"orders": orders})
+                return
+
+            if route == "/api/public/zalo-login":
+                from qltpchay.config import load_system_config
+                current_sys_config = load_system_config()
+                zalo_config = current_sys_config.get("zalo_login", {})
+                app_id = zalo_config.get("app_id")
+                mock_mode = zalo_config.get("mock_test_mode")
+                if mock_mode:
+                    mock_url = f"./zalo-callback?code=MOCK_CODE"
+                    self.send_response(HTTPStatus.FOUND)
+                    self.send_header("Location", mock_url)
+                    self.end_headers()
+                    return
+                
+                if not app_id:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Chưa cấu hình Zalo App ID."})
+                    return
+                
+                # Allow manual override via config
+                redirect_uri = zalo_config.get("callback_url")
+                if not redirect_uri:
+                    # Try to reconstruct from headers (supporting reverse proxies)
+                    fwd_proto = self.headers.get("X-Forwarded-Proto")
+                    fwd_host = self.headers.get("X-Forwarded-Host")
+                    
+                    host = fwd_host or self.headers.get("Host") or "localhost"
+                    if fwd_proto:
+                        protocol = fwd_proto
+                    else:
+                        protocol = "https" if "localhost" not in host and "127.0.0.1" not in host else "http"
+                        
+                    raw_path = urlparse(self.path).path
+                    
+                    # Extract any subpath prefix before /api/ in raw_path
+                    raw_prefix = ""
+                    if "/api/" in raw_path:
+                        raw_prefix = raw_path.split("/api/")[0]
+                    
+                    fwd_prefix = self.headers.get("X-Forwarded-Prefix") or ""
+                    if not fwd_prefix and not raw_prefix:
+                        referer = self.headers.get("Referer")
+                        if referer:
+                            ref_path = urlparse(referer).path
+                            if ref_path.endswith("/index.html"):
+                                ref_path = ref_path[:-11]
+                            if ref_path.endswith("/"):
+                                ref_path = ref_path[:-1]
+                            if "/api/" in ref_path:
+                                ref_path = ref_path.split("/api/")[0]
+                            fwd_prefix = ref_path
+                            
+                    prefix = (raw_prefix or fwd_prefix or "").rstrip("/")
+                    callback_path = f"{prefix}/api/public/zalo-callback"
+                    redirect_uri = f"{protocol}://{host}{callback_path}"
+                import urllib.parse
+                import os
+                import base64
+                import hashlib
+                code_verifier = base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
+                sha256_digest = hashlib.sha256(code_verifier.encode('utf-8')).digest()
+                code_challenge = base64.urlsafe_b64encode(sha256_digest).decode('utf-8').rstrip('=')
+                
+                auth_url = f"https://oauth.zaloapp.com/v4/permission?app_id={app_id}&redirect_uri={urllib.parse.quote(redirect_uri, safe='')}&code_challenge={code_challenge}&state=zalo_login"
+                print(f"DEBUG ZALO OAUTH URL: {auth_url}")
+                self.send_response(HTTPStatus.FOUND)
+                self.send_header("Location", auth_url)
+                self.send_header("Set-Cookie", f"zalo_code_verifier={code_verifier}; Path=/; HttpOnly; SameSite=Lax; Max-Age=300")
+                self.end_headers()
+                return
+
+            if route == "/api/public/zalo-callback":
+                query = parse_qs(parsed.query)
+                code = str(query.get("code", [""])[0]).strip()
+                if not code:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Missing code"})
+                    return
+                
+                from qltpchay.config import load_system_config
+                current_sys_config = load_system_config()
+                zalo_config = current_sys_config.get("zalo_login", {})
+                mock_mode = zalo_config.get("mock_test_mode")
+                
+                zalo_id = ""
+                name = ""
+                avatar = ""
+                phone = ""
+                
+                if mock_mode and code == "MOCK_CODE":
+                    zalo_id = "mock_zalo_123456"
+                    name = "Khách Zalo Test"
+                    phone = "0999999999"
+                else:
+                    import urllib.request
+                    import urllib.error
+                    import json
+                    import urllib.parse
+                    from http.cookies import SimpleCookie
+                    
+                    cookie_header = self.headers.get("Cookie") or ""
+                    cookies = SimpleCookie(cookie_header)
+                    code_verifier_cookie = cookies.get("zalo_code_verifier")
+                    code_verifier = code_verifier_cookie.value if code_verifier_cookie else ""
+                    
+                    app_id = zalo_config.get("app_id")
+                    secret_key = zalo_config.get("secret_key")
+                    if not app_id or not secret_key:
+                        self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Zalo config missing"})
+                        return
+                    
+                    try:
+                        # 1. Exchange code for access_token
+                        data = urllib.parse.urlencode({
+                            "app_id": app_id,
+                            "grant_type": "authorization_code",
+                            "code": code,
+                            "code_verifier": code_verifier
+                        }).encode("utf-8")
+                        req = urllib.request.Request(
+                            "https://oauth.zaloapp.com/v4/access_token",
+                            data=data,
+                            headers={"secret_key": secret_key, "Content-Type": "application/x-www-form-urlencoded"}
+                        )
+                        with urllib.request.urlopen(req) as response:
+                            token_data = json.loads(response.read())
+                        access_token = token_data.get("access_token")
+                        if not access_token:
+                            self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Could not get access token"})
+                            return
+                        
+                        # 2. Get user info
+                        req = urllib.request.Request(
+                            "https://graph.zalo.me/v2.0/me?fields=id,name,picture",
+                            headers={"access_token": access_token}
+                        )
+                        with urllib.request.urlopen(req) as response:
+                            user_data = json.loads(response.read())
+                        
+                        if user_data.get("error", 0) != 0:
+                            self._send_json(HTTPStatus.BAD_REQUEST, {"error": user_data})
+                            return
+                            
+                        zalo_id = str(user_data.get("id", ""))
+                        name = user_data.get("name", "")
+                        avatar = ""
+                        avatar_dict = user_data.get("picture", {})
+                        if isinstance(avatar_dict, dict) and "data" in avatar_dict:
+                            avatar = avatar_dict["data"].get("url", "")
+                            
+                        phone = ""
+                        
+                    except urllib.error.HTTPError as e:
+                        err_body = e.read().decode("utf-8", errors="ignore")
+                        self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"HTTP {e.code}", "details": err_body})
+                        return
+                    except Exception as e:
+                        self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
+                        return
+
+                if not zalo_id:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Could not get Zalo ID"})
+                    return
+                
+                customer = store.upsert_zalo_customer(zalo_id=zalo_id, name=name, phone=phone, avatar_url=avatar)
+                
+                import json
+                # Send HTML that saves to localStorage and redirects
+                html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+    <script>
+        const user = {{
+            name: {json.dumps(customer['name'])},
+            phone: {json.dumps(customer['phone'])},
+            address: {json.dumps(customer['address'])},
+            zalo_id: {json.dumps(customer.get('zalo_id', ''))},
+            avatar_url: {json.dumps(customer.get('avatar_url', ''))},
+            zalo_url: {json.dumps(customer.get('zaloUrl', ''))},
+            zalo_group_id: {json.dumps(customer.get('zalo_group_id', ''))},
+            group_zalo_url: {json.dumps(customer.get('group_zalo_url', ''))}
+        }};
+        localStorage.setItem("public_customer_info", JSON.stringify(user));
+        let targetUrl = window.location.pathname.split("/api/")[0] || "/";
+        window.location.href = targetUrl;
+    </script>
+</body>
+</html>"""
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(html.encode("utf-8"))))
+                self.end_headers()
+                self.wfile.write(html.encode("utf-8"))
                 return
 
             if route.startswith("/api/") and self._is_login_enabled():
@@ -438,6 +768,24 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 if not self._require_admin():
                     return
 
+                if route == "/api/admin/public-web-config":
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "public_web": (system_config or {}).get("public_web", {}),
+                            "zalo_login": (system_config or {}).get("zalo_login", {})
+                        },
+                    )
+                    return
+
+                # #Issue144: Expose mail settings to Master Admin with the password redacted.
+                if route == "/api/admin/mail-config":
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {"mail": _public_mail_config(mail_config), "environment": constants.APP_ENV},
+                    )
+                    return
+
                 if route == "/api/admin/legacy-audit":
                     self._send_json(
                         HTTPStatus.OK,
@@ -483,7 +831,33 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy tài nguyên."})
 
         def do_POST(self) -> None:
+            log_info(f"POST {self.path}")
+            try:
+                self._do_POST_internal()
+            except Exception as e:
+                log_error(f"Error in do_POST for {self.path}: {e}", exc_info=True)
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Lỗi hệ thống nội bộ."})
+
+        def _do_POST_internal(self) -> None:
             route = self._normalize_route_path(self.path)
+            
+            if route == "/api/admin/zalo-groups":
+                try:
+                    payload = self._read_json_body()
+                    group_id = str(payload.get("id") or "").strip()
+                    name = str(payload.get("name") or "").strip()
+                    zalo_url = str(payload.get("zalo_url") or "").strip()
+                    if not group_id:
+                        import secrets
+                        group_id = f"zg_{secrets.token_hex(4)}"
+                    if not name:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Tên nhóm là bắt buộc."})
+                        return
+                    group = store.upsert_zalo_group(group_id, name, zalo_url, is_active=1)
+                    self._send_json(HTTPStatus.OK, {"message": "Đã lưu nhóm Zalo.", "zalo_group": group})
+                except Exception as exc:
+                    self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(exc)})
+                return
             if route == "/api/session/login":
                 try:
                     payload = self._read_json_body()
@@ -502,7 +876,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "message": "Đã đăng nhập hệ thống.",
                             **self._get_session_status_payload(session_token=session_data["token"]),
                         },
-                        extra_headers=self._build_session_cookie_headers(session_data["token"]),
+                        extra_headers=self._build_session_cookie_headers(session_data["token"], session_data.get("role")),
                     )
                 except ValueError as exc:
                     self._send_json(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
@@ -534,7 +908,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "message": "Đã đăng nhập Master Admin.",
                             **self._get_session_status_payload(session_token=session_data["token"]),
                         },
-                        extra_headers=self._build_session_cookie_headers(session_data["token"]),
+                        extra_headers=self._build_session_cookie_headers(session_data["token"], session_data.get("role")),
                     )
                 except ValueError as exc:
                     self._send_json(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
@@ -552,11 +926,246 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 )
                 return
 
+            if route == "/api/public/orders":
+                try:
+                    payload = self._read_json_body()
+                    from qltpchay.config import load_system_config
+                    current_sys_config = load_system_config()
+                    zalo_config = current_sys_config.get("zalo_login", {})
+                    if zalo_config.get("require_zalo_login", True) and not payload.get("zalo_id"):
+                        self._send_json(
+                            HTTPStatus.BAD_REQUEST,
+                            {"error": "Hệ thống yêu cầu đăng nhập bằng Zalo để xác thực đặt hàng."}
+                        )
+                        return
+
+                    result = store.create_online_order(
+                        customer_name=payload.get("customer_name") or "",
+                        customer_phone=payload.get("customer_phone") or "",
+                        customer_address=payload.get("customer_address") or "",
+                        zalo_id=payload.get("zalo_id") or "",
+                        avatar_url=payload.get("avatar_url") or "",
+                        note=payload.get("note") or "",
+                        items=payload.get("items") or [],
+                        force_new_order=bool(payload.get("force_new_order", False)),
+                    )
+                    self._send_json(HTTPStatus.CREATED, result)
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                except Exception as exc:
+                    self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"Lỗi hệ thống: {exc}"})
+                return
+
             if route.startswith("/api/") and self._is_login_enabled() and not self._require_authenticated_session():
                 return
 
             if route.startswith("/api/admin/"):
                 if not self._require_admin():
+                    return
+
+                # Issue #144: Send a diagnostic message only to the recipients configured server-side.
+                if route == "/api/admin/test-mail":
+                    # #Issue144: Return only mail diagnostics that help Master Admin verify the attempt; never expose credentials.
+                    tested_at = datetime.now().astimezone().isoformat(timespec="seconds")
+                    recipients = [
+                        str(email or "").strip()
+                        for email in (mail_config.get("to_emails") or [])
+                        if str(email or "").strip()
+                    ]
+                    security = (
+                        "SSL/TLS"
+                        if mail_config.get("use_ssl")
+                        else "STARTTLS"
+                        if mail_config.get("use_tls")
+                        else "Không mã hóa"
+                    )
+                    diagnostics = {
+                        "tested_at": tested_at,
+                        "environment": constants.APP_ENV,
+                        "smtp_host": str(mail_config.get("smtp_host") or "").strip(),
+                        "smtp_port": int(mail_config.get("smtp_port") or 587),
+                        "security": security,
+                        "from_email": str(mail_config.get("from_email") or "").strip(),
+                        "to_emails": recipients,
+                        "recipient_count": len(recipients),
+                    }
+                    try:
+                        mail_result = send_mail_notification(
+                            mail_config=mail_config,
+                            subject="Kiểm tra gửi mail từ Master Admin",
+                            body=(
+                                "Đây là email kiểm tra gửi từ màn Master Admin của ứng dụng.\n"
+                                "Nếu nhận được email này, cấu hình gửi mail hiện tại đang hoạt động."
+                            ),
+                        )
+                    except Exception:
+                        actor = self._get_current_username() or "unknown"
+                        log_error(f"Master Admin mail test failed for {actor}.", exc_info=True)
+                        self._send_json(
+                            HTTPStatus.BAD_GATEWAY,
+                            {
+                                "error": "Không gửi được email thử. Hãy kiểm tra cấu hình SMTP và log máy chủ.",
+                                "result": {**diagnostics, "status": "failed"},
+                            },
+                        )
+                        return
+
+                    if mail_result.get("skipped"):
+                        reason = mail_result.get("reason")
+                        message = (
+                            "Gửi mail đang bị tắt trong cấu hình."
+                            if reason == "disabled"
+                            else "Cấu hình mail còn thiếu máy chủ SMTP, địa chỉ gửi hoặc người nhận."
+                        )
+                        self._send_json(
+                            HTTPStatus.BAD_REQUEST,
+                            {"error": message, "skipped": True, "result": {**diagnostics, "status": "skipped"}},
+                        )
+                        return
+
+                    recipient_count = int(mail_result.get("recipient_count") or 0)
+                    actor = self._get_current_username() or "unknown"
+                    log_info(f"Master Admin {actor} sent a test email to {recipient_count} configured recipient(s).")
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Máy chủ SMTP đã nhận email thử.",
+                            # Keep the original top-level count for clients that may still have cached frontend assets.
+                            "recipient_count": recipient_count,
+                            "result": {**diagnostics, "status": "sent", "recipient_count": recipient_count},
+                        },
+                    )
+                    return
+
+                if route == "/api/admin/orders/edit-locked":
+                    if not (system_config or {}).get("EnableAdminLockedEdit", False):
+                        self._send_json(
+                            HTTPStatus.BAD_REQUEST,
+                            {"error": "Tính năng Master Admin sửa chứng từ đã khóa đang bị tắt trong cấu hình hệ thống."}
+                        )
+                        return
+                    try:
+                        payload = self._read_json_body()
+                        result = store.admin_edit_locked_order(
+                            cart_id=str(payload.get("cart", {}).get("id") or ""),
+                            cart_payload=payload.get("cart") or {},
+                            admin_edit_reason=str(payload.get("adminEditReason") or ""),
+                            actor_username=self._get_current_actor_name(),
+                            actor_role=self._get_current_role(),
+                        )
+                        self._send_json(HTTPStatus.OK, result)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+                if route == "/api/admin/purchases/edit-locked":
+                    if not (system_config or {}).get("EnableAdminLockedEdit", False):
+                        self._send_json(
+                            HTTPStatus.BAD_REQUEST,
+                            {"error": "Tính năng Master Admin sửa chứng từ đã khóa đang bị tắt trong cấu hình hệ thống."}
+                        )
+                        return
+                    try:
+                        payload = self._read_json_body()
+                        result = store.admin_edit_locked_purchase(
+                            purchase_id=str(payload.get("purchase", {}).get("id") or ""),
+                            purchase_payload=payload.get("purchase") or {},
+                            admin_edit_reason=str(payload.get("adminEditReason") or ""),
+                            actor_username=self._get_current_actor_name(),
+                            actor_role=self._get_current_role(),
+                        )
+                        self._send_json(HTTPStatus.OK, result)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+
+                # #Issue144: Persist editable SMTP settings while retaining a saved password when the field is blank.
+                if route == "/api/admin/mail-config":
+                    if system_config is None:
+                        self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Hệ thống chưa tải cấu hình."})
+                        return
+                    try:
+                        payload = self._read_json_body()
+                        if not isinstance(payload, dict):
+                            raise ValueError("Cấu hình mail không hợp lệ.")
+                        recipients = payload.get("to_emails", [])
+                        if not isinstance(recipients, list):
+                            raise ValueError("Danh sách người nhận không hợp lệ.")
+                        try:
+                            smtp_port = int(payload.get("smtp_port") or 587)
+                        except (TypeError, ValueError) as exc:
+                            raise ValueError("Cổng SMTP phải là số từ 1 đến 65535.") from exc
+                        if not 1 <= smtp_port <= 65535:
+                            raise ValueError("Cổng SMTP phải là số từ 1 đến 65535.")
+                        use_tls = bool(payload.get("use_tls"))
+                        use_ssl = bool(payload.get("use_ssl"))
+                        if use_tls and use_ssl:
+                            raise ValueError("Chỉ chọn một chế độ bảo mật: STARTTLS hoặc SSL/TLS.")
+
+                        raw_mail_config = {
+                            "enabled": bool(payload.get("enabled")),
+                            "smtp_host": str(payload.get("smtp_host") or "").strip(),
+                            "smtp_port": smtp_port,
+                            "username": str(payload.get("username") or "").strip(),
+                            "password": str(payload.get("password") or mail_config.get("password") or ""),
+                            "from_email": str(payload.get("from_email") or "").strip(),
+                            "to_emails": recipients,
+                            "use_tls": use_tls,
+                            "use_ssl": use_ssl,
+                            "subject_prefix": str(payload.get("subject_prefix") or "").strip(),
+                        }
+                        normalized_mail_config = _normalize_mail_config(raw_mail_config, raw_mail_config)
+                        saved_config = {**system_config, "mail": normalized_mail_config}
+                        config_path = Path(system_config.get("config_path") or constants.CONFIG_PATH)
+                        persist_system_config(saved_config, config_path=config_path)
+
+                        mail_config.clear()
+                        mail_config.update(normalized_mail_config)
+                        system_config["mail"] = mail_config
+                        actor = self._get_current_username() or "unknown"
+                        log_info(f"Master Admin {actor} updated mail configuration.")
+                        self._send_json(
+                            HTTPStatus.OK,
+                            {
+                                "message": "Đã lưu cấu hình gửi mail.",
+                                "mail": _public_mail_config(mail_config),
+                                "environment": constants.APP_ENV,
+                            },
+                        )
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    except Exception:
+                        log_error("Master Admin mail configuration save failed.", exc_info=True)
+                        self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Không lưu được cấu hình gửi mail."})
+                    return
+
+                if route == "/api/admin/public-web-config":
+                    try:
+                        payload = self._read_json_body()
+                        from qltpchay.config import _normalize_public_web_config, save_system_config
+                        
+                        if system_config is not None:
+                            current_public_web = system_config.get("public_web", {})
+                            updated_public_web = {
+                                **current_public_web,
+                                **payload
+                            }
+                            normalized = _normalize_public_web_config(updated_public_web)
+                            system_config["public_web"] = normalized
+                            save_system_config(
+                                system_config,
+                                config_path=Path(system_config.get("config_path") or constants.CONFIG_PATH),
+                            )
+                            
+                            self._send_json(HTTPStatus.OK, {
+                                "message": "Đã lưu cấu hình Public Web.",
+                                "public_web": normalized
+                            })
+                        else:
+                            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Hệ thống chưa tải cấu hình."})
+                    except Exception as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                     return
 
                 if route == "/api/admin/legacy-audit/apply-safe-fixes":
@@ -807,6 +1416,43 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 
+            if route == "/api/products/images/upload":
+                try:
+                    # Issue: 'parsed' chỉ có trong do_GET, phải parse URL riêng ở đây
+                    from urllib.parse import urlparse, parse_qs as _parse_qs
+                    _parsed = urlparse(self.path)
+                    filename = _parse_qs(_parsed.query).get("filename", ["image.jpg"])[0]
+                    payload = self._read_binary_body()
+                    ext = Path(filename).suffix
+                    if ext.lower() not in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]:
+                        ext = ".jpg"
+                    if ext.lower() != ".svg":
+                        payload, optimized_ext = helpers.resize_image_bytes(payload, max_dim=1024)
+                        if optimized_ext:
+                            ext = optimized_ext
+                    import uuid
+                    unique_name = f"{uuid.uuid4().hex}{ext}"
+                    image_dir = constants.DATA_DIR / "images" / "products"
+                    image_dir.mkdir(parents=True, exist_ok=True)
+                    (image_dir / unique_name).write_bytes(payload)
+                    _parsed = urlparse(self.path)
+                    base_path = ""
+                    api_idx = _parsed.path.find("/api/")
+                    if api_idx > 0:
+                        base_path = _parsed.path[:api_idx]
+                        
+                    scheme = self.headers.get("X-Forwarded-Proto", "http")
+                    # Support multiple comma-separated schemes in X-Forwarded-Proto just in case
+                    if "," in scheme:
+                        scheme = scheme.split(",")[0].strip()
+                    host = self.headers.get("Host", "127.0.0.1:4000")
+                    
+                    relative_url = f"/images/products/{unique_name}"
+                    self._send_json(HTTPStatus.OK, {"url": relative_url})
+                except Exception as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
             try:
                 payload = self._read_json_body()
             except ValueError as exc:
@@ -814,6 +1460,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 return
 
             try:
+
                 if route == "/api/products":
                     product = store.create_product(
                         name=payload.get("name"),
@@ -824,7 +1471,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
                         shelf_life_days=payload.get("shelf_life_days"),
                         storage_life_days=payload.get("storage_life_days"),
+                        images=payload.get("images"),
+                        details=payload.get("details"),
+                        recipe=payload.get("recipe"),
+                        note=payload.get("note", ""),
                         actor=self._get_current_actor_name(),
+                        unit_conversions=payload.get("unit_conversions"),
+                        default_purchase_unit=payload.get("default_purchase_unit"),
+                        default_sale_unit=payload.get("default_sale_unit"),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -878,11 +1532,13 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
 
                 if route == "/api/orders/quick-create":
                     result = store.create_quick_sale(
+                        target_cart_id=payload.get("target_cart_id", ""),
                         customer_id=payload.get("customer_id", ""),
                         customer_name=payload.get("customer_name", ""),
                         document_date=payload.get("document_date", ""),
                         note=payload.get("note", ""),
                         items=payload.get("items", []),
+                        discount_amount=payload.get("discount_amount", 0),
                         final_status=payload.get("final_status", "completed"),
                         mark_paid=bool(payload.get("mark_paid")),
                         payment_method=payload.get("payment_method", ""),
@@ -1210,9 +1866,12 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     return
 
                 if route == "/api/orders/ship":
+                    # Issue 169: Chuyển ngày xuất hàng được chọn xuống store
                     result = store.ship_cart_order(
                         payload.get("cart_id", ""),
                         actor=self._get_current_username() or "",
+                        shipped_at=payload.get("shipped_at", ""),
+                        ship_date=payload.get("ship_date", ""),
                     )
                     self._send_json(
                         HTTPStatus.OK,
@@ -1226,11 +1885,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     return
 
                 if route == "/api/purchases/receive":
+                    # Issue 169: Chuyển ngày nhập kho được chọn xuống store
                     result = store.receive_purchase(
                         payload.get("purchase_id", ""),
                         discount_amount=payload.get("discount_amount"),
                         actor_username=self._get_current_username() or "",
                         actor_role=self._get_current_role(),
+                        received_at=payload.get("received_at", ""),
+                        received_date=payload.get("received_date", ""),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -1251,12 +1913,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         document_date=payload.get("document_date", ""),
                         note=payload.get("note", ""),
                         items=payload.get("items", []),
+                        discount_amount=payload.get("discount_amount", 0),
                         final_status=payload.get("final_status", "received"),
                         mark_paid=bool(payload.get("mark_paid")),
                         payment_method=payload.get("payment_method", ""),
                         payment_note=payload.get("payment_note", ""),
                         actor_username=self._get_current_username() or "",
                         actor_role=self._get_current_role(),
+                        target_purchase_id=payload.get("target_purchase_id", ""),
                     )
                     self._send_json(
                         HTTPStatus.CREATED,
@@ -1312,6 +1976,19 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "summary": store.get_summary(),
                         },
                     )
+                    return
+
+                if route == "/api/carts/item":
+                    # #Issue133: Auth is checked above; only the specified cart line is written.
+                    try:
+                        result = store.update_cart_item(
+                            payload.get("cart_id", ""), payload.get("item_id", ""), payload,
+                            actor=self._get_current_actor_name(),
+                        )
+                    except SyncConflictError as exc:
+                        self._send_json(HTTPStatus.CONFLICT, {"error": str(exc), "conflict": True})
+                        return
+                    self._send_json(HTTPStatus.OK, result)
                     return
 
                 if route == "/api/carts/payment":
@@ -1431,11 +2108,42 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     )
                     return
 
+                match = re.fullmatch(r"/(?:api/admin/products|api/products)/(\d+)/change-base-unit", route)
+                if match:
+                    if not self._require_admin():
+                        return
+                    product = store.change_product_base_unit(
+                        product_id=match.group(1),
+                        new_unit=payload.get("new_unit"),
+                        conversion_rate=payload.get("conversion_rate"),
+                        add_old_unit_to_conversions=bool(payload.get("add_old_unit_to_conversions", True)),
+                        default_purchase_unit=payload.get("default_purchase_unit"),
+                        default_sale_unit=payload.get("default_sale_unit"),
+                        actor=payload.get("actor") or self._get_current_actor_name(),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": f"Đã chuyển đổi đơn vị chính thành công sang '{product.get('unit')}'.",
+                            "product": product,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                    return
+
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
             except ValueError as exc:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
 
         def do_PUT(self) -> None:
+            log_info(f"PUT {self.path}")
+            try:
+                self._do_PUT_internal()
+            except Exception as e:
+                log_error(f"Error in do_PUT for {self.path}: {e}", exc_info=True)
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Lỗi hệ thống nội bộ."})
+
+        def _do_PUT_internal(self) -> None:
             route = self._normalize_route_path(self.path)
             if self._is_login_enabled() and not self._require_authenticated_session():
                 return
@@ -1493,7 +2201,16 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                         low_stock_threshold=payload.get("low_stock_threshold", 5),
                         shelf_life_days=payload.get("shelf_life_days"),
                         storage_life_days=payload.get("storage_life_days"),
+                        images=payload.get("images"),
+                        details=payload.get("details"),
+                        recipe=payload.get("recipe"),
+                        note=payload.get("note"),
+                        # Preserve an explicit false value so a product can be hidden from the public catalog.
+                        is_public=payload.get("is_public"),
                         actor=payload.get("actor") or self._get_current_actor_name(),
+                        unit_conversions=payload.get("unit_conversions"),
+                        default_purchase_unit=payload.get("default_purchase_unit"),
+                        default_sale_unit=payload.get("default_sale_unit"),
                     )
                     self._send_json(
                         HTTPStatus.OK,
@@ -1549,35 +2266,121 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 
+            match = re.fullmatch(r"/(?:api/admin/products|api/products)/(\d+)/change-base-unit", route)
+            if match:
+                if not self._require_admin():
+                    return
+                try:
+                    payload = self._read_json_body()
+                    product = store.change_product_base_unit(
+                        product_id=match.group(1),
+                        new_unit=payload.get("new_unit"),
+                        conversion_rate=payload.get("conversion_rate"),
+                        add_old_unit_to_conversions=bool(payload.get("add_old_unit_to_conversions", True)),
+                        default_purchase_unit=payload.get("default_purchase_unit"),
+                        default_sale_unit=payload.get("default_sale_unit"),
+                        actor=payload.get("actor") or self._get_current_actor_name(),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": f"Đã chuyển đổi đơn vị chính thành công sang '{product.get('unit')}'.",
+                            "product": product,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
 
         def do_DELETE(self) -> None:
+            log_info(f"DELETE {self.path}")
+            try:
+                self._do_DELETE_internal()
+            except Exception as e:
+                log_error(f"Error in do_DELETE for {self.path}: {e}", exc_info=True)
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Lỗi hệ thống nội bộ."})
+
+        def _do_DELETE_internal(self) -> None:
+            route = self._normalize_route_path(self.path)
+
+            match_zg = re.fullmatch(r"/api/admin/zalo-groups/([^/]+)", route)
+            if match_zg:
+                try:
+                    store.delete_zalo_group(match_zg.group(1))
+                    self._send_json(HTTPStatus.OK, {"message": "Đã xóa nhóm Zalo."})
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
             route = self._normalize_route_path(self.path)
             if self._is_login_enabled() and not self._require_authenticated_session():
                 return
-            match = re.fullmatch(r"/api/products/(\d+)$", route)
-            if not match:
-                self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
+            if route.startswith("/api/admin/"):
+                if not self._require_admin():
+                    return
+                
+                match = re.fullmatch(r"/api/admin/products/(\d+)/hard", route)
+                if match:
+                    try:
+                        deleted = store.hard_delete_product(match.group(1), actor=self._get_current_actor_name())
+                        self._send_json(HTTPStatus.OK, deleted)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+                match = re.fullmatch(r"/api/admin/customers/([^/]+)/hard", route)
+                if match:
+                    try:
+                        deleted = store.hard_delete_customer(match.group(1), actor=self._get_current_actor_name())
+                        self._send_json(HTTPStatus.OK, deleted)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+
+                match = re.fullmatch(r"/api/admin/suppliers/([^/]+)/hard", route)
+                if match:
+                    try:
+                        deleted = store.hard_delete_supplier(match.group(1), actor=self._get_current_actor_name())
+                        self._send_json(HTTPStatus.OK, deleted)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
+                
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API admin."})
                 return
 
-            try:
-                deleted = store.delete_product(
-                    match.group(1),
-                    actor=self._get_current_actor_name(),
-                )
-                self._send_json(
-                    HTTPStatus.OK,
-                    {
-                        "message": "Đã chuyển sản phẩm sang danh mục đã xóa.",
-                        "deleted": deleted,
-                        "summary": store.get_summary(),
-                    },
-                )
-            except ValueError as exc:
-                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            match = re.fullmatch(r"/api/products/(\d+)$", route)
+            if match:
+                try:
+                    deleted = store.delete_product(
+                        match.group(1),
+                        actor=self._get_current_actor_name(),
+                    )
+                    self._send_json(
+                        HTTPStatus.OK,
+                        {
+                            "message": "Đã chuyển sản phẩm sang danh mục đã xóa.",
+                            "deleted": deleted,
+                            "summary": store.get_summary(),
+                        },
+                    )
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy API."})
 
         def log_message(self, format_string: str, *args) -> None:
             return
+
+        def _read_binary_body(self) -> bytes:
+            content_length = int(self.headers.get("Content-Length", "0"))
+            if content_length <= 0:
+                raise ValueError("Thiếu dữ liệu gửi lên.")
+            return self.rfile.read(content_length)
 
         def _read_json_body(self) -> dict:
             content_length = int(self.headers.get("Content-Length", "0"))
@@ -1594,6 +2397,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
         def _master_csv_columns(entity_type: str) -> list[str]:
             if entity_type == "products":
                 return [
+                    "id",
+                    "global_id",
                     "name",
                     "category",
                     "unit",
@@ -1602,6 +2407,15 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     "low_stock_threshold",
                     "shelf_life_days",
                     "storage_life_days",
+                    "images",
+                    "details",
+                    "recipe",
+                    "note",
+                    "is_public",
+                    "is_deleted",
+                    "deleted_at",
+                    "created_at",
+                    "updated_at",
                 ]
             if entity_type == "customers":
                 return [
@@ -1634,10 +2448,15 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             writer = csv.DictWriter(output, fieldnames=columns, extrasaction="ignore")
             writer.writeheader()
             for record in records:
-                row = {
-                    key: "" if record.get(key) is None else str(record.get(key))
-                    for key in columns
-                }
+                row = {}
+                for key in columns:
+                    val = record.get(key)
+                    if val is None:
+                        row[key] = ""
+                    elif key == "images" and isinstance(val, list):
+                        row[key] = json.dumps(val, ensure_ascii=False)
+                    else:
+                        row[key] = str(val)
                 writer.writerow(row)
             return output.getvalue().encode("utf-8-sig")
 
@@ -1675,6 +2494,10 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     "sale_price",
                     "low_stock_threshold",
                 }
+            elif entity_type == "customers":
+                required_headers = {"name", "phone"}
+            elif entity_type == "suppliers":
+                required_headers = {"name", "phone"}
             missing_headers = sorted(required_headers - normalized_headers)
             if missing_headers:
                 raise ValueError(
@@ -1694,6 +2517,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     storage_life_days = cls._parse_csv_float(data.get("storage_life_days", ""), "storage_life_days", None)
                     records.append(
                         {
+                            "id": data.get("id", ""),
+                            "global_id": data.get("global_id", ""),
                             "name": data.get("name", ""),
                             "category": data.get("category", ""),
                             "unit": data.get("unit", ""),
@@ -1702,6 +2527,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                             "low_stock_threshold": 5 if threshold is None else threshold,
                             "shelf_life_days": shelf_life_days,
                             "storage_life_days": storage_life_days,
+                            "images": data.get("images", ""),
+                            "details": data.get("details", ""),
+                            "recipe": data.get("recipe", ""),
+                            "note": data.get("note", ""),
+                            "is_deleted": data.get("is_deleted", ""),
+                            "deleted_at": data.get("deleted_at", ""),
+                            "created_at": data.get("created_at", ""),
+                            "updated_at": data.get("updated_at", ""),
                         }
                     )
                     continue
@@ -1732,28 +2565,13 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                     f"Bạn đang import '{source_entity_type}' vào '{import_entity_type}'."
                 )
 
-        @staticmethod
-        def _build_request_base_href(request_path: str | None) -> str | None:
-            parsed_path = urlparse(request_path or "/").path or "/"
-            if parsed_path == "/":
-                return None
-            if parsed_path.endswith("/"):
-                return parsed_path
-            return f"{parsed_path}/"
 
-        @staticmethod
-        def _inject_html_base_href(html_text: str, base_href: str | None) -> str:
-            if not base_href:
-                return re.sub(r"\s*<base\b[^>]*>", "", html_text, count=1, flags=re.IGNORECASE)
-            escaped_base_href = html.escape(base_href, quote=True)
-            base_tag = f'<base href="{escaped_base_href}">'
-            if re.search(r"<base\b", html_text, flags=re.IGNORECASE):
-                return re.sub(r"<base\b[^>]*>", base_tag, html_text, count=1, flags=re.IGNORECASE)
-            return re.sub(r"(<head[^>]*>)", rf"\1\n  {base_tag}", html_text, count=1, flags=re.IGNORECASE)
 
-        def _serve_static_file(self, relative_path: str, request_path: str | None = None) -> None:
-            safe_path = (STATIC_DIR / relative_path).resolve()
-            static_root = STATIC_DIR.resolve()
+        def _serve_static_file(self, relative_path: str, request_path: str | None = None, base_dir: Path | None = None) -> None:
+            if base_dir is None:
+                base_dir = STATIC_DIR
+            safe_path = (base_dir / relative_path).resolve()
+            static_root = base_dir.resolve()
             if not safe_path.is_file() or (static_root not in safe_path.parents and safe_path != static_root):
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Không tìm thấy file."})
                 return
@@ -1765,10 +2583,6 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             has_version_query = any(key == "v" and value for key, value in parse_qsl(parsed_request_path.query))
             if safe_path.suffix == ".html":
                 html_text = payload.decode("utf-8")
-                html_text = self._inject_html_base_href(
-                    html_text,
-                    self._build_request_base_href(request_path),
-                )
                 payload = js_asset_versions.inject_index_versions(html_text).encode("utf-8")
                 content_type = "text/html; charset=utf-8"
                 cache_control = revalidated_cache
@@ -1832,7 +2646,8 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             )
 
         def _get_session_token(self) -> str | None:
-            cookies = parse_cookie_header(self.headers.get("Cookie"))
+            raw_cookie = self.headers.get("Cookie")
+            cookies = parse_cookie_header(raw_cookie)
             for cookie_name in build_session_cookie_name_candidates(
                 ADMIN_SESSION_COOKIE,
                 self.headers.get("Host"),
@@ -1843,8 +2658,9 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             return None
 
         def _resolve_current_session(self, *, touch: bool | None = None) -> tuple[dict | None, bool]:
+            token = self._get_session_token()
             return admin_sessions.resolve_session(
-                self._get_session_token(),
+                token,
                 touch=self._should_touch_session() if touch is None else touch,
             )
 
@@ -2032,10 +2848,16 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             session = admin_sessions.get_session(token, touch=False)
             username = str(session.get("username") or "") if session else ""
             role = str(session.get("role") or "") if session else ""
+            
+            configured_admin_path = str((system_config or {}).get("admin_path", "/admin")).lower()
+            if not configured_admin_path.startswith("/"):
+                configured_admin_path = "/" + configured_admin_path
+                
             return {
                 "authenticated": bool(session),
                 "username": username,
                 "role": role,
+                "admin_path": configured_admin_path,
                 "permissions": [
                     str(permission or "").strip()
                     for permission in ((session or {}).get("permissions") or [])
@@ -2043,6 +2865,7 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 ],
                 "is_admin": role == "admin",
                 "enable_login": auth_enabled,
+                "enable_admin_locked_edit": bool((system_config or {}).get("EnableAdminLockedEdit", False)),
                 "session_started_at": str(session.get("started_at") or "") if session else "",
                 "timeout_minutes": admin_session_timeout_minutes if role == "admin" else session_timeout_minutes,
                 "app": self._get_app_info(),
@@ -2119,9 +2942,14 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
                 header += f"; Max-Age={max_age}"
             return header
 
-        def _build_session_cookie_headers(self, token: str) -> list[tuple[str, str]]:
+        def _build_session_cookie_headers(self, token: str, role: str | None = None) -> list[tuple[str, str]]:
             cookie_name = self._get_session_cookie_name()
-            headers = [("Set-Cookie", self._build_cookie_header(cookie_name, token))]
+            max_age = None
+            if role is not None:
+                # Đảm bảo Max-Age được set cho cookie dựa trên timeout config để tránh việc 
+                # trình duyệt (đặc biệt trên mobile) xóa cookie ngay khi đóng tab (Session Cookie)
+                max_age = (admin_session_timeout_minutes if role == "admin" else session_timeout_minutes) * 60
+            headers = [("Set-Cookie", self._build_cookie_header(cookie_name, token, max_age=max_age))]
             if cookie_name != ADMIN_SESSION_COOKIE:
                 headers.append(("Set-Cookie", self._build_cookie_header(ADMIN_SESSION_COOKIE, "", max_age=0)))
             return headers
@@ -2160,10 +2988,27 @@ def create_handler(store, admin_sessions, system_config: dict | None = None):
             )
 
         def _send_json(self, status: HTTPStatus, payload: dict, extra_headers: list[tuple[str, str]] | None = None) -> None:
-            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            try:
+                data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            except Exception as json_exc:
+                log_error(f"JSON serialization error: {json_exc}. Payload: {payload}", exc_info=True)
+                data = json.dumps({"error": "Internal server error during JSON serialization."}).encode("utf-8")
+                status = HTTPStatus.INTERNAL_SERVER_ERROR
+            
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
+            
+            has_set_cookie = any(key.lower() == "set-cookie" for key, _ in extra_headers) if extra_headers else False
+            
+            if self._is_login_enabled() and status not in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN) and not has_set_cookie:
+                session = self._get_current_session(touch=False)
+                if session:
+                    token = self._get_session_token()
+                    if token:
+                        for key, value in self._build_session_cookie_headers(token, session.get("role")):
+                            self.send_header(key, value)
+                            
             for key, value in extra_headers or []:
                 self.send_header(key, value)
             self.end_headers()

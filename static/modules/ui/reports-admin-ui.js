@@ -1,3 +1,4 @@
+import * as utils from "../utils.js";
 export function createReportsAdminUi(deps) {
   const {
     state,
@@ -19,7 +20,7 @@ export function createReportsAdminUi(deps) {
     if (!dom.reportFiltersSection || !dom.reportFiltersWrap || !dom.reportFiltersToggleButton) {
       return;
     }
-    const collapsed = compact && state.reportFiltersCollapsed;
+    const collapsed = state.reportFiltersCollapsed;
     dom.reportFiltersSection.classList.toggle("is-collapsed", collapsed);
     dom.reportFiltersWrap.hidden = collapsed;
     dom.reportFiltersToggleButton.textContent = collapsed ? "Mở bộ lọc" : "Thu gọn";
@@ -81,7 +82,7 @@ export function createReportsAdminUi(deps) {
       dom.reportProductActivity.innerHTML = `<div class="empty-state">${isDateFiltered ? "Khoảng ngày này chưa có biến động nhập xuất theo sản phẩm." : "Tháng này chưa có biến động nhập xuất theo sản phẩm."}</div>`;
     } else {
       const pageData = paginateItems(productActivity, "reportProducts");
-      dom.reportProductActivity.innerHTML = pageData.items.map((item) => `<article class="product-row ${Number(item.out_quantity) > Number(item.in_quantity) ? "low-stock" : ""}"><div class="product-row-head"><div><div class="product-row-name">${escapeHtml(item.name)}</div><div class="product-row-meta"><span>${escapeHtml(item.category)}</span><span>${escapeHtml(item.unit)}</span></div></div><div class="product-row-stock">${escapeHtml(formatQuantity(item.current_stock))} ${escapeHtml(item.unit)}</div></div><div class="product-row-meta"><span>Nhập ${escapeHtml(formatQuantity(item.in_quantity))}</span><span>Xuất ${escapeHtml(formatQuantity(item.out_quantity))}</span></div><div class="product-row-meta"><span>Chi nhập ${escapeHtml(formatCurrency(item.purchase_value))}</span><span>Doanh thu ${escapeHtml(formatCurrency(item.revenue_value))}</span></div><div class="product-row-meta"><span>Hoàn khách ${escapeHtml(formatCurrency(item.customer_return_value))}</span><span>Trả NCC ${escapeHtml(formatCurrency(item.supplier_return_value))}</span></div><div class="product-row-meta"><span>Điều chỉnh +${escapeHtml(formatQuantity(item.adjustment_in_quantity))} / -${escapeHtml(formatQuantity(item.adjustment_out_quantity))}</span><span class="${Number(item.gross_profit_value) >= 0 ? "report-highlight" : "report-warning"}">Lãi gộp ${escapeHtml(formatCurrency(item.gross_profit_value))}</span></div></article>`).join("") + renderPagination("reportProducts", pageData);
+      dom.reportProductActivity.innerHTML = pageData.items.map((item) => `<article class="product-row ${Number(item.out_quantity) > Number(item.in_quantity) ? "low-stock" : ""}"><div class="product-row-head"><div><div class="product-row-name"><span class="product-name-link" data-product-detail-trigger="${item.id}">${escapeHtml(item.name)}</span></div><div class="product-row-meta"><span>${escapeHtml(item.category)}</span><span>${escapeHtml(item.unit)}</span></div></div><div class="product-row-stock">${escapeHtml(formatQuantity(item.current_stock))} ${escapeHtml(item.unit)}</div></div><div class="product-row-meta"><span>Nhập ${escapeHtml(formatQuantity(item.in_quantity))}</span><span>Xuất ${escapeHtml(formatQuantity(item.out_quantity))}</span></div><div class="product-row-meta"><span>Chi nhập ${escapeHtml(formatCurrency(item.purchase_value))}</span><span>Doanh thu ${escapeHtml(formatCurrency(item.revenue_value))}</span></div><div class="product-row-meta"><span>Hoàn khách ${escapeHtml(formatCurrency(item.customer_return_value))}</span><span>Trả NCC ${escapeHtml(formatCurrency(item.supplier_return_value))}</span></div><div class="product-row-meta"><span>Điều chỉnh +${escapeHtml(formatQuantity(item.adjustment_in_quantity))} / -${escapeHtml(formatQuantity(item.adjustment_out_quantity))}</span><span class="${Number(item.gross_profit_value) >= 0 ? "report-highlight" : "report-warning"}">Lãi gộp ${escapeHtml(formatCurrency(item.gross_profit_value))}</span></div></article>`).join("") + renderPagination("reportProducts", pageData);
     }
 
     const receiptTypeMeta = {
@@ -100,13 +101,13 @@ export function createReportsAdminUi(deps) {
         .map((code) => `<option value="${escapeHtml(code)}"></option>`)
         .join("");
     }
-    const receiptSearchTerm = String(state.reportReceiptSearchTerm || "").trim().toLowerCase();
+    const receiptSearchTerm = utils.normalizeText(String(state.reportReceiptSearchTerm || ""));
     const visibleReceiptHistory = receiptHistory.filter((entry) => {
       if (!receiptSearchTerm) {
         return true;
       }
       const counterpart = entry.customer_name || entry.supplier_name || entry.actor || "";
-      const haystack = [
+      const haystack = utils.normalizeText([
         entry.receipt_code,
         entry.source_code,
         entry.note,
@@ -115,8 +116,7 @@ export function createReportsAdminUi(deps) {
         counterpart,
       ]
         .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+        .join(" "));
       return haystack.includes(receiptSearchTerm);
     });
     if (!visibleReceiptHistory.length) {
@@ -181,6 +181,7 @@ export function createReportsAdminUi(deps) {
     }
 
     if (!isAdmin) {
+      if (dom.adminTestMailStatus) dom.adminTestMailStatus.textContent = "";
       if (dom.adminLegacyAuditSummary) dom.adminLegacyAuditSummary.innerHTML = "";
       if (dom.adminLegacySafeFixList) dom.adminLegacySafeFixList.innerHTML = "";
       if (dom.adminLegacyManualReviewList) dom.adminLegacyManualReviewList.innerHTML = "";

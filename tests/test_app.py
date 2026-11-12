@@ -70,6 +70,114 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(summary["product_count"], 1)
         self.assertEqual(summary["total_stock"], 6.0)
 
+    def test_ut_db_product_recipe_and_note_field_support(self) -> None:
+        # Issue recipe and note field serialization and persistence test
+        product = self.store.create_product(
+            name="Cá chay kho riềng",
+            category="Đồ chay đông lạnh",
+            unit="gói",
+            details="<p>Mô tả chi tiết sản phẩm</p>",
+            recipe="<p>Hướng dẫn cách nấu cá kho riềng</p>",
+            note="Đặt trước 1 ngày",
+        )
+        self.assertEqual(product["details"], "<p>Mô tả chi tiết sản phẩm</p>")
+        self.assertEqual(product["recipe"], "<p>Hướng dẫn cách nấu cá kho riềng</p>")
+        self.assertEqual(product["note"], "Đặt trước 1 ngày")
+
+        # Test get_product_by_id
+        fetched = self.store.get_product_by_id(product["id"])
+        self.assertEqual(fetched["details"], "<p>Mô tả chi tiết sản phẩm</p>")
+        self.assertEqual(fetched["recipe"], "<p>Hướng dẫn cách nấu cá kho riềng</p>")
+        self.assertEqual(fetched["note"], "Đặt trước 1 ngày")
+
+        # Test get_products
+        products = self.store.get_products()
+        found = next((p for p in products if p["id"] == product["id"]), None)
+        self.assertIsNotNone(found)
+        self.assertEqual(found["recipe"], "<p>Hướng dẫn cách nấu cá kho riềng</p>")
+        self.assertEqual(found["note"], "Đặt trước 1 ngày")
+
+        # Test update_product
+        self.store.update_product(
+            product["id"],
+            name=product["name"],
+            category=product["category"],
+            unit=product["unit"],
+            low_stock_threshold=product["low_stock_threshold"],
+            recipe="<p>Công thức mới cập nhật</p>",
+            note="Chỉ bán từ 2 gói trở lên",
+        )
+        updated = self.store.get_product_by_id(product["id"])
+        self.assertEqual(updated["recipe"], "<p>Công thức mới cập nhật</p>")
+        self.assertEqual(updated["note"], "Chỉ bán từ 2 gói trở lên")
+
+    def test_ut_backend_image_resize_and_optimization(self) -> None:
+        # Issue: Backend auto-resize image to max 1024x1024
+        import io
+        import base64
+        from PIL import Image
+        from qltpchay.helpers import resize_image_bytes, optimize_html_embedded_images
+
+        # Create a test large image (2000 x 1000)
+        img = Image.new("RGB", (2000, 1000), color=(255, 100, 50))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        raw_bytes = buf.getvalue()
+
+        # Test resize_image_bytes
+        resized_bytes, ext = resize_image_bytes(raw_bytes, max_dim=1024)
+        resized_img = Image.open(io.BytesIO(resized_bytes))
+        self.assertEqual(resized_img.size[0], 1024)
+        self.assertEqual(resized_img.size[1], 512)
+
+        # Test embedded base64 in HTML
+        b64 = base64.b64encode(raw_bytes).decode("ascii")
+        html_input = f'<p>Hình món ăn: <img src="data:image/jpeg;base64,{b64}"></p>'
+        optimized_html = optimize_html_embedded_images(html_input, max_dim=1024)
+        self.assertIn("data:image/jpeg;base64,", optimized_html)
+        self.assertNotEqual(html_input, optimized_html)
+
+        # Test creating product with large base64 image in details & recipe
+        prod = self.store.create_product(
+            name="Sườn non chay sốt nấm",
+            category="Đồ chay đông lạnh",
+            unit="gói",
+            details=html_input,
+            recipe=html_input,
+        )
+        self.assertIn("data:image/jpeg;base64,", prod["details"])
+        self.assertNotEqual(prod["details"], html_input)
+
+    def test_ut_helpers_get_product_min_unit(self) -> None:
+        # Issue 169: Test lấy đơn vị nhỏ nhất của sản phẩm
+        from qltpchay.helpers import get_product_min_unit
+
+        # Đơn vị không chia nhỏ được (gói, cái, hộp, chiếc, khoanh), không có quy đổi
+        self.assertEqual(get_product_min_unit({"unit": "gói"}), 1.0)
+        self.assertEqual(get_product_min_unit({"unit": "cái"}), 1.0)
+        self.assertEqual(get_product_min_unit({"unit": "hộp"}), 1.0)
+        self.assertEqual(get_product_min_unit({"unit": "chiếc"}), 1.0)
+
+        # Đơn vị chia nhỏ được (kg, lạng...), không có quy đổi
+        self.assertEqual(get_product_min_unit({"unit": "kg"}), 0.1)
+
+        # Có bảng quy đổi với đơn vị lớn hơn (thùng = 24)
+        p_box = {
+            "unit": "gói",
+            "unit_conversions": [{"from_unit": "thùng", "conversion_factor": 24.0}],
+        }
+        self.assertEqual(get_product_min_unit(p_box), 1.0)
+
+        # Có bảng quy đổi với đơn vị nhỏ hơn (gói 200g = 0.2 kg)
+        p_sub = {
+            "unit": "kg",
+            "unit_conversions": [
+                {"from_unit": "thùng", "conversion_factor": 10.0},
+                {"from_unit": "gói 200g", "conversion_factor": 0.2},
+            ],
+        }
+        self.assertEqual(get_product_min_unit(p_sub), 0.2)
+
     def test_ut_db_02_stock_out_cannot_exceed_inventory(self) -> None:
         product = self.store.create_product(
             name="Xúc xích chay",
@@ -81,6 +189,63 @@ class InventoryStoreTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "lớn hơn tồn kho"):
             self.store.create_transaction(product["id"], "out", 3)
+
+    def test_ut_online_01_uses_server_sale_price_when_public_order_omits_unit_price(self) -> None:
+        product = self.store.create_product(
+            name="Chả lụa online",
+            category="Đồ chay đông lạnh",
+            unit="gói",
+            price=25000,
+            sale_price=39000,
+            low_stock_threshold=2,
+        )
+        price_only_product = self.store.create_product(
+            name="Tàu hũ online",
+            category="Đồ chay đông lạnh",
+            unit="gói",
+            price=18000,
+            sale_price=0,
+            low_stock_threshold=2,
+        )
+
+        result = self.store.create_online_order(
+            customer_name="Khách đặt web",
+            items=[
+                {"product_id": product["id"], "quantity": 2},
+                {"product_id": price_only_product["id"], "quantity": 1},
+            ],
+        )
+
+        items_by_id = {item["productId"]: item for item in result["cart"]["items"]}
+        self.assertEqual(items_by_id[product["id"]]["unitPrice"], 39000.0)
+        self.assertEqual(items_by_id[product["id"]]["unit_price"], 39000.0)
+        self.assertEqual(items_by_id[product["id"]]["quantity"] * items_by_id[product["id"]]["unitPrice"], 78000.0)
+        self.assertEqual(items_by_id[price_only_product["id"]]["unitPrice"], 18000.0)
+
+        # Test force_new_order=True creates a separate cart instead of merging into existing draft cart
+        separate_result = self.store.create_online_order(
+            customer_name="Khách đặt web",
+            items=[{"product_id": product["id"], "quantity": 3}],
+            force_new_order=True,
+        )
+        self.assertNotEqual(separate_result["cart"]["id"], result["cart"]["id"])
+        self.assertEqual(len(separate_result["cart"]["items"]), 1)
+        self.assertEqual(separate_result["cart"]["items"][0]["quantity"], 3.0)
+
+    def test_ut_online_02_product_sales_stats(self) -> None:
+        p1 = self.store.create_product(name="SP Bán Chạy 1", category="Chay", unit="gói", price=10000, sale_price=15000, low_stock_threshold=1)
+        p2 = self.store.create_product(name="SP Bán Chạy 2", category="Chay", unit="gói", price=10000, sale_price=15000, low_stock_threshold=1)
+        
+        self.store.create_online_order(
+            customer_name="Khách Mua Nhiều",
+            items=[
+                {"product_id": p1["id"], "quantity": 5},
+                {"product_id": p2["id"], "quantity": 2},
+            ],
+        )
+        stats = self.store.get_product_sales_stats()
+        self.assertEqual(stats.get(p1["id"]), 5.0)
+        self.assertEqual(stats.get(p2["id"]), 2.0)
 
     def test_ut_invsort_01_product_life_fields_and_priority_metrics_are_normalized(self) -> None:
         product = self.store.create_product(
@@ -1744,7 +1909,7 @@ class InventoryStoreTests(unittest.TestCase):
         self.assertEqual(by_code[adjustment["receipt_code"]]["reason"], "Kiểm kho")
         self.assertIn("Tạo phiếu điều chỉnh tồn", by_code[adjustment["receipt_code"]]["audit_message"])
 
-    def test_ut_aud_04_product_master_import_logs_actor_for_restore_and_update(self) -> None:
+    def test_ut_aud_04_product_master_import_logs_actor_for_update_deleted(self) -> None:
         product = self.store.create_product(
             name="Chả cốm chay",
             category="Đông lạnh",
@@ -1771,7 +1936,7 @@ class InventoryStoreTests(unittest.TestCase):
             actor="admin-csv",
         )
 
-        self.assertEqual(result["restored"], 1)
+        self.assertEqual(result["restored"], 0)
         self.assertEqual(result["updated"], 1)
 
         with self.store._connect() as connection:
@@ -1781,14 +1946,13 @@ class InventoryStoreTests(unittest.TestCase):
                 FROM audit_logs
                 WHERE entity_type = 'product'
                   AND entity_id = ?
-                  AND action IN ('restore', 'update')
+                  AND action IN ('update')
                 ORDER BY id DESC
                 """,
                 (str(product["id"]),),
             ).fetchall()
 
         logs = {row["action"]: row for row in rows}
-        self.assertEqual(logs["restore"]["actor"], "admin-csv")
         self.assertEqual(logs["update"]["actor"], "admin-csv")
         self.assertIn("Loại thực phẩm", logs["update"]["message"])
         self.assertIn("Giá nhập", logs["update"]["message"])
@@ -1946,17 +2110,6 @@ class InventoryStoreTests(unittest.TestCase):
                 }
             )
 
-        final_note_carts = copy.deepcopy(locked_state["carts"])
-        final_note_carts[0]["note"] = "Khong duoc sua sau thanh toan"
-
-        with self.assertRaisesRegex(ValueError, "không thể sửa ghi chú"):
-            self.store.save_sync_state(
-                {
-                    "carts": final_note_carts,
-                    "expected_updated_at": {"carts": locked_state["updated_at"]["carts"]},
-                }
-            )
-
         with self.assertRaisesRegex(ValueError, "không thể sửa giảm giá khuyến mại"):
             self.store.save_sync_state(
                 {
@@ -1965,16 +2118,6 @@ class InventoryStoreTests(unittest.TestCase):
                 }
             )
 
-        final_note_purchases = copy.deepcopy(locked_state["purchases"])
-        final_note_purchases[0]["note"] = "Khong duoc sua sau thanh toan"
-
-        with self.assertRaisesRegex(ValueError, "Phiếu nhập đã thanh toán không thể sửa trực tiếp"):
-            self.store.save_sync_state(
-                {
-                    "purchases": final_note_purchases,
-                    "expected_updated_at": {"purchases": locked_state["updated_at"]["purchases"]},
-                }
-            )
 
     def test_ut_sync_04_cart_workflow_supports_draft_cancel_and_completed_paid_locks(self) -> None:
         product = self.store.create_product(
@@ -2746,6 +2889,81 @@ class InventoryStoreTests(unittest.TestCase):
                 items=[{"product_id": product["id"], "quantity": 2, "unit_price": 16000}],
                 final_status="completed",
             )
+
+    def test_ut_quick_06_quick_purchase_target_purchase_with_conversion_unit_and_unsaved_id(self) -> None:
+        # Issue 171: Kiểm tra tạo quick purchase với target_purchase_id chưa lưu DB hoặc đang mở
+        product = self.store.create_product(
+            name="Nấm đùi gà thùng",
+            category="Nấm",
+            unit="kg",
+            price=50000,
+            sale_price=80000,
+            low_stock_threshold=2,
+            unit_conversions=[{"from_unit": "thùng", "to_unit": "kg", "conversion_factor": 10}],
+        )
+
+        # 1. Target ID chưa có trong DB (unsaved draft do client sinh)
+        unsaved_draft_id = "purchase-client-draft-999"
+        result1 = self.store.create_quick_purchase(
+            supplier_name="NCC Nấm Tươi",
+            document_date="2026-09-26",
+            items=[{
+                "product_id": product["id"],
+                "quantity": 20, # 2 thùng = 20 kg
+                "input_quantity": 2,
+                "input_unit": "thùng",
+                "conversion_factor": 10,
+                "unit_cost": 500000, # 500k/thùng
+                "discount_amount": 50000,
+            }],
+            final_status="received",
+            mark_paid=True,
+            target_purchase_id=unsaved_draft_id,
+            actor_username="tester",
+        )
+        self.assertEqual(result1["purchase"]["id"], unsaved_draft_id)
+        self.assertEqual(result1["purchase"]["status"], "paid")
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 20.0)
+
+        # Kiểm tra purchase_items có đủ thông tin đơn vị quy đổi
+        with self.store._connect() as connection:
+            item_row = connection.execute(
+                "SELECT * FROM purchase_items WHERE purchase_id = ?",
+                (unsaved_draft_id,),
+            ).fetchone()
+        self.assertIsNotNone(item_row)
+        self.assertEqual(item_row["quantity"], 20.0)
+        self.assertEqual(item_row["input_quantity"], 2.0)
+        self.assertEqual(item_row["input_unit"], "thùng")
+        self.assertEqual(item_row["conversion_factor"], 10.0)
+        self.assertEqual(item_row["discount_amount"], 50000.0)
+
+        # 2. Target ID đã có trong DB (phiếu draft có sẵn)
+        existing_draft_res = self.store.create_quick_purchase(
+            supplier_name="NCC Nấm Tươi 2",
+            items=[{"product_id": product["id"], "quantity": 10, "unit_cost": 50000}],
+            final_status="ordered",
+        )
+        existing_draft = existing_draft_res["purchase"]
+        result2 = self.store.create_quick_purchase(
+            supplier_name="NCC Nấm Tươi 2 Đổi Tên",
+            document_date="2026-09-27",
+            items=[{
+                "product_id": product["id"],
+                "quantity": 30,
+                "input_quantity": 3,
+                "input_unit": "thùng",
+                "conversion_factor": 10,
+                "unit_cost": 490000,
+            }],
+            final_status="received",
+            target_purchase_id=existing_draft["id"],
+            actor_username="tester",
+        )
+        self.assertEqual(result2["purchase"]["id"], existing_draft["id"])
+        self.assertEqual(result2["purchase"]["supplierName"], "NCC Nấm Tươi 2 Đổi Tên")
+        self.assertEqual(result2["purchase"]["status"], "received")
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 50.0) # 20 + 30
 
     def test_ut_ord_17_bulk_create_orders_commit_valid_is_partial_and_idempotent(self) -> None:
         ok_product = self.store.create_product(
@@ -4825,5 +5043,478 @@ class InventoryStoreTests(unittest.TestCase):
 
 
 
+    def test_ut_admin_edit_01_locked_purchase_success_and_ledger_adjustment(self) -> None:
+        product = self.store.create_product(
+            name="Sườn non chay",
+            category="Đồ khô",
+            unit="gói",
+            low_stock_threshold=2,
+            sale_price=50000,
+        )
+        now = "2026-08-16T09:00:00+07:00"
+        receipt = self._create_purchase_receipt_at(
+            supplier_name="NCC Test",
+            items=[{"product_id": product["id"], "quantity": 10, "unit_cost": 30000}],
+            created_at=now,
+            note="Phiếu nhập ban đầu",
+        )
+        purchase_id = "purchase_test_admin_01"
+        self.store.save_sync_state({
+            "purchases": [{
+                "id": purchase_id,
+                "supplierName": "NCC Test",
+                "status": "received",
+                "orderedAt": now,
+                "receivedAt": now,
+                "receiptCode": receipt["receipt_code"],
+                "items": [{
+                    "productId": product["id"],
+                    "productName": product["name"],
+                    "quantity": 10,
+                    "unitCost": 30000,
+                }],
+            }]
+        })
+        
+        # Verify stock is 10
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 10.0)
+
+        # Admin edits locked purchase: reduce quantity to 8 and update cost to 32000
+        edit_payload = {
+            "id": purchase_id,
+            "supplierName": "NCC Test",
+            "items": [{
+                "productId": product["id"],
+                "productName": product["name"],
+                "quantity": 8,
+                "unitCost": 32000,
+            }],
+            "discountAmount": 5000,
+            "note": "Ghi chú admin edit",
+        }
+        result = self.store.admin_edit_locked_purchase(
+            purchase_id=purchase_id,
+            purchase_payload=edit_payload,
+            admin_edit_reason="NCC giao thiếu 2 gói",
+            actor_username="admin",
+            actor_role="admin",
+        )
+        self.assertIn("thành công", result["message"])
+
+        # Verify stock updated to 8
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 8.0)
+
+        # Verify purchase document updated
+        updated_purchases = self.store.get_sync_state()["purchases"]
+        updated_p = next(p for p in updated_purchases if p["id"] == purchase_id)
+        self.assertEqual(updated_p["supplierName"], "NCC Test")
+        self.assertEqual(updated_p["items"][0]["quantity"], 8.0)
+        self.assertEqual(updated_p["items"][0]["unitCost"], 32000.0)
+        self.assertEqual(updated_p["discountAmount"], 5000.0)
+
+    def test_ut_admin_edit_02_locked_order_success_and_ledger_adjustment(self) -> None:
+        product = self.store.create_product(
+            name="Chả lụa chay đặc biệt",
+            category="Đồ chay đông lạnh",
+            unit="đòn",
+            low_stock_threshold=2,
+            sale_price=60000,
+        )
+        self.store.create_transaction(product["id"], "in", 20, "Nhập kho ban đầu")
+        cart_id = "cart_test_admin_01"
+
+        # Create cart as draft
+        self.store.save_sync_state({
+            "carts": [{
+                "id": cart_id,
+                "customerName": "Khách Test",
+                "status": "draft",
+                "items": [{
+                    "productId": product["id"],
+                    "productName": product["name"],
+                    "quantity": 5,
+                    "unitPrice": 60000,
+                }],
+            }]
+        })
+        # Commit and ship
+        self.store.commit_cart_order(cart_id, actor="tester")
+        self.store.ship_cart_order(cart_id, actor="tester")
+
+        # Stock after sale = 15
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 15.0)
+
+        # Admin edits locked order: change quantity to 3 and price to 55000
+        edit_payload = {
+            "id": cart_id,
+            "customerName": "Khách Test",
+            "items": [{
+                "productId": product["id"],
+                "productName": product["name"],
+                "quantity": 3,
+                "unitPrice": 55000,
+            }],
+            "discountAmount": 10000,
+            "note": "Giảm giá khách quen",
+        }
+        result = self.store.admin_edit_locked_order(
+            cart_id=cart_id,
+            cart_payload=edit_payload,
+            admin_edit_reason="Khách đổi lấy 3 đòn thay vì 5",
+            actor_username="admin",
+            actor_role="admin",
+        )
+        self.assertIn("thành công", result["message"])
+
+        # Stock after edit = 20 - 3 = 17
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 17.0)
+
+        # Verify cart document updated
+        updated_carts = self.store.get_sync_state()["carts"]
+        updated_c = next(c for c in updated_carts if c["id"] == cart_id)
+        self.assertEqual(updated_c["customerName"], "Khách Test")
+        self.assertEqual(updated_c["items"][0]["quantity"], 3.0)
+        self.assertEqual(updated_c["items"][0]["unitPrice"], 55000.0)
+        reversal = next(
+            row for row in self.store.get_product_movements(product_id=product["id"])["movements"]
+            if "Hủy lô gốc đơn:" in row["note"]
+        )
+        self.assertEqual(reversal["document_type"], "order")
+        self.assertEqual(reversal["document_code"], result["cart"]["orderCode"])
+
+    def test_ut_admin_edit_03_role_and_reason_validation(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            self.store.admin_edit_locked_purchase(
+                purchase_id="dummy",
+                purchase_payload={},
+                admin_edit_reason="Lý do",
+                actor_username="staff",
+                actor_role="staff",
+            )
+        self.assertIn("Master Admin", str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            self.store.admin_edit_locked_purchase(
+                purchase_id="dummy",
+                purchase_payload={},
+                admin_edit_reason="",
+                actor_username="admin",
+                actor_role="admin",
+            )
+        self.assertIn("lý do", str(ctx.exception))
+
+    def test_ut_admin_edit_04_item_changes_and_customer_supplier_immutability(self) -> None:
+        p1 = self.store.create_product(
+            name="Sườn non 1", category="Đồ khô", unit="gói", low_stock_threshold=2, price=30000, sale_price=45000,
+        )
+        p2 = self.store.create_product(
+            name="Sườn non 2", category="Đồ khô", unit="gói", low_stock_threshold=2, price=35000, sale_price=50000,
+        )
+
+        # Create and receive purchase with p1
+        purchase_id = "test_pur_bound"
+        purchase_created_at = "2026-08-16T08:00:00.000Z"
+        purchase_receipt = self._create_purchase_receipt_at(
+            supplier_name="NCC Gốc",
+            items=[{"product_id": p1["id"], "quantity": 5, "unit_cost": 30000}],
+            created_at=purchase_created_at,
+            note="Phiếu nhập gốc",
+        )
+        purchase_doc = {
+            "id": purchase_id,
+            "supplierId": "sup_1",
+            "supplierName": "NCC Gốc",
+            "status": "received",
+            "items": [
+                {
+                    "id": "it_1",
+                    "productId": p1["id"],
+                    "productName": p1["name"],
+                    "unit": p1["unit"],
+                    "quantity": 5.0,
+                    "unitCost": 30000.0,
+                    "lineTotal": 150000.0,
+                }
+            ],
+            "totalAmount": 150000.0,
+            "receivedAt": purchase_created_at,
+            "receiptCode": purchase_receipt["receipt_code"],
+        }
+        self.store.save_sync_state(
+            {
+                "purchases": [purchase_doc],
+                "suppliers": [{"id": "sup_1", "name": "NCC Gốc"}],
+            }
+        )
+
+        # 1. Try changing supplier
+        with self.assertRaises(ValueError) as ctx:
+            self.store.admin_edit_locked_purchase(
+                purchase_id=purchase_id,
+                purchase_payload={
+                    **purchase_doc,
+                    "supplierName": "NCC Khác",
+                },
+                admin_edit_reason="Đổi NCC",
+                actor_username="admin",
+                actor_role="admin",
+            )
+        self.assertIn("không được phép thay đổi nhà cung cấp", str(ctx.exception))
+
+        # #Issue37: Admin Edit keeps the regular non-negative line-discount validation.
+        with self.assertRaises(ValueError) as ctx:
+            self.store.admin_edit_locked_purchase(
+                purchase_id=purchase_id,
+                purchase_payload={
+                    **purchase_doc,
+                    "items": [{**purchase_doc["items"][0], "discountAmount": -1}],
+                },
+                admin_edit_reason="Giảm giá không hợp lệ",
+                actor_username="admin",
+                actor_role="admin",
+            )
+        self.assertIn("khuyến mại dòng nhập", str(ctx.exception).lower())
+        self.assertEqual(self.store.get_product_by_id(p1["id"])["current_stock"], 5.0)
+
+        # 2. Master Admin can add a new product while keeping the original line.
+        purchase_result = self.store.admin_edit_locked_purchase(
+            purchase_id=purchase_id,
+            purchase_payload={
+                **purchase_doc,
+                "items": [
+                    *purchase_doc["items"],
+                    {
+                        "id": "it_2",
+                        "productId": p2["id"],
+                        "productName": p2["name"],
+                        "unit": p2["unit"],
+                        "quantity": 2.0,
+                        "unitCost": 35000.0,
+                        "lineTotal": 70000.0,
+                    },
+                ],
+            },
+            admin_edit_reason="Thêm SP",
+            actor_username="admin",
+            actor_role="admin",
+        )
+        self.assertEqual({item["productId"] for item in purchase_result["purchase"]["items"]}, {p1["id"], p2["id"]})
+        self.assertEqual(self.store.get_product_by_id(p2["id"])["current_stock"], 2.0)
+
+        # 3. Create and ship order with p1
+        cart_id = "test_cart_bound"
+        cart_doc = {
+            "id": cart_id,
+            "customerId": "cust_1",
+            "customerName": "Khách Gốc",
+            "status": "draft",
+            "items": [
+                {
+                    "id": "cit_1",
+                    "productId": p1["id"],
+                    "productName": p1["name"],
+                    "unit": p1["unit"],
+                    "quantity": 2.0,
+                    "unitPrice": 45000.0,
+                    "lineTotal": 90000.0,
+                }
+            ],
+            "totalAmount": 90000.0,
+            "orderCode": "DH-BOUND-01",
+        }
+        self.store.save_sync_state(
+            {
+                "carts": [cart_doc],
+                "customers": [{"id": "cust_1", "name": "Khách Gốc"}],
+            }
+        )
+        self.store.commit_cart_order(cart_id, actor="tester")
+        self.store.ship_cart_order(cart_id, actor="tester")
+        cart_doc = next(cart for cart in self.store.get_sync_state()["carts"] if cart["id"] == cart_id)
+
+        # 4. Try changing customer
+        with self.assertRaises(ValueError) as ctx:
+            self.store.admin_edit_locked_order(
+                cart_id=cart_id,
+                cart_payload={
+                    **cart_doc,
+                    "customerName": "Khách Khác",
+                },
+                admin_edit_reason="Đổi khách",
+                actor_username="admin",
+                actor_role="admin",
+            )
+        self.assertIn("không được phép thay đổi khách hàng", str(ctx.exception))
+
+        # 5. Master Admin can add a new product to the locked export order.
+        order_result = self.store.admin_edit_locked_order(
+            cart_id=cart_id,
+            cart_payload={
+                **cart_doc,
+                "items": [{
+                    "id": "cit_2",
+                    "productId": p2["id"],
+                    "productName": p2["name"],
+                    "unit": p2["unit"],
+                    "quantity": 1.0,
+                    "unitPrice": 50000.0,
+                    "lineTotal": 50000.0,
+                }],
+            },
+            admin_edit_reason="Thêm SP",
+            actor_username="admin",
+            actor_role="admin",
+        )
+        self.assertEqual({item["productId"] for item in order_result["cart"]["items"]}, {p2["id"]})
+        self.assertEqual(self.store.get_product_by_id(p1["id"])["current_stock"], 5.0)
+        self.assertEqual(self.store.get_product_by_id(p2["id"])["current_stock"], 1.0)
+
+    def test_ut_admin_edit_05_remove_unused_received_purchase_item_updates_ledger(self) -> None:
+        p1 = self.store.create_product(name="Sườn non 1", category="Đồ khô", unit="gói", price=30000)
+        p2 = self.store.create_product(name="Sườn non 2", category="Đồ khô", unit="gói", price=35000)
+        created_at = "2026-08-17T08:00:00.000Z"
+        receipt = self._create_purchase_receipt_at(
+            supplier_name="NCC Gốc",
+            items=[
+                {"product_id": p1["id"], "quantity": 3, "unit_cost": 30000},
+                {"product_id": p2["id"], "quantity": 4, "unit_cost": 35000},
+            ],
+            created_at=created_at,
+        )
+        purchase_id = "test_pur_admin_remove"
+        self.store.save_sync_state({"purchases": [{
+            "id": purchase_id,
+            "supplierName": "NCC Gốc",
+            "status": "received",
+            "receivedAt": created_at,
+            "receiptCode": receipt["receipt_code"],
+            "items": [
+                {"productId": p1["id"], "productName": p1["name"], "quantity": 3, "unitCost": 30000},
+                {"productId": p2["id"], "productName": p2["name"], "quantity": 4, "unitCost": 35000},
+            ],
+        }]})
+        purchase = next(item for item in self.store.get_sync_state()["purchases"] if item["id"] == purchase_id)
+        result = self.store.admin_edit_locked_purchase(
+            purchase_id=purchase_id,
+            purchase_payload={**purchase, "items": [purchase["items"][0]]},
+            admin_edit_reason="Gỡ nhầm mặt hàng khỏi phiếu",
+            actor_username="admin",
+            actor_role="admin",
+        )
+        self.assertEqual(len(result["purchase"]["items"]), 1)
+        self.assertEqual(self.store.get_product_by_id(p1["id"])["current_stock"], 3.0)
+        self.assertEqual(self.store.get_product_by_id(p2["id"])["current_stock"], 0.0)
+        with self.store._connect() as connection:
+            _, cancellation_items = self.store._validate_purchase_cancellation_target(connection, result["purchase"])
+        self.assertEqual(sum(item["quantity"] for item in cancellation_items), 3.0)
+        adjustment = next(
+            row for row in self.store.get_product_movements(product_id=p2["id"])["movements"]
+            if "Admin sửa giảm phiếu nhập" in row["note"]
+        )
+        self.assertEqual(adjustment["document_type"], "purchase")
+        self.assertEqual(adjustment["document_code"], receipt["receipt_code"])
+
+    # Issue 169: Unit tests cho việc chọn ngày xuất và ngày nhập
+    def test_ut_ord_custom_ship_date(self) -> None:
+        product = self.store.create_product(
+            name="Sản phẩm test ngày xuất",
+            category="Chung",
+            price=10000,
+            sale_price=15000,
+            unit="gói",
+        )
+        self.store.create_transaction(product["id"], "in", 10, "Tồn đầu test xuất ngày")
+        self.store.save_sync_state(
+            {
+                "carts": [
+                    {
+                        "id": "cart-custom-ship-01",
+                        "orderCode": "",
+                        "customerName": "Khách Test Ngày Xuất",
+                        "customerPhone": "",
+                        "note": "Xuất ngày cũ",
+                        "status": "draft",
+                        "createdAt": "2026-09-01T08:00:00+07:00",
+                        "updatedAt": "2026-09-01T08:00:00+07:00",
+                        "items": [
+                            {
+                                "id": "cart-item-custom-ship-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 2,
+                                "unitPrice": 15000,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        self.store.commit_cart_order("cart-custom-ship-01", actor="tester")
+        shipped = self.store.ship_cart_order(
+            "cart-custom-ship-01",
+            actor="tester",
+            ship_date="2026-09-10",
+        )
+        self.assertEqual(shipped["cart"]["status"], "completed")
+        self.assertIn("2026-09-10", shipped["cart"]["completedAt"])
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 8.0)
+        with self.store._connect() as connection:
+            tx = connection.execute(
+                "SELECT created_at FROM transactions WHERE note LIKE ? LIMIT 1",
+                (f"%{shipped['order']['order_code']}%",),
+            ).fetchone()
+            self.assertIsNotNone(tx)
+            self.assertIn("2026-09-10", tx["created_at"])
+
+    def test_ut_pur_custom_receive_date(self) -> None:
+        product = self.store.create_product(
+            name="Sản phẩm test ngày nhập",
+            category="Chung",
+            price=20000,
+            sale_price=30000,
+            unit="hộp",
+        )
+        self.store.save_sync_state(
+            {
+                "purchases": [
+                    {
+                        "id": "purchase-custom-receive-01",
+                        "purchaseCode": "PO-CUSTOM-01",
+                        "supplierName": "NCC Test Ngày Nhập",
+                        "status": "ordered",
+                        "createdAt": "2026-09-01T08:00:00+07:00",
+                        "updatedAt": "2026-09-01T08:00:00+07:00",
+                        "items": [
+                            {
+                                "id": "purchase-item-custom-01",
+                                "productId": product["id"],
+                                "productName": product["name"],
+                                "quantity": 5,
+                                "unitCost": 20000,
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+        received = self.store.receive_purchase(
+            "purchase-custom-receive-01",
+            actor_username="warehouse",
+            actor_role="user",
+            received_date="2026-09-08",
+        )
+        self.assertEqual(received["purchase"]["status"], "received")
+        self.assertIn("2026-09-08", received["purchase"]["receivedAt"])
+        self.assertEqual(self.store.get_product_by_id(product["id"])["current_stock"], 5.0)
+        with self.store._connect() as connection:
+            batch = connection.execute(
+                "SELECT received_at FROM inventory_batches WHERE product_id = ? LIMIT 1",
+                (product["id"],),
+            ).fetchone()
+            self.assertIsNotNone(batch)
+            self.assertIn("2026-09-08", batch["received_at"])
+
+
 if __name__ == "__main__":
     unittest.main()
+

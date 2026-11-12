@@ -4,6 +4,8 @@ export const STORAGE_KEYS = {
   activePurchaseId: "qltpchay.active-purchase.v1",
   menuCollapsed: "qltpchay.menu-collapsed.v1",
   migratedSyncState: "qltpchay.server-sync-migrated.v1",
+  onlineOrderSnapshots: "qltpchay.online-order-snapshots.v1",
+  onlineOrderNotifications: "qltpchay.online-order-notifications.v1",
 };
 
 export const LEGACY_STORAGE_KEYS = {
@@ -41,6 +43,7 @@ export const state = {
     role: "",
     isAdmin: false,
     enableLogin: false,
+    enableAdminLockedEdit: false,
     loginAccountType: "admin",
     sessionStartedAt: "",
     timeoutMinutes: 360,
@@ -99,6 +102,7 @@ export const state = {
     items: [],
     lastResult: null,
     submitting: false,
+    panelCollapsed: true,
   },
   bulkOrderSearchTerm: "",
   orderSearchTerm: "",
@@ -119,6 +123,7 @@ export const state = {
   customers: [],
   suppliers: [],
   carts: [],
+  onlineOrderNotifications: [],
   purchases: [],
   bulkOrderRequests: [],
   documentCancelRequests: [],
@@ -134,6 +139,7 @@ export const state = {
     items: [],
     lastResult: null,
     submitting: false,
+    panelCollapsed: true,
   },
   activeCartId: null,
   activePurchaseId: null,
@@ -158,6 +164,7 @@ export const state = {
   expandedSalesProductId: null,
   visibleSelectedSalesProductId: null,
   expandedSelectedCartItemId: null,
+  expandedSelectedPurchaseItemId: null,
   expandedOrderId: null,
   orderDetailItemsCollapsed: true,
   selectedOrderMergeIds: [],

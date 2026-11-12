@@ -36,8 +36,11 @@ export const inventoryReceiptClearButton = document.getElementById("inventoryRec
 export const productLookupInput = document.getElementById("productLookupInput");
 export const productOptions = document.getElementById("productOptions");
 export const quickTransactionForm = document.getElementById("quickTransactionForm");
+export const quickClearAllStockButton = document.getElementById("quickClearAllStockButton");
 export const productForm = document.getElementById("productForm");
 export const toast = document.getElementById("toast");
+export const onlineOrderNoticeButton = document.getElementById("onlineOrderNoticeButton");
+export const onlineOrderNoticeCount = document.getElementById("onlineOrderNoticeCount");
 export const searchInput = document.getElementById("searchInput");
 export const quantityInput = document.getElementById("quantityInput");
 export const noteInput = document.getElementById("noteInput");
@@ -86,6 +89,10 @@ export const customerNameInput = document.getElementById("customerNameInput");
 export const customerPhoneInput = document.getElementById("customerPhoneInput");
 export const customerAddressInput = document.getElementById("customerAddressInput");
 export const customerZaloInput = document.getElementById("customerZaloInput");
+export const customerAvatarInput = document.getElementById("customerAvatarInput");
+export const customerAvatarPreview = document.getElementById("customerAvatarPreview");
+export const customerZaloIdInput = document.getElementById("customerZaloIdInput");
+export const customerZaloGroupInput = document.getElementById("customerZaloGroupInput");
 export const customerFormCancelButton = document.getElementById("customerFormCancelButton");
 export const customerFormSection = document.getElementById("customerFormSection");
 export const customerFormWrap = document.getElementById("customerFormWrap");
@@ -96,6 +103,8 @@ export const customerList = document.getElementById("customerList");
 export const productManageSearchInput = document.getElementById("productManageSearchInput");
 export const productManageList = document.getElementById("productManageList");
 export const productHistoryList = document.getElementById("productHistoryList");
+export const productDetailEditor = document.getElementById("productDetailEditor");
+export const productRecipeEditor = document.getElementById("productRecipeEditor");
 export const productFormCancelButton = document.getElementById("productFormCancelButton");
 export const productsSection = document.querySelector('[data-menu-section="products"]');
 export const productFormSection = document.getElementById("productFormSection");
@@ -178,6 +187,14 @@ export const deletedCustomerList = document.getElementById("deletedCustomerList"
 export const deletedSupplierList = document.getElementById("deletedSupplierList");
 export const adminLoginPanel = document.getElementById("adminLoginPanel");
 export const adminModulePanel = document.getElementById("adminModulePanel");
+
+// Public Web
+export const publicWebConfigSection = document.getElementById("publicWebConfigSection");
+export const publicWebConfigForm = document.getElementById("publicWebConfigForm");
+export const publicWebThumbMobile = document.getElementById("publicWebThumbMobile");
+export const publicWebThumbPc = document.getElementById("publicWebThumbPc");
+export const publicWebBannerUrl = document.getElementById("publicWebBannerUrl");
+export const publicWebThemeColor = document.getElementById("publicWebThemeColor");
 export const adminSessionHeader = document.getElementById("adminSessionHeader");
 export const adminLoginForm = document.getElementById("adminLoginForm");
 export const adminUsernameInput = document.getElementById("adminUsernameInput");
@@ -187,6 +204,8 @@ export const adminSessionUserLabel = document.getElementById("adminSessionUserLa
 export const adminSwitchUserSelect = document.getElementById("adminSwitchUserSelect");
 export const adminLogoutButton = document.getElementById("adminLogoutButton");
 export const adminBackupButton = document.getElementById("adminBackupButton");
+export const adminTestMailButton = document.getElementById("adminTestMailButton");
+export const adminTestMailStatus = document.getElementById("adminTestMailStatus");
 export const adminRestoreDbFile = document.getElementById("adminRestoreDbFile");
 export const adminRestoreButton = document.getElementById("adminRestoreButton");
 export const adminLegacyAuditRefreshButton = document.getElementById("adminLegacyAuditRefreshButton");
@@ -227,3 +246,51 @@ export const salesSearchToolbar = salesSearchInput?.closest(".sticky-toolbar") |
 export const bulkOrdersSection = document.querySelector('[data-menu-section="bulk-orders"]');
 export const bulkOrdersPanel = bulkOrdersSection?.querySelector(".bulk-orders-panel") || null;
 export const searchClearRefreshers = [];
+
+export const productDetailModal = document.getElementById('productDetailModal');
+export const productDetailImagesContainer = document.getElementById('productDetailImagesContainer');
+export const productDetailChangeBaseUnitButton = document.getElementById('productDetailChangeBaseUnitButton');
+export const productImageUpload = document.getElementById('productImageUpload');
+export const uploadProductImageButton = document.getElementById('uploadProductImageButton');
+
+export const productLookupUnitSelect = document.getElementById("productLookupUnitSelect");
+export const productMovementUnitSelect = document.getElementById("productMovementUnitSelect");
+export const productUnitConversionsContainer = document.getElementById("productUnitConversionsContainer");
+export const productAddUnitConversionButton = document.getElementById("productAddUnitConversionButton");
+export const productDefaultPurchaseUnitSelect = document.getElementById("productDefaultPurchaseUnitSelect");
+export const productDefaultSaleUnitSelect = document.getElementById("productDefaultSaleUnitSelect");
+export const btnProductFormChangeBaseUnit = document.getElementById("btnProductFormChangeBaseUnit");
+
+// Issue 169: Modal chọn ngày khi xuất hàng / nhập kho
+export const documentActionDateModal = document.getElementById("documentActionDateModal");
+export const documentActionDateKicker = document.getElementById("documentActionDateKicker");
+export const documentActionDateTitle = document.getElementById("documentActionDateTitle");
+export const documentActionDateMessage = document.getElementById("documentActionDateMessage");
+export const documentActionDateLabel = document.getElementById("documentActionDateLabel");
+export const documentActionDateInput = document.getElementById("documentActionDateInput");
+export const documentActionDateForm = document.getElementById("documentActionDateForm");
+export const documentActionDateCancelButton = document.getElementById("documentActionDateCancelButton");
+export const documentActionDateConfirmButton = document.getElementById("documentActionDateConfirmButton");
+export const documentActionDateCloseButton = document.getElementById("documentActionDateCloseButton");
+
+// Issue 177: Modal chuyển đổi đơn vị chính sản phẩm
+export const changeBaseUnitModal = document.getElementById("changeBaseUnitModal");
+export const changeBaseUnitForm = document.getElementById("changeBaseUnitForm");
+export const changeBaseUnitProductId = document.getElementById("changeBaseUnitProductId");
+export const changeBaseUnitProductName = document.getElementById("changeBaseUnitProductName");
+export const changeBaseUnitOldUnit = document.getElementById("changeBaseUnitOldUnit");
+export const changeBaseUnitCurrentStock = document.getElementById("changeBaseUnitCurrentStock");
+export const changeBaseUnitCurrentPrice = document.getElementById("changeBaseUnitCurrentPrice");
+export const changeBaseUnitCurrentSalePrice = document.getElementById("changeBaseUnitCurrentSalePrice");
+export const changeBaseUnitNewUnitInput = document.getElementById("changeBaseUnitNewUnitInput");
+export const changeBaseUnitSuggestedList = document.getElementById("changeBaseUnitSuggestedList");
+export const changeBaseUnitRateOldToNew = document.getElementById("changeBaseUnitRateOldToNew");
+export const changeBaseUnitRateNewToOld = document.getElementById("changeBaseUnitRateNewToOld");
+export const changeBaseUnitKeepOldCheck = document.getElementById("changeBaseUnitKeepOldCheck");
+export const changeBaseUnitCancelButton = document.getElementById("changeBaseUnitCancelButton");
+export const changeBaseUnitConfirmButton = document.getElementById("changeBaseUnitConfirmButton");
+export const changeBaseUnitCloseButton = document.getElementById("changeBaseUnitCloseButton");
+export const previewNewStock = document.getElementById("previewNewStock");
+export const previewNewThreshold = document.getElementById("previewNewThreshold");
+export const previewNewPrice = document.getElementById("previewNewPrice");
+export const previewNewSalePrice = document.getElementById("previewNewSalePrice");

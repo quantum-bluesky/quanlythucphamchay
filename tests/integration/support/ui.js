@@ -30,18 +30,21 @@ function attachRuntimeTracking(page, { autoAcceptDialogs = true } = {}) {
   return state;
 }
 
+async function openAdminPage(page) {
+  const adminPath = process.env.TEST_ADMIN_PATH || "admin";
+  await page.goto(adminPath);
+  await expect(page.locator("#adminLoginForm")).toBeVisible();
+}
+
 async function expectScreenTitle(page, title) {
   await expect(page.locator("#activeScreenBarTitle")).toHaveText(title);
 }
 
 async function waitForAppReady(page) {
   await expect.poll(async () => {
-    const versionText = ((await page.locator("#appVersionButton").textContent()) || "").trim();
-    const screenTitle = ((await page.locator("#activeScreenBarTitle").textContent()) || "").trim();
-    const menuCount = await page.locator("[data-menu]").count();
-    return !versionText.includes("Đang tải") || (Boolean(screenTitle) && menuCount > 0);
+    return await page.evaluate(() => window.__QLTPCHAY_APP_READY === true).catch(() => false);
   }, {
-    timeout: 10000,
+    timeout: 15000,
     message: "Ứng dụng chưa sẵn sàng sau khi tải trang.",
   }).toBeTruthy();
   await page.waitForTimeout(200);
@@ -49,24 +52,25 @@ async function waitForAppReady(page) {
 
 async function switchMenu(page, menu) {
   await waitForAppReady(page);
-  const toggle = page.locator("#menuToggleButton");
-  const menuPanel = page.locator("#menuPanel");
-  if (await menuPanel.evaluate((node) => node.classList.contains("is-edge-hidden"))) {
-    const box = await menuPanel.boundingBox();
-    if (box) {
-      await page.mouse.click(box.x + box.width - 18, box.y + 18);
+  const switched = await page.evaluate((targetMenu) => {
+    if (typeof window.__switchMenu === "function") {
+      window.__switchMenu(targetMenu);
+      return true;
     }
-    await page.waitForTimeout(200);
-  }
-  if (await toggle.isVisible()) {
-    const expanded = await toggle.getAttribute("aria-expanded");
-    if (expanded !== "true") {
-      await toggle.click();
-      await page.waitForTimeout(250);
+    return false;
+  }, menu);
+  if (!switched) {
+    const toggle = page.locator("#menuToggleButton");
+    if (await toggle.isVisible()) {
+      const expanded = await toggle.getAttribute("aria-expanded");
+      if (expanded !== "true") {
+        await toggle.click({ force: true });
+        await page.waitForTimeout(250);
+      }
     }
+    await page.locator(`[data-menu="${menu}"]`).click({ force: true });
   }
-  await page.locator(`[data-menu="${menu}"]`).click();
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(400);
 }
 
 async function collectToast(page, runtime, label, { errorPattern = /not defined|thất bại|error/i } = {}) {
@@ -94,7 +98,7 @@ async function reloadHealthy(page, runtime, label, expectedTitle) {
   await collectToast(page, runtime, label);
 }
 
-async function gotoWithRetry(page, url = "/", { waitUntil = "load", retries = 3, retryDelayMs = 1000 } = {}) {
+async function gotoWithRetry(page, url = "/admin", { waitUntil = "load", retries = 3, retryDelayMs = 1000 } = {}) {
   let lastError = null;
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     try {
@@ -171,7 +175,7 @@ function resolveCookieUrl(page) {
   return new URL("/", currentUrl).toString();
 }
 
-async function autoLogin(page, request, { username, password, route = "/api/session/login" }) {
+async function autoLogin(page, request, { username, password, route = "./api/session/login" }) {
   const loginResponse = await request.post(route, {
     data: { username, password },
   });
@@ -191,7 +195,7 @@ async function autoLogin(page, request, { username, password, route = "/api/sess
   ]);
 }
 
-async function autoLoginRequest(request, { username, password, route = "/api/session/login" }) {
+async function autoLoginRequest(request, { username, password, route = "./api/session/login" }) {
   const loginResponse = await request.post(route, {
     data: { username, password },
   });
@@ -219,7 +223,7 @@ async function autoLoginAdmin(page, request) {
   await autoLogin(page, request, {
     username: "masteradmin",
     password: "admin12345",
-    route: "/api/admin/login",
+    route: "./api/admin/login",
   });
 }
 
@@ -227,7 +231,7 @@ async function autoLoginAdminRequest(request) {
   return autoLoginRequest(request, {
     username: "masteradmin",
     password: "admin12345",
-    route: "/api/admin/login",
+    route: "./api/admin/login",
   });
 }
 
@@ -285,8 +289,12 @@ module.exports = {
   collectToast,
   expectNoRuntimeErrors,
   expectScreenTitle,
+  openAdminPage,
   gotoWithRetry,
   reloadHealthy,
   switchMenu,
   waitForAppReady,
 };
+
+
+

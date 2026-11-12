@@ -36,25 +36,94 @@ export function registerEntitiesControllerEvents(contract) {
     return supplier;
   }
 
+  function populateCustomerForm(customer) {
+    const avatarUrl = customer.avatar_url || customer.avatarUrl || "";
+    const zaloId = customer.zalo_id || customer.zaloId || "";
+    const zaloUrl = customer.zaloUrl || customer.zalo_url || (customer.phone ? `https://zalo.me/${customer.phone.replace(/\s+/g, '')}` : "");
+    const zaloGroupId = customer.zalo_group_id || customer.zaloGroupId || "";
+
+    dom.customerNameInput.value = customer.name || "";
+    dom.customerPhoneInput.value = customer.phone || "";
+    dom.customerAddressInput.value = customer.address || "";
+    dom.customerZaloInput.value = zaloUrl;
+    if (dom.customerAvatarInput) {
+      dom.customerAvatarInput.value = avatarUrl;
+      if (dom.customerAvatarPreview) {
+        if (avatarUrl) {
+          dom.customerAvatarPreview.src = avatarUrl;
+          dom.customerAvatarPreview.style.display = "block";
+        } else {
+          dom.customerAvatarPreview.style.display = "none";
+          dom.customerAvatarPreview.src = "";
+        }
+      }
+    }
+    if (dom.customerZaloIdInput) {
+      dom.customerZaloIdInput.value = zaloId;
+    }
+    if (dom.customerZaloGroupInput) {
+      dom.customerZaloGroupInput.value = zaloGroupId;
+    }
+  }
+
+  function resetCustomerForm() {
+    dom.customerForm.reset();
+    if (dom.customerAvatarPreview) {
+      dom.customerAvatarPreview.style.display = "none";
+      dom.customerAvatarPreview.src = "";
+    }
+    if (dom.customerZaloIdInput) {
+      dom.customerZaloIdInput.value = "";
+    }
+  }
+
   dom.customerSearchInput.addEventListener("input", (event) => {
     state.customerSearchTerm = event.target.value;
     state.pagination.customers = 1;
     renderers.renderCustomers();
   });
 
+  dom.customerPhoneInput.addEventListener("input", (event) => {
+    const phone = event.target.value.trim().replace(/\s+/g, "");
+    const currentZalo = dom.customerZaloInput.value.trim();
+    if (!currentZalo || currentZalo.startsWith("https://zalo.me/")) {
+      dom.customerZaloInput.value = phone ? `https://zalo.me/${phone}` : "";
+    }
+  });
+
+  dom.customerAvatarInput?.addEventListener("input", (event) => {
+    const url = event.target.value.trim();
+    if (dom.customerAvatarPreview) {
+      if (url) {
+        dom.customerAvatarPreview.src = url;
+        dom.customerAvatarPreview.style.display = "block";
+      } else {
+        dom.customerAvatarPreview.style.display = "none";
+      }
+    }
+  });
+
   dom.customerForm.addEventListener("submit", (event) => {
     event.preventDefault();
     try {
+      const targetCustomerId = state.editingCustomerFormId;
       actions.upsertCustomer({
         name: dom.customerNameInput.value,
         phone: dom.customerPhoneInput.value,
         address: dom.customerAddressInput.value,
         zaloUrl: dom.customerZaloInput.value,
-      }, state.editingCustomerFormId);
-      dom.customerForm.reset();
+        avatar_url: dom.customerAvatarInput?.value || "",
+        zalo_id: dom.customerZaloIdInput?.value || "",
+        zalo_group_id: dom.customerZaloGroupInput?.value || null,
+      }, targetCustomerId);
+      if (targetCustomerId) {
+        state.selectedCustomerId = targetCustomerId;
+      }
+      resetCustomerForm();
       state.editingCustomerFormId = null;
       state.customerFormCollapsed = true;
       renderers.renderEntityForms();
+      renderers.renderCustomers();
       actions.showToast("Đã lưu khách hàng.");
     } catch (error) {
       actions.showToast(error.message, true);
@@ -63,18 +132,18 @@ export function registerEntitiesControllerEvents(contract) {
 
   dom.customerFormCancelButton.addEventListener("click", () => {
     state.editingCustomerFormId = null;
-    dom.customerForm.reset();
+    resetCustomerForm();
     state.customerFormCollapsed = true;
     renderers.renderEntityForms();
   });
 
   dom.customerFormToggleButton?.addEventListener("click", () => {
     if (!state.customerFormCollapsed && !state.editingCustomerFormId) {
-      dom.customerForm.reset();
+      resetCustomerForm();
     }
     if (state.customerFormCollapsed) {
       state.editingCustomerFormId = null;
-      dom.customerForm.reset();
+      resetCustomerForm();
     }
     state.customerFormCollapsed = !state.customerFormCollapsed;
     renderers.renderEntityForms();
@@ -130,10 +199,7 @@ export function registerEntitiesControllerEvents(contract) {
     if (button.dataset.customerAction === "edit") {
       state.selectedCustomerId = customerId;
       state.editingCustomerFormId = customerId;
-      dom.customerNameInput.value = customer.name;
-      dom.customerPhoneInput.value = customer.phone || "";
-      dom.customerAddressInput.value = customer.address || "";
-      dom.customerZaloInput.value = customer.zaloUrl || "";
+      populateCustomerForm(customer);
       state.customerFormCollapsed = false;
       renderers.renderEntityForms();
       return;
@@ -207,10 +273,7 @@ export function registerEntitiesControllerEvents(contract) {
     }
     if (button.dataset.customerDetailAction === "edit") {
       state.editingCustomerFormId = customer.id;
-      dom.customerNameInput.value = customer.name;
-      dom.customerPhoneInput.value = customer.phone || "";
-      dom.customerAddressInput.value = customer.address || "";
-      dom.customerZaloInput.value = customer.zaloUrl || "";
+      populateCustomerForm(customer);
       state.customerFormCollapsed = false;
       renderers.renderEntityForms();
     }
@@ -229,17 +292,14 @@ export function registerEntitiesControllerEvents(contract) {
       const isPurchaseSupplierFlow = state.pendingPurchaseSupplierFlow;
       const isProcurementSupplierFlow = state.pendingProcurementSupplierFlow;
       const savedSupplierName = dom.supplierNameInput.value.trim();
-      const activePurchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
-      const canApplySupplierToActiveDraft = Boolean(activePurchase && activePurchase.status === "draft");
       let purchaseDraftApplyResult = null;
       if (isPurchaseSupplierFlow) {
         dom.purchaseSupplierInput.value = savedSupplierName;
         state.pendingPurchaseSupplierName = savedSupplierName;
-        if (canApplySupplierToActiveDraft) {
-          purchaseDraftApplyResult = actions.applySupplierToActiveDraft(savedSupplierName, {
-            note: dom.purchaseNoteInput.value.trim(),
-          });
-        }
+        // #Issue 172: Luôn mở hoặc áp dụng phiếu nháp cho NCC mới tạo kể cả khi phiếu hiện tại không phải nháp
+        purchaseDraftApplyResult = actions.applySupplierToActiveDraft(savedSupplierName, {
+          note: dom.purchaseNoteInput.value.trim(),
+        });
       }
       actions.upsertSupplier({
         name: dom.supplierNameInput.value,
@@ -247,7 +307,7 @@ export function registerEntitiesControllerEvents(contract) {
         address: dom.supplierAddressInput.value,
         note: dom.supplierNoteInput.value,
       }, editingSupplierId, {
-        extraCollections: isPurchaseSupplierFlow && canApplySupplierToActiveDraft && purchaseDraftApplyResult?.shouldPersist ? ["purchases"] : [],
+        extraCollections: isPurchaseSupplierFlow && purchaseDraftApplyResult?.shouldPersist ? ["purchases"] : [],
       });
       dom.supplierForm.reset();
       state.editingSupplierFormId = null;
@@ -334,17 +394,12 @@ export function registerEntitiesControllerEvents(contract) {
       state.pendingPurchaseSupplierFlow = false;
       state.pendingPurchaseSupplierName = supplier.name;
       actions.switchMenu("purchases");
-      const purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
-      const canApplySupplierToActiveDraft = Boolean(purchase && purchase.status === "draft");
-      if (canApplySupplierToActiveDraft) {
-        const result = actions.applySupplierToActiveDraft(supplier.name, {
-          note: dom.purchaseNoteInput.value.trim(),
-        });
-        actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
-        actions.focusPurchasePanel();
-      } else {
-        actions.saveAndRenderAll();
-      }
+      // #Issue 172: Tự động mở hoặc tạo phiếu nhập nháp cho NCC đã chọn
+      const result = actions.applySupplierToActiveDraft(supplier.name, {
+        note: dom.purchaseNoteInput.value.trim(),
+      });
+      actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
+      actions.focusPurchasePanel();
       actions.showToast("Đã chọn nhà cung cấp cho phiếu nhập.");
       return;
     }
@@ -430,17 +485,12 @@ export function registerEntitiesControllerEvents(contract) {
       state.pendingPurchaseSupplierFlow = false;
       state.pendingPurchaseSupplierName = supplier.name;
       actions.switchMenu("purchases");
-      const purchase = state.purchases.find((entry) => entry.id === state.activePurchaseId) || null;
-      const canApplySupplierToActiveDraft = Boolean(purchase && purchase.status === "draft");
-      if (canApplySupplierToActiveDraft) {
-        const result = actions.applySupplierToActiveDraft(supplier.name, {
-          note: dom.purchaseNoteInput.value.trim(),
-        });
-        actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
-        actions.focusPurchasePanel();
-      } else {
-        actions.saveAndRenderAll();
-      }
+      // #Issue 172: Tự động mở hoặc tạo phiếu nhập nháp cho NCC đã chọn
+      const result = actions.applySupplierToActiveDraft(supplier.name, {
+        note: dom.purchaseNoteInput.value.trim(),
+      });
+      actions.saveAndRenderAll(result?.shouldPersist ? ["purchases"] : []);
+      actions.focusPurchasePanel();
       actions.showToast("Đã chọn nhà cung cấp cho phiếu nhập.");
       return;
     }
@@ -457,55 +507,98 @@ export function registerEntitiesControllerEvents(contract) {
 
   dom.deletedProductList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-deleted-product-action]");
-    if (!button || button.dataset.deletedProductAction !== "restore") return;
+    if (!button) return;
+    const action = button.dataset.deletedProductAction;
+    if (action !== "restore" && action !== "hard-delete") return;
     const productId = Number(button.dataset.productId);
     const product = state.deletedProducts.find((entry) => Number(entry.id) === productId);
     if (!product) {
       actions.showToast("Không tìm thấy sản phẩm đã xóa.", true);
       return;
     }
-    const warning = [`Khôi phục sản phẩm ${product.name}?`, "Sản phẩm sẽ xuất hiện lại ở tồn kho, tạo đơn, nhập hàng và quản lý sản phẩm.", `Tồn hiện tại sau khi khôi phục: ${utils.formatQuantity(product.current_stock)} ${product.unit}`].join("\n");
-    if (!window.confirm(warning)) return;
-    try {
-      const data = await actions.apiRequest(`/api/products/${productId}/restore`, { method: "POST", body: JSON.stringify({}) });
-      await actions.refreshData();
-      actions.showToast(data.message);
-    } catch (error) {
-      actions.showToast(error.message, true);
+    
+    if (action === "restore") {
+      const warning = [`Khôi phục sản phẩm ${product.name}?`, "Sản phẩm sẽ xuất hiện lại ở tồn kho, tạo đơn, nhập hàng và quản lý sản phẩm.", `Tồn hiện tại sau khi khôi phục: ${utils.formatQuantity(product.current_stock)} ${product.unit}`].join("\n");
+      if (!window.confirm(warning)) return;
+      try {
+        const data = await actions.apiRequest(`/api/products/${productId}/restore`, { method: "POST", body: JSON.stringify({}) });
+        await actions.refreshData();
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+    } else if (action === "hard-delete") {
+      const warning = [`CẢNH BÁO: Bạn có chắc chắn muốn xóa hẳn sản phẩm ${product.name}?`, "Hành động này KHÔNG THỂ KHÔI PHỤC và sẽ xóa vĩnh viễn dữ liệu khỏi hệ thống."].join("\n");
+      if (!window.confirm(warning)) return;
+      try {
+        const data = await actions.apiRequest(`/api/admin/products/${productId}/hard`, { method: "DELETE" });
+        await actions.refreshData();
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
     }
   });
 
-  dom.deletedCustomerList.addEventListener("click", (event) => {
+  dom.deletedCustomerList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-deleted-customer-action]");
     if (!button) return;
+    const action = button.dataset.deletedCustomerAction;
+    if (action !== "restore" && action !== "hard-delete") return;
     const customer = state.customers.find((entry) => entry.id === button.dataset.customerId);
     if (!customer) {
       actions.showToast("Không tìm thấy khách hàng đã xóa.", true);
       return;
     }
-    if (!window.confirm([`Khôi phục khách hàng ${customer.name}?`, "Khách hàng sẽ xuất hiện lại trong danh bạ đang dùng."].join("\n"))) return;
-    try {
-      actions.restoreCustomer(button.dataset.customerId);
-      actions.showToast("Đã khôi phục khách hàng.");
-    } catch (error) {
-      actions.showToast(error.message, true);
+    
+    if (action === "restore") {
+      if (!window.confirm([`Khôi phục khách hàng ${customer.name}?`, "Khách hàng sẽ xuất hiện lại trong danh bạ đang dùng."].join("\n"))) return;
+      try {
+        actions.restoreCustomer(button.dataset.customerId);
+        actions.showToast("Đã khôi phục khách hàng.");
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+    } else if (action === "hard-delete") {
+      if (!window.confirm([`CẢNH BÁO: Bạn có chắc chắn muốn xóa hẳn khách hàng ${customer.name}?`, "Hành động này KHÔNG THỂ KHÔI PHỤC và sẽ xóa vĩnh viễn dữ liệu khỏi hệ thống."].join("\n"))) return;
+      try {
+        const data = await actions.apiRequest(`/api/admin/customers/${customer.id}/hard`, { method: "DELETE" });
+        await actions.refreshData();
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
     }
   });
 
-  dom.deletedSupplierList.addEventListener("click", (event) => {
+  dom.deletedSupplierList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-deleted-supplier-action]");
     if (!button) return;
+    const action = button.dataset.deletedSupplierAction;
+    if (action !== "restore" && action !== "hard-delete") return;
     const supplier = state.suppliers.find((entry) => entry.id === button.dataset.supplierId);
     if (!supplier) {
       actions.showToast("Không tìm thấy nhà cung cấp đã xóa.", true);
       return;
     }
-    if (!window.confirm([`Khôi phục nhà cung cấp ${supplier.name}?`, "Nhà cung cấp sẽ xuất hiện lại trong danh bạ đang dùng."].join("\n"))) return;
-    try {
-      actions.restoreSupplier(button.dataset.supplierId);
-      actions.showToast("Đã khôi phục nhà cung cấp.");
-    } catch (error) {
-      actions.showToast(error.message, true);
+
+    if (action === "restore") {
+      if (!window.confirm([`Khôi phục nhà cung cấp ${supplier.name}?`, "Nhà cung cấp sẽ xuất hiện lại trong danh bạ hoạt động."].join("\n"))) return;
+      try {
+        actions.restoreSupplier(button.dataset.supplierId);
+        actions.showToast("Đã khôi phục nhà cung cấp.");
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
+    } else if (action === "hard-delete") {
+      if (!window.confirm([`CẢNH BÁO: Bạn có chắc chắn muốn xóa hẳn nhà cung cấp ${supplier.name}?`, "Hành động này KHÔNG THỂ KHÔI PHỤC và sẽ xóa vĩnh viễn dữ liệu khỏi hệ thống."].join("\n"))) return;
+      try {
+        const data = await actions.apiRequest(`/api/admin/suppliers/${supplier.id}/hard`, { method: "DELETE" });
+        await actions.refreshData();
+        actions.showToast(data.message);
+      } catch (error) {
+        actions.showToast(error.message, true);
+      }
     }
   });
 }

@@ -111,6 +111,20 @@ select {
   max-width: 150px;
 }
 
+/* #Issue181: Giữ chuông thông báo nhỏ gọn trong header, dễ bấm trên điện thoại. */
+.online-order-notice-button {
+  min-width: 40px;
+  padding-inline: 9px;
+  color: var(--accent-strong);
+}
+
+.online-order-notice-button.has-notifications {
+  color: #8c3218;
+  background: var(--warning-soft);
+  border-color: rgba(200, 100, 48, 0.35);
+  font-weight: 800;
+}
+
 .screen-header-main {
   min-width: 0;
   display: grid;
@@ -593,6 +607,38 @@ h3 {
   justify-items: start;
 }
 
+.quick-panel.is-direct-adjust-mode .quick-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-panel.is-direct-adjust-mode .quick-panel-body {
+  max-height: 480px;
+  opacity: 1;
+  transition: max-height 180ms ease, opacity 160ms ease, padding-bottom 180ms ease;
+}
+
+.quick-panel.is-direct-adjust-mode.is-collapsed {
+  padding-bottom: 12px;
+}
+
+.quick-panel.is-direct-adjust-mode.is-collapsed .panel-heading {
+  margin-bottom: 0;
+  align-items: center;
+}
+
+.quick-panel.is-direct-adjust-mode.is-collapsed .panel-note {
+  display: none;
+}
+
+.quick-panel.is-direct-adjust-mode.is-collapsed .quick-panel-body {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  padding-bottom: 0;
+}
+
 .panel-heading,
 .subheading {
   display: flex;
@@ -692,6 +738,12 @@ select:focus {
   grid-template-columns: repeat(2, 1fr);
 }
 
+@media (min-width: 721px) {
+  .quick-form .action-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 button {
   border: 0;
   border-radius: 999px;
@@ -745,6 +797,7 @@ button:disabled {
   padding: 0 14px;
   border-radius: var(--radius-sm);
   box-shadow: none;
+  align-content: center;
 }
 
 .compact-pill {
@@ -768,13 +821,22 @@ button:disabled {
   width: 100%;
 }
 
-.search-box {
+.search-box,
+.input-clear-wrap {
   position: relative;
   display: block;
+}
+
+.search-box {
   min-width: min(280px, 100%);
 }
 
-.search-box input {
+.input-clear-wrap {
+  width: 100%;
+}
+
+.search-box input,
+.input-clear-wrap input {
   padding-right: 42px;
 }
 
@@ -796,6 +858,19 @@ button:disabled {
   font-size: 1rem;
   line-height: 1;
   z-index: 2;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.search-clear-button:hover,
+.search-clear-button:focus-visible {
+  color: var(--text-dark, #1c2e24);
+  border-color: rgba(34, 49, 39, 0.28);
+  background: #ffffff;
 }
 
 .search-clear-button[hidden] {
@@ -1396,6 +1471,87 @@ button:disabled {
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   margin-top: 8px;
   color: inherit;
+  font-weight: 600;
+}
+
+/* #Issue144: Keep mail test progress and delivery diagnostics visible inline. */
+.admin-mail-test-result {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-mail-config-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-mail-config-form > label:not(.checkbox-label) {
+  display: grid;
+  gap: 5px;
+}
+
+.admin-mail-config-form .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+}
+
+.admin-mail-config-form .panel-note,
+.admin-mail-config-form .row-actions {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.admin-mail-test-result .inline-alert {
+  margin: 0;
+}
+
+.admin-mail-test-result[data-state="sending"] .inline-alert {
+  border-color: rgba(55, 111, 160, 0.25);
+  background: rgba(223, 239, 250, 0.7);
+}
+
+.admin-mail-test-result[data-state="sent"] .inline-alert {
+  border-color: rgba(59, 121, 87, 0.28);
+  background: rgba(221, 241, 230, 0.7);
+  color: #1f5b3f;
+}
+
+.admin-mail-test-result[data-state="failed"] .inline-alert,
+.admin-mail-test-result[data-state="skipped"] .inline-alert {
+  border-color: rgba(200, 100, 48, 0.28);
+  background: rgba(248, 225, 214, 0.7);
+  color: var(--warning);
+}
+
+.admin-mail-test-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.admin-mail-test-details > div {
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-mail-test-details dt {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.admin-mail-test-details dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
   font-weight: 600;
 }
 
@@ -2472,6 +2628,10 @@ button:disabled {
     padding: 6px 12px;
   }
 
+  [data-menu-section="create-order"].has-active-cart .sales-customer-card .input-clear-wrap input {
+    padding-right: 42px;
+  }
+
   [data-menu-section="create-order"] .sales-panel,
   [data-menu-section="create-order"] .sales-card {
     overflow: visible;
@@ -2749,6 +2909,10 @@ button:disabled {
   [data-menu-section="purchases"].has-active-purchase .sales-customer-card input {
     min-height: 36px;
     padding: 6px 12px;
+  }
+
+  [data-menu-section="purchases"].has-active-purchase .sales-customer-card .input-clear-wrap input {
+    padding-right: 42px;
   }
 
   [data-menu-section="purchases"] .active-cart-panel .empty-state {
@@ -3283,6 +3447,30 @@ button:disabled {
   }
 }
 
+@media (max-width: 430px) {
+  .admin-session-header {
+    gap: 4px;
+  }
+
+  .admin-session-header .panel-note {
+    display: none;
+  }
+
+  .admin-session-header select {
+    max-width: 88px;
+    padding-inline: 6px;
+  }
+
+  .admin-session-header .compact-button {
+    min-height: 36px;
+    padding-inline: 7px;
+  }
+
+  .online-order-notice-button {
+    min-width: 36px;
+  }
+}
+
 @media (min-width: 760px) and (max-width: 1100px) {
   :root {
     --screen-header-bar-top: 8px;
@@ -3645,4 +3833,172 @@ button:disabled {
   .payments-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* --- Product Detail Modal --- */
+
+.product-detail-modal {
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-detail-images {
+  display: flex;
+  overflow-x: auto;
+  gap: 12px;
+  padding: 8px 0 16px 0;
+  scroll-snap-type: x mandatory;
+}
+
+.product-detail-images img {
+  height: 200px;
+  width: auto;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  background: var(--shade);
+  scroll-snap-align: center;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+}
+
+.product-detail-content {
+  margin-top: 16px;
+  line-height: 1.6;
+}
+
+.product-detail-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.product-name-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.2s;
+}
+
+.product-name-link:hover, .product-name-link:focus-visible {
+  text-decoration-color: var(--accent);
+}
+
+.rich-text-label textarea {
+  font-family: monospace;
+}
+
+
+/* Fix Quill Editor Buttons on Mobile */
+.ql-toolbar button {
+  min-height: unset !important;
+  border-radius: 0 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.ql-toolbar button:hover,
+.ql-toolbar button:active {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Rich Text Image Constraints (Details, Recipe, Editor, Modals) */
+.ql-editor img,
+.product-detail-content img,
+.modal-details img,
+.modal-recipe img,
+.modal-recipe-container img,
+#productDetailRecipe img {
+  max-width: 100% !important;
+  height: auto !important;
+  box-sizing: border-box;
+  border-radius: 6px;
+  vertical-align: middle;
+  object-fit: contain;
+}
+
+/* Quill Interactive Image Resizer Overlay */
+.quill-image-resizer {
+  position: absolute;
+  border: 2px dashed var(--primary, #1976d2);
+  pointer-events: none;
+  z-index: 100;
+  box-sizing: border-box;
+}
+
+.quill-image-resizer .resizer-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--primary, #1976d2);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  pointer-events: auto;
+  box-sizing: border-box;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.quill-image-resizer .resizer-handle-nw { top: -7px; left: -7px; cursor: nwse-resize; }
+.quill-image-resizer .resizer-handle-ne { top: -7px; right: -7px; cursor: nesw-resize; }
+.quill-image-resizer .resizer-handle-se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+.quill-image-resizer .resizer-handle-sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+
+.quill-image-resizer .resizer-size-badge {
+  position: absolute;
+  bottom: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.quill-image-resizer .resizer-quick-actions {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  background: #ffffff;
+  padding: 3px 6px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  pointer-events: auto;
+  border: 1px solid #ddd;
+}
+
+.quill-image-resizer .resizer-quick-actions button {
+  background: #f0f4f8;
+  border: 1px solid #c5d5e6;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  cursor: pointer;
+  color: #1976d2;
+  transition: all 0.15s;
+}
+
+.quill-image-resizer .resizer-quick-actions button:hover {
+  background: #1976d2;
+  color: #ffffff;
+}
+
+.quill-image-resizer .resizer-quick-actions button.btn-delete-img {
+  background: #ffebee;
+  border-color: #ffcdd2;
+  color: #d32f2f;
+}
+
+.quill-image-resizer .resizer-quick-actions button.btn-delete-img:hover {
+  background: #d32f2f;
+  color: #ffffff;
 }

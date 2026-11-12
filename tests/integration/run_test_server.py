@@ -1,9 +1,12 @@
 import argparse
 import atexit
+import logging
+import os
 import shutil
 import signal
 import sys
 import tempfile
+import threading
 from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -15,8 +18,9 @@ if str(REPO_ROOT) not in sys.path:
 
 import qltpchay.constants as constants
 from qltpchay.auth import AdminSessionManager
-from qltpchay.config import load_system_config
+from test_runtime_config import load_test_system_config
 from qltpchay.http_handler import create_handler
+from qltpchay.logger import get_logger
 from qltpchay.store import InventoryStore
 import qltpchay.store as store_module
 
@@ -252,10 +256,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run integration test server with seeded temp DB.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8130)
+    parser.add_argument("--backend", choices=("legacy", "flask"), default="legacy")
     args = parser.parse_args()
 
     temp_root = Path(tempfile.mkdtemp(prefix="qltpchay-int-"))
     db_path = temp_root / "inventory-test.db"
+    if not db_path.resolve().is_relative_to(temp_root.resolve()):
+        raise RuntimeError("Integration test database must stay inside its temporary directory.")
+    runtime_data_dir = constants.DATA_DIR
+    # Legacy handlers resolve image paths from DATA_DIR; the Flask factory receives image_root explicitly.
+    constants.DATA_DIR = temp_root if args.backend == "legacy" else runtime_data_dir
     constants.BACKUP_DIR = temp_root / "backups"
     store_module.BACKUP_DIR = constants.BACKUP_DIR
 
@@ -267,20 +277,51 @@ def main() -> int:
     store = InventoryStore(db_path)
     build_fixture(store)
 
-    system_config = load_system_config()
-    system_config["EnableMultiuserConflictCheck"] = True
+    system_config = load_test_system_config()
+    # Static asset refreshes write their manifest; keep that mutation inside the disposable fixture.
+    system_config["asset_versions_path"] = str(temp_root / "js_asset_versions.json")
+    # Admin configuration edits in integration tests must stay inside the disposable fixture too.
+    system_config["config_path"] = str(temp_root / "system_config.test.json")
+    system_config["image_root"] = str(temp_root / "images")
+
+    # Giảm nhiễu log console cho Playwright runner khi chạy qua summary script
+    if os.environ.get("QLTP_QUIET_TEST_SERVER") == "1":
+        app_logger = get_logger()
+        for h in app_logger.handlers:
+            if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler):
+                h.setLevel(logging.WARNING)
+
     admin_sessions = AdminSessionManager(
         str(system_config["admin"]["username"]),
         str(system_config["admin"]["password"]),
         users=system_config.get("users", []),
     )
+    if args.backend == "flask":
+        from qltpchay.flask_app import create_app
+        from qltpchay.wsgi_server import serve_flask_app
+
+        flask_app = create_app(
+            database_path=db_path,
+            system_config=system_config,
+            testing=True,
+            store=store,
+            admin_sessions=admin_sessions,
+        )
+        print(
+            f"Integration test server running at http://{args.host}:{args.port} (Flask/Waitress)",
+            flush=True,
+        )
+        serve_flask_app(flask_app, host=args.host, port=args.port, threads=4)
+        return 0
+
     server = ThreadingHTTPServer(
         (args.host, args.port),
         create_handler(store, admin_sessions, system_config=system_config),
     )
 
     def shutdown_handler(*_args) -> None:
-        server.shutdown()
+        # BaseServer.shutdown() waits for serve_forever(); signal handlers must not wait on that same thread.
+        threading.Thread(target=server.shutdown, daemon=True).start()
 
     signal.signal(signal.SIGTERM, shutdown_handler)
     signal.signal(signal.SIGINT, shutdown_handler)
