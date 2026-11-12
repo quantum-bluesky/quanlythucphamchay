@@ -1,9 +1,9 @@
 {
-  "app_version": "4.0.0",
+  "app_version": "4.0.1",
   "files": {
     "app.js": {
       "counter": 1,
-      "sha256": "87a11bd85ad61465122e502f211753677f22be0e647ac7a906f762cba4f8dee3"
+      "sha256": "10793cdd61231c33aedf4c06d39e2f7dd0a699b6e1c4e56607b2ddf4c5127ced"
     },
     "bootstrap.js": {
       "counter": 1,
@@ -27,7 +27,7 @@
     },
     "modules/controllers/inventory-controller.js": {
       "counter": 1,
-      "sha256": "d7160bcdad85620c42667f4442127e8120ef936985ff5eeca555fda965fce1ea"
+      "sha256": "f45a158de668cdd32cbe3728206024485fc86441099a42795c572ae6499659b0"
     },
     "modules/controllers/payments-controller.js": {
       "counter": 1,
@@ -39,7 +39,7 @@
     },
     "modules/controllers/purchases-controller.js": {
       "counter": 1,
-      "sha256": "a8aeddf14b30956fd6ab55133648759db98b855f1c54e0dc6f5c0bdb9e6a9580"
+      "sha256": "81ec616d4860bdaf909686502f801e6e401e0e551c79fa28a12a13d580f0edcb"
     },
     "modules/controllers/reports-admin-controller.js": {
       "counter": 1,
@@ -47,7 +47,7 @@
     },
     "modules/controllers/sales-controller.js": {
       "counter": 1,
-      "sha256": "c72a3aa127221aaf07b7b0dec3fde0e919bd31150437ab8eb60745e8c6061b54"
+      "sha256": "aab89ea5d6287f1bcdb5f95e8d031d7014da036f673c1993a3c559208ce1d245"
     },
     "modules/dom.js": {
       "counter": 1,
@@ -74,8 +74,8 @@
       "sha256": "8c204f19314c0d152e2c83016cef5b86b66cfa5a2614e970ad45bedcd72a6302"
     },
     "modules/screen-config.js": {
-      "counter": 1,
-      "sha256": "498f180c4872e6d3148e4d5dc862f4c82a3477f75b6184e1c2c8b5d5c71fc7d5"
+      "counter": 2,
+      "sha256": "460eb041d511e749b55f2d06fa9858fa47bc92f7ef86422c59555e373d97d9d2"
     },
     "modules/sync-runtime.js": {
       "counter": 1,
@@ -107,7 +107,7 @@
     },
     "modules/ui/purchases-ui.js": {
       "counter": 1,
-      "sha256": "dfaaac934bf7bf689f47dd8c8dd49a7948bd42c9dba8f5728404af2765991ca6"
+      "sha256": "20cc6cab869c9707991a91404b9fd1b41da063f2698137bf2ea0e1aae891bef0"
     },
     "modules/ui/reports-admin-ui.js": {
       "counter": 1,
@@ -115,7 +115,7 @@
     },
     "modules/ui/sales-ui.js": {
       "counter": 1,
-      "sha256": "d43705b559e41b0205a6c2c6c2c2f78ff1708ccbee71290d1e0fa99813f02e5b"
+      "sha256": "a17d2bd6d619162a2701e8dee5ac761bb856347b7e6e6d4d81fa785029a2f3af"
     },
     "modules/unit-quantity-editor.js": {
       "counter": 1,

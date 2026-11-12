@@ -486,12 +486,20 @@ export function registerPurchasesControllerEvents(contract) {
         select.innerHTML = '<option value="1">Đơn vị (gốc)</option>';
         return;
       }
+      let product = null;
       const parts = text.split("-");
       const idStr = parts[parts.length - 1];
-      if (!idStr) return;
-      const id = parseInt(idStr.trim(), 10);
-      if (!id) return;
-      const product = state.products.find(p => p.id === id);
+      const id = parseInt(idStr?.trim(), 10);
+      if (id) {
+        product = state.products.find(p => p.id === id);
+      }
+      if (!product && queries.resolveProductFromText) {
+        try { product = queries.resolveProductFromText(text); } catch (_) {}
+      }
+      if (!product) {
+        const norm = utils.normalizeLookup ? utils.normalizeLookup(text) : text.toLowerCase().trim();
+        product = state.products.find(p => (utils.normalizeLookup ? utils.normalizeLookup(p.name) : p.name.toLowerCase().trim()) === norm);
+      }
       if (product) {
         const defaultUnit = product.default_purchase_unit || product.unit;
         select.innerHTML = `
