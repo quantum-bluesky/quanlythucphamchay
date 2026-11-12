@@ -714,13 +714,27 @@ def main():
                 uploaded_urls.append(url)
                 print(f"    -> Đã tải thành công: {url}")
 
-            # 3. Tạo sản phẩm
+            # 3. Tạo hoặc cập nhật sản phẩm nếu đã có
             prod_payload = dict(manifest.get("product", {}))
-            prod_payload["images"] = uploaded_urls
-            print(f"[*] Đang tạo sản phẩm: {prod_payload.get('name')}...")
-            created_prod = client.create_product(prod_payload)
-            prod_id = created_prod.get("id") or created_prod.get("product_id")
-            print(f"[+] Tạo sản phẩm thành công! ID mới trên server: {prod_id}")
+            prod_name = prod_payload.get("name", "").strip()
+            existing_prods = client.get_products()
+            found_prod = next((p for p in existing_prods if p.get("name", "").strip().lower() == prod_name.lower()), None)
+
+            if found_prod:
+                prod_id = found_prod.get("id")
+                print(f"[+] Sản phẩm '{prod_name}' đã có trên server với ID: {prod_id}. Đang cập nhật thông tin và ảnh...")
+                prod_payload["images"] = uploaded_urls
+                client.update_product(prod_id, prod_payload)
+            else:
+                prod_payload["images"] = uploaded_urls
+                print(f"[*] Đang tạo sản phẩm: {prod_name}...")
+                created_prod = client.create_product(prod_payload)
+                prod_id = (
+                    created_prod.get("product", {}).get("id")
+                    or created_prod.get("id")
+                    or created_prod.get("product_id")
+                )
+                print(f"[+] Tạo sản phẩm thành công! ID mới trên server: {prod_id}")
 
             # 4. Nhập kho ban đầu nếu có
             init_inv = manifest.get("initial_inventory", {})
