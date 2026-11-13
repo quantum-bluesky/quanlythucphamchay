@@ -15,6 +15,10 @@ on:
         description: "Tự động tạo NCC nếu chưa có trên hệ thống"
         required: false
         default: "true"
+      with_initial_inventory:
+        description: "Tạo phiếu nhập kho ban đầu (chỉ chọn true khi đã xác nhận rõ số lượng thực tế)"
+        required: false
+        default: "false"
       manifest:
         description: "Đường dẫn file manifest cần triển khai"
         required: false
@@ -45,9 +49,14 @@ jobs:
           if [ "${{ github.event.inputs.allow_create_supplier }}" = "true" ]; then
             ALLOW_CREATE_FLAG="--allow-create-supplier"
           fi
+          WITH_INV_FLAG=""
+          if [ "${{ github.event.inputs.with_initial_inventory }}" = "true" ]; then
+            WITH_INV_FLAG="--with-initial-inventory"
+          fi
           python scripts/remote_ops.py deploy-release \
             --manifest "${{ github.event.inputs.manifest }}" \
             --supplier-id "${{ github.event.inputs.supplier_id }}" \
             --supplier-query "${{ github.event.inputs.supplier_query }}" \
-            $ALLOW_CREATE_FLAG
+            $ALLOW_CREATE_FLAG \
+            $WITH_INV_FLAG
 

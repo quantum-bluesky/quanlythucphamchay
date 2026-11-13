@@ -482,6 +482,7 @@ def main():
     dep_parser.add_argument("--supplier-id", default="", help="Mã ID nhà cung cấp chính xác trên server đích")
     dep_parser.add_argument("--supplier-query", default="", help="Tên hoặc từ khóa NCC để đối soát tự động")
     dep_parser.add_argument("--allow-create-supplier", action="store_true", help="Cho phép tự động tạo NCC mới nếu chưa có trên server")
+    dep_parser.add_argument("--with-initial-inventory", action="store_true", help="Tạo phiếu nhập kho ban đầu (chỉ khi có xác nhận tường minh)")
 
     args = parser.parse_args()
     if not args.action:
@@ -736,20 +737,24 @@ def main():
                 )
                 print(f"[+] Tạo sản phẩm thành công! ID mới trên server: {prod_id}")
 
-            # 4. Nhập kho ban đầu nếu có
-            init_inv = manifest.get("initial_inventory", {})
-            qty = float(init_inv.get("quantity_base_units", 0))
-            cost = float(init_inv.get("unit_cost", 0))
-            if qty > 0 and cost > 0:
-                print(f"[*] Đang tạo phiếu nhập kho ban đầu ({qty} đơn vị x {cost:,.0f} đ)...")
-                pur_res = client.push_quick_purchase(
-                    supplier_id=target_sup.get("id", ""),
-                    supplier_name=target_sup.get("name", ""),
-                    items=[{"product_id": prod_id, "quantity": qty, "unit_price": cost}],
-                    note=f"Nhập hàng ban đầu cho sản phẩm mới {prod_payload.get('name')}"
-                )
-                pur_id = pur_res.get("document_id") or pur_res.get("id")
-                print(f"[+] Đã tạo phiếu nhập kho thành công! Mã phiếu: {pur_id}")
+            # 4. Nhập kho ban đầu (chỉ khi có yêu cầu và xác nhận tường minh)
+            qty = 0.0
+            if args.with_initial_inventory:
+                init_inv = manifest.get("initial_inventory", {})
+                qty = float(init_inv.get("quantity_base_units", 0))
+                cost = float(init_inv.get("unit_cost", 0))
+                if qty > 0 and cost > 0:
+                    print(f"[*] Đang tạo phiếu nhập kho ban đầu ({qty} đơn vị x {cost:,.0f} đ)...")
+                    pur_res = client.push_quick_purchase(
+                        supplier_id=target_sup.get("id", ""),
+                        supplier_name=target_sup.get("name", ""),
+                        items=[{"product_id": prod_id, "quantity": qty, "unit_price": cost}],
+                        note=f"Nhập hàng ban đầu cho sản phẩm mới {prod_payload.get('name')}"
+                    )
+                    pur_id = pur_res.get("document_id") or pur_res.get("id")
+                    print(f"[+] Đã tạo phiếu nhập kho thành công! Mã phiếu: {pur_id}")
+            else:
+                print("[*] Bỏ qua bước tạo phiếu nhập kho ban đầu (sẽ nhập kho sau khi người dùng xác nhận số lượng thực tế).")
 
             print("\n" + "="*50)
             print("[V] HOÀN TẤT TRIỂN KHAI LÊN SERVER THÀNH CÔNG!")
