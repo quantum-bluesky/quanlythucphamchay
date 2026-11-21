@@ -148,6 +148,27 @@ class TestRemoteOps(unittest.TestCase):
             self.assertIsNone(sup)
             self.assertEqual(len(matches), 0)
 
+    def test_ut_remote_05_push_order(self):
+        mock_response = {"success": True, "document_id": "DH-20261121-001"}
+        with patch.object(self.client, "ensure_authenticated"), \
+             patch.object(self.client, "_request", return_value=mock_response) as mock_req:
+            res = self.client.push_quick_order(
+                customer_name="Cô Nguyệt hàng xóm",
+                items=[{"product_id": 118, "quantity": 10, "unit_price": 7000}],
+                note="Bán bánh khúc",
+            )
+            self.assertEqual(res["document_id"], "DH-20261121-001")
+            mock_req.assert_called_once_with(
+                "POST",
+                "api/orders/quick-create",
+                payload={
+                    "customer_name": "Cô Nguyệt hàng xóm",
+                    "items": [{"product_id": 118, "quantity": 10, "unit_price": 7000}],
+                    "note": "Bán bánh khúc",
+                    "payment_status": "paid",
+                },
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

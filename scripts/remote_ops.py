@@ -702,13 +702,28 @@ def main():
         elif args.action == "push-order":
             raw_input = args.file_or_json.strip()
             data = json.load(open(raw_input, "r", encoding="utf-8")) if os.path.isfile(raw_input) else json.loads(raw_input)
-            res = client.push_quick_order(
-                customer_name=data.get("customer_name", "Khách lẻ"),
-                items=data.get("items", []),
-                note=data.get("note", "Đơn hàng từ Agent Portal"),
-                payment_status=data.get("payment_status", "paid"),
-            )
-            print(f"[+] Tạo đơn hàng thành công! Mã đơn: {res.get('document_id') or res.get('id')}")
+            order_list = []
+            if isinstance(data, list):
+                order_list = data
+            elif isinstance(data, dict) and "orders" in data:
+                order_list = data["orders"]
+            else:
+                order_list = [data]
+
+            print(f"[*] Đang chuẩn bị tạo {len(order_list)} đơn xuất hàng...")
+            for idx, od in enumerate(order_list, start=1):
+                cust = od.get("customer_name", "Khách lẻ")
+                items = od.get("items", [])
+                note = od.get("note", "Đơn hàng từ Agent Portal")
+                payment_status = od.get("payment_status", "paid")
+                res = client.push_quick_order(
+                    customer_name=cust,
+                    items=items,
+                    note=note,
+                    payment_status=payment_status,
+                )
+                doc_id = res.get("document_id") or res.get("id") or res.get("order_id")
+                print(f"[+] [{idx}/{len(order_list)}] Tạo đơn thành công cho '{cust}': Mã đơn {doc_id} ({len(items)} mặt hàng)")
 
         elif args.action == "suppliers":
             suppliers = client.get_suppliers()

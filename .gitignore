@@ -5,6 +5,8 @@ data/*
 !data/js_asset_versions.json
 !data/staged_releases/
 !data/staged_releases/**
+!data/staged_orders/
+!data/staged_orders/**
 node_modules/
 playwright-report/
 test-results/

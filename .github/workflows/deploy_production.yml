@@ -27,6 +27,10 @@ on:
         description: "Tạo phiếu nhập kho ban đầu (chỉ chọn true khi đã xác nhận rõ số lượng thực tế)"
         required: false
         default: "false"
+      order_file:
+        description: "Đường dẫn file đơn hàng JSON (khi operation là push-order)"
+        required: false
+        default: "data/staged_orders/batch_orders_20261121.json"
       manifest:
         description: "Đường dẫn file manifest cần triển khai"
         required: false
@@ -60,6 +64,8 @@ jobs:
             python scripts/remote_ops.py inspect --customer "${{ github.event.inputs.supplier_query || 'Nguyệt' }}"
           elif [ "$OP" = "status" ]; then
             python scripts/remote_ops.py status
+          elif [ "$OP" = "push-order" ]; then
+            python scripts/remote_ops.py push-order "${{ github.event.inputs.order_file || 'data/staged_orders/batch_orders_20261121.json' }}"
           else
             ALLOW_CREATE_FLAG=""
             if [ "${{ github.event.inputs.allow_create_supplier }}" = "true" ]; then

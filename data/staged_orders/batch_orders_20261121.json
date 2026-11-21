@@ -1,0 +1,72 @@
+[
+  {
+    "customer_name": "Huyền Home Help",
+    "items": [
+      {
+        "product_id": 117,
+        "quantity": 5,
+        "unit_price": 6000
+      }
+    ],
+    "note": "Bán giá gốc phiếu gần nhất (6.000 đ/chiếc)",
+    "payment_status": "paid"
+  },
+  {
+    "customer_name": "Chị Bắc F1203",
+    "items": [
+      {
+        "product_id": 117,
+        "quantity": 5,
+        "unit_price": 0
+      }
+    ],
+    "note": "Tặng chị Bắc F1203 nốt 5 cái bánh bao chay nhân ruốc nấm còn lại",
+    "payment_status": "paid"
+  },
+  {
+    "customer_name": "Nhà dùng (tự dùng)",
+    "items": [
+      {
+        "product_id": 118,
+        "quantity": 20,
+        "unit_price": 0
+      },
+      {
+        "product_id": 132,
+        "quantity": 1,
+        "unit_price": 0
+      }
+    ],
+    "note": "Nhà dùng: 20 cái bánh khúc + 1 túi chả thì là 0.5kg",
+    "payment_status": "paid"
+  },
+  {
+    "customer_name": "Thím Thắm",
+    "items": [
+      {
+        "product_id": 118,
+        "quantity": 6,
+        "unit_price": 0
+      }
+    ],
+    "note": "Biếu Thím Thắm 6 cái bánh khúc thắp hương giỗ ông nội ngày 7/10 Âm lịch",
+    "payment_status": "paid"
+  },
+  {
+    "customer_name": "Cô Nguyệt hàng xóm",
+    "items": [
+      {
+        "product_id": 118,
+        "quantity": 10,
+        "unit_price": 7000
+      },
+      {
+        "product_id": 132,
+        "quantity": 1,
+        "unit_price": 58000
+      }
+    ],
+    "note": "Bán cho Cô Nguyệt hàng xóm: 10 cái bánh khúc giá 7k/cái + bổ sung 1 túi chả thì là 0.5kg giá niêm yết 58k",
+    "payment_status": "paid"
+  }
+]
