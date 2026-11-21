@@ -420,6 +420,70 @@ class RemoteStoreClient:
         }
         return self._request("POST", "api/orders/quick-create", payload=payload)
 
+    def get_product_history(self, query: str | int) -> dict[str, Any]:
+        """Lấy lịch sử giao dịch và 2 lần nhập gần nhất của sản phẩm."""
+        self.ensure_authenticated()
+        state = self._request("GET", "api/state")
+        products = state.get("products", [])
+
+        target_prod = None
+        q_str = str(query).strip()
+        if q_str.isdigit():
+            p_int = int(q_str)
+            target_prod = next((p for p in products if p.get("id") == p_int), None)
+
+        if not target_prod:
+            q_lower = q_str.lower()
+            q_no = _strip_accents(q_str)
+            for p in products:
+                p_name = p.get("name", "")
+                if q_lower in p_name.lower() or (q_no and q_no in _strip_accents(p_name)):
+                    target_prod = p
+                    break
+
+        if not target_prod:
+            raise ValueError(f"Không tìm thấy sản phẩm khớp với '{query}'.")
+
+        p_id = target_prod["id"]
+
+        # Lấy biến động kho từ API movements
+        movements_res = self._request("GET", f"api/product-movements?product_id={p_id}")
+        movements = movements_res.get("movements", []) if isinstance(movements_res, dict) else []
+
+        # Lấy các lần nhập hàng từ state["purchases"]
+        all_purchases = state.get("purchases", [])
+        product_purchases = []
+        for pur in all_purchases:
+            items = pur.get("items", [])
+            for item in items:
+                it_id = item.get("product_id") or item.get("productId")
+                if it_id == p_id:
+                    unit_cost = item.get("unit_cost") or item.get("unitCost") or item.get("price") or 0
+                    product_purchases.append({
+                        "purchase_code": pur.get("receipt_code") or pur.get("receiptCode") or pur.get("id"),
+                        "date": pur.get("created_at") or pur.get("createdAt") or pur.get("orderedAt") or "",
+                        "supplier_name": pur.get("supplier_name") or pur.get("supplierName") or "Chưa rõ",
+                        "quantity": item.get("quantity", 0),
+                        "unit_cost": float(unit_cost),
+                        "status": pur.get("status", ""),
+                        "note": pur.get("note", "")
+                    })
+
+        product_purchases.sort(key=lambda x: str(x.get("date", "")), reverse=True)
+        recent_purchases = product_purchases[:2]
+
+        return {
+            "product": target_prod,
+            "product_id": p_id,
+            "product_name": target_prod.get("name"),
+            "unit": target_prod.get("unit", ""),
+            "current_stock": target_prod.get("stock", target_prod.get("current_stock", 0)),
+            "price": target_prod.get("price", 0),
+            "sale_price": target_prod.get("sale_price", 0),
+            "recent_purchases": recent_purchases,
+            "movements": movements,
+        }
+
 
 def _format_table(headers: list[str], rows: list[list[str]]) -> str:
     """Format bảng markdown đẹp mắt."""
@@ -483,6 +547,10 @@ def main():
     dep_parser.add_argument("--supplier-query", default="", help="Tên hoặc từ khóa NCC để đối soát tự động")
     dep_parser.add_argument("--allow-create-supplier", action="store_true", help="Cho phép tự động tạo NCC mới nếu chưa có trên server")
     dep_parser.add_argument("--with-initial-inventory", action="store_true", help="Tạo phiếu nhập kho ban đầu (chỉ khi có xác nhận tường minh)")
+
+    # 10. history
+    hist_parser = subparsers.add_parser("history", help="Xem lịch sử giao dịch và các lần nhập gần nhất của sản phẩm")
+    hist_parser.add_argument("products", nargs="+", help="Danh sách ID hoặc Tên sản phẩm cần xem")
 
     args = parser.parse_args()
     if not args.action:
@@ -765,6 +833,72 @@ def main():
             print(f"    - Tồn ban đầu  : {qty} {prod_payload.get('unit')}")
             print(f"    - Số ảnh đã gắn: {len(uploaded_urls)}")
             print("="*50 + "\n")
+
+        elif args.action == "history":
+            for q in args.products:
+                try:
+                    hist = client.get_product_history(q)
+                    prod = hist["product"]
+                    print("\n" + "=" * 70)
+                    print(f"THÔNG TIN SẢN PHẨM: {hist['product_name']} (Mã ID: {hist['product_id']})")
+                    print(f"  - Đơn vị tính: {hist['unit']}")
+                    print(f"  - Tồn kho hiện tại: {hist['current_stock']} {hist['unit']}")
+                    print(f"  - Giá bán niêm yết: {hist['sale_price']:,.0f} đ")
+                    print(f"  - Giá nhập mặc định: {hist['price']:,.0f} đ" if hist['price'] else "  - Giá nhập mặc định: Chưa cài đặt")
+                    print("-" * 70)
+
+                    # 1. Bảng 2 lần nhập gần nhất
+                    recent = hist["recent_purchases"]
+                    print(f"[*] 2 LẦN NHẬP HÀNG GẦN NHẤT (Tìm thấy {len(recent)} lần):")
+                    if recent:
+                        rec_headers = ["Mã phiếu", "Ngày nhập", "Nhà cung cấp", "SL nhập", "Giá nhập (đ)", "Thành tiền (đ)", "Trạng thái"]
+                        rec_rows = []
+                        for r in recent:
+                            qty = float(r.get("quantity", 0))
+                            cost = float(r.get("unit_cost", 0))
+                            rec_rows.append([
+                                str(r.get("purchase_code", "")),
+                                str(r.get("date", ""))[:19].replace("T", " "),
+                                str(r.get("supplier_name", "")),
+                                f"{qty:g}",
+                                f"{cost:,.0f}",
+                                f"{qty * cost:,.0f}",
+                                str(r.get("status", ""))
+                            ])
+                        print(_format_table(rec_headers, rec_rows))
+                    else:
+                        print("    (Chưa có dữ liệu phiếu nhập hàng)")
+
+                    # 2. Toàn bộ lịch sử giao dịch / biến động
+                    movs = hist["movements"]
+                    print(f"\n[*] TOÀN BỘ LỊCH SỬ BIẾN ĐỘNG / GIAO DỊCH ({len(movs)} giao dịch):")
+                    if movs:
+                        mov_headers = ["STT", "Thời gian", "Loại", "Số lượng", "Tồn sau", "Đối tác / Khách", "Mã CT", "Ghi chú"]
+                        mov_rows = []
+                        for idx, m in enumerate(movs, start=1):
+                            m_type = "Nhập (+)" if m.get("movement_type") == "in" else ("Xuất (-)" if m.get("movement_type") == "out" else str(m.get("movement_type", "")))
+                            qty = float(m.get("quantity", 0))
+                            bal = float(m.get("balance_after", 0))
+                            partner = str(m.get("related_party_name") or "")
+                            code = str(m.get("document_code") or "")
+                            note = str(m.get("note") or "")
+                            time_str = str(m.get("created_at") or m.get("date") or "")[:19].replace("T", " ")
+                            mov_rows.append([
+                                str(idx),
+                                time_str,
+                                m_type,
+                                f"{qty:g}",
+                                f"{bal:g}",
+                                partner[:25] + ("..." if len(partner) > 25 else ""),
+                                code[:18],
+                                note[:35] + ("..." if len(note) > 35 else "")
+                            ])
+                        print(_format_table(mov_headers, mov_rows))
+                    else:
+                        print("    (Chưa có phát sinh biến động)")
+                    print("=" * 70)
+                except Exception as e:
+                    print(f"[!] Lỗi khi lấy lịch sử sản phẩm '{q}': {e}", file=sys.stderr)
 
     except Exception as exc:
         print(f"\n[!] LỖI THỰC THI: {exc}", file=sys.stderr)

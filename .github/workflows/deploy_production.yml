@@ -3,6 +3,14 @@ name: Deploy Product to Production
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: "Thao tác cần thực thi: history | deploy-release | status"
+        required: false
+        default: "history"
+      product_targets:
+        description: "Danh sách sản phẩm xem lịch sử (ví dụ: '117 118')"
+        required: false
+        default: "117 118"
       supplier_query:
         description: "Tên hoặc từ khóa tìm kiếm NCC (Fuzzy search)"
         required: false
@@ -26,7 +34,7 @@ on:
 
 jobs:
   deploy_to_production:
-    name: Deploy Staged Release to Production
+    name: Run Production Operation
     runs-on: ubuntu-latest
     environment: Production
 
@@ -39,24 +47,31 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run Deploy Staged Release
+      - name: Run Operation on Production
         env:
           REMOTE_APP_URL: ${{ secrets.PROD_APP_URL || vars.PROD_APP_URL }}
           REMOTE_ADMIN_USER: ${{ secrets.PROD_ADMIN_USER || vars.PROD_ADMIN_USER }}
           REMOTE_ADMIN_PASSWORD: ${{ secrets.PROD_ADMIN_PASSWORD }}
         run: |
-          ALLOW_CREATE_FLAG=""
-          if [ "${{ github.event.inputs.allow_create_supplier }}" = "true" ]; then
-            ALLOW_CREATE_FLAG="--allow-create-supplier"
+          OP="${{ github.event.inputs.operation }}"
+          if [ "$OP" = "history" ]; then
+            python scripts/remote_ops.py history ${{ github.event.inputs.product_targets }}
+          elif [ "$OP" = "status" ]; then
+            python scripts/remote_ops.py status
+          else
+            ALLOW_CREATE_FLAG=""
+            if [ "${{ github.event.inputs.allow_create_supplier }}" = "true" ]; then
+              ALLOW_CREATE_FLAG="--allow-create-supplier"
+            fi
+            WITH_INV_FLAG=""
+            if [ "${{ github.event.inputs.with_initial_inventory }}" = "true" ]; then
+              WITH_INV_FLAG="--with-initial-inventory"
+            fi
+            python scripts/remote_ops.py deploy-release \
+              --manifest "${{ github.event.inputs.manifest }}" \
+              --supplier-id "${{ github.event.inputs.supplier_id }}" \
+              --supplier-query "${{ github.event.inputs.supplier_query }}" \
+              $ALLOW_CREATE_FLAG \
+              $WITH_INV_FLAG
           fi
-          WITH_INV_FLAG=""
-          if [ "${{ github.event.inputs.with_initial_inventory }}" = "true" ]; then
-            WITH_INV_FLAG="--with-initial-inventory"
-          fi
-          python scripts/remote_ops.py deploy-release \
-            --manifest "${{ github.event.inputs.manifest }}" \
-            --supplier-id "${{ github.event.inputs.supplier_id }}" \
-            --supplier-query "${{ github.event.inputs.supplier_query }}" \
-            $ALLOW_CREATE_FLAG \
-            $WITH_INV_FLAG
 
