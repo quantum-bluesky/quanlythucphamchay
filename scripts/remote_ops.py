@@ -907,6 +907,7 @@ def main():
         elif args.action == "inspect":
             customer_q = args.customer.strip()
             print(f"[*] Đang tra cứu đơn hàng của khách '{customer_q}'...")
+            client.ensure_authenticated()
             state = client._request("GET", "api/state")
             carts = state.get("carts", [])
             matched_carts = []
