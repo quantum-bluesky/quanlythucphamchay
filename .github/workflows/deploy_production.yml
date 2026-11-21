@@ -56,6 +56,8 @@ jobs:
           OP="${{ github.event.inputs.operation }}"
           if [ "$OP" = "history" ]; then
             python scripts/remote_ops.py history ${{ github.event.inputs.product_targets }}
+          elif [ "$OP" = "inspect" ]; then
+            python scripts/remote_ops.py inspect --customer "${{ github.event.inputs.supplier_query || 'Nguyệt' }}"
           elif [ "$OP" = "status" ]; then
             python scripts/remote_ops.py status
           else

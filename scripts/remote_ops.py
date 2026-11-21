@@ -552,6 +552,10 @@ def main():
     hist_parser = subparsers.add_parser("history", help="Xem lịch sử giao dịch và các lần nhập gần nhất của sản phẩm")
     hist_parser.add_argument("products", nargs="+", help="Danh sách ID hoặc Tên sản phẩm cần xem")
 
+    # 11. inspect
+    insp_parser = subparsers.add_parser("inspect", help="Tra cứu đơn hàng của khách và sản phẩm Chả thì là")
+    insp_parser.add_argument("--customer", default="Nguyệt", help="Tên hoặc từ khóa khách hàng")
+
     args = parser.parse_args()
     if not args.action:
         parser.print_help()
@@ -899,6 +903,35 @@ def main():
                     print("=" * 70)
                 except Exception as e:
                     print(f"[!] Lỗi khi lấy lịch sử sản phẩm '{q}': {e}", file=sys.stderr)
+
+        elif args.action == "inspect":
+            customer_q = args.customer.strip()
+            print(f"[*] Đang tra cứu đơn hàng của khách '{customer_q}'...")
+            state = client._request("GET", "api/state")
+            carts = state.get("carts", [])
+            matched_carts = []
+            q_no = _strip_accents(customer_q)
+            for c in carts:
+                c_name = str(c.get("customerName") or c.get("customer_name") or "")
+                if customer_q.lower() in c_name.lower() or (q_no and q_no in _strip_accents(c_name)):
+                    matched_carts.append(c)
+
+            print(f"[+] Tìm thấy {len(matched_carts)} đơn hàng của khách '{customer_q}':")
+            for c in matched_carts:
+                status = c.get("status")
+                c_code = c.get("orderCode") or c.get("id")
+                c_date = str(c.get("createdAt") or c.get("created_at") or "")[:19].replace("T", " ")
+                items = c.get("items", [])
+                items_str = ", ".join(f"{it.get('product_name') or it.get('name')}: {it.get('quantity')}" for it in items)
+                print(f"  - Mã đơn: {c_code} | Ngày: {c_date} | Trạng thái: {status} | Các món: [{items_str}] | Ghi chú: {c.get('note', '')}")
+
+            # Tra cứu sản phẩm Chả thì là
+            print("\n[*] Tra cứu sản phẩm Chả thì là (ID 132):")
+            hist = client.get_product_history(132)
+            print(f"  - Tên: {hist['product_name']} | Đơn vị: {hist['unit']} | Tồn: {hist['current_stock']} | Giá bán: {hist['sale_price']:,.0f} đ | Giá nhập: {hist['price']:,.0f} đ")
+            print("  - 2 lần nhập gần nhất:")
+            for r in hist["recent_purchases"]:
+                print(f"    + {r.get('date')[:10]}: {r.get('quantity')} {hist['unit']} x {r.get('unit_cost'):,.0f} đ từ {r.get('supplier_name')}")
 
     except Exception as exc:
         print(f"\n[!] LỖI THỰC THI: {exc}", file=sys.stderr)
