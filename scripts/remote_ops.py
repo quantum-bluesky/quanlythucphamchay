@@ -420,8 +420,8 @@ class RemoteStoreClient:
         }
         return self._request("POST", "api/orders/quick-create", payload=payload)
 
-    def get_product_history(self, query: str | int) -> dict[str, Any]:
-        """Lấy lịch sử giao dịch và 2 lần nhập gần nhất của sản phẩm."""
+    def get_product_history(self, query: str | int, all_time: bool = False) -> dict[str, Any]:
+        """Lấy lịch sử giao dịch và 2 lần nhập gần nhất của sản phẩm. Mặc định chỉ lấy giao dịch từ 2 lần nhập gần nhất đến nay."""
         self.ensure_authenticated()
         state = self._request("GET", "api/state")
         products = state.get("products", [])
@@ -472,6 +472,18 @@ class RemoteStoreClient:
         product_purchases.sort(key=lambda x: str(x.get("date", "")), reverse=True)
         recent_purchases = product_purchases[:2]
 
+        # Mặc định chỉ lấy các biến động/giao dịch từ 2 lần nhập gần nhất đến nay
+        cutoff_date = ""
+        filtered_movements = movements
+        if recent_purchases and not all_time:
+            # Lấy mốc thời gian của lần nhập cũ hơn trong 2 lần nhập gần nhất
+            cutoff_date = str(recent_purchases[-1].get("date", ""))[:19]
+            if cutoff_date:
+                filtered_movements = [
+                    m for m in movements
+                    if str(m.get("created_at") or m.get("date") or "")[:19] >= cutoff_date
+                ]
+
         return {
             "product": target_prod,
             "product_id": p_id,
@@ -481,7 +493,10 @@ class RemoteStoreClient:
             "price": target_prod.get("price", 0),
             "sale_price": target_prod.get("sale_price", 0),
             "recent_purchases": recent_purchases,
-            "movements": movements,
+            "movements": filtered_movements,
+            "total_movements_count": len(movements),
+            "cutoff_date": cutoff_date,
+            "all_time": all_time,
         }
 
 
@@ -551,6 +566,7 @@ def main():
     # 10. history
     hist_parser = subparsers.add_parser("history", help="Xem lịch sử giao dịch và các lần nhập gần nhất của sản phẩm")
     hist_parser.add_argument("products", nargs="+", help="Danh sách ID hoặc Tên sản phẩm cần xem")
+    hist_parser.add_argument("--all-time", "--all", action="store_true", help="Hiển thị toàn bộ lịch sử từ trước đến nay thay vì từ 2 lần nhập gần nhất")
 
     # 11. inspect
     insp_parser = subparsers.add_parser("inspect", help="Tra cứu đơn hàng của khách và sản phẩm Chả thì là")
@@ -856,7 +872,7 @@ def main():
         elif args.action == "history":
             for q in args.products:
                 try:
-                    hist = client.get_product_history(q)
+                    hist = client.get_product_history(q, all_time=getattr(args, "all_time", False))
                     prod = hist["product"]
                     print("\n" + "=" * 70)
                     print(f"THÔNG TIN SẢN PHẨM: {hist['product_name']} (Mã ID: {hist['product_id']})")
@@ -888,9 +904,12 @@ def main():
                     else:
                         print("    (Chưa có dữ liệu phiếu nhập hàng)")
 
-                    # 2. Toàn bộ lịch sử giao dịch / biến động
+                    # 2. Lịch sử giao dịch / biến động
                     movs = hist["movements"]
-                    print(f"\n[*] TOÀN BỘ LỊCH SỬ BIẾN ĐỘNG / GIAO DỊCH ({len(movs)} giao dịch):")
+                    if hist.get("cutoff_date") and not hist.get("all_time"):
+                        print(f"\n[*] LỊCH SỬ BIẾN ĐỘNG TỪ 2 LẦN NHẬP GẦN NHẤT ĐẾN NAY (Từ {hist['cutoff_date'].replace('T', ' ')} - {len(movs)}/{hist.get('total_movements_count', len(movs))} giao dịch):")
+                    else:
+                        print(f"\n[*] TOÀN BỘ LỊCH SỬ BIẾN ĐỘNG / GIAO DỊCH ({len(movs)} giao dịch):")
                     if movs:
                         mov_headers = ["STT", "Thời gian", "Loại", "Số lượng", "Tồn sau", "Đối tác / Khách", "Mã CT", "Ghi chú"]
                         mov_rows = []

@@ -68,5 +68,17 @@
     ],
     "note": "Bán cho Cô Nguyệt hàng xóm: 10 cái bánh khúc giá 7k/cái + bổ sung 1 túi chả thì là 0.5kg giá niêm yết 58k",
     "payment_status": "paid"
+  },
+  {
+    "customer_name": "Cô Nguyệt hàng xóm",
+    "items": [
+      {
+        "product_id": 118,
+        "quantity": 3,
+        "unit_price": 0
+      }
+    ],
+    "note": "Biếu cô Nguyệt hàng xóm 3 cái bánh khúc (hàng biếu/free)",
+    "payment_status": "paid"
   }
 ]

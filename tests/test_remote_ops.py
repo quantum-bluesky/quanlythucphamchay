@@ -169,6 +169,31 @@ class TestRemoteOps(unittest.TestCase):
                 },
             )
 
+    def test_ut_remote_06_get_product_history_default_filter(self):
+        mock_state = {
+            "products": [{"id": 118, "name": "Bánh khúc", "unit": "cái", "stock": 40, "price": 6000, "sale_price": 8000}],
+            "purchases": [
+                {"id": "pn1", "created_at": "2026-11-17 00:45:15", "items": [{"product_id": 118, "quantity": 20, "unit_cost": 6000}]},
+                {"id": "pn2", "created_at": "2026-11-11 23:01:17", "items": [{"product_id": 118, "quantity": 20, "unit_cost": 6000}]},
+                {"id": "pn3", "created_at": "2026-10-09 00:00:00", "items": [{"product_id": 118, "quantity": 20, "unit_cost": 6000}]},
+            ],
+        }
+        mock_movements = {
+            "movements": [
+                {"date": "2026-10-01 10:00:00", "movement_type": "in", "quantity": 10},
+                {"date": "2026-11-11 23:01:17", "movement_type": "in", "quantity": 20},
+                {"date": "2026-11-17 00:45:15", "movement_type": "in", "quantity": 20},
+            ]
+        }
+        with patch.object(self.client, "ensure_authenticated"), \
+             patch.object(self.client, "_request", side_effect=[mock_state, mock_movements]):
+            # Mặc định (all_time=False): chỉ lấy từ 2026-11-11 trở đi
+            hist = self.client.get_product_history(118)
+            self.assertEqual(len(hist["recent_purchases"]), 2)
+            self.assertEqual(len(hist["movements"]), 2)
+            self.assertEqual(hist["total_movements_count"], 3)
+            self.assertEqual(hist["cutoff_date"], "2026-11-11 23:01:17")
+
 
 if __name__ == "__main__":
     unittest.main()
